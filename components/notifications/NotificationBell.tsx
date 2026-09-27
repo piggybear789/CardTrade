@@ -24,6 +24,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { BellIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
+import { HeaderTooltip } from '@/components/layout/HeaderTooltip';
 import {
   NotificationRowBody,
   notificationRowClass,
@@ -118,24 +119,30 @@ export function NotificationBell({
 
   return (
       <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger
-        aria-label={
-          unreadCount > 0
-            ? `Notifications, ${unreadCount} unread`
-            : 'Notifications'
-        }
-        className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-mist/75 transition-colors hover:bg-white/10 hover:text-mist border border-transparent focus:outline-none focus-visible:border-iris"
-      >
-        <HugeiconsIcon icon={BellIcon} className="size-5" aria-hidden />
-        {unreadCount > 0 ? (
-          <span
-            className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-tight text-meta font-semibold leading-none text-destructive-foreground"
-            aria-hidden
-          >
-            {badgeLabel}
-          </span>
-        ) : null}
-      </PopoverTrigger>
+      {/* The tooltip wraps the TRIGGER, inside the Popover, so one button carries
+          both. It needs the rail's `TooltipProvider` (see `SignedInHeaderTools`).
+          Pressing the bell closes the label, and it stays closed while the
+          pointer rests there, so it never sits on top of the open panel. */}
+      <HeaderTooltip label="Notifications">
+        <PopoverTrigger
+          aria-label={
+            unreadCount > 0
+              ? `Notifications, ${unreadCount} unread`
+              : 'Notifications'
+          }
+          className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-mist/75 transition-colors hover:bg-white/10 hover:text-mist border border-transparent focus:outline-none focus-visible:border-iris"
+        >
+          <HugeiconsIcon icon={BellIcon} className="size-5" aria-hidden />
+          {unreadCount > 0 ? (
+            <span
+              className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-tight text-meta font-semibold leading-none text-destructive-foreground"
+              aria-hidden
+            >
+              {badgeLabel}
+            </span>
+          ) : null}
+        </PopoverTrigger>
+      </HeaderTooltip>
 
       <PopoverContent
         ref={panelRef}

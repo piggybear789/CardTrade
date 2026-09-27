@@ -25,6 +25,7 @@
 // Every export is an async Server Action; shared shapes are `export type` only
 // (type exports are erased and permitted in a 'use server' module).
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidateTag, unstable_cache } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
@@ -356,7 +357,7 @@ function invalidateCatalogCache(): void {
  * the resulting object paths), inserts the Item with `owner_id = caller` and
  * status AVAILABLE via the cookie-bound client (RLS re-checks ownership).
  */
-export async function createItem(
+export const createItem = withActionLog('listings.createItem', async function createItem(
   input: CreateItemInput,
 ): Promise<ListingActionResult<ItemRow>> {
   const supabase = await createClient();
@@ -502,7 +503,7 @@ export async function createItem(
 
   invalidateCatalogCache();
   return { ok: true, data: data as ItemRow };
-}
+});
 
 /**
  * Create a privately offered trade Item (`hidden = true`).
@@ -516,7 +517,7 @@ export async function createItem(
  * may still offer a Trade, they simply post a Bond instead of being exempt
  * (`domain/bond/bondPolicy.ts`, enforced in `tradeProposal.ts`).
  */
-export async function createPrivateTradeItem(
+export const createPrivateTradeItem = withActionLog('listings.createPrivateTradeItem', async function createPrivateTradeItem(
   input: CreateItemInput,
 ): Promise<ListingActionResult<ItemRow>> {
   const supabase = await createClient();
@@ -625,7 +626,7 @@ export async function createPrivateTradeItem(
   }
 
   return { ok: true, data: data as ItemRow };
-}
+});
 
 /**
  * Update an Item (Req 3.4, 3.5, 3.6, 3.7).
@@ -635,7 +636,7 @@ export async function createPrivateTradeItem(
  * which enforces: only AVAILABLE items are mutable (Req 3.5), FMV is immutable
  * while RESERVED (Req 3.6), and owner authorization (Req 3.7).
  */
-export async function updateItem(
+export const updateItem = withActionLog('listings.updateItem', async function updateItem(
   itemId: string,
   input: UpdateItemInput,
 ): Promise<ListingActionResult<ItemRow>> {
@@ -805,14 +806,14 @@ export async function updateItem(
 
   invalidateCatalogCache();
   return { ok: true, data: result.item as unknown as ItemRow };
-}
+});
 
 /**
  * Delete an Item (owner-only). The cookie-bound client's RLS delete policy
  * enforces `owner_id = auth.uid()`, so a non-owner delete affects no rows and
  * yields `unauthorized`. Stored images are cleaned up best-effort.
  */
-export async function deleteItem(
+export const deleteItem = withActionLog('listings.deleteItem', async function deleteItem(
   itemId: string,
 ): Promise<ListingActionResult<{ id: string }>> {
   const supabase = await createClient();
@@ -857,7 +858,7 @@ export async function deleteItem(
 
   invalidateCatalogCache();
   return { ok: true, data: { id: deleted.id } };
-}
+});
 
 /**
  * Close a SHOPFRONT listing (0064).
@@ -872,7 +873,7 @@ export async function deleteItem(
  * same reason — `deleteListing` would remove the row and the Storage objects that
  * live contracts snapshot their images from.
  */
-export async function closeShopfrontListing(
+export const closeShopfrontListing = withActionLog('listings.closeShopfrontListing', async function closeShopfrontListing(
   itemId: string,
 ): Promise<ListingActionResult<{ id: string; closedAt: string }>> {
   const supabase = await createClient();
@@ -921,14 +922,14 @@ export async function closeShopfrontListing(
 
   invalidateCatalogCache();
   return { ok: true, data: { id: row.id, closedAt: row.closed_at ?? '' } };
-}
+});
 
 /**
  * Read the catalog of AVAILABLE Items (Req 3.8). RLS additionally exposes the
  * caller's own non-available items, so the query filters to AVAILABLE to return
  * exactly the public catalog.
  */
-export async function listAvailableItems(): Promise<ListingActionResult<ItemRow[]>> {
+export const listAvailableItems = withActionLog('listings.listAvailableItems', async function listAvailableItems(): Promise<ListingActionResult<ItemRow[]>> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -945,7 +946,7 @@ export async function listAvailableItems(): Promise<ListingActionResult<ItemRow[
   }
 
   return { ok: true, data: (data ?? []) as ItemRow[] };
-}
+});
 
 /**
  * Read a single Item by id (Req 3.8). RLS returns the row when it is AVAILABLE
@@ -957,7 +958,7 @@ export async function listAvailableItems(): Promise<ListingActionResult<ItemRow[
  * it from their account) and admins (who moderate it from the console). Hiding
  * is independent of `status` (AVAILABLE/RESERVED/SOLD).
  */
-export async function getItem(
+export const getItem = withActionLog('listings.getItem', async function getItem(
   itemId: string,
 ): Promise<ListingActionResult<ItemRow>> {
   const supabase = await createClient();
@@ -998,7 +999,7 @@ export async function getItem(
   }
 
   return { ok: true, data: item };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Marketplace catalog (items enriched with public seller info)
@@ -1047,7 +1048,7 @@ export type CatalogItem = ItemRow & { seller: CatalogSeller | null };
  * catalog-safe columns (never contact email / KYC status), so this works for
  * items owned by other users despite the owner-only RLS on `profiles`.
  */
-export async function listCatalogItems(): Promise<ListingActionResult<CatalogItem[]>> {
+export const listCatalogItems = withActionLog('listings.listCatalogItems', async function listCatalogItems(): Promise<ListingActionResult<CatalogItem[]>> {
   const supabase = await createClient();
 
   const { data: itemsData, error } = await supabase
@@ -1096,7 +1097,7 @@ export async function listCatalogItems(): Promise<ListingActionResult<CatalogIte
   }));
 
   return { ok: true, data: enriched };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Server-side catalog search + filtering + pagination (Phase 7)
@@ -1284,7 +1285,7 @@ async function enrichWithSellers(
  * Pagination uses `.range(from, to)` with an exact count so callers get an
  * accurate `total` and `hasMore`. `page`/`pageSize` are clamped to sane bounds.
  */
-export async function searchCatalog(
+export const searchCatalog = withActionLog('listings.searchCatalog', async function searchCatalog(
   params: SearchCatalogParams = {},
 ): Promise<SearchCatalogResult> {
   const supabase = await createClient();
@@ -1442,13 +1443,13 @@ export async function searchCatalog(
     ok: true,
     ...(emptyPage ?? { items: [], total: 0, page, pageSize, hasMore: false }),
   };
-}
+});
 
 /**
  * Catalog page fetch for the mobile infinite-scroll client. Same predicates as
  * {@link searchCatalog}, plus a serializable watchlist id list for the viewer.
  */
-export async function fetchCatalogPage(params: SearchCatalogParams): Promise<
+export const fetchCatalogPage = withActionLog('listings.fetchCatalogPage', async function fetchCatalogPage(params: SearchCatalogParams): Promise<
   | ({
       ok: true;
       items: CatalogItem[];
@@ -1490,7 +1491,7 @@ export async function fetchCatalogPage(params: SearchCatalogParams): Promise<
     watchingIds,
     matchedQuery: result.matchedQuery,
   };
-}
+});
 
 /** Bounds for the catalog filter UI. */
 export interface CatalogFacets {
@@ -1598,9 +1599,9 @@ const readCatalogFacetsCached = unstable_cache(
  * Cached for a minute. The numbers describe the catalog's shape, not which
  * card is available right now, and listing writes drop the tag immediately.
  */
-export async function getCatalogFacets(regionCode?: string | null): Promise<CatalogFacets> {
+export const getCatalogFacets = withActionLog('listings.getCatalogFacets', async function getCatalogFacets(regionCode?: string | null): Promise<CatalogFacets> {
   return readCatalogFacetsCached(normalizeRegionCode(regionCode) ?? '');
-}
+});
 
 /** A compact catalog hit for the header search typeahead. */
 export type CatalogSuggestion = {
@@ -1630,7 +1631,7 @@ function ilikeContains(raw: string): string {
  * search. Clicking a hit goes to the listing; Enter still runs full-text
  * search.
  */
-export async function suggestCatalogItems(params: {
+export const suggestCatalogItems = withActionLog('listings.suggestCatalogItems', async function suggestCatalogItems(params: {
   q: string;
   categories?: string[];
   region?: string | null;
@@ -1648,7 +1649,7 @@ export async function suggestCatalogItems(params: {
   }
 
   return loadSuggestionsCached(q, requestedGames.join('\n'), region.code ?? '');
-}
+});
 
 const loadSuggestionsCached = unstable_cache(
   async (q: string, gamesKey: string, regionCode: string) =>

@@ -610,6 +610,7 @@ export default async function ItemDetailPage({
                 title={listingTitle}
                 description={item.description ?? ''}
                 priceCents={item.fmv_cents}
+                currency={item.currency}
                 condition={item.condition}
                 category={item.category}
                 isShopfront={isShopfront}
@@ -695,6 +696,7 @@ export default async function ItemDetailPage({
               title={listingTitle}
               description={item.description ?? ''}
               priceCents={item.fmv_cents}
+              currency={item.currency}
               isShopfront={isShopfront}
               itemId={item.id}
               isOwner={isOwner}

@@ -143,24 +143,81 @@ abstract final class Money {
     return formatted;
   }
 
-  /// Calculates platform fee from item price in cents.
+  /// Minimum Platform_Fee per contract, per currency, in minor units.
   ///
-  /// 5% of item price (PLATFORM_FEE_BPS = 500). Uses rounding (not truncation)
-  /// to match `platformFeeCentsFor` in `domain/orchestrator/cashSaleOrchestrator.ts`.
-  static int platformFee(int priceCents) {
-    return ((priceCents * 500) + 5000) ~/ 10000;
+  /// Mirrors `PLATFORM_FEE_MINIMUM_MINOR` in `domain/fees/feeMinimums.ts`. A
+  /// currency with no entry has no floor. ADVISORY: the server sizes the fee.
+  static const Map<String, int> platformFeeMinimumMinor = <String, int>{
+    'aud': 150,
+  };
+
+  /// Minimum Trade_Fee per trader, per currency, in minor units.
+  ///
+  /// Mirrors `TRADE_FEE_MINIMUM_MINOR` in `domain/fees/feeMinimums.ts`.
+  static const Map<String, int> tradeFeeMinimumMinor = <String, int>{
+    'aud': 100,
+  };
+
+  static int _minimumFor(Map<String, int> table, String? currency) {
+    if (currency == null) return 0;
+    final int? minimum = table[currency.trim().toLowerCase()];
+    return minimum != null && minimum > 0 ? minimum : 0;
   }
 
-  /// Calculates trade fee for one side (5% of value). Rounds to match the server.
-  static int tradeFee(int valueCents) {
-    return ((valueCents * 500) + 5000) ~/ 10000;
+  /// 5% of [baseCents], rounded half-up, raised to [minimumCents]. Zero base → 0.
+  ///
+  /// Mirrors `percentageFeeWithMinimum` in `domain/fees/feeMinimums.ts`.
+  static int _feeWithMinimum(int baseCents, int minimumCents) {
+    if (baseCents <= 0) return 0;
+    final int percentage = ((baseCents * 500) + 5000) ~/ 10000;
+    return percentage > minimumCents ? percentage : minimumCents;
+  }
+
+  /// Calculates platform fee from item price in the currency's minor units.
+  ///
+  /// 5% of item price (PLATFORM_FEE_BPS = 500), with the currency's per-contract
+  /// minimum ($1.50 in AUD). Uses rounding (not truncation) to match
+  /// `platformFeeCentsFor` in `domain/orchestrator/cashSaleOrchestrator.ts`.
+  static int platformFee(int priceCents, {required String? currency}) {
+    return _feeWithMinimum(
+      priceCents,
+      _minimumFor(platformFeeMinimumMinor, currency),
+    );
+  }
+
+  /// Calculates trade fee for one side (5% of value, min $1.00 in AUD).
+  /// Rounds to match the server's `tradeFeeCentsFor`.
+  static int tradeFee(int valueCents, {required String? currency}) {
+    return _feeWithMinimum(
+      valueCents,
+      _minimumFor(tradeFeeMinimumMinor, currency),
+    );
+  }
+
+  /// The Cash_Sale fee rate as members read it: "5%, min $1.50".
+  ///
+  /// Mirrors `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
+  static String platformFeeRateLabel(String currency) {
+    final int minimum = _minimumFor(platformFeeMinimumMinor, currency);
+    return minimum > 0 ? '5%, min ${format(minimum, currency)}' : '5%';
+  }
+
+  /// The per-trader Trade_Fee rate as members read it: "5%, min $1.00".
+  ///
+  /// Mirrors `tradeFeeRateLabel` in `lib/fees/feeLabels.ts`.
+  static String tradeFeeRateLabel(String currency) {
+    final int minimum = _minimumFor(tradeFeeMinimumMinor, currency);
+    return minimum > 0 ? '5%, min ${format(minimum, currency)}' : '5%';
   }
 
   /// Returns total cost for a cash sale buyer: price + shipping + platform fee.
   static int cashSaleTotal({
     required int priceCents,
     required int shippingCents,
+    required String? currency,
   }) {
-    return priceCents + shippingCents + platformFee(priceCents);
+    return priceCents +
+        shippingCents +
+        platformFee(priceCents, currency: currency);
   }
 }

@@ -54,8 +54,15 @@ import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrat
 import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 import { notifyCashSaleSettled, notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
+
+/** `code: detail` for an orchestrator failure, which is all the error log needs. */
+function failureDetail(result: { error?: unknown; detail?: unknown }): string {
+  const code = typeof result.error === 'string' ? result.error : 'FAILED';
+  return typeof result.detail === 'string' && result.detail ? `${code}: ${result.detail}` : code;
+}
 type WebhookOutcome = Database['cardtrade']['Enums']['webhook_outcome'];
 
 /**
@@ -141,7 +148,16 @@ async function alreadyProcessed(client: AdminClient, eventId: string): Promise<b
 async function dispatchEvent(
   client: AdminClient,
   event: WebhookEvent,
-): Promise<{ outcome: WebhookOutcome; tradeId: string | null }> {
+): Promise<{
+  outcome: WebhookOutcome;
+  tradeId: string | null;
+  /**
+   * WHY a FAILURE failed, for the error log (0123). `webhook_logs` has no column for
+   * it, and without it a failed delivery said only that it failed. Operator-facing:
+   * orchestrator codes and database messages, never member data.
+   */
+  detail?: string;
+}> {
   const action = mapEventToAction(event);
 
   switch (action.kind) {
@@ -205,7 +221,9 @@ async function dispatchEvent(
 
       // A rejected transition records FAILURE and preserves the current state
       // (Req 10.8); a committed transition records SUCCESS (Req 10.4).
-      return { outcome: result.ok ? 'SUCCESS' : 'FAILURE', tradeId };
+      return result.ok
+        ? { outcome: 'SUCCESS', tradeId }
+        : { outcome: 'FAILURE', tradeId, detail: failureDetail(result) };
     }
 
     case 'CASH_SALE_SETTLE':
@@ -238,7 +256,9 @@ async function dispatchEvent(
         });
       }
 
-      return { outcome: result.ok ? 'SUCCESS' : 'FAILURE', tradeId: null };
+      return result.ok
+        ? { outcome: 'SUCCESS', tradeId: null }
+        : { outcome: 'FAILURE', tradeId: null, detail: failureDetail(result) };
     }
 
     case 'CASH_SALE_REFUND_FAILED': {
@@ -253,7 +273,9 @@ async function dispatchEvent(
         p_reason: event.payload.reason ?? null,
       });
 
-      return { outcome: error ? 'FAILURE' : 'SUCCESS', tradeId: null };
+      return error
+        ? { outcome: 'FAILURE', tradeId: null, detail: `record_cash_sale_refund_failure: ${error.message}` }
+        : { outcome: 'SUCCESS', tradeId: null };
     }
 
     // The `KYC_DECISION` branch used to live here. It wrote `kyc_status` plus the
@@ -308,8 +330,12 @@ async function dispatchEvent(
               await pushVerifiedIdentityToConnect(targetProfileId);
             }
             return { outcome: 'SUCCESS', tradeId: null };
-          } catch {
-            return { outcome: 'FAILURE', tradeId: null };
+          } catch (err) {
+            // The error's name and message only: a Stripe Identity read is the one
+            // place a stack or payload could carry document data.
+            const detail =
+              err instanceof Error ? `${err.name}: ${err.message}`.slice(0, 300) : 'Identity read failed';
+            return { outcome: 'FAILURE', tradeId: null, detail };
           }
         }
       }
@@ -317,7 +343,11 @@ async function dispatchEvent(
       if (verified) {
         // No session to expand: refuse rather than open the gate without a
         // person-key check.
-        return { outcome: 'FAILURE', tradeId: null };
+        return {
+          outcome: 'FAILURE',
+          tradeId: null,
+          detail: 'Verified identity event with no readable session',
+        };
       }
 
       // FAILED without a readable session: still monotonic. A stale
@@ -331,7 +361,9 @@ async function dispatchEvent(
         .eq('id', targetProfileId)
         .neq('identity_check_status', 'VERIFIED');
 
-      return { outcome: error ? 'FAILURE' : 'SUCCESS', tradeId: null };
+      return error
+        ? { outcome: 'FAILURE', tradeId: null, detail: `identity status update: ${error.message}` }
+        : { outcome: 'SUCCESS', tradeId: null };
     }
 
     case 'MERCHANT_COMPLIANCE': {
@@ -353,7 +385,9 @@ async function dispatchEvent(
         merchantActive: event.payload.merchantActive,
         notes: event.payload.reason,
       });
-      return { outcome: result.ok ? 'SUCCESS' : 'FAILURE', tradeId: null };
+      return result.ok
+        ? { outcome: 'SUCCESS', tradeId: null }
+        : { outcome: 'FAILURE', tradeId: null, detail: failureDetail(result) };
     }
 
     // A chargeback. Recorded unconditionally — including when it cannot be
@@ -386,6 +420,7 @@ async function dispatchEvent(
       return {
         outcome: error ? 'FAILURE' : 'SUCCESS',
         tradeId: event.payload.tradeId ?? null,
+        ...(error ? { detail: `record_charge_dispute: ${error.message}` } : {}),
       };
     }
 
@@ -522,7 +557,7 @@ export async function handleWebhookDelivery(
     }
 
     // 3./4. MAP + DISPATCH.
-    const { outcome, tradeId } = await dispatchEvent(client, event);
+    const { outcome, tradeId, detail } = await dispatchEvent(client, event);
 
     // 5. LOG the outcome (Req 10.3, 10.6).
     await writeLog(
@@ -532,6 +567,22 @@ export async function handleWebhookDelivery(
       tradeId,
     );
     outcomes.push(outcome);
+
+    // A FAILURE also goes to the error log (0123), with the reason `webhook_logs` has
+    // no column for. The provider will retry, so a real problem shows up as a group
+    // that keeps growing rather than as one row.
+    if (outcome === 'FAILURE') {
+      await logBackgroundFailure({
+        name: 'webhook.payments',
+        errorCode: event.type,
+        message: detail ?? `Webhook event ${event.type} failed`,
+        context: {
+          eventId: event.eventId,
+          tradeId: tradeId ?? undefined,
+          cashSaleId: event.payload.cashSaleId ?? undefined,
+        },
+      });
+    }
   }
 
   // When any event in the delivery failed, return HTTP 500 so Stripe/provider

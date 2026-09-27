@@ -117,12 +117,19 @@ export function WatchButton({
           // chip on the photo. 闲鱼 keeps the artwork clean and puts 收藏
           // with the price / want-count.
           'relative inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors after:absolute md:after:-inset-2 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-60 md:size-8',
-          watching && 'text-destructive hover:text-destructive',
           className,
         )}
       >
+        {/* THE SAVED COLOUR LIVES ON THE GLYPH, NOT THE BUTTON. Callers restyle
+            the button's text colour for their surface — the catalog chip passes
+            `text-foreground`, the phone buyer bar `text-muted-foreground` — and
+            `cn()` resolves the later of two text colours, so a `text-destructive`
+            on the button lost to every caller that set one. `fill-current` then
+            filled the heart with the winner: black on the catalog, grey on the
+            listing bar, red only where nobody passed a colour. A class on the svg
+            is outside that merge, so a saved heart is red on every surface. */}
         <HugeiconsIcon icon={HeartIcon}
-          className={cn('size-3.5', watching && 'fill-current')}
+          className={cn('size-3.5', watching && 'fill-destructive text-destructive')}
           strokeWidth={1.75}
           aria-hidden
         />

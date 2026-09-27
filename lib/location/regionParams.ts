@@ -10,3 +10,9 @@
  * code and never reaches `profiles.region_code`.
  */
 export const ALL_REGIONS = 'all';
+
+/**
+ * `setBrowseRegion` value meaning "forget my choice and use the inferred region".
+ * Never written to the cookie or the URL; it clears the cookie.
+ */
+export const AUTOMATIC_REGION = 'auto';

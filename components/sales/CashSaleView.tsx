@@ -31,7 +31,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { HandshakeIcon, LoaderCircleIcon, TriangleAlertIcon, TruckIcon } from '@hugeicons/core-free-icons';
 import { DesktopOnly } from '@/components/layout/Breakpoint';
 import { PlaceMap } from '@/components/location';
-import { ImageGallery } from '@/components/listings/ImageGallery';
+import { ImageGallery, PORTRAIT_STAGE_FRAME } from '@/components/listings/ImageGallery';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
@@ -78,7 +78,7 @@ import { HandoverFailedDialog } from './HandoverFailedDialog';
 import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDialog';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 
-import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { formatMoney, formatContractDateTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -299,19 +299,24 @@ function CashSaleItemSnapshot({
     // to stretch in the first place.
     <div className="flex flex-col items-stretch gap-6">
       <div className="min-w-0">
+        {/* Card-shaped. `min-h-[18rem] max-h-[26rem]` at the panel's full width was a
+            2:1 strip on a desktop split, so a portrait card painted at a third of it. */}
         <ImageGallery
           images={galleryImages}
           title={title}
-          frameClassName="min-h-[18rem] max-h-[26rem]"
+          frameClassName={PORTRAIT_STAGE_FRAME}
         />
       </div>
 
       <div className="flex min-w-0 flex-col gap-5">
         <header>
-          <p className="text-display font-semibold tabular-nums tracking-tight">
+          {/* `font-display` on both, matching the listing page this panel mirrors: its
+              title is an h2 and takes the display cut from the base rule, so an h3
+              here has to ask for it. */}
+          <p className="font-display text-display font-semibold tabular-nums tracking-tight">
             {formatMoney(agreedPriceCents, currency)}
           </p>
-          <h3 className="mt-snug break-words text-head font-semibold tracking-tight">
+          <h3 className="mt-snug break-words font-display text-head font-semibold tracking-tight">
             {title}
           </h3>
           {condition ? (
@@ -1373,7 +1378,7 @@ function CashSaleRoom({
                     value: money(sale.shipping_cost_cents),
                   },
                   {
-                    label: `Platform fee (${PLATFORM_FEE_BPS / 100}%)`,
+                    label: `Platform fee (${platformFeeRateLabel(sale.currency)})`,
                     value: money(sale.platform_fee_cents),
                   },
                   {
@@ -1594,7 +1599,7 @@ function CashSaleRoom({
               ? [{ label: 'Shipping', value: money(sale.shipping_cost_cents) }]
               : []),
             {
-              label: `Platform fee (${PLATFORM_FEE_BPS / 100}%)`,
+              label: `Platform fee (${platformFeeRateLabel(sale.currency)})`,
               value: money(sale.platform_fee_cents),
               hint: 'Returned if the sale is refunded in full.',
             },

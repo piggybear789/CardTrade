@@ -34,7 +34,15 @@ import { getPayoutsDashboard } from '@/lib/actions/payouts';
 import { getAccountStatement } from '@/lib/actions/statement';
 import { getIdentityCheckState } from '@/lib/actions/identity';
 import { isPaymentDemoEnabled } from '@/domain/services';
-import { viewerTradingRegion } from '@/lib/location/resolveRegion';
+import {
+  automaticBrowseRegion,
+  readBrowseRegionChoice,
+  viewerTradingRegion,
+} from '@/lib/location/resolveRegion';
+import {
+  BrowseRegionSettingRow,
+  type BrowseRegionSettingRowProps,
+} from '@/components/profile/BrowseRegionSettingRow';
 import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import { IdentityDemoControls } from '@/components/identity/IdentityDemoControls';
 import {
@@ -124,7 +132,15 @@ export default async function ProfilePage({
   // tab was a URL, so changing it re-ran this whole function — auth included — before
   // the new panel could render. All three panels are built once below and swapped on
   // the client instead.
-  const [profileResult, identity, payoutContext, savedAddressCount] = await Promise.all([
+  const [
+    profileResult,
+    identity,
+    payoutContext,
+    savedAddressCount,
+    browseChoice,
+    automaticRegion,
+    tradingRegion,
+  ] = await Promise.all([
     supabase
       .from('profiles')
       .select('display_name, contact_email, avatar_path, social_links, bio, is_admin, is_support')
@@ -139,6 +155,11 @@ export default async function ProfilePage({
       .from('member_addresses')
       .select('id', { count: 'exact', head: true })
       .eq('owner_id', user.id),
+    // Browsing region: a cookie read plus the cached profile and a header, so none
+    // of the three adds a round trip.
+    readBrowseRegionChoice(),
+    automaticBrowseRegion(),
+    viewerTradingRegion(),
   ]);
 
   const profile = profileResult.data;
@@ -239,6 +260,11 @@ export default async function ProfilePage({
                 socialLinks={socialLinks}
                 savedAddressCount={savedAddressCount.count ?? 0}
                 staffLinks={staffLinks}
+                browseRegion={{
+                  choice: browseChoice,
+                  automatic: automaticRegion,
+                  tradingRegion,
+                }}
               />
             ),
 
@@ -285,6 +311,7 @@ function ProfilePanel({
   socialLinks,
   savedAddressCount,
   staffLinks,
+  browseRegion,
 }: {
   avatarPath: string | null;
   displayName: string;
@@ -293,6 +320,7 @@ function ProfilePanel({
   socialLinks: Record<string, string> | null;
   savedAddressCount: number;
   staffLinks: ReturnType<typeof staffNavLinksFor>;
+  browseRegion: BrowseRegionSettingRowProps;
 }) {
   return (
     // NO GROUP HEADINGS ON THIS TAB. It carried four ("Public profile",
@@ -319,6 +347,12 @@ function ProfilePanel({
             postal address; never disclosed to a counterparty except through the
             existing per-contract rules. */}
         <AddressesSettingRow count={savedAddressCount} />
+      </SettingsGroup>
+
+      {/* A display preference, grouped apart from the public profile above it.
+          Defaults to Automatic; the header no longer carries a region control. */}
+      <SettingsGroup>
+        <BrowseRegionSettingRow {...browseRegion} />
       </SettingsGroup>
 
       <SettingsGroup>

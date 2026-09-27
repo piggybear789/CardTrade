@@ -4,12 +4,12 @@
 //
 // shadcn/ui accordion on Radix, with two deviations from stock.
 //
-// Focus is a transparent border that turns iris, not a ring, matching the rest
-// of the app. The reason it settled there: setting `overflow-y-auto` on one axis
-// makes an element a scroll container on both, so a ring-offset on any control
-// near that container's edge is clipped. The marketplace rail — the first thing
-// to mount this — is exactly such a container. See MarketplaceNav and
-// CatalogControls for the same treatment.
+// Focus is a transparent border that turns iris plus a 1px INSET iris ring — a 2px
+// frame drawn inside the trigger. Never an outset ring: setting `overflow-y-auto`
+// on one axis makes an element a scroll container on both, so a ring or offset
+// OUTSIDE a control near that container's edge is clipped. The marketplace rail —
+// the first thing to mount this — is exactly such a container. An inset ring sits
+// inside the trigger's own box, so no ancestor can clip it.
 //
 // The trigger does not underline on hover. Stock does, and in the dense control
 // lists this is used for that reads as a link to somewhere rather than a section
@@ -64,7 +64,7 @@ function AccordionTrigger({
         <AccordionPrimitive.Trigger
           ref={ref}
           className={cn(
-            'flex flex-1 items-center justify-between gap-snug rounded-md py-snug text-left text-body font-medium transition-colors border border-transparent focus:outline-none focus-visible:border-iris [&[data-state=open]>svg]:rotate-180',
+            'flex flex-1 items-center justify-between gap-snug rounded-md py-snug text-left text-body font-medium transition-colors border border-transparent focus:outline-none focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris [&[data-state=open]>svg]:rotate-180',
             className,
           )}
           {...props}

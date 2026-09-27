@@ -231,6 +231,17 @@ const MUST_NOT_WORK: GrantCheck[] = [
   { flow: 'MONEY: update a deal invite', table: 'deal_invites', privilege: 'UPDATE', allowed: false },
   { flow: 'MONEY: delete a deal invite', table: 'deal_invites', privilege: 'DELETE', allowed: false },
   { flow: 'MONEY: read deal invites anonymously', table: 'deal_invites', privilege: 'SELECT', role: 'anon', allowed: false },
+
+  // Error log (0123). Every write goes through the service role in `lib/errors/errorLog.ts`,
+  // behind rate limits a grant cannot express, and only admins read it (RLS). A member who
+  // could write here could forge or bury the evidence of a failure; one who could read it
+  // would see other members' error messages, which can quote their data.
+  { flow: 'TAMPER: forge an error log row', table: 'error_logs', privilege: 'INSERT', allowed: false },
+  { flow: 'TAMPER: resolve an error group', table: 'error_logs', privilege: 'UPDATE', allowed: false },
+  { flow: 'TAMPER: erase an error log row', table: 'error_logs', privilege: 'DELETE', allowed: false },
+  { flow: 'TAMPER: read the error log anonymously', table: 'error_logs', privilege: 'SELECT', role: 'anon', allowed: false },
+  { flow: 'TAMPER: forge an error log row anonymously', table: 'error_logs', privilege: 'INSERT', role: 'anon', allowed: false },
+  { flow: 'TAMPER: read the error queue view', table: 'error_log_groups', privilege: 'SELECT', allowed: false },
 ];
 
 const ALL_CHECKS = [...MUST_WORK, ...MUST_NOT_WORK];

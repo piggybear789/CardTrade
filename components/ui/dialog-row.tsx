@@ -45,9 +45,12 @@ export function DialogRow({
   return (
     <button
       type="button"
+      // Announced as "opens dialog", which is what distinguishes this row from a
+      // plain action button to a screen-reader user.
+      aria-haspopup="dialog"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-snug rounded-lg border border-border px-cozy py-2.5 text-left text-body font-medium transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:border-iris focus-visible:outline-none',
+        'flex w-full items-center gap-snug rounded-lg border border-border px-cozy py-2.5 text-left text-body font-medium transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:border-iris focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris',
         invalid && 'border-destructive',
       )}
     >

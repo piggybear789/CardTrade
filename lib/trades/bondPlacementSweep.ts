@@ -30,6 +30,7 @@ import { getPaymentService } from '@/domain/services';
 import { regionForCurrency } from '@/lib/regionBinding';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { placeTradeCollateral } from './collateralPlacement';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /**
  * How many trades one pass will authorise.
@@ -108,9 +109,21 @@ export async function placeDueTradeCollateral(): Promise<BondPlacementSweepResul
       // Told to BOTH traders, not just the one whose card refused. The other has a
       // meeting tomorrow that is no longer protected, and that is their business too.
       await notifyBothTraders(row.id, result.message);
+      await logBackgroundFailure({
+        name: 'collateral.place',
+        errorCode: result.error,
+        message: result.message,
+        context: { tradeId: row.id },
+      });
     } catch (error) {
       failed += 1;
       console.error(`[trades] collateral placement failed for trade ${row.id}`, error);
+      await logBackgroundFailure({
+        name: 'collateral.place',
+        errorCode: 'THREW',
+        error,
+        context: { tradeId: row.id },
+      });
     }
   }
 
@@ -177,7 +190,17 @@ export async function advanceDueHandovers(): Promise<HandoverAdvanceResult> {
         // initiator is recorded as requester and the event names the real cause.
         actorId: row.initiator_id,
       });
-      if (!applied.ok) continue;
+      if (!applied.ok) {
+        // The trade stays COLLATERAL_LOCKED with no dispute window, which is the
+        // outcome this pass exists to prevent, so it is worth an operator's eye.
+        await logBackgroundFailure({
+          name: 'trade.handover-assumed',
+          errorCode: applied.error,
+          message: applied.detail ?? `HANDOVER_ASSUMED refused: ${applied.error}`,
+          context: { tradeId: row.id },
+        });
+        continue;
+      }
 
       advanced += 1;
       await notifyBoth(
@@ -189,6 +212,12 @@ export async function advanceDueHandovers(): Promise<HandoverAdvanceResult> {
       );
     } catch (error) {
       console.error(`[trades] handover advance failed for trade ${row.id}`, error);
+      await logBackgroundFailure({
+        name: 'trade.handover-assumed',
+        errorCode: 'THREW',
+        error,
+        context: { tradeId: row.id },
+      });
     }
   }
 

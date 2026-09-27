@@ -17,6 +17,7 @@
 // is never auto-disclosed to a counterparty. The per-contract disclosure rules on
 // cash_sale_delivery_details / trade_delivery_details are unchanged by this file.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
@@ -91,7 +92,7 @@ const ADDRESS_COLUMNS =
   'id, label, address_label, place_id, country_code, latitude, longitude, is_default';
 
 /** List the caller's own saved addresses, defaults first then newest first. */
-export async function listMyAddresses(): Promise<
+export const listMyAddresses = withActionLog('addresses.listMyAddresses', async function listMyAddresses(): Promise<
   ActionResult<SavedAddress[], AddressError>
 > {
   const supabase = await createClient();
@@ -109,7 +110,7 @@ export async function listMyAddresses(): Promise<
 
   if (error) return fail('persistence-error', 'Could not load your saved addresses.');
   return ok((data ?? []).map((row) => toSavedAddress(row as AddressRow)));
-}
+});
 
 /**
  * Create a new saved address or update an existing one the caller owns.
@@ -119,7 +120,7 @@ export async function listMyAddresses(): Promise<
  * contract's delivery address. When `isDefault` is set, the previous default is
  * demoted first so the one-default-per-owner index cannot be violated.
  */
-export async function saveAddress(
+export const saveAddress = withActionLog('addresses.saveAddress', async function saveAddress(
   input: SaveAddressInput,
 ): Promise<ActionResult<SavedAddress, AddressError>> {
   const supabase = await createClient();
@@ -196,10 +197,10 @@ export async function saveAddress(
   if (error || !data) return fail('persistence-error', 'Could not save your address.');
   revalidatePath('/profile');
   return ok(toSavedAddress(data as AddressRow));
-}
+});
 
 /** Delete one of the caller's own saved addresses. */
-export async function deleteAddress(
+export const deleteAddress = withActionLog('addresses.deleteAddress', async function deleteAddress(
   id: string,
 ): Promise<ActionResult<null, AddressError>> {
   const supabase = await createClient();
@@ -220,7 +221,7 @@ export async function deleteAddress(
   if (error) return fail('persistence-error', 'Could not remove that address.');
   revalidatePath('/profile');
   return ok(null);
-}
+});
 
 /**
  * Make one of the caller's own saved addresses the default.
@@ -228,7 +229,7 @@ export async function deleteAddress(
  * Demotes the current default first, then promotes the target — both scoped to the
  * caller — so the one-default-per-owner index is never violated.
  */
-export async function setDefaultAddress(
+export const setDefaultAddress = withActionLog('addresses.setDefaultAddress', async function setDefaultAddress(
   id: string,
 ): Promise<ActionResult<null, AddressError>> {
   const supabase = await createClient();
@@ -259,4 +260,4 @@ export async function setDefaultAddress(
   if (!data) return fail('not-found', 'That saved address no longer exists.');
   revalidatePath('/profile');
   return ok(null);
-}
+});

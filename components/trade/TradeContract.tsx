@@ -52,7 +52,8 @@ import {
   SavedCardRow,
   type SavedCardStatus,
 } from '@/components/payments/SavedCardRow';
-import { TRADE_FEE_BPS, tradeFeeCentsFor } from '@/domain/trade/tradeFee';
+import { tradeFeeCentsFor } from '@/domain/trade/tradeFee';
+import { tradeFeeRateLabel } from '@/lib/fees/feeLabels';
 import {
   resolveTradeSideValues,
   tradeAgreedValueCents,
@@ -857,8 +858,8 @@ function TradeContractRoom({
   const cashCents = goods?.cashAmountCents ?? 0;
   const cashToMe = goods?.cashDirection === 'incoming' ? cashCents : 0;
   const cashToThem = goods?.cashDirection === 'outgoing' ? cashCents : 0;
-  const myFeeCents = tradeFeeCentsFor(theirsValueCents + cashToMe);
-  const theirFeeCents = tradeFeeCentsFor(yoursValueCents + cashToThem);
+  const myFeeCents = tradeFeeCentsFor(theirsValueCents + cashToMe, trade?.currency ?? null);
+  const theirFeeCents = tradeFeeCentsFor(yoursValueCents + cashToThem, trade?.currency ?? null);
   const heldCents = holds.reduce((sum, hold) => sum + hold.amount_cents, 0);
 
   // The soonest authorisation to lapse across both traders' collateral. If it falls
@@ -1100,6 +1101,7 @@ function TradeContractRoom({
                             goods && theirsValueCents > 0
                               ? {
                                   feeText: formatMoney(myFeeCents, trade.currency),
+                                  feeRateLabel: tradeFeeRateLabel(trade.currency),
                                   collateralText: formatMoney(
                                     theirsValueCents,
                                     trade.currency,
@@ -1223,7 +1225,7 @@ function TradeContractRoom({
                         // trader receives — so it appears against your column while
                         // being derived from theirs.
                         feeCents: myFeeCents,
-                        feeLabel: `NoDitto fee (${TRADE_FEE_BPS / 100}%)`,
+                        feeLabel: `NoDitto fee (${tradeFeeRateLabel(trade.currency)})`,
                         emptyLabel: 'You are putting up no goods.',
                       },
                       {
@@ -1242,7 +1244,7 @@ function TradeContractRoom({
                         // receive" would put a credit in a column of debits.
                         cashLabel: 'Cash they pay via Stripe',
                         feeCents: theirFeeCents,
-                        feeLabel: `NoDitto fee (${TRADE_FEE_BPS / 100}%)`,
+                        feeLabel: `NoDitto fee (${tradeFeeRateLabel(trade.currency)})`,
                         emptyLabel: 'They are putting up no goods.',
                       },
                     ]}

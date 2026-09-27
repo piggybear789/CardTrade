@@ -73,33 +73,72 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // ONE FAMILY, THREE WIDTHS. Instrument Sans, loaded with its width axis in
+      // `app/layout.tsx`: `sans` for text, `display` for titles and figures, and
+      // `wordmark` for the name alone.
+      //
+      // `sans` is the TEXT cut: body copy, labels, controls, and anything read
+      // closely. It states `wdth` 100 outright rather than leaving the axis alone,
+      // so `font-sans` is a real way back to the text width inside something that
+      // wears the display cut (the eyebrow class relies on that).
+      //
+      // `display` is the DISPLAY cut, the same family at 88% width, for what is
+      // LOOKED AT rather than read:
+      //   - every h1 and h2 (a base rule in `globals.css`), so page, section and
+      //     dialog titles need no class
+      //   - `.display-value` money and reference figures
+      //   - headline prices on listing tiles, the listing page and the sale room
+      // Listing titles on tiles are h3 and stay at text width on purpose: they are
+      // long descriptions people read, not labels.
+      //
+      // `font-variation-settings`, not `font-stretch`, because it drives the axis
+      // without depending on the @font-face declaring a stretch range. It sets that
+      // one axis; weight still comes from `font-weight`.
       fontFamily: {
-        // Plus Jakarta Sans for headings, copy, labels, and ledger data.
-        // `display` keeps its utility name so existing classnames don't change.
         sans: [
-          "var(--font-plus-jakarta)",
-          "ui-sans-serif",
-          "system-ui",
-          "Segoe UI",
-          "Helvetica Neue",
-          "Arial",
-          "sans-serif",
+          [
+            "var(--font-instrument-sans)",
+            "ui-sans-serif",
+            "system-ui",
+            "Segoe UI",
+            "Helvetica Neue",
+            "Arial",
+            "sans-serif",
+          ],
+          { fontVariationSettings: '"wdth" 100' },
         ],
         display: [
-          "var(--font-plus-jakarta)",
-          "ui-sans-serif",
-          "system-ui",
-          "Segoe UI",
-          "Helvetica Neue",
-          "Arial",
-          "sans-serif",
+          [
+            "var(--font-instrument-sans)",
+            "ui-sans-serif",
+            "system-ui",
+            "Segoe UI",
+            "Helvetica Neue",
+            "Arial",
+            "sans-serif",
+          ],
+          { fontVariationSettings: '"wdth" 88' },
+        ],
+        // The wordmark only: narrower again, so the name reads as a mark rather
+        // than as one more title. Used by `Logo` and the phone chrome's wordmark.
+        wordmark: [
+          [
+            "var(--font-instrument-sans)",
+            "ui-sans-serif",
+            "system-ui",
+            "Segoe UI",
+            "Helvetica Neue",
+            "Arial",
+            "sans-serif",
+          ],
+          { fontVariationSettings: '"wdth" 78' },
         ],
         // ONE TYPEFACE. `mono` is kept as a NAME so any stray `font-mono` still
-        // resolves, but it points at the same Plus Jakarta stack — the app loads no
-        // monospace face. Reintroducing one here would put two families back on
-        // screen, which is the thing this consolidation removed.
+        // resolves, but it points at the same stack — the app loads no monospace
+        // face. Reintroducing one here would put two families back on screen,
+        // which is the thing this consolidation removed.
         mono: [
-          "var(--font-plus-jakarta)",
+          "var(--font-instrument-sans)",
           "ui-sans-serif",
           "system-ui",
           "Segoe UI",
@@ -224,6 +263,20 @@ const config: Config = {
         // same element is the "ghost card" tell. This is state feedback that
         // only exists on hover, not resting decoration.
         lift: "0 2px 6px hsl(var(--obsidian) / 0.07), 0 8px 14px hsl(var(--obsidian) / 0.10)",
+      },
+      // A RING WITH NO COLOUR OF ITS OWN IS THE FOCUS COLOUR.
+      //
+      // Unset, Tailwind falls back to blue-500 at 50% alpha (`#3b82f680`), so every
+      // `focus-visible:ring-*` that did not also name a colour drew a translucent BLUE
+      // ring in a violet product — TabbedPanels, SettingsPrimitives, GenrePills and
+      // AvatarUploadField all did. `ringOpacity` moves with it because the 0.5 default
+      // is applied to whatever DEFAULT resolves to, and iris at half strength falls
+      // below the 3:1 a focus indicator owes the page.
+      ringColor: {
+        DEFAULT: "hsl(var(--iris))",
+      },
+      ringOpacity: {
+        DEFAULT: "1",
       },
       // Shared content spine for MarketplaceShell's content column and the
       // landing frame. 90rem / 1440px is one extra catalog column over `7xl`

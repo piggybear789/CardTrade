@@ -26,6 +26,7 @@
 // someone already transacting with that Member — never from a listing or profile
 // page.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { cookies } from 'next/headers';
 
 import { createClient } from '@/lib/supabase/server';
@@ -96,7 +97,7 @@ export interface CounterpartyIdentity {
  * participant in a Trade or Cash_Sale with `counterpartyId`
  * (Req 17.2, 17.8).
  */
-export async function getCounterpartyIdentity(
+export const getCounterpartyIdentity = withActionLog('identity.getCounterpartyIdentity', async function getCounterpartyIdentity(
   counterpartyId: string,
 ): Promise<ActionResult<CounterpartyIdentity, IdentityDisclosureError>> {
   const supabase = await createClient();
@@ -186,7 +187,7 @@ export async function getCounterpartyIdentity(
          null)
       : null,
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // The Identity_Gate: starting and refreshing a verification check (0069)
@@ -253,7 +254,7 @@ export interface StartedIdentityCheck {
  * whichever screen they FIRST pressed the button on — the payouts tab, for a session
  * opened under an earlier default. See `lib/identity/identityReturn.ts`.
  */
-export async function beginIdentityCheck(
+export const beginIdentityCheck = withActionLog('identity.beginIdentityCheck', async function beginIdentityCheck(
   returnPath = DEFAULT_IDENTITY_RETURN_PATH,
 ): Promise<ActionResult<StartedIdentityCheck, IdentityCheckError>> {
   const supabase = await createClient();
@@ -338,7 +339,7 @@ export async function beginIdentityCheck(
   if (error) return fail('PERSIST_FAILED', friendlyWriteFailure(error, 'Could not save identity check state.'));
 
   return ok({ url: check.hostedUrl ?? null, sessionId: check.sessionId, progress });
-}
+});
 
 /** What the browser needs to render the embedded `stripe.verifyIdentity` modal. */
 export interface StartedEmbeddedIdentity {
@@ -362,7 +363,7 @@ export interface StartedEmbeddedIdentity {
  * On any provider failure it returns an error and leaves `identity_check_status`
  * untouched (Req 2.6, 13.1).
  */
-export async function beginEmbeddedIdentity(
+export const beginEmbeddedIdentity = withActionLog('identity.beginEmbeddedIdentity', async function beginEmbeddedIdentity(
   returnPath = '/onboarding',
 ): Promise<ActionResult<StartedEmbeddedIdentity, IdentityCheckError>> {
   const supabase = await createClient();
@@ -428,7 +429,7 @@ export async function beginEmbeddedIdentity(
     publishableKey: secret.publishableKey,
     sessionId: check.sessionId,
   });
-}
+});
 
 /** The caller's own identity check state, for a status card. */
 export interface IdentityCheckState {
@@ -468,7 +469,7 @@ export interface IdentityCheckState {
  * make a network round trip to Stripe, and a read that also WROTE would fire on
  * every render of the card.
  */
-export async function getIdentityCheckState(): Promise<
+export const getIdentityCheckState = withActionLog('identity.getIdentityCheckState', async function getIdentityCheckState(): Promise<
   ActionResult<IdentityCheckState, IdentityCheckError>
 > {
   const user = await getCachedAuthUser();
@@ -494,7 +495,7 @@ export async function getIdentityCheckState(): Promise<
     // No column to read it from. Only the read-back carries a reason.
     failureReason: null,
   });
-}
+});
 
 /**
  * Read the check back from the provider and persist the outcome.
@@ -509,7 +510,7 @@ export async function getIdentityCheckState(): Promise<
  * only when the provider supplies one, so a later read cannot blank a name already
  * disclosed to a buyer.
  */
-export async function refreshIdentityCheck(): Promise<
+export const refreshIdentityCheck = withActionLog('identity.refreshIdentityCheck', async function refreshIdentityCheck(): Promise<
   ActionResult<IdentityCheckState, IdentityCheckError>
 > {
   const supabase = await createClient();
@@ -580,4 +581,4 @@ export async function refreshIdentityCheck(): Promise<
         : ((profile?.identity_check_verified_at as string | null) ?? null),
     failureReason: decision === 'failed' ? (check.failureReason ?? null) : null,
   });
-}
+});

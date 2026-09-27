@@ -21,6 +21,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { regionCurrency } from '@/domain/region';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** Payouts must not be prerendered or cached. */
 export const dynamic = 'force-dynamic';
@@ -81,11 +82,33 @@ async function runPayoutPass(request: Request): Promise<Response> {
     const refunds = { considered: 0, settled: 0, stillOwed: 0 };
     const failures: string[] = [];
 
+    // Every per-sale failure the drains report, written to the error log (0123) once
+    // the pass is over. Collected rather than written inline because the hooks are
+    // synchronous, and awaited at the end so the rows land before the function freezes.
+    const drainReports: Parameters<typeof logBackgroundFailure>[0][] = [];
+
     for (const region of operationalRegions()) {
       try {
         const orchestrator = createDefaultCashSaleOrchestrator({
           payments: getPaymentService(region),
           payoutRegionCurrency: regionCurrency(region) ?? undefined,
+          onDrainError: ({ cashSaleId, error }) => {
+            console.error(`[cash-sale drain] ${cashSaleId}:`, error);
+            drainReports.push({
+              name: 'job.cash-sale-payouts.sale',
+              errorCode: 'THREW',
+              error,
+              context: { cashSaleId, region },
+            });
+          },
+          onDrainFailure: ({ cashSaleId, kind, error, detail }) => {
+            drainReports.push({
+              name: kind === 'payout' ? 'payout.seller' : 'refund.buyer',
+              errorCode: error,
+              message: detail ?? `${kind === 'payout' ? 'Seller release' : 'Buyer refund'} failed: ${error}`,
+              context: { cashSaleId, region },
+            });
+          },
         });
         const result = await orchestrator.processDuePayouts();
         totals.considered += result.considered;
@@ -101,12 +124,24 @@ async function runPayoutPass(request: Request): Promise<Response> {
           refunds.stillOwed += refunded.stillOwed;
         } catch (error) {
           console.error(`[jobs] cash-sale refund drain failed for region ${region}`, error);
+          drainReports.push({
+            name: 'job.cash-sale-payouts.refunds',
+            error,
+            context: { region },
+          });
         }
       } catch (error) {
         console.error(`[jobs] cash-sale-payouts failed for region ${region}`, error);
         failures.push(region);
+        drainReports.push({
+          name: 'job.cash-sale-payouts.region',
+          error,
+          context: { region },
+        });
       }
     }
+
+    await Promise.all(drainReports.map((report) => logBackgroundFailure(report)));
 
     if (failures.length > 0 && totals.considered === 0) {
       // Nothing drained anywhere: report it as a failure so the schedule's own
@@ -125,6 +160,7 @@ async function runPayoutPass(request: Request): Promise<Response> {
     });
   } catch (error) {
     console.error('[jobs] cash-sale-payouts failed', error);
+    await logBackgroundFailure({ name: 'job.cash-sale-payouts', error });
     return Response.json(
       { ok: false, error: 'Payout pass failed' },
       { status: 500 },

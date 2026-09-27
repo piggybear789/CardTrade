@@ -33,6 +33,7 @@ import {
   type CashSaleLineItemInput,
 } from '@/domain/validation/cashSaleLineItems';
 import { CURRENCY_CODE, formatMoney } from '@/lib/format';
+import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
@@ -193,8 +194,9 @@ export function ContractRequestFields({
         />
         <p id={`${priceId}-hint`} className="text-body text-muted-foreground">
           The price for the lot
-          {offerCents > 0 ? ` — ${formatMoney(offerCents, currency)}` : ''}. The 5%
-          platform fee and any postage are added on top when you agree terms.
+          {offerCents > 0 ? ` — ${formatMoney(offerCents, currency)}` : ''}. The platform fee
+          ({platformFeeRateLabel(currency)}) and any postage are added on top when you
+          agree terms.
         </p>
       </div>
 

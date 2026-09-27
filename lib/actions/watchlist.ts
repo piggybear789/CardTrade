@@ -14,6 +14,7 @@
 // `export type` only (type exports are erased and permitted in a 'use server'
 // module).
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -61,7 +62,7 @@ export type ToggleWatchResult =
  * inserted (returns `watching: true`). Authentication is required; RLS scopes
  * every read/write to the caller's own rows.
  */
-export async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
+export const toggleWatch = withActionLog('watchlist.toggleWatch', async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
   const supabase = await createClient();
 
   const me = await getUserId();
@@ -102,7 +103,7 @@ export async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
     };
   }
   return { ok: true, watching: true };
-}
+});
 
 // ---------------------------------------------------------------------------
 // isWatching
@@ -113,7 +114,7 @@ export async function toggleWatch(itemId: string): Promise<ToggleWatchResult> {
  * is unauthenticated or on any read error, so server components can call this
  * without try/catch to decide the initial toggle state.
  */
-export async function isWatching(itemId: string): Promise<boolean> {
+export const isWatching = withActionLog('watchlist.isWatching', async function isWatching(itemId: string): Promise<boolean> {
   const supabase = await createClient();
 
   const me = await getUserId();
@@ -127,7 +128,7 @@ export async function isWatching(itemId: string): Promise<boolean> {
     .maybeSingle();
 
   return Boolean(data);
-}
+});
 
 // ---------------------------------------------------------------------------
 // getWatchCount
@@ -152,7 +153,7 @@ export async function isWatching(itemId: string): Promise<boolean> {
  * to `authenticated` and `anon`, which is what makes a public total both correct and
  * readable without weakening the row policy.
  */
-export async function getWatchCount(itemId: string): Promise<number> {
+export const getWatchCount = withActionLog('watchlist.getWatchCount', async function getWatchCount(itemId: string): Promise<number> {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -163,21 +164,21 @@ export async function getWatchCount(itemId: string): Promise<number> {
 
   if (error || data?.watch_count == null) return 0;
   return data.watch_count;
-}
+});
 
 /**
  * Resolve which of the given item ids the current user is watching. Returns an
  * empty set when unauthenticated or on any read error. Used to decorate catalog
  * cards with a save affordance without an extra per-card query.
  */
-export async function getWatchingSet(itemIds: string[]): Promise<Set<string>> {
+export const getWatchingSet = withActionLog('watchlist.getWatchingSet', async function getWatchingSet(itemIds: string[]): Promise<Set<string>> {
   if (itemIds.length === 0) return new Set();
   const watching = await getMyWatchingSet();
   return new Set(itemIds.filter((id) => watching.has(id)));
-}
+});
 
 /** Every listing the caller has saved. Safe to start before catalog IDs exist. */
-export async function getMyWatchingSet(): Promise<Set<string>> {
+export const getMyWatchingSet = withActionLog('watchlist.getMyWatchingSet', async function getMyWatchingSet(): Promise<Set<string>> {
   const supabase = await createClient();
   const me = await getUserId();
   if (!me) return new Set();
@@ -188,7 +189,7 @@ export async function getMyWatchingSet(): Promise<Set<string>> {
     .eq('user_id', me);
 
   return new Set((data ?? []).map((r) => r.item_id as string));
-}
+});
 
 // ---------------------------------------------------------------------------
 // listMyWatchlist
@@ -218,7 +219,7 @@ export type ListMyWatchlistResult =
  * the cookie-bound client too, so an item that is no longer visible under RLS
  * is simply dropped from the results.
  */
-export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
+export const listMyWatchlist = withActionLog('watchlist.listMyWatchlist', async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
   const supabase = await createClient();
 
   const me = await getUserId();
@@ -294,4 +295,4 @@ export async function listMyWatchlist(): Promise<ListMyWatchlistResult> {
     .sort((a, b) => (a.savedAt < b.savedAt ? 1 : a.savedAt > b.savedAt ? -1 : 0));
 
   return { ok: true, items: entries };
-}
+});

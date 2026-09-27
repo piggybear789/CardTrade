@@ -7,7 +7,10 @@
 // dependency-free (inline styles) so it renders even if the app shell is the
 // thing that failed.
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
+import { useErrorReference } from '@/components/layout/ErrorScreen';
+import { reportError } from '@/lib/actions/errorReports';
 
 export default function GlobalError({
   error,
@@ -16,9 +19,25 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Logs a browser error (production only) and gives every error a reference, exactly
+  // as `ErrorScreen` does. The report here is one tap with no note: this screen cannot
+  // count on the stylesheet, so it keeps the form out of it.
+  const reference = useErrorReference(error);
+  const [report, setReport] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+
   useEffect(() => {
     console.error('Global error boundary caught:', error);
   }, [error]);
+
+  async function sendReport() {
+    setReport('sending');
+    try {
+      const result = await reportError({ reference, path: window.location.pathname });
+      setReport(result.ok ? 'sent' : 'failed');
+    } catch {
+      setReport('failed');
+    }
+  }
 
   return (
     <html lang="en">
@@ -91,6 +110,40 @@ export default function GlobalError({
           >
             Reload
           </button>
+          <p
+            role="status"
+            style={{
+              margin: '1.5rem 0 0',
+              fontSize: '0.8125rem',
+              color: 'rgba(238,234,241,0.6)',
+            }}
+          >
+            {report === 'sent' ? (
+              'Report sent. '
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={sendReport}
+                  disabled={report === 'sending'}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    color: '#efe7f3',
+                    font: 'inherit',
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '4px',
+                  }}
+                >
+                  {report === 'sending' ? 'Sending…' : 'Report this problem'}
+                </button>
+                {report === 'failed' ? ' (did not send, try again) ' : ' · '}
+              </>
+            )}
+            <span style={{ fontFamily: 'ui-monospace, monospace' }}>Ref {reference}</span>
+          </p>
         </div>
       </body>
     </html>

@@ -112,7 +112,7 @@ describe('cash sale — direct payout mode', () => {
         nonce: expect.any(String),
         merchantRef: undefined,
         applicationFee: undefined,
-        amount: ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents),
+        amount: ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents, 'aud'),
       },
     ]);
 
@@ -145,7 +145,7 @@ describe('cash sale — direct payout mode', () => {
     // Exactly one release, for the agreed price — the Platform_Fee stays behind
     // in the platform balance because `application_fee_amount` is incompatible
     // with separate charges and transfers.
-    const fee = platformFeeCentsFor(ITEM.fmvCents);
+    const fee = platformFeeCentsFor(ITEM.fmvCents, 'aud');
     expect(calls.payouts).toEqual([
       {
         merchantRef: 'mch_seller',

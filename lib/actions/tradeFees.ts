@@ -22,6 +22,7 @@ import {
   type TradeFeeStatus,
 } from '@/domain/trade/tradeFee';
 import type { Tables } from '@/lib/supabase/database.types';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 type TradeFeeRow = Tables<'trade_fees'>;
 
@@ -60,9 +61,18 @@ export async function chargeTradeFees(params: {
   // would not find the payer at all.
   const payments = getPaymentService(await regionForTrade(params.tradeId));
 
+  // The fee minimum is a money amount, so it is read in the trade's own frozen
+  // currency — the same `trades.currency` the trade room discloses the fee in.
+  const { data: tradeRow } = await admin
+    .from('trades')
+    .select('currency')
+    .eq('id', params.tradeId)
+    .maybeSingle();
+
   const { initiatorFeeCents, counterpartFeeCents } = resolveTradeFees({
     initiatorReceivesCents: params.initiatorReceivesCents,
     counterpartReceivesCents: params.counterpartReceivesCents,
+    currency: (tradeRow?.currency as string | null | undefined) ?? null,
   });
 
   const owed = [
@@ -101,6 +111,12 @@ export async function chargeTradeFees(params: {
       await recordFeeResult(params.tradeId, entry.traderId, 'FAILED', {
         error: 'No payment instrument on file.',
       });
+      await logBackgroundFailure({
+        name: 'fee.charge',
+        errorCode: 'NO_PAYMENT_METHOD',
+        message: 'Trade fee not charged: the trader has no payment method on file.',
+        context: { tradeId: params.tradeId, traderId: entry.traderId },
+      });
       continue;
     }
 
@@ -124,6 +140,12 @@ export async function chargeTradeFees(params: {
       await recordFeeResult(params.tradeId, entry.traderId, 'FAILED', {
         chargeRef: result.transferId,
         error: 'The provider declined the fee charge.',
+      });
+      await logBackgroundFailure({
+        name: 'fee.charge',
+        errorCode: 'PROVIDER_DECLINED',
+        message: 'The provider declined the trade fee charge.',
+        context: { tradeId: params.tradeId, traderId: entry.traderId },
       });
     }
   }
@@ -204,6 +226,16 @@ export async function refundTradeFees(tradeId: string): Promise<number> {
     } else {
       await recordFeeResult(tradeId, row.trader_id, 'SETTLED', {
         error: 'The fee refund was declined and is still owed back.',
+      });
+      // Money owed back to a trader that nothing retries: the one fee failure an
+      // operator has to act on by hand.
+      await logBackgroundFailure({
+        name: 'fee.refund',
+        errorCode: 'PROVIDER_DECLINED',
+        message: refund.reason
+          ? `Trade fee refund declined: ${refund.reason}`
+          : 'Trade fee refund declined; it is still owed back.',
+        context: { tradeId, traderId: row.trader_id },
       });
     }
   }
@@ -299,6 +331,12 @@ export async function drainFailedTradeFees(
         await recordFeeResult(row.trade_id, row.trader_id, 'FAILED', {
           error: 'No payment instrument on file.',
         });
+        await logBackgroundFailure({
+          name: 'fee.retry',
+          errorCode: 'NO_PAYMENT_METHOD',
+          message: 'Trade fee retry skipped: the trader has no payment method on file.',
+          context: { tradeId: row.trade_id, traderId: row.trader_id, attempts: row.attempts },
+        });
         continue;
       }
 
@@ -322,6 +360,12 @@ export async function drainFailedTradeFees(
           chargeRef: charge.transferId,
           error: 'The provider declined the fee charge.',
         });
+        await logBackgroundFailure({
+          name: 'fee.retry',
+          errorCode: 'PROVIDER_DECLINED',
+          message: 'The provider declined the trade fee retry.',
+          context: { tradeId: row.trade_id, traderId: row.trader_id, attempts: row.attempts },
+        });
       }
     } catch (err) {
       result.stillFailed += 1;
@@ -329,6 +373,12 @@ export async function drainFailedTradeFees(
         `[tradeFees] retry failed for trade ${row.trade_id} trader ${row.trader_id}:`,
         err,
       );
+      await logBackgroundFailure({
+        name: 'fee.retry',
+        errorCode: 'THREW',
+        error: err,
+        context: { tradeId: row.trade_id, traderId: row.trader_id },
+      });
     }
   }
 

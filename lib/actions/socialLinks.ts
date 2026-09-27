@@ -6,6 +6,7 @@
 // website URL). Validation is per-platform kind — a store URL must not go
 // through the handle rules.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -18,7 +19,7 @@ import { type ActionResult, fail, ok } from './result';
 
 export type UpdateSocialLinksError = 'not-authenticated' | 'validation-error' | 'persistence-error';
 
-export async function updateSocialLinks(
+export const updateSocialLinks = withActionLog('socialLinks.updateSocialLinks', async function updateSocialLinks(
   entries: { slug: string; value: string }[],
 ): Promise<ActionResult<null, UpdateSocialLinksError>> {
   const supabase = await createClient();
@@ -53,4 +54,4 @@ export async function updateSocialLinks(
   revalidatePath('/profile');
   revalidatePath(`/sellers/${user.id}`);
   return ok(null);
-}
+});

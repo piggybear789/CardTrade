@@ -17,6 +17,7 @@
 // keyed to the id Supabase Auth just returned, so the RLS-bypassing admin
 // client is the sensible binding for this single write.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { headers } from 'next/headers';
 
 import { createClient } from '@/lib/supabase/server';
@@ -93,7 +94,7 @@ function defaultDisplayName(email: string): string {
  * 3. Insert the associated `profiles` row (Req 1.1)
  *    via the admin client.
  */
-export async function signUp(
+export const signUp = withActionLog('auth.signUp', async function signUp(
   email: string,
   password: string,
 ): Promise<ActionResult<SignUpData, SignUpError>> {
@@ -171,7 +172,7 @@ export async function signUp(
     // No session on the response means an email-confirmation step is pending.
     emailConfirmationRequired: data.session === null,
   });
-}
+});
 
 /**
  * Authenticate an existing User (Req 1.7 — establishes the session used by
@@ -179,7 +180,7 @@ export async function signUp(
  * or malformed submission returns a field-level error rather than a generic
  * auth failure.
  */
-export async function signIn(
+export const signIn = withActionLog('auth.signIn', async function signIn(
   email: string,
   password: string,
 ): Promise<ActionResult<{ userId: string }, SignInError>> {
@@ -225,7 +226,7 @@ export async function signIn(
   }
 
   return ok({ userId: data.user.id });
-}
+});
 
 /**
  * Send a password-reset email (Req 1.7 recovery path).
@@ -243,7 +244,7 @@ export async function signIn(
  * The link Supabase sends must point at `/auth/confirm?...&type=recovery` — see that
  * route for why the default template does not work under `@supabase/ssr`.
  */
-export async function requestPasswordReset(
+export const requestPasswordReset = withActionLog('auth.requestPasswordReset', async function requestPasswordReset(
   email: string,
 ): Promise<ActionResult<{ sent: true }, EmailLinkError>> {
   const identifier = await rateLimitIdentifier();
@@ -271,7 +272,7 @@ export async function requestPasswordReset(
   }
 
   return ok({ sent: true });
-}
+});
 
 /**
  * Resend the signup confirmation email.
@@ -283,7 +284,7 @@ export async function requestPasswordReset(
  * Reports success regardless of whether the address exists or is already confirmed,
  * for the enumeration reason given on {@link requestPasswordReset}.
  */
-export async function resendConfirmation(
+export const resendConfirmation = withActionLog('auth.resendConfirmation', async function resendConfirmation(
   email: string,
 ): Promise<ActionResult<{ sent: true }, EmailLinkError>> {
   const identifier = await rateLimitIdentifier();
@@ -311,7 +312,7 @@ export async function resendConfirmation(
   }
 
   return ok({ sent: true });
-}
+});
 
 /**
  * Set a new password for the member holding a live recovery session.
@@ -328,7 +329,7 @@ export async function resendConfirmation(
  * session is a credential, and an unthrottled setter is worth guarding even though the
  * caller already holds one.
  */
-export async function updatePassword(
+export const updatePassword = withActionLog('auth.updatePassword', async function updatePassword(
   password: string,
 ): Promise<ActionResult<{ updated: true }, UpdatePasswordError>> {
   const identifier = await rateLimitIdentifier();
@@ -362,7 +363,7 @@ export async function updatePassword(
   }
 
   return ok({ updated: true });
-}
+});
 
 /**
  * Absolute origin for links Supabase emails back to us. Mirrors the resolution in
@@ -376,14 +377,14 @@ function siteOrigin(): string {
 }
 
 /** End the current session. */
-export async function signOut(): Promise<ActionResult<null, SignOutError>> {
+export const signOut = withActionLog('auth.signOut', async function signOut(): Promise<ActionResult<null, SignOutError>> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut();
   if (error) {
     return fail('SIGN_OUT_FAILED', 'Could not sign out. Please try again.');
   }
   return ok(null);
-}
+});
 
 /** Typed failure codes for {@link signInWithGoogle}. */
 export type OAuthStartError = 'OAUTH_START_FAILED';
@@ -431,7 +432,7 @@ async function resolveOrigin(): Promise<string> {
  * @param redirectTo - Post-sign-in destination; ignored unless it is a
  *   same-origin absolute path.
  */
-export async function signInWithGoogle(
+export const signInWithGoogle = withActionLog('auth.signInWithGoogle', async function signInWithGoogle(
   redirectTo?: string,
 ): Promise<ActionResult<{ url: string }, OAuthStartError>> {
   const supabase = await createClient();
@@ -463,7 +464,7 @@ export async function signInWithGoogle(
   }
 
   return ok({ url: data.url });
-}
+});
 
 // The password-reset pair lives with the other email-link actions above
 // (`requestPasswordReset`, `resendConfirmation`, `updatePassword`). A second

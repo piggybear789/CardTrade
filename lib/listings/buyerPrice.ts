@@ -16,23 +16,16 @@
 // "includes the fee" rather than "total" for exactly that reason — calling
 // price-plus-fee a total is a promise the flow cannot keep.
 
-import {
-  PLATFORM_FEE_BPS,
-  platformFeeCentsFor,
-} from '@/domain/orchestrator/cashSaleOrchestrator';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+
+// `PLATFORM_FEE_LABEL` (a bare "5%") used to live here. The fee now has a
+// per-currency minimum, so the label needs the currency too: it is
+// `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
 
 /**
- * The fee rate as members read it, derived from the bps so the copy cannot drift from
- * what is actually charged.
- *
- * Was declared separately in `ListingDesktopPane` and `ListingDetailStack` as
- * `feePercentLabel`, with the same expression in both.
- */
-export const PLATFORM_FEE_LABEL = `${PLATFORM_FEE_BPS / 100}%`;
-
-/**
- * What the buyer is charged for an item listed at `priceCents`: the asking price plus
- * the Platform_Fee, excluding any shipping agreed later.
+ * What the buyer is charged for an item listed at `priceCents` in `currency`: the
+ * asking price plus the Platform_Fee (including its minimum), excluding any shipping
+ * agreed later.
  *
  * The fee itself comes from `platformFeeCentsFor` — the same function the orchestrator
  * charges with — so a display figure can never disagree with a collected one.
@@ -42,8 +35,8 @@ export const PLATFORM_FEE_LABEL = `${PLATFORM_FEE_BPS / 100}%`;
  * from an imprecise one. Callers suppress this for `listing_kind === 'SHOPFRONT'`
  * rather than this function guessing, because it takes cents and not a listing.
  */
-export function buyerPaysCents(priceCents: number): number {
-  return priceCents + platformFeeCentsFor(priceCents);
+export function buyerPaysCents(priceCents: number, currency: string | null): number {
+  return priceCents + platformFeeCentsFor(priceCents, currency);
 }
 
 /**

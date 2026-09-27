@@ -12,6 +12,7 @@
 // Money is integer AUD cents end-to-end; the UI formats via `formatAud`.
 // Results follow the discriminated `AccountActionResult` shape used elsewhere.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import {
   currentStep,
   deriveCashSaleSteps,
@@ -164,7 +165,7 @@ async function getUserId(): Promise<string | null> {
  * The caller's own items across all statuses (AVAILABLE / RESERVED / SOLD),
  * newest first. RLS returns owned rows regardless of status.
  */
-export async function getMyListings(): Promise<AccountActionResult<ItemRow[]>> {
+export const getMyListings = withActionLog('account.getMyListings', async function getMyListings(): Promise<AccountActionResult<ItemRow[]>> {
   const supabase = await createClient();
 
   const userId = await getUserId();
@@ -180,7 +181,7 @@ export async function getMyListings(): Promise<AccountActionResult<ItemRow[]>> {
     return { ok: false, error: 'persistence-error', message: error.message };
   }
   return { ok: true, data: (data ?? []) as ItemRow[] };
-}
+});
 
 /**
  * Columns for a purchase/sale row. The item title and images come from the
@@ -338,24 +339,24 @@ async function loadCashSaleSummaries(
 }
 
 /** Cash sales where the caller is the buyer, newest first. */
-export async function getMyPurchases(): Promise<
+export const getMyPurchases = withActionLog('account.getMyPurchases', async function getMyPurchases(): Promise<
   AccountActionResult<CashSaleSummary[]>
 > {
   return loadCashSaleSummaries('BUYER');
-}
+});
 
 /** Cash sales where the caller is the seller, newest first. */
-export async function getMySales(): Promise<
+export const getMySales = withActionLog('account.getMySales', async function getMySales(): Promise<
   AccountActionResult<CashSaleSummary[]>
 > {
   return loadCashSaleSummaries('SELLER');
-}
+});
 
 /**
  * Trades where the caller is either participant (initiator or counterpart),
  * newest first. RLS restricts visibility to the two participants.
  */
-export async function getMyTrades(): Promise<
+export const getMyTrades = withActionLog('account.getMyTrades', async function getMyTrades(): Promise<
   AccountActionResult<TradeSummary[]>
 > {
   const supabase = await createClient();
@@ -506,7 +507,7 @@ export async function getMyTrades(): Promise<
   });
 
   return { ok: true, data: summaries };
-}
+});
 // ---------------------------------------------------------------------------
 // Account closure — the web entry point (Req 7.1)
 // ---------------------------------------------------------------------------
@@ -557,7 +558,7 @@ import type { CloseAccountResult } from '@/domain/orchestrator/accountClosureOrc
  * cookie stops working at its next refresh — telling the member closure failed would
  * be the false statement Req 7.8 forbids.
  */
-export async function closeMyAccount(): Promise<CloseAccountResult> {
+export const closeMyAccount = withActionLog('account.closeMyAccount', async function closeMyAccount(): Promise<CloseAccountResult> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -602,4 +603,4 @@ export async function closeMyAccount(): Promise<CloseAccountResult> {
   await signOut();
 
   return result;
-}
+});

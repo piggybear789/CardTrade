@@ -16,6 +16,7 @@
 // `operationalRegions()` reads `process.env`, so it cannot run in the browser; this
 // module is the seam that carries the answer across.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { operationalRegions } from '@/domain/services';
 import { findRegion, type RegionCode } from '@/domain/region';
 
@@ -33,7 +34,7 @@ export interface SelectableRegion {
  * Sorted by label so the list is stable and scannable rather than ordered by the
  * accident of how the environment enumerates.
  */
-export async function listSelectableRegions(): Promise<SelectableRegion[]> {
+export const listSelectableRegions = withActionLog('regionOptions.listSelectableRegions', async function listSelectableRegions(): Promise<SelectableRegion[]> {
   return [...operationalRegions()]
     .map((code) => findRegion(code))
     .filter((region): region is NonNullable<typeof region> => region !== null)
@@ -43,4 +44,4 @@ export async function listSelectableRegions(): Promise<SelectableRegion[]> {
       currency: region.currency,
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
-}
+});

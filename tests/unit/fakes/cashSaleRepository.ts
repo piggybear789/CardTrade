@@ -440,9 +440,9 @@ export function makeCashSaleRepository(options: {
       if (!sale || sale.status !== 'AGREEMENT') return null;
       if (sale.termsVersion !== expectedTermsVersion) return null;
       // Matches the trigger: a price change bumps the version and clears ticks.
-      // The percentage Platform_Fee is re-derived from the new price, mirroring
-      // the Supabase repository.
-      const feeCents = platformFeeCentsFor(agreedPriceCents);
+      // The percentage Platform_Fee (with its per-currency floor) is re-derived
+      // from the new price, mirroring the Supabase repository.
+      const feeCents = platformFeeCentsFor(agreedPriceCents, sale.currency);
       state.sale = {
         ...sale,
         agreedPriceCents,

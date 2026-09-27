@@ -2,6 +2,22 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Focus and invalid states shared by every field primitive. `Textarea` and
+ * `SelectTrigger` import this rather than restating it, so the three cannot drift.
+ *
+ * FOCUS is the edge turning iris PLUS a 1px inset iris ring: a 2px frame. The edge
+ * alone was a 1px hue shift from `--input` to `--iris`, which sit 1.17:1 apart in
+ * luminance — findable if you were looking for it, easy to lose on a long form. Inset
+ * so a field flush against a scroll container's edge cannot have it clipped.
+ *
+ * INVALID reads `aria-invalid`, which `FormControl` and the hand-rolled forms already
+ * set and nothing styled, so only the label ever turned red. Invalid-and-focused stays
+ * red rather than going iris: tabbing back into a field must not hide its error.
+ */
+export const fieldStateClasses =
+  "focus-visible:border-iris focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:border-destructive aria-[invalid=true]:focus-visible:ring-destructive";
+
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {
     return (
@@ -39,10 +55,15 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           // mismatch you can see on any form: the value is visibly larger than the
           // name of the field holding it.
           //
-          // If iOS focus-zoom ever has to be suppressed again, the gate is
-          // `@supports (-webkit-touch-callout: none)` and not a pointer query — see
-          // the reasoning kept in tailwind.config.ts.
-          "flex h-9 w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8 file:border-0 file:bg-transparent file:text-body file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:border-iris focus-visible:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground",
+          // THE iOS FOCUS-ZOOM IS SUPPRESSED, in globals.css rather than here. iOS
+          // Safari still zooms a focused field under 16px and never zooms back out, so
+          // the floor is a rule behind `@supports (-webkit-touch-callout: none)` — iOS
+          // only, not a pointer or width query (see tailwind.config.ts) — that lifts
+          // `meta`/`body`-sized and inherited fields to 16px. This list stays
+          // `text-body`; an iPhone renders the value 2px larger than its label, which
+          // is the price of not zooming.
+          "flex h-9 w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8 file:border-0 file:bg-transparent file:text-body file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:text-muted-foreground",
+          fieldStateClasses,
           className
         )}
         ref={ref}

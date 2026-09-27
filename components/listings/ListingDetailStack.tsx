@@ -6,16 +6,16 @@ import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
 import { formatAud, formatRelativeTime } from '@/lib/format';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import {
-  buyerPaysCents,
-  PLATFORM_FEE_LABEL,
-  splitMoney,
-} from '@/lib/listings/buyerPrice';
+import { buyerPaysCents, splitMoney } from '@/lib/listings/buyerPrice';
+import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
 
 export function ListingDetailStack({
   title,
   description,
   priceCents,
+  currency,
   condition,
   category,
   isShopfront,
@@ -36,6 +36,8 @@ export function ListingDetailStack({
   title: string;
   description: string;
   priceCents: number;
+  /** `items.currency`, which selects the fee minimum folded into the headline. */
+  currency: string;
   condition: string;
   category: string | null;
   isShopfront: boolean;
@@ -68,7 +70,7 @@ export function ListingDetailStack({
   // A binder shows its own indicative "from" figure; a single listing shows what the
   // buyer is actually charged. See `buyerPaysCents`.
   const headline = splitMoney(
-    formatAud(isShopfront ? priceCents : buyerPaysCents(priceCents)),
+    formatAud(isShopfront ? priceCents : buyerPaysCents(priceCents, currency)),
   );
   const desktopMeta = [savesLabel, category, kindLabel].filter(Boolean).join(' · ');
   const mobileMeta = [
@@ -173,12 +175,16 @@ export function ListingDetailStack({
               </span>
             ) : null}
           </p>
-          {/* Four words, same as desktop. The escrow promise it used to carry is made at
-              the buy bar, which is where it is the actual reassurance. */}
+          {/* The fee note sits behind an (i), same as desktop. The headline above is
+              already fee-inclusive, so the figure is honest without the note; the
+              popover explains it. */}
           {!isShopfront ? (
-            <p className="text-meta text-muted-foreground">
-              Including {PLATFORM_FEE_LABEL} NoDitto fee
-            </p>
+            <FeeInfoPopover
+              priceText={formatAud(priceCents)}
+              feeText={formatAud(platformFeeCentsFor(priceCents, currency))}
+              totalText={formatAud(buyerPaysCents(priceCents, currency))}
+              rateLabel={platformFeeRateLabel(currency)}
+            />
           ) : null}
         </div>
         <span className="shrink-0 rounded-full bg-mist px-snug py-0.5 text-meta font-semibold text-muted-foreground">

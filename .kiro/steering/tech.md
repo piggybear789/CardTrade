@@ -6,7 +6,7 @@
 - **TypeScript 5.7**, `strict: true`, `noEmit` (Next/Vitest handle transpilation)
 - **Supabase** — PostgreSQL, Auth, Storage, Realtime (`@supabase/supabase-js`, `@supabase/ssr`)
 - **Tailwind CSS 3** + **shadcn/ui** (Radix primitives, `class-variance-authority`, `tailwind-merge`, CSS variables, slate base color)
-- **lucide-react** icons, **sonner** toasts, **next-themes**
+- **Hugeicons** (`@hugeicons/react` `HugeiconsIcon` + icons from `@hugeicons/core-free-icons`), **sonner** toasts, **next-themes**. `lucide-react` is NOT installed; do not import it
 - **zod 4** for schema validation, **react-hook-form** + `@hookform/resolvers` for forms
 - **Vitest 3** + **fast-check** (property-based testing), **@testing-library/react** + jsdom for components
 
@@ -81,9 +81,32 @@ Copy `.env.local.example` to `.env.local`:
 - `DEFAULT_REGION` — ISO 3166-1 alpha-2 browse region used when nothing else resolves, i.e. local development and unrecognised IPs. Defaults to `AU`, and an unlisted code falls back rather than emptying the catalog. This is the BROWSE default only; it never becomes anyone's `profiles.region_code`
 - **`STRIPE_SECRET_KEY_<REGION>`** — one Stripe platform account per region (0068), e.g. `STRIPE_SECRET_KEY_GB`. The unsuffixed `STRIPE_SECRET_KEY` is the binding for `AU` (`DEFAULT_CONFIG_REGION`) and **does not** serve any other region: a suffixed lookup never falls back, because resolving a GB seller onto the AU platform would look fine at onboarding and fail at the first transfer with the buyer already charged. `STRIPE_WEBHOOK_SECRET_<REGION>`, `STRIPE_CONNECT_WEBHOOK_SECRET_<REGION>` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_<REGION>` follow the same rule. Setting a region's key is what makes it operational — `allConfiguredRegionCodes()` discovers regions by scanning the environment, so there is no list to keep in step
 - `STRIPE_CURRENCY` / `STRIPE_ACCOUNT_COUNTRY` — legacy fallbacks only. Currency and account country now come from the region table in `domain/region/regions.ts`, because a per-region env var for either would be a second place the mapping `GB → gbp` lives
+- `ERROR_LOGGING` — optional `on` / `off` override for automatic error capture into `cardtrade.error_logs` (0123). Unset, it is on only in production (`VERCEL_ENV=production`, or `NODE_ENV=production` off Vercel), so preview deployments stay out of the table. See "Error logging" below. Member reports from the error screen are saved in every environment
 - `JOBS_SECRET` — server-only bearer secret for the scheduled money-moving routes (`/api/jobs/cash-sale-payouts`, `/api/jobs/trade-inspections`). Both **fail closed** without it. Set `CRON_SECRET` to the same value, because Vercel Cron sends it as a bearer token on a GET.
 
 Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret values back in output.
+
+## Error logging (0123)
+
+Everything that goes wrong lands in `cardtrade.error_logs`, grouped by `fingerprint` and worked from `/admin?tab=errors`, where an admin marks a group resolved. A resolved group reopens by itself when the error recurs. Five sources:
+
+| Source | Written by |
+|---|---|
+| `SERVER` | `onRequestError` in `instrumentation.ts` — any throw in a render, Route Handler or Server Action. `reference` is the Next digest the error screen shows as "Ref" |
+| `CLIENT` | `instrumentation-client.ts` (uncaught errors, unhandled rejections) and the error screen (render errors), via `POST /api/errors` |
+| `ACTION` | `withActionLog` — a Server Action that RETURNED `{ ok: false }`, which is where "the sale didn't go through" lives |
+| `BACKGROUND` | `logBackgroundFailure` — jobs, webhooks, payouts, refunds, fees, collateral |
+| `REPORT` | "Report this problem" on the error screen, filed into the group of the error it references |
+
+Rules:
+
+- **Every Server Action is exported through `withActionLog`**: `export const x = withActionLog('<module>.<x>', async function x(…) { … })`. `tests/unit/actionLogCoverage.test.ts` fails on a plain `export async function` in a `'use server'` module and on a name that is not `<module>.<export>`. The name is the console's group key, so keep it stable across renames.
+- **`domain/` never logs.** It reports failures through injected hooks (`onDrainError`, `onDrainFailure` on the cash-sale orchestrator) or in its return values, and `lib/` / `app/` call `logBackgroundFailure`. Give a new background failure a stable dotted `name` (`payout.seller`, `webhook.ship24.outbound`) and a machine `errorCode`.
+- **`context` is identifiers only** (`cashSaleId`, `tradeId`, `region`). Never arguments, addresses, notes or member messages. `extractIdContext` does this for actions; `boundContext` caps anything else.
+- `lib/errors/errorLog.ts` is the table's ONLY writer (service role). There is no member or anon grant, reads are admin-only, and `error_log_groups` is `security_invoker` and granted to the service role alone.
+- Supabase returns database errors as `{ error }` rather than throwing. A background write that matters must check the returned error, not only wrap the call in `try`.
+- Expected vs unexpected is `isExpectedFailureCode` in `domain/errors/errorLog.ts`. An unrecognised code is UNEXPECTED on purpose, so a new failure mode surfaces. Expected refusals are only recorded when a member invoked the action (a `Next-Action` request or a mobile Bearer call), never for read-style actions called during a page render.
+- Capture is production-only unless `ERROR_LOGGING=on`; member reports are always saved.
 
 ## Deployment region
 
@@ -108,7 +131,9 @@ Middleware (`proxy.ts`) is separate: it runs on the Edge Network near the USER, 
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/`, currently through `0069_identity_gate_on_stripe_identity.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0123_error_logs.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+
+**The Supabase MCP `apply_migration` fails on this project** with `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`: the tool's history upsert does not match the project's `supabase_migrations.schema_migrations` constraints. It rolls back cleanly. 0121, 0122 and 0123 were therefore applied with `execute_sql` in a single transaction and have NO history row; check the catalog (`to_regclass`), not the history, before assuming a migration is missing.
 
 `lib/supabase/database.types.ts` is hand-maintained and its `Functions` block is part of that: `client.rpc('name', …)` is typed against it, so a new RPC or a new argument must be added there or the call fails `tsc` even though the SQL is correct. Adding a column to `cash_sales` also means adding it to `CASH_SALE_PUBLIC_SELECT` in `lib/supabase/cashSaleProjection.ts`, which is an explicit column list — the contract room reads through it and will simply not see the column otherwise.
 

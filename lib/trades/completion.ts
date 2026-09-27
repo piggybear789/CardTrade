@@ -22,6 +22,7 @@ import { regionForCurrency, regionForTrade } from '@/lib/regionBinding';
 import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
 import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { Tables } from '@/lib/supabase/database.types';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** The full persisted Trade row shape. */
 export type TradeRow = Tables<'trades'>;
@@ -55,11 +56,28 @@ export async function voidTradeHolds(tradeId: string): Promise<VoidTradeHoldsRes
         .from('pre_auth_holds')
         .update({ status: voided.status })
         .eq('hold_ref', hold.hold_ref as string);
-      if (voided.status === 'VOIDED') released += 1;
-      else failed += 1;
+      if (voided.status === 'VOIDED') {
+        released += 1;
+      } else {
+        failed += 1;
+        // Collateral still authorised on a trade that is over: a trader's card stays
+        // encumbered until the authorisation lapses unless someone intervenes.
+        await logBackgroundFailure({
+          name: 'trade.void-hold',
+          errorCode: `HOLD_${voided.status}`,
+          message: `Collateral hold was not released on a completed trade (status ${voided.status}).`,
+          context: { tradeId, holdRef: hold.hold_ref as string },
+        });
+      }
     } catch (err) {
       failed += 1;
       console.warn(`[trades] failed to void hold ${hold.hold_ref} on completion:`, err);
+      await logBackgroundFailure({
+        name: 'trade.void-hold',
+        errorCode: 'THREW',
+        error: err,
+        context: { tradeId, holdRef: hold.hold_ref as string },
+      });
     }
   }
   return { released, failed };
@@ -114,6 +132,14 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
       `[trades] cash settlement for trade ${trade.id} could not be started: ` +
         'payer or payout account missing.',
     );
+    await logBackgroundFailure({
+      name: 'trade.settle-cash',
+      errorCode: 'NOT_READY',
+      message: !payerId
+        ? 'Trade cash leg not settled: the paying trader has no payment method.'
+        : 'Trade cash leg not settled: the receiving trader cannot receive funds yet.',
+      context: { tradeId: trade.id },
+    });
     return { ok: false, error: 'not-ready' };
   }
 
@@ -133,6 +159,12 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
     if (transfer.status !== 'SETTLED') {
       await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);
       console.warn(`[trades] cash settlement for trade ${trade.id} failed to settle.`);
+      await logBackgroundFailure({
+        name: 'trade.settle-cash',
+        errorCode: 'TRANSFER_FAILED',
+        message: 'The provider did not settle the trade cash leg.',
+        context: { tradeId: trade.id },
+      });
       return { ok: false, error: 'transfer-failed' };
     }
     await admin.from('trades').update({ manual_reconciliation: false }).eq('id', trade.id);
@@ -140,6 +172,12 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
   } catch (err) {
     await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);
     console.warn(`[trades] cash settlement for trade ${trade.id} threw:`, err);
+    await logBackgroundFailure({
+      name: 'trade.settle-cash',
+      errorCode: 'THREW',
+      error: err,
+      context: { tradeId: trade.id },
+    });
     return {
       ok: false,
       error: 'transfer-failed',

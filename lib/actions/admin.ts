@@ -22,6 +22,7 @@
 //
 // Every export is an async Server Action; shared shapes are `export type` only.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
@@ -139,14 +140,14 @@ async function setItemHidden(
 }
 
 /** Hide a listing (removes it from the public catalog). Admin-only. */
-export async function hideItem(itemId: string): Promise<AdminActionResult> {
+export const hideItem = withActionLog('admin.hideItem', async function hideItem(itemId: string): Promise<AdminActionResult> {
   return setItemHidden(itemId, true);
-}
+});
 
 /** Un-hide a listing (restores it to the public catalog). Admin-only. */
-export async function unhideItem(itemId: string): Promise<AdminActionResult> {
+export const unhideItem = withActionLog('admin.unhideItem', async function unhideItem(itemId: string): Promise<AdminActionResult> {
   return setItemHidden(itemId, false);
-}
+});
 
 /**
  * Clear a member's avatar. Admin-only (0066).
@@ -169,7 +170,7 @@ export async function unhideItem(itemId: string): Promise<AdminActionResult> {
  * Service-role, because the column is owner-writable only — an admin is not the
  * owner, so RLS would refuse the cookie-bound client.
  */
-export async function clearMemberAvatar(profileId: string): Promise<AdminActionResult> {
+export const clearMemberAvatar = withActionLog('admin.clearMemberAvatar', async function clearMemberAvatar(profileId: string): Promise<AdminActionResult> {
   const gate = await requireAdmin();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
@@ -204,13 +205,13 @@ export async function clearMemberAvatar(profileId: string): Promise<AdminActionR
   await removeAvatarObject(admin, (before?.avatar_path as string | null) ?? null);
 
   return { ok: true, data: { id: data.id } };
-}
+});
 
 /**
  * Set a report's status. `ACTIONED` also stamps `reviewed_by`/`reviewed_at`;
  * `DISMISSED` records the reviewer as well so triage is auditable. Admin-only.
  */
-export async function setReportStatus(
+export const setReportStatus = withActionLog('admin.setReportStatus', async function setReportStatus(
   reportId: string,
   status: Extract<Enums<'report_status'>, 'ACTIONED' | 'DISMISSED'>,
 ): Promise<AdminActionResult> {
@@ -239,7 +240,7 @@ export async function setReportStatus(
   }
 
   return { ok: true, data: { id: data.id } };
-}
+});
 
 /**
  * Set a feedback row's status (0120). Admin-only, and identical in shape to
@@ -253,7 +254,7 @@ export async function setReportStatus(
  * Writes through the service role: `feedback_admin_update` has no member grant behind
  * it, matching the arrangement `policies.test.ts` records for `reports:UPDATE`.
  */
-export async function setFeedbackStatus(
+export const setFeedbackStatus = withActionLog('admin.setFeedbackStatus', async function setFeedbackStatus(
   feedbackId: string,
   status: Extract<Enums<'report_status'>, 'ACTIONED' | 'DISMISSED'>,
 ): Promise<AdminActionResult> {
@@ -285,13 +286,50 @@ export async function setFeedbackStatus(
 
   revalidatePath('/admin');
   return { ok: true, data: { id: data.id } };
-}
+});
+
+/**
+ * Mark every open occurrence of one error group resolved (0123). Admin-only.
+ *
+ * RESOLVES WHAT EXISTS, NOT WHAT IS COMING. Only rows already recorded are stamped, so
+ * an error that recurs after a "fix" arrives unresolved and reopens the group by itself
+ * — the queue cannot be emptied by declaring victory over a bug that is still live.
+ *
+ * Writes through the service role: `error_logs` has no member UPDATE grant or policy,
+ * the same arrangement as feedback and reports.
+ */
+export const resolveErrorGroup = withActionLog('admin.resolveErrorGroup', async function resolveErrorGroup(
+  fingerprint: string,
+): Promise<AdminActionResult<{ fingerprint: string; resolved: number }>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  if (typeof fingerprint !== 'string' || !/^[0-9a-z]{1,32}$/.test(fingerprint)) {
+    return { ok: false, error: 'not-found' };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('error_logs')
+    .update({ resolved_at: new Date().toISOString(), resolved_by: gate.adminId })
+    .eq('fingerprint', fingerprint)
+    .is('resolved_at', null)
+    .select('id');
+
+  if (error) {
+    return { ok: false, error: 'persistence-error', message: error.message };
+  }
+
+  revalidatePath('/admin');
+  return { ok: true, data: { fingerprint, resolved: data?.length ?? 0 } };
+});
 
 /**
  * Clear a trade's manual-reconciliation flag once an admin has reviewed the
  * flagged trade. Admin-only.
  */
-export async function clearTradeReconciliationFlag(
+export const clearTradeReconciliationFlag = withActionLog('admin.clearTradeReconciliationFlag', async function clearTradeReconciliationFlag(
   tradeId: string,
 ): Promise<AdminActionResult> {
   const gate = await requireAdmin();
@@ -315,7 +353,7 @@ export async function clearTradeReconciliationFlag(
   }
 
   return { ok: true, data: { id: data.id } };
-}
+});
 
 /**
  * Retry the Seller release for one Cash_Sale (Req 4.3), admin-gated.
@@ -328,7 +366,7 @@ export async function clearTradeReconciliationFlag(
  * Safe to press repeatedly: the release reuses the sale's persisted nonce, so the
  * provider deduplicates rather than paying twice.
  */
-export async function retryCashSalePayout(
+export const retryCashSalePayout = withActionLog('admin.retryCashSalePayout', async function retryCashSalePayout(
   cashSaleId: string,
 ): Promise<AdminActionResult<{ id: string; status: string }>> {
   const gate = await requireAdmin();
@@ -360,7 +398,7 @@ export async function retryCashSalePayout(
     ok: true,
     data: { id: cashSaleId, status: result.sale.sellerPayoutStatus },
   };
-}
+});
 
 /**
  * Resolve a disputed Cash_Sale (Req 4.15), STAFF-gated.
@@ -387,7 +425,7 @@ export async function retryCashSalePayout(
  * question: not who was right about the goods, but whether an already-decided refund's
  * condition was met. Staff-gated for the same reason as every other resolution.
  */
-export async function resolveCashSaleReturnCase(
+export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleReturnCase', async function resolveCashSaleReturnCase(
   cashSaleId: string,
   outcome: 'REFUND_BUYER' | 'RELEASE_SELLER',
 ): Promise<AdminActionResult<{ id: string; status: string }>> {
@@ -424,9 +462,9 @@ export async function resolveCashSaleReturnCase(
   revalidatePath('/admin/arbitration');
   revalidatePath(`/sales/${cashSaleId}`);
   return { ok: true, data: { id: result.sale.id, status: result.sale.status } };
-}
+});
 
-export async function resolveCashSaleDispute(
+export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDispute', async function resolveCashSaleDispute(
   cashSaleId: string,
   outcome: CashSaleDisputeOutcome,
   refundCents?: number,
@@ -496,7 +534,7 @@ export async function resolveCashSaleDispute(
       refundCents: result.sale.refundCents,
     },
   };
-}
+});
 
 /**
  * Resolve a disputed Trade as a Condition_Dispute (Req 7.2-7.5), staff-gated.
@@ -509,7 +547,7 @@ export async function resolveCashSaleDispute(
  * point of moving it was that a party must not decide their own case — not that only
  * an administrator may decide it.
  */
-export async function resolveTradeConditionDispute(
+export const resolveTradeConditionDispute = withActionLog('admin.resolveTradeConditionDispute', async function resolveTradeConditionDispute(
   tradeId: string,
 ): Promise<AdminActionResult<{ id: string; state: string }>> {
   const gate = await requireStaff();
@@ -555,7 +593,7 @@ export async function resolveTradeConditionDispute(
   void emailNotify.disputeRaised({ userId: trade.counterpart_id as string, contractType: 'trade', contractId: tradeId });
 
   return { ok: true, data: { id: tradeId, state: result.trade.state } };
-}
+});
 
 /**
  * Resolve a disputed Trade as Objective_Fraud (Req 8.1-8.6), staff-gated.
@@ -573,7 +611,7 @@ export async function resolveTradeConditionDispute(
  * The victim is validated against the trade's participants downstream, so naming an
  * unrelated account fails rather than paying a stranger.
  */
-export async function resolveTradeFraud(
+export const resolveTradeFraud = withActionLog('admin.resolveTradeFraud', async function resolveTradeFraud(
   tradeId: string,
   victimId: string,
 ): Promise<AdminActionResult<{ id: string; state: string }>> {
@@ -655,7 +693,7 @@ export async function resolveTradeFraud(
   });
 
   return { ok: true, data: { id: tradeId, state: result.outcome.trade.state } };
-}
+});
 
 /**
  * The reconciliation verdict for ONE region, as the console renders it: the pure
@@ -720,7 +758,7 @@ async function regionForCashSale(cashSaleId: string): Promise<string> {
  * not a member's contract, and it is not information an arbitrator needs to decide a
  * case.
  */
-export async function getCustodyPosition(
+export const getCustodyPosition = withActionLog('admin.getCustodyPosition', async function getCustodyPosition(
   region?: string | null,
 ): Promise<AdminActionResult<CustodyReport>> {
   const gate = await requireAdmin();
@@ -789,7 +827,7 @@ export async function getCustodyPosition(
       unreadableReason: balance.status === 'READ' ? null : (balance.reason ?? null),
     },
   };
-}
+});
 
 /**
  * Run one pass of the owed-release queue (Req 4.3), admin-gated.
@@ -797,7 +835,7 @@ export async function getCustodyPosition(
  * The same work the scheduled job does, exposed so an operator can drain the
  * queue on demand rather than waiting for the next hour.
  */
-export async function drainCashSalePayouts(): Promise<
+export const drainCashSalePayouts = withActionLog('admin.drainCashSalePayouts', async function drainCashSalePayouts(): Promise<
   AdminActionResult<{ considered: number; settled: number; stillOwed: number }>
 > {
   const gate = await requireAdmin();
@@ -826,4 +864,4 @@ export async function drainCashSalePayouts(): Promise<
 
   revalidatePath('/admin');
   return { ok: true, data: totals };
-}
+});

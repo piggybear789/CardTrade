@@ -27,6 +27,7 @@
 // client-facing select, so they are read through the admin client filtered to the
 // caller's own id, returning only the fields Req 4 names (Req 2.4).
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -115,7 +116,7 @@ function failureCauseFor(params: {
  * `read-failed` so the page can offer a retry rather than rendering a zero
  * balance, which would read as "you are owed nothing" (Req 10.8).
  */
-export async function getPayoutsDashboard(): Promise<
+export const getPayoutsDashboard = withActionLog('payouts.getPayoutsDashboard', async function getPayoutsDashboard(): Promise<
   ActionResult<PayoutsDashboardData, PayoutsActionError>
 > {
   const supabase = await createClient();
@@ -296,7 +297,7 @@ export async function getPayoutsDashboard(): Promise<
     model: derivePayoutReadModel({ sales, events, trades, disputes }),
     destination,
   });
-}
+});
 
 /**
  * Whether the active provider exposes a hosted onboarding flow.

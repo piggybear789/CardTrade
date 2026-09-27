@@ -69,61 +69,67 @@ void main() {
   });
 
   group('Money.platformFee()', () {
-    test('calculates 5% of item price — 1000 cents → 50 cents', () {
-      expect(Money.platformFee(1000), equals(50));
+    test('calculates 5% above the AUD minimum — 10000 cents → 500 cents', () {
+      expect(Money.platformFee(10000, currency: 'aud'), equals(500));
     });
 
-    test('calculates 5% of item price — 2000 cents → 100 cents', () {
-      expect(Money.platformFee(2000), equals(100));
+    test('rounds half-up like the server — 7777 cents → 389 cents', () {
+      // 7777 * 500 / 10000 = 388.85 → rounds to 389
+      expect(Money.platformFee(7777, currency: 'aud'), equals(389));
     });
 
-    test('calculates 5% of item price — 1999 cents → 100 cents (rounded)', () {
-      // 1999 * 500 / 10000 = 99.95 → rounds to 100
-      expect(Money.platformFee(1999), equals(100));
+    test('applies the AUD \$1.50 minimum below \$30', () {
+      expect(Money.platformFee(1000, currency: 'aud'), equals(150));
+      expect(Money.platformFee(2000, currency: 'aud'), equals(150));
+      expect(Money.platformFee(1, currency: 'aud'), equals(150));
     });
 
-    test('calculates 5% of item price — 100 cents → 5 cents', () {
-      expect(Money.platformFee(100), equals(5));
+    test('the percentage takes over exactly at the crossover', () {
+      expect(Money.platformFee(3000, currency: 'aud'), equals(150));
+      expect(Money.platformFee(3020, currency: 'aud'), equals(151));
     });
 
-    test('calculates 5% of item price — 1 cent → 0 cents (rounds down)', () {
-      // 1 * 500 / 10000 = 0.05 → rounds to 0
-      expect(Money.platformFee(1), equals(0));
+    test('a currency with no floor gets the plain percentage', () {
+      expect(Money.platformFee(1000, currency: 'usd'), equals(50));
+      expect(Money.platformFee(1999, currency: 'usd'), equals(100));
+      expect(Money.platformFee(1000, currency: null), equals(50));
     });
 
-    test('calculates 5% of item price — 0 → 0', () {
-      expect(Money.platformFee(0), equals(0));
-    });
-
-    test('calculates 5% of large amount — 10000 cents → 500 cents', () {
-      expect(Money.platformFee(10000), equals(500));
-    });
-
-    test('fee uses PLATFORM_FEE_BPS = 500 (basis points)', () {
-      // Verify the formula: (priceCents * 500 / 10000)
-      // For 7777 cents: 7777 * 500 / 10000 = 388.85 → rounds to 389
-      expect(Money.platformFee(7777), equals(389));
+    test('zero price → zero fee, never the minimum', () {
+      expect(Money.platformFee(0, currency: 'aud'), equals(0));
     });
   });
 
   group('Money.tradeFee()', () {
-    test('calculates 5% trade fee — symmetric with platformFee', () {
-      expect(Money.tradeFee(1000), equals(50));
-      expect(Money.tradeFee(2000), equals(100));
+    test('calculates 5% above the AUD minimum', () {
+      expect(Money.tradeFee(10000, currency: 'aud'), equals(500));
+    });
+
+    test('applies the AUD \$1.00 per-trader minimum', () {
+      expect(Money.tradeFee(1000, currency: 'aud'), equals(100));
+      expect(Money.tradeFee(0, currency: 'aud'), equals(0));
     });
   });
 
   group('Money.cashSaleTotal()', () {
     test('sums price + shipping + platform fee', () {
-      // price: 1000, shipping: 200, fee: 50 → total: 1250
-      final total = Money.cashSaleTotal(priceCents: 1000, shippingCents: 200);
-      expect(total, equals(1250));
+      // price: 10000, shipping: 200, fee: 500 → total: 10700
+      final total = Money.cashSaleTotal(
+        priceCents: 10000,
+        shippingCents: 200,
+        currency: 'aud',
+      );
+      expect(total, equals(10700));
     });
 
-    test('handles zero shipping', () {
-      final total = Money.cashSaleTotal(priceCents: 2000, shippingCents: 0);
-      // 2000 + 0 + 100 = 2100
-      expect(total, equals(2100));
+    test('includes the minimum fee on a small sale', () {
+      final total = Money.cashSaleTotal(
+        priceCents: 1000,
+        shippingCents: 0,
+        currency: 'aud',
+      );
+      // 1000 + 0 + 150 = 1150
+      expect(total, equals(1150));
     });
   });
 

@@ -23,6 +23,7 @@
 // the orchestrator, and the live view updates over the existing realtime
 // subscription — so the panel does not need to refetch.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { isPaymentDemoEnabled } from '@/domain/services';
 import { MockService } from '@/domain/services/mock/MockService';
@@ -134,7 +135,7 @@ async function requireParticipant(
  *      outcome (e.g. the event is invalid from the current Trade_State) is
  *      surfaced as `rejected` so the caller can toast an error.
  */
-export async function fireTradeWebhook(
+export const fireTradeWebhook = withActionLog('demo.fireTradeWebhook', async function fireTradeWebhook(
   tradeId: string,
   kind: DemoWebhookKind,
 ): Promise<FireTradeWebhookResult> {
@@ -212,7 +213,7 @@ export async function fireTradeWebhook(
     outcome: body?.outcome ?? 'SUCCESS',
     deduped: body?.deduped === true,
   };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Cash Sale — simulated payment settlement / failure
@@ -275,7 +276,7 @@ async function requireCashSaleParticipant(
  * Follows the same pattern as `fireTradeWebhook`: authenticate, build event,
  * sign server-side, POST to our own webhook route, return the outcome.
  */
-export async function fireCashSaleWebhook(
+export const fireCashSaleWebhook = withActionLog('demo.fireCashSaleWebhook', async function fireCashSaleWebhook(
   cashSaleId: string,
   kind: DemoCashSaleWebhookKind,
 ): Promise<FireCashSaleWebhookResult> {
@@ -345,7 +346,7 @@ export async function fireCashSaleWebhook(
     outcome: body?.outcome ?? 'SUCCESS',
     deduped: body?.deduped === true,
   };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Identity_Gate — simulated verification decision (0069)
@@ -408,7 +409,7 @@ const IDENTITY_EVENT_TYPE_BY_KIND: Record<DemoIdentityWebhookKind, WebhookEventT
  * than conjuring a verified state from nothing. That also means the stored session
  * id is real, so the handler's session-id fallback is exercised too.
  */
-export async function fireIdentityWebhook(
+export const fireIdentityWebhook = withActionLog('demo.fireIdentityWebhook', async function fireIdentityWebhook(
   kind: DemoIdentityWebhookKind,
 ): Promise<FireIdentityWebhookResult> {
   if (!isPaymentDemoEnabled()) {
@@ -501,4 +502,4 @@ export async function fireIdentityWebhook(
     outcome: body?.outcome ?? 'SUCCESS',
     deduped: body?.deduped === true,
   };
-}
+});

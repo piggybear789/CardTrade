@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { TabbedPanels, type TabDescriptor } from '@/components/ui/tabbed-panels';
+import { platformFeePhrase } from '@/lib/fees/feeLabels';
 
 import { RolePanel, SafetyList, SafetySection, type Stage } from './stage-rail';
 
@@ -59,7 +60,7 @@ const BUYING: Stage[] = [
     moves: [
       <>Your money goes to NoDitto, not the seller, and stays there until you accept.</>,
       <>Check the delivery address and postage before paying.</>,
-      <>NoDitto takes a flat 5% of the item price as a fee, built into the sale price. Postage is passed through at cost.</>,
+      <>The buyer pays a NoDitto fee of {platformFeePhrase('aud')}, included in the price you see before paying. Postage is passed through at cost.</>,
     ],
   },
   {

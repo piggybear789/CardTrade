@@ -2,7 +2,7 @@
 // Keep labels/hrefs in one place so active-state logic cannot drift.
 
 import type { IconSvgElement } from '@hugeicons/react';
-import { BellIcon, BookmarkCheck01Icon, HandCoinsIcon, HandshakeIcon, LayoutGridIcon, MessageCircleIcon, PackageIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
+import { BellIcon, HandCoinsIcon, HandshakeIcon, HeartIcon, LayoutGridIcon, MessageCircleIcon, PackageIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
 
 export type MarketplaceNavLink = {
   href: string;
@@ -64,7 +64,9 @@ export const MARKETPLACE_NAV_GROUPS = [
       // `/listings/[id]`, which is why the active-state helper below cannot
       // simply prefix-match this href.
       { href: '/', label: 'Browse All', icon: LayoutGridIcon },
-      { href: '/saved', label: 'Saved', icon: BookmarkCheck01Icon },
+      // The heart, the same glyph `WatchButton` saves with. It was a bookmark, so
+      // members saved with one symbol and found their saves under another.
+      { href: '/saved', label: 'Saved', icon: HeartIcon },
     ],
   },
   {

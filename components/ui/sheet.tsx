@@ -100,7 +100,8 @@ const SheetContent = React.forwardRef<
         {hideClose ? null : (
           <SheetPrimitive.Close
             className={cn(
-              "absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-iris disabled:pointer-events-none md:size-8 md:opacity-70",
+              // `focus-visible:opacity-100`: opacity dims the focus ring with the icon.
+              "absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris focus-visible:opacity-100 disabled:pointer-events-none md:size-8 md:opacity-70",
               closeClassName,
             )}
           >

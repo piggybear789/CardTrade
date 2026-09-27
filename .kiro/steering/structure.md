@@ -27,7 +27,7 @@ middleware.ts       Auth guard; redirects unauthenticated users off protected pr
 
 ## app/
 
-Route folders mirror features: `(auth)/sign-in`, `(auth)/sign-up`, `(auth)/forgot-password`, `auth/update-password`, `onboarding`, `admin` (+ `arbitration`), `listings` (+ `new`, `[id]`, `[id]/edit`, `mine`), `messages` (+ `[id]`), `notifications`, `offers`, `profile` (+ `payouts`), `purchases`, `sales` (+ `[id]`), `saved`, `sellers/[id]`, `trades` (+ `new`, `[id]`), `deals/new`, `t/[token]`, `account-suspended`, `(marketing)/help|terms|privacy`, `api/webhooks/stripe`, `api/webhooks/ship24`, `api/jobs/cash-sale-payouts`, `api/jobs/trade-inspections`, and `api/mobile/**`.
+Route folders mirror features: `(auth)/sign-in`, `(auth)/sign-up`, `(auth)/forgot-password`, `auth/update-password`, `onboarding`, `admin` (+ `arbitration`), `listings` (+ `new`, `[id]`, `[id]/edit`, `mine`), `messages` (+ `[id]`), `notifications`, `offers`, `profile` (+ `payouts`), `purchases`, `sales` (+ `[id]`), `saved`, `sellers/[id]`, `trades` (+ `new`, `[id]`), `deals/new`, `t/[token]`, `account-suspended`, `(marketing)/help|terms|privacy`, `api/webhooks/stripe`, `api/webhooks/ship24`, `api/jobs/cash-sale-payouts`, `api/jobs/trade-inspections`, `api/errors` (browser error capture, 0123), and `api/mobile/**`.
 
 Pages are Server Components by default: fetch data with the cookie-bound Supabase client and pass plain data down. Add `'use client'` only on components that need state, effects, or Realtime.
 
@@ -69,6 +69,7 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `contract/` — step definitions for the contract progress rail. `cashSaleSteps.ts`, `tradeSteps.ts`, `steps.ts` (shared utilities).
 - `webhook/mapEventToAction.ts` — maps a `Webhook_Event` to a state machine event.
 - `identity/identityGate.ts` — the ONE place the Identity_Gate is evaluated. Never re-derive it inline.
+- `errors/errorLog.ts` — the pure rules for `error_logs` (0123): field bounds mirroring the CHECKs, the grouping `fingerprint`, `isExpectedFailureCode`, browser-noise filtering and id-only context. See "Error logging" in `tech.md`.
 - `region/regions.ts` — the trading-region registry and the ONE place two parties' regions are compared (`checkRegionCompatibility`). Pure, so the orchestrator guard and the browse UI share it. The request-scoped half — IP header, cookie, profile — is `lib/location/resolveRegion.ts`, which is `server-only` and is the only place `x-vercel-ip-country` is read.
 - `arbitration/arbitrationCase.ts` — the triage model over disputed sales, trades and chargebacks. Priority is derived from deadlines, fraud allegations and SLA, deliberately **not** from amount, because weighting by money parks small disputes forever.
 - `payouts/payoutReadModel.ts` — what a seller is owed and what has landed. `custodyReconciliation.ts` — platform balance health check.
@@ -81,9 +82,10 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `realtime/` — `useXRealtime` client hooks for Supabase Realtime subscriptions: `useCashSaleRealtime`, `useTradeRealtime`, `useConversationRealtime`, `useNotifications`.
 - `trades/` — `server-only` trade work that must NOT be a Server Action, because every export of a `'use server'` module is an endpoint addressable by anyone who learns its id. `completion.ts` holds `finalizeCompletedTrade` (release both collateral holds, then settle cash) so the mutual-acceptance path and the inspection timeout do the same thing; `inspectionSweep.ts` is the timeout itself, called only by `app/api/jobs/trade-inspections`.
 - `webhook/webhookPipeline.ts` — the full verify → translate → dedupe → map → dispatch → log pipeline.
+- `errors/` — error capture (0123): `errorLog.ts` (the table's one writer, service role; `logBackgroundFailure`), `withActionLog.ts` (the wrapper every Server Action is exported through), `clientErrorReporter.ts` (browser capture, client-safe).
 - `notifications/createNotification.ts`, `format.ts`, `utils.ts`, `marketplace-constants.ts` — shared helpers and tuned limits.
 - `location/geoapify.ts` — address autocomplete and map embed integration (Google Maps).
-- `location/resolveRegion.ts` — `server-only`. The one place a request becomes a browse region, and the one place `x-vercel-ip-country` is read. The precedence chain is `?region=` → the member's own `profiles.region_code` → their remembered cookie → the IP guess → `DEFAULT_REGION`, and it reports which of those it used so the UI can disclose a guess. Nothing on the read path writes; only `setBrowseRegion` does.
+- `location/resolveRegion.ts` — `server-only`. The one place a request becomes a browse region, and the one place `x-vercel-ip-country` is read. The precedence chain is `?region=` → the remembered picker cookie (including `all`) → the member's own `profiles.region_code` → the IP guess → `DEFAULT_REGION`, and it reports which of those it used so the UI can disclose a guess. Nothing on the read path writes; only `setBrowseRegion` does.
 - `handover/terms.ts` — display-layer formatting for fulfilment terms.
 - `storage/` — Supabase Storage helpers for item image uploads.
 

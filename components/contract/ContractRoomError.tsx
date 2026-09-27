@@ -2,16 +2,11 @@
 
 // components/contract/ContractRoomError.tsx
 //
-// Segment error UI for live contract rooms (trade / deal / sale). Keeps recovery
-// on-brand without exposing stack traces.
+// Segment error UI for live contract rooms (trade / sale). The shared `ErrorScreen`
+// with a way back to the member's own list, and the reassurance that matters most
+// here: a page failing to load does not change the contract.
 
-import { useEffect } from 'react';
-import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { TriangleAlertIcon } from '@hugeicons/core-free-icons';
-
-import { Button } from '@/components/ui/button';
-import { EmptyState } from '@/components/ui/empty-state';
+import { ErrorScreen } from '@/components/layout/ErrorScreen';
 
 export function ContractRoomError({
   error,
@@ -24,27 +19,14 @@ export function ContractRoomError({
   backHref: string;
   backLabel: string;
 }) {
-  useEffect(() => {
-    console.error(error);
-  }, [error]);
-
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center px-group py-region sm:px-6">
-      <EmptyState
-        variant="page"
-        icon={<HugeiconsIcon icon={TriangleAlertIcon} className="size-6" aria-hidden />}
-        title="Contract Unavailable"
-        description="Something went wrong loading this contract room. Try again, or go back to your list."
-        compact
-      />
-      <div className="mt-5 flex flex-col gap-snug sm:flex-row sm:justify-center">
-        <Button type="button" onClick={reset}>
-          Try Again
-        </Button>
-        <Button asChild variant="outline">
-          <Link href={backHref}>{backLabel}</Link>
-        </Button>
-      </div>
-    </main>
+    <ErrorScreen
+      error={error}
+      onRetry={reset}
+      title="This contract didn't load"
+      description="Nothing about the contract has changed. Try again, or go back to your list."
+      backHref={backHref}
+      backLabel={backLabel}
+    />
   );
 }

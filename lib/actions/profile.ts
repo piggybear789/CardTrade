@@ -9,6 +9,7 @@
 // on a validation failure the previously stored values are left untouched
 // (Req 1.5).
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -41,7 +42,7 @@ export interface ProfileUpdateFields {
 /**
  * Update just the bio field. Lighter than `updateProfile` for the inline editor.
  */
-export async function updateBio(
+export const updateBio = withActionLog('profile.updateBio', async function updateBio(
   bio: string | null,
 ): Promise<ActionResult<null, UpdateProfileError>> {
   const supabase = await createClient();
@@ -58,7 +59,7 @@ export async function updateBio(
   revalidatePath('/profile');
   revalidatePath(`/sellers/${user.id}`);
   return ok(null);
-}
+});
 
 /** The persisted profile shape returned on success. */
 export interface ProfileData {
@@ -76,7 +77,7 @@ export interface ProfileData {
  * 3. Persist via the cookie-bound client. RLS confines the update to the
  *    caller's own row (`auth.uid() = id`), so ownership is enforced at the DB.
  */
-export async function updateProfile(
+export const updateProfile = withActionLog('profile.updateProfile', async function updateProfile(
   fields: ProfileUpdateFields,
 ): Promise<ActionResult<ProfileData, UpdateProfileError>> {
   const supabase = await createClient();
@@ -136,7 +137,7 @@ export async function updateProfile(
     displayName: data.display_name,
     contactEmail: data.contact_email,
   });
-}
+});
 
 /** Persisted result of the one-time member onboarding flow. */
 export interface OnboardingCompletionData {
@@ -165,7 +166,7 @@ export interface OnboardingCompletionData {
  * makes it the right place to heal: it needs the row anyway, and it now creates one
  * instead of reporting an impossible-looking error.
  */
-export async function completeOnboarding(
+export const completeOnboarding = withActionLog('profile.completeOnboarding', async function completeOnboarding(
   displayName: string,
 ): Promise<ActionResult<OnboardingCompletionData, UpdateProfileError>> {
   const supabase = await createClient();
@@ -253,7 +254,7 @@ export async function completeOnboarding(
     displayName: data.display_name,
     onboardingCompletedAt: data.onboarding_completed_at,
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // Avatars (0066)
@@ -283,7 +284,7 @@ export type AvatarError =
  * refused here rather than at upload time, so the member finds out before the bytes
  * move.
  */
-export async function prepareAvatarUpload(
+export const prepareAvatarUpload = withActionLog('profile.prepareAvatarUpload', async function prepareAvatarUpload(
   contentType: string,
 ): Promise<ActionResult<SignedAvatarUpload, AvatarError>> {
   const supabase = await createClient();
@@ -300,7 +301,7 @@ export async function prepareAvatarUpload(
       error instanceof Error ? error.message : 'Could not prepare the upload.',
     );
   }
-}
+});
 
 /**
  * Persist an avatar the browser has already uploaded, or clear it with `null`.
@@ -313,7 +314,7 @@ export async function prepareAvatarUpload(
  * the row update: an orphaned object is harmless, whereas deleting first and then
  * failing to save would leave a profile pointing at nothing.
  */
-export async function setMyAvatar(
+export const setMyAvatar = withActionLog('profile.setMyAvatar', async function setMyAvatar(
   avatarPath: string | null,
 ): Promise<ActionResult<{ avatarPath: string | null }, AvatarError>> {
   const supabase = await createClient();
@@ -362,5 +363,5 @@ export async function setMyAvatar(
   }
 
   return ok({ avatarPath: (data.avatar_path as string | null) ?? null });
-}
+});
 

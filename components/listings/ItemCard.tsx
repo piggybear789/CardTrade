@@ -153,6 +153,11 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         // on the same element. `--foreground/20` firms the hairline; the shadow and
         // the scale do the rest. See the border rule in globals.css.
         'hover:border-foreground/20 hover:shadow-lift active:scale-[0.97]',
+        // …but not when the press is on the heart. `:active` matches every
+        // ANCESTOR of the pressed element, so tapping save pressed the whole tile
+        // in, which is the open-this-listing feedback for a tap that opens
+        // nothing. The heart is the only `<button>` in the tile.
+        'has-[button:active]:scale-100',
         inMosaic && 'catalog-tile',
         unavailableLabel && 'opacity-70',
       )}
@@ -231,17 +236,37 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           </span>
         ) : null}
         {isShopfront ? (
-          <span className="absolute left-1 top-1 z-[1] inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-mist">
+          <span className="absolute left-1.5 top-1.5 z-[1] inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-mist">
             <HugeiconsIcon icon={LibraryIcon} className="size-3" aria-hidden />
             Multiple items
           </span>
         ) : null}
         {showWatch ? (
+          // ONE CHIP AT EVERY WIDTH: 32px around an 18px heart. From `md` it was
+          // 40px around 16px, and since the heart only spans 20 of its 24 viewBox
+          // units the glyph filled about a third of the disc — a white blob with a
+          // speck in it. This is the board's `.tile .heart`, a little larger.
+          //
+          // A hairline, not `shadow-sm`: the border-wins rule in
+          // `tailwind.config.ts`, and the shadow alone left the chip edgeless over
+          // a white photo. OPAQUE, and the edge at `foreground/10` rather than
+          // `border-border`: at `bg-card/90` the photo tinted the disc, and the
+          // grey hairline around a tinted disc read as a halo on dark covers.
+          //
+          // `translate-y-px` is OPTICAL centring. The heart's bounding box is
+          // centred exactly, but its mass sits in the two lobes and it tapers to a
+          // thin tip, so box-centred it reads as riding high in the circle.
+          //
+          // `after:-inset-1.5` is a 44px hit box at every width. The base only
+          // extends it from `md`, so on a phone the target was the bare 32px disc
+          // over the tile's full-bleed link — a near miss opened the listing
+          // instead of saving it (F28). The 6px inset, shared with the flag, puts
+          // that box flush with the photo's edge.
           <WatchButton
             itemId={item.id}
             initialWatching={initialWatching}
             variant="icon"
-            className="pointer-events-auto absolute right-1 top-1 z-10 size-8 rounded-full bg-card/90 text-foreground shadow-sm hover:bg-card hover:text-foreground md:size-10 [&_svg]:size-3.5 md:[&_svg]:size-4"
+            className="pointer-events-auto absolute right-1.5 top-1.5 z-10 size-8 rounded-full border-foreground/10 bg-card text-foreground after:-inset-1.5 hover:bg-card hover:text-foreground [&_svg]:size-[18px] [&_svg]:translate-y-px"
           />
         ) : null}
       </div>
@@ -273,12 +298,14 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         <p className="min-w-0 truncate text-body leading-tight text-muted-foreground">
           {item.category}
         </p>
-        {/* THE PRICE LEADS, AND THE SAVE COUNT SITS WITH IT. Not right-aligned
-            across the tile: pushing the count to the far edge reads as a second
-            column and makes the eye travel for a fact that is context on the
-            price. Grouped immediately after it, the two read as one statement —
-            what it costs, and how many people are watching it. */}
-        <div className="flex min-w-0 items-baseline gap-1.5">
+        {/* THE PRICE STANDS ALONE; THE SAVE COUNT GOES TO THE RIGHT EDGE.
+            
+            It used to sit straight after the price at `body` size, in the same muted
+            grey as the cents, so "$4,000.00 1 saved" read as one figure with a word
+            stuck on the end. At the right edge, at `meta`, it sits directly above
+            the seller's star rating and matches it: a small
+            column of social proof, kept apart from what the card costs. */}
+        <div className="flex min-w-0 items-center justify-between gap-snug">
           {/* INK, NOT VIOLET, and this is the change the pastel retune specified and
               never delivered here.
 
@@ -292,7 +319,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
 
               The symbol and the cents stay muted: the dollars are what decides a
               purchase, and the rest is scaffolding around them. */}
-          <p className="shrink-0 font-bold leading-none text-foreground">
+          <p className="shrink-0 font-display font-bold leading-none text-foreground">
             {isShopfront ? (
               <span className="text-meta font-semibold text-muted-foreground">From </span>
             ) : null}
@@ -309,7 +336,9 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             ) : null}
           </p>
           {item.watch_count > 0 ? (
-            <span className="min-w-0 truncate text-body leading-tight text-muted-foreground">
+            // Words, not a heart glyph: "3 saved" says what the number counts on its
+            // own. `meta` and tabular digits to match `SellerRating` below it.
+            <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
               {item.watch_count} saved
             </span>
           ) : null}
@@ -504,7 +533,7 @@ function ItemCardPriceRow({
 
   return (
     <div className="mt-tight flex min-w-0 items-center gap-snug">
-      <p className="min-w-0 truncate text-lead font-semibold leading-tight text-foreground md:text-subhead">
+      <p className="min-w-0 truncate font-display text-lead font-semibold leading-tight text-foreground md:text-subhead">
         {isShopfront ? (
           <span className="mr-tight text-meta font-normal text-muted-foreground">
             from

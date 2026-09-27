@@ -24,6 +24,7 @@
 // One function with a branch inside it would put the staff path one bad `if` away from
 // serving a participant.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
@@ -135,7 +136,7 @@ async function namesFor(
  * `submitDisputeEvidence` runs, and that call does check. Gating here as well would mean
  * a second round-trip's worth of failure for no additional safety.
  */
-export async function createDisputeEvidenceUploads(
+export const createDisputeEvidenceUploads = withActionLog('disputeEvidence.createDisputeEvidenceUploads', async function createDisputeEvidenceUploads(
   contentTypes: string[],
 ): Promise<ActionResult<{ uploads: SignedEvidenceUpload[] }, DisputeEvidenceError>> {
   const supabase = await createClient();
@@ -161,7 +162,7 @@ export async function createDisputeEvidenceUploads(
       error instanceof Error ? error.message : 'Could not prepare the upload.',
     );
   }
-}
+});
 
 /**
  * File a statement, with any already-uploaded media, against a disputed contract.
@@ -172,7 +173,7 @@ export async function createDisputeEvidenceUploads(
  * `verifyEvidencePaths`. A path that fails verification is dropped rather than failing
  * the submission: the statement is the substance and is worth keeping.
  */
-export async function submitDisputeEvidence(input: {
+export const submitDisputeEvidence = withActionLog('disputeEvidence.submitDisputeEvidence', async function submitDisputeEvidence(input: {
   caseKind: DisputeCaseKind;
   caseRef: string;
   statement: string;
@@ -236,7 +237,7 @@ export async function submitDisputeEvidence(input: {
 
   revalidatePath(pathFor(input.caseKind, input.caseRef));
   return ok({ id: data.id as string });
-}
+});
 
 /**
  * Read every submission on a contract, for a PARTICIPANT.
@@ -249,7 +250,7 @@ export async function submitDisputeEvidence(input: {
  * decision made against someone on material they never saw is not a process anyone can
  * trust.
  */
-export async function getDisputeEvidence(
+export const getDisputeEvidence = withActionLog('disputeEvidence.getDisputeEvidence', async function getDisputeEvidence(
   caseKind: DisputeCaseKind,
   caseRef: string,
 ): Promise<ActionResult<{ entries: DisputeEvidenceEntry[] }, DisputeEvidenceError>> {
@@ -293,7 +294,7 @@ export async function getDisputeEvidence(
   }));
 
   return ok({ entries });
-}
+});
 
 /**
  * Read every submission on a case, for STAFF.
@@ -305,7 +306,7 @@ export async function getDisputeEvidence(
  *
  * `mine` is always false here: staff are never a party to the dispute they are deciding.
  */
-export async function getDisputeEvidenceForStaff(
+export const getDisputeEvidenceForStaff = withActionLog('disputeEvidence.getDisputeEvidenceForStaff', async function getDisputeEvidenceForStaff(
   caseKind: DisputeCaseKind,
   caseRef: string,
 ): Promise<ActionResult<{ entries: DisputeEvidenceEntry[] }, DisputeEvidenceError>> {
@@ -347,4 +348,4 @@ export async function getDisputeEvidenceForStaff(
   }));
 
   return ok({ entries });
-}
+});

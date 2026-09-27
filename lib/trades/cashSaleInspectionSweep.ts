@@ -12,6 +12,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { emailNotify } from '@/lib/email';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** How long before the deadline the buyer is nudged, in hours. */
 const WARNING_LEAD_HOURS = 24;
@@ -78,6 +79,12 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
       result.completionNotified += 1;
     } catch (err) {
       console.warn(`[cash-sale-sweep] notification failed for ${sale.id}:`, err);
+      await logBackgroundFailure({
+        name: 'cash-sale.completion-notice',
+        errorCode: 'THREW',
+        error: err,
+        context: { cashSaleId: sale.id as string },
+      });
     }
   }
 
@@ -127,6 +134,12 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
       result.warned += 1;
     } catch (err) {
       console.warn(`[cash-sale-sweep] warning failed for ${sale.id}:`, err);
+      await logBackgroundFailure({
+        name: 'cash-sale.inspection-warning',
+        errorCode: 'THREW',
+        error: err,
+        context: { cashSaleId: sale.id as string },
+      });
     }
   }
 
@@ -177,6 +190,12 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
       result.returnWarned += 1;
     } catch (err) {
       console.warn(`[cash-sale-sweep] return warning failed for ${sale.id}:`, err);
+      await logBackgroundFailure({
+        name: 'cash-sale.return-warning',
+        errorCode: 'THREW',
+        error: err,
+        context: { cashSaleId: sale.id as string },
+      });
     }
   }
 
@@ -204,7 +223,17 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         .eq('id', sale.id)
         .is('return_lapsed_at', null);
       // Only notify if THIS pass won the stamp, so a concurrent run cannot double-send.
-      if (error) continue;
+      if (error) {
+        // A write that failed, not a lost race (a lost race matches no row and
+        // reports no error): the sale stays unflagged for review.
+        await logBackgroundFailure({
+          name: 'cash-sale.return-lapse',
+          errorCode: error.code || 'UPDATE_ERROR',
+          message: `return_lapsed_at: ${error.message}`,
+          context: { cashSaleId: sale.id as string },
+        });
+        continue;
+      }
 
       await createNotification({
         userId: sale.seller_id as string,
@@ -228,6 +257,12 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
       result.returnLapsed += 1;
     } catch (err) {
       console.warn(`[cash-sale-sweep] lapse flag failed for ${sale.id}:`, err);
+      await logBackgroundFailure({
+        name: 'cash-sale.return-lapse',
+        errorCode: 'THREW',
+        error: err,
+        context: { cashSaleId: sale.id as string },
+      });
     }
   }
 

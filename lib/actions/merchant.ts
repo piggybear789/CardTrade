@@ -21,6 +21,7 @@
 // repository — 0005_merchant_onboarding.sql revokes column UPDATE on them from
 // `authenticated`, so a User cannot mark themselves settlement-enabled.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { z } from 'zod';
 
 import { createClient } from '@/lib/supabase/server';
@@ -120,7 +121,7 @@ export type MerchantOnboardingInput = z.input<typeof onboardingSchema>;
 /**
  * Read the caller's current sub-merchant state for the payout UI.
  */
-export async function getMerchantState(): Promise<
+export const getMerchantState = withActionLog('merchant.getMerchantState', async function getMerchantState(): Promise<
   ActionResult<MerchantStateData, 'not-authenticated' | 'profile-not-found'>
 > {
   const user = await getCachedAuthUser();
@@ -148,12 +149,12 @@ export async function getMerchantState(): Promise<
     registrationNumber: (data.merchant_registration_number as string | null) ?? null,
     identityVerifiedAt: (data.merchant_identity_verified_at as string | null) ?? null,
   });
-}
+});
 
 /**
  * Read the payout setup context for the profile UI.
  */
-export async function getPayoutSetupContext(): Promise<
+export const getPayoutSetupContext = withActionLog('merchant.getPayoutSetupContext', async function getPayoutSetupContext(): Promise<
   ActionResult<PayoutSetupContext, 'not-authenticated' | 'profile-not-found'>
 > {
   const state = await getMerchantState();
@@ -166,7 +167,7 @@ export async function getPayoutSetupContext(): Promise<
     state: state.data,
     hostedOnboarding: Boolean(payments.createMerchantOnboardingLink),
   });
-}
+});
 
 /**
  * Create a fresh provider-hosted onboarding link for the signed-in Seller.
@@ -176,7 +177,7 @@ export async function getPayoutSetupContext(): Promise<
  * does NOT mean the Seller can be paid: approval arrives asynchronously on the
  * provider's account webhook, so the UI must keep gating on `settlementsEnabled`.
  */
-export async function createPayoutOnboardingLink(
+export const createPayoutOnboardingLink = withActionLog('merchant.createPayoutOnboardingLink', async function createPayoutOnboardingLink(
   returnPath?: string,
 ): Promise<ActionResult<{ url: string }, MerchantOnboardingActionError>> {
   const supabase = await createClient();
@@ -215,7 +216,7 @@ export async function createPayoutOnboardingLink(
       err instanceof Error ? err.message : 'Could not open the payout onboarding form.',
     );
   }
-}
+});
 
 /**
  * Start verification and hand back the provider-hosted URL in one round trip.
@@ -236,7 +237,7 @@ export async function createPayoutOnboardingLink(
  * is passed as `true` here rather than being collected on a separate screen — the
  * requirement is informed consent, not an extra click.
  */
-export async function startIdentityVerification(
+export const startIdentityVerification = withActionLog('merchant.startIdentityVerification', async function startIdentityVerification(
   returnPath?: string,
 ): Promise<ActionResult<{ url: string | null }, MerchantOnboardingActionError>> {
   const state = await getMerchantState();
@@ -281,7 +282,7 @@ export async function startIdentityVerification(
   if (link.ok) return ok({ url: link.data.url });
   if (link.error === 'not-supported') return ok({ url: null });
   return link;
-}
+});
 
 /** What the browser needs to render Connect embedded onboarding inline. */
 export interface StartedEmbeddedPayout {
@@ -309,7 +310,7 @@ export interface StartedEmbeddedPayout {
  * refuses an absent/non-tradeable region (Req 12.2), and `setTradingRegion` refuses a
  * move once a `merchant_ref` exists (Req 12.4).
  */
-export async function beginEmbeddedPayout(): Promise<
+export const beginEmbeddedPayout = withActionLog('merchant.beginEmbeddedPayout', async function beginEmbeddedPayout(): Promise<
   ActionResult<StartedEmbeddedPayout, MerchantOnboardingActionError>
 > {
   const supabase = await createClient();
@@ -353,7 +354,7 @@ export async function beginEmbeddedPayout(): Promise<
       err instanceof Error ? err.message : 'Could not open embedded payout onboarding.',
     );
   }
-}
+});
 
 /**
  * Build the transient Prefill_Object from the seller's own Identity session
@@ -402,7 +403,7 @@ async function buildIdentityPrefill(
  * shell was created before Identity completed. Failures are swallowed: Connect
  * then collects the fields itself (Req 4.6). Never returns the Prefill_Object.
  */
-export async function pushVerifiedIdentityToConnect(profileId: string): Promise<void> {
+export const pushVerifiedIdentityToConnect = withActionLog('merchant.pushVerifiedIdentityToConnect', async function pushVerifiedIdentityToConnect(profileId: string): Promise<void> {
   const payments = getPaymentService(await regionForProfile(profileId));
   if (!payments.prefillManagedMerchant) return;
 
@@ -424,7 +425,7 @@ export async function pushVerifiedIdentityToConnect(profileId: string): Promise<
       err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
     console.warn(`[identity] could not stamp Connect identity for ${profileId}: ${message}`);
   }
-}
+});
 
 /**
  * Whether a provider submission failure was about the email address.
@@ -506,7 +507,7 @@ function safeReturnPath(path: string | undefined): string {
  * immediately instead of waiting on webhook delivery. The provider remains the
  * source of truth — this never writes a status the provider did not report.
  */
-export async function refreshPayoutStatus(): Promise<
+export const refreshPayoutStatus = withActionLog('merchant.refreshPayoutStatus', async function refreshPayoutStatus(): Promise<
   ActionResult<MerchantStateData, MerchantOnboardingActionError>
 > {
   const supabase = await createClient();
@@ -540,7 +541,7 @@ export async function refreshPayoutStatus(): Promise<
 
   if (!applied.ok) return getMerchantState();
   return getMerchantState();
-}
+});
 
 /**
  * Start sub-merchant onboarding for the signed-in User so they can be paid.
@@ -551,7 +552,7 @@ export async function refreshPayoutStatus(): Promise<
  * `merchant_status` to APPROVED or REJECTED. Until then the User stays PENDING
  * and cannot receive funds.
  */
-export async function submitMerchantOnboarding(
+export const submitMerchantOnboarding = withActionLog('merchant.submitMerchantOnboarding', async function submitMerchantOnboarding(
   input: MerchantOnboardingInput,
   /**
    * TRANSIENT provider-sourced prefill (unified-seller-onboarding, Req 4.2). Passed
@@ -723,4 +724,4 @@ export async function submitMerchantOnboarding(
     registrationNumber: result.merchant.registrationNumber ?? null,
     identityVerifiedAt: result.merchant.identityVerifiedAt ?? null,
   });
-}
+});

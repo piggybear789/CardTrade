@@ -54,6 +54,8 @@ const TABLES_REQUIRING_RLS = [
   'deal_invites',
   'identity_person_keys',
   'identity_bans',
+  // 0123: messages and stacks can quote data, and report notes are member prose.
+  'error_logs',
 ];
 
 /**

@@ -18,6 +18,7 @@
 // `NEXT_PUBLIC_` env var in the client, so the server stays the single place that
 // resolves provider configuration.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -48,7 +49,7 @@ export interface CardSetupSession {
  * directly. Nothing here accepts card data, and the provider — not the client —
  * is the source of truth for what gets vaulted.
  */
-export async function beginCardSetup(): Promise<ActionResult<CardSetupSession, CardSetupError>> {
+export const beginCardSetup = withActionLog('payments.beginCardSetup', async function beginCardSetup(): Promise<ActionResult<CardSetupSession, CardSetupError>> {
   const authed = await requirePayer();
   if (!authed.ok) return authed;
 
@@ -70,7 +71,7 @@ export async function beginCardSetup(): Promise<ActionResult<CardSetupSession, C
       err instanceof Error ? err.message : 'Could not start card entry.',
     );
   }
-}
+});
 
 /**
  * Confirm a completed card setup and persist the saved-method reference.
@@ -79,7 +80,7 @@ export async function beginCardSetup(): Promise<ActionResult<CardSetupSession, C
  * the client, so it cannot be spoofed, and ownership of the setup is verified
  * against this User's Payer inside the service.
  */
-export async function completeCardSetup(
+export const completeCardSetup = withActionLog('payments.completeCardSetup', async function completeCardSetup(
   setupId: string,
 ): Promise<ActionResult<{ sourceId: string; label: string }, CardSetupError>> {
   const authed = await requirePayer();
@@ -121,7 +122,7 @@ export async function completeCardSetup(
       err instanceof Error ? err.message : 'The payment method could not be saved.',
     );
   }
-}
+});
 
 /**
  * Resolve the signed-in User's provider Payer, creating it on first use.
@@ -218,7 +219,7 @@ export interface PaymentMethodStatus {
  * Read the current buyer's payment method status for checkout display.
  * Returns only the display-safe label, never any credential or token.
  */
-export async function getPaymentMethodStatus(): Promise<
+export const getPaymentMethodStatus = withActionLog('payments.getPaymentMethodStatus', async function getPaymentMethodStatus(): Promise<
   ActionResult<PaymentMethodStatus, 'NOT_AUTHENTICATED'>
 > {
   const user = await getCachedAuthUser();
@@ -261,4 +262,4 @@ export async function getPaymentMethodStatus(): Promise<
   }
 
   return ok({ hasPaymentMethod, label, expiry });
-}
+});

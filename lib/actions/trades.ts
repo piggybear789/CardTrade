@@ -20,6 +20,7 @@
 //
 // All monetary amounts are integer AUD cents.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deriveEvent } from '@/domain/state-machine/guards';
@@ -145,7 +146,7 @@ export type EnsureTradeConversationResult =
  * Authorization is enforced twice: the participant guard here, and again
  * inside the `ensure_trade_conversation` RPC.
  */
-export async function ensureTradeConversation(
+export const ensureTradeConversation = withActionLog('trades.ensureTradeConversation', async function ensureTradeConversation(
   tradeId: string,
 ): Promise<EnsureTradeConversationResult> {
   const guard = await requireParticipant(tradeId);
@@ -177,7 +178,7 @@ export async function ensureTradeConversation(
       detail: 'Chat could not be opened.',
     };
   }
-}
+});
 
 // ---------------------------------------------------------------------------
 // Trade proposal (Req 5.1, 5.2, 5.3)
@@ -200,7 +201,7 @@ export type ProposeTradeActionResult =
  * collateral — this action dispatches HOLDS_CONFIRMED itself so the Trade moves
  * straight to COLLATERAL_LOCKED.
  */
-export async function proposeTrade(
+export const proposeTrade = withActionLog('trades.proposeTrade', async function proposeTrade(
   initiatorItemId: string,
   counterpartItemId: string,
   options?: {
@@ -327,7 +328,7 @@ export async function proposeTrade(
   }
 
   return { ok: true, tradeId: result.trade.id };
-}
+});
 
 /**
  * After Stripe `POST /payments/realtime`, hold rows already reflect ACTIVE/FAILED.
@@ -598,7 +599,7 @@ function trackingColumnsFor(
  * Retry settling cash on a completed trade after the receiver finishes payout
  * setup (or after a prior transfer attempt failed).
  */
-export async function retrySettleTradeCash(
+export const retrySettleTradeCash = withActionLog('trades.retrySettleTradeCash', async function retrySettleTradeCash(
   tradeId: string,
 ): Promise<
   | { ok: true }
@@ -622,14 +623,14 @@ export async function retrySettleTradeCash(
 
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true };
-}
+});
 
 /**
  * Record that the caller has shipped their own Item during COLLATERAL_LOCKED;
  * transitions the Trade to IN_TRANSIT once both Traders have shipped (Req 6.1,
  * 6.2, 6.8). For delivery trades, carrier + tracking number are required.
  */
-export async function recordShipment(
+export const recordShipment = withActionLog('trades.recordShipment', async function recordShipment(
   tradeId: string,
   shipment?: {
     carrier: string;
@@ -638,25 +639,25 @@ export async function recordShipment(
   },
 ): Promise<LifecycleActionResult> {
   return recordLifecycle(tradeId, 'shipment', shipment);
-}
+});
 
 /**
  * Record that the caller has received the Counterpart's Item during IN_TRANSIT;
  * transitions the Trade to INSPECTION once both Traders have received (Req 6.3,
  * 6.4, 6.8).
  */
-export async function recordReceipt(tradeId: string): Promise<LifecycleActionResult> {
+export const recordReceipt = withActionLog('trades.recordReceipt', async function recordReceipt(tradeId: string): Promise<LifecycleActionResult> {
   return recordLifecycle(tradeId, 'receipt');
-}
+});
 
 /**
  * Record that the caller has accepted the Counterpart's Item during INSPECTION;
  * transitions the Trade to COMPLETED once both Traders have accepted (Req 6.5,
  * 6.6, 6.8).
  */
-export async function recordAcceptance(tradeId: string): Promise<LifecycleActionResult> {
+export const recordAcceptance = withActionLog('trades.recordAcceptance', async function recordAcceptance(tradeId: string): Promise<LifecycleActionResult> {
   return recordLifecycle(tradeId, 'acceptance');
-}
+});
 
 // ---------------------------------------------------------------------------
 // Condition dispute (Req 7.1, 7.5)
@@ -715,7 +716,7 @@ export type RaiseDisputeActionResult =
  * equivalent requires one: a dispute that captures money from the other trader and can
  * end in a full collateral capture must say what it is about.
  */
-export async function raiseDispute(
+export const raiseDispute = withActionLog('trades.raiseDispute', async function raiseDispute(
   tradeId: string,
   reason: string,
 ): Promise<RaiseDisputeActionResult> {
@@ -769,7 +770,7 @@ export async function raiseDispute(
     frictionTaxSettled: result.frictionTaxSettled,
     allocation: result.allocation,
   };
-}
+});
 
 // `resolveDispute` was removed from the participant surface, and its result type with
 // it — a type describing the shape of a call nobody can make is only a hint that the
@@ -815,7 +816,7 @@ export type ClaimFraudActionResult =
  * {@link resolveTradeFraud} in `lib/actions/admin.ts`, which is admin-gated and
  * requires the operator to name the victim explicitly.
  */
-export async function reportFraud(
+export const reportFraud = withActionLog('trades.reportFraud', async function reportFraud(
   tradeId: string,
   reason: string,
 ): Promise<ClaimFraudActionResult> {
@@ -865,7 +866,7 @@ export async function reportFraud(
 
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true, state: raised.ok ? raised.trade.state : 'DISPUTED' };
-}
+});
 
 // NOTE: `downloadEvidencePack` has been removed.
 //
@@ -907,7 +908,7 @@ export type UpdateTradeHandoverTermsResult =
  * change means cancelling and re-agreeing, which re-runs the placement from scratch
  * rather than trying to move an authorisation that cannot be moved.
  */
-export async function updateTradeHandoverTerms(
+export const updateTradeHandoverTerms = withActionLog('trades.updateTradeHandoverTerms', async function updateTradeHandoverTerms(
   tradeId: string,
   input: {
     method: HandoverMethod;
@@ -994,7 +995,7 @@ export async function updateTradeHandoverTerms(
 
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true };
-}
+});
 
 /** Map a shared fulfilment validation failure onto this module's error surface. */
 function termsErrorFor(
@@ -1032,11 +1033,11 @@ function termsErrorFor(
  * off on the spot. Confirming a handover says "we met and swapped"; accepting the
  * item afterwards says "I am satisfied", and only that releases the collateral.
  */
-export async function confirmTradeHandover(
+export const confirmTradeHandover = withActionLog('trades.confirmTradeHandover', async function confirmTradeHandover(
   tradeId: string,
 ): Promise<LifecycleActionResult> {
   return recordLifecycle(tradeId, 'handover');
-}
+});
 
 /** Errors surfaced by {@link reportTradeHandoverFailed}. */
 export type HandoverFailedError =
@@ -1063,7 +1064,7 @@ export type HandoverFailedResult =
  * Friction_Tax against the other trader — at this point neither side has necessarily
  * done anything wrong, and a lost parcel is nobody's fault.
  */
-export async function reportTradeHandoverFailed(
+export const reportTradeHandoverFailed = withActionLog('trades.reportTradeHandoverFailed', async function reportTradeHandoverFailed(
   tradeId: string,
   reason: string,
 ): Promise<HandoverFailedResult> {
@@ -1121,7 +1122,7 @@ export async function reportTradeHandoverFailed(
   });
 
   return { ok: true, state: result.trade.state };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Postal addresses (0057)
@@ -1150,7 +1151,7 @@ export type TradeAddressResult = { ok: true } | ActionFailure<TradeAddressError>
  * with any confidence and cannot be checked against what the other party thought
  * they agreed.
  */
-export async function saveTradeDeliveryAddress(
+export const saveTradeDeliveryAddress = withActionLog('trades.saveTradeDeliveryAddress', async function saveTradeDeliveryAddress(
   tradeId: string,
   address: DeliveryAddress,
 ): Promise<TradeAddressResult> {
@@ -1203,7 +1204,7 @@ export async function saveTradeDeliveryAddress(
 
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true };
-}
+});
 
 /** One trader's address as the room needs to render it. */
 export interface TradeAddressView {
@@ -1220,7 +1221,7 @@ export interface TradeAddressView {
  * authority on disclosure, and a second implementation here could only disagree
  * with it.
  */
-export async function getTradeDeliveryAddresses(
+export const getTradeDeliveryAddresses = withActionLog('trades.getTradeDeliveryAddresses', async function getTradeDeliveryAddresses(
   tradeId: string,
 ): Promise<TradeAddressView> {
   const supabase = await createClient();
@@ -1247,7 +1248,7 @@ export async function getTradeDeliveryAddresses(
     else view.theirs = address;
   }
   return view;
-}
+});
 
 // ---------------------------------------------------------------------------
 // Carrier tracking (0057)
@@ -1305,7 +1306,7 @@ export type SyncTradeTrackingResult =
  * carrier's word alone, so an unresponsive trader cannot hold the exchange open by
  * simply never pressing "received".
  */
-export async function syncTradeTracking(
+export const syncTradeTracking = withActionLog('trades.syncTradeTracking', async function syncTradeTracking(
   tradeId: string,
 ): Promise<SyncTradeTrackingResult> {
   const guard = await requireParticipant(tradeId);
@@ -1381,6 +1382,6 @@ export async function syncTradeTracking(
 
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true, delivered, state: latest.state };
-}
+});
 
 

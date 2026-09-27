@@ -26,7 +26,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:cardtrade/core/constants.dart';
 import 'package:cardtrade/core/extensions.dart';
 import 'package:cardtrade/core/money.dart';
 import 'package:cardtrade/core/result.dart';
@@ -234,7 +233,7 @@ class _SaleRoomScreenState extends ConsumerState<SaleRoomScreen> {
         value: Money.format(sale.shippingCostCents, sale.currency),
       ),
       ContractMoneyRow(
-        label: 'Platform fee (${AppConstants.platformFeeBps ~/ 100}%)',
+        label: 'Platform fee (${Money.platformFeeRateLabel(sale.currency)})',
         value: Money.format(sale.platformFeeCents, sale.currency),
         hint: 'Charged on the item price only.',
       ),

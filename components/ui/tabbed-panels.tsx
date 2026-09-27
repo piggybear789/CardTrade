@@ -196,7 +196,14 @@ export function TabbedPanels<Id extends string>({
                   className={cn(
                     ITEM_SHAPE,
                     'touch-manipulation transition-colors',
-                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
+                    // THE RING IS DRAWN TWICE, and that is what makes it visible on the
+                    // selected segment. An inset box-shadow is painted as part of the
+                    // link's background, and the phone chip below is an `inset-0`
+                    // sibling layer painted on top of it — so the focused ACTIVE tab
+                    // showed no indicator at all. The chip repeats the ring via the
+                    // named group; unselected segments and desktop use the link's own.
+                    // (It was also colourless, which rendered Tailwind's default blue.)
+                    'group/tab focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-iris',
                     active
                       ? 'text-foreground'
                       : 'text-muted-foreground md:hover:text-foreground',
@@ -225,7 +232,7 @@ export function TabbedPanels<Id extends string>({
                       layoutId={`${layoutId}-chip`}
                       aria-hidden
                       transition={MOTION_TRANSITION}
-                      className="absolute inset-0 rounded-md bg-card shadow-sm md:hidden"
+                      className="absolute inset-0 rounded-md bg-card shadow-sm group-focus-visible/tab:ring-2 group-focus-visible/tab:ring-inset group-focus-visible/tab:ring-iris md:hidden"
                     />
                   ) : null}
                   {/* Above the chip, which is painted into the same box. */}

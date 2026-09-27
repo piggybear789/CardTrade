@@ -20,6 +20,7 @@
 // `export type` only (type exports are erased and permitted in a 'use server'
 // module).
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -104,7 +105,7 @@ export type MakeOfferResult =
  * To keep a single active offer per buyer per item, any prior PENDING offer by
  * the same buyer on the same item is withdrawn first (set to WITHDRAWN).
  */
-export async function makeOffer(
+export const makeOffer = withActionLog('offers.makeOffer', async function makeOffer(
   itemId: string,
   amountCents: number,
   message: string | undefined,
@@ -198,7 +199,7 @@ export async function makeOffer(
   });
 
   return { ok: true, offer: inserted as OfferRow };
-}
+});
 
 // ---------------------------------------------------------------------------
 // counterOffer
@@ -229,7 +230,7 @@ export type CounterOfferResult =
  * Only PENDING offers can be countered, and the caller must be a party but not
  * the one who made the offer being countered.
  */
-export async function counterOffer(
+export const counterOffer = withActionLog('offers.counterOffer', async function counterOffer(
   offerId: string,
   amountCents: number,
   message?: string,
@@ -324,7 +325,7 @@ export async function counterOffer(
   });
 
   return { ok: true, offer: inserted as OfferRow };
-}
+});
 
 // ---------------------------------------------------------------------------
 // respondToOffer
@@ -366,7 +367,7 @@ export type RespondToOfferResult =
  *
  * Only PENDING offers can transition; any other status yields `invalid-status`.
  */
-export async function respondToOffer(
+export const respondToOffer = withActionLog('offers.respondToOffer', async function respondToOffer(
   offerId: string,
   action: OfferAction,
 ): Promise<RespondToOfferResult> {
@@ -500,7 +501,7 @@ export async function respondToOffer(
   });
 
   return { ok: true, offer: (updated as OfferRow) ?? offer, saleId };
-}
+});
 
 /** Best-effort notification to the counterparty about an offer outcome. */
 async function notifyOfferOutcome(
@@ -542,7 +543,7 @@ export type ListOffersForItemResult =
  * party to, so a buyer sees their own thread and a seller sees the threads they
  * are involved in for that item.
  */
-export async function listOffersForItem(
+export const listOffersForItem = withActionLog('offers.listOffersForItem', async function listOffersForItem(
   itemId: string,
 ): Promise<ListOffersForItemResult> {
   const supabase = await createClient();
@@ -561,7 +562,7 @@ export async function listOffersForItem(
   }
 
   return { ok: true, offers: (data ?? []) as OfferRow[] };
-}
+});
 
 // ---------------------------------------------------------------------------
 // listMyOffers
@@ -699,7 +700,7 @@ function offerChain(
  * `public_profiles`). Also computes the caller's role and whether it's their
  * turn to respond.
  */
-export async function listMyOffers(): Promise<ListMyOffersResult> {
+export const listMyOffers = withActionLog('offers.listMyOffers', async function listMyOffers(): Promise<ListMyOffersResult> {
   const supabase = await createClient();
 
   const me = await getUserId();
@@ -810,4 +811,4 @@ export async function listMyOffers(): Promise<ListMyOffersResult> {
   });
 
   return { ok: true, offers: entries };
-}
+});

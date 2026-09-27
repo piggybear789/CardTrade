@@ -11,6 +11,7 @@
 // the target — triage happens later in the admin console. Every export is an
 // async Server Action; shared shapes are `export type` only.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -137,7 +138,7 @@ async function insertReport(
  * Report an Item for moderator review. Requires an authenticated user and
  * rejects reporting your own listing (`self-report`).
  */
-export async function reportItem(
+export const reportItem = withActionLog('reports.reportItem', async function reportItem(
   itemId: string,
   reason: string,
   details?: string,
@@ -178,13 +179,13 @@ export async function reportItem(
   }
 
   return insertReport('item', itemId, userId, validated.reason, validated.details);
-}
+});
 
 /**
  * Report a User for moderator review. Requires an authenticated user and
  * rejects reporting yourself (`self-report`).
  */
-export async function reportUser(
+export const reportUser = withActionLog('reports.reportUser', async function reportUser(
   userId: string,
   reason: string,
   details?: string,
@@ -228,4 +229,4 @@ export async function reportUser(
   }
 
   return insertReport('user', userId, callerId, validated.reason, validated.details);
-}
+});

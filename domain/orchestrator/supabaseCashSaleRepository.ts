@@ -443,11 +443,11 @@ export function createSupabaseCashSaleRepository(
     async updateAgreedPrice({ cashSaleId, expectedTermsVersion, agreedPriceCents }) {
       const current = await selectSale(client, cashSaleId);
       if (!current || current.status !== 'AGREEMENT') return null;
-      // The Platform_Fee is a percentage of the item price, so a renegotiated
-      // price must re-derive it. Carrying the old fee forward would bill the
-      // buyer a percentage of a price that no longer exists and would break the
-      // `amount = price + fee + shipping` constraint's intent.
-      const feeCents = platformFeeCentsFor(agreedPriceCents);
+      // The Platform_Fee is a percentage of the item price (with a per-currency
+      // floor), so a renegotiated price must re-derive it. Carrying the old fee
+      // forward would bill the buyer a percentage of a price that no longer exists
+      // and would break the `amount = price + fee + shipping` constraint's intent.
+      const feeCents = platformFeeCentsFor(agreedPriceCents, current.currency);
       const { data } = await client
         .from('cash_sales')
         .update({
@@ -1008,8 +1008,15 @@ export function createDefaultCashSaleOrchestrator(
     // A drain pass that swallows one sale's exception must still leave a trace of it
     // somewhere an operator reads, or a broken money write hides behind a healthy
     // cron response for as long as nobody happens to check the row.
-    onDrainError: ({ cashSaleId, error }) => {
-      console.error(`[cash-sale drain] ${cashSaleId}:`, error);
-    },
+    //
+    // The caller's hook WINS when given. This used to ignore `deps.onDrainError`
+    // entirely, so the jobs route could not route drain failures to the error log
+    // (0123) however it was called. Console output stays as the fallback.
+    onDrainError:
+      deps.onDrainError ??
+      (({ cashSaleId, error }) => {
+        console.error(`[cash-sale drain] ${cashSaleId}:`, error);
+      }),
+    onDrainFailure: deps.onDrainFailure,
   });
 }

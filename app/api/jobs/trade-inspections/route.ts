@@ -25,6 +25,7 @@ import {
 import { advanceDueHandovers, placeDueTradeCollateral } from '@/lib/trades/bondPlacementSweep';
 import { sweepCashSaleInspections } from '@/lib/trades/cashSaleInspectionSweep';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** Never prerender or cache a job that moves money. */
 export const dynamic = 'force-dynamic';
@@ -77,6 +78,7 @@ async function runSweep(request: Request): Promise<Response> {
       cashSales = await sweepCashSaleInspections();
     } catch (error) {
       console.error('[jobs] cash-sale-inspection sweep failed', error);
+      await logBackgroundFailure({ name: 'job.trade-inspections.cash-sale-inspections', error });
     }
 
     // The Trade_Fee retry rides along on this pass rather than on a route of its own.
@@ -89,6 +91,7 @@ async function runSweep(request: Request): Promise<Response> {
       fees = await drainFailedTradeFees();
     } catch (error) {
       console.error('[jobs] trade-fee drain failed', error);
+      await logBackgroundFailure({ name: 'job.trade-inspections.fee-drain', error });
     }
 
     // Authorise collateral for trades meeting within the day. This is the OTHER half
@@ -104,6 +107,7 @@ async function runSweep(request: Request): Promise<Response> {
       bonds = await placeDueTradeCollateral();
     } catch (error) {
       console.error('[jobs] trade collateral placement failed', error);
+      await logBackgroundFailure({ name: 'job.trade-inspections.collateral-placement', error });
     }
 
     // Open the inspection window on trades whose meeting time has passed without
@@ -114,6 +118,7 @@ async function runSweep(request: Request): Promise<Response> {
       handovers = await advanceDueHandovers();
     } catch (error) {
       console.error('[jobs] handover advance failed', error);
+      await logBackgroundFailure({ name: 'job.trade-inspections.handover-advance', error });
     }
 
     // Trades whose meeting has arrived with no collateral behind it. Detection only,
@@ -124,11 +129,13 @@ async function runSweep(request: Request): Promise<Response> {
       stale = await flagStaleCollateralTrades();
     } catch (error) {
       console.error('[jobs] stale-collateral flagging failed', error);
+      await logBackgroundFailure({ name: 'job.trade-inspections.stale-collateral', error });
     }
 
     return Response.json({ ok: true, ...result, cashSales, fees, bonds, handovers, stale });
   } catch (error) {
     console.error('[jobs] trade-inspections failed', error);
+    await logBackgroundFailure({ name: 'job.trade-inspections', error });
     return Response.json({ ok: false, error: 'Inspection pass failed' }, { status: 500 });
   }
 }

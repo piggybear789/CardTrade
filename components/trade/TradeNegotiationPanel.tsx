@@ -105,6 +105,12 @@ export interface TradeNegotiationPanelProps {
   acceptCost?: {
     /** Trade fee taken from the card the moment the last accept lands. */
     feeText: string;
+    /**
+     * The rate as members read it, e.g. "5%, min $1.00", from `tradeFeeRateLabel`.
+     * Passed in because it depends on the trade's currency, which this panel does not
+     * hold. Falls back to the bare percentage.
+     */
+    feeRateLabel?: string;
     /** Collateral authorised against the card. Held, never charged. */
     collateralText: string;
   } | null;
@@ -346,7 +352,7 @@ export function TradeNegotiationPanel({
               ariaLabel="What accepting costs you"
               rows={[
                 {
-                  label: `NoDitto fee (${TRADE_FEE_BPS / 100}%)`,
+                  label: `NoDitto fee (${acceptCost.feeRateLabel ?? `${TRADE_FEE_BPS / 100}%`})`,
                   value: acceptCost.feeText,
                   hint: 'Charged to your card.',
                 },

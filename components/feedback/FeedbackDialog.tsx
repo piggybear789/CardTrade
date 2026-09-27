@@ -11,7 +11,7 @@
 // in purpose — see the header of `lib/actions/feedback.ts`.
 //
 // ONE COMPONENT, SEVERAL TRIGGERS, because the entry points sit in chrome with three
-// different visual vocabularies: a dark header icon rail, a light dropdown of ghost
+// different visual vocabularies: the dark header rail, a light dropdown of ghost
 // buttons, and the Account tab's settings rows. Each is a shape, not a variant of
 // behaviour — the dialog below the trigger is identical in every case.
 
@@ -70,8 +70,12 @@ const ERROR_MESSAGES: Partial<Record<SubmitFeedbackError, string>> = {
 
 /** How the trigger should look. The dialog it opens is the same in every case. */
 export type FeedbackTriggerAppearance =
-  /** Round icon button for the dark desktop header rail. */
-  | 'header-icon'
+  /**
+   * Labelled text button for the dark desktop header rail. Deliberately not an icon:
+   * the rail's speech bubble is Messages, and a second bubble beside it read as the
+   * same thing.
+   */
+  | 'header-text'
   /** Full-width ghost row for the burger dropdown. */
   | 'menu-row'
   /** Ordinary labelled button. */
@@ -184,20 +188,21 @@ export function FeedbackDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger ?? (
-          appearance === 'header-icon' ? (
+          appearance === 'header-text' ? (
             <button
               type="button"
-              aria-label="Send feedback"
-              title="Feedback"
               className={cn(
-                // Matches the Saved and Messages links beside it rather than restating a
-                // treatment: the rail is one row of equal targets and a near-miss here
-                // shows up as a 1px bounce on hover.
-                'inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris',
+                // The rail's own tokens (`text-mist/75`, `hover:bg-white/10`), not the
+                // Button variants, which are drawn for light surfaces. The resting
+                // hairline is what separates it from the ghost-text avatar chip beside
+                // it: without one, "Feedback" and the member's name read as one label.
+                // 32px rather than the icons' 40: a bordered 40px box is a slab next
+                // to a 24px avatar, and 32 is the desktop Button height anyway.
+                'inline-flex h-8 touch-manipulation items-center whitespace-nowrap rounded-md border border-white/20 px-cozy text-body font-medium text-mist/80 transition-colors hover:border-white/35 hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris',
                 className,
               )}
             >
-              <HugeiconsIcon icon={ChatFeedbackIcon} className="size-5" aria-hidden />
+              Feedback
             </button>
           ) : appearance === 'menu-row' ? (
             // `!h-9`, like every other row in that panel: the `sm` size collapses to

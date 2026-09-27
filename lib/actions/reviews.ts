@@ -19,6 +19,7 @@
 // Ratings are integers 1..5; comments are optional and capped at 1000 chars.
 // Every export is an async Server Action; shared shapes are `export type` only.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -156,7 +157,7 @@ async function checkEligibility(
  * `reviewer_id = caller`; the DB unique constraint maps a second attempt to
  * `already-reviewed`. On success we best-effort notify the reviewee.
  */
-export async function leaveReview(
+export const leaveReview = withActionLog('reviews.leaveReview', async function leaveReview(
   input: LeaveReviewInput,
 ): Promise<LeaveReviewResult> {
   const supabase = await createClient();
@@ -242,7 +243,7 @@ export async function leaveReview(
   });
 
   return { ok: true, data: data as ReviewRow };
-}
+});
 
 // ---------------------------------------------------------------------------
 // getReviewsFor
@@ -281,7 +282,7 @@ export interface ReviewWithReviewer {
  * value. Reviews are publicly selectable under RLS, so this works for any
  * user.
  */
-export async function getReviewsFor(
+export const getReviewsFor = withActionLog('reviews.getReviewsFor', async function getReviewsFor(
   userId: string,
 ): Promise<ReviewWithReviewer[]> {
   const supabase = await createClient();
@@ -377,7 +378,7 @@ export async function getReviewsFor(
       valueCents,
     };
   });
-}
+});
 
 // ---------------------------------------------------------------------------
 // myReviewFor
@@ -388,7 +389,7 @@ export async function getReviewsFor(
  * have not reviewed it yet (or are unauthenticated). Lets the UI show an
  * "already reviewed" state instead of the leave-review affordance.
  */
-export async function myReviewFor(
+export const myReviewFor = withActionLog('reviews.myReviewFor', async function myReviewFor(
   sourceType: ReviewSourceType,
   sourceId: string,
 ): Promise<ReviewRow | null> {
@@ -406,4 +407,4 @@ export async function myReviewFor(
     .maybeSingle();
 
   return (data as ReviewRow | null) ?? null;
-}
+});

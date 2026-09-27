@@ -429,10 +429,11 @@
     /* Inherited size MUST match Button (`text-body` / 14px). Without this,
        unstyled copy is the browser's 16px and every control looks too small
        or too large depending on whether the neighbour set a token. */
-    /* `tracking-[-0.01em]` is the theme's letter-spacing, applied at the root
-       so it reaches copy that sets none of its own. Headings, buttons and
-       labels declare their own tracking and are unaffected. */
-    @apply min-h-dvh overflow-x-clip bg-background font-sans text-body tracking-[-0.01em] text-foreground antialiased;
+    /* NO ROOT LETTER-SPACING. `-0.01em` sat here, tuned for Plus Jakarta Sans.
+       Instrument Sans is spaced for text at its own default, so copy that sets
+       no tracking of its own takes none. Headings, buttons and labels declare
+       their own tracking and are unaffected. */
+    @apply min-h-dvh overflow-x-clip bg-background font-sans text-body text-foreground antialiased;
     /* One violet bloom off the top-left corner. The 4rem ledger rules that
        used to sit under this were drawn at 1.8% ink — below the perceptual
        floor on any display, so they cost a paint and delivered nothing. They
@@ -452,15 +453,27 @@
     color: hsl(var(--foreground));
     background: hsl(var(--iris) / 0.3);
   }
+
+  /* EVERY TITLE WEARS THE DISPLAY CUT, so a page, section or dialog title needs
+     no class of its own. Radix renders dialog and sheet titles as h2. Stops at
+     h2 on purpose: h3 is where card and listing titles live, and those are read
+     as text. An h1 or h2 that should stay at text width takes `font-sans`. See
+     `fontFamily` in tailwind.config.ts. */
+  h1,
+  h2 {
+    @apply font-display;
+  }
 }
 
 @layer components {
-  /* ONE TYPEFACE APP-WIDE. Eyebrow labels, ledger figures, and body copy all use
-     Plus Jakarta Sans. Uppercase + tracking already makes labels read as labels;
-     tabular figures keep money aligned without introducing a second family. */
+  /* ONE TYPEFACE APP-WIDE, and eyebrows take its TEXT width even inside a
+     title: `font-sans` states `wdth` 100 outright. Uppercase and tracking already
+     make a label read as a label, and narrowing a 12px label as well costs
+     legibility for nothing. The tracking was retuned with the typeface, from
+     `0.12em` under Plus Jakarta Sans. */
   .cardtrade-eyebrow,
   .market-label {
-    @apply font-sans text-meta font-semibold uppercase tracking-[0.12em];
+    @apply font-sans text-meta font-semibold uppercase tracking-[0.08em];
   }
 
   .cardtrade-eyebrow {
@@ -512,12 +525,13 @@
     background: hsl(var(--mist));
   }
 
-  /* Sans, not mono — same single-typeface rule as the labels above. The COLUMN
-     ALIGNMENT that mattered here comes from `tabular-nums`, which is a font
-     FEATURE rather than a family, so money still lines up digit-for-digit
-     without a second typeface. */
+  /* The display cut, not mono — same single-typeface rule as the labels above.
+     These are the figures a room is built around, so they share the narrower
+     width with titles and headline prices. The COLUMN ALIGNMENT that mattered
+     here comes from `tabular-nums`, which is a font FEATURE rather than a
+     family, so money still lines up digit-for-digit without a second typeface. */
   .display-value {
-    @apply font-sans font-bold tabular-nums tracking-[-0.01em];
+    @apply font-display font-bold tabular-nums tracking-[-0.01em];
     font-variant-numeric: lining-nums tabular-nums;
   }
 
@@ -652,9 +666,14 @@
   animation: skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Opacity only. This also animated `filter: blur(3px)`, and `fade` runs on page-sized
+   view-transition snapshots (every nav-forward / nav-back change, plus the desktop
+   catalog's enter/exit), so each frame re-blurred a large texture: the most
+   expensive thing to animate, on the phones least able to afford it. The shared
+   `.morph` keeps its blur through `via-blur`, which runs on one image. */
 @keyframes fade {
-  from { filter: blur(3px); opacity: 0; }
-  to { filter: blur(0); opacity: 1; }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 @keyframes slide {
@@ -693,10 +712,16 @@
     var(--duration-exit) ease-out both fade reverse,
     var(--duration-exit) ease-out both slide-y reverse;
 }
+/* `ease-out` on the way IN: an entrance decelerates into place. This was `ease-in`,
+   which accelerated the new view into its resting position and stopped it dead.
+
+   The OLD side above is right as written, and the asymmetry is the trap: a `reverse`
+   animation also reverses its easing, so `ease-out … reverse` plays as ease-in —
+   an exit that accelerates away. Do not "match" the two keywords. */
 ::view-transition-new(.slide-up) {
   animation:
-    var(--duration-enter) ease-in var(--duration-exit) both fade,
-    var(--duration-move) ease-in both slide-y;
+    var(--duration-enter) ease-out var(--duration-exit) both fade,
+    var(--duration-move) ease-out both slide-y;
 }
 
 ::view-transition-old(.nav-forward) {
@@ -823,6 +848,58 @@
   }
 }
 
+/* iOS FOCUS-ZOOM FLOOR.
+
+   iOS Safari zooms the page whenever a focused field's computed font-size is under
+   16px, and it never zooms back out: the member finishes the form on a magnified,
+   sideways-offset page with the bottom hub off-screen. It also disables
+   `KeyboardInset`, which ignores any visual viewport whose scale is not 1 so that a
+   pinch-zoom is never mistaken for the keyboard. The focus-zoom produces exactly that
+   geometry, so on an iPhone the hub never hid and sheets never lifted.
+
+   Gated on `-webkit-touch-callout`, which only iOS WebKit implements, and every iOS
+   browser is WebKit. Android does not zoom and desktop Safari has no touch callout.
+   NOT a width or pointer query: an iPad zooms too, and `pointer: coarse` catches
+   Android. See the `lead` note in tailwind.config.ts.
+
+   TWO RULES, AND NEITHER MAY SHRINK ANYTHING.
+     1. Inherited sizes. A percentage font-size resolves against the parent, so
+        `max(1rem, 100%)` is a true floor. Element-level specificity, so any size
+        class on the field outranks it.
+     2. The small tokens a field may carry: `meta` and `body`, plus Tailwind's `xs`
+        and `sm` in case one returns. Element plus class beats the bare class, so
+        this wins against `text-body` and never touches `text-lead` and up. The
+        large money field (`text-head`) keeps its size.
+
+   Buttons, checkboxes, radios, ranges and file pickers are excluded: they raise no
+   keyboard and never zoom, so 16px would only change how they look. The Radix
+   `SelectTrigger` is a <button> for the same reason. `[data-money-symbol]` is the
+   `$` inside `MoneyInput`, lifted with the digits so the pair stays one size.
+
+   The consequence is deliberate: on an iPhone a field's value is 2px larger than
+   its 14px label. That is the price of not zooming, and it is iOS-only.
+
+   `[class~='text-body']`, NEVER `.text-body`. Same specificity, same match, but
+   Tailwind's `@apply` copies every rule in this file whose selector names an
+   applied class and rewrites that class into the applying selector. `body` applies
+   `text-body` and the eyebrow applies `text-meta`, so a `.text-body` here came out
+   as `[data-money-symbol]body`, which does not parse, and every route returned 500.
+   `scripts/palette-contrast.mjs` parses the source file, so it cannot catch this. */
+@supports (-webkit-touch-callout: none) {
+  input:where(:not([type='button'], [type='checkbox'], [type='color'], [type='file'], [type='hidden'], [type='image'], [type='radio'], [type='range'], [type='reset'], [type='submit'])),
+  select,
+  textarea {
+    font-size: max(1rem, 100%);
+  }
+
+  input:where(:not([type='button'], [type='checkbox'], [type='color'], [type='file'], [type='hidden'], [type='image'], [type='radio'], [type='range'], [type='reset'], [type='submit'])):is([class~='text-meta'], [class~='text-body'], [class~='text-xs'], [class~='text-sm']),
+  select:is([class~='text-meta'], [class~='text-body'], [class~='text-xs'], [class~='text-sm']),
+  textarea:is([class~='text-meta'], [class~='text-body'], [class~='text-xs'], [class~='text-sm']),
+  [data-money-symbol][class~='text-body'] {
+    font-size: 1rem;
+  }
+}
+
 /* next dev paints a circular N on the bottom-right, on top of Account. */
 @media (max-width: 767px) {
   nextjs-portal {
@@ -840,6 +917,17 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     transition-delay: 0ms !important;
+  }
+
+  /* A LOADER IS NOT DECORATION. The rule above ends every animation on its first
+     frame, which froze `animate-spin` into a static ring: a pending button showed
+     an icon that looked broken and nothing that said work was happening. Slowed
+     rather than stopped, the convention platform activity indicators follow under
+     reduced motion — a small rotating glyph is not the large-area movement this
+     preference exists to remove. The class outranks `*`, so its !important wins. */
+  .animate-spin {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
   }
 
   ::view-transition-old(*),

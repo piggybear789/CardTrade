@@ -133,6 +133,23 @@ const GALLERY_SHELL = 'flex min-h-0 flex-1 flex-col lg:flex-row lg:gap-snug';
  */
 export const GALLERY_RAIL_BAND_ML = 'lg:ml-region';
 
+/**
+ * A card-shaped `stage` frame for a gallery EMBEDDED in another surface (the contract
+ * room's item panel, the item peek dialog), where the listing page's column-filling
+ * frame does not apply. Pass it as `frameClassName`.
+ *
+ * PORTRAIT, BECAUSE THE GOODS ARE. Both callers used to size the frame by height
+ * alone and let it take the full width, which made it landscape (about 2:1 in the
+ * contract room) around a photo that is nearly always a portrait card, so the card
+ * painted at less than half the frame's width. 3:4 matches a phone photo of a card
+ * and sits within 5% of the card itself (63 × 88mm is 0.716).
+ *
+ * The width cap is a length AND a share of the viewport's height, so the photo is
+ * large on a desktop and still leaves the price under it in view on a short phone.
+ * Centred: at this size it is the hero of its panel rather than a column in it.
+ */
+export const PORTRAIT_STAGE_FRAME = 'mx-auto aspect-[3/4] max-w-[min(18rem,36dvh)]';
+
 /** Horizontal travel (px) that counts as a swipe, not a tap-to-enlarge. */
 const SWIPE_THRESHOLD_PX = 40;
 
@@ -511,6 +528,9 @@ export function ImageGallery({
 
       <ContractImageLightbox
         images={images.map((image) => image.src)}
+        // The stored sizes let the viewer open at each photo's own shape rather
+        // than at a guess it corrects once the file arrives.
+        dims={images.map((image) => image.dim)}
         openIndex={lightboxIndex}
         onOpenChange={(next) => {
           setLightboxIndex(next);
@@ -700,6 +720,7 @@ function SwipeCarousel({
 
       <ContractImageLightbox
         images={images.map((image) => image.src)}
+        dims={images.map((image) => image.dim)}
         openIndex={lightboxIndex}
         onOpenChange={onLightboxChange}
         label={title}

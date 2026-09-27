@@ -158,7 +158,7 @@ export function AuthChrome() {
       >
         <LogoMark className="size-7" />
         <span
-          className="font-display text-body font-semibold tracking-tight"
+          className="font-wordmark text-body font-bold"
           translate="no"
         >
           NoDitto
@@ -188,7 +188,7 @@ export function MarketingChrome({
       >
         <LogoMark className="size-7" />
         <span
-          className="font-display text-body font-semibold tracking-tight"
+          className="font-wordmark text-body font-bold"
           translate="no"
         >
           NoDitto

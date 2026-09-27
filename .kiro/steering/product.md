@@ -118,7 +118,7 @@ Lifecycle:
 
 1. Buyer opens agreement. SINGLE is reserved. Shopfront needs line items (`cash_sale_items`). Region + seller Identity_Gate + seller-identity confirmation snapshot. Buyer does not need Identity.
 2. Negotiate price, line items, fulfilment (`DELIVERY` / `IN_PERSON`), shipping cost, meeting place/time.
-3. **Payment is the commitment.** There is no mutual confirm-to-pay (0099). The seller sets handover details; the buyer pays. Card is collected into the platform balance. Fee = **5% of item price** (`PLATFORM_FEE_BPS = 500`). Shipping is pass-through.
+3. **Payment is the commitment.** There is no mutual confirm-to-pay (0099). The seller sets handover details; the buyer pays. Card is collected into the platform balance. Fee = **5% of item price** (`PLATFORM_FEE_BPS = 500`), **minimum $1.50 per contract** (`PLATFORM_FEE_MINIMUM_MINOR`). Shipping is pass-through.
 4. Fulfil:
    - `DELIVERY`: seller records shipment → `IN_TRANSIT` → carrier or buyer receipt → `INSPECTION`. The inspection clock starts on **carrier-confirmed delivery**, not the buyer's word.
    - `IN_PERSON`: both confirm handover → the sale **completes on the second confirmation** (unlike trades).
@@ -193,7 +193,7 @@ Any authenticated member can report a listing or a user (`lib/actions/reports.ts
 |---|---|---|
 | `/admin/arbitration` | `is_staff` | Cases. Frozen money. Evidence, notes, assign, resolve. |
 | `/admin/arbitration/[kind]/[ref]` | staff | Case view |
-| `/admin` | `is_admin` | Operations: payouts stuck, reports, reconciliation flags, custody |
+| `/admin` | `is_admin` | Operations: payouts stuck, reports, feedback, errors (0123: grouped failures and member error reports, mark resolved), reconciliation flags, custody |
 
 `requireStaff()` (`is_support` OR `is_admin`) may arbitrate. `requireAdmin()` may moderate. Two capabilities, not a hierarchy.
 
@@ -250,6 +250,8 @@ Treat Flutter as **partial parity**, not a second complete product. `.kiro/specs
 ## Transaction models
 
 1. **Cash Sale** — Buyer pays, the platform holds the funds, and the Seller is paid their net once the Buyer accepts the goods. The platform fee is **5% of the agreed item price** (`PLATFORM_FEE_BPS = 500`), charged on the item price only — shipping is a pass-through to the carrier, not revenue.
+
+   **The fee has a per-currency MINIMUM** (`domain/fees/feeMinimums.ts`): $1.50 per Cash_Sale contract, $1.00 per trader on a Trade. The provider's costs have a fixed part (card ~$0.30, payout ~$0.25) and a pure percentage cannot cover it, so below about $30 every cash sale lost money. The floor applies per CONTRACT, not per card, so a multi-line binder purchase pays it once. A currency with no entry gets the plain percentage — never guess a floor for an unpriced currency. `platformFeeCentsFor` and `tradeFeeCentsFor` take the currency explicitly for that reason; member copy reads the rate from `lib/fees/feeLabels.ts` ("5%, min $1.50") so it cannot drift from the charge. The Dart port lives in `core/money.dart`.
 
    **Do not describe the fee as flat.** It is percentage-based in code, and no Australian rail Stripe offers makes a flat fee viable: cards cost 1.7% + $0.30 and PayTo costs 1% + $0.30, both percentages. Card is the current rail; PayTo is the intended addition, worth 0.7 points and a materially better chargeback profile, with card retained as a fallback because PayTo needs the payer's bank to have enabled it. BECS is rejected outright — its dispute window is 7 years, "no questions asked", and unappealable, which is untenable for a platform that is merchant of record and owns loss liability.
 

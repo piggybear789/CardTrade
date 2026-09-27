@@ -354,7 +354,7 @@ class _PricePreview extends StatelessWidget {
     // whole inventory's indicative "from" figure and is never the charge.
     final priceCents = requestCents ?? item.fmvCents;
 
-    final feeCents = Money.platformFee(priceCents);
+    final feeCents = Money.platformFee(priceCents, currency: currency);
     final totalCents = priceCents + feeCents; // Shipping agreed during negotiation.
 
     return Container(
@@ -373,7 +373,10 @@ class _PricePreview extends StatelessWidget {
             requestCents != null ? 'Your offer' : 'Item price',
             Money.format(priceCents, currency),
           ),
-          _row('Platform fee (5%)', Money.format(feeCents, currency)),
+          _row(
+            'Platform fee (${Money.platformFeeRateLabel(currency)})',
+            Money.format(feeCents, currency),
+          ),
           // The one row whose right-hand side is a sentence rather than an amount,
           // so it is the one row allowed to wrap there.
           _row('Shipping', 'Agreed with the seller', figure: false),

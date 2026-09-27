@@ -294,7 +294,10 @@ export function DeliveryAddressPanel({
                   'shrink-0 gap-tight px-snug font-medium [&_svg]:size-3.5',
                   mine
                     ? null
-                    : 'bg-obsidian text-mist hover:bg-obsidian/90 focus-visible:ring-obsidian',
+                    : // The ring is the LABEL colour: Button draws a filled variant's
+                      // focus ring inside the fill, so an obsidian ring on an
+                      // obsidian fill would be no indicator at all.
+                      'bg-obsidian text-mist hover:bg-obsidian/90 focus-visible:ring-mist',
                 )}
                 onClick={() => handleOpenChange(true)}
               >

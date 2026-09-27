@@ -34,6 +34,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 export const dynamic = 'force-dynamic';
 
@@ -151,13 +152,32 @@ export async function POST(request: Request): Promise<Response> {
         // name; the function's parameter is the former, and passing the wrong one
         // means PostgREST cannot resolve the overload — so this silently confirmed
         // nothing until it was corrected.
-        await admin.rpc('apply_cash_sale_tracking', {
+        //
+        // The RETURNED error is checked, not just a throw: supabase-js reports a
+        // database failure as a value, so the wrong-parameter bug above surfaced as
+        // nothing at all. Now it lands in the error log (0123).
+        const { error } = await admin.rpc('apply_cash_sale_tracking', {
           p_cash_sale_id: sale.id,
           p_tracking_status: 'DELIVERED',
           p_delivered_at: deliveredAt,
         });
+        if (error) {
+          console.error(`[ship24-webhook] outbound delivery not applied for ${sale.id}:`, error.message);
+          await logBackgroundFailure({
+            name: 'webhook.ship24.outbound',
+            errorCode: error.code || 'RPC_ERROR',
+            message: `apply_cash_sale_tracking: ${error.message}`,
+            context: { cashSaleId: sale.id },
+          });
+        }
       } catch (err: unknown) {
         console.error(`[ship24-webhook] outbound delivery failed for ${sale.id}:`, err);
+        await logBackgroundFailure({
+          name: 'webhook.ship24.outbound',
+          errorCode: 'THREW',
+          error: err,
+          context: { cashSaleId: sale.id },
+        });
       }
     }
 
@@ -173,11 +193,20 @@ export async function POST(request: Request): Promise<Response> {
       try {
         // Stamps `return_carrier_delivered_at` and queues the refund, atomically and
         // monotonically — a duplicate carrier event cannot queue a second refund.
-        await admin.rpc('apply_cash_sale_return_tracking', {
+        const { error: returnError } = await admin.rpc('apply_cash_sale_return_tracking', {
           p_cash_sale_id: sale.id,
           p_tracking_status: 'DELIVERED',
           p_delivered_at: deliveredAt,
         });
+        if (returnError) {
+          console.error(`[ship24-webhook] return delivery not applied for ${sale.id}:`, returnError.message);
+          await logBackgroundFailure({
+            name: 'webhook.ship24.return',
+            errorCode: returnError.code || 'RPC_ERROR',
+            message: `apply_cash_sale_return_tracking: ${returnError.message}`,
+            context: { cashSaleId: sale.id },
+          });
+        }
 
         // Then close the sale and restore the listing. Deliberately a separate step
         // in TypeScript: the status change and the ITEM change belong to the
@@ -195,6 +224,12 @@ export async function POST(request: Request): Promise<Response> {
         }
       } catch (err: unknown) {
         console.error(`[ship24-webhook] return delivery failed for ${sale.id}:`, err);
+        await logBackgroundFailure({
+          name: 'webhook.ship24.return',
+          errorCode: 'THREW',
+          error: err,
+          context: { cashSaleId: sale.id },
+        });
       }
     }
 
@@ -208,13 +243,27 @@ export async function POST(request: Request): Promise<Response> {
 
     for (const trade of tradesInit ?? []) {
       try {
-        await admin
+        const { error } = await admin
           .from('trades')
           .update({ initiator_carrier_delivered_at: deliveredAt })
           .eq('id', trade.id)
           .is('initiator_carrier_delivered_at', null);
+        if (error) {
+          await logBackgroundFailure({
+            name: 'webhook.ship24.trade',
+            errorCode: error.code || 'UPDATE_ERROR',
+            message: `initiator_carrier_delivered_at: ${error.message}`,
+            context: { tradeId: trade.id, side: 'initiator' },
+          });
+        }
       } catch (err: unknown) {
         console.error(`[ship24-webhook] trade initiator delivery failed for ${trade.id}:`, err);
+        await logBackgroundFailure({
+          name: 'webhook.ship24.trade',
+          errorCode: 'THREW',
+          error: err,
+          context: { tradeId: trade.id, side: 'initiator' },
+        });
       }
     }
 
@@ -227,13 +276,27 @@ export async function POST(request: Request): Promise<Response> {
 
     for (const trade of tradesCounter ?? []) {
       try {
-        await admin
+        const { error } = await admin
           .from('trades')
           .update({ counterpart_carrier_delivered_at: deliveredAt })
           .eq('id', trade.id)
           .is('counterpart_carrier_delivered_at', null);
+        if (error) {
+          await logBackgroundFailure({
+            name: 'webhook.ship24.trade',
+            errorCode: error.code || 'UPDATE_ERROR',
+            message: `counterpart_carrier_delivered_at: ${error.message}`,
+            context: { tradeId: trade.id, side: 'counterpart' },
+          });
+        }
       } catch (err: unknown) {
         console.error(`[ship24-webhook] trade counterpart delivery failed for ${trade.id}:`, err);
+        await logBackgroundFailure({
+          name: 'webhook.ship24.trade',
+          errorCode: 'THREW',
+          error: err,
+          context: { tradeId: trade.id, side: 'counterpart' },
+        });
       }
     }
 

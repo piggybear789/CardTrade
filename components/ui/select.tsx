@@ -5,6 +5,7 @@ import * as SelectPrimitive from "@radix-ui/react-select";
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
 
+import { fieldStateClasses } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const Select = SelectPrimitive.Root;
@@ -43,7 +44,13 @@ const SelectTrigger = React.forwardRef<
       // with the surrounding UI. The old `text-lead pointer-fine:text-body` floored touch
       // at 16px to avoid iOS focus-zoom; that floor has been removed and the zoom is
       // an accepted tradeoff.
-      "flex h-9 w-full touch-manipulation items-center justify-between gap-snug rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8 placeholder:text-muted-foreground focus-visible:border-iris focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      // Focus and `aria-invalid` come from `fieldStateClasses` in Input, so a trigger
+      // and the text field beside it cannot show two different focus frames. The
+      // trigger is a <button>, not a text field, so the iOS 16px floor in
+      // globals.css deliberately does not reach it: iOS only focus-zooms fields
+      // that raise the keyboard.
+      "flex h-9 w-full touch-manipulation items-center justify-between gap-snug rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      fieldStateClasses,
       className
     )}
     {...props}

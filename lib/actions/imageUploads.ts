@@ -17,6 +17,7 @@
 // The paths that come back are still re-verified in `uploadImages` before any
 // row references them, so a client that invents a path gets nowhere.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import {
@@ -36,7 +37,7 @@ import { fail, ok, type ActionResult } from '@/lib/actions/result';
  * Requires an authenticated caller: the owner prefix comes from the session, not
  * from anything the client sends.
  */
-export async function createItemImageUploads(
+export const createItemImageUploads = withActionLog('imageUploads.createItemImageUploads', async function createItemImageUploads(
   contentTypes: string[],
 ): Promise<
   ActionResult<
@@ -63,4 +64,4 @@ export async function createItemImageUploads(
       error instanceof Error ? error.message : 'Could not prepare the upload.',
     );
   }
-}
+});

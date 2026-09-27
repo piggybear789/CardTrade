@@ -16,6 +16,7 @@
 // Every export is an async Server Action; shared shapes are `export type` only
 // (type exports are erased and permitted in a 'use server' module).
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -83,7 +84,7 @@ export type GetOrCreateConversationResult =
  * looks for an existing conversation matching `(item_id, a, b)`, and inserts one
  * if none exists. RLS permits a participant to insert their own conversation.
  */
-export async function getOrCreateConversation(
+export const getOrCreateConversation = withActionLog('messages.getOrCreateConversation', async function getOrCreateConversation(
   itemId: string | null,
   otherUserId: string,
 ): Promise<GetOrCreateConversationResult> {
@@ -142,7 +143,7 @@ export async function getOrCreateConversation(
   }
 
   return { ok: true, conversationId: inserted.id };
-}
+});
 
 // ---------------------------------------------------------------------------
 // Shared enrichment shapes
@@ -284,7 +285,7 @@ function summarizeConversationSales(
  * latest message preview, and the caller's unread count. RLS restricts the base
  * query to conversations the caller participates in.
  */
-export async function listMyConversations(): Promise<ListMyConversationsResult> {
+export const listMyConversations = withActionLog('messages.listMyConversations', async function listMyConversations(): Promise<ListMyConversationsResult> {
   const supabase = await createClient();
 
   const me = await getUserId();
@@ -435,7 +436,7 @@ export async function listMyConversations(): Promise<ListMyConversationsResult> 
   });
 
   return { ok: true, conversations: entries };
-}
+});
 
 // ---------------------------------------------------------------------------
 // getConversation
@@ -514,7 +515,7 @@ export type GetConversationResult =
  * restricts reads to the two participants, so a non-participant (or a missing
  * conversation) surfaces as `not-found` / `not-participant`.
  */
-export async function getConversation(
+export const getConversation = withActionLog('messages.getConversation', async function getConversation(
   conversationId: string,
 ): Promise<GetConversationResult> {
   const supabase = await createClient();
@@ -618,7 +619,7 @@ export async function getConversation(
       messages: (messagesRes.data ?? []) as MessageRow[],
     },
   };
-}
+});
 
 // ---------------------------------------------------------------------------
 // sendMessage
@@ -651,7 +652,7 @@ export type SendMessageResult =
  * conversation's `last_message_at` so the inbox re-sorts. RLS ensures only a
  * participant can insert into (or update) the conversation.
  */
-export async function sendMessage(
+export const sendMessage = withActionLog('messages.sendMessage', async function sendMessage(
   conversationId: string,
   body: string,
   attachment?: MessageAttachmentInput | null,
@@ -759,7 +760,7 @@ export async function sendMessage(
   });
 
   return { ok: true, message: message as MessageRow };
-}
+});
 
 // ---------------------------------------------------------------------------
 // markConversationRead
@@ -779,7 +780,7 @@ export type MarkConversationReadResult =
  * conversations the caller participates in, so a non-participant simply updates
  * no rows.
  */
-export async function markConversationRead(
+export const markConversationRead = withActionLog('messages.markConversationRead', async function markConversationRead(
   conversationId: string,
 ): Promise<MarkConversationReadResult> {
   const supabase = await createClient();
@@ -802,4 +803,4 @@ export async function markConversationRead(
   }
 
   return { ok: true, updated: (data ?? []).length };
-}
+});

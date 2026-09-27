@@ -26,7 +26,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:cardtrade/core/constants.dart';
 import 'package:cardtrade/core/extensions.dart';
 import 'package:cardtrade/core/money.dart';
 import 'package:cardtrade/core/result.dart';
@@ -484,12 +483,13 @@ class _TradeMoneySection extends ConsumerWidget {
         viewerIsInitiator ? sides.counterpartSideCents : sides.initiatorSideCents;
 
     // A trader's fee is charged on what they RECEIVE, which is the other side.
-    final int yourFeeCents = tradeFee(theirSideCents);
+    final int yourFeeCents = tradeFee(theirSideCents, currency: trade.currency);
+    final String feeRate = Money.tradeFeeRateLabel(trade.currency);
 
     return ContractSection(
       title: 'Money',
       explainer: 'A trade moves goods, not cash. The platform fee is '
-          '${AppConstants.platformFeeBps ~/ 100}% of what each trader receives, '
+          '$feeRate of what each trader receives, '
           'charged when both accept.',
       children: <Widget>[
         ContractMoneyTable(
@@ -508,8 +508,7 @@ class _TradeMoneySection extends ConsumerWidget {
                   : null,
             ),
             ContractMoneyRow(
-              label: 'Your trade fee '
-                  '(${AppConstants.platformFeeBps ~/ 100}%)',
+              label: 'Your trade fee ($feeRate)',
               value: Money.format(yourFeeCents, trade.currency),
               total: true,
             ),

@@ -19,10 +19,17 @@ export function ZoomableImage({
   src,
   alt,
   className,
+  onNaturalSize,
 }: {
   src: string;
   alt: string;
   className?: string;
+  /**
+   * The photo's own pixel size once it has loaded, as the browser DRAWS it — after
+   * EXIF rotation, which is why this beats any stored dimension. The lightbox sizes
+   * its frame from it.
+   */
+  onNaturalSize?: (width: number, height: number) => void;
 }) {
   const [zoomPoint, setZoomPoint] = useState<{ x: number; y: number } | null>(
     null,
@@ -69,7 +76,11 @@ export function ZoomableImage({
   return (
     <div
       className={cn(
-        'group relative h-[min(80dvh,36rem)] w-full overflow-hidden',
+        // FILLS THE FRAME ITS PARENT SIZED. This was a fixed `min(80dvh, 36rem)` tall,
+        // full-width box, so on any screen wider than it was tall the viewer was
+        // landscape whatever the photo was, and a portrait card opened pillarboxed
+        // between two black bars. The lightbox now shapes the frame to the photo.
+        'group relative size-full overflow-hidden',
         zoomPoint ? 'cursor-zoom-out [touch-action:none]' : 'cursor-zoom-in',
         className,
       )}
@@ -106,6 +117,13 @@ export function ZoomableImage({
             : {}),
         }}
         draggable={false}
+        onLoad={(event) => {
+          const { naturalWidth, naturalHeight } = event.currentTarget;
+          // Zero for an SVG with no intrinsic size: no shape to report.
+          if (naturalWidth > 0 && naturalHeight > 0) {
+            onNaturalSize?.(naturalWidth, naturalHeight);
+          }
+        }}
       />
       <p
         aria-hidden="true"

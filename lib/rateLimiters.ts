@@ -52,6 +52,27 @@ export const messageLimiter = createRateLimiter({ prefix: 'message', limit: 30, 
 export const feedbackLimiter = createRateLimiter({ prefix: 'feedback', limit: 5, window: '1m' });
 
 /**
+ * Browser errors posted to `/api/errors` (0123). Keyed by member or IP, because guests
+ * hit errors too and this is the only bound on an endpoint anyone can call. A render
+ * loop that re-throws on every retry is the realistic flood; 20 a minute keeps the
+ * first occurrences and drops the repetition.
+ */
+export const errorLogLimiter = createRateLimiter({ prefix: 'error-log', limit: 20, window: '1m' });
+
+/** Member reports from the error screen (0123). Tight: each one is a deliberate click. */
+export const errorReportLimiter = createRateLimiter({ prefix: 'error-report', limit: 5, window: '10m' });
+
+/**
+ * Failed Server Actions recorded by `withActionLog` (0123), per member or IP.
+ *
+ * Generous, because every row is a real failure a member saw and dropping them makes
+ * the console lie about how often something breaks. The bound exists for the one case
+ * that is not a member: a script or a stuck client hammering an action that refuses it,
+ * which would otherwise write a row per request for as long as it ran.
+ */
+export const actionFailureLimiter = createRateLimiter({ prefix: 'action-failure', limit: 60, window: '1m' });
+
+/**
  * Behavioural instrumentation (0121). The loosest limiter here, by an order of magnitude.
  *
  * WHY SO HIGH. These are not member submissions; they are a by-product of using the app.

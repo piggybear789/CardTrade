@@ -18,7 +18,11 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowUpRight01Icon, ImageOffIcon } from '@hugeicons/core-free-icons';
 import Link from 'next/link';
 
-import { ImageGallery, type GalleryImage } from '@/components/listings/ImageGallery';
+import {
+  ImageGallery,
+  PORTRAIT_STAGE_FRAME,
+  type GalleryImage,
+} from '@/components/listings/ImageGallery';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -80,11 +84,13 @@ export function ItemPeekDialog({
 
         {images.length > 0 ? (
           // Override the listing page's viewport-tuned frame: inside a dialog the
-          // available height is the dialog's, not the window's.
+          // available height is the dialog's, not the window's. Card-shaped rather
+          // than the full-width strip this was, which drew a portrait card at about
+          // a third of the frame's width.
           <ImageGallery
             images={images}
             title={item.title}
-            frameClassName="h-[min(45dvh,22rem)] w-full"
+            frameClassName={PORTRAIT_STAGE_FRAME}
           />
         ) : (
           <p className="flex items-center gap-snug rounded-lg border border-border bg-muted p-6 text-body text-muted-foreground">

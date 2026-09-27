@@ -63,7 +63,7 @@ const UUID =
  * capability — possession of it is what grants access — so it must never be stored, and
  * it cannot be recognised by shape the way a UUID can. Recognised by its PARENT instead.
  */
-const OPAQUE_CHILD_OF: readonly string[] = ['t'] as const;
+export const OPAQUE_CHILD_OF: readonly string[] = ['t'] as const;
 
 /** True when `value` satisfies the slug shape the `ux_events` columns enforce. */
 export function isEventSlug(value: string): boolean {

@@ -30,6 +30,7 @@
 // bad row, but they would refuse it as a 400 the browser has to interpret, rather than as
 // a silent drop.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { uxEventLimiter } from '@/lib/rateLimiters';
@@ -63,7 +64,7 @@ export interface RecordUxEventInput {
  *
  * @param input The event. Invalid input is discarded, never reported.
  */
-export async function recordUxEvent(input: RecordUxEventInput): Promise<void> {
+export const recordUxEvent = withActionLog('uxEvents.recordUxEvent', async function recordUxEvent(input: RecordUxEventInput): Promise<void> {
   try {
     const user = await getCachedAuthUser();
     // No member, no row. RLS would refuse the insert anyway; returning here saves the
@@ -100,4 +101,4 @@ export async function recordUxEvent(input: RecordUxEventInput): Promise<void> {
     // function is that no caller can be harmed by it. A `console.error` here would be the
     // beginning of making instrumentation noisy enough to disable.
   }
-}
+});

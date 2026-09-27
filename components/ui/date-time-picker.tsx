@@ -205,8 +205,11 @@ export function DateTimePicker({
             variant="outline"
             disabled={disabled}
             aria-required={required}
+            // No height override: Button's default (`h-9 md:h-8`) is the height the
+            // time `SelectTrigger` beside it uses. `h-10` made the pair 4px apart
+            // wherever the grid puts them side by side.
             className={cn(
-              'h-10 w-full justify-start font-normal',
+              'w-full justify-start font-normal',
               !parts && 'text-muted-foreground',
             )}
           >

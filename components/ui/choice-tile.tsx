@@ -48,21 +48,33 @@ export function ChoiceTile({
   align = 'start',
 }: ChoiceTileProps) {
   return (
+    // NO onClick ON THE LABEL. A label forwards its click to its input, which fires
+    // `onChange` by itself. With a handler here as well, one click on the label ran
+    // it three times (label, input, then the input's click bubbling back through the
+    // label) and a click on the checkbox itself ran it twice, so a toggling handler
+    // cancelled itself out. It also ran inside a disabled <fieldset>, because a
+    // <label> cannot be disabled: ItemForm's locked listing kind switched in edit mode.
     <label
       htmlFor={id}
-      onClick={onChange}
       className={cn(
         'relative flex cursor-pointer items-center gap-snug rounded-md border border-border p-snug text-body transition-colors md:p-cozy',
-        // The whole tile takes the focus edge: at this size the native control's
-        // own border is easy to miss.
-        'has-[:focus-visible]:border-iris',
-        // Hover darkens the hairline rather than tinting it violet: the tile's
-        // SELECTED look is already the accent wash, so a violet hover edge on an
-        // unselected tile reads as a second, weaker kind of selection.
+        // The whole tile takes the focus frame: at this size the native control's
+        // own border is easy to miss. Edge plus 1px inset ring, like every field.
+        'has-[:focus-visible]:border-iris has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-iris',
+        // Hover darkens the hairline rather than tinting it violet: a violet hover
+        // edge on an unselected tile would read as a second, weaker selection.
+        //
+        // SELECTED IS MORE THAN THE WASH. `bg-accent` is 1.14:1 against the page and
+        // the label only changes hue, so with the radio visually hidden the chosen
+        // tile was told apart by colour alone. The iris edge is the "you are here"
+        // marker globals.css already allows for a selected gallery thumbnail, and the
+        // accent-plus-iris pairing is what GenrePills uses for its active pill.
         checked
-          ? 'bg-accent text-accent-foreground'
+          ? 'border-iris bg-accent text-accent-foreground'
           : 'hover:border-foreground/20 hover:bg-muted/40',
         invalid && 'border-destructive',
+        // Locked groups (a disabled <fieldset>) look and behave locked.
+        'has-[:disabled]:pointer-events-none has-[:disabled]:opacity-70',
         align === 'center' && 'justify-center text-center',
       )}
     >

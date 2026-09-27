@@ -28,10 +28,10 @@ import {
   type RegionCode,
   type RegionSource,
 } from '@/domain/region';
-import { ALL_REGIONS } from '@/lib/location/regionParams';
+import { ALL_REGIONS, AUTOMATIC_REGION } from '@/lib/location/regionParams';
 
 export type { RegionSource };
-export { ALL_REGIONS };
+export { ALL_REGIONS, AUTOMATIC_REGION };
 
 /** Cookie holding an explicit browse-region choice. */
 export const REGION_COOKIE = 'nd_region';
@@ -103,9 +103,14 @@ export async function viewerTradingRegion(): Promise<RegionCode | null> {
  *   1. `paramRegion` — an explicit `?region=` in the URL. Beats everything,
  *      including a signed-in member's own region, so a shared link shows the same
  *      catalog to whoever opens it.
- *   2. the member's own trading region — the sensible default for someone who has
- *      told us where they trade.
- *   3. the remembered cookie — a previous explicit choice by an anonymous visitor.
+ *   2. the remembered cookie — an explicit choice made through the region picker,
+ *      including "All regions". It beats the member's own trading region because
+ *      it is the more recent and more specific statement: a member in AU who picks
+ *      US wants to see US listings, and ranking the profile first made the picker
+ *      silently do nothing for every signed-in member. Browsing is display only —
+ *      the contract guards read `profiles.region_code`, never this.
+ *   3. the member's own trading region — the default for someone who has told us
+ *      where they trade and has not picked anything else.
  *   4. the IP guess.
  *   5. the configured default.
  *
@@ -130,21 +135,54 @@ export async function resolveBrowseRegion(
   const fromParam = normalizeRegionCode(rawParam);
   if (fromParam) return { code: fromParam, source: 'param' };
 
-  const fromProfile = await viewerTradingRegion();
-  if (fromProfile) return { code: fromProfile, source: 'profile' };
-
   try {
     const cookieStore = await cookies();
-    const fromCookie = normalizeRegionCode(cookieStore.get(REGION_COOKIE)?.value);
+    const rawCookie = cookieStore.get(REGION_COOKIE)?.value;
+    // A remembered "All regions" is stored as the literal sentinel, for the same
+    // reason the param is checked before normalization above.
+    if (rawCookie?.trim().toLowerCase() === ALL_REGIONS) {
+      return { code: null, source: 'all' };
+    }
+    const fromCookie = normalizeRegionCode(rawCookie);
     if (fromCookie) return { code: fromCookie, source: 'cookie' };
   } catch {
     // Same as `headers()`: outside a request scope there is simply no cookie.
   }
 
+  return automaticBrowseRegion();
+}
+
+/**
+ * The region shown when the visitor has made no explicit choice: the tail of
+ * {@link resolveBrowseRegion} (profile → IP guess → default), with no param and
+ * no cookie consulted.
+ *
+ * Exported so the browsing-region setting can say what "Automatic" currently
+ * resolves to, even while an explicit choice overrides it.
+ */
+export async function automaticBrowseRegion(): Promise<ResolvedRegion> {
+  const fromProfile = await viewerTradingRegion();
+  if (fromProfile) return { code: fromProfile, source: 'profile' };
+
   const fromGeo = await geoRegionFromRequest();
   if (fromGeo) return { code: fromGeo, source: 'geo' };
 
   return { code: defaultRegion(), source: 'default' };
+}
+
+/**
+ * The visitor's explicit browsing choice, as the settings control represents it:
+ * a region code, `ALL_REGIONS`, or `AUTOMATIC_REGION` when nothing is remembered.
+ */
+export async function readBrowseRegionChoice(): Promise<string> {
+  try {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get(REGION_COOKIE)?.value?.trim().toLowerCase();
+    if (raw === ALL_REGIONS) return ALL_REGIONS;
+    return normalizeRegionCode(raw) ?? AUTOMATIC_REGION;
+  } catch {
+    return AUTOMATIC_REGION;
+  }
 }
 
 /** Cookie options for a persisted browse-region choice. */

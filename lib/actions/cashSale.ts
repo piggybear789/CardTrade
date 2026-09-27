@@ -4,6 +4,7 @@
 // Authenticated, thin Cash_Sale action boundary (Req 4). Provider webhooks call
 // the orchestrator directly; no client-callable settle/fail simulation exists.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -166,7 +167,7 @@ function actionResult(result: Awaited<ReturnType<ReturnType<typeof orchestrator>
 }
 
 /** Create and reserve an agreement without collecting payment (Req 4.1). */
-export async function initiateCashSale(
+export const initiateCashSale = withActionLog('cashSale.initiateCashSale', async function initiateCashSale(
   input: InitiateCashSaleInput,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
@@ -213,7 +214,7 @@ export async function initiateCashSale(
     });
   }
   return actionRes;
-}
+});
 
 /**
  * Replace what a shopfront contract covers (0064).
@@ -223,7 +224,7 @@ export async function initiateCashSale(
  * mirrors every other contract event, so this action must not post its own
  * message or the note would appear twice.
  */
-export async function updateCashSaleItems(
+export const updateCashSaleItems = withActionLog('cashSale.updateCashSaleItems', async function updateCashSaleItems(
   cashSaleId: string,
   expectedTermsVersion: number,
   lineItems: CashSaleLineItemInput[],
@@ -260,7 +261,7 @@ export async function updateCashSaleItems(
     });
   }
   return result;
-}
+});
 
 /**
  * Read a contract's line items.
@@ -269,7 +270,7 @@ export async function updateCashSaleItems(
  * the service-role client, so membership is re-checked here for the same reason
  * every other write path does: authorization is enforced twice.
  */
-export async function listCashSaleItems(
+export const listCashSaleItems = withActionLog('cashSale.listCashSaleItems', async function listCashSaleItems(
   cashSaleId: string,
 ): Promise<{ ok: true; items: CashSaleLineItem[] } | { ok: false; error: CashSaleActionError }> {
   const userId = await getUserId();
@@ -287,10 +288,10 @@ export async function listCashSaleItems(
   }
 
   return { ok: true, items: await orchestrator().listLineItems(cashSaleId) };
-}
+});
 
 /** Save a new version of fulfillment terms. */
-export async function updateCashSaleTerms(
+export const updateCashSaleTerms = withActionLog('cashSale.updateCashSaleTerms', async function updateCashSaleTerms(
   cashSaleId: string,
   expectedTermsVersion: number,
   terms: CashSaleTermsInput,
@@ -321,7 +322,7 @@ export async function updateCashSaleTerms(
     });
   }
   return result;
-}
+});
 
 /**
  * Propose a new agreed price (Req 4.3). The contract chat is notified
@@ -329,7 +330,7 @@ export async function updateCashSaleTerms(
  * trigger, so this action must not post its own message or the note would appear
  * twice.
  */
-export async function proposeCashSalePrice(
+export const proposeCashSalePrice = withActionLog('cashSale.proposeCashSalePrice', async function proposeCashSalePrice(
   cashSaleId: string,
   expectedTermsVersion: number,
   agreedPriceCents: number,
@@ -363,10 +364,10 @@ export async function proposeCashSalePrice(
     });
   }
   return result;
-}
+});
 
 /** Buyer starts collection on the terms version shown. There is no confirm step. */
-export async function acceptCashSaleTerms(
+export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms', async function acceptCashSaleTerms(
   cashSaleId: string,
   termsVersion: number,
 ): Promise<CashSaleActionResult> {
@@ -408,9 +409,9 @@ export async function acceptCashSaleTerms(
     }
   }
   return result;
-}
+});
 /** Open (or resolve) the participant chat for a contract (Req 4.2). */
-export async function ensureCashSaleConversation(
+export const ensureCashSaleConversation = withActionLog('cashSale.ensureCashSaleConversation', async function ensureCashSaleConversation(
   cashSaleId: string,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
@@ -418,9 +419,9 @@ export async function ensureCashSaleConversation(
   return actionResult(
     await orchestrator().ensureConversation({ actorId: userId, cashSaleId }),
   );
-}
+});
 
-export async function recordCashSaleShipment(
+export const recordCashSaleShipment = withActionLog('cashSale.recordCashSaleShipment', async function recordCashSaleShipment(
   cashSaleId: string,
   carrier: string,
   trackingNumber: string,
@@ -449,9 +450,9 @@ export async function recordCashSaleShipment(
     });
   }
   return result;
-}
+});
 
-export async function recordCashSaleReceipt(
+export const recordCashSaleReceipt = withActionLog('cashSale.recordCashSaleReceipt', async function recordCashSaleReceipt(
   cashSaleId: string,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
@@ -469,13 +470,13 @@ export async function recordCashSaleReceipt(
     });
   }
   return result;
-}
+});
 
 /**
  * Refresh the shipment from the carrier. A confirmed delivery starts the
  * inspection window, after which the contract auto-completes (Req 4.14a).
  */
-export async function syncCashSaleTracking(
+export const syncCashSaleTracking = withActionLog('cashSale.syncCashSaleTracking', async function syncCashSaleTracking(
   cashSaleId: string,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
@@ -483,9 +484,9 @@ export async function syncCashSaleTracking(
   return actionResult(
     await orchestrator().syncTracking({ actorId: userId, cashSaleId }),
   );
-}
+});
 
-export async function acceptCashSaleInspection(
+export const acceptCashSaleInspection = withActionLog('cashSale.acceptCashSaleInspection', async function acceptCashSaleInspection(
   cashSaleId: string,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
@@ -503,9 +504,9 @@ export async function acceptCashSaleInspection(
     });
   }
   return result;
-}
+});
 
-export async function confirmCashSaleHandover(
+export const confirmCashSaleHandover = withActionLog('cashSale.confirmCashSaleHandover', async function confirmCashSaleHandover(
   cashSaleId: string,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
@@ -526,9 +527,9 @@ export async function confirmCashSaleHandover(
     });
   }
   return result;
-}
+});
 
-export async function cancelCashSaleAgreement(
+export const cancelCashSaleAgreement = withActionLog('cashSale.cancelCashSaleAgreement', async function cancelCashSaleAgreement(
   cashSaleId: string,
   reason?: string,
 ): Promise<CashSaleActionResult> {
@@ -550,9 +551,9 @@ export async function cancelCashSaleAgreement(
     });
   }
   return result;
-}
+});
 
-export async function disputeCashSale(
+export const disputeCashSale = withActionLog('cashSale.disputeCashSale', async function disputeCashSale(
   cashSaleId: string,
   reason: string,
 ): Promise<CashSaleActionResult> {
@@ -579,7 +580,7 @@ export async function disputeCashSale(
     });
   }
   return result;
-}
+});
 
 /**
  * Withdraw a dispute the caller raised (0084).
@@ -588,7 +589,7 @@ export async function disputeCashSale(
  * here, because an exported Server Action is reachable by anyone who learns its id —
  * so the authorisation has to sit with the data, not with whichever UI called it.
  */
-export async function withdrawCashSaleDispute(
+export const withdrawCashSaleDispute = withActionLog('cashSale.withdrawCashSaleDispute', async function withdrawCashSaleDispute(
   cashSaleId: string,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
@@ -597,7 +598,7 @@ export async function withdrawCashSaleDispute(
   return actionResult(
     await orchestrator().withdrawDispute({ actorId: userId, cashSaleId }),
   );
-}
+});
 
 /**
  * End a dispute by conceding it (0084).
@@ -608,7 +609,7 @@ export async function withdrawCashSaleDispute(
  * settlement outcomes at all, so a malformed call fails before touching the payment
  * seam.
  */
-export async function settleCashSaleDispute(
+export const settleCashSaleDispute = withActionLog('cashSale.settleCashSaleDispute', async function settleCashSaleDispute(
   cashSaleId: string,
   outcome: PartySettlementOutcome,
 ): Promise<CashSaleActionResult> {
@@ -625,7 +626,7 @@ export async function settleCashSaleDispute(
   return actionResult(
     await orchestrator().settleDisputeAsParty({ actorId: userId, cashSaleId, outcome }),
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Return-conditional refund actions (0088)
@@ -651,7 +652,7 @@ export interface ReturnAddressInput {
  * Upsert is deliberate: the Seller correcting a typo is an update, not a delete-and-
  * recreate, and the migration explicitly does NOT grant DELETE.
  */
-export async function saveCashSaleReturnAddress(
+export const saveCashSaleReturnAddress = withActionLog('cashSale.saveCashSaleReturnAddress', async function saveCashSaleReturnAddress(
   cashSaleId: string,
   address: ReturnAddressInput,
 ): Promise<CashSaleActionResult> {
@@ -715,7 +716,7 @@ export async function saveCashSaleReturnAddress(
     return { ok: true, sale: { id: cashSaleId } as CashSaleRecord };
   }
   return result;
-}
+});
 
 /**
  * Record the Buyer posting the return shipment (0088).
@@ -725,7 +726,7 @@ export async function saveCashSaleReturnAddress(
  * party asserting anything. Mirrors {@link recordCashSaleShipment} for the outbound
  * leg.
  */
-export async function recordCashSaleReturnShipment(
+export const recordCashSaleReturnShipment = withActionLog('cashSale.recordCashSaleReturnShipment', async function recordCashSaleReturnShipment(
   cashSaleId: string,
   carrier: string,
   trackingNumber: string,
@@ -756,7 +757,7 @@ export async function recordCashSaleReturnShipment(
     });
   }
   return result;
-}
+});
 
 /**
  * The Seller contests a return — it arrived empty, damaged, or never came (0088).
@@ -765,7 +766,7 @@ export async function recordCashSaleReturnShipment(
  * RELEASES NOTHING by itself. Mirrors {@link disputeCashSale} for the main sale
  * dispute.
  */
-export async function disputeCashSaleReturn(
+export const disputeCashSaleReturn = withActionLog('cashSale.disputeCashSaleReturn', async function disputeCashSaleReturn(
   cashSaleId: string,
   reason: string,
 ): Promise<CashSaleActionResult> {
@@ -794,4 +795,4 @@ export async function disputeCashSaleReturn(
     });
   }
   return result;
-}
+});

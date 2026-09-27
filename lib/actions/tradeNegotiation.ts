@@ -16,6 +16,7 @@
 // `placeBondsForAgreedTrade`, and HOLDS_CONFIRMED / HOLDS_FAILED are dispatched
 // exactly as the single-click path does. No SQL function touches a payment.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -233,7 +234,7 @@ const COUNTERPART_GOODS_MAX_LENGTH = 1000;
  * A real cash / goods change bumps the terms version and clears both
  * acceptances, then re-applies the caller's own.
  */
-export async function proposeTradeTerms(
+export const proposeTradeTerms = withActionLog('tradeNegotiation.proposeTradeTerms', async function proposeTradeTerms(
   tradeId: string,
   expectedTermsVersion: number,
   terms: TradeTermsInput,
@@ -303,7 +304,7 @@ export async function proposeTradeTerms(
 
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true, trade: row, collateralStarted: false };
-}
+});
 
 /**
  * Accept the terms on the table. When this is the SECOND acceptance the trade
@@ -315,7 +316,7 @@ export async function proposeTradeTerms(
  * and neither may enter the collateral phase without a payout account. Opening and
  * countering an offer stay ungated: nothing is at stake until terms are agreed.
  */
-export async function acceptTradeTerms(
+export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms', async function acceptTradeTerms(
   tradeId: string,
   termsVersion: number,
 ): Promise<TradeNegotiationResult> {
@@ -397,7 +398,7 @@ export async function acceptTradeTerms(
   revalidatePath('/trades');
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true, trade: started, collateralStarted: true };
-}
+});
 
 // `itemIdsFor`, `chargeFeesForAgreedTrade` and `syncHolds` all moved to
 // `lib/trades/collateralPlacement.ts`, next to the bond placement they are ordered
@@ -412,7 +413,7 @@ export async function acceptTradeTerms(
  * Replacing the vaulted card is a separate action (`completeCardSetup`); this
  * only places a new authorisation against whatever is now the default card.
  */
-export async function retryTradeCollateral(
+export const retryTradeCollateral = withActionLog('tradeNegotiation.retryTradeCollateral', async function retryTradeCollateral(
   tradeId: string,
 ): Promise<TradeNegotiationResult> {
   const userId = await currentUserId();
@@ -498,13 +499,13 @@ export async function retryTradeCollateral(
   revalidatePath('/trades');
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true, trade, collateralStarted: true };
-}
+});
 
 /**
  * End a negotiation before terms are agreed. Either party, one outcome: the
  * Trade becomes CANCELLED and who ended it is recorded on the row.
  */
-export async function declineTradeOffer(
+export const declineTradeOffer = withActionLog('tradeNegotiation.declineTradeOffer', async function declineTradeOffer(
   tradeId: string,
   reason?: string,
 ): Promise<TradeNegotiationResult> {
@@ -536,7 +537,7 @@ export async function declineTradeOffer(
   revalidatePath('/trades');
   revalidatePath(`/trades/${tradeId}`);
   return { ok: true, trade: row, collateralStarted: false };
-}
+});
 
 /** Result of opening a negotiation from a listing. */
 export type OpenTradeNegotiationResult =
@@ -564,7 +565,7 @@ export type OpenTradeNegotiationResult =
  * Commitment_Point. Gating the offer instead was what made a member with no
  * payout account unable even to start a conversation.
  */
-export async function openTradeNegotiation(input: {
+export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNegotiation', async function openTradeNegotiation(input: {
   counterpartItemId: string;
   /**
    * What the caller is putting up. `private` describes something not in the
@@ -782,4 +783,4 @@ export async function openTradeNegotiation(input: {
 
   revalidatePath('/trades');
   return { ok: true, tradeId: trade.id };
-}
+});

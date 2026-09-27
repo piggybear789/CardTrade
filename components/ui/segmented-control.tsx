@@ -65,10 +65,12 @@ export function SegmentedControl<Value extends string>({
             key={option.value}
             htmlFor={id}
             className={cn(
-              'relative flex min-h-9 cursor-pointer touch-manipulation items-center justify-center rounded-md px-tight text-body font-medium transition-colors',
-              // The segment takes the focus edge: the control it holds is hidden, so
-              // there is nothing else for the ring to land on.
-              'has-[:focus-visible]:border has-[:focus-visible]:border-iris',
+              'relative flex min-h-9 cursor-pointer touch-manipulation items-center justify-center rounded-md border border-transparent px-tight text-body font-medium transition-colors',
+              // The segment takes the focus frame: the control it holds is hidden, so
+              // there is nothing else for the ring to land on. The edge is transparent
+              // at REST so focus recolours it — adding the border only on focus
+              // widened the segment by 2px and nudged its label sideways.
+              'has-[:focus-visible]:border-iris has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-iris',
               selected
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',

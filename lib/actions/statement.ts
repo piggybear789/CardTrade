@@ -20,6 +20,7 @@
 // selected. The statement says what happened and where it stands, in the
 // member's own terms.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import {
@@ -47,7 +48,7 @@ export type StatementActionError = 'not-authenticated' | 'read-failed';
  * rather than rendering an empty statement, which would read as "nothing has
  * ever happened".
  */
-export async function getAccountStatement(): Promise<
+export const getAccountStatement = withActionLog('statement.getAccountStatement', async function getAccountStatement(): Promise<
   ActionResult<AccountStatement, StatementActionError>
 > {
   const supabase = await createClient();
@@ -240,4 +241,4 @@ export async function getAccountStatement(): Promise<
   });
 
   return ok(deriveAccountStatement({ sales, tradeFees, holds, restitutions, chargebacks }));
-}
+});

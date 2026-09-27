@@ -215,6 +215,12 @@ export default async function HomePage({
 
   return (
     <CatalogViewProvider
+      // The provider copies `initial` into state and refs ONCE, on mount. A region
+      // change re-renders this same route, so without a key React keeps the old
+      // instance and the new server snapshot is discarded — the grid kept showing
+      // the previous region's listings. Filters and paging stay client-side and
+      // do not change the key, so they still update in place.
+      key={region.code ?? 'all'}
       initial={{
         items,
         total: result.total,

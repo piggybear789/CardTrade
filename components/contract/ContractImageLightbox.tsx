@@ -11,8 +11,15 @@
 // `ContractThumbnails` renders a fixed horizontal strip (up to four, then a `+N`
 // tile) and opens this lightbox on click. Arrow keys page through. Click the
 // photo to zoom; move the pointer to pan.
+//
+// THE FRAME TAKES THE PHOTO'S SHAPE. It was a fixed box, up to 64rem wide and at
+// most 36rem tall, so on any screen wider than it was tall the viewer was landscape
+// whatever it held — and what it holds is nearly always a portrait card, which
+// opened as a narrow strip between two black bars. The frame is now as large as
+// the viewport allows at the photo's own aspect ratio: a stored dimension when the
+// caller has one, the loaded image's size once it arrives, card-shaped until then.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ChevronLeftIcon, ChevronRightIcon, ImageOffIcon, XIcon } from '@hugeicons/core-free-icons';
 
@@ -24,7 +31,38 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { StorageImage } from '@/components/ui/storage-image';
+import type { ImageDim } from '@/lib/images/dimensions';
 import { cn } from '@/lib/utils';
+
+/**
+ * The frame's shape (width / height) until the photo's own is known.
+ *
+ * A card is 63 × 88mm (0.716) and a phone photo of one is 3:4 (0.75), so 3:4 is the
+ * closest single guess to nearly everything this viewer opens. A wrong guess costs a
+ * resize when the photo lands, never a crop: the image is `object-contain`.
+ */
+const DEFAULT_PHOTO_ASPECT = 3 / 4;
+
+/**
+ * Bounds on the FRAME, not the photo, which is never cropped. They stop an extreme
+ * shape from leaving a sliver too small to hold the close and paging controls. A
+ * phone screenshot is about 0.46; a panorama is 3.
+ */
+const MIN_PHOTO_ASPECT = 0.4;
+const MAX_PHOTO_ASPECT = 3;
+
+/**
+ * The largest frame the viewport allows, as CSS lengths. The height keeps room for
+ * the dialog's margin and the one-line caption under the frame, so the dialog never
+ * needs its own scrollbar.
+ */
+const FRAME_MAX_WIDTH = '100vw - 1.5rem';
+const FRAME_MAX_HEIGHT = '100dvh - 6rem';
+
+function clampAspect(ratio: number): number {
+  if (!Number.isFinite(ratio) || ratio <= 0) return DEFAULT_PHOTO_ASPECT;
+  return Math.min(MAX_PHOTO_ASPECT, Math.max(MIN_PHOTO_ASPECT, ratio));
+}
 
 /**
  * Painted width of each tile size, taken from the `size-*` classes below rather
@@ -60,6 +98,14 @@ export interface ContractImageLightboxProps {
   onOpenChange: (openIndex: number | null) => void;
   /** Accessible caption, e.g. the item title. */
   label: string;
+  /**
+   * Stored pixel sizes, index-aligned with {@link images} (`items.image_dims`).
+   *
+   * Optional, and only a head start: with one, the frame opens at the photo's shape
+   * instead of resizing when it loads. The loaded image's own size always wins,
+   * because it is measured after EXIF rotation and a stored pair may not have been.
+   */
+  dims?: readonly (ImageDim | null | undefined)[];
 }
 
 /** A full-size, keyboard-pageable view of a contract's photos. */
@@ -68,8 +114,11 @@ export function ContractImageLightbox({
   openIndex,
   onOpenChange,
   label,
+  dims,
 }: ContractImageLightboxProps) {
   const [index, setIndex] = useState(openIndex ?? 0);
+  // Measured shapes, by URL, so paging back to a photo does not resize twice.
+  const [measured, setMeasured] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (openIndex !== null) setIndex(openIndex);
@@ -98,30 +147,61 @@ export function ContractImageLightbox({
   }, [open, step]);
 
   const src = images[index];
+  const stored = dims?.[index];
+  const aspect = clampAspect(
+    (src ? measured[src] : undefined) ??
+      (stored ? stored.w / stored.h : DEFAULT_PHOTO_ASPECT),
+  );
 
   return (
     <Dialog open={open} onOpenChange={(next) => onOpenChange(next ? index : null)}>
       {/* A photo viewer is not a paper card. Cream padding and a bordered
           chevron next to a slab makes the chrome compete with the thing being
           inspected, so the panel is stripped to the image and dark controls
-          that float over it. */}
+          that float over it.
+
+          SIZED IN CSS, NOT MEASURED. The width is the smaller of "the viewport's
+          width" and "the viewport's height at this photo's aspect", and the frame's
+          height is the same pair the other way round, so a rotation or a resized
+          window refits without a listener. Inline because the arithmetic reads a
+          custom property, which Tailwind's arbitrary-value maths does not handle
+          reliably. `max-md:px-0` removes the phone safe-area padding every dialog
+          carries, which would otherwise make the frame narrower than the height it
+          was computed from and put the letterbox back. */}
       <DialogContent
         mobile="center"
         showClose={false}
-        animation="fade"
-        className="max-w-5xl gap-cozy border-0 bg-transparent p-0 shadow-none sm:max-w-5xl sm:p-0"
+        style={
+          {
+            '--photo-aspect': aspect,
+            width: `min(${FRAME_MAX_WIDTH}, (${FRAME_MAX_HEIGHT}) * var(--photo-aspect))`,
+          } as CSSProperties
+        }
+        className="max-w-none gap-cozy border-0 bg-transparent p-0 shadow-none max-md:px-0 sm:max-w-none sm:p-0"
       >
         <DialogTitle className="sr-only">{label}</DialogTitle>
 
-        <div className="relative min-w-0 overflow-hidden rounded-xl bg-obsidian">
+        <div
+          className="relative min-w-0 shrink-0 overflow-hidden rounded-xl bg-obsidian"
+          style={{
+            height: `min((${FRAME_MAX_WIDTH}) / var(--photo-aspect), ${FRAME_MAX_HEIGHT})`,
+          }}
+        >
           {src ? (
             <ZoomableImage
               key={src}
               src={src}
               alt={`${label} — photo ${index + 1} of ${images.length}`}
+              onNaturalSize={(width, height) =>
+                setMeasured((current) =>
+                  current[src] === width / height
+                    ? current
+                    : { ...current, [src]: width / height },
+                )
+              }
             />
           ) : (
-            <div className="grid h-64 w-full place-items-center text-mist/50">
+            <div className="grid size-full place-items-center text-mist/50">
               <HugeiconsIcon icon={ImageOffIcon} className="size-8" aria-hidden />
             </div>
           )}
@@ -159,11 +239,16 @@ export function ContractImageLightbox({
           ) : null}
         </div>
 
+        {/* ONE LINE, COUNT FIRST. The dialog is now only as wide as the photo, so a
+            long title would wrap under a narrow portrait frame and push the dialog
+            past the height the frame was sized to leave. Truncating keeps it to one
+            line, and leading with the count means the ellipsis eats the title, not
+            the "3 of 9" a member is paging by. */}
         <p
-          className="text-center text-meta tabular-nums text-mist/70"
+          className="truncate text-center text-meta tabular-nums text-mist/70"
           aria-live="polite"
         >
-          {label} · {index + 1} of {images.length}
+          {index + 1} of {images.length} · {label}
         </p>
       </DialogContent>
     </Dialog>
@@ -182,11 +267,12 @@ export interface ContractThumbnailsProps {
   /**
    * `strip` (default) is the equal-tile row used by item rows and evidence sets.
    *
-   * `stacked` promotes the first photo to a full-width square with the rest as a
+   * `stacked` promotes the first photo to a full-width 3:4 frame with the rest as a
    * small strip underneath — the listing-page treatment, for surfaces where the
    * item is the subject of the panel rather than one row in a list. A 64px tile
    * cannot show the condition of a collectible, which is the whole reason a buyer
-   * opens the Item tab.
+   * opens the Item tab. Portrait, not square: the photo is nearly always a card,
+   * and a square frame spent a quarter of its width on empty sides.
    */
   layout?: 'strip' | 'stacked';
   className?: string;
@@ -270,7 +356,7 @@ export function ContractThumbnails({
         className={cn(
           'grid place-items-center text-muted-foreground',
           stacked
-            ? 'aspect-square w-full'
+            ? 'aspect-[3/4] w-full'
             : cn('shrink-0 rounded-md border bg-muted', tile),
           className,
         )}
@@ -294,7 +380,7 @@ export function ContractThumbnails({
             onClick={() => setOpenIndex(0)}
             aria-label={`Enlarge photo 1 of ${images.length} for ${label}`}
             // `relative` so the photo can fill it — StorageImage is always `fill`.
-            className="relative aspect-square w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-iris"
+            className="relative aspect-[3/4] w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-iris"
           >
             <ContractThumbnailImage
               src={primary}

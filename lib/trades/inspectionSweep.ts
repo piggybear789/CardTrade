@@ -31,6 +31,7 @@ import { regionForCurrency } from '@/lib/regionBinding';
 import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment';
 import { finalizeCompletedTrade, type TradeRow } from './completion';
 import { emailNotify } from '@/lib/email';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** How long before the deadline both traders are nudged, in hours. */
 const WARNING_LEAD_HOURS = 24;
@@ -157,8 +158,16 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
       });
       if (!applied.ok) {
         // A lost optimistic-lock race or a state that moved on. Not an error worth
-        // shouting about — the next pass picks it up if it is still due.
+        // shouting about — the next pass picks it up if it is still due. Recorded
+        // anyway (0123): a race resolves by the next pass, so a group that keeps
+        // growing for one trade is the signal that it is not a race.
         result.failed += 1;
+        await logBackgroundFailure({
+          name: 'trade.inspection-expired',
+          errorCode: applied.error,
+          message: applied.detail ?? `INSPECTION_EXPIRED refused: ${applied.error}`,
+          context: { tradeId: row.id },
+        });
         continue;
       }
 
@@ -199,6 +208,12 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
     } catch (err) {
       result.failed += 1;
       console.warn(`[trades] inspection sweep failed for trade ${row.id}:`, err);
+      await logBackgroundFailure({
+        name: 'trade.inspection-expired',
+        errorCode: 'THREW',
+        error: err,
+        context: { tradeId: row.id },
+      });
     }
   }
 
@@ -250,6 +265,12 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
       });
     } catch (err) {
       console.warn(`[trades] inspection warning failed for trade ${row.id}:`, err);
+      await logBackgroundFailure({
+        name: 'trade.inspection-warning',
+        errorCode: 'THREW',
+        error: err,
+        context: { tradeId: row.id },
+      });
     }
   }
 
@@ -307,6 +328,12 @@ export async function flagStaleCollateralTrades(): Promise<{ flagged: number }> 
       flagged += 1;
     } catch (err) {
       console.warn(`[trades] stale-collateral flag failed for trade ${row.id}:`, err);
+      await logBackgroundFailure({
+        name: 'trade.stale-collateral',
+        errorCode: 'THREW',
+        error: err,
+        context: { tradeId: row.id },
+      });
     }
   }
 

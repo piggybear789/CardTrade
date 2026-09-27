@@ -44,6 +44,12 @@ import { ReportActions } from '@/components/admin/ReportActions';
 import { FeedbackActions } from '@/components/admin/FeedbackActions';
 import { ClearFlagButton } from '@/components/admin/ClearFlagButton';
 import { CustodyPanel } from '@/components/admin/CustodyPanel';
+import {
+  ErrorsQueue,
+  type ErrorGroupRow,
+  type ErrorLogRow,
+  type ErrorQueueFilters,
+} from '@/components/admin/ErrorsQueue';
 import { DrainPayoutsButton, RetryPayoutButton } from '@/components/admin/PayoutActions';
 import { PageShell } from '@/components/layout/PageShell';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -74,7 +80,7 @@ type TradeRow = Tables<'trades'>;
 type CashSaleRow = Tables<'cash_sales'>;
 
 /** Which queue the operator is looking at. */
-type ConsoleTab = 'payouts' | 'reports' | 'feedback' | 'reconciliation';
+type ConsoleTab = 'payouts' | 'reports' | 'feedback' | 'errors' | 'reconciliation';
 
 /**
  * Narrow an arbitrary `?tab=` value.
@@ -84,10 +90,38 @@ type ConsoleTab = 'payouts' | 'reports' | 'feedback' | 'reconciliation';
  */
 function resolveConsoleTab(value: string | string[] | undefined): ConsoleTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === 'reports' || raw === 'feedback' || raw === 'reconciliation'
+  return raw === 'reports' || raw === 'feedback' || raw === 'errors' || raw === 'reconciliation'
     ? raw
     : 'payouts';
 }
+
+/** First value of a search param, or undefined. */
+function firstParam(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/**
+ * The Errors tab's filters (0123). Defaults to open, non-refusal groups: what is
+ * actually broken and not yet fixed. A `group` that is not fingerprint-shaped is
+ * ignored rather than passed to a query.
+ */
+function resolveErrorFilters(params: {
+  view?: string | string[];
+  refusals?: string | string[];
+  group?: string | string[];
+}): ErrorQueueFilters {
+  const group = firstParam(params.group);
+  return {
+    view: firstParam(params.view) === 'all' ? 'all' : 'open',
+    refusals: firstParam(params.refusals) === '1',
+    group: group && /^[0-9a-z]{1,32}$/.test(group) ? group : null,
+  };
+}
+
+/** How many groups one page of the Errors tab shows. */
+const ERROR_GROUPS_PER_PAGE = 100;
+/** How many occurrences a drilled-into group shows. */
+const ERROR_OCCURRENCES_SHOWN = 25;
 
 /** Member-facing wording for each `feedback_kind`, for the row's badge. */
 const FEEDBACK_KIND_LABEL: Record<string, string> = {
@@ -111,6 +145,10 @@ interface ConsoleQueue {
   trades: TradeRow[];
   /** One per operational region (0068), not one overall. */
   custodyPositions: CustodyReport[];
+  errorGroups: ErrorGroupRow[];
+  /** The group drilled into with `?group=`, read on its own so a filter cannot hide it. */
+  selectedErrorGroup: ErrorGroupRow | null;
+  errorOccurrences: ErrorLogRow[];
 }
 
 const EMPTY_QUEUE: ConsoleQueue = {
@@ -119,6 +157,9 @@ const EMPTY_QUEUE: ConsoleQueue = {
   owedPayouts: [],
   trades: [],
   custodyPositions: [],
+  errorGroups: [],
+  selectedErrorGroup: null,
+  errorOccurrences: [],
 };
 
 /**
@@ -132,7 +173,47 @@ const EMPTY_QUEUE: ConsoleQueue = {
 async function loadQueueForTab(
   tab: ConsoleTab,
   admin: ReturnType<typeof createAdminClient>,
+  errorFilters: ErrorQueueFilters,
 ): Promise<ConsoleQueue> {
+  if (tab === 'errors') {
+    // Groups come from `error_log_groups` (0123), newest failure first. The drill-down
+    // is read separately so a group stays openable after it is resolved or hidden by
+    // the current filter.
+    let groupsQuery = admin
+      .from('error_log_groups')
+      .select('*')
+      .order('last_seen', { ascending: false })
+      .limit(ERROR_GROUPS_PER_PAGE);
+    if (errorFilters.view === 'open') groupsQuery = groupsQuery.gt('open_count', 0);
+    if (!errorFilters.refusals) groupsQuery = groupsQuery.eq('expected', false);
+
+    const [groups, selected, occurrences] = await Promise.all([
+      groupsQuery,
+      errorFilters.group
+        ? admin
+            .from('error_log_groups')
+            .select('*')
+            .eq('fingerprint', errorFilters.group)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      errorFilters.group
+        ? admin
+            .from('error_logs')
+            .select('*')
+            .eq('fingerprint', errorFilters.group)
+            .order('created_at', { ascending: false })
+            .limit(ERROR_OCCURRENCES_SHOWN)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    return {
+      ...EMPTY_QUEUE,
+      errorGroups: (groups.data ?? []) as ErrorGroupRow[],
+      selectedErrorGroup: (selected.data ?? null) as ErrorGroupRow | null,
+      errorOccurrences: (occurrences.data ?? []) as ErrorLogRow[],
+    };
+  }
+
   if (tab === 'reports') {
     const { data } = await admin
       .from('reports')
@@ -220,10 +301,16 @@ function NotAuthorized() {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{
+    tab?: string | string[];
+    view?: string | string[];
+    refusals?: string | string[];
+    group?: string | string[];
+  }>;
 }) {
-  const { tab: rawTab } = await searchParams;
-  const tab = resolveConsoleTab(rawTab);
+  const params = await searchParams;
+  const tab = resolveConsoleTab(params.tab);
+  const errorFilters = resolveErrorFilters(params);
 
   const supabase = await createClient();
   const {
@@ -252,7 +339,7 @@ export default async function AdminPage({
   // writing the `if` chain after the `await` did — was a round trip of pure
   // latency, and on the Payouts tab that second stage includes a live Stripe
   // balance call per region.
-  const queuePromise = loadQueueForTab(tab, admin);
+  const queuePromise = loadQueueForTab(tab, admin, errorFilters);
 
   // Tab badges and the arbitration hand-off need counts, not rows. `head: true` asks
   // Postgres for the count alone, so the six queues this page does NOT currently show
@@ -260,6 +347,7 @@ export default async function AdminPage({
   const [
     reportCount,
     feedbackCount,
+    errorGroupCount,
     payoutCount,
     reconciliationCount,
     disputedSaleCount,
@@ -274,6 +362,12 @@ export default async function AdminPage({
       .from('feedback')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'OPEN'),
+    // Open groups that are real failures, not refusals: the Errors tab's default view.
+    admin
+      .from('error_log_groups')
+      .select('fingerprint', { count: 'exact', head: true })
+      .gt('open_count', 0)
+      .eq('expected', false),
     admin
       .from('cash_sales')
       .select('id', { count: 'exact', head: true })
@@ -299,6 +393,7 @@ export default async function AdminPage({
 
   const openReports = reportCount.count ?? 0;
   const openFeedback = feedbackCount.count ?? 0;
+  const openErrors = errorGroupCount.count ?? 0;
   const owedReleases = payoutCount.count ?? 0;
   const flaggedTrades = reconciliationCount.count ?? 0;
   // Everything waiting on a human decision, across all four case kinds. Shown here as a
@@ -308,7 +403,16 @@ export default async function AdminPage({
     (disputedTradeCount.count ?? 0) +
     (openChargebackCount.count ?? 0);
 
-  const { reports, feedback, owedPayouts, trades, custodyPositions } = await queuePromise;
+  const {
+    reports,
+    feedback,
+    owedPayouts,
+    trades,
+    custodyPositions,
+    errorGroups,
+    selectedErrorGroup,
+    errorOccurrences,
+  } = await queuePromise;
 
   // Resolve display names for the rows actually on screen, so no list shows a raw UUID.
   // Exact ids stay reachable through each row's "View" link.
@@ -321,6 +425,10 @@ export default async function AdminPage({
   // whole reason it is not a report.
   for (const f of feedback) {
     profileIds.add(f.author_id);
+  }
+  // Nullable: a guest's error, a background job's, or a deleted account's.
+  for (const occurrence of errorOccurrences) {
+    if (occurrence.profile_id) profileIds.add(occurrence.profile_id);
   }
   for (const s of owedPayouts) {
     profileIds.add(s.seller_id);
@@ -375,6 +483,7 @@ export default async function AdminPage({
             count: openFeedback,
             href: '/admin?tab=feedback',
           },
+          { key: 'errors', label: 'Errors', count: openErrors, href: '/admin?tab=errors' },
           {
             key: 'reconciliation',
             label: 'Reconciliation',
@@ -658,6 +767,17 @@ export default async function AdminPage({
             </ul>
           )}
         </section>
+      ) : null}
+
+      {tab === 'errors' ? (
+        <ErrorsQueue
+          groups={errorGroups}
+          selectedGroup={selectedErrorGroup}
+          occurrences={errorOccurrences}
+          filters={errorFilters}
+          openErrors={openErrors}
+          nameFor={nameFor}
+        />
       ) : null}
 
       {tab === 'reconciliation' ? (

@@ -16,6 +16,7 @@
 // `domain/region/regions.ts` for why, and `lib/location/resolveRegion.ts` for
 // where the guess is allowed to be used instead.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 import { cookies } from 'next/headers';
 
@@ -27,6 +28,7 @@ import {
   REGION_COOKIE,
   regionCookieOptions,
 } from '@/lib/location/resolveRegion';
+import { ALL_REGIONS, AUTOMATIC_REGION } from '@/lib/location/regionParams';
 import {
   isTradingRegion,
   normalizeRegionCode,
@@ -51,25 +53,40 @@ export type SetTradingRegionError =
  * Remember which region's listings to show.
  *
  * A preference, not a capability: no authentication, no Identity_Gate, and it has
- * no bearing on what the caller may transact. Signed-in members are resolved from
- * their profile first anyway (see `resolveBrowseRegion`), so this mainly serves
- * anonymous visitors and members deliberately looking at another region.
+ * no bearing on what the caller may transact. The cookie outranks a signed-in
+ * member's own trading region in `resolveBrowseRegion`, so this is what lets a
+ * member deliberately look at another region; `profiles.region_code` is untouched.
  *
- * Clearing is supported by passing null — that returns the visitor to the IP guess
- * rather than pinning them to a default.
+ * Three kinds of choice:
+ *
+ *   * a region code — show that region's listings;
+ *   * `ALL_REGIONS` — show every region, remembered as the sentinel. Deleting the
+ *     cookie instead would fall back to the profile or IP guess and re-apply the
+ *     very scope the visitor asked to drop;
+ *   * `AUTOMATIC_REGION` — forget the choice, so the inferred region applies again
+ *     (the member's trading region, else the IP guess, else the default).
+ *
+ * Any listed region is accepted, open for deals or not: browsing is display only.
  */
-export async function setBrowseRegion(
-  regionCode: string | null,
+export const setBrowseRegion = withActionLog('region.setBrowseRegion', async function setBrowseRegion(
+  choice: string,
 ): Promise<ActionResult<{ regionCode: RegionCode | null }, SetBrowseRegionError>> {
   const cookieStore = await cookies();
+  const raw = choice.trim().toLowerCase();
 
-  if (regionCode == null) {
+  if (raw === AUTOMATIC_REGION) {
     cookieStore.delete(REGION_COOKIE);
     revalidatePath('/');
     return ok({ regionCode: null });
   }
 
-  const normalized = normalizeRegionCode(regionCode);
+  if (raw === ALL_REGIONS) {
+    cookieStore.set(REGION_COOKIE, ALL_REGIONS, regionCookieOptions());
+    revalidatePath('/');
+    return ok({ regionCode: null });
+  }
+
+  const normalized = normalizeRegionCode(choice);
   if (!normalized) {
     return fail('invalid-region', 'That is not a region we list.');
   }
@@ -77,7 +94,7 @@ export async function setBrowseRegion(
   cookieStore.set(REGION_COOKIE, normalized, regionCookieOptions());
   revalidatePath('/');
   return ok({ regionCode: normalized });
-}
+});
 
 /**
  * Set the jurisdiction the caller transacts in.
@@ -93,7 +110,7 @@ export async function setBrowseRegion(
  * every contract they opened, which is the shape of the 0060 mistake: a state that
  * looks complete and is not.
  */
-export async function setTradingRegion(
+export const setTradingRegion = withActionLog('region.setTradingRegion', async function setTradingRegion(
   regionCode: string,
 ): Promise<ActionResult<{ regionCode: RegionCode }, SetTradingRegionError>> {
   const supabase = await createClient();
@@ -147,7 +164,7 @@ export async function setTradingRegion(
   revalidatePath('/profile');
   revalidatePath('/');
   return ok({ regionCode: normalized });
-}
+});
 
 /** Why a waitlist request was refused. */
 export type JoinRegionWaitlistError =
@@ -187,7 +204,7 @@ export interface JoinRegionWaitlistData {
  *
  * Idempotent: joining a list you are already on is a success, not a conflict.
  */
-export async function joinRegionWaitlist(
+export const joinRegionWaitlist = withActionLog('region.joinRegionWaitlist', async function joinRegionWaitlist(
   regionCode: string,
 ): Promise<ActionResult<JoinRegionWaitlistData, JoinRegionWaitlistError>> {
   const supabase = await createClient();
@@ -229,4 +246,4 @@ export async function joinRegionWaitlist(
 
   revalidatePath('/');
   return ok({ regionCode: normalized, browseRegion });
-}
+});

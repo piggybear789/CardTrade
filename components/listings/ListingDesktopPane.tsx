@@ -7,16 +7,15 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import {
-  buyerPaysCents,
-  PLATFORM_FEE_LABEL,
-  splitMoney,
-} from '@/lib/listings/buyerPrice';
+import { buyerPaysCents, splitMoney } from '@/lib/listings/buyerPrice';
+import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
 import { formatAud, formatRelativeTime } from '@/lib/format';
 
-/* `feePercentLabel` moved to `lib/listings/buyerPrice.ts` as `PLATFORM_FEE_LABEL`, with
-   the fee-inclusive figure and `splitMoney`. It was declared identically here and in
-   `ListingDetailStack`. */
+/* The fee label is `platformFeeRateLabel` in `lib/fees/feeLabels.ts`, shared with
+   `ListingDetailStack`; the fee-inclusive figure and `splitMoney` are in
+   `lib/listings/buyerPrice.ts`. */
 
 /**
  * The pre-mobile desktop listing column: title and price first, seller in a
@@ -26,6 +25,7 @@ export function ListingDesktopPane({
   title,
   description,
   priceCents,
+  currency,
   isShopfront,
   itemId,
   isOwner,
@@ -46,6 +46,8 @@ export function ListingDesktopPane({
   title: string;
   description: string;
   priceCents: number;
+  /** `items.currency`, which selects the fee minimum folded into the headline. */
+  currency: string;
   isShopfront: boolean;
   itemId: string;
   isOwner: boolean;
@@ -73,7 +75,7 @@ export function ListingDesktopPane({
   // A binder shows its own indicative "from" figure; a single listing shows what the
   // buyer is actually charged. See `buyerPaysCents`.
   const headline = splitMoney(
-    formatAud(isShopfront ? priceCents : buyerPaysCents(priceCents)),
+    formatAud(isShopfront ? priceCents : buyerPaysCents(priceCents, currency)),
   );
 
   return (
@@ -106,7 +108,7 @@ export function ListingDesktopPane({
               `flex-wrap` so a narrow column drops it below instead of squeezing the
               price. */}
           <div className="mt-tight flex flex-wrap items-baseline gap-x-snug">
-            <p className="font-semibold tabular-nums tracking-tight">
+            <p className="font-display font-semibold tabular-nums tracking-tight">
               {isShopfront ? (
                 <span className="mr-tight text-body font-medium text-muted-foreground">
                   from{' '}
@@ -128,10 +130,15 @@ export function ListingDesktopPane({
                 the buy button where it is the actual reassurance, and postage cannot be
                 stated before terms anyway. What has to be here is the one fact that
                 makes the figure above it honest — that it already contains the fee. */}
+            {/* Now an (i) with the breakdown in a popover. The headline is already
+                fee-inclusive, so hiding the note does not hide the charge. */}
             {!isShopfront ? (
-              <p className="text-meta text-muted-foreground">
-                Including {PLATFORM_FEE_LABEL} NoDitto fee
-              </p>
+              <FeeInfoPopover
+                priceText={formatAud(priceCents)}
+                feeText={formatAud(platformFeeCentsFor(priceCents, currency))}
+                totalText={formatAud(buyerPaysCents(priceCents, currency))}
+                rateLabel={platformFeeRateLabel(currency)}
+              />
             ) : null}
           </div>
 

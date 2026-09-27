@@ -24,7 +24,7 @@
 //
 // TRANSLATED, NOT COPIED. The design reference these follow is dark-themed and
 // names fonts this app does not load (Fraunces, JetBrains Mono). The app ships a
-// single LIGHT theme with Plus Jakarta Sans, so the reference's
+// single LIGHT theme with Instrument Sans, so the reference's
 // STRUCTURE (compact rows, eyebrow labels, status pills, icon medallions) is
 // reproduced here against real tokens — `trust`, `iris`, `destructive`, `muted`.
 // Porting its `bg-[#111118]` / `text-emerald-400` classes verbatim would render

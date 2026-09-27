@@ -6,6 +6,7 @@
 // Participation is checked on the read path; the write token is bound to a
 // server-chosen object under the caller's own prefix.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { fail, ok, type ActionResult } from '@/lib/actions/result';
@@ -15,7 +16,7 @@ import {
   type SignedMessageAttachmentUpload,
 } from '@/lib/storage/messageAttachments';
 
-export async function createMessageAttachmentUpload(
+export const createMessageAttachmentUpload = withActionLog('messageAttachments.createMessageAttachmentUpload', async function createMessageAttachmentUpload(
   contentType: string,
 ): Promise<
   ActionResult<SignedMessageAttachmentUpload, 'unauthenticated' | 'upload-prepare-failed'>
@@ -39,7 +40,7 @@ export async function createMessageAttachmentUpload(
       error instanceof Error ? error.message : 'Could not prepare the upload.',
     );
   }
-}
+});
 
 /**
  * Sign attachment paths that already belong to this conversation.
@@ -47,7 +48,7 @@ export async function createMessageAttachmentUpload(
  * CALLERS pass the conversation they are looking at. A path that is not on a
  * message in that thread is dropped rather than signed.
  */
-export async function signConversationAttachments(
+export const signConversationAttachments = withActionLog('messageAttachments.signConversationAttachments', async function signConversationAttachments(
   conversationId: string,
   paths: string[],
 ): Promise<ActionResult<Record<string, string | null>, 'unauthenticated' | 'not-participant'>> {
@@ -89,4 +90,4 @@ export async function signConversationAttachments(
   for (const path of unique) urls[path] = null;
   for (const entry of signed) urls[entry.path] = entry.url;
   return ok(urls);
-}
+});

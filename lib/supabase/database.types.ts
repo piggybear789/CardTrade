@@ -2030,6 +2030,103 @@ export type Database = {
           },
         ];
       };
+      /**
+       * Everything that went wrong (0123): SERVER / CLIENT errors, ACTION failures a
+       * Server Action returned, BACKGROUND job and money failures, and member REPORTs,
+       * grouped by `fingerprint`.
+       *
+       * Service-role writes only (`lib/errors/errorLog.ts`) and admin read only — there
+       * is no member or anon INSERT grant, because messages and stacks can quote data.
+       */
+      error_logs: {
+        Row: {
+          id: string;
+          source: Database['cardtrade']['Enums']['error_log_source'];
+          /** Stable group key computed by the writer from what failed. */
+          fingerprint: string;
+          /** ACTION only: the failure was a guard doing its job, not a breakage. */
+          expected: boolean;
+          /** Next.js digest (SERVER) or a client-minted id (CLIENT); REPORT rows copy it. */
+          reference: string | null;
+          /** The action (`cashSale.acceptCashSaleTerms`) or job (`job.cash-sale-payouts`). */
+          name: string | null;
+          /** The ActionResult `error` code, or a job's own code. */
+          error_code: string | null;
+          message: string | null;
+          stack: string | null;
+          /** A path, never a URL: query string dropped, invite tokens redacted. */
+          path: string | null;
+          route_path: string | null;
+          route_type: string | null;
+          method: string | null;
+          /** Identifiers only, e.g. `{ cashSaleId, region }`. */
+          context: Json | null;
+          /** REPORT only: what the member wrote. */
+          note: string | null;
+          profile_id: string | null;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          source: Database['cardtrade']['Enums']['error_log_source'];
+          fingerprint: string;
+          expected?: boolean;
+          reference?: string | null;
+          name?: string | null;
+          error_code?: string | null;
+          message?: string | null;
+          stack?: string | null;
+          path?: string | null;
+          route_path?: string | null;
+          route_type?: string | null;
+          method?: string | null;
+          context?: Json | null;
+          note?: string | null;
+          profile_id?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          source?: Database['cardtrade']['Enums']['error_log_source'];
+          fingerprint?: string;
+          expected?: boolean;
+          reference?: string | null;
+          name?: string | null;
+          error_code?: string | null;
+          message?: string | null;
+          stack?: string | null;
+          path?: string | null;
+          route_path?: string | null;
+          route_type?: string | null;
+          method?: string | null;
+          context?: Json | null;
+          note?: string | null;
+          profile_id?: string | null;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'error_logs_profile_id_fkey';
+            columns: ['profile_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'error_logs_resolved_by_fkey';
+            columns: ['resolved_by'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       reviews: {
         Row: {
           id: string;
@@ -2537,6 +2634,33 @@ export type Database = {
         Row: Database['cardtrade']['Views']['public_profiles']['Row'];
         Relationships: [];
       };
+      /**
+       * The Errors queue (0123): one row per `error_logs.fingerprint`. Group attributes
+       * come from the newest non-REPORT occurrence. `security_invoker`, and granted to
+       * the service role only.
+       */
+      error_log_groups: {
+        Row: {
+          fingerprint: string;
+          source: Database['cardtrade']['Enums']['error_log_source'];
+          name: string | null;
+          error_code: string | null;
+          message: string | null;
+          route_path: string | null;
+          path: string | null;
+          expected: boolean;
+          /** Non-REPORT rows. */
+          occurrences: number;
+          reports: number;
+          /** Unresolved rows of any source; a new occurrence reopens a resolved group. */
+          open_count: number;
+          members_affected: number;
+          first_seen: string;
+          last_seen: string;
+          last_resolved_at: string | null;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       create_cash_sale_agreement: {
@@ -2937,6 +3061,8 @@ export type Database = {
        * rather than validation.
        */
       ux_event_kind: 'PAGE_VIEW' | 'ACTION_FAILURE' | 'GATE_BLOCKED' | 'FORM_ABANDONED';
+      /** Where an `error_logs` row came from (0123). */
+      error_log_source: 'SERVER' | 'CLIENT' | 'ACTION' | 'BACKGROUND' | 'REPORT';
       deal_state:
         | 'INVITED'
         | 'TERMS'

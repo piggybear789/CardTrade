@@ -17,6 +17,7 @@
 // also why it is not gated on the Identity_Gate: a buy-only member who has verified
 // nothing is exactly the member most likely to hit a bug in onboarding.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
@@ -139,7 +140,7 @@ function validateFeedback(
  * @param input.message  What the member wants to say.
  * @param input.pagePath The route they were on, from the router. Optional.
  */
-export async function submitFeedback(input: {
+export const submitFeedback = withActionLog('feedback.submitFeedback', async function submitFeedback(input: {
   kind: string;
   message: string;
   pagePath?: string | null;
@@ -187,4 +188,4 @@ export async function submitFeedback(input: {
   revalidatePath('/admin');
 
   return ok({ id: data.id, kind: data.kind });
-}
+});

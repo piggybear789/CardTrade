@@ -58,9 +58,14 @@ export function Logo({ className }: { className?: string }) {
     <span className={cn('flex min-w-0 items-center gap-snug', className)}>
       <LogoMark />
       {/* Wordmark is desktop-only. Below `md` the mark is the home control so
-          the bar can hold search / account without crushing the name. */}
+          the bar can hold search / account without crushing the name.
+
+          `font-wordmark font-bold`, no tracking: the narrowest cut of the family
+          (see `fontFamily` in tailwind.config.ts), so the name reads as a mark
+          rather than as one more title. The phone chrome's wordmark in
+          `mobile-chrome/variants.tsx` matches it. */}
       <span
-        className="hidden font-display text-subhead font-semibold tracking-tight md:inline"
+        className="hidden font-wordmark text-subhead font-bold md:inline"
         translate="no"
       >
         NoDitto

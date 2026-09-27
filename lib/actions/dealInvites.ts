@@ -6,6 +6,7 @@
 // Trade. The invite is not a contract. Writes go through the service role;
 // members may only SELECT their own unused/used invites under RLS.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 
@@ -388,7 +389,7 @@ async function loadHiddenItem(
   return ok(item!);
 }
 
-export async function createDealInvite(
+export const createDealInvite = withActionLog('dealInvites.createDealInvite', async function createDealInvite(
   input: CreateDealInviteInput,
 ): Promise<ActionResult<{ token: string; path: string }, DealInviteError>> {
   const userId = await currentUserId();
@@ -493,9 +494,9 @@ export async function createDealInvite(
   revalidatePath('/sales');
   revalidatePath('/purchases');
   return ok({ token: data.token, path: invitePath(data.token) });
-}
+});
 
-export async function revokeDealInvite(
+export const revokeDealInvite = withActionLog('dealInvites.revokeDealInvite', async function revokeDealInvite(
   inviteId: string,
 ): Promise<ActionResult<{ id: string }, DealInviteError>> {
   const userId = await currentUserId();
@@ -519,9 +520,9 @@ export async function revokeDealInvite(
   revalidatePath('/sales');
   revalidatePath('/purchases');
   return ok({ id: data.id });
-}
+});
 
-export async function listMyDealInvites(
+export const listMyDealInvites = withActionLog('dealInvites.listMyDealInvites', async function listMyDealInvites(
   kind?: InviteRow['kind'],
   hostRole?: NonNullable<InviteRow['host_role']>,
 ): Promise<ActionResult<DealInviteSummary[], DealInviteError>> {
@@ -585,9 +586,9 @@ export async function listMyDealInvites(
       path: invitePath(row.token),
     })),
   );
-}
+});
 
-export async function getDealInvitePreview(
+export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePreview', async function getDealInvitePreview(
   token: string,
 ): Promise<DealInvitePreview> {
   const empty: DealInvitePreview = {
@@ -690,9 +691,9 @@ export async function getDealInvitePreview(
     viewerBlock,
     contractPath,
   };
-}
+});
 
-export async function claimDealInvite(
+export const claimDealInvite = withActionLog('dealInvites.claimDealInvite', async function claimDealInvite(
   input: ClaimDealInviteInput,
 ): Promise<ActionResult<{ path: string }, DealInviteError>> {
   const userId = await currentUserId();
@@ -797,7 +798,7 @@ export async function claimDealInvite(
   revalidatePath('/purchases');
   revalidatePath(opened.data.path);
   return ok({ path: opened.data.path });
-}
+});
 
 async function openClaimedInvite(
   invite: InviteRow,

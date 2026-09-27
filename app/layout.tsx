@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import { cookies } from 'next/headers';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Instrument_Sans } from 'next/font/google';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
@@ -15,12 +15,24 @@ import './globals.css';
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
-// ONE TYPEFACE. Plus Jakarta Sans for everything — headings, body, eyebrow labels
-// and ledger figures alike. Geist Mono was previously loaded for labels and money,
-// which meant two families on any surface pairing a label with a sentence. Column
-// alignment for money is preserved by `tabular-nums` in `.display-value`, a font
-// FEATURE that does not need a second family. Nothing references `font-mono` now,
-// so loading it was a download for no rendered glyphs.
+// ONE TYPEFACE. Instrument Sans for everything: body, labels, controls,
+// titles and figures. It replaced Plus Jakarta Sans, whose round geometric shapes
+// read as a landing page rather than somewhere that holds money. Medium and semibold
+// carried every level, so nav, buttons, labels and prices all spoke in the same
+// upbeat voice, and its wide bold figures were the most repeated shapes on the
+// busiest pages.
+//
+// `axes: ['wdth']` loads the WIDTH axis, which is what lets titles, figures and the
+// wordmark take a narrower cut of this same family instead of a second one. Those
+// cuts are `font-display` and `font-wordmark` in `tailwind.config.ts`, which says what
+// wears each. The axis is not free: the file is ~56 KB where Plus Jakarta's was
+// ~27 KB, both measured on the catalog.
+//
+// Geist Mono was once loaded for labels and money, which put two families on any
+// surface pairing a label with a sentence. Money lines up through `tabular-nums`, a
+// font FEATURE, so it needs no second family. `font-mono` survives only on the error
+// pages' digest line and resolves to this same face.
+//
 // `swap`, AND STATED EXPLICITLY even though it is `next/font/google`'s default, because
 // this line has been changed in both directions and the next person deserves the reason
 // rather than an absent option.
@@ -29,7 +41,7 @@ import './globals.css';
 // gives the font a ~100ms block window and then COMMITS for the rest of the page load:
 // if the file did not arrive inside the window, the fallback is kept and nothing swaps,
 // however early the font lands afterwards. The bet was that a root-layout preload wins
-// 100ms often enough that most visits still get Plus Jakarta.
+// 100ms often enough that most visits still get the brand face.
 //
 // It does not. A dev server compiling on demand loses that window nearly every time, so
 // the app renders in the system face on every cold load and the design is only ever seen
@@ -41,15 +53,20 @@ import './globals.css';
 // fallback and replaces it whenever the webfont arrives, so the replacement can land
 // after first paint. `adjustFontFallback` stays on (the default): Next synthesises a
 // metric-matched local fallback with `size-adjust` and matching metric overrides, so the
-// fallback occupies the same space Plus Jakarta will. The swap therefore changes glyph
+// fallback occupies the same space the webfont will. The swap therefore changes glyph
 // SHAPES and not line boxes, which is a repaint rather than the reflow the previous
 // comment was avoiding.
 //
+// ONE EXCEPTION: the fallback is matched at NORMAL width. Text in the narrower display
+// cut gets narrower when the webfont lands, so a title that only just wraps in the
+// fallback can lose a line on swap.
+//
 // If the swap ever needs to be tighter than that, the lever is `preload` and the subset,
 // not `display` — starving the page of its typeface is not a performance win.
-const plusJakarta = Plus_Jakarta_Sans({
+const instrumentSans = Instrument_Sans({
   subsets: ['latin'],
-  variable: '--font-plus-jakarta',
+  axes: ['wdth'],
+  variable: '--font-instrument-sans',
   display: 'swap',
 });
 
@@ -135,7 +152,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={plusJakarta.variable}
+      className={instrumentSans.variable}
     >
       <head>
         <link rel="preconnect" href="https://images.pokemontcg.io" />

@@ -68,18 +68,24 @@ import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
 import { cashPriceProblem, dollarsToCents } from '@/domain/deals/dealInvite';
 import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
-import {
-  PLATFORM_FEE_BPS,
-  platformFeeCentsFor,
-} from '@/domain/orchestrator/cashSaleOrchestrator';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { createDealInvite } from '@/lib/actions/dealInvites';
+import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { formatAud } from '@/lib/format';
 import { navigateWithType } from '@/lib/motion/navigate';
 
 type Kind = 'CASH_SALE' | 'TRADE';
 
-/** Derived from the basis points so the copy cannot drift from what is charged. */
-const FEE_PERCENT_LABEL = `${PLATFORM_FEE_BPS / 100}%`;
+/**
+ * The currency this form quotes in. It already formats every figure with `formatAud`,
+ * so the fee (and its minimum) is sized in the same currency it is shown in. When a
+ * second trading region opens, this becomes the host's region currency — along with
+ * every `formatAud` below.
+ */
+const QUOTE_CURRENCY = 'aud';
+
+/** Derived from the charge constants so the copy cannot drift from what is charged. */
+const FEE_RATE_LABEL = platformFeeRateLabel(QUOTE_CURRENCY);
 
 /** The invite TTL in days, for the footer. */
 const INVITE_TTL_DAYS = 14;
@@ -100,7 +106,7 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
   const valueCents = dollarsToCents(valueDollars);
   /** The collateral figure as typed, or a placeholder until there is one. */
   const valueLabel = valueCents != null && valueCents > 0 ? formatAud(valueCents) : 'This amount';
-  const feeCents = priceCents != null && priceCents > 0 ? platformFeeCentsFor(priceCents) : null;
+  const feeCents = priceCents != null && priceCents > 0 ? platformFeeCentsFor(priceCents, QUOTE_CURRENCY) : null;
 
   /**
    * The next thing the member has to do, or `null` when the form is ready to send.
@@ -287,8 +293,8 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
                 as a rule to apply. Postage and everything else are the room's. */}
             <p className="text-meta text-muted-foreground">
               {feeCents != null
-                ? `They pay ${formatAud(priceCents! + feeCents)} including the ${FEE_PERCENT_LABEL} fee.`
-                : `A ${FEE_PERCENT_LABEL} fee is added for the buyer.`}
+                ? `They pay ${formatAud(priceCents! + feeCents)} including the NoDitto fee (${FEE_RATE_LABEL}).`
+                : `A NoDitto fee (${FEE_RATE_LABEL}) is added for the buyer.`}
             </p>
           </div>
         ) : (

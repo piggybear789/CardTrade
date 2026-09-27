@@ -53,6 +53,9 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
             "pointer-events-none absolute top-1/2 -translate-y-1/2 text-muted-foreground",
             large ? "left-4 text-head" : "left-3 text-body",
           )}
+          // The iOS 16px field floor in globals.css lifts the number, so it lifts
+          // this too — the symbol and the digits it prefixes stay one size.
+          data-money-symbol=""
           aria-hidden
         >
           {CURRENCY_SYMBOL}

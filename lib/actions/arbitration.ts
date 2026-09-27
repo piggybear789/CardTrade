@@ -18,6 +18,7 @@
 // useful. That is the same reasoning the admin console already uses, and it is why the
 // gate above it has to be exact.
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -272,7 +273,7 @@ async function namesFor(
  * Charge_Dispute with no `closed_at`. A resolved case leaves the queue rather than
  * being filtered client-side, so the counts on the page are the counts that matter.
  */
-export async function getArbitrationQueue(): Promise<
+export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueue', async function getArbitrationQueue(): Promise<
   ActionResult<{ cases: TriagedCase[]; viewerId: string; viewerIsAdmin: boolean }, ArbitrationActionError>
 > {
   const gate = await requireStaff();
@@ -594,7 +595,7 @@ export async function getArbitrationQueue(): Promise<
     viewerId: gate.ctx.userId,
     viewerIsAdmin: gate.ctx.isAdmin,
   });
-}
+});
 
 /**
  * Load one case with its notes and contract timeline.
@@ -604,7 +605,7 @@ export async function getArbitrationQueue(): Promise<
  * queue is closed, and asking for it returns `not-found` rather than a detail page for
  * something already decided.
  */
-export async function getArbitrationCase(
+export const getArbitrationCase = withActionLog('arbitration.getArbitrationCase', async function getArbitrationCase(
   kind: ArbitrationCaseKind,
   ref: string,
 ): Promise<ActionResult<ArbitrationCaseDetail, ArbitrationActionError>> {
@@ -735,7 +736,7 @@ export async function getArbitrationCase(
     viewerIsAdmin: gate.ctx.isAdmin,
     viewerId: gate.ctx.userId,
   });
-}
+});
 
 /**
  * Read the per-kind figures a decision is computed from.
@@ -875,7 +876,7 @@ async function readResolution(
  * this up" and "somebody looked and put it back" do not become indistinguishable in
  * the unassigned queue.
  */
-export async function assignArbitrationCase(
+export const assignArbitrationCase = withActionLog('arbitration.assignArbitrationCase', async function assignArbitrationCase(
   kind: ArbitrationCaseKind,
   ref: string,
   /** Pass null to release. */
@@ -927,7 +928,7 @@ export async function assignArbitrationCase(
   revalidatePath('/admin/arbitration');
   revalidatePath(`/admin/arbitration/${kind}/${ref}`);
   return ok({ assigneeId });
-}
+});
 
 /**
  * Append an internal note.
@@ -937,7 +938,7 @@ export async function assignArbitrationCase(
  * taken from the session, never from the payload, so a note cannot be attributed to
  * someone else.
  */
-export async function addArbitrationNote(
+export const addArbitrationNote = withActionLog('arbitration.addArbitrationNote', async function addArbitrationNote(
   kind: ArbitrationCaseKind,
   ref: string,
   body: string,
@@ -965,4 +966,4 @@ export async function addArbitrationNote(
 
   revalidatePath(`/admin/arbitration/${kind}/${ref}`);
   return ok({ id: data.id as string });
-}
+});

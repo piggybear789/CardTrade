@@ -12,6 +12,7 @@
 // Every export is an async Server Action; shared shapes are `export type` only
 // (type exports are erased and permitted in a 'use server' module).
 
+import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { NOTIFICATIONS_DEFAULT_LIMIT } from '@/lib/marketplace-constants';
@@ -55,7 +56,7 @@ export type ListMyNotificationsResult =
  * List the caller's notifications, newest-first, capped at `limit` (default
  * {@link NOTIFICATIONS_DEFAULT_LIMIT}). RLS scopes the read to the recipient.
  */
-export async function listMyNotifications(
+export const listMyNotifications = withActionLog('notifications.listMyNotifications', async function listMyNotifications(
   limit: number = NOTIFICATIONS_DEFAULT_LIMIT,
 ): Promise<ListMyNotificationsResult> {
   const supabase = await createClient();
@@ -79,7 +80,7 @@ export async function listMyNotifications(
   }
 
   return { ok: true, notifications: (data ?? []) as NotificationRow[] };
-}
+});
 
 // ---------------------------------------------------------------------------
 // unreadNotificationCount
@@ -89,7 +90,7 @@ export async function listMyNotifications(
  * Count the caller's unread notifications (`read_at IS NULL`). Returns `0` when
  * unauthenticated or on any read error so the UI can render a badge safely.
  */
-export async function unreadNotificationCount(): Promise<number> {
+export const unreadNotificationCount = withActionLog('notifications.unreadNotificationCount', async function unreadNotificationCount(): Promise<number> {
   const supabase = await createClient();
 
   const me = await getUserId();
@@ -102,7 +103,7 @@ export async function unreadNotificationCount(): Promise<number> {
 
   if (error || count == null) return 0;
   return count;
-}
+});
 
 // ---------------------------------------------------------------------------
 // markNotificationRead
@@ -121,7 +122,7 @@ export type MarkNotificationReadResult =
  * the caller's own rows, so marking someone else's notification affects nothing.
  * Already-read rows are left unchanged (the `read_at IS NULL` guard).
  */
-export async function markNotificationRead(
+export const markNotificationRead = withActionLog('notifications.markNotificationRead', async function markNotificationRead(
   id: string,
 ): Promise<MarkNotificationReadResult> {
   const supabase = await createClient();
@@ -140,7 +141,7 @@ export async function markNotificationRead(
   }
 
   return { ok: true };
-}
+});
 
 // ---------------------------------------------------------------------------
 // markAllNotificationsRead
@@ -158,7 +159,7 @@ export type MarkAllNotificationsReadResult =
  * Mark every unread notification for the caller as read. RLS scopes the update
  * to the caller's rows; returns the number of notifications updated.
  */
-export async function markAllNotificationsRead(): Promise<MarkAllNotificationsReadResult> {
+export const markAllNotificationsRead = withActionLog('notifications.markAllNotificationsRead', async function markAllNotificationsRead(): Promise<MarkAllNotificationsReadResult> {
   const supabase = await createClient();
 
   const me = await getUserId();
@@ -175,4 +176,4 @@ export async function markAllNotificationsRead(): Promise<MarkAllNotificationsRe
   }
 
   return { ok: true, updated: (data ?? []).length };
-}
+});

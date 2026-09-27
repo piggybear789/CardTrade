@@ -166,7 +166,8 @@ void main() {
       // Req 7.4: the money the contract records, the viewer's own total last.
       expect(find.text('Item price'), findsOneWidget);
       expect(find.text('You pay'), findsOneWidget);
-      expect(find.text('Platform fee (5%)'), findsOneWidget);
+      // "(5%, min $1.50)" in AUD, "(5%)" in a currency with no fee floor.
+      expect(find.textContaining('Platform fee (5%'), findsOneWidget);
 
       expectNoLayoutOverflow(tester);
       await disposeContractRoom(tester);

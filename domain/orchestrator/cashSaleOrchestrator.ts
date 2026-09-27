@@ -9,9 +9,15 @@ import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
 import {
   checkRegionCompatibility,
+  regionCurrency,
   regionMismatchMessage,
   type RegionCode,
 } from '../region';
+import {
+  feeMinimumMinor,
+  percentageFeeWithMinimum,
+  PLATFORM_FEE_MINIMUM_MINOR,
+} from '../fees/feeMinimums';
 import {
   canReceiveFunds,
   sellerIdentityDisclosure,
@@ -69,14 +75,28 @@ export type CashSaleStatus =
 export const PLATFORM_FEE_BPS = 500;
 
 /**
- * The Platform_Fee for a given agreed item price, in integer AUD cents (Req 4.7).
+ * The Platform_Fee for a given agreed item price, in the contract currency's minor
+ * units (Req 4.7).
+ *
+ * `PLATFORM_FEE_BPS` of the item price, raised to the currency's minimum
+ * (`PLATFORM_FEE_MINIMUM_MINOR`, $1.50 in AUD) so a low-value contract still covers
+ * the fixed part of the provider's costs. The floor applies per CONTRACT, so a
+ * multi-line binder purchase pays it once. A currency with no floor on file gets the
+ * plain percentage.
  *
  * The fee is charged on the item price only — shipping is a pass-through cost to
  * the carrier, not platform revenue, so it is excluded from the base. Rounded to
- * the nearest cent; a price of 0 yields a fee of 0.
+ * the nearest minor unit; a price of 0 yields a fee of 0.
+ *
+ * `currency` is required rather than defaulted: the floor is a money amount, and a
+ * silent AUD default is how a per-currency value ends up charged in the wrong one.
  */
-export function platformFeeCentsFor(agreedPriceCents: Cents): Cents {
-  return Math.round((agreedPriceCents * PLATFORM_FEE_BPS) / 10_000);
+export function platformFeeCentsFor(agreedPriceCents: Cents, currency: string | null): Cents {
+  return percentageFeeWithMinimum(
+    agreedPriceCents,
+    PLATFORM_FEE_BPS,
+    feeMinimumMinor(PLATFORM_FEE_MINIMUM_MINOR, currency),
+  );
 }
 
 export interface BuyerRecord {
@@ -815,6 +835,21 @@ export interface CashSaleOrchestratorDeps {
    */
   onDrainError?: (report: { cashSaleId: string; error: unknown }) => void;
   /**
+   * Called when one sale in a drain pass FAILS WITHOUT THROWING: a release refused as
+   * `SELLER_NOT_PAYABLE`, a provider that rejected a payout or a refund retry. The
+   * counterpart of {@link onDrainError}, which only sees throws — without this, the
+   * most common real failure was the one nothing outside the row recorded.
+   *
+   * Injected for the same reason: this module is pure and may not log. The jobs route
+   * collects these and writes them to the error log (0123). Absent means dropped.
+   */
+  onDrainFailure?: (report: {
+    cashSaleId: string;
+    kind: 'payout' | 'refund';
+    error: string;
+    detail?: string;
+  }) => void;
+  /**
    * The regions a contract may actually be opened in (0068).
    *
    * INJECTED, not read, because this module is pure and the answer depends on
@@ -1075,7 +1110,12 @@ export async function initiateCashSale(
       buyerId: params.buyerId,
       sellerId: item.ownerId,
       agreedPriceCents,
-      platformFeeCents: deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents),
+      // The row's currency is derived on insert from the PAYEE's region
+      // (`set_row_currency_from_region`, 0068), so the fee floor is read from the
+      // same place. The region guard above has already refused an unknown region.
+      platformFeeCents:
+        deps.platformFeeCents ??
+        platformFeeCentsFor(agreedPriceCents, regionCurrency(item.ownerRegionCode)),
       sellerIdentity,
       buyerSellerIdentityConfirmedAt: currentIso(deps),
       lineItems: shopfront ? lineItems : undefined,
@@ -1210,7 +1250,8 @@ export async function replaceCashSaleItems(
     expectedTermsVersion: sale.termsVersion,
     lineItems,
     agreedPriceCents,
-    platformFeeCents: deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents),
+    platformFeeCents:
+      deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents, sale.currency),
   });
   if (!updated) return { ok: false, error: 'STALE_TERMS' };
 
@@ -2680,6 +2721,14 @@ export async function processDueCashSalePayouts(
     try {
       const result = await payoutCashSaleSeller(deps, { cashSaleId });
       if (result.ok && result.sale.sellerPayoutStatus === 'SETTLED') settled += 1;
+      if (!result.ok) {
+        deps.onDrainFailure?.({
+          cashSaleId,
+          kind: 'payout',
+          error: result.error,
+          ...(typeof result.detail === 'string' ? { detail: result.detail } : {}),
+        });
+      }
     } catch (error) {
       deps.onDrainError?.({ cashSaleId, error });
     }
@@ -2729,7 +2778,16 @@ export async function processDueCashSaleRefunds(
     // Isolated per sale for the same reason as the payout drain.
     try {
       const result = await retryCashSaleRefund(deps, { cashSaleId });
-      if (result) settled += 1;
+      if (result.settled) {
+        settled += 1;
+      } else if (result.rejected) {
+        deps.onDrainFailure?.({
+          cashSaleId,
+          kind: 'refund',
+          error: 'REFUND_REJECTED',
+          ...(result.reason ? { detail: result.reason } : {}),
+        });
+      }
     } catch (error) {
       deps.onDrainError?.({ cashSaleId, error });
     }
@@ -2739,7 +2797,11 @@ export async function processDueCashSaleRefunds(
 }
 
 /**
- * Re-attempt one sale's outstanding refund. Returns whether it settled.
+ * Re-attempt one sale's outstanding refund.
+ *
+ * `rejected` is set only when the provider refused, which is the one outcome worth
+ * reporting: every other non-settlement means the row was never a queued refund and
+ * was deliberately left alone.
  *
  * Moves no state other than the refund's own: the dispute outcome has already been
  * decided and the sale's status already reflects it. This only finishes the money.
@@ -2747,16 +2809,16 @@ export async function processDueCashSaleRefunds(
 async function retryCashSaleRefund(
   deps: CashSaleOrchestratorDeps,
   params: { cashSaleId: string },
-): Promise<boolean> {
+): Promise<{ settled: boolean; rejected?: boolean; reason?: string }> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
-  if (!sale) return false;
-  if (sale.refundStatus === 'SETTLED') return false;
+  if (!sale) return { settled: false };
+  if (sale.refundStatus === 'SETTLED') return { settled: false };
 
   const amount = Math.max(Math.trunc(sale.refundCents ?? 0), 0);
   // `transferId` is the collection being refunded, and the nonce must already exist:
   // `markRefundDue` assigns it atomically in SQL. Missing either means this row was
   // never a queued refund, so it is left alone rather than guessed at.
-  if (amount <= 0 || !sale.transferId || !sale.refundNonce) return false;
+  if (amount <= 0 || !sale.transferId || !sale.refundNonce) return { settled: false };
 
   const refund = await deps.payments.refundPayment({
     paymentRef: sale.transferId,
@@ -2771,7 +2833,11 @@ async function retryCashSaleRefund(
       status: 'FAILED',
       error: 'Provider rejected the refund retry',
     });
-    return false;
+    return {
+      settled: false,
+      rejected: true,
+      ...(typeof refund.reason === 'string' ? { reason: refund.reason } : {}),
+    };
   }
 
   await deps.repository.recordRefundResult({
@@ -2779,7 +2845,7 @@ async function retryCashSaleRefund(
     status: 'SETTLED',
     refundId: refund.refundId,
   });
-  return true;
+  return { settled: true };
 }
 
 /** Provider failure releases the reserved Item. */

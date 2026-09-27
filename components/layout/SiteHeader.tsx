@@ -18,12 +18,6 @@ import { Logo } from '@/components/layout/Logo';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { MobileTopChrome } from '@/components/layout/MobileTopChrome';
 import { PrimaryNav } from '@/components/layout/PrimaryNav';
-import { RegionIndicator } from '@/components/layout/RegionIndicator';
-import {
-  resolveBrowseRegion,
-  type ResolvedRegion,
-} from '@/lib/location/resolveRegion';
-import { normalizeRegionCode } from '@/domain/region';
 
 export async function SiteHeader() {
   const user = await getCachedAuthUser();
@@ -35,7 +29,8 @@ export async function SiteHeader() {
     ? (await listMyNotifications())
     : null;
 
-  let region: ResolvedRegion;
+  // No region control here: the catalog uses the inferred region, and the
+  // override lives on the Account hub (`BrowseRegionSettingRow`).
   let isAdmin = false;
   let isStaff = false;
   let displayName: string | null = null;
@@ -46,13 +41,6 @@ export async function SiteHeader() {
     isStaff = isAdmin || Boolean(profile?.is_support);
     displayName = profile?.display_name?.trim() || null;
     avatarPath = (profile?.avatar_path as string | null) ?? null;
-
-    const own = normalizeRegionCode(profile?.region_code);
-    region = own
-      ? { code: own, source: 'profile' }
-      : await resolveBrowseRegion();
-  } else {
-    region = await resolveBrowseRegion();
   }
 
   // Sticky isolation wraps both chromes so view-transition-name stays unique.
@@ -72,7 +60,19 @@ export async function SiteHeader() {
               read as one string, "NoDittoMarketplace", in every desktop capture. The
               brand is a different kind of thing from a section link and the space is
               what says so. */}
-          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6">
+          {/* THE SEARCH GIVES WAY, NOT THE CONTROLS. The three columns are equal
+              thirds so the search sits on the viewport's centre line, and both side
+              columns are `min-w-0`, so a side whose content outgrew its third used to
+              squeeze its own children. For a member that happened at every width
+              under ~1440px: the rail's 40px icon targets narrowed (to 22px at worst)
+              and the name beside the avatar was cut short or vanished.
+
+              From `xl` each side keeps its content width (`min-w-max`) and the search
+              takes what is left, which is only ever less than a third when a side
+              needs more. Below `xl` there is not enough room for both sides at full
+              width, so the old behaviour stands, and the rail drops its Feedback
+              label there rather than squeezing further (see `SignedInHeaderTools`). */}
+          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6 xl:min-w-max">
             <Link
               href="/"
               aria-label="NoDitto home"
@@ -87,8 +87,7 @@ export async function SiteHeader() {
             <HeaderSearch className="market-search" />
           </div>
 
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug">
-            <RegionIndicator regionCode={region.code} source={region.source} />
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug xl:min-w-max">
             <HeaderAccountSlot
               isAuthenticated={isAuthenticated && user != null}
               email={user?.email ?? null}

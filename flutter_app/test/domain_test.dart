@@ -193,21 +193,29 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
 
   group('Trade Fee', () {
-    test('5% of side value', () {
-      expect(tradeFee(10000), 500); // 5% of $100
-      expect(tradeFee(1999), 99); // 5% of $19.99 = $0.99
-      expect(tradeFee(100), 5); // 5% of $1.00
+    test('5% of side value, rounded like the server', () {
+      expect(tradeFee(10000, currency: 'aud'), 500); // 5% of $100
+      // 5% of $39.99 = $1.9995 → $2.00, matching `Math.round` in tradeFee.ts.
+      expect(tradeFee(3999, currency: 'aud'), 200);
+      // No floor for a currency without one: 5% of $19.99 → $1.00 (rounded).
+      expect(tradeFee(1999, currency: 'usd'), 100);
     });
 
-    test('zero and negative values return 0', () {
-      expect(tradeFee(0), 0);
-      expect(tradeFee(-1000), 0);
+    test('applies the AUD \$1.00 per-trader minimum', () {
+      expect(tradeFee(100, currency: 'aud'), 100); // 5% of $1.00 is 5c
+      expect(tradeFee(1999, currency: 'aud'), 100);
+    });
+
+    test('zero and negative values return 0, never the minimum', () {
+      expect(tradeFee(0, currency: 'aud'), 0);
+      expect(tradeFee(-1000, currency: 'aud'), 0);
     });
 
     test('resolveTradeFeesFromValues is symmetric', () {
       final fees = resolveTradeFeesFromValues(
         initiatorSideCents: 5000,
         counterpartSideCents: 5000,
+        currency: 'aud',
       );
       expect(fees.initiatorFeeCents, fees.counterpartFeeCents);
       expect(fees.initiatorFeeCents, 250); // 5% of $50

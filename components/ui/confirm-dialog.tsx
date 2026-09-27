@@ -82,9 +82,12 @@ export function ConfirmDialog({
         <div className="space-y-cozy">
           <DialogHeader>
             {destructive ? (
-              <div className="flex items-center gap-snug">
+              // `items-start` + `mt-tight`: the icon sits on the TITLE's line. Centred
+              // against title and description together, it landed between the two,
+              // and drifted further down the longer the description ran.
+              <div className="flex items-start gap-snug">
                 <HugeiconsIcon icon={TriangleAlertIcon}
-                  className="size-4 shrink-0 text-destructive"
+                  className="mt-tight size-4 shrink-0 text-destructive"
                   aria-hidden
                 />
                 <div className="min-w-0 space-y-1.5">

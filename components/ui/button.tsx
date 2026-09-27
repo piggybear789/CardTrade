@@ -45,6 +45,23 @@ import { cn } from "@/lib/utils";
 // The filled variants no longer carry `shadow-sm`. It was doing nothing a
 // border and a surface step were not already doing, and the palette pass gave
 // cards a real lift off the page that a button does not need to compete with.
+//
+// FOCUS IS A RING INSIDE THE CONTROL, NOT A BORDER-COLOUR SWAP.
+//
+// It used to be `focus-visible:border-iris` alone. On a filled button that swaps a
+// 1px `--primary` edge for a 1px `--iris` edge — same hue, 1.46:1 apart — so a
+// keyboard user tabbing onto "Sign in" saw almost nothing change. Two rules now:
+//
+//   - QUIET variants (outline, secondary, ghost, link) turn their edge iris and add
+//     a 1px inset iris ring: a 2px iris frame, 3.9:1 against the page.
+//   - FILLED variants keep their edge and draw a 2px inset ring in their own LABEL
+//     colour. The label colour is by construction the one that contrasts with the
+//     fill (white on violet 5.9:1, brown on amber 8.9:1), so the indicator holds on
+//     every fill without a per-surface tweak.
+//
+// INSET, because an outset ring is clipped by any scroll container the control sits
+// flush against — the reason `accordion.tsx` records for avoiding rings at all. An
+// inset ring cannot be clipped by an ancestor, which removes that objection.
 const buttonVariants = cva(
   // DISABLED KEEPS ITS EDGE — `disabled:border-border`, not `disabled:border-muted`.
   //
@@ -62,27 +79,27 @@ const buttonVariants = cva(
   //
   // Do NOT fix this by tinting the fill per surface. The fill is one token and the
   // surfaces are many; the edge is what makes it surface-independent.
-  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:border-iris focus-visible:outline-none active:translate-y-px disabled:pointer-events-none disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-3.5 [&_svg]:shrink-0",
+  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80",
+          "border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground",
         // Obsidian, for a committing control that sits beside a destructive
         // one. Purple and red are two saturated hues arguing at the same
         // weight; black reads as "the thing to do" and lets the red mean
         // danger on its own.
         contrast:
-          "border border-obsidian bg-obsidian text-white hover:bg-obsidian/90 active:bg-obsidian/80",
+          "border border-obsidian bg-obsidian text-white hover:bg-obsidian/90 active:bg-obsidian/80 focus-visible:ring-2 focus-visible:ring-white",
         // `border-action-edge`, not `border-obsidian/10`. The fill is a pastel
         // now and sits 1.55:1 against a white page, so a 10%-alpha edge left the
         // control with no boundary meeting SC 1.4.11. See `--action-border`.
         action:
-          "border border-action-edge bg-action text-action-foreground hover:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_12%)] active:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_20%)]",
+          "border border-action-edge bg-action text-action-foreground hover:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_12%)] active:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_20%)] focus-visible:ring-2 focus-visible:ring-action-foreground",
         success:
-          "border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80",
+          "border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80 focus-visible:ring-2 focus-visible:ring-white",
         destructive:
-          "border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80",
+          "border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground",
         // `hover:border-foreground/20`, not a violet edge. These two are the
         // QUIET variants — the ones used where `default` would be too loud — and
         // turning their border violet on hover put them back in the primary's
@@ -90,12 +107,12 @@ const buttonVariants = cva(
         // carried by the fill (`bg-accent` / `bg-secondary/75`); the edge only has
         // to firm up.
         outline:
-          "border border-border bg-card/80 text-foreground hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground active:bg-accent/80",
+          "border border-border bg-card/80 text-foreground hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
         secondary:
-          "border border-border bg-secondary text-secondary-foreground hover:border-foreground/20 hover:bg-secondary/75 active:bg-secondary/60",
+          "border border-border bg-secondary text-secondary-foreground hover:border-foreground/20 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground",
-        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80",
+          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
       },
       size: {
         // 36px on touch, 28px from `md`, with the side padding pulled in to

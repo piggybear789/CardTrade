@@ -139,7 +139,7 @@ describe('cash sale — agreement stage', () => {
     if (!result.ok) return;
     expect(result.sale.status).toBe('AGREEMENT');
     expect(result.sale.amountCents).toBe(
-      ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents),
+      ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents, 'aud'),
     );
     expect(state.item.status).toBe('RESERVED');
     expect(calls.transfers).toHaveLength(0);
@@ -263,7 +263,7 @@ describe('cash sale — terms and dual acceptance', () => {
     if (!updated.ok) return;
     expect(updated.sale.amountCents).toBe(
       ITEM.fmvCents +
-        platformFeeCentsFor(ITEM.fmvCents) +
+        platformFeeCentsFor(ITEM.fmvCents, 'aud') +
         DELIVERY_TERMS.shippingCostCents,
     );
   });
@@ -427,7 +427,7 @@ describe('cash sale — terms and dual acceptance', () => {
     if (!updated.ok) return;
     // No postage line, so the buyer pays item + fee only.
     expect(updated.sale.amountCents).toBe(
-      ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents),
+      ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents, 'aud'),
     );
   });
 
@@ -641,7 +641,7 @@ describe('cash sale — price renegotiation', () => {
     expect(repriced.sale.agreedPriceCents).toBe(8_000);
     expect(repriced.sale.amountCents).toBe(
       // Repricing re-derives the percentage fee from the NEW price.
-      8_000 + platformFeeCentsFor(8_000) + DELIVERY_TERMS.shippingCostCents,
+      8_000 + platformFeeCentsFor(8_000, 'aud') + DELIVERY_TERMS.shippingCostCents,
     );
     expect(repriced.sale.status).toBe('AGREEMENT');
     expect(repriced.sale.termsVersion).toBe(withTerms.sale.termsVersion + 1);

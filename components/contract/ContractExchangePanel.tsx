@@ -220,10 +220,15 @@ function SideColumn({
              while the card stretched to full height and left most of itself empty. */
           <div className="flex min-h-0 flex-1 items-center">
             <div className="mx-auto grid w-full max-w-2xl gap-group sm:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] sm:items-center">
+              {/* Below `sm` this grid is one column, so the now-portrait photo would
+                  take the sheet's full width and a height to match. Capped to the
+                  cash-sale room's photo size (`PORTRAIT_STAGE_FRAME`) so the two rooms'
+                  Item tabs match; from `sm` the 15rem column is the cap. */}
               <ContractThumbnails
                 images={side.items[0].images ?? []}
                 label={side.items[0].title}
                 layout="stacked"
+                className="max-sm:mx-auto max-sm:max-w-[min(18rem,36dvh)]"
               />
               <div className="min-w-0 space-y-tight">
                 <p className="text-balance text-lead font-semibold leading-snug">

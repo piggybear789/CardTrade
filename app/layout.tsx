@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import { Instrument_Sans } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
@@ -184,6 +185,7 @@ export default async function RootLayout({
             rather than per route group so a funnel cannot have a hole where someone
             forgot to add it. */}
         <PageViewTracker />
+        <Analytics />
       </body>
     </html>
   );

@@ -52,7 +52,7 @@ const SOURCE_LABEL: Record<ErrorGroupRow['source'], string> = {
 };
 
 /** Context keys that name a contract, and where that contract lives. */
-const CONTEXT_LINKS: Record<string, (id: string) => string> = {
+const CONTEXT_LINKS: Record<string, ((id: string) => string) | undefined> = {
   cashSaleId: (id) => `/sales/${id}`,
   tradeId: (id) => `/trades/${id}`,
   itemId: (id) => `/listings/${id}`,

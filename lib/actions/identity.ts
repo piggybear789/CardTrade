@@ -255,7 +255,7 @@ export interface StartedIdentityCheck {
  * opened under an earlier default. See `lib/identity/identityReturn.ts`.
  */
 export const beginIdentityCheck = withActionLog('identity.beginIdentityCheck', async function beginIdentityCheck(
-  returnPath = DEFAULT_IDENTITY_RETURN_PATH,
+  returnPath: string = DEFAULT_IDENTITY_RETURN_PATH,
 ): Promise<ActionResult<StartedIdentityCheck, IdentityCheckError>> {
   const supabase = await createClient();
   const {
@@ -364,7 +364,7 @@ export interface StartedEmbeddedIdentity {
  * untouched (Req 2.6, 13.1).
  */
 export const beginEmbeddedIdentity = withActionLog('identity.beginEmbeddedIdentity', async function beginEmbeddedIdentity(
-  returnPath = '/onboarding',
+  returnPath: string = '/onboarding',
 ): Promise<ActionResult<StartedEmbeddedIdentity, IdentityCheckError>> {
   const supabase = await createClient();
   const {

@@ -103,7 +103,9 @@ export function DealLinkActions({
   );
 
   return (
-    <div className={cn('grid content-start gap-snug md:rounded-lg md:border md:p-group', className)}>
+    // `grid-cols-1` is `minmax(0, 1fr)`: an implicit `auto` column sizes itself to
+    // the unbroken link and pushes every row out past the panel's edge.
+    <div className={cn('grid grid-cols-1 content-start gap-snug md:rounded-lg md:border md:p-group', className)}>
       <p className="text-meta font-medium text-muted-foreground max-md:hidden">Send it</p>
       <p
         title={shownLink}

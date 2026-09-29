@@ -84,7 +84,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
   }
 
   return (
-    <Card className="mx-auto grid w-full max-w-md gap-section p-6 lg:max-w-3xl max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
+    <Card className="mx-auto grid w-full max-w-md grid-cols-1 gap-section p-6 lg:max-w-3xl max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
       <div className="flex items-start justify-between gap-group">
         <div className="grid gap-snug">
           <h2 className="text-head font-semibold">Your deal link</h2>
@@ -97,7 +97,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
 
       {/* Two columns from `lg`, not `md`: from `md` the workspace rail takes ~13.5rem,
           and beside a 300px sending panel the deal would get about 120px. */}
-      <div className="grid gap-section lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-x-section lg:gap-y-group">
+      <div className="grid grid-cols-1 gap-section lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-x-section lg:gap-y-group">
         <DealRecap preview={preview} />
         <DealLinkActions
           path={path}
@@ -116,7 +116,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
         <Button
           type="button"
           variant="link"
-          className="justify-self-center text-muted-foreground md:justify-self-start"
+          className="justify-self-center text-muted-foreground md:justify-self-start md:px-0"
           disabled={!preview.id}
           onClick={() => setConfirmingCancel(true)}
         >
@@ -176,7 +176,9 @@ function DealRecap({ preview }: { preview: DealInvitePreview }) {
       ) : null}
       <div className="grid min-w-0 gap-tight">
         <p className="market-label text-muted-foreground">{roleLine(preview)}</p>
-        {title ? <p className="line-clamp-2 text-pretty text-lead font-semibold">{title}</p> : null}
+        {title ? (
+          <p className="line-clamp-2 break-words text-pretty text-lead font-semibold">{title}</p>
+        ) : null}
         {preview.kind === 'TRADE' ? (
           preview.item && preview.wantedDescription ? (
             <p className="line-clamp-2 text-pretty text-body text-muted-foreground">

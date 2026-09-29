@@ -522,10 +522,10 @@ function CashSaleRoom({
     ? undefined
     : iAmBuyer
       ? payoutSetupOnly
-        ? `${seller.name} is verified but hasn't finished payout setup. You can pay once they have.`
-        : `${seller.name} must verify with Stripe Identity before you can pay. You can agree the handover now.`
+        ? `${seller.name} hasn't finished payout setup yet.`
+        : `${seller.name} hasn't verified with Stripe Identity yet.`
       : payoutSetupOnly
-        ? `Finish payout setup so ${buyer.name} can pay. You're already verified with Stripe Identity.`
+        ? `Finish payout setup so ${buyer.name} can pay.`
         : `Verify with Stripe Identity and finish payout setup so ${buyer.name} can pay.`;
   const isDelivery = sale.fulfillment_method === 'DELIVERY';
   const deliveryReady = !isDelivery || sale.delivery_address_configured;
@@ -750,8 +750,8 @@ function CashSaleRoom({
       {payBlocked ? (
         <OffPlatformWarning>
           {iAmBuyer
-            ? `${seller.name} hasn't finished verifying with Stripe yet, so you can't pay here until they have. Anyone asking you to pay by PayID or bank transfer instead is running the scam this room exists to stop.`
-            : `You haven't finished verifying with Stripe, so ${buyer.name} can't pay yet. Keep the deal here: a payment outside NoDitto has no protection for either of you.`}
+            ? 'Anyone asking you to pay by PayID or bank transfer is running a scam.'
+            : 'A payment outside NoDitto has no protection for either of you.'}
         </OffPlatformWarning>
       ) : null}
 

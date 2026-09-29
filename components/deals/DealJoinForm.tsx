@@ -74,7 +74,7 @@ function statusCopy(status: DealInvitePreview['status']): {
 
 function headline(preview: DealInvitePreview): string {
   const host = preview.hostName ?? 'A member';
-  if (preview.kind === 'TRADE') return `${host} wants to swap`;
+  if (preview.kind === 'TRADE') return `${host} wants to trade`;
   return preview.hostRole === 'BUYER' ? `${host} wants to buy` : `${host} is selling`;
 }
 
@@ -232,10 +232,10 @@ export function DealJoinForm({
         <CardTitle>Join this deal</CardTitle>
         <CardDescription>
           {preview.kind === 'TRADE'
-            ? "Describe the card you're offering. You both continue in a deal room, where you agree the swap."
+            ? "Describe the card you're offering."
             : preview.hostRole === 'SELLER'
-              ? `This reserves the card and opens a deal room with ${preview.hostName ?? 'the seller'}. You don't pay yet, and you don't need a payment card yet.`
-              : 'Describe the card they are buying. You both continue in a deal room.'}
+              ? 'This reserves the card for you.'
+              : 'Describe the card they are buying.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-group">
@@ -315,7 +315,7 @@ export function PublicDealInvitePreview({ preview }: { preview: DealInvitePrevie
       <CardHeader>
         <CardTitle>{headline(preview)}</CardTitle>
         <CardDescription>
-          Join to agree the details together in a deal room. Nothing is paid or held when you join.
+          Nothing is paid or held when you join.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -336,9 +336,6 @@ export function PublicDealInvitePreview({ preview }: { preview: DealInvitePrevie
           >
             Sign in to join
           </Link>
-        </p>
-        <p className="text-meta text-muted-foreground">
-          The link works for 14 days. The first person to join gets the deal.
         </p>
       </CardFooter>
     </Card>

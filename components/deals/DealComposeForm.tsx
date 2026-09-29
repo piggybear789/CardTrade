@@ -2,14 +2,14 @@
 
 // components/deals/DealComposeForm.tsx
 //
-// Start a private deal: sell a card, or swap cards. Anyone can write one. The
+// Start a private deal: sell a card, or trade cards. Anyone can write one. The
 // account is asked for at Get link, after the work is done, and the draft — photos
 // included — survives that sign-in in IndexedDB (`dealDraftStore`).
 //
-//   Deal type   sell or swap, each saying in one line what backs it
-//   Your card   photos first, then what it is, category and condition
-//   Price       what they pay, the fee, what you receive              (sell)
-//   Swap terms  what you want, what yours is worth, the hold and fee   (swap)
+//   Deal type    sell or trade
+//   Your card    photos first, then what it is, category and condition
+//   Price        what they pay, the fee, what you receive              (sell)
+//   Trade terms  what you want, what yours is worth, the hold and fee  (trade)
 //   Review      the invite as they will see it, and what happens next
 //   then, only when needed:
 //   Save your deal  sign in (a signed-out visitor)
@@ -40,6 +40,7 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
 import { ChoiceTile } from '@/components/ui/choice-tile';
+import { InfoPopover } from '@/components/ui/info-popover';
 import {
   DialogClose,
   DialogDescription,
@@ -298,12 +299,10 @@ export function DealComposeForm({
       <>
         <DialogHeader>
           <DialogTitle>Start a deal</DialogTitle>
-          <DialogDescription>
-            Send someone a link. You agree the details together before anything is paid or held.
-          </DialogDescription>
+          <DialogDescription>Send someone a link and agree the details together.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-snug">
+        <div className="grid grid-cols-2 gap-snug">
           <ChoiceTile
             id="deal-kind-cash"
             name="deal-kind"
@@ -312,7 +311,7 @@ export function DealComposeForm({
             onChange={() => chooseKind('CASH_SALE')}
             icon={BanknoteIcon}
             label="Sell a card"
-            hint="You verify with Stripe Identity before they pay. You're paid once they accept the card."
+            align="center"
           />
           <ChoiceTile
             id="deal-kind-trade"
@@ -321,8 +320,8 @@ export function DealComposeForm({
             checked={false}
             onChange={() => chooseKind('TRADE')}
             icon={RepeatIcon}
-            label="Swap cards"
-            hint="Both of you must verify with Stripe Identity before the swap can start. A temporary card hold backs each side."
+            label="Trade cards"
+            align="center"
           />
         </div>
 
@@ -346,7 +345,7 @@ export function DealComposeForm({
           ? 'Almost done'
           : selling
             ? 'Sell a card'
-            : 'Swap cards';
+            : 'Trade cards';
 
   return (
     <>
@@ -356,11 +355,7 @@ export function DealComposeForm({
         onBack={() => go(BACK[step])}
         backDisabled={isPending}
         description={
-          step === 'account'
-            ? 'Sign in to get the link. Your card and photos stay here while you do.'
-            : step === 'profile'
-              ? 'The name the other person sees, and the country the deal runs in.'
-              : undefined
+          step === 'account' ? 'Sign in to get the link. Your draft is kept.' : undefined
         }
       />
 
@@ -409,7 +404,7 @@ export function DealComposeForm({
                   label="You receive"
                   value={money(priceCents)}
                   strong
-                  hint="Paid to you through Stripe after they accept the card."
+                  info="Paid to you through Stripe after they accept the card."
                 />
               </Breakdown>
             ) : (
@@ -450,31 +445,31 @@ export function DealComposeForm({
             {/* THE HOLD IS YOUR OWN SIDE'S VALUE. `bondPolicy` authorises 100% of a
                 trader's own side, so this sizes YOUR hold, not theirs. A condition
                 dispute captures at most `FRICTION_TAX_CENTS` from the party found
-                against; only fraud takes the whole hold. The fee is 5% of the value
-                each trader RECEIVES (`chargeTradeFees`), so its amount waits for
-                their card. */}
+                against; only fraud takes the whole hold. The fee is charged on the
+                value each trader RECEIVES (`chargeTradeFees`): their card plus any cash
+                to even it. Neither is known yet, so this states the rate, not an amount. */}
             <Breakdown>
               <BreakdownRow
                 label="Stripe Identity"
                 value="Required for both of you"
                 strong
-                hint="The swap can't start until you've both verified. It takes a few minutes with a photo ID."
+                info="It takes a few minutes with a photo ID."
               />
               <BreakdownRule />
               <BreakdownRow
                 label="Held on your payment card"
                 value={valueCents ? money(valueCents) : "Your card's value"}
-                hint="A hold, not a charge. Released when the swap completes."
+                info="A hold, not a charge. It's released when the trade completes."
               />
               <BreakdownRow
                 label="Your fee"
-                value="5% of their card"
-                hint={`${tradeFeeRateLabel(quoteCurrency)}. Charged once the holds are in place.`}
+                value={tradeFeeRateLabel(quoteCurrency)}
+                info="Each of you pays it on the trade value, when the holds go on."
               />
               <BreakdownRow
                 label="If a dispute goes against you"
                 value={`Up to ${money(FRICTION_TAX_CENTS)}`}
-                hint="Kept from your hold. The rest is released."
+                info="Kept from your hold."
               />
             </Breakdown>
           </>
@@ -501,14 +496,14 @@ export function DealComposeForm({
                 items={
                   selling
                     ? [
-                        'They open the link and join. Nothing is charged.',
+                        'They join. Nothing is charged.',
                         'You agree the handover in the deal room.',
-                        "You verify with Stripe Identity and finish payout setup. They can't pay until you have. Then they pay through Stripe.",
+                        'You verify with Stripe Identity and set up payouts, then they pay.',
                       ]
                     : [
-                        "They open the link and describe the card they're offering.",
-                        'You agree the swap in the deal room.',
-                        'You both verify with Stripe Identity. The swap cannot start without it. Then a temporary hold goes on each of your cards.',
+                        'They join with the card they are offering.',
+                        'You agree the trade in the deal room.',
+                        'You both verify with Stripe Identity, then a hold goes on each card.',
                       ]
                 }
               />
@@ -558,13 +553,9 @@ export function DealComposeForm({
           <p className="text-meta text-muted-foreground" id="deal-step-blocker">
             {missing && !isPending
               ? missing
-              : step === 'card'
-                ? 'Nothing is shared until you get the link.'
-                : step === 'review' && !viewer.signedIn
-                  ? "You'll sign in to get the link. Your draft is kept."
-                  : step === 'review'
-                    ? 'The link works for 14 days. The first person to open it joins.'
-                    : null}
+              : step === 'review' && !viewer.signedIn
+                ? "You'll sign in next."
+                : null}
           </p>
           <DialogFooter>
             <Button
@@ -614,26 +605,35 @@ function StepHeader({
   backDisabled: boolean;
 }) {
   return (
-    <DialogHeader>
-      {/* The back arrow shares the title row rather than sitting above it: one line
-          of chrome, and the title says where you are. */}
-      <div className="flex items-center gap-snug">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={backDisabled}
-          aria-label="Back"
-          className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50"
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
-        </button>
-        <DialogTitle className="min-w-0 flex-1">{title}</DialogTitle>
-        {progress ? (
-          <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
-            Step {progress} of 3
-          </span>
-        ) : null}
-      </div>
+    <>
+      <DialogHeader>
+        {/* The back arrow shares the title row rather than sitting above it: one line
+            of chrome, and the title says where you are. */}
+        <div className="flex items-center gap-snug">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={backDisabled}
+            aria-label="Back"
+            className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50"
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+          </button>
+          <DialogTitle className="min-w-0 flex-1">{title}</DialogTitle>
+          {progress ? (
+            <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
+              Step {progress} of 3
+            </span>
+          ) : null}
+        </div>
+        {description ? (
+          <DialogDescription>{description}</DialogDescription>
+        ) : (
+          <DialogDescription className="sr-only">{title}</DialogDescription>
+        )}
+      </DialogHeader>
+      {/* OUTSIDE THE HEADER, which keeps `pr-12` clear of the close button. The bar
+          measures the whole form, so it spans the same width as the fields below it. */}
       {progress ? (
         <div className="grid grid-cols-3 gap-tight" aria-hidden>
           {[1, 2, 3].map((n) => (
@@ -644,12 +644,7 @@ function StepHeader({
           ))}
         </div>
       ) : null}
-      {description ? (
-        <DialogDescription>{description}</DialogDescription>
-      ) : (
-        <DialogDescription className="sr-only">{title}</DialogDescription>
-      )}
-    </DialogHeader>
+    </>
   );
 }
 
@@ -664,31 +659,32 @@ function BreakdownRule() {
 function BreakdownRow({
   label,
   value,
-  hint,
+  info,
   strong = false,
 }: {
   label: string;
   value: string;
-  hint?: string;
+  /** The explanation behind the figure, behind an (i) so the row stays one line. */
+  info?: string;
   strong?: boolean;
 }) {
   return (
-    <div className="grid gap-tight">
-      <div className="flex items-baseline justify-between gap-cozy">
+    <div className="flex items-center justify-between gap-cozy">
+      <span className="flex min-w-0 items-center gap-tight">
         <span className={strong ? 'text-body font-medium text-foreground' : 'text-body text-muted-foreground'}>
           {label}
         </span>
-        <span
-          className={
-            strong
-              ? 'text-right text-lead font-semibold tabular-nums text-foreground'
-              : 'text-right text-body font-medium tabular-nums text-foreground'
-          }
-        >
-          {value}
-        </span>
-      </div>
-      {hint ? <p className="text-meta text-muted-foreground">{hint}</p> : null}
+        {info ? <InfoPopover label={`About ${label.toLowerCase()}`}>{info}</InfoPopover> : null}
+      </span>
+      <span
+        className={
+          strong
+            ? 'text-right text-lead font-semibold tabular-nums text-foreground'
+            : 'text-right text-body font-medium tabular-nums text-foreground'
+        }
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -726,7 +722,7 @@ function NextSteps({ items }: { items: string[] }) {
   return (
     <ol className="grid gap-snug">
       {items.map((item, index) => (
-        <li key={item} className="flex items-start gap-snug">
+        <li key={item} className="flex items-center gap-snug">
           <span
             aria-hidden
             className={

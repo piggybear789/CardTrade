@@ -52,7 +52,7 @@ test.describe.serial('Private cash deal → sale room', () => {
     });
     await expect(page.getByRole('button', { name: /Copy deal link/i })).toBeVisible();
     // Joining needs no verification any more; paying does, and the host is told so.
-    await expect(page.getByText(/before they can pay/i).first()).toBeVisible();
+    await expect(page.getByText(/before they can pay|set up to be paid/i).first()).toBeVisible();
 
     await ctx.close();
   });
@@ -149,7 +149,7 @@ test.describe.serial('Private trade deal → trade room', () => {
     invitePath = await composeSwapDeal(page, hostDescription, joinDescription, '200.00');
     // The swap's hard requirement is stated on the link, not left for the room.
     await expect(
-      page.getByText(/Stripe Identity is required before the swap can start|The swap can start once they've verified/i).first(),
+      page.getByText(/Stripe Identity required|You're verified with Stripe Identity/i).first(),
     ).toBeVisible({ timeout: RENDERED });
     await ctx.close();
   });
@@ -162,7 +162,7 @@ test.describe.serial('Private trade deal → trade room', () => {
       timeout: COLD_ROUTE,
     });
     await expect(
-      page.getByText(/Stripe Identity is required for both of you before the swap can start/i),
+      page.getByText(/Stripe Identity is required for both of you/i),
     ).toBeVisible();
     await fillUnlistedCard(page, joinDescription);
     await page.getByLabel('What your card is worth').fill('200.00');

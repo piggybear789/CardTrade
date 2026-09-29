@@ -33,7 +33,7 @@ export function HostVerificationNotice({
     return (
       <StatusLine tone="done">
         {kind === 'TRADE'
-          ? "You're verified with Stripe Identity. The swap can start once they've verified too."
+          ? "You're verified with Stripe Identity."
           : "You're verified with Stripe Identity and set up to be paid."}
       </StatusLine>
     );
@@ -42,19 +42,19 @@ export function HostVerificationNotice({
   const copy =
     kind === 'TRADE'
       ? {
-          title: 'Stripe Identity is required before the swap can start',
-          body: 'Both of you must verify before the holds go on. It takes a few minutes with a photo ID. Do it now and the swap can start as soon as you agree.',
+          title: 'Stripe Identity required',
+          body: 'Both of you verify before the holds go on. It takes a few minutes with a photo ID.',
           action: 'Verify with Stripe',
         }
       : readiness === 'payout-setup-needed'
         ? {
-            title: 'Finish payout setup before they can pay',
-            body: "You're verified with Stripe Identity. Payout setup is still required before they can pay, so they can see who they're paying. Do it now and they can pay as soon as you agree.",
+            title: 'Finish payout setup',
+            body: 'Required before they can pay.',
             action: 'Finish payout setup',
           }
         : {
-            title: 'Verify before they can pay',
-            body: 'Stripe Identity and payout setup are required before they can pay. It takes a few minutes with a photo ID. Do them now and they can pay as soon as you agree.',
+            title: 'Verify with Stripe',
+            body: 'Stripe Identity and payout setup are required before they can pay. It takes a few minutes with a photo ID.',
             action: 'Verify with Stripe',
           };
 
@@ -90,8 +90,7 @@ export function InviteeVerificationNotice({
             : `${hostName} hasn't verified with Stripe Identity yet.`}
         </StatusLine>
         <p className="text-body text-muted-foreground">
-          Stripe Identity is required for both of you before the swap can start. You can join now
-          and verify in the deal room.
+          Stripe Identity is required for both of you. You can verify after joining.
         </p>
       </div>
     );
@@ -104,8 +103,8 @@ export function InviteeVerificationNotice({
   return (
     <StatusLine tone="waiting">
       {readiness === 'payout-setup-needed'
-        ? `${hostName} is verified but hasn't finished payout setup. You can join now, but you can't pay until they have.`
-        : `${hostName} hasn't verified with Stripe Identity yet. You can join now, but you can't pay until they have.`}
+        ? `${hostName} hasn't finished payout setup yet.`
+        : `${hostName} hasn't verified with Stripe Identity yet.`}
     </StatusLine>
   );
 }
@@ -146,18 +145,14 @@ export function SwapIdentityRequirement({
   if (youVerified && theyVerified) return null;
   const outstanding =
     !youVerified && !theyVerified
-      ? `Neither of you has verified yet.`
+      ? 'Neither of you has verified yet.'
       : !youVerified
-        ? `${theirName} has verified. You haven't yet.`
-        : `You've verified. ${theirName} hasn't yet.`;
+        ? "You haven't verified yet."
+        : `${theirName} hasn't verified yet.`;
   return (
     <div className="cardtrade-warning grid gap-snug rounded-lg border p-cozy" role="note">
-      <p className="text-body font-medium text-foreground">
-        Stripe Identity is required before this swap can start
-      </p>
-      <p className="text-pretty text-body">
-        {`Both of you must verify with Stripe Identity before terms can be accepted and the holds go on. ${outstanding} Keep the whole swap on NoDitto until then.`}
-      </p>
+      <p className="text-body font-medium text-foreground">Stripe Identity required for both of you</p>
+      <p className="text-pretty text-body">{outstanding}</p>
       {!youVerified ? (
         <div>
           <Button asChild variant="outline" size="sm">

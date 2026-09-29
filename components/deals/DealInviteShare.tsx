@@ -36,7 +36,7 @@ function inboxPath(preview: DealInvitePreview): string {
 }
 
 function roleLine(preview: DealInvitePreview): string {
-  if (preview.kind === 'TRADE') return 'You are swapping';
+  if (preview.kind === 'TRADE') return 'You are trading';
   return preview.hostRole === 'BUYER' ? 'You are buying' : 'You are selling';
 }
 
@@ -50,7 +50,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
   const amount = amountCents != null ? formatMoney(amountCents, preview.currency ?? 'aud') : null;
   const shareText =
     preview.kind === 'TRADE'
-      ? `Swap on NoDitto${subject ? `: ${subject}` : ''}`
+      ? `Trade on NoDitto${subject ? `: ${subject}` : ''}`
       : `Deal on NoDitto${subject ? `: ${subject}` : ''}`;
 
   function cancelInvite() {
@@ -69,10 +69,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
     <Card className="mx-auto w-full max-w-md">
       <CardHeader>
         <CardTitle>Your link is ready</CardTitle>
-        <CardDescription>
-          Send it to the person you are dealing with. When they join, you both land in the deal
-          room.
-        </CardDescription>
+        <CardDescription>Send it to the person you&apos;re dealing with.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-group">
         <div className="rounded-md bg-muted p-cozy">

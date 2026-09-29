@@ -140,7 +140,7 @@ export async function composeSwapDeal(
   wanted: string,
   value: string,
 ): Promise<string> {
-  await chooseTile(page, /Swap cards/i);
+  await chooseTile(page, /Trade cards/i);
   await fillUnlistedCard(page, description);
   await page.getByRole('button', { name: 'Next' }).click();
   await page.getByLabel('What do you want for it?').fill(wanted);

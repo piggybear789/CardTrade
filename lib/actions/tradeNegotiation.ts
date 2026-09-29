@@ -335,7 +335,7 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
         message:
           partyId === userId
             ? identityGateMessage('trade', gate.state)
-            : 'Both traders must verify with Stripe Identity before the swap can start. The other trader has not verified yet.',
+            : "The other trader hasn't verified with Stripe Identity yet.",
       };
     }
   }
@@ -443,7 +443,7 @@ export const retryTradeCollateral = withActionLog('tradeNegotiation.retryTradeCo
         message:
           partyId === userId
             ? identityGateMessage('trade', gate.state)
-            : 'Both traders must verify with Stripe Identity before the swap can start. The other trader has not verified yet.',
+            : "The other trader hasn't verified with Stripe Identity yet.",
       };
     }
   }

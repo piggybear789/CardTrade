@@ -14,6 +14,7 @@ import { useState, useSyncExternalStore, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+import { DealEditDialog } from '@/components/deals/DealEditDialog';
 import { DealLinkActions } from '@/components/deals/DealLinkActions';
 import { HostVerificationNotice } from '@/components/deals/DealVerificationNotice';
 import { Button } from '@/components/ui/button';
@@ -174,8 +175,19 @@ function DealRecap({ preview }: { preview: DealInvitePreview }) {
           ) : null}
         </div>
       ) : null}
-      <div className="grid min-w-0 gap-tight">
-        <p className="market-label text-muted-foreground">{roleLine(preview)}</p>
+      <div className="grid min-w-0 flex-1 gap-tight">
+        {/* Edit sits on the deal it changes, not with the link's other actions. */}
+        <div className="flex items-center justify-between gap-snug">
+          <p className="market-label text-muted-foreground">{roleLine(preview)}</p>
+          {preview.editable && preview.id && preview.kind ? (
+            <DealEditDialog
+              inviteId={preview.id}
+              kind={preview.kind}
+              editable={preview.editable}
+              currency={preview.currency ?? 'aud'}
+            />
+          ) : null}
+        </div>
         {title ? (
           <p className="line-clamp-2 break-words text-pretty text-lead font-semibold">{title}</p>
         ) : null}

@@ -94,7 +94,10 @@ export async function loadDealDraft(): Promise<StoredDealDraft | null> {
     await clearDealDraft();
     return null;
   }
-  return value.draft;
+  // A draft saved before `keptPaths` existed has none, and a composer draft never
+  // keeps stored photos, so the missing list is an empty one.
+  const card = value.draft.card as Partial<UnlistedItemDraft> & UnlistedItemDraft;
+  return { ...value.draft, card: { ...card, keptPaths: card.keptPaths ?? [] } };
 }
 
 export async function clearDealDraft(): Promise<void> {

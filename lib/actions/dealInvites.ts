@@ -19,7 +19,9 @@ import { createNotification } from '@/lib/notifications/createNotification';
 import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 import { loadSellerIdentityDisclosure, readSellerPayReadiness } from '@/lib/sellerIdentity';
 import { readIdentityGate } from '@/lib/identityGate';
-import { removeImages } from '@/lib/storage/itemImages';
+import { removeImages, verifyStoredImages } from '@/lib/storage/itemImages';
+import { readImageDims } from '@/lib/images/dimensions';
+import { deriveItemTitle, validateItemSubmission } from '@/domain/validation';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { checkRegionCompatibility, regionCurrency, regionMismatchMessage } from '@/domain/region';
@@ -161,7 +163,37 @@ export interface DealInvitePreview {
    */
   viewerBlock: { reason: DealInviteError; message: string } | null;
   contractPath: string | null;
+  /**
+   * What the host may still change, for the edit dialog on the link screen. Only
+   * for the host of an open invite whose card they put up — never for a guest, a
+   * settled invite, or a legacy host-BUYER invite, which has no card to edit.
+   */
+  editable: DealInviteEditable | null;
 }
+
+/** The whole card and the terms, as the edit dialog starts from them. */
+export interface DealInviteEditable {
+  description: string;
+  category: string;
+  condition: string;
+  /** Every photo, in order. `item` above carries only the first. */
+  imagePaths: string[];
+  /** The sale price. Null on a trade. */
+  priceCents: number | null;
+  /** What the host's card is worth. Null on a sale. */
+  valueCents: number | null;
+  /** What the host wants for it. Null on a sale. */
+  wantedDescription: string | null;
+}
+
+export type UpdateDealInviteInput = {
+  inviteId: string;
+  /** The card as edited. `images` are object paths: kept photos first, then new uploads. */
+  item: Omit<PrivateDealItemInput, 'fmvCents'>;
+} & (
+  | { kind: 'CASH_SALE'; priceCents: number }
+  | { kind: 'TRADE'; valueCents: number; wantedDescription: string }
+);
 
 export type ClaimDealInviteInput = {
   token: string;
@@ -313,6 +345,39 @@ async function readHostReadiness(invite: InviteRow): Promise<HostReadiness | nul
   return (await readSellerPayReadiness(invite.host_id)).state;
 }
 
+/**
+ * Whether the host can edit this invite's card and terms: a trade, or a sale the
+ * host is SELLING. A legacy host-BUYER invite has no card of the host's to edit.
+ * The same rule is enforced again inside `update_deal_invite`.
+ */
+function inviteIsEditable(invite: InviteRow): boolean {
+  if (!invite.host_item_id) return false;
+  return invite.kind === 'TRADE' || invite.host_role === 'SELLER';
+}
+
+/** `update_deal_invite` raises one of these; everything else is a failed write. */
+function updateRefusal(message: string): { reason: DealInviteError; message: string } {
+  if (message.includes('invite-claimed')) {
+    return { reason: 'claimed', message: "Someone already joined, so this deal can't be changed." };
+  }
+  if (message.includes('invite-revoked')) {
+    return { reason: 'revoked', message: 'This deal was cancelled.' };
+  }
+  if (message.includes('invite-expired')) {
+    return { reason: 'expired', message: 'This deal has expired.' };
+  }
+  if (message.includes('invite-not-host')) {
+    return { reason: 'not-host', message: 'Only the person who started this deal can change it.' };
+  }
+  if (message.includes('invite-not-editable') || message.includes('invite-item-unavailable')) {
+    return {
+      reason: 'wrong-kind',
+      message: "This deal can't be changed. Cancel it and start a new one.",
+    };
+  }
+  return { reason: 'rejected', message: 'Your changes could not be saved. Please retry.' };
+}
+
 async function loadHiddenItem(
   itemId: string,
   expectedOwnerId: string,
@@ -452,6 +517,141 @@ export const revokeDealInvite = withActionLog('dealInvites.revokeDealInvite', as
   return ok({ id: data.id });
 });
 
+/**
+ * Change an invite nobody has joined: its card, photos and terms. The link stays
+ * the same, so whoever already has it sees the edit.
+ *
+ * Everything that can be checked without the lock is checked here — the price, the
+ * card's fields, that every NEW photo is the host's own upload — and then
+ * `update_deal_invite` writes the card and the terms in one transaction on the
+ * invite row, the row a claim locks. A claim that got there first makes the edit a
+ * no-op refusal; see 0124.
+ */
+export const updateDealInvite = withActionLog('dealInvites.updateDealInvite', async function updateDealInvite(
+  input: UpdateDealInviteInput,
+): Promise<ActionResult<{ path: string }, DealInviteError>> {
+  const userId = await currentUserId();
+  if (!userId) return fail('unauthenticated', 'Sign in to change your deal.');
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('deal_invites')
+    .select('*')
+    .eq('id', input.inviteId)
+    .maybeSingle();
+  const invite = data as InviteRow | null;
+  if (!invite || invite.host_id !== userId) {
+    return fail('not-host', 'Only the person who started this deal can change it.');
+  }
+
+  // What the card has now: a kept photo keeps its measured size, and any other path
+  // is a new upload, whose ownership is only a claim from the browser until proved.
+  const { data: current } = invite.host_item_id
+    ? await admin
+        .from('items')
+        .select('image_paths, image_dims')
+        .eq('id', invite.host_item_id)
+        .maybeSingle()
+    : { data: null };
+  const currentPaths = (current?.image_paths as string[] | null) ?? [];
+  const currentDims = readImageDims(current?.image_dims, currentPaths.length);
+  const dimsByPath = new Map(currentPaths.map((path, index) => [path, currentDims[index]]));
+  const uploaded = input.item.images.filter((path) => !dimsByPath.has(path));
+  try {
+    await verifyStoredImages(admin, userId, uploaded);
+  } catch (e) {
+    return fail(
+      'invalid-input',
+      e instanceof Error ? e.message : 'One of these photos is not yours.',
+      'images',
+    );
+  }
+
+  // PROVED FIRST, THEN DISPOSABLE. From here the new uploads are known to be the
+  // host's own, and an edit that goes nowhere leaves nothing referring to them.
+  // Deleting before the proof would let a crafted request delete someone else's.
+  async function refuse(
+    reason: DealInviteError,
+    message: string,
+    field?: string,
+  ): Promise<ActionResult<{ path: string }, DealInviteError>> {
+    await removeImages(admin, uploaded);
+    return fail(reason, message, field);
+  }
+
+  const status = inviteStatus({
+    expiresAt: invite.expires_at,
+    revokedAt: invite.revoked_at,
+    claimedAt: invite.claimed_at,
+  });
+  if (status !== 'open') {
+    const refusal = updateRefusal(`invite-${status}`);
+    return refuse(refusal.reason, refusal.message);
+  }
+  if (invite.kind !== input.kind || !inviteIsEditable(invite)) {
+    const refusal = updateRefusal('invite-not-editable');
+    return refuse(refusal.reason, refusal.message);
+  }
+
+  let priceCents: number | null = null;
+  let valueCents: number | null = null;
+  let wantedDescription: string | null = null;
+  if (input.kind === 'CASH_SALE') {
+    const problem = cashPriceProblem(input.priceCents);
+    if (problem) return refuse('invalid-input', problem, 'priceCents');
+    priceCents = input.priceCents;
+  } else {
+    const wanted = wantedDescriptionProblem(input.wantedDescription, true);
+    if (wanted) return refuse('invalid-input', wanted, 'wantedDescription');
+    wantedDescription = input.wantedDescription.trim();
+    valueCents = input.valueCents;
+  }
+
+  // On a sale the card is worth its price, as `createDealInvite` records it.
+  const validated = validateItemSubmission({
+    title: deriveItemTitle(input.item.description),
+    description: input.item.description,
+    category: input.item.category,
+    condition: input.item.condition,
+    fmvCents: priceCents ?? valueCents,
+    images: input.item.images,
+  });
+  if (!validated.ok) {
+    return refuse('invalid-input', validated.message, validated.field);
+  }
+  const images = validated.value.images;
+
+  const { data: previousPaths, error } = await admin.rpc('update_deal_invite', {
+    p_invite_id: invite.id,
+    p_host_id: userId,
+    p_price_cents: priceCents,
+    p_declared_value_cents: valueCents,
+    p_wanted_description: wantedDescription,
+    p_item_title: validated.value.title,
+    p_item_description: validated.value.description,
+    p_item_category: validated.value.category,
+    p_item_condition: validated.value.condition,
+    p_item_fmv_cents: validated.value.fmvCents,
+    p_item_image_paths: images,
+    p_item_image_dims: images.map((path) => dimsByPath.get(path) ?? null),
+  });
+  if (error) {
+    const refusal = updateRefusal(error.message);
+    return refuse(refusal.reason, refusal.message);
+  }
+
+  const kept = new Set(images);
+  await removeImages(
+    admin,
+    ((previousPaths as string[] | null) ?? []).filter((path) => !kept.has(path)),
+  );
+
+  revalidatePath(invitePath(invite.token));
+  revalidatePath('/trades');
+  revalidatePath('/sales');
+  return ok({ path: invitePath(invite.token) });
+});
+
 export const listMyDealInvites = withActionLog('dealInvites.listMyDealInvites', async function listMyDealInvites(
   kind?: InviteRow['kind'],
   hostRole?: NonNullable<InviteRow['host_role']>,
@@ -541,6 +741,7 @@ export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePrev
     hostRegion: null,
     viewerBlock: null,
     contractPath: null,
+    editable: null,
   };
   if (!token || token.length < 16) return empty;
 
@@ -570,11 +771,13 @@ export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePrev
     }
   }
 
+  const isHost = userId === invite.host_id;
   let item: DealInvitePreview['item'] = null;
+  let editable: DealInviteEditable | null = null;
   if (invite.host_item_id) {
     const { data: itemRow } = await admin
       .from('items')
-      .select('id, title, image_paths, fmv_cents')
+      .select('id, title, description, category, condition, image_paths, fmv_cents')
       .eq('id', invite.host_item_id)
       .maybeSingle();
     if (itemRow) {
@@ -585,6 +788,20 @@ export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePrev
         imagePath: paths[0] ?? null,
         fmvCents: itemRow.fmv_cents as number,
       };
+      if (isHost && status === 'open' && inviteIsEditable(invite)) {
+        editable = {
+          description: itemRow.description as string,
+          category: itemRow.category as string,
+          condition: itemRow.condition as string,
+          imagePaths: paths,
+          priceCents: invite.kind === 'CASH_SALE' ? invite.price_cents : null,
+          valueCents:
+            invite.kind === 'TRADE'
+              ? (invite.declared_value_cents ?? (itemRow.fmv_cents as number))
+              : null,
+          wantedDescription: invite.kind === 'TRADE' ? invite.wanted_description : null,
+        };
+      }
     }
   }
 
@@ -616,7 +833,7 @@ export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePrev
     hostRole: invite.host_role,
     hostId: invite.host_id,
     hostName: (host?.display_name as string | undefined)?.trim() || 'A member',
-    isHost: userId === invite.host_id,
+    isHost,
     priceCents: invite.price_cents,
     wantedDescription: invite.wanted_description,
     offerMessage: invite.offer_message,
@@ -628,6 +845,7 @@ export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePrev
     hostRegion: (host?.region_code as string | null) ?? null,
     viewerBlock,
     contractPath,
+    editable,
   };
 });
 
@@ -690,7 +908,7 @@ export const claimDealInvite = withActionLog('dealInvites.claimDealInvite', asyn
     .is('claimed_at', null)
     .is('revoked_at', null)
     .gt('expires_at', now)
-    .select('id')
+    .select('*')
     .maybeSingle();
   if (!locked) {
     // The card was created for a claim that lost the race, so it belongs to nothing.
@@ -698,7 +916,10 @@ export const claimDealInvite = withActionLog('dealInvites.claimDealInvite', asyn
     return fail('claimed', 'Someone already joined this deal.');
   }
 
-  const opened = await openClaimedInvite(invite, userId, joinerItemId);
+  // FROM THE LOCKED ROW, not the one read above. The host can edit the terms until
+  // this moment (`update_deal_invite`), and the room must open on the terms as they
+  // stood when the claim won the row, not as they were a request earlier.
+  const opened = await openClaimedInvite(locked as InviteRow, userId, joinerItemId);
   if (!opened.ok) {
     await admin
       .from('deal_invites')

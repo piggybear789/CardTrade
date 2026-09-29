@@ -19,6 +19,7 @@ import { ImagePlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { Label } from '@/components/ui/label';
 import { CARD_GAMES, cardGameName, cardGameSlug } from '@/lib/catalog/cardGames';
+import { itemImageUrl } from '@/lib/format';
 import {
   Select,
   SelectContent,
@@ -51,6 +52,12 @@ export interface UnlistedItemDraft {
   description: string;
   category: string;
   condition: string;
+  /**
+   * Photos already in Storage, as object paths, when the draft edits a card that
+   * exists. They come first, ahead of anything newly picked. Empty for a new card.
+   */
+  keptPaths: string[];
+  /** Photos picked in this form, not uploaded yet. */
   images: File[];
 }
 
@@ -59,8 +66,14 @@ export const EMPTY_UNLISTED_DRAFT: UnlistedItemDraft = {
   description: '',
   category: '',
   condition: '',
+  keptPaths: [],
   images: [],
 };
+
+/** Every photo on the draft, kept and new. The one count the rules apply to. */
+export function unlistedPhotoCount(draft: UnlistedItemDraft): number {
+  return draft.keptPaths.length + draft.images.length;
+}
 
 export function isUnlistedDraftComplete(draft: UnlistedItemDraft): boolean {
   return unlistedDraftGap(draft) === null;
@@ -71,8 +84,9 @@ export function isUnlistedDraftComplete(draft: UnlistedItemDraft): boolean {
  * action, or `null` when it is complete. Photos first, matching the composer's order.
  */
 export function unlistedDraftGap(draft: UnlistedItemDraft): string | null {
-  if (draft.images.length < UNLISTED_IMAGES_MIN) return 'Add at least one photo.';
-  if (draft.images.length > UNLISTED_IMAGES_MAX) {
+  const photos = unlistedPhotoCount(draft);
+  if (photos < UNLISTED_IMAGES_MIN) return 'Add at least one photo.';
+  if (photos > UNLISTED_IMAGES_MAX) {
     return `Keep it to ${UNLISTED_IMAGES_MAX} photos.`;
   }
   if (draft.description.trim() === '') return 'Describe the card.';
@@ -204,7 +218,8 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
    * the cap is dropped instead of failing the whole pick.
    */
   function addImages(picked: File[]) {
-    update(draft, onChange, 'images', [...draft.images, ...picked].slice(0, UNLISTED_IMAGES_MAX));
+    const room = UNLISTED_IMAGES_MAX - draft.keptPaths.length;
+    update(draft, onChange, 'images', [...draft.images, ...picked].slice(0, Math.max(room, 0)));
   }
 
   function removeImageAt(index: number) {
@@ -216,8 +231,30 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
     );
   }
 
-  const atImageCap = draft.images.length >= UNLISTED_IMAGES_MAX;
+  function removeKept(path: string) {
+    update(
+      draft,
+      onChange,
+      'keptPaths',
+      draft.keptPaths.filter((kept) => kept !== path),
+    );
+  }
+
+  const count = unlistedPhotoCount(draft);
+  const atImageCap = count >= UNLISTED_IMAGES_MAX;
   const labelId = `${idPrefix}-photos-label`;
+  const strip = [
+    ...draft.keptPaths.map((path) => ({
+      key: path,
+      src: itemImageUrl(path),
+      remove: () => removeKept(path),
+    })),
+    ...previews.map((preview, index) => ({
+      key: preview,
+      src: preview,
+      remove: () => removeImageAt(index),
+    })),
+  ];
 
   return (
     <div className="space-y-snug">
@@ -230,9 +267,7 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
         <p className="text-body font-medium" id={labelId}>
           Photos
           <span className="ml-1.5 font-normal text-muted-foreground">
-            {draft.images.length === 0
-              ? '(required)'
-              : `${draft.images.length} of ${UNLISTED_IMAGES_MAX}`}
+            {count === 0 ? '(required)' : `${count} of ${UNLISTED_IMAGES_MAX}`}
           </span>
         </p>
         {atImageCap ? null : (
@@ -241,7 +276,7 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
           // button rather than the hidden input.
           <label className="inline-flex h-9 cursor-pointer items-center gap-tight rounded-md border border-border bg-card/80 px-cozy text-body font-medium text-foreground transition-colors hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:border-iris md:h-8 md:px-2.5">
             <HugeiconsIcon icon={ImagePlusIcon} aria-hidden="true" className="size-3.5" />
-            {draft.images.length === 0 ? 'Add photos' : 'Add more'}
+            {count === 0 ? 'Add photos' : 'Add more'}
             <input
               type="file"
               accept="image/*"
@@ -258,22 +293,24 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
         )}
       </div>
 
-      {previews.length > 0 ? (
+      {strip.length > 0 ? (
         // The strip is the record of what you picked: a filename tells you nothing
         // about a collectible's condition, a thumbnail does. The inset padding keeps
         // focus rings off the scroll container's edge.
         <ul aria-labelledby={labelId} className="-mx-tight flex gap-snug overflow-x-auto px-tight py-tight">
-          {previews.map((preview, index) => (
-            <li key={preview} className="relative size-14 shrink-0 overflow-hidden rounded-md border">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={preview}
-                alt={`Photo ${index + 1} of ${draft.images.length}`}
-                className="size-full object-cover"
-              />
+          {strip.map((photo, index) => (
+            <li key={photo.key} className="relative size-14 shrink-0 overflow-hidden rounded-md border bg-muted">
+              {photo.src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={photo.src}
+                  alt={`Photo ${index + 1} of ${strip.length}`}
+                  className="size-full object-cover"
+                />
+              ) : null}
               <button
                 type="button"
-                onClick={() => removeImageAt(index)}
+                onClick={photo.remove}
                 className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full border border-transparent bg-obsidian/75 text-mist transition-colors hover:bg-obsidian focus-visible:border-iris focus-visible:outline-none"
               >
                 <HugeiconsIcon icon={XIcon} aria-hidden="true" className="size-3" />

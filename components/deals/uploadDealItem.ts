@@ -7,6 +7,10 @@ import type { PrivateDealItemInput } from '@/lib/actions/dealInvites';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import type { UnlistedItemDraft } from '@/components/trade/UnlistedItemDialog';
 
+/**
+ * Upload the draft's new photos and return the card as the actions take it. Kept
+ * photos are already in Storage and go first, in the order the draft shows them.
+ */
 export async function pathsFromUnlistedDraft(
   draft: UnlistedItemDraft,
   fmvCents: number,
@@ -20,7 +24,7 @@ export async function pathsFromUnlistedDraft(
       category: draft.category,
       condition: draft.condition,
       fmvCents,
-      images: uploaded.paths,
+      images: [...draft.keptPaths, ...uploaded.paths],
     },
   };
 }

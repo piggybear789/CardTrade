@@ -2782,6 +2782,30 @@ export type Database = {
         };
         Returns: Database['cardtrade']['Tables']['trades']['Row'];
       };
+      /**
+       * Edit an unclaimed private-deal invite and its hidden card in one
+       * transaction (0124). Raises `invite-not-host`, `invite-claimed`,
+       * `invite-revoked`, `invite-expired`, `invite-not-editable` or
+       * `invite-item-unavailable`. Service role only.
+       */
+      update_deal_invite: {
+        Args: {
+          p_invite_id: string;
+          p_host_id: string;
+          p_price_cents: number | null;
+          p_declared_value_cents: number | null;
+          p_wanted_description: string | null;
+          p_item_title: string;
+          p_item_description: string;
+          p_item_category: string;
+          p_item_condition: string;
+          p_item_fmv_cents: number;
+          p_item_image_paths: string[];
+          p_item_image_dims: Json;
+        };
+        /** The card's photos before the edit, so the caller can delete the dropped ones. */
+        Returns: string[];
+      };
       update_trade_terms: {
         Args: {
           p_trade_id: string;

@@ -25,7 +25,7 @@
 // to do while the button is disabled.
 
 import Link from 'next/link';
-import { useEffect, useState, useTransition, type ReactNode } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -40,7 +40,6 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
 import { ChoiceTile } from '@/components/ui/choice-tile';
-import { InfoPopover } from '@/components/ui/info-popover';
 import {
   DialogClose,
   DialogDescription,
@@ -65,18 +64,17 @@ import {
   saveDealDraft,
   type DraftKind,
 } from '@/components/deals/dealDraftStore';
+import { SaleTermsBreakdown, TradeTermsBreakdown } from '@/components/deals/DealTermsBreakdown';
 import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
 import { QuickProfileFields } from '@/components/deals/QuickProfileFields';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
 import { cashPriceProblem, dollarsToCents } from '@/domain/deals/dealInvite';
-import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { deriveItemTitle } from '@/domain/validation';
 import { createDealInvite } from '@/lib/actions/dealInvites';
 import { completeQuickOnboarding } from '@/lib/actions/quickOnboarding';
 import type { SelectableRegion } from '@/lib/actions/regionOptions';
 import { DEAL_RESUME_PATH } from '@/lib/deals/paths';
-import { platformFeeRateLabel, tradeFeeRateLabel } from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
 import { navigateWithType } from '@/lib/motion/navigate';
 
@@ -386,32 +384,7 @@ export function DealComposeForm({
                 onChange={(event) => setPriceDollars(event.target.value)}
               />
             </div>
-            {/* THE ARITHMETIC IS THE CONTENT. Three figures rather than a rule to
-                apply, and the seller's real question, what they receive, carries
-                the weight. */}
-            {priceCents ? (
-              <Breakdown>
-                <BreakdownRow
-                  label="They pay"
-                  value={money(priceCents + platformFeeCentsFor(priceCents, quoteCurrency))}
-                />
-                <BreakdownRow
-                  label={`NoDitto fee (${platformFeeRateLabel(quoteCurrency)})`}
-                  value={money(platformFeeCentsFor(priceCents, quoteCurrency))}
-                />
-                <BreakdownRule />
-                <BreakdownRow
-                  label="You receive"
-                  value={money(priceCents)}
-                  strong
-                  info="Paid to you through Stripe after they accept the card."
-                />
-              </Breakdown>
-            ) : (
-              <p className="text-meta text-muted-foreground">
-                A NoDitto fee ({platformFeeRateLabel(quoteCurrency)}) is added for the buyer.
-              </p>
-            )}
+            <SaleTermsBreakdown priceCents={priceCents} currency={quoteCurrency} />
             <p className="text-meta text-muted-foreground">
               Postage or a meetup is agreed in the deal room.
             </p>
@@ -442,36 +415,7 @@ export function DealComposeForm({
                 onChange={(event) => setValueDollars(event.target.value)}
               />
             </div>
-            {/* THE HOLD IS YOUR OWN SIDE'S VALUE. `bondPolicy` authorises 100% of a
-                trader's own side, so this sizes YOUR hold, not theirs. A condition
-                dispute captures at most `FRICTION_TAX_CENTS` from the party found
-                against; only fraud takes the whole hold. The fee is charged on the
-                value each trader RECEIVES (`chargeTradeFees`): their card plus any cash
-                to even it. Neither is known yet, so this states the rate, not an amount. */}
-            <Breakdown>
-              <BreakdownRow
-                label="Stripe Identity"
-                value="Required for both of you"
-                strong
-                info="It takes a few minutes with a photo ID."
-              />
-              <BreakdownRule />
-              <BreakdownRow
-                label="Held on your payment card"
-                value={valueCents ? money(valueCents) : "Your card's value"}
-                info="A hold, not a charge. It's released when the trade completes."
-              />
-              <BreakdownRow
-                label="Your fee"
-                value={tradeFeeRateLabel(quoteCurrency)}
-                info="Each of you pays it on the trade value, when the holds go on."
-              />
-              <BreakdownRow
-                label="If a dispute goes against you"
-                value={`Up to ${money(FRICTION_TAX_CENTS)}`}
-                info="Kept from your hold."
-              />
-            </Breakdown>
+            <TradeTermsBreakdown valueCents={valueCents} currency={quoteCurrency} />
           </>
         ) : null}
 
@@ -645,47 +589,6 @@ function StepHeader({
         </div>
       ) : null}
     </>
-  );
-}
-
-function Breakdown({ children }: { children: ReactNode }) {
-  return <div className="grid gap-cozy rounded-lg bg-muted/60 p-cozy">{children}</div>;
-}
-
-function BreakdownRule() {
-  return <div className="h-px bg-border" aria-hidden />;
-}
-
-function BreakdownRow({
-  label,
-  value,
-  info,
-  strong = false,
-}: {
-  label: string;
-  value: string;
-  /** The explanation behind the figure, behind an (i) so the row stays one line. */
-  info?: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-cozy">
-      <span className="flex min-w-0 items-center gap-tight">
-        <span className={strong ? 'text-body font-medium text-foreground' : 'text-body text-muted-foreground'}>
-          {label}
-        </span>
-        {info ? <InfoPopover label={`About ${label.toLowerCase()}`}>{info}</InfoPopover> : null}
-      </span>
-      <span
-        className={
-          strong
-            ? 'text-right text-lead font-semibold tabular-nums text-foreground'
-            : 'text-right text-body font-medium tabular-nums text-foreground'
-        }
-      >
-        {value}
-      </span>
-    </div>
   );
 }
 

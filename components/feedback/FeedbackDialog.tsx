@@ -189,21 +189,15 @@ export function FeedbackDialog({
       <DialogTrigger asChild>
         {trigger ?? (
           appearance === 'header-text' ? (
-            <button
-              type="button"
-              className={cn(
-                // The rail's own tokens (`text-mist/75`, `hover:bg-white/10`), not the
-                // Button variants, which are drawn for light surfaces. The resting
-                // hairline is what separates it from the ghost-text avatar chip beside
-                // it: without one, "Feedback" and the member's name read as one label.
-                // 32px rather than the icons' 40: a bordered 40px box is a slab next
-                // to a 24px avatar, and 32 is the desktop Button height anyway.
-                'inline-flex h-8 touch-manipulation items-center whitespace-nowrap rounded-md border border-white/20 px-cozy text-body font-medium text-mist/80 transition-colors hover:border-white/35 hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris',
-                className,
-              )}
-            >
+            // THE ONE FILLED CONTROL IN THE RAIL. Everything else up there is a
+            // ghost icon or the avatar chip, so the lilac fill is what makes asking
+            // the team stand out, and what keeps "Feedback" from reading as part of
+            // the member's name beside it. The default variant's white ring is the
+            // focus indicator that shows on the obsidian header. 32px, the desktop
+            // Button height, rather than the icons' 40.
+            <Button type="button" className={className}>
               Feedback
-            </button>
+            </Button>
           ) : appearance === 'menu-row' ? (
             // `!h-9`, like every other row in that panel: the `sm` size collapses to
             // 24px from `md` inside a media query, which a plain `h-9` cannot override.

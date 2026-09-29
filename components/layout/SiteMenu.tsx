@@ -3,9 +3,10 @@
 // components/layout/SiteMenu.tsx
 //
 // Overflow menu for the site header. On desktop it lists the FULL workspace
-// map so every section is reachable from the burger. On a phone the signed-in
-// hub bar already owns that map, so this menu hides there and stays for guests
-// (who have no hubs) and for signed-in desktop.
+// map so every section is reachable from it. A signed-in member opens it from
+// their avatar chip; a guest, who has no avatar, from a burger. On a phone the
+// signed-in hub bar already owns that map, so this menu hides there and stays for
+// guests (who have no hubs) and for signed-in desktop.
 //
 // The groups are read from `marketplace-nav-config` rather than restated, so the
 // menu cannot drift from the rail and the mobile hubs the way a second hardcoded
@@ -15,7 +16,7 @@ import { Fragment, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BanknoteIcon, HandshakeIcon, HelpCircleIcon, MenuIcon, RepeatIcon, ShieldCheckIcon, XIcon } from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, BanknoteIcon, HandshakeIcon, HelpCircleIcon, MenuIcon, RepeatIcon, ShieldCheckIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { StartDealButton } from '@/components/deals/StartDealButton';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
@@ -58,11 +59,11 @@ const MENU_ONLY_GROUPS: readonly MarketplaceNavGroup[] = [
 /**
  * Destinations the SITE HEADER already carries, so the menu does not repeat them.
  *
- * The bell has always been Notifications and the avatar has always been Account, so
- * two of the menu's rows were restating the bar above them. Saved and Messages are
- * now icons up there too. All four rows are therefore hidden from `md` up — the
- * breakpoint at which this menu appears for a signed-in member. On a phone the
- * hubs and header icons cover them, and the menu itself is hidden.
+ * The bell is Notifications, Saved and Messages are icons beside it, and Account is
+ * the row this panel opens with, so those four rows would restate what is already
+ * on screen. They are therefore hidden from `md` up — the breakpoint at which this
+ * menu appears for a signed-in member. On a phone the hubs and header icons cover
+ * them, and the menu itself is hidden.
  *
  * NOT removed from `MARKETPLACE_NAV_GROUPS`: that constant also drives the desktop
  * rail, which is a workspace sidebar that SHOULD list Messages and Account, and the
@@ -197,20 +198,58 @@ export function SiteMenu({
         isAuthenticated ? 'hidden md:block' : 'md:hidden',
       )}
     >
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        aria-controls="site-menu-panel"
-        aria-label={open ? 'Close menu' : 'Open menu'}
-        className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-iris"
-      >
-        {open ? (
-          <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />
-        ) : (
-          <HugeiconsIcon icon={MenuIcon} className="size-5" aria-hidden />
-        )}
-      </button>
+      {isAuthenticated ? (
+        // THE AVATAR CHIP IS THE TRIGGER. Its accessible name starts with the name
+        // it shows (SC 2.5.3), and `aria-expanded` carries open and closed.
+        //
+        // 40px tall, matching the icon targets beside it. `xl:max-w-[10rem]` until
+        // `2xl`: from `xl` the header keeps this rail at full width and takes the
+        // room from the search (see `SiteHeader`), and a display name may run to
+        // 255 characters. At 14rem a long one left a ~110px search box at 1280px.
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls="site-menu-panel"
+          aria-label={`${displayName ?? 'Your account'}, account menu`}
+          title={displayName ?? undefined}
+          className={cn(
+            'flex h-10 min-w-0 max-w-[14rem] touch-manipulation items-center gap-snug rounded-md border border-transparent px-snug text-body font-medium text-mist transition-colors hover:bg-white/10 focus:outline-none focus-visible:border-iris xl:max-w-[10rem] 2xl:max-w-[14rem]',
+            open && 'bg-white/10',
+          )}
+        >
+          <Avatar
+            avatarPath={avatarPath}
+            displayName={displayName}
+            size="xs"
+            className="border-white/25"
+          />
+          <span className="min-w-0 truncate">{displayName ?? 'Account'}</span>
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            className={cn(
+              'size-4 shrink-0 text-mist/75 transition-transform motion-reduce:transition-none',
+              open && 'rotate-180',
+            )}
+            aria-hidden
+          />
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          aria-expanded={open}
+          aria-controls="site-menu-panel"
+          aria-label={open ? 'Close menu' : 'Open menu'}
+          className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-iris"
+        >
+          {open ? (
+            <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />
+          ) : (
+            <HugeiconsIcon icon={MenuIcon} className="size-5" aria-hidden />
+          )}
+        </button>
+      )}
 
       {open ? (
         <div

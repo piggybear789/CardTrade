@@ -3,7 +3,9 @@
 // components/deals/DealLinkQrButton.tsx
 //
 // A QR code for the deal link, for a meetup, where the other person is standing
-// next to you and typing a URL is the worst way to share one.
+// next to you and typing a URL is the worst way to share one. The dialog is a bottom
+// sheet on a phone and a centred dialog from `md`, and the code is as large as the
+// sheet allows: a small code held up across a table is the one a camera misses.
 //
 // The encoder is imported when the dialog opens rather than with the page: most
 // hosts copy or share the link and never scan it. The SVG is drawn from the module
@@ -17,14 +19,16 @@ import { QrCodeIcon } from '@hugeicons/core-free-icons';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-export function DealLinkQrButton({ path }: { path: string }) {
+export function DealLinkQrButton({ path, className }: { path: string; className?: string }) {
   const [open, setOpen] = useState(false);
   const [matrix, setMatrix] = useState<boolean[][] | null>(null);
 
@@ -43,19 +47,17 @@ export function DealLinkQrButton({ path }: { path: string }) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button type="button" variant="outline">
+        <Button type="button" variant="outline" size="lg" className={className}>
           <HugeiconsIcon icon={QrCodeIcon} aria-hidden />
           QR code
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="md:max-w-sm">
         <DialogHeader>
           <DialogTitle>Scan to join</DialogTitle>
-          <DialogDescription>
-            Have them scan this with their phone camera. It opens the same link.
-          </DialogDescription>
+          <DialogDescription>Opens the same link on their phone.</DialogDescription>
         </DialogHeader>
-        <div className="mx-auto w-full max-w-64">
+        <div className="mx-auto w-full max-w-72">
           {matrix ? (
             <svg
               viewBox={`0 0 ${matrix.length} ${matrix.length}`}
@@ -73,6 +75,13 @@ export function DealLinkQrButton({ path }: { path: string }) {
             </div>
           )}
         </div>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" size="lg" className="w-full">
+              Done
+            </Button>
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

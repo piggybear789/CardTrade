@@ -12,7 +12,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkCircle02Icon, Clock01Icon } from '@hugeicons/core-free-icons';
+import { AlertCircleIcon, CheckmarkCircle02Icon, Clock01Icon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import type { HostReadiness } from '@/lib/actions/dealInvites';
@@ -21,7 +21,10 @@ const VERIFY_HREF = '/profile?tab=verification';
 
 type DealKind = 'CASH_SALE' | 'TRADE';
 
-/** The host's own view, on the link screen. */
+/**
+ * The host's own view, on the link screen: a quiet tick once there is nothing left
+ * to do, and otherwise a to-do with the way to do it.
+ */
 export function HostVerificationNotice({
   kind,
   readiness,
@@ -34,7 +37,7 @@ export function HostVerificationNotice({
       <StatusLine tone="done">
         {kind === 'TRADE'
           ? "You're verified with Stripe Identity."
-          : "You're verified with Stripe Identity and set up to be paid."}
+          : "You're verified and set up to be paid."}
       </StatusLine>
     );
   }
@@ -44,29 +47,33 @@ export function HostVerificationNotice({
       ? {
           title: 'Stripe Identity required',
           body: 'Both of you verify before the holds go on. It takes a few minutes with a photo ID.',
-          action: 'Verify with Stripe',
+          action: 'Verify now',
         }
       : readiness === 'payout-setup-needed'
         ? {
             title: 'Finish payout setup',
             body: 'Required before they can pay.',
-            action: 'Finish payout setup',
+            action: 'Finish setup',
           }
         : {
             title: 'Verify with Stripe',
             body: 'Stripe Identity and payout setup are required before they can pay. It takes a few minutes with a photo ID.',
-            action: 'Verify with Stripe',
+            action: 'Verify now',
           };
 
+  // Amber for the mark: this is the host's own move, which is what `--action` means.
   return (
-    <div className="grid gap-snug rounded-lg border p-cozy">
-      <p className="text-body font-medium">{copy.title}</p>
-      <p className="text-body text-muted-foreground">{copy.body}</p>
-      <div>
-        <Button asChild variant="outline" size="sm">
-          <Link href={VERIFY_HREF}>{copy.action}</Link>
-        </Button>
+    <div className="grid gap-group rounded-lg border p-group">
+      <div className="flex items-center gap-cozy">
+        <HugeiconsIcon icon={AlertCircleIcon} className="size-5 shrink-0 text-action-edge" aria-hidden />
+        <div className="grid gap-tight">
+          <p className="text-body font-medium text-foreground">{copy.title}</p>
+          <p className="text-pretty text-body text-muted-foreground">{copy.body}</p>
+        </div>
       </div>
+      <Button asChild variant="outline" size="lg">
+        <Link href={VERIFY_HREF}>{copy.action}</Link>
+      </Button>
     </div>
   );
 }
@@ -166,10 +173,10 @@ export function SwapIdentityRequirement({
 
 function StatusLine({ tone, children }: { tone: 'done' | 'waiting'; children: string }) {
   return (
-    <p className="flex items-start gap-snug text-body text-muted-foreground">
+    <p className="flex items-center gap-snug text-body text-muted-foreground">
       <HugeiconsIcon
         icon={tone === 'done' ? CheckmarkCircle02Icon : Clock01Icon}
-        className={tone === 'done' ? 'mt-0.5 size-4 shrink-0 text-trust' : 'mt-0.5 size-4 shrink-0 text-muted-foreground'}
+        className={tone === 'done' ? 'size-4 shrink-0 text-trust' : 'size-4 shrink-0 text-muted-foreground'}
         aria-hidden
       />
       <span>{children}</span>

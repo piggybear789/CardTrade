@@ -47,10 +47,11 @@ test.describe.serial('Private cash deal → sale room', () => {
     });
 
     invitePath = await composeCashDeal(page, description, '150.00');
-    await expect(page.getByRole('heading', { name: 'Your link is ready' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Your deal link' })).toBeVisible({
       timeout: RENDERED,
     });
-    await expect(page.getByRole('button', { name: /Copy deal link/i })).toBeVisible();
+    // Exactly one "Copy link" at any width: the primary from `md`, beside QR code on a phone.
+    await expect(page.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
     // Joining needs no verification any more; paying does, and the host is told so.
     await expect(page.getByText(/before they can pay|set up to be paid/i).first()).toBeVisible();
 
@@ -100,7 +101,7 @@ test.describe.serial('Private cash deal → sale room', () => {
   test('the host cannot join their own deal', async ({ browser }) => {
     const { ctx, page } = await asUser(browser, ALICE);
     await page.goto(invitePath);
-    await expect(page.getByRole('heading', { name: 'Your link is ready' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Your deal link' })).toBeVisible({
       timeout: COLD_ROUTE,
     });
     await expect(page.getByRole('button', { name: 'Join this deal' })).toHaveCount(0);
@@ -184,7 +185,11 @@ test.describe.serial('Revoke unused invite', () => {
     await alice.page.goto('/deals');
     await alice.page.waitForLoadState('domcontentloaded');
     const invitePath = await composeCashDeal(alice.page, description, '50.00');
-    await alice.page.getByRole('button', { name: 'Cancel invite' }).click();
+    await alice.page.getByRole('button', { name: 'Cancel this link' }).click();
+    await alice.page
+      .getByRole('dialog')
+      .getByRole('button', { name: 'Cancel link', exact: true })
+      .click();
     await expect(alice.page).toHaveURL(/\/sales/, { timeout: COLD_ROUTE });
     await alice.ctx.close();
 

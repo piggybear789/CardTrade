@@ -13,6 +13,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { createClient } from '@/lib/supabase/server';
 import { ensureProfile } from '@/lib/auth/ensureProfile';
+import { finishesOwnOnboarding } from '@/lib/deals/paths';
 
 /** Fallback destination for a User who already has a Profile. */
 const DEFAULT_DESTINATION = '/';
@@ -124,12 +125,15 @@ export async function GET(request: NextRequest) {
   }
 
   // New users go through onboarding, carrying the intended destination so the
-  // post-onboarding hop can resume the original task. Returning users go to
-  // that destination (or the catalog as fallback).
+  // post-onboarding hop can resume the original task — unless that destination asks
+  // its own two onboarding questions (the deal composer, an invite). Returning users
+  // go to the destination (or the catalog as fallback).
   const destination = profile.created
-    ? next
-      ? `/onboarding?redirectTo=${encodeURIComponent(next)}`
-      : '/onboarding'
+    ? next && finishesOwnOnboarding(next)
+      ? next
+      : next
+        ? `/onboarding?redirectTo=${encodeURIComponent(next)}`
+        : '/onboarding'
     : (next ?? DEFAULT_DESTINATION);
 
   return NextResponse.redirect(new URL(destination, origin));

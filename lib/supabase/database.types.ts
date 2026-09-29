@@ -2669,13 +2669,17 @@ export type Database = {
           p_buyer_id: string;
           p_agreed_price_cents: number;
           p_platform_fee_cents: number;
-          p_seller_identity_version: string;
-          p_seller_legal_entity_name: string;
+          /**
+           * The identity arguments are null for a private-deal sale, whose Buyer
+           * confirms the verified Seller at Pay instead. The columns are nullable.
+           */
+          p_seller_identity_version: string | null;
+          p_seller_legal_entity_name: string | null;
           p_seller_trading_name: string | null;
           p_seller_registration_number: string;
           p_seller_organisation_type: string | null;
-          p_seller_identity_verified_at: string;
-          p_buyer_identity_confirmed_at: string;
+          p_seller_identity_verified_at: string | null;
+          p_buyer_identity_confirmed_at: string | null;
           /**
            * Opening line items for a SHOPFRONT contract, written in the same
            * transaction (0064). Required for a shopfront, null for a SINGLE

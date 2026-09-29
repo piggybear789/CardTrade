@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+import { finishesOwnOnboarding } from "@/lib/deals/paths";
 import { hasSupabaseSessionCookie } from "@/lib/supabase/sessionCookie";
 
 // Protected-route middleware (Req 1.7).
@@ -24,7 +25,8 @@ const PROTECTED_PREFIXES = [
   "/saved",
   "/account",
   "/onboarding",
-  "/deals",
+  // NOT `/deals`. The composer is open to guests and asks for an account at Get
+  // link, after the deal is written. See `finishesOwnOnboarding`.
   // Covers /admin/arbitration too. Middleware only proves there IS a session — the
   // capability check is the page's own `is_admin` read and `requireStaff`, and every
   // staff action re-checks. This entry exists so an anonymous visitor is sent to
@@ -149,7 +151,16 @@ export async function proxy(request: NextRequest) {
     pathname === '/' ||
     (pathname.startsWith('/listings/') && !isProtected(pathname));
 
-  if (user && pathname !== '/onboarding' && (isProtected(pathname) || onCatalog)) {
+  // The deal composer finishes a new account's onboarding itself, in two questions,
+  // so it is exempt from the wizard redirect below. The fraud-ban redirect still
+  // applies: a banned member is turned away here as everywhere else.
+  const ownOnboarding = finishesOwnOnboarding(pathname);
+
+  if (
+    user &&
+    pathname !== '/onboarding' &&
+    (isProtected(pathname) || onCatalog || ownOnboarding)
+  ) {
     // Same reasoning as the auth read above: a throw here would 500 the request
     // rather than fail the gate. Both branches below are already written to no-op
     // when `profileError` is set, so an unreadable profile just means neither
@@ -177,7 +188,7 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(suspendedUrl);
     }
 
-    if (!profileError && !profile?.onboarding_completed_at) {
+    if (!profileError && !profile?.onboarding_completed_at && !ownOnboarding) {
       const onboardingUrl = request.nextUrl.clone();
       const search = request.nextUrl.search;
       onboardingUrl.pathname = '/onboarding';

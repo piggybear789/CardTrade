@@ -285,8 +285,15 @@ export interface CashSaleRecord {
   sellerHandoverConfirmedAt: string | null;
   completedAt: string | null;
   conversationId: string | null;
-  sellerIdentity: SellerIdentityDisclosure;
-  buyerSellerIdentityConfirmedAt: string;
+  /**
+   * The verified Seller the Buyer confirmed they are paying, frozen onto the contract.
+   *
+   * Null only on a private-deal sale opened before the Seller verified: the two agree
+   * the handover in the room first, and the Buyer confirms the verified Seller at Pay,
+   * which is when `acceptCashSaleTerms` records it. Nothing is collected while it is null.
+   */
+  sellerIdentity: SellerIdentityDisclosure | null;
+  buyerSellerIdentityConfirmedAt: string | null;
   /** Release leg of escrow (Req 4.3). See {@link CashSalePayoutStatus}. */
   sellerPayoutStatus: CashSalePayoutStatus;
   /** Provider transfer id once the Seller has been paid. */
@@ -450,8 +457,9 @@ export interface CreateCashSaleParams {
   sellerId: string;
   agreedPriceCents: Cents;
   platformFeeCents: Cents;
-  sellerIdentity: SellerIdentityDisclosure;
-  buyerSellerIdentityConfirmedAt: string;
+  /** Null for a private-deal sale; recorded at Pay instead. See `CashSaleRecord`. */
+  sellerIdentity: SellerIdentityDisclosure | null;
+  buyerSellerIdentityConfirmedAt: string | null;
   /**
    * Opening line items, written in the same transaction as the agreement.
    *
@@ -515,6 +523,17 @@ export interface CashSaleRepository {
   loadItem(itemId: string): Promise<ItemRecord | null>;
   createAgreement(params: CreateCashSaleParams): Promise<CashSaleRecord | null>;
   loadCashSale(cashSaleId: string): Promise<CashSaleRecord | null>;
+  /**
+   * Freeze the Seller's verified identity onto a sale opened without one, as the Buyer
+   * confirms it at Pay. Guarded on AGREEMENT and on no identity having been recorded,
+   * so it can never overwrite what an earlier Buyer confirmation froze. Null when the
+   * guard refused.
+   */
+  recordSellerIdentity(params: {
+    cashSaleId: string;
+    sellerIdentity: SellerIdentityDisclosure;
+    confirmedAt: string;
+  }): Promise<CashSaleRecord | null>;
   updateTerms(params: {
     cashSaleId: string;
     actorId: string;
@@ -889,6 +908,13 @@ export interface InitiateCashSaleParams {
   lineItems?: readonly CashSaleLineItemDraft[];
 }
 
+/** A claimed private-deal invite, opening its Cash_Sale. See {@link openPrivateDealCashSale}. */
+export interface OpenPrivateDealCashSaleParams {
+  buyerId: string;
+  itemId: string;
+  agreedPriceCents: Cents;
+}
+
 /**
  * Format integer cents as AUD for an audit/chat detail string. The domain stays
  * free of UI helpers, so this local formatter keeps `lib/format` out of it.
@@ -1009,6 +1035,17 @@ function normalizeCoord(
   return hasValidCoordinate(value ?? null, min, max) ? (value ?? null) : null;
 }
 
+/**
+ * When the Buyer confirms which verified Seller they are paying.
+ *
+ * `NOW` is Buy Now and offers: the listing already shows the verified Seller, so the
+ * Buyer confirms before the agreement exists. `AT_PAYMENT` is a private deal, where
+ * the room opens first and `acceptCashSaleTerms` takes the confirmation at Pay.
+ */
+type AgreementIdentity =
+  | { when: 'NOW'; sellerIdentityVersion: string; buyerConfirmedSellerIdentity: boolean }
+  | { when: 'AT_PAYMENT' };
+
 /** Buy Now creates a reserved agreement; it does not submit payment. */
 export async function initiateCashSale(
   deps: CashSaleOrchestratorDeps,
@@ -1023,6 +1060,55 @@ export async function initiateCashSale(
     };
   }
 
+  return openAgreement(deps, buyer, {
+    buyerId: params.buyerId,
+    itemId: params.itemId,
+    agreedPriceCents: params.agreedPriceCents,
+    lineItems: params.lineItems,
+    identity: {
+      when: 'NOW',
+      sellerIdentityVersion: params.sellerIdentityVersion,
+      buyerConfirmedSellerIdentity: params.buyerConfirmedSellerIdentity,
+    },
+  });
+}
+
+/**
+ * Open the Cash_Sale behind a claimed private-deal invite.
+ *
+ * Needs neither the Buyer's card nor the Seller's verified identity yet. The two of
+ * them agree the handover in the room first; `acceptCashSaleTerms` requires both at
+ * Pay, before anything is collected, and records the Seller the Buyer confirmed.
+ */
+export async function openPrivateDealCashSale(
+  deps: CashSaleOrchestratorDeps,
+  params: OpenPrivateDealCashSaleParams,
+): Promise<CashSaleResult> {
+  // A missing Profile still reaches the region guard, which refuses an unknown region.
+  const buyer = (await deps.repository.loadBuyer(params.buyerId)) ?? {
+    profileId: params.buyerId,
+    payerId: null,
+    paymentSourceId: null,
+  };
+  return openAgreement(deps, buyer, {
+    buyerId: params.buyerId,
+    itemId: params.itemId,
+    agreedPriceCents: params.agreedPriceCents,
+    identity: { when: 'AT_PAYMENT' },
+  });
+}
+
+async function openAgreement(
+  deps: CashSaleOrchestratorDeps,
+  buyer: BuyerRecord,
+  params: {
+    buyerId: string;
+    itemId: string;
+    agreedPriceCents?: Cents;
+    lineItems?: readonly CashSaleLineItemDraft[];
+    identity: AgreementIdentity;
+  },
+): Promise<CashSaleResult> {
   const item = await deps.repository.loadItem(params.itemId);
   if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
   if (item.ownerId === params.buyerId) return { ok: false, error: 'SELF_PURCHASE' };
@@ -1067,14 +1153,17 @@ export async function initiateCashSale(
     return { ok: false, error: 'ITEM_UNAVAILABLE' };
   }
 
-  const payee = await deps.repository.loadSellerPayee(item.ownerId);
-  const sellerIdentity = sellerIdentityDisclosure(payee);
-  if (!sellerIdentity) return { ok: false, error: 'SELLER_IDENTITY_UNVERIFIED' };
-  if (!params.buyerConfirmedSellerIdentity) {
-    return { ok: false, error: 'BUYER_CONFIRMATION_REQUIRED' };
-  }
-  if (params.sellerIdentityVersion !== sellerIdentity.version) {
-    return { ok: false, error: 'SELLER_IDENTITY_CHANGED' };
+  let sellerIdentity: SellerIdentityDisclosure | null = null;
+  if (params.identity.when === 'NOW') {
+    const payee = await deps.repository.loadSellerPayee(item.ownerId);
+    sellerIdentity = sellerIdentityDisclosure(payee);
+    if (!sellerIdentity) return { ok: false, error: 'SELLER_IDENTITY_UNVERIFIED' };
+    if (!params.identity.buyerConfirmedSellerIdentity) {
+      return { ok: false, error: 'BUYER_CONFIRMATION_REQUIRED' };
+    }
+    if (params.identity.sellerIdentityVersion !== sellerIdentity.version) {
+      return { ok: false, error: 'SELLER_IDENTITY_CHANGED' };
+    }
   }
 
   const lineItems = normalizeLineItems(params.lineItems);
@@ -1117,7 +1206,7 @@ export async function initiateCashSale(
         deps.platformFeeCents ??
         platformFeeCentsFor(agreedPriceCents, regionCurrency(item.ownerRegionCode)),
       sellerIdentity,
-      buyerSellerIdentityConfirmedAt: currentIso(deps),
+      buyerSellerIdentityConfirmedAt: sellerIdentity ? currentIso(deps) : null,
       lineItems: shopfront ? lineItems : undefined,
     });
   } catch (e: unknown) {
@@ -1525,7 +1614,7 @@ async function submitClaimedPayment(
 
   const payee = await deps.repository.loadSellerPayee(sale.sellerId);
   const identity = sellerIdentityDisclosure(payee);
-  if (!identity || identity.version !== sale.sellerIdentity.version) {
+  if (!identity || !sale.sellerIdentity || identity.version !== sale.sellerIdentity.version) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
     await syncListingStatus(deps, sale, 'AVAILABLE');
     return { ok: false, error: 'SELLER_IDENTITY_CHANGED' };
@@ -1602,7 +1691,17 @@ async function submitClaimedPayment(
  */
 export async function acceptCashSaleTerms(
   deps: CashSaleOrchestratorDeps,
-  params: { actorId: string; cashSaleId: string; termsVersion: number },
+  params: {
+    actorId: string;
+    cashSaleId: string;
+    termsVersion: number;
+    /**
+     * The verified Seller the Buyer was shown at Pay. Required only on a sale opened
+     * without one (a private deal); ignored once the contract has frozen an identity.
+     */
+    sellerIdentityVersion?: string;
+    buyerConfirmedSellerIdentity?: boolean;
+  },
 ): Promise<CashSaleResult> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
   if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
@@ -1638,6 +1737,44 @@ export async function acceptCashSaleTerms(
         detail: 'List the items this contract covers before paying.',
       };
     }
+  }
+
+  // A PRIVATE DEAL CONFIRMS WHO IS BEING PAID HERE. Its sale opened before the Seller
+  // verified, so the Buyer confirms the verified Seller now, against the version they
+  // were shown, and it is frozen onto the contract before anything is collected.
+  let pendingIdentity: SellerIdentityDisclosure | null = null;
+  if (!sale.sellerIdentity) {
+    const payee = await deps.repository.loadSellerPayee(sale.sellerId);
+    pendingIdentity = sellerIdentityDisclosure(payee);
+    if (!pendingIdentity) return { ok: false, error: 'SELLER_IDENTITY_UNVERIFIED' };
+    if (!params.buyerConfirmedSellerIdentity) {
+      return { ok: false, error: 'BUYER_CONFIRMATION_REQUIRED' };
+    }
+    if (params.sellerIdentityVersion !== pendingIdentity.version) {
+      return { ok: false, error: 'SELLER_IDENTITY_CHANGED' };
+    }
+  }
+
+  // THE CARD, BEFORE ANYTHING MOVES. `submitClaimedPayment` fails the sale and relists
+  // the item when there is no card, which is right for a card removed mid-payment and
+  // wrong as the answer to pressing Pay before adding one. Refused here with the sale
+  // untouched, so the room can collect a card and the Buyer can pay straight after.
+  const buyer = await deps.repository.loadBuyer(sale.buyerId);
+  if (!buyer?.payerId || !buyer.paymentSourceId) {
+    return {
+      ok: false,
+      error: 'BUYER_NO_PAYMENT_METHOD',
+      detail: 'Add a card before you pay.',
+    };
+  }
+
+  if (pendingIdentity) {
+    const recorded = await deps.repository.recordSellerIdentity({
+      cashSaleId: sale.id,
+      sellerIdentity: pendingIdentity,
+      confirmedAt: currentIso(deps),
+    });
+    if (!recorded) return { ok: false, error: 'INVALID_STATE' };
   }
 
   const nonce =
@@ -3313,6 +3450,8 @@ export async function settleCashSaleDisputeAsParty(
 
 export interface CashSaleOrchestrator {
   initiateCashSale(params: InitiateCashSaleParams): Promise<CashSaleResult>;
+  /** Open the sale behind a claimed private-deal invite. See {@link openPrivateDealCashSale}. */
+  openPrivateDealCashSale(params: OpenPrivateDealCashSaleParams): Promise<CashSaleResult>;
   updateTerms(params: {
     actorId: string;
     cashSaleId: string;
@@ -3338,6 +3477,8 @@ export interface CashSaleOrchestrator {
     actorId: string;
     cashSaleId: string;
     termsVersion: number;
+    sellerIdentityVersion?: string;
+    buyerConfirmedSellerIdentity?: boolean;
   }): Promise<CashSaleResult>;
   settleCashSale(params: { cashSaleId: string }): Promise<CashSaleResult>;
   failCashSale(params: { cashSaleId: string }): Promise<CashSaleResult>;
@@ -3450,6 +3591,7 @@ export function createCashSaleOrchestrator(
 ): CashSaleOrchestrator {
   return {
     initiateCashSale: (params) => initiateCashSale(deps, params),
+    openPrivateDealCashSale: (params) => openPrivateDealCashSale(deps, params),
     updateTerms: (params) => updateCashSaleTerms(deps, params),
     proposePrice: (params) => proposeCashSalePrice(deps, params),
     replaceLineItems: (params) => replaceCashSaleItems(deps, params),

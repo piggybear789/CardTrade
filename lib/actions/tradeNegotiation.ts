@@ -335,7 +335,7 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
         message:
           partyId === userId
             ? identityGateMessage('trade', gate.state)
-            : 'The other trader has not finished payout setup, so this trade cannot lock yet.',
+            : 'Both traders must verify with Stripe Identity before the swap can start. The other trader has not verified yet.',
       };
     }
   }
@@ -443,7 +443,7 @@ export const retryTradeCollateral = withActionLog('tradeNegotiation.retryTradeCo
         message:
           partyId === userId
             ? identityGateMessage('trade', gate.state)
-            : 'The other trader has not finished identity verification, so this trade cannot lock yet.',
+            : 'Both traders must verify with Stripe Identity before the swap can start. The other trader has not verified yet.',
       };
     }
   }

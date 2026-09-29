@@ -102,7 +102,6 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
         );
       })}
       <StartDealButton
-        isAuthenticated={isAuthenticated}
         variant="ghost"
         size="sm"
         className="relative"

@@ -2,8 +2,10 @@
 
 // components/deals/DealInviteShare.tsx
 //
-// Host view of an unused invite: one small card. Title, a two-line recap of
-// the deal, the link with its copy action, and a quiet cancel. Nothing else.
+// The host's view of an unused invite, and where the composer lands on Get link:
+// the deal recapped, the link with copy, share and a QR code for meetups, the link's
+// two facts, and what Stripe still needs from the host before the deal can go
+// through. Opening the link again later shows exactly this screen.
 
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -14,12 +16,17 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
 import { CopyDealLink } from '@/components/deals/CopyDealLink';
-import { formatAud } from '@/lib/format';
+import { DealLinkQrButton } from '@/components/deals/DealLinkQrButton';
+import { HostVerificationNotice } from '@/components/deals/DealVerificationNotice';
+import { ShareDealLinkButton } from '@/components/deals/ShareDealLinkButton';
+import { formatMoney } from '@/lib/format';
 import { revokeDealInvite, type DealInvitePreview } from '@/lib/actions/dealInvites';
+import { dealInvitePath } from '@/lib/deals/paths';
 import { navigateWithType } from '@/lib/motion/navigate';
 
 function inboxPath(preview: DealInvitePreview): string {
@@ -29,7 +36,7 @@ function inboxPath(preview: DealInvitePreview): string {
 }
 
 function roleLine(preview: DealInvitePreview): string {
-  if (preview.kind === 'TRADE') return 'Trade';
+  if (preview.kind === 'TRADE') return 'You are swapping';
   return preview.hostRole === 'BUYER' ? 'You are buying' : 'You are selling';
 }
 
@@ -37,51 +44,75 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
+  const path = dealInvitePath(preview.token);
   const amountCents = preview.priceCents ?? preview.item?.fmvCents ?? null;
   const subject = preview.item?.title ?? preview.wantedDescription ?? null;
+  const amount = amountCents != null ? formatMoney(amountCents, preview.currency ?? 'aud') : null;
+  const shareText =
+    preview.kind === 'TRADE'
+      ? `Swap on NoDitto${subject ? `: ${subject}` : ''}`
+      : `Deal on NoDitto${subject ? `: ${subject}` : ''}`;
+
+  function cancelInvite() {
+    if (!preview.id) return;
+    startTransition(async () => {
+      const result = await revokeDealInvite(preview.id!);
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      navigateWithType(router, inboxPath(preview), 'nav-back');
+    });
+  }
 
   return (
-    <Card className="mx-auto w-full max-w-sm">
+    <Card className="mx-auto w-full max-w-md">
       <CardHeader>
-        <CardTitle>Waiting for them to join</CardTitle>
+        <CardTitle>Your link is ready</CardTitle>
         <CardDescription>
-          Share this link. When they join, you both land in the contract room.
+          Send it to the person you are dealing with. When they join, you both land in the deal
+          room.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-group">
         <div className="rounded-md bg-muted p-cozy">
           <p className="text-body text-muted-foreground">{roleLine(preview)}</p>
           <p className="mt-0.5 truncate text-lead font-semibold">
-            {amountCents != null ? (
-              <span className="tabular-nums">{formatAud(amountCents)}</span>
-            ) : null}
-            {amountCents != null && subject ? ' · ' : null}
+            {amount ? <span className="tabular-nums">{amount}</span> : null}
+            {amount && subject ? ' · ' : null}
             {subject}
           </p>
         </div>
 
-        <CopyDealLink path={`/t/${preview.token}`} appearance="ticket">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isPending || !preview.id}
-            onClick={() => {
-              if (!preview.id) return;
-              startTransition(async () => {
-                const result = await revokeDealInvite(preview.id!);
-                if (!result.ok) {
-                  toast.error(result.message);
-                  return;
-                }
-                
-                navigateWithType(router, inboxPath(preview), 'nav-back');
-              });
-            }}
-          >
-            Cancel invite
-          </Button>
-        </CopyDealLink>
+        <div className="grid gap-snug">
+          <CopyDealLink path={path} appearance="ticket">
+            <ShareDealLinkButton path={path} text={shareText} />
+          </CopyDealLink>
+          <div className="grid grid-cols-2 gap-snug">
+            <DealLinkQrButton path={path} />
+          </div>
+          <p className="text-meta text-muted-foreground">
+            The link works for 14 days. The first person to open it joins.
+          </p>
+        </div>
+
+        {preview.hostReadiness && preview.kind ? (
+          <HostVerificationNotice kind={preview.kind} readiness={preview.hostReadiness} />
+        ) : null}
       </CardContent>
+      <CardFooter className="justify-between gap-snug">
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={isPending || !preview.id}
+          onClick={cancelInvite}
+        >
+          Cancel invite
+        </Button>
+        <Button type="button" onClick={() => navigateWithType(router, inboxPath(preview), 'nav-back')}>
+          Done
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

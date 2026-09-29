@@ -1,12 +1,12 @@
 // tests/e2e/support/deals.ts
 //
-// Fill UnlistedItemDialog on a private-deal compose or join form.
+// Drive the private-deal composer, and fill UnlistedItemDialog on a join form.
 //
 // SELECTS BEFORE TEXT — same WebKit trap as createListing (F61). Photos last.
 
 import { expect, type Page } from '@playwright/test';
 import path from 'node:path';
-import { RENDERED } from './waiting';
+import { COLD_ROUTE, RENDERED } from './waiting';
 
 const TEST_IMAGE = path.resolve(__dirname, '..', 'fixtures', 'test-image.png');
 
@@ -101,4 +101,50 @@ async function fillFields(
   await scope.locator(`#${idPrefix}-description`).fill(description);
   await scope.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
   await expect(scope.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 });
+}
+
+/** Press Get link on the Review step and return the invite path it lands on. */
+async function getLink(page: Page): Promise<string> {
+  await expect(page.getByRole('heading', { name: 'Review your deal' })).toBeVisible({
+    timeout: RENDERED,
+  });
+  await page.getByRole('button', { name: 'Get link' }).click();
+  await expect(page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
+  return new URL(page.url()).pathname;
+}
+
+/**
+ * Compose a sale as a signed-in member: deal type, card, price, review, Get link.
+ * Returns the invite path.
+ */
+export async function composeCashDeal(
+  page: Page,
+  description: string,
+  price: string,
+): Promise<string> {
+  await chooseTile(page, /Sell a card/i);
+  await fillUnlistedCard(page, description);
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByLabel('Price', { exact: true }).fill(price);
+  await page.getByRole('button', { name: 'Next' }).click();
+  return getLink(page);
+}
+
+/**
+ * Compose a swap as a signed-in member: deal type, card, swap terms, review, Get
+ * link. Returns the invite path.
+ */
+export async function composeSwapDeal(
+  page: Page,
+  description: string,
+  wanted: string,
+  value: string,
+): Promise<string> {
+  await chooseTile(page, /Swap cards/i);
+  await fillUnlistedCard(page, description);
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByLabel('What do you want for it?').fill(wanted);
+  await page.getByLabel('What is your card worth?').fill(value);
+  await page.getByRole('button', { name: 'Next' }).click();
+  return getLink(page);
 }

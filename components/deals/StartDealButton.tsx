@@ -2,8 +2,9 @@
 
 // components/deals/StartDealButton.tsx
 //
-// Surfaces that open the compose dialog. Guests go to sign-up and come back
-// with `?deal=1`, which StartDealProvider turns into the dialog.
+// Surfaces that open the compose dialog. Signed-out visitors open it too: the
+// composer asks for an account at Get link, after the deal is written, so there
+// is no sign-up detour in front of it.
 //
 // The label is "Private Deal"; the symbols are still `StartDeal*`. That split is
 // deliberate and not worth closing: `useStartDeal`, `DEAL_OPEN_PATH`, `?deal=1`
@@ -14,22 +15,18 @@
 
 import type { ReactNode } from 'react';
 
-import { DEAL_OPEN_PATH } from '@/components/deals/dealPaths';
 import { useStartDeal } from '@/components/deals/StartDealProvider';
-import { SignInLink } from '@/components/layout/SignInLink';
 import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 
 export function StartDealButton({
-  isAuthenticated,
   variant = 'outline',
   size,
   className,
   children = 'Private Deal',
   onOpen,
 }: {
-  isAuthenticated: boolean;
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
   className?: string;
@@ -38,16 +35,6 @@ export function StartDealButton({
   onOpen?: () => void;
 }) {
   const { openDeal } = useStartDeal();
-
-  if (!isAuthenticated) {
-    return (
-      <Button asChild variant={variant} size={size} className={className}>
-        <SignInLink target="/sign-up" redirectTo={DEAL_OPEN_PATH}>
-          {children}
-        </SignInLink>
-      </Button>
-    );
-  }
 
   return (
     <Button
@@ -66,23 +53,13 @@ export function StartDealButton({
 }
 
 export function StartDealTextLink({
-  isAuthenticated,
   className,
   children = 'Private Deal',
 }: {
-  isAuthenticated: boolean;
   className?: string;
   children?: ReactNode;
 }) {
   const { openDeal } = useStartDeal();
-
-  if (!isAuthenticated) {
-    return (
-      <SignInLink target="/sign-up" redirectTo={DEAL_OPEN_PATH} className={className}>
-        {children}
-      </SignInLink>
-    );
-  }
 
   return (
     <button type="button" className={className} onClick={openDeal}>
@@ -97,13 +74,11 @@ export function StartDealRailAction() {
 }
 
 export function StartDealEmptyState({
-  isAuthenticated,
   actionLabel = 'Private Deal',
   actionVariant,
   showAction = true,
   ...props
 }: Omit<Parameters<typeof EmptyState>[0], 'action'> & {
-  isAuthenticated: boolean;
   actionLabel?: string;
   actionVariant?: 'default' | 'outline';
   /** Set false when a sibling already offers the same action. */
@@ -115,19 +90,9 @@ export function StartDealEmptyState({
     <EmptyState
       {...props}
       action={
-        !showAction
-          ? undefined
-          : isAuthenticated
-            ? {
-                label: actionLabel,
-                variant: actionVariant,
-                onClick: openDeal,
-              }
-            : {
-                label: actionLabel,
-                variant: actionVariant,
-                href: `/sign-up?redirectTo=${encodeURIComponent(DEAL_OPEN_PATH)}`,
-              }
+        showAction
+          ? { label: actionLabel, variant: actionVariant, onClick: openDeal }
+          : undefined
       }
     />
   );

@@ -37,7 +37,7 @@ async function signInAs(
 test.describe('protected routes redirect unauthenticated users', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new', '/deals'];
+  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new'];
 
   for (const path of protectedPaths) {
     test(`${path} -> /sign-in?redirectTo=${path}`, async ({ page }) => {
@@ -83,6 +83,19 @@ test.describe('public routes are accessible without auth', () => {
     await expect(
       page.getByRole('heading', { name: 'Create your account' }),
     ).toBeVisible();
+  });
+
+  test('/deals -> the deal composer opens for a signed-out visitor', async ({ page }) => {
+    // The account is asked for at Get link, after the deal is written, not before.
+    await page.goto('/deals');
+    await expect(page).not.toHaveURL(/\/sign-in/);
+    await expect(page.getByRole('heading', { name: 'Start a deal' })).toBeVisible();
+  });
+
+  test('/deals/new -> permanently redirects to /deals', async ({ page }) => {
+    const response = await page.goto('/deals/new');
+    await expect(page).toHaveURL(/\/deals$/);
+    expect(response?.request().redirectedFrom()).not.toBeNull();
   });
 });
 

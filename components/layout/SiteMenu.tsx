@@ -230,7 +230,6 @@ export function SiteMenu({
                   <Link href="/listings/new">Sell an item</Link>
                 </Button>
                 <StartDealButton
-                  isAuthenticated={false}
                   variant="ghost"
                   size="sm"
                   className="!h-9 justify-start"
@@ -326,7 +325,6 @@ export function SiteMenu({
                     {group.label === 'Create' ? (
                       <>
                         <StartDealButton
-                          isAuthenticated
                           variant="ghost"
                           size="sm"
                           className="!h-9 justify-start"

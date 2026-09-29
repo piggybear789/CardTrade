@@ -8,7 +8,7 @@ import type { ReactNode } from 'react';
 
 import type { DealInvitePreview } from '@/lib/actions/dealInvites';
 import { StorageImage } from '@/components/ui/storage-image';
-import { formatAud, itemImageUrl } from '@/lib/format';
+import { formatMoney, itemImageUrl } from '@/lib/format';
 
 function dealLabel(preview: DealInvitePreview, audience: 'host' | 'guest'): string {
   if (preview.kind === 'TRADE') return 'Trade';
@@ -62,7 +62,9 @@ export function DealInviteFacts({
 
       {amountCents != null ? (
         <Fact label={amountLabel}>
-          <span className="display-value text-head">{formatAud(amountCents)}</span>
+          <span className="display-value text-head">
+            {formatMoney(amountCents, preview.currency ?? 'aud')}
+          </span>
         </Fact>
       ) : null}
 

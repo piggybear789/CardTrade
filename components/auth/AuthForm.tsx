@@ -20,6 +20,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { signIn, signUp } from "@/lib/actions/auth";
+import { finishesOwnOnboarding } from "@/lib/deals/paths";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -187,8 +188,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
         router.push(withRedirect("/sign-in", destination));
         return;
       }
-      
-      router.push(withRedirect("/onboarding", destination));
+
+      // The deal composer and an invite ask their own two onboarding questions, so a
+      // new account goes straight back to the deal it was writing or joining.
+      router.push(
+        destination && finishesOwnOnboarding(destination)
+          ? destination
+          : withRedirect("/onboarding", destination),
+      );
       router.refresh();
     });
   }

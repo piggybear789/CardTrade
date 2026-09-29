@@ -81,13 +81,16 @@ export function identityGateMessage(
   state: VerificationState,
 ): string {
   const what = ACTION_LABEL[action];
+  // Names Stripe Identity every time: a refusal that says only "verify" leaves the
+  // member guessing which of the account's checks it means, and whether it is one
+  // they can skip. It is not.
   switch (state) {
     case 'IN_PROGRESS':
-      return `Your identity check is still being reviewed. You can ${what} once it completes.`;
+      return `Stripe is still reviewing your identity check. You can ${what} once it completes.`;
     case 'NOT_APPROVED':
-      return `Your identity check could not be completed, so you cannot ${what} yet. You can try again from your account.`;
+      return `Your Stripe Identity check could not be completed, so you cannot ${what} yet. You can try again from your account.`;
     case 'NOT_STARTED':
     default:
-      return `Verify your identity before you ${what}. It takes about a minute and needs a photo ID.`;
+      return `Verify with Stripe Identity before you ${what}. It takes about a minute and needs a photo ID.`;
   }
 }

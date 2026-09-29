@@ -14,7 +14,7 @@ import {
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { DEAL_OPEN_PATH } from '@/components/deals/dealPaths';
+import { DEAL_OPEN_PATH } from '@/lib/deals/paths';
 
 const DEAL_QUERY = 'deal';
 

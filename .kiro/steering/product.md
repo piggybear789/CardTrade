@@ -31,7 +31,9 @@ This section is the inventory of what is **built**. Transaction-model invariants
 
 Google OAuth is live (`signInWithGoogle`). Guests may browse the catalog. Signed-in members without `onboarding_completed_at` are sent to `/onboarding` from catalog and every protected route (`proxy.ts`). `/` stays open. Fraud-banned members land on `/account-suspended`.
 
-Protected prefixes: `/profile`, `/listings/new`, `/listings/mine`, `/listings/[id]/edit`, `/trades`, `/messages`, `/notifications`, `/purchases`, `/sales`, `/offers`, `/saved`, `/account`, `/onboarding`, `/deals`, `/admin`.
+Protected prefixes: `/profile`, `/listings/new`, `/listings/mine`, `/listings/[id]/edit`, `/trades`, `/messages`, `/notifications`, `/purchases`, `/sales`, `/offers`, `/saved`, `/account`, `/onboarding`, `/admin`.
+
+`/deals` (the composer) and `/t/[token]` (an invite) are open to guests and finish a new account's onboarding themselves with two questions — display name and trading region — through `completeQuickOnboarding` (`finishesOwnOnboarding` in `lib/deals/paths.ts`). Sign-in returns a brand-new account straight to them instead of the wizard. The proxy still applies the fraud-ban redirect on `/deals`.
 
 ### Onboarding
 
@@ -157,7 +159,9 @@ Invite kinds:
 - `CASH_SALE` + host `BUYER` — host states a wanted description and a price; the joiner puts up the card
 - `TRADE` — host hidden card + wanted description + optional cash-to-even
 
-TTL **14 days**. Host can revoke. Self-join refused. Region + Identity (seller side) enforced on claim. A catalog listing cannot be attached (`privateItemProblem`). Pending invites are listed on `/sales`, `/purchases` and `/trades`.
+TTL **14 days**. Host can revoke. Self-join refused. Region enforced on create and claim. **Identity is not asked for to create or join an invite, and a buyer needs no saved card to join.** Those checks sit where money or a hold moves: a private-deal Cash_Sale opens with no seller identity frozen (`openPrivateDealCashSale`), and its Pay step (`acceptCashSaleTerms`) requires the seller's disclosure (Stripe Identity plus payout setup), takes the buyer's confirmation of the verified name and freezes it, and requires a card, collected in the room if missing. A swap's terms acceptance (`acceptTradeTerms`) requires Stripe Identity for **both** traders, and every swap surface says so plainly. A catalog listing cannot be attached (`privateItemProblem`). Pending invites are listed on `/sales`, `/purchases` and `/trades`.
+
+The composer keeps a signed-out visitor's draft, photos included, in IndexedDB (`components/deals/dealDraftStore.ts`) and restores it on `/deals?resume=1` after sign-in.
 
 ### Messaging
 

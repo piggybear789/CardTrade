@@ -148,7 +148,7 @@ A shareable invite (`deal_invites`, 0103) that opens a normal Cash_Sale or Trade
 
 | Route | What |
 |---|---|
-| `/deals/new` | Redirects to the homepage Start Deal dialog |
+| `/deals` | Deal composer dialog. `/deals/new` redirects here (`next.config.ts`) |
 | `/t/[token]` | Public join. Signed-out preview + sign-in. Claim opens a Cash_Sale or a Trade |
 
 Invite kinds:

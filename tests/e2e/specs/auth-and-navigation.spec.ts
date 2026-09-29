@@ -37,7 +37,7 @@ async function signInAs(
 test.describe('protected routes redirect unauthenticated users', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new', '/deals/new'];
+  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new', '/deals'];
 
   for (const path of protectedPaths) {
     test(`${path} -> /sign-in?redirectTo=${path}`, async ({ page }) => {

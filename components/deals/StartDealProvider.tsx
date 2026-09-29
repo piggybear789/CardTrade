@@ -1,6 +1,6 @@
 'use client';
 
-// Opens the private-deal composer. The form itself lives on `/deals/new`.
+// Opens the private-deal composer. The form itself lives on `/deals`.
 // Importing it here put the browser Supabase client on every catalog visit,
 // because this provider is mounted in the root layout.
 

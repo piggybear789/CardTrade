@@ -88,7 +88,7 @@ export function resolveMobileChrome(
     pathname.startsWith('/profile/') ||
     pathname.startsWith('/sellers/') ||
     pathname === '/trades/new' ||
-    pathname === '/deals/new'
+    pathname === '/deals'
   ) {
     return 'hierarchical';
   }

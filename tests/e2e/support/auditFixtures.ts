@@ -105,7 +105,7 @@ async function openTrade(
 }
 
 async function createPrivateInvite(page: Page, label: string): Promise<string> {
-  await page.goto('/deals/new');
+  await page.goto('/deals');
   await page.waitForLoadState('domcontentloaded');
   await expect(page.getByRole('heading', { name: 'Private deal' })).toBeVisible({
     timeout: COLD_ROUTE,

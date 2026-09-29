@@ -41,7 +41,7 @@ test.describe.serial('Private cash deal → sale room', () => {
   test('the host composes a cash deal from an unlisted card', async ({ browser }) => {
     const { ctx, page } = await asUser(browser, ALICE);
 
-    await page.goto('/deals/new');
+    await page.goto('/deals');
     await page.waitForLoadState('domcontentloaded');
     await expect(page.getByRole('heading', { name: 'Private deal' })).toBeVisible({
       timeout: COLD_ROUTE,
@@ -152,7 +152,7 @@ test.describe.serial('Private trade deal → trade room', () => {
   test('the host composes a trade from an unlisted card', async ({ browser }) => {
     const { ctx, page } = await asUser(browser, ALICE);
 
-    await page.goto('/deals/new');
+    await page.goto('/deals');
     await page.waitForLoadState('domcontentloaded');
     await chooseTile(page, /Trade cards/i);
     await fillUnlistedCard(page, hostDescription);
@@ -189,7 +189,7 @@ test.describe.serial('Revoke unused invite', () => {
 
   test('a cancelled invite cannot be claimed', async ({ browser }) => {
     const alice = await asUser(browser, ALICE);
-    await alice.page.goto('/deals/new');
+    await alice.page.goto('/deals');
     await alice.page.waitForLoadState('domcontentloaded');
     await chooseTile(alice.page, /Sell a card/i);
     await fillUnlistedCard(alice.page, description);

@@ -132,6 +132,13 @@ const nextConfig: NextConfig = {
         destination: '/',
         permanent: true,
       },
+      {
+        // The deal composer moved up to `/deals`. Kept for links and bookmarks
+        // made before the move; same edge-ahead-of-proxy reasoning as above.
+        source: '/deals/new',
+        destination: '/deals',
+        permanent: true,
+      },
     ];
   },
   // NOTE: `serverActions.bodySizeLimit` is deliberately left at the 1 MB default.

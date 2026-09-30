@@ -9,8 +9,9 @@ import '../../core/theme.dart';
 /// on the listing detail and as plain muted text on the card — it has never
 /// colour-coded a grade. The five-colour ramp this widget carried before mapped
 /// grades that are not the product's grades ("Good", "Fair", "Poor" against the
-/// real Graded / Unopened / Mint / Near Mint / Lightly Played / Heavily Played /
-/// Damaged), and it did so with four hex literals owned by nothing (Req 1.7).
+/// real Graded / Unopened / Near Mint / Lightly Played / Moderately Played /
+/// Heavily Played / Damaged), and it did so with four hex literals owned by
+/// nothing (Req 1.7).
 /// Colour-coding a grade also implies a judgement the marketplace does not make:
 /// a Damaged card at the right price is a good listing.
 class ConditionBadge extends StatelessWidget {
@@ -19,7 +20,7 @@ class ConditionBadge extends StatelessWidget {
     super.key,
   });
 
-  /// The condition label to display (for example 'Mint', 'Near Mint').
+  /// The condition label to display (for example 'Near Mint', 'Lightly Played').
   final String condition;
 
   @override

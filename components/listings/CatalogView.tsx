@@ -23,6 +23,7 @@ import {
   type CatalogSort,
 } from '@/lib/actions/listings';
 import { notifyCatalogQuery, subscribeCatalogBrowse } from '@/lib/catalog/browseEvents';
+import { normalizeConditionFilter } from '@/lib/catalog/conditions';
 
 const COUNT_FORMATTER = new Intl.NumberFormat('en-AU');
 const SORT_KEYS: CatalogSort[] = ['newest', 'price-asc', 'price-desc', 'rating'];
@@ -430,7 +431,9 @@ export function browseCurrentFromSearch(search: string): CatalogBrowseCurrent {
   return {
     q: params.get('q')?.trim() ?? '',
     categories: params.getAll('category').flatMap((value) => value.split(',').map((part) => part.trim()).filter(Boolean)),
-    conditions: params.getAll('condition').flatMap((value) => value.split(',').map((part) => part.trim()).filter(Boolean)),
+    conditions: normalizeConditionFilter(
+      params.getAll('condition').flatMap((value) => value.split(',')),
+    ),
     min: params.get('min')?.trim() ?? '',
     max: params.get('max')?.trim() ?? '',
     includeSold: params.get('sold') === '1',

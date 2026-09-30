@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { isCardGameName } from '@/lib/catalog/cardGames';
+import { isItemCondition } from '@/lib/catalog/conditions';
 import { runSchema, type ValidationResult } from './result';
 
 /**
@@ -113,7 +114,8 @@ export const itemSubmissionSchema = z.object({
     .refine(isCardGameName, 'Category is required'),
   condition: z
     .string({ error: 'Condition is required' })
-    .min(1, 'Condition is required'),
+    .min(1, 'Condition is required')
+    .refine(isItemCondition, 'Choose a condition from the list'),
   fmvCents: z
     .number({ error: 'Fair market value is required' })
     .int('Fair market value must be an integer number of cents')

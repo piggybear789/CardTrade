@@ -54,6 +54,7 @@ import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
+import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
 import {
   ITEM_FORM_ID,
   publishItemFormChrome,
@@ -80,17 +81,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-/** Condition grades shown for a collectible, matching TCGplayer's standard scale. */
-const CONDITIONS = [
-  "Graded",
-  "Unopened",
-  "Near Mint",
-  "Mint",
-  "Lightly Played",
-  "Heavily Played",
-  "Damaged",
-] as const;
 
 /** Inclusive image-count bounds enforced in the UI (mirrors Req 3.1/3.3). */
 const IMAGES_MIN = 1;
@@ -189,9 +179,13 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   const [game, setGame] = React.useState(() =>
     item ? cardGameSlug(item.category) : (restored?.game ?? ''),
   );
-  const [condition, setCondition] = React.useState(
-    item?.condition ?? restored?.condition ?? "",
-  );
+  // A stored grade that has since left the scale starts EMPTY rather than prefilled: the
+  // Select cannot display a value it has no option for, so it would sit blank while still
+  // holding one, and the seller could not see what they were about to save.
+  const [condition, setCondition] = React.useState<string>(() => {
+    const stored = item?.condition ?? restored?.condition ?? "";
+    return isItemCondition(stored) ? stored : "";
+  });
   // Immutable after creation: contracts already open against a shopfront depend
   // on it not being reserved, and a single listing's live contract depends on the
   // opposite. Switching either way mid-flight would break one of them.
@@ -1046,7 +1040,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                     <SelectValue placeholder="Select a condition" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CONDITIONS.map((c) => (
+                    {ITEM_CONDITIONS.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>

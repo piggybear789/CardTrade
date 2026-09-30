@@ -18,6 +18,7 @@ import { CheckIcon, Search01Icon, XIcon } from '@hugeicons/core-free-icons';
 
 import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
 import { subscribeCatalogFilters } from '@/lib/catalog/browseEvents';
+import { ITEM_CONDITIONS } from '@/lib/catalog/conditions';
 import {
   buildPriceLadderCents,
   nearestPriceStop,
@@ -72,17 +73,6 @@ const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
    stops — moved to `lib/catalog/priceLadder.ts` with the functions that used them, so
    the histogram buckets against the same stops the slider thumbs snap to. See the note
    there. */
-
-/** Condition filter options — matches ItemForm + adds "Graded" as a bucket. */
-const CONDITION_OPTIONS = [
-  'Graded',
-  'Unopened',
-  'Mint',
-  'Near Mint',
-  'Lightly Played',
-  'Heavily Played',
-  'Damaged',
-] as const;
 
 /** Current URL-backed catalog filter values. */
 export interface CatalogFilterState {
@@ -438,7 +428,7 @@ function CatalogRefineFields({
   // for the same reason.
   const conditionRows = (
     <div className="flex flex-wrap gap-1.5">
-      {CONDITION_OPTIONS.map((condition) => (
+      {ITEM_CONDITIONS.map((condition) => (
         <FilterSquare
           key={condition}
           label={condition}

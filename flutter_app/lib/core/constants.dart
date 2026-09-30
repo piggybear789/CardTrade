@@ -101,11 +101,15 @@ abstract final class AppConstants {
   ];
 
   // ─── Conditions ────────────────────────────────────────────────────────────
+  // Must match `lib/catalog/conditions.ts` on the web: the listing API refuses any
+  // other value. TCGplayer's scale for singles, plus the Graded and Unopened buckets.
   static const List<String> conditions = [
-    'Mint',
+    'Graded',
+    'Unopened',
     'Near Mint',
-    'Good',
-    'Fair',
-    'Poor',
+    'Lightly Played',
+    'Moderately Played',
+    'Heavily Played',
+    'Damaged',
   ];
 }

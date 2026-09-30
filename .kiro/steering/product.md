@@ -87,7 +87,7 @@ Create requires Identity_Gate and a seller identity disclosure. Title is **deriv
 
 **Category is the card game**, not a collectible type (0104): Pokémon, One Piece, Yu-Gi-Oh!, Magic: The Gathering, Riftbound, Disney Lorcana, Gundam, Flesh and Blood, Star Wars: Unlimited, Digimon, Dragon Ball Super, Weiss Schwarz, Cardfight!! Vanguard, Union Arena, Sports Cards, Other TCG (`lib/catalog/cardGames.ts`).
 
-Conditions: Graded, Unopened, Mint, Near Mint, Lightly Played, Heavily Played, Damaged.
+Conditions follow TCGplayer's scale, topped by Near Mint (there is no Mint grade): Graded, Unopened, Near Mint, Lightly Played, Moderately Played, Heavily Played, Damaged (`lib/catalog/conditions.ts`; enforced by `validateItemSubmission`, mirrored in `flutter_app/lib/core/constants.dart`).
 
 Catalog filters: `q`, `category` (multi), `condition` (multi), `min`/`max` dollars, `sold=1`, `sort`, `page`, `region`. Sort: `newest` | `price-asc` | `price-desc` | `rating`. Browse region is a display scope. Contracts still run `checkRegionCompatibility`.
 

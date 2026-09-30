@@ -55,6 +55,7 @@ import { readListingGate } from '@/lib/sellerListingGate';
 import { normalizeRegionCode } from '@/domain/region';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { CARD_GAME_NAMES, isCardGameName } from '@/lib/catalog/cardGames';
+import { normalizeConditionFilter } from '@/lib/catalog/conditions';
 import { catalogSearchAttempts } from '@/lib/catalog/searchQuery';
 import {
   buildPriceLadderCents,
@@ -1132,9 +1133,11 @@ export interface SearchCatalogParams {
   q?: string;
   /** Restrict to these categories (OR-ed together). */
   categories?: string[];
-  /** Restrict to a single condition (legacy, prefer `conditions`). */
-  condition?: string;
-  /** Restrict to these conditions (OR-ed together, multi-select). */
+  /**
+   * Restrict to these conditions (OR-ed together, multi-select). Cleaned by
+   * `normalizeConditionFilter`: a retired grade maps to its replacement and anything
+   * else off the scale is ignored.
+   */
   conditions?: string[];
   /** Minimum fair market value, in integer AUD cents (inclusive). */
   minCents?: number;
@@ -1339,13 +1342,9 @@ export const searchCatalog = withActionLog('listings.searchCatalog', async funct
     query = query.in('category', requestedGames.length > 0 ? requestedGames : CARD_GAME_NAMES);
 
     // Condition multi-select.
-    const conditions = (params.conditions ?? []).filter((c) => c.trim() !== '');
+    const conditions = normalizeConditionFilter(params.conditions ?? []);
     if (conditions.length > 0) {
       query = query.in('condition', conditions);
-    }
-    // Legacy single-condition param (backwards compat with old URLs).
-    if (conditions.length === 0 && params.condition && params.condition.trim() !== '') {
-      query = query.eq('condition', params.condition);
     }
 
     // Price range (integer AUD cents).

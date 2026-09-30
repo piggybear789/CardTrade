@@ -43,6 +43,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import { cashPriceProblem, dollarsToCents } from '@/domain/deals/dealInvite';
 import { updateDealInvite, type DealInviteEditable } from '@/lib/actions/dealInvites';
+import { isItemCondition } from '@/lib/catalog/conditions';
 
 interface DealEditDialogProps {
   inviteId: string;
@@ -88,7 +89,9 @@ function DealEditForm({
   const [card, setCard] = useState<UnlistedItemDraft>({
     description: editable.description,
     category: editable.category,
-    condition: editable.condition,
+    // A grade that has left the scale opens empty, so the dialog asks for one instead
+    // of holding a value its Select cannot show.
+    condition: isItemCondition(editable.condition) ? editable.condition : '',
     keptPaths: editable.imagePaths,
     images: [],
   });

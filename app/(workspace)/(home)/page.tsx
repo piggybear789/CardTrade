@@ -14,6 +14,7 @@ import {
   type CatalogSort,
 } from '@/lib/actions/listings';
 import { getMyWatchingSet } from '@/lib/actions/watchlist';
+import { normalizeConditionFilter } from '@/lib/catalog/conditions';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { CatalogFilters } from '@/components/listings/CatalogControls';
@@ -150,7 +151,7 @@ export default async function HomePage({
   const raw = await searchParams;
   const q = firstString(raw.q).trim();
   const categories = parseCategories(raw.category);
-  const conditions = parseCategories(raw.condition);
+  const conditions = normalizeConditionFilter(parseCategories(raw.condition));
   const minDollars = firstString(raw.min).trim();
   const maxDollars = firstString(raw.max).trim();
   const includeSold = firstString(raw.sold).trim() === '1';

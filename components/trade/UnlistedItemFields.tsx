@@ -19,6 +19,7 @@ import { ImagePlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { Label } from '@/components/ui/label';
 import { CARD_GAMES, cardGameName, cardGameSlug } from '@/lib/catalog/cardGames';
+import { ITEM_CONDITIONS } from '@/lib/catalog/conditions';
 import { itemImageUrl } from '@/lib/format';
 import {
   Select,
@@ -28,17 +29,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-
-/** Condition grades, mirroring the listing form (TCGplayer's standard scale). */
-export const CONDITIONS = [
-  'Graded',
-  'Unopened',
-  'Near Mint',
-  'Mint',
-  'Lightly Played',
-  'Heavily Played',
-  'Damaged',
-] as const;
 
 export const UNLISTED_IMAGES_MIN = 1;
 export const UNLISTED_IMAGES_MAX = 10;
@@ -189,7 +179,7 @@ export function UnlistedCategoryConditionFields({
             <SelectValue placeholder="Select" />
           </SelectTrigger>
           <SelectContent>
-            {CONDITIONS.map((c) => (
+            {ITEM_CONDITIONS.map((c) => (
               <SelectItem key={c} value={c}>
                 {c}
               </SelectItem>

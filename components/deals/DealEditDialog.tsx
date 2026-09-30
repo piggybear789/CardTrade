@@ -24,6 +24,7 @@ import {
   UnlistedCategoryConditionFields,
   UnlistedDescriptionField,
   UnlistedPhotoField,
+  UnlistedTitleField,
   unlistedDraftGap,
   type UnlistedItemDraft,
 } from '@/components/trade/UnlistedItemFields';
@@ -87,6 +88,7 @@ function DealEditForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [card, setCard] = useState<UnlistedItemDraft>({
+    title: editable.title,
     description: editable.description,
     category: editable.category,
     // A grade that has left the scale opens empty, so the dialog asks for one instead
@@ -163,12 +165,13 @@ function DealEditForm({
 
       <div className="space-y-group">
         <UnlistedPhotoField draft={card} onChange={setCard} idPrefix="deal-edit" />
+        <UnlistedTitleField draft={card} onChange={setCard} idPrefix="deal-edit" />
         <UnlistedDescriptionField
           draft={card}
           onChange={setCard}
           idPrefix="deal-edit"
           label={selling ? 'What are you selling?' : 'What are you trading?'}
-          placeholder="What it is, set, grade. Anything they should know."
+          placeholder="Condition details, grade, anything they should know."
         />
         <UnlistedCategoryConditionFields draft={card} onChange={setCard} idPrefix="deal-edit" />
 

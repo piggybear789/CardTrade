@@ -20,6 +20,7 @@ export async function pathsFromUnlistedDraft(
   return {
     ok: true,
     item: {
+      title: draft.title,
       description: draft.description,
       category: draft.category,
       condition: draft.condition,

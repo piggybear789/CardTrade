@@ -17,7 +17,9 @@ import { useEffect, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ImagePlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
+import { TITLE_MAX_LENGTH } from '@/domain/validation/item';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { CARD_GAMES, cardGameName, cardGameSlug } from '@/lib/catalog/cardGames';
 import { ITEM_CONDITIONS } from '@/lib/catalog/conditions';
 import { itemImageUrl } from '@/lib/format';
@@ -39,6 +41,7 @@ export const UNLISTED_IMAGES_MAX = 10;
  * owns because it is stated once for the whole side.
  */
 export interface UnlistedItemDraft {
+  title: string;
   description: string;
   category: string;
   condition: string;
@@ -53,6 +56,7 @@ export interface UnlistedItemDraft {
 
 /** An empty draft, used when opening the form to add rather than edit. */
 export const EMPTY_UNLISTED_DRAFT: UnlistedItemDraft = {
+  title: '',
   description: '',
   category: '',
   condition: '',
@@ -79,6 +83,7 @@ export function unlistedDraftGap(draft: UnlistedItemDraft): string | null {
   if (photos > UNLISTED_IMAGES_MAX) {
     return `Keep it to ${UNLISTED_IMAGES_MAX} photos.`;
   }
+  if (draft.title.trim() === '') return 'Give the card a title.';
   if (draft.description.trim() === '') return 'Describe the card.';
   if (draft.category === '') return 'Choose a category.';
   if (draft.condition === '') return 'Choose a condition.';
@@ -101,12 +106,30 @@ function update<K extends keyof UnlistedItemDraft>(
   onChange({ ...draft, [key]: value });
 }
 
+export function UnlistedTitleField({ draft, onChange, idPrefix = 'unlisted' }: PieceProps) {
+  const id = `${idPrefix}-title`;
+  return (
+    <div className="space-y-snug">
+      <Label htmlFor={id}>Title</Label>
+      <Input
+        id={id}
+        value={draft.title}
+        onChange={(e) => update(draft, onChange, 'title', e.target.value)}
+        maxLength={TITLE_MAX_LENGTH}
+        placeholder="1999 Charizard holo"
+        autoComplete="off"
+        spellCheck={false}
+      />
+    </div>
+  );
+}
+
 export function UnlistedDescriptionField({
   draft,
   onChange,
   idPrefix = 'unlisted',
   label = 'Describe the card',
-  placeholder = '1999 Charizard holo, condition details, grading, anything they should know…',
+  placeholder = 'Condition details, grading, anything they should know…',
 }: PieceProps & {
   /**
    * A flow that knows what the card is FOR should say so — "What are you selling?",
@@ -117,9 +140,8 @@ export function UnlistedDescriptionField({
 }) {
   const id = `${idPrefix}-description`;
   return (
-    // No Title field, matching the listing form: the short label is derived from
-    // this description by `deriveItemTitle`. Two rows: the placeholder is one line
-    // and the field grows with typing.
+    // The placeholder names facts rather than repeating the title's example: the title
+    // carries what the card is and this carries what condition it is in.
     <div className="space-y-snug">
       <Label htmlFor={id}>{label}</Label>
       <Textarea
@@ -321,7 +343,7 @@ export interface UnlistedItemFieldsProps extends PieceProps {
   descriptionPlaceholder?: string;
 }
 
-/** All four fields, in the order the trade offer form has always used. */
+/** All five fields, in the order the trade offer form has always used. */
 export function UnlistedItemFields({
   draft,
   onChange,
@@ -331,6 +353,7 @@ export function UnlistedItemFields({
 }: UnlistedItemFieldsProps) {
   return (
     <div className="space-y-group">
+      <UnlistedTitleField draft={draft} onChange={onChange} idPrefix={idPrefix} />
       <UnlistedDescriptionField
         draft={draft}
         onChange={onChange}

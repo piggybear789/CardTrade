@@ -20,7 +20,8 @@ import {
 
 const described: UnlistedItemDraft = {
   ...EMPTY_UNLISTED_DRAFT,
-  description: 'Charizard ex 199/165 SIR, PSA 10',
+  title: 'Charizard ex 199/165 SIR',
+  description: 'Fresh PSA 10 slab, cert verified',
   category: 'Pokémon',
   condition: 'Graded',
 };
@@ -37,6 +38,12 @@ describe('the unlisted card draft', () => {
 
   it('is complete with only kept photos', () => {
     expect(unlistedDraftGap({ ...described, keptPaths: ['u/1/0.jpg'] })).toBeNull();
+  });
+
+  it('asks for a title before a description', () => {
+    expect(unlistedDraftGap({ ...described, title: '', keptPaths: ['u/1/0.jpg'] })).toBe(
+      'Give the card a title.',
+    );
   });
 
   it('still needs a photo when every kept one is removed', () => {

@@ -101,9 +101,10 @@ export interface ItemLocationInput {
 /** Fields accepted when creating an Item (images are uploaded, then validated). */
 export interface CreateItemInput {
   /**
-   * Short listing label. Optional: if omitted or blank, derived from the
-   * description via {@link deriveItemTitle} so older callers and the mobile
-   * path still work.
+   * Short listing label. Optional: when blank, derived from the description via
+   * {@link deriveItemTitle} — not because deriving is wanted, but because the
+   * column and every contract snapshot read off it are `not null`, and a blank
+   * title must not become a failed insert on a contract.
    */
   title?: string;
   description: string;
@@ -540,8 +541,9 @@ export const createPrivateTradeItem = withActionLog('listings.createPrivateTrade
 
   // A private trade item is never browsed, but it still reaches arbitration through
   // `trades.counterpart_goods_description` and the trade contract, so it needs the
-  // same short label every other item carries.
-  const derivedTitle = deriveItemTitle(input.description);
+  // same short label every other item carries. A typed title wins; the description
+  // derives the fallback under the same rules as a public listing.
+  const derivedTitle = resolveListingTitle(input);
 
   // Validate text/number fields against placeholder paths before uploading.
   const preValidation = validateItemSubmission({

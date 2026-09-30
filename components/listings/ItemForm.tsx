@@ -42,6 +42,8 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ImageOffIcon, ImagePlusIcon, LibraryIcon, PackageIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
+import { TITLE_MAX_LENGTH } from "@/domain/validation/item";
+import { Input } from "@/components/ui/input";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
 import {
   clearItemFormDraft,
@@ -88,6 +90,7 @@ const IMAGES_MAX = 10;
 
 /** Which server field a validation error maps to for inline display. */
 type ErrorField =
+  | "title"
   | "description"
   | "category"
   | "condition"
@@ -173,6 +176,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // EVERY INITIALISER PREFERS THE ROW, THEN THE DRAFT, THEN EMPTY. The row can only be
   // present in edit mode and the draft only in create mode, so the two never compete; the
   // order is written out anyway so adding a third source later has an obvious place to go.
+  const [title, setTitle] = React.useState(
+    item?.title ?? restored?.title ?? "",
+  );
   const [description, setDescription] = React.useState(
     item?.description ?? restored?.description ?? "",
   );
@@ -241,6 +247,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // keystroke; the dirty flag only changes when the form goes from empty to touched
   // (or back), which is the only time the listener needs to change.
   const isDirty =
+    title.trim() !== "" ||
     description.trim() !== "" ||
     newFiles.length > 0 ||
     fmvDollars.trim() !== "";
@@ -264,6 +271,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
   // out; `clearItemFormDraft()` on success is what actually retires it.
   useItemFormDraft(
     {
+      title,
       description,
       game,
       condition,
@@ -404,6 +412,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
 
       if (mode === "create") {
         const result = await createItem({
+          title,
           description,
           category: cardGameName(game),
           condition,
@@ -429,6 +438,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
         // plain object paths, so the action does no byte handling at all.
         const images: string[] = [...keptPaths, ...uploadedPaths];
         const result = await updateItem(item!.id, {
+          title,
           description,
           category: cardGameName(game),
           condition,
@@ -516,6 +526,7 @@ export function ItemForm({ mode, item }: ItemFormProps) {
     toast.error(fallback);
   }
 
+  const titleError = errorFor("title");
   const descriptionError = errorFor("description");
   const gameError = errorFor("category");
   const conditionError = errorFor("condition");
@@ -959,6 +970,30 @@ export function ItemForm({ mode, item }: ItemFormProps) {
               ) : null}
             </fieldset>
 
+            {/* Title FIRST, its own field again. It was derived from the description's
+                first line, which made the seller's one sentence do two jobs — a
+                label for contracts and emails, and the pitch shown on the tile —
+                and wrote the first words twice when both were shown. */}
+            <div className="space-y-snug">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={TITLE_MAX_LENGTH}
+                placeholder="Charizard Base Set Holo"
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={titleError ? true : undefined}
+                aria-describedby={titleError ? "title-error" : undefined}
+                disabled={isSubmitting}
+              />
+              {titleError ? (
+                <FieldError id="title-error" message={titleError} />
+              ) : null}
+            </div>
+
             <div className="space-y-snug">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -974,11 +1009,6 @@ export function ItemForm({ mode, item }: ItemFormProps) {
                 }
                 disabled={isSubmitting}
               />
-              {/* `justify-end`, not `justify-between`. The row used to pair the
-                  counter with "The first line is used as the listing title in the
-                  catalog."; with that hint gone, `justify-between` would park the
-                  counter on the left. The title derivation still happens —
-                  `deriveItemTitle` reads the first line — it just is not narrated. */}
               <div className="flex items-center justify-end">
                 <span className="text-meta text-muted-foreground tabular-nums">
                   {description.length}/2000

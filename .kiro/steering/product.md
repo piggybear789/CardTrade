@@ -83,7 +83,7 @@ Profile tabs (`/profile?tab=`): `profile` | `verification` | `payouts`. Connect 
 - **SINGLE** — one object. Opening a cash sale reserves it. One live cash sale (`cash_sales_one_active_per_item`). May be offered.
 - **SHOPFRONT** — member copy: **binder or bulk listing**. Inventory. Never reserved, never `SOLD`. Closed via `closed_at`. `fmv_cents` is an indicative "from" price. Several concurrent cash sales and trades are allowed. **Cannot be offered. Cannot be the offering side of a trade.** Copy must always say **nothing is held**.
 
-Create requires Identity_Gate and a seller identity disclosure. Title is **derived** from the description (`deriveItemTitle`), not typed. Images: 1–10. Location is suburb-level.
+Create requires Identity_Gate and a seller identity disclosure. The seller types a **title** and a description; a blank title falls back to the description's leading sentence (`deriveItemTitle`), the same value contracts snapshot. Images: 1–10. Location is suburb-level.
 
 **Category is the card game**, not a collectible type (0104): Pokémon, One Piece, Yu-Gi-Oh!, Magic: The Gathering, Riftbound, Disney Lorcana, Gundam, Flesh and Blood, Star Wars: Unlimited, Digimon, Dragon Ball Super, Weiss Schwarz, Cardfight!! Vanguard, Union Arena, Sports Cards, Other TCG (`lib/catalog/cardGames.ts`).
 

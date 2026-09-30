@@ -55,6 +55,7 @@ import {
   UnlistedCategoryConditionFields,
   UnlistedDescriptionField,
   UnlistedPhotoField,
+  UnlistedTitleField,
   unlistedDraftGap,
   type UnlistedItemDraft,
 } from '@/components/trade/UnlistedItemFields';
@@ -361,12 +362,13 @@ export function DealComposeForm({
         {step === 'card' ? (
           <>
             <UnlistedPhotoField draft={card} onChange={setCard} idPrefix="deal-card" />
+            <UnlistedTitleField draft={card} onChange={setCard} idPrefix="deal-card" />
             <UnlistedDescriptionField
               draft={card}
               onChange={setCard}
               idPrefix="deal-card"
               label={selling ? 'What are you selling?' : 'What are you swapping?'}
-              placeholder="What it is, set, grade. Anything they should know."
+              placeholder="Condition details, grade, anything they should know."
             />
             <UnlistedCategoryConditionFields draft={card} onChange={setCard} idPrefix="deal-card" />
           </>

@@ -21,7 +21,7 @@ import { loadSellerIdentityDisclosure, readSellerPayReadiness } from '@/lib/sell
 import { readIdentityGate } from '@/lib/identityGate';
 import { removeImages, verifyStoredImages } from '@/lib/storage/itemImages';
 import { readImageDims } from '@/lib/images/dimensions';
-import { deriveItemTitle, validateItemSubmission } from '@/domain/validation';
+import { validateItemSubmission } from '@/domain/validation';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { checkRegionCompatibility, regionCurrency, regionMismatchMessage } from '@/domain/region';
@@ -69,6 +69,8 @@ export type DealInviteError =
 export type HostReadiness = 'ready' | 'identity-needed' | 'payout-setup-needed';
 
 export type PrivateDealItemInput = {
+  /** Short label for the card. Blank derivations fall back to the description. */
+  title?: string;
   description: string;
   category: string;
   condition: string;
@@ -173,6 +175,7 @@ export interface DealInvitePreview {
 
 /** The whole card and the terms, as the edit dialog starts from them. */
 export interface DealInviteEditable {
+  title: string;
   description: string;
   category: string;
   condition: string;
@@ -239,6 +242,7 @@ async function createHiddenItem(
   item: PrivateDealItemInput,
 ): Promise<ActionResult<string, DealInviteError>> {
   const created = await createPrivateTradeItem({
+    title: item.title,
     description: item.description,
     category: item.category,
     condition: item.condition,
@@ -607,9 +611,11 @@ export const updateDealInvite = withActionLog('dealInvites.updateDealInvite', as
     valueCents = input.valueCents;
   }
 
-  // On a sale the card is worth its price, as `createDealInvite` records it.
+  // On a sale the card is worth its price, as `createDealInvite` records it. A typed
+  // title wins over the description; `createPrivateTradeItem` derives the same fallback
+  // when it is blank, so the two paths cannot disagree.
   const validated = validateItemSubmission({
-    title: deriveItemTitle(input.item.description),
+    title: input.item.title,
     description: input.item.description,
     category: input.item.category,
     condition: input.item.condition,
@@ -790,6 +796,7 @@ export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePrev
       };
       if (isHost && status === 'open' && inviteIsEditable(invite)) {
         editable = {
+          title: itemRow.title as string,
           description: itemRow.description as string,
           category: itemRow.category as string,
           condition: itemRow.condition as string,

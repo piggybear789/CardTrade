@@ -1,7 +1,8 @@
 // components/ui/choice-tile.tsx
 //
 // One bordered choice in a grid of a few mutually comparable options: control
-// and icon sit in a row with the full label + hint stack, centred against it.
+// and icon sit in a row with the full label + hint stack, centred against it —
+// or, with `layout="stacked"`, the icon sits above a centred label.
 // Styled like the selectable rows in the trade offer card
 // (`components/trade/TradeOfferForm.tsx`), but laid out as a tile so a small set
 // of options sits side by side and can be read at a glance instead of scrolled.
@@ -34,11 +35,11 @@ export interface ChoiceTileProps {
   /** `center` for short labels that fill a 2-up grid (deal compose). */
   align?: 'start' | 'center';
   /**
-   * `lg` for a roomier tile — taller padding and a larger icon, for a choice
-   * that stands alone as its own step (the deal kind picker). Defaults to the
-   * compact row every other caller uses.
+   * `stacked` puts the icon above a centred label, for a choice that stands
+   * alone as its own step (the deal kind picker). Defaults to the compact row
+   * every other caller uses.
    */
-  size?: 'md' | 'lg';
+  layout?: 'row' | 'stacked';
 }
 
 export function ChoiceTile({
@@ -52,8 +53,9 @@ export function ChoiceTile({
   hint,
   invalid = false,
   align = 'start',
-  size = 'md',
+  layout = 'row',
 }: ChoiceTileProps) {
+  const stacked = layout === 'stacked';
   return (
     // NO onClick ON THE LABEL. A label forwards its click to its input, which fires
     // `onChange` by itself. With a handler here as well, one click on the label ran
@@ -65,11 +67,13 @@ export function ChoiceTile({
       htmlFor={id}
       className={cn(
         'relative flex cursor-pointer items-center gap-snug rounded-md border border-border text-body transition-colors',
-        // `lg` trades the compact row for presence: 20px of vertical padding
-        // lands the tile around 64px tall, a full step above the 40px row the
-        // other callers keep. Horizontal padding stays `cozy` so the label
-        // never crowds the tile's edge in a 2-up grid.
-        size === 'lg' ? 'px-cozy py-5' : 'p-snug md:p-cozy',
+        // Stacked tiles are composition, not padding: the icon earns its height
+        // by sitting above the label, so the tile reads as intention rather
+        // than as a stretched row. `min-h` pins both tiles to the same height
+        // the canvas mocked (~104px) instead of leaving it to content.
+        stacked
+          ? 'min-h-[104px] flex-col justify-center p-group text-center'
+          : 'p-snug md:p-cozy',
         // The whole tile takes the focus frame: at this size the native control's
         // own border is easy to miss. Edge plus 1px inset ring, like every field.
         'has-[:focus-visible]:border-iris has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-iris',
@@ -103,12 +107,12 @@ export function ChoiceTile({
       {Icon ? (
         <HugeiconsIcon
           icon={Icon}
-          className={cn(size === 'lg' ? 'size-5' : 'size-4', 'shrink-0 text-muted-foreground')}
+          className={cn(stacked ? 'size-6' : 'size-4', 'shrink-0 text-muted-foreground')}
           aria-hidden
         />
       ) : null}
       <span className="min-w-0 space-y-tight">
-        <span className="block truncate font-medium">{label}</span>
+        <span className={cn('block truncate', stacked ? 'font-semibold' : 'font-medium')}>{label}</span>
         {hint ? (
           <span id={`${id}-hint`} className="block text-body text-muted-foreground">
             {hint}

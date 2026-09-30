@@ -5,7 +5,6 @@
 
 import {
   startTransition,
-  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -27,7 +26,6 @@ import {
   catalogCoverDim,
 } from '@/components/listings/CatalogMosaic';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
-import { useCatalogView } from '@/components/listings/CatalogView';
 
 const MOBILE_MAX = '(max-width: 1023px)';
 
@@ -110,20 +108,12 @@ export function CatalogInfiniteGrid({
     setWatchingIds(new Set(initialWatchingIds));
     setError(null);
   }
-  const { filter, setMatchCount } = useCatalogView();
   const isDesktop = useIsDesktop();
-  const deferredFilter = useDeferredValue(filter);
-  const visibleItems = useMemo(
-    () => filterCatalogItems(items, deferredFilter),
-    [items, deferredFilter],
-  );
   // A set of ids rather than an index, because `CatalogMosaic`'s render prop
-  // hands back the item and not its position — and going through the id keeps
-  // this honest when the client-side filter removes rows, so "the first row" is
-  // the first row the viewer can actually see.
+  // hands back the item and not its position.
   const eagerCoverIds = useMemo(
-    () => new Set(visibleItems.slice(0, EAGER_COVER_COUNT).map(itemKey)),
-    [visibleItems],
+    () => new Set(items.slice(0, EAGER_COVER_COUNT).map(itemKey)),
+    [items],
   );
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -211,14 +201,6 @@ export function CatalogInfiniteGrid({
   }, [revision]);
 
   useEffect(() => {
-    if (!filter.trim()) {
-      setMatchCount(null);
-      return;
-    }
-    setMatchCount(visibleItems.length);
-  }, [filter, visibleItems.length, setMatchCount]);
-
-  useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
 
@@ -240,32 +222,26 @@ export function CatalogInfiniteGrid({
 
   return (
     <>
-      {visibleItems.length === 0 ? (
-        <p className="py-10 text-center text-body text-muted-foreground">
-          No listings here match “{filter.trim()}”.
-        </p>
-      ) : (
-        <CatalogMosaic items={visibleItems} keyOf={itemKey} dimOf={itemCoverDim}>
-          {(item, coverDim) => (
-            <ViewTransition
-              enter={isDesktop ? 'fade-in' : undefined}
-              exit={isDesktop ? 'fade-out' : undefined}
-              default="none"
-            >
-              <CatalogItemCard
-                item={item}
-                coverDim={coverDim}
-                eager={eagerCoverIds.has(item.id)}
-                initialWatching={
-                  currentUserId && item.owner_id !== currentUserId
-                    ? watchingIds.has(item.id)
-                    : undefined
-                }
-              />
-            </ViewTransition>
-          )}
-        </CatalogMosaic>
-      )}
+      <CatalogMosaic items={items} keyOf={itemKey} dimOf={itemCoverDim}>
+        {(item, coverDim) => (
+          <ViewTransition
+            enter={isDesktop ? 'fade-in' : undefined}
+            exit={isDesktop ? 'fade-out' : undefined}
+            default="none"
+          >
+            <CatalogItemCard
+              item={item}
+              coverDim={coverDim}
+              eager={eagerCoverIds.has(item.id)}
+              initialWatching={
+                currentUserId && item.owner_id !== currentUserId
+                  ? watchingIds.has(item.id)
+                  : undefined
+              }
+            />
+          </ViewTransition>
+        )}
+      </CatalogMosaic>
 
       {/* Sentinel + status — mobile only; desktop uses the page nav below. */}
       <div className="lg:hidden">
@@ -301,15 +277,4 @@ export function CatalogInfiniteGrid({
       </div>
     </>
   );
-}
-
-function filterCatalogItems(items: CatalogItem[], raw: string): CatalogItem[] {
-  const needle = raw.trim().toLowerCase();
-  if (!needle) return items;
-  return items.filter((item) => {
-    if (item.title.toLowerCase().includes(needle)) return true;
-    if (item.category.toLowerCase().includes(needle)) return true;
-    const seller = item.seller?.displayName?.toLowerCase();
-    return seller != null && seller.includes(needle);
-  });
 }

@@ -67,10 +67,6 @@ interface CatalogResultState {
 }
 
 interface CatalogViewValue {
-  filter: string;
-  setFilter: (value: string) => void;
-  matchCount: number | null;
-  setMatchCount: (value: number | null) => void;
   current: CatalogBrowseCurrent;
   /** Last query that matches `result` — heading and chips wait for this. */
   settled: CatalogBrowseCurrent;
@@ -101,8 +97,6 @@ export function CatalogViewProvider({
   initial: CatalogBrowseSnapshot;
   children: ReactNode;
 }) {
-  const [filter, setFilter] = useState('');
-  const [matchCount, setMatchCount] = useState<number | null>(null);
   const [current, setCurrent] = useState(initial.current);
   const [settled, setSettled] = useState(initial.current);
   const [result, setResult] = useState<CatalogResultState>({
@@ -197,7 +191,6 @@ export function CatalogViewProvider({
   const reset = useCallback(() => {
     const next = emptyBrowseCurrent();
     setCurrent(next);
-    setFilter('');
     writeCatalogUrl(next, null);
     notifyCatalogQuery('');
     void runFetch(next);
@@ -237,10 +230,6 @@ export function CatalogViewProvider({
 
   const value = useMemo(
     () => ({
-      filter,
-      setFilter,
-      matchCount,
-      setMatchCount,
       current,
       settled,
       result,
@@ -260,8 +249,6 @@ export function CatalogViewProvider({
       retry,
     }),
     [
-      filter,
-      matchCount,
       current,
       settled,
       result,
@@ -292,7 +279,7 @@ export function useCatalogView(): CatalogViewValue {
 }
 
 /**
- * Count BESIDE the catalog heading. Updates live while the filter is typed.
+ * Count BESIDE the catalog heading.
  *
  * It used to sit underneath, where it read as a subtitle to the title rather than as the
  * size of the thing being looked at. Every browse reference puts it on the heading line —
@@ -303,9 +290,8 @@ export function useCatalogView(): CatalogViewValue {
  * it lengthened the heading row, and it belongs on its own line under it.
  */
 export function CatalogResultCount() {
-  const { filter, matchCount, result } = useCatalogView();
-  const filtering = filter.trim() !== '';
-  const count = filtering ? (matchCount ?? 0) : result.total;
+  const { result } = useCatalogView();
+  const count = result.total;
 
   return (
     // `sr-only sm:not-sr-only`, not `hidden sm:block`. The caller used to wrap
@@ -317,9 +303,7 @@ export function CatalogResultCount() {
       className="sr-only shrink-0 text-pretty text-meta tabular-nums text-muted-foreground sm:not-sr-only sm:text-body"
       aria-live="polite"
     >
-      {filtering
-        ? `${COUNT_FORMATTER.format(count)} matching`
-        : `${COUNT_FORMATTER.format(count)} ${count === 1 ? 'listing' : 'listings'}`}
+      {`${COUNT_FORMATTER.format(count)} ${count === 1 ? 'listing' : 'listings'}`}
     </p>
   );
 }

@@ -311,6 +311,7 @@ export function DealComposeForm({
             icon={BanknoteIcon}
             label="Sell a card"
             align="center"
+            size="lg"
           />
           <ChoiceTile
             id="deal-kind-trade"
@@ -321,6 +322,7 @@ export function DealComposeForm({
             icon={RepeatIcon}
             label="Trade cards"
             align="center"
+            size="lg"
           />
         </div>
 

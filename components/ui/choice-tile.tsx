@@ -33,6 +33,12 @@ export interface ChoiceTileProps {
   invalid?: boolean;
   /** `center` for short labels that fill a 2-up grid (deal compose). */
   align?: 'start' | 'center';
+  /**
+   * `lg` for a roomier tile — taller padding and a larger icon, for a choice
+   * that stands alone as its own step (the deal kind picker). Defaults to the
+   * compact row every other caller uses.
+   */
+  size?: 'md' | 'lg';
 }
 
 export function ChoiceTile({
@@ -46,6 +52,7 @@ export function ChoiceTile({
   hint,
   invalid = false,
   align = 'start',
+  size = 'md',
 }: ChoiceTileProps) {
   return (
     // NO onClick ON THE LABEL. A label forwards its click to its input, which fires
@@ -57,7 +64,12 @@ export function ChoiceTile({
     <label
       htmlFor={id}
       className={cn(
-        'relative flex cursor-pointer items-center gap-snug rounded-md border border-border p-snug text-body transition-colors md:p-cozy',
+        'relative flex cursor-pointer items-center gap-snug rounded-md border border-border text-body transition-colors',
+        // `lg` trades the compact row for presence: 20px of vertical padding
+        // lands the tile around 64px tall, a full step above the 40px row the
+        // other callers keep. Horizontal padding stays `cozy` so the label
+        // never crowds the tile's edge in a 2-up grid.
+        size === 'lg' ? 'px-cozy py-5' : 'p-snug md:p-cozy',
         // The whole tile takes the focus frame: at this size the native control's
         // own border is easy to miss. Edge plus 1px inset ring, like every field.
         'has-[:focus-visible]:border-iris has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-iris',
@@ -89,7 +101,11 @@ export function ChoiceTile({
         className={type === 'radio' ? 'sr-only' : 'size-4 shrink-0'}
       />
       {Icon ? (
-        <HugeiconsIcon icon={Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <HugeiconsIcon
+          icon={Icon}
+          className={cn(size === 'lg' ? 'size-5' : 'size-4', 'shrink-0 text-muted-foreground')}
+          aria-hidden
+        />
       ) : null}
       <span className="min-w-0 space-y-tight">
         <span className="block truncate font-medium">{label}</span>

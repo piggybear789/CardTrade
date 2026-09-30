@@ -9,7 +9,6 @@
 import type { ReactNode } from 'react';
 
 import { InfoPopover } from '@/components/ui/info-popover';
-import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { platformFeeRateLabel, tradeFeeRateLabel } from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
@@ -54,11 +53,9 @@ export function SaleTermsBreakdown({
 
 /**
  * THE HOLD IS YOUR OWN SIDE'S VALUE. `bondPolicy` authorises 100% of a trader's own
- * side, so this sizes YOUR hold, not theirs. A condition dispute captures at most
- * `FRICTION_TAX_CENTS` from the party found against; only fraud takes the whole
- * hold. The fee is charged on the value each trader RECEIVES (`chargeTradeFees`):
- * their card plus any cash to even it. Neither is known yet, so this states the
- * rate, not an amount.
+ * side, so this sizes YOUR hold, not theirs. The fee is charged on the value each
+ * trader RECEIVES (`chargeTradeFees`): their card plus any cash to even it. Neither
+ * is known yet, so this states the rate, not an amount.
  */
 export function TradeTermsBreakdown({
   valueCents,
@@ -69,12 +66,7 @@ export function TradeTermsBreakdown({
 }) {
   return (
     <Breakdown>
-      <BreakdownRow
-        label="Stripe Identity"
-        value="Required for both of you"
-        strong
-        info="It takes a few minutes with a photo ID."
-      />
+      <BreakdownRow label="Transaction Details" value="Held collateral" strong />
       <BreakdownRule />
       <BreakdownRow
         label="Held on your payment card"
@@ -85,11 +77,6 @@ export function TradeTermsBreakdown({
         label="Your fee"
         value={tradeFeeRateLabel(currency)}
         info="Each of you pays it on the trade value, when the holds go on."
-      />
-      <BreakdownRow
-        label="If a dispute goes against you"
-        value={`Up to ${formatMoney(FRICTION_TAX_CENTS, currency)}`}
-        info="Kept from your hold."
       />
     </Breakdown>
   );

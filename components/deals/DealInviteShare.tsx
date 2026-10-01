@@ -5,20 +5,22 @@
 // The host's view of an unused invite, and where the composer lands on Get link.
 // Opening the link again later shows exactly this screen.
 //
-// FOUR ZONES, ONE JOB EACH: the deal as they will see it, sending the link, what
-// Stripe still needs from the host, and leaving. From `lg` the deal and the to-do
-// share the left column and sending takes the right; below it they stack, with
-// sending straight under the deal it sends. Cancelling sits last and asks first.
+// THE DEAL IS A TICKET YOU HAND OVER. One object carries the whole job: its face is
+// the deal as the other person will see it, and its stub is how it reaches them —
+// the code to scan, the link, Copy and Share. A to-do from Stripe sits under the
+// ticket only while there is one, and the ways out — editing, the inbox, cancelling —
+// share one quiet row beneath it all. Cancelling still asks first.
 
 import { useState, useSyncExternalStore, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { DealEditDialog } from '@/components/deals/DealEditDialog';
 import { DealLinkActions } from '@/components/deals/DealLinkActions';
-import { HostVerificationNotice } from '@/components/deals/DealVerificationNotice';
+import { HostVerificationNotice, hostReadyLine } from '@/components/deals/DealVerificationNotice';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { InfoPopover } from '@/components/ui/info-popover';
 import { StorageImage } from '@/components/ui/storage-image';
@@ -39,14 +41,21 @@ function inboxLabel(preview: DealInvitePreview): string {
   return 'Go to my sales';
 }
 
-function roleLine(preview: DealInvitePreview): string {
-  if (preview.kind === 'TRADE') return "You're trading";
-  return preview.hostRole === 'BUYER' ? "You're buying" : "You're selling";
+function ticketLabel(preview: DealInvitePreview): string {
+  if (preview.kind === 'TRADE') return 'Private trade';
+  return preview.hostRole === 'BUYER' ? 'Private purchase' : 'Private sale';
 }
 
 function subscribeNever() {
   return () => {};
 }
+
+/**
+ * The ways out of the screen share one look: quiet, and plainly actions. The few
+ * pixels of padding are for the focus ring, which focus lands on whenever a dialog
+ * opened from this row closes.
+ */
+const QUIET_ACTION = 'h-auto px-1 py-0.5 text-muted-foreground hover:text-foreground';
 
 export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
   const router = useRouter();
@@ -85,39 +94,38 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
   }
 
   return (
-    <Card className="mx-auto grid w-full max-w-md grid-cols-1 gap-section p-6 lg:max-w-3xl max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0 max-md:shadow-none">
-      <div className="flex items-start justify-between gap-group">
-        <div className="grid gap-snug">
-          <h2 className="text-head font-semibold">Your deal link</h2>
-          <LinkStatus expires={expires} />
-        </div>
-        <Button type="button" variant="outline" className="shrink-0 max-md:hidden" onClick={leave}>
-          {inboxLabel(preview)}
-        </Button>
+    <div className="mx-auto grid w-full max-w-[33rem] gap-section">
+      <div className="grid gap-snug">
+        <h2 className="text-head font-semibold">Your deal link</h2>
+        <LinkStatus expires={expires} />
       </div>
 
-      {/* Two columns from `lg`, not `md`: from `md` the workspace rail takes ~13.5rem,
-          and beside a 300px sending panel the deal would get about 120px. */}
-      <div className="grid grid-cols-1 gap-section lg:grid-cols-[minmax(0,1fr)_18.75rem] lg:items-start lg:gap-x-section lg:gap-y-group">
-        <DealRecap preview={preview} />
-        <DealLinkActions
-          path={path}
-          shareText={shareText}
-          className="lg:col-start-2 lg:row-span-2 lg:row-start-1"
-        />
-        {preview.hostReadiness && preview.kind ? (
-          <HostVerificationNotice kind={preview.kind} readiness={preview.hostReadiness} />
+      <DealTicket preview={preview} path={path} shareText={shareText} />
+
+      {preview.kind && preview.hostReadiness && preview.hostReadiness !== 'ready' ? (
+        <HostVerificationNotice kind={preview.kind} readiness={preview.hostReadiness} />
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-center gap-x-section gap-y-snug">
+        {preview.editable && preview.id && preview.kind ? (
+          <DealEditDialog
+            inviteId={preview.id}
+            kind={preview.kind}
+            editable={preview.editable}
+            currency={preview.currency ?? 'aud'}
+          >
+            <Button type="button" variant="link" className={QUIET_ACTION}>
+              Edit deal
+            </Button>
+          </DealEditDialog>
         ) : null}
-      </div>
-
-      <div className="grid gap-tight max-md:border-t max-md:pt-group md:justify-items-start">
-        <Button type="button" variant="outline" size="lg" className="md:hidden" onClick={leave}>
+        <Button type="button" variant="link" className={QUIET_ACTION} onClick={leave}>
           {inboxLabel(preview)}
         </Button>
         <Button
           type="button"
           variant="link"
-          className="justify-self-center text-muted-foreground md:justify-self-start md:px-0"
+          className={QUIET_ACTION}
           disabled={!preview.id}
           onClick={() => setConfirmingCancel(true)}
         >
@@ -136,7 +144,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
         pending={isPending}
         onConfirm={cancelInvite}
       />
-    </Card>
+    </div>
   );
 }
 
@@ -160,49 +168,69 @@ function LinkStatus({ expires }: { expires: string | null }) {
   );
 }
 
-/** The deal as the other person will see it: photo, title, and the price or the ask. */
-function DealRecap({ preview }: { preview: DealInvitePreview }) {
+/**
+ * The deal as one object: the face says what it is, the stub sends it.
+ *
+ * THE NOTCHES ARE CUT-OUTS IN THE PAGE COLOUR, so the ticket must sit directly on the
+ * page — set on a card, they would show as page-coloured bites. Each is a circle
+ * centred on the ticket's outer edge with its outer half clipped away, which is why
+ * the ticket itself cannot clip its children: the face rounds its own top corners
+ * instead of relying on `overflow-hidden`.
+ */
+function DealTicket({
+  preview,
+  path,
+  shareText,
+}: {
+  preview: DealInvitePreview;
+  path: string;
+  shareText: string;
+}) {
   const imageUrl = itemImageUrl(preview.item?.imagePath);
   const title = preview.item?.title ?? preview.wantedDescription;
   const amountCents = preview.priceCents ?? preview.item?.fmvCents ?? null;
 
   return (
-    <div className="flex items-center gap-group rounded-lg bg-muted p-cozy">
-      {preview.item ? (
-        <div className="relative aspect-[5/7] w-16 shrink-0 overflow-hidden rounded-md border bg-card md:w-20">
-          {imageUrl ? (
-            <StorageImage src={imageUrl} alt="" sizes="80px" className="object-cover" />
-          ) : null}
-        </div>
-      ) : null}
-      <div className="grid min-w-0 flex-1 gap-tight">
-        {/* Edit sits on the deal it changes, not with the link's other actions. */}
-        <div className="flex items-center justify-between gap-snug">
-          <p className="market-label text-muted-foreground">{roleLine(preview)}</p>
-          {preview.editable && preview.id && preview.kind ? (
-            <DealEditDialog
-              inviteId={preview.id}
-              kind={preview.kind}
-              editable={preview.editable}
-              currency={preview.currency ?? 'aud'}
-            />
-          ) : null}
-        </div>
-        {title ? (
-          <p className="line-clamp-2 break-words text-pretty text-lead font-semibold">{title}</p>
+    <div className="relative rounded-xl border border-border bg-card">
+      <div className="flex items-center gap-group rounded-t-[calc(var(--radius-xl)-1px)] bg-accent p-5">
+        {preview.item ? (
+          <div className="relative aspect-[5/7] w-20 shrink-0 overflow-hidden rounded-md border bg-card md:w-24">
+            {imageUrl ? (
+              <StorageImage src={imageUrl} alt="" sizes="96px" className="object-cover" />
+            ) : null}
+          </div>
         ) : null}
-        {preview.kind === 'TRADE' ? (
-          preview.item && preview.wantedDescription ? (
-            <p className="line-clamp-2 text-pretty text-body text-muted-foreground">
-              For {preview.wantedDescription}
+        <div className="grid min-w-0 flex-1 gap-tight">
+          <p className="market-label text-accent-foreground">{ticketLabel(preview)}</p>
+          {title ? (
+            <p className="line-clamp-2 break-words text-pretty text-subhead font-semibold">{title}</p>
+          ) : null}
+          {preview.kind === 'TRADE' ? (
+            preview.item && preview.wantedDescription ? (
+              <p className="line-clamp-2 text-pretty text-body text-accent-foreground">
+                for {preview.wantedDescription}
+              </p>
+            ) : null
+          ) : amountCents != null ? (
+            <p className="display-value text-head tabular-nums">
+              {formatMoney(amountCents, preview.currency ?? 'aud')}
             </p>
-          ) : null
-        ) : amountCents != null ? (
-          <p className="display-value text-head tabular-nums">
-            {formatMoney(amountCents, preview.currency ?? 'aud')}
-          </p>
-        ) : null}
+          ) : null}
+          {preview.kind && preview.hostReadiness === 'ready' ? (
+            <p className="mt-snug flex items-center gap-1.5 text-meta font-medium text-foreground/85">
+              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 shrink-0 text-trust" aria-hidden />
+              {hostReadyLine(preview.kind)}
+            </p>
+          ) : null}
+        </div>
       </div>
+
+      <div className="relative border-t border-border" aria-hidden="true">
+        <span className="pointer-events-none absolute -left-[11px] -top-[10.5px] size-5 rounded-full border border-border bg-background [clip-path:inset(0_0_0_50%)]" />
+        <span className="pointer-events-none absolute -right-[11px] -top-[10.5px] size-5 rounded-full border border-border bg-background [clip-path:inset(0_50%_0_0)]" />
+      </div>
+
+      <DealLinkActions path={path} shareText={shareText} className="p-5" />
     </div>
   );
 }

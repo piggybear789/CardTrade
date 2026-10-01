@@ -10,10 +10,10 @@
 // edit is usually one field, a price or a typo. The deal type is not editable: a
 // sale and a trade are different contracts, so switching is a new link.
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, PencilEdit02Icon } from '@hugeicons/core-free-icons';
+import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { SaleTermsBreakdown, TradeTermsBreakdown } from '@/components/deals/DealTermsBreakdown';
@@ -54,16 +54,17 @@ interface DealEditDialogProps {
   currency: string;
 }
 
-export function DealEditDialog(props: DealEditDialogProps) {
+export function DealEditDialog({
+  children,
+  ...props
+}: DealEditDialogProps & {
+  /** The control that opens the dialog — the caller decides how prominent editing is. */
+  children: ReactElement;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="shrink-0">
-          <HugeiconsIcon icon={PencilEdit02Icon} aria-hidden />
-          Edit
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent>
         {/* Mounted only while open, so every opening starts from the deal as it
             stands now rather than from an earlier, abandoned edit. */}

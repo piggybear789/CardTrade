@@ -22,26 +22,27 @@ const VERIFY_HREF = '/profile?tab=verification';
 type DealKind = 'CASH_SALE' | 'TRADE';
 
 /**
- * The host's own view, on the link screen: a quiet tick once there is nothing left
- * to do, and otherwise a to-do with the way to do it.
+ * The host's all-done sentence. It lives on the deal ticket's face rather than in a
+ * notice of its own: once nothing is left to do, the readiness is a fact about the
+ * deal, not a task.
+ */
+export function hostReadyLine(kind: DealKind): string {
+  return kind === 'TRADE'
+    ? "You're verified with Stripe Identity."
+    : "You're verified and set up to be paid.";
+}
+
+/**
+ * The host's own to-do, on the link screen, with the way to do it. Only for a host
+ * who still has something to do — the ready state is {@link hostReadyLine}.
  */
 export function HostVerificationNotice({
   kind,
   readiness,
 }: {
   kind: DealKind;
-  readiness: HostReadiness;
+  readiness: Exclude<HostReadiness, 'ready'>;
 }) {
-  if (readiness === 'ready') {
-    return (
-      <StatusLine tone="done">
-        {kind === 'TRADE'
-          ? "You're verified with Stripe Identity."
-          : "You're verified and set up to be paid."}
-      </StatusLine>
-    );
-  }
-
   const copy =
     kind === 'TRADE'
       ? {

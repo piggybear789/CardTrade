@@ -2,19 +2,19 @@
 
 // components/deals/DealLinkActions.tsx
 //
-// Sending a deal link: share it, copy it, or show it as a QR code.
+// The stub of the deal ticket: the QR code, the link, and the ways to send it.
 //
 // THE FIRST ACTION FOLLOWS THE DEVICE. On a phone the link nearly always goes into
 // the chat where the deal was agreed, so Share leads and opens the share sheet, with
-// Copy and QR code paired under it. From `md` up Copy leads and Share pairs with QR
-// code instead. Each breakpoint shows exactly one "Copy link".
+// Copy beside it. From `md` up Copy leads and Share sits beside it instead. Each
+// breakpoint shows exactly one "Copy link".
 //
 // SHARE IS ASSUMED UNTIL THE BROWSER SAYS OTHERWISE. Mainstream phone browsers and
 // most desktop ones have a share sheet; Firefox does not. The server renders Share,
-// and a browser without `navigator.share` drops it after hydration, leaving QR code
-// the whole row. Assuming the opposite would move the buttons for nearly everyone.
+// and a browser without `navigator.share` drops it after hydration, leaving Copy the
+// whole row. Assuming the opposite would move the buttons for nearly everyone.
 //
-// THE LINK IS SHOWN WHOLE AND CLIPPED BY CSS, never shortened in the text: a
+// THE LINK IS SHOWN WHOLE AND WRAPS, never shortened in the text: a
 // "BBgEbL…T21mxD" string that someone selects and pastes is a link that goes
 // nowhere.
 
@@ -23,7 +23,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { CheckIcon, Copy01Icon, Share08Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
-import { DealLinkQrButton } from '@/components/deals/DealLinkQrButton';
+import { DealLinkQr } from '@/components/deals/DealLinkQr';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -103,33 +103,47 @@ export function DealLinkActions({
   );
 
   return (
-    // `grid-cols-1` is `minmax(0, 1fr)`: an implicit `auto` column sizes itself to
-    // the unbroken link and pushes every row out past the panel's edge.
-    <div className={cn('grid grid-cols-1 content-start gap-snug md:rounded-lg md:border md:p-group', className)}>
-      <p className="text-meta font-medium text-muted-foreground max-md:hidden">Send it</p>
-      <p
-        title={shownLink}
-        className="flex h-9 select-all items-center rounded-md border px-cozy max-md:hidden"
-      >
-        <span className="min-w-0 truncate font-mono text-body">{shownLink}</span>
-      </p>
+    // THE BUTTONS MOVE WITH THE WIDTH. Below `sm` they take a full-width row under the
+    // code and the link, where two side by side still get a comfortable target; from
+    // `sm` the stub is wide enough to keep them in the link's column, beside the code.
+    <div
+      className={cn(
+        'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-group gap-y-cozy',
+        "[grid-template-areas:'qr_link'_'actions_actions'] sm:[grid-template-areas:'qr_link'_'qr_actions']",
+        className,
+      )}
+    >
+      <div className="[grid-area:qr]">
+        <DealLinkQr path={path} />
+      </div>
 
-      {canShare ? (
-        <Button type="button" size="lg" className="md:hidden" onClick={share}>
-          <HugeiconsIcon icon={Share08Icon} aria-hidden />
-          Share link
+      <div className="grid min-w-0 gap-tight [grid-area:link]">
+        <p className="text-meta font-medium text-muted-foreground">Scan it, or send the link</p>
+        <p title={shownLink} className="select-all break-all text-body">
+          {shownLink}
+        </p>
+      </div>
+
+      <div
+        className={cn(
+          'grid gap-snug [grid-area:actions]',
+          canShare ? 'grid-cols-2' : 'grid-cols-1',
+        )}
+      >
+        {canShare ? (
+          <Button type="button" size="lg" className="md:hidden" onClick={share}>
+            <HugeiconsIcon icon={Share08Icon} aria-hidden />
+            Share link
+          </Button>
+        ) : null}
+        <Button
+          type="button"
+          size="lg"
+          className={canShare ? 'max-md:hidden' : undefined}
+          onClick={copy}
+        >
+          {copyContent}
         </Button>
-      ) : null}
-      <Button
-        type="button"
-        size="lg"
-        className={canShare ? 'max-md:hidden' : undefined}
-        onClick={copy}
-      >
-        {copyContent}
-      </Button>
-
-      <div className="grid grid-cols-2 gap-snug">
         {canShare ? (
           <>
             <Button type="button" variant="outline" size="lg" className="md:hidden" onClick={copy}>
@@ -141,20 +155,7 @@ export function DealLinkActions({
             </Button>
           </>
         ) : null}
-        <DealLinkQrButton path={path} className={canShare ? undefined : 'col-span-2'} />
       </div>
-
-      {/* The phone's one line of link, under the buttons it belongs to. Tapping it
-          copies, which is what a tap on a link-shaped line is expected to do. */}
-      <button
-        type="button"
-        onClick={copy}
-        title={shownLink}
-        className="flex min-w-0 max-w-full items-center justify-center gap-tight justify-self-center rounded-md px-snug py-tight text-meta text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-iris md:hidden"
-      >
-        <span className="min-w-0 truncate font-mono">{shownLink}</span>
-        <HugeiconsIcon icon={copied ? CheckIcon : Copy01Icon} className="size-3.5 shrink-0" aria-hidden />
-      </button>
 
       <span role="status" className="sr-only">
         {copied ? 'Link copied' : ''}

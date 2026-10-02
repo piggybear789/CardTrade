@@ -10,6 +10,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { PencilIcon } from '@hugeicons/core-free-icons';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
+import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import {
   Dialog,
   DialogContent,
@@ -145,6 +146,15 @@ export function CashSaleTermsDialog({
     sale.meeting_at ? sale.meeting_at.slice(0, 16) : '',
   );
   const [error, setError] = useState<string | null>(null);
+  // The request-level failure is a toast; the meeting-point and address errors still
+  // render at their own fields. Inline, this paragraph arrived late and grew the dialog.
+  useErrorToast(
+    error &&
+      error !== FULFILMENT_FIELD_ERRORS.meeting &&
+      error !== FULFILMENT_FIELD_ERRORS.address
+      ? error
+      : null,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -300,14 +310,6 @@ export function CashSaleTermsDialog({
               error={error}
               disabled={pending}
             />
-
-            {error &&
-            error !== FULFILMENT_FIELD_ERRORS.meeting &&
-            error !== FULFILMENT_FIELD_ERRORS.address ? (
-              <p role="alert" className="text-body text-destructive">
-                {error}
-              </p>
-            ) : null}
           </div>
           <DialogFooter>
             <Button

@@ -87,6 +87,7 @@ import {
 } from '@/lib/storage/disputeEvidenceShared';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatContractDateTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -251,6 +252,8 @@ export function DisputeEvidencePanel({
   const [statement, setStatement] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // A response failure is a toast, not a paragraph that resizes this surface late.
+  useErrorToast(error);
   const [uploading, setUploading] = useState(false);
   const [isPending, startTransition] = useTransition();
   // Open when there is nothing on file yet — the form is the empty state then. Once the
@@ -541,11 +544,6 @@ export function DisputeEvidencePanel({
                 ) : null}
               </div>
 
-              {error ? (
-                <p role="alert" className="text-body text-destructive">
-                  {error}
-                </p>
-              ) : null}
 
               <div className="flex flex-wrap items-center justify-between gap-cozy">
                 {/* Finality is the surprising part of this form, so it sits beside the

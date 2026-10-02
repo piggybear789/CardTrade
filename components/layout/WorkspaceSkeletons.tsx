@@ -66,7 +66,8 @@ export function SectionHeaderSkeleton({
           is 23.8/26.25px, so the title bar SHRANK by 5.75px on desktop, while `h-4`
           reserved 16px for a `text-body` paragraph measuring 22.4px, so the description
           bar GREW by 6.4px underneath it. */}
-      <div className="min-w-0">
+      {/* `min-h-9` below `md`, as `SectionHeader` reserves for its phone action. */}
+      <div className="flex min-h-9 min-w-0 flex-col justify-center md:block md:min-h-0">
         <TextLines className="text-subhead md:text-head" widths={[titleClassName]} />
         <TextLines
           className="mt-tight hidden text-body md:mt-1.5 md:block"

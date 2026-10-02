@@ -43,6 +43,7 @@ import { SectionLoadError } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import { SellerTrustBand } from '@/components/profile/SellerTrustBand';
@@ -241,7 +242,7 @@ export default async function SellerProfilePage({
   // A tab is only offered when it has something behind it. An empty "Sold" tab on a
   // new seller's profile is not neutral — it reads as a record of having sold nothing.
   const tabs: TabDescriptor<SellerTabId>[] = [
-    { id: 'listings', label: 'Listings', href: `/sellers/${id}`, count: items.length || undefined },
+    { id: 'listings', label: 'Listings', href: `/sellers/${id}`, count: items.length },
     ...(soldItems.length > 0
       ? [
           {
@@ -256,7 +257,7 @@ export default async function SellerProfilePage({
       id: 'reviews',
       label: 'Reviews',
       href: `/sellers/${id}?tab=reviews`,
-      count: seller.ratingCount || undefined,
+      count: seller.ratingCount,
     },
   ];
 
@@ -370,28 +371,53 @@ export default async function SellerProfilePage({
                 className="flex w-fit"
               />
             )}
-            <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
+            {/* A FIXED ROW whether or not the seller added links: `SocialLinksDisplay`
+                renders nothing without any, and the header then lost a line. */}
+            <div className="flex min-h-6 items-center">
+              <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
+            </div>
             {/* MEMBER-AUTHORED, so it is presented as their words and nothing more.
                 Deliberately NOT inside the trust band below, which carries
                 provider-verified facts — putting self-written copy there
                 would borrow that band's credibility for text anyone can type.
                 `whitespace-pre-line` keeps intentional line breaks; `break-words`
                 stops an unbroken 280-character string widening the layout. */}
-            {sellerRow.bio ? (
-              <p className="max-w-prose whitespace-pre-line break-words text-pretty text-body text-muted-foreground">
-                {sellerRow.bio as string}
-              </p>
-            ) : null}
+            {/* TWO LINES, ALWAYS: clamped at two and reserved at two, with a neutral
+                line when the seller wrote none. A bio was 0–N lines of member text in
+                the middle of the header, so the trust band, the tab strip and every
+                listing below sat at a different height on every profile. The full
+                text stays in the DOM, so a screen reader still hears all of it. */}
+            <p
+              className="line-clamp-2 min-h-[2lh] max-w-prose whitespace-pre-line break-words text-pretty text-body text-muted-foreground"
+              title={(sellerRow.bio as string | null) ?? undefined}
+            >
+              {(sellerRow.bio as string | null) || 'No bio yet.'}
+            </p>
           </div>
           </div>
 
-          {canReport && (
+          {/* ONE CONTROL IN THIS SLOT FOR EVERY VIEWER. Only a signed-in member on
+              someone else's profile could report, so a guest's and the owner's header
+              was a whole row (on a phone) shorter than a member's. The owner gets the
+              way to their own profile settings instead, and a guest is sent to sign in
+              to report — the same footprint, each doing something real. */}
+          {canReport ? (
             <ReportDialog
               targetType="user"
               targetId={id}
               triggerLabel="Report user"
               triggerVariant="destructive"
             />
+          ) : user ? (
+            <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
+              <Link href="/profile">Edit profile</Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
+              <Link href={`/sign-in?redirectTo=${encodeURIComponent(`/sellers/${id}`)}`}>
+                Sign in to report
+              </Link>
+            </Button>
           )}
         </div>
 

@@ -23,6 +23,7 @@ import { ImagePlusIcon, TriangleAlertIcon, XIcon } from '@hugeicons/core-free-ic
 
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
+import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import {
   Dialog,
   DialogContent,
@@ -101,6 +102,8 @@ export function HandoverFailedDialog({
   const proof = usePreviewFiles(MAX_EVIDENCE_FILES);
   const proofFiles = proof.files;
   const [inlineError, setInlineError] = useState<string | null>(null);
+  // A response failure is a toast, not a paragraph that resizes this surface late.
+  useErrorToast(inlineError);
   const [isPending, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -139,7 +142,6 @@ export function HandoverFailedDialog({
         const uploadResult = await uploadDisputeEvidence(proofFiles);
         if (!uploadResult.ok) {
           setInlineError(uploadResult.message);
-          toast.error(uploadResult.message);
           return;
         }
         uploadedPaths = uploadResult.paths;
@@ -149,7 +151,6 @@ export function HandoverFailedDialog({
       const result = await onSubmit(trimmed + proofNote);
       if (!result.ok) {
         setInlineError(result.message);
-        toast.error(result.message);
         return;
       }
 
@@ -289,11 +290,6 @@ export function HandoverFailedDialog({
               </div>
             </div>
 
-            {inlineError ? (
-              <p role="alert" className="text-body text-destructive">
-                {inlineError}
-              </p>
-            ) : null}
           </div>
 
           <DialogFooter>

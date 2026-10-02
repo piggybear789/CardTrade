@@ -81,7 +81,13 @@ export function PaymentMethodSettingRow({
           // be reading out. The expiry belongs in the editor, not in a list whose job
           // is "what is set".
           value={hasCard ? (label ?? 'Card saved') : 'Add a card'}
-          description={hasCard ? undefined : 'Required to buy or back a trade.'}
+          // A DESCRIPTION EITHER WAY, so the row is one height with or without a card.
+          // It used to appear only when no card was saved, and this row streams in
+          // under its skeleton — so for a member without a card the Support group and
+          // Sign out below it dropped by a line when the Stripe read came back.
+          description={
+            hasCard ? 'Used to pay and to back trades.' : 'Required to buy or back a trade.'
+          }
         />
       }
     />

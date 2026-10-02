@@ -9,6 +9,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { TicketPercentIcon } from '@hugeicons/core-free-icons';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
+import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,8 @@ export function CashSalePriceDialog({
   const [open, setOpen] = useState(false);
   const [price, setPrice] = useState((agreedPriceCents / 100).toFixed(2));
   const [error, setError] = useState<string | null>(null);
+  // A response failure is a toast, not a paragraph that resizes this surface late.
+  useErrorToast(error);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -110,11 +113,6 @@ export function CashSalePriceDialog({
                 Currently {formatMoney(agreedPriceCents, currency)}.
               </p>
             </div>
-            {error ? (
-              <p role="alert" className="text-body text-destructive">
-                {error}
-              </p>
-            ) : null}
           </div>
           <DialogFooter>
             <Button type="submit" disabled={pending} aria-busy={pending}>

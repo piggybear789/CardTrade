@@ -278,7 +278,9 @@ export function DealJoinForm({
         <FieldError message={error ?? undefined} />
       </CardContent>
       <CardFooter className="flex-col items-stretch gap-snug sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-meta text-muted-foreground" id="join-blocker">
+        {/* Two lines reserved, two at most: the note and the blocker that replaces it
+            are different lengths, and either wrapping differently moved the button. */}
+        <p className="line-clamp-2 min-h-[2lh] text-meta text-muted-foreground" id="join-blocker">
           {blocker && !isPending ? blocker : 'Nothing is paid or held when you join.'}
         </p>
         <Button

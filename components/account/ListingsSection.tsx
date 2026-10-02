@@ -163,17 +163,26 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
                   >
                     {item.title}
                   </Link>
+                  {/* A staff-hidden listing says so IN this line, not in an extra one
+                      below it: the extra line made that row 21px (on a phone, 38px)
+                      taller than every other, so the table's height depended on
+                      moderation. */}
                   <p
-                    className="mt-0.5 truncate text-meta text-muted-foreground"
+                    className={cn(
+                      'mt-0.5 truncate text-meta',
+                      item.hidden ? 'text-destructive' : 'text-muted-foreground',
+                    )}
                     suppressHydrationWarning
                   >
-                    {[
-                      item.category,
-                      isShopfront ? 'Multiple items' : item.condition,
-                      listedAgo ? `listed ${listedAgo}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')}
+                    {item.hidden
+                      ? 'Hidden by NoDitto staff, so buyers cannot see it.'
+                      : [
+                          item.category,
+                          isShopfront ? 'Multiple items' : item.condition,
+                          listedAgo ? `listed ${listedAgo}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
                   </p>
                   {/* The three desktop columns, folded in below `md`.
                       A `div`, NOT a `p`. `Badge` renders a `<div>`, and a `<div>`
@@ -183,26 +192,25 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
                       match the client" and re-renders this whole subtree on the
                       client. It was invisible in a screenshot — the row looked right
                       — and only the console said so. */}
-                  <div className="mt-tight flex flex-wrap items-center gap-x-cozy gap-y-tight text-meta md:hidden">
-                    <span className="font-semibold tabular-nums">
+                  {/* ONE LINE, never wrapped: price and badge hold their width and the
+                      watching count truncates. With "N watching" this wrapped to two
+                      lines in a phone's middle cell, so rows differed by ~21px by how
+                      many people had saved the card. */}
+                  <div className="mt-tight flex flex-nowrap items-center gap-x-cozy overflow-hidden text-meta md:hidden">
+                    <span className="shrink-0 font-semibold tabular-nums">
                       {isShopfront ? 'from ' : ''}
                       {formatAud(item.fmv_cents)}
                     </span>
-                    <Badge variant={status.tone}>
+                    <Badge variant={status.tone} className="shrink-0">
                       {status.live ? <LiveDot /> : null}
                       {status.label}
                     </Badge>
                     {item.watch_count > 0 ? (
-                      <span className="tabular-nums text-muted-foreground">
+                      <span className="min-w-0 truncate tabular-nums text-muted-foreground">
                         {item.watch_count} watching
                       </span>
                     ) : null}
                   </div>
-                  {item.hidden ? (
-                    <p className="mt-tight text-meta text-destructive">
-                      Hidden by NoDitto staff, so buyers cannot see it.
-                    </p>
-                  ) : null}
                 </div>
 
                 <span className="hidden text-right text-body font-semibold tabular-nums md:block">

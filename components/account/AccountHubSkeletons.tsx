@@ -44,7 +44,7 @@ export function ProfilePanelSkeleton() {
 
       <SettingsGroup>
         {/* The payment row has a `CreditCardIcon` medallion. */}
-        <SettingsRowSkeleton icon labelClassName="w-32" valueClassName="w-24" />
+        <SettingsRowSkeleton icon description labelClassName="w-32" valueClassName="w-24" />
       </SettingsGroup>
 
       {/* Support (static heading, so the real label), then Sign out, under a rule. */}

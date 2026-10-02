@@ -5,7 +5,7 @@
 // Loading state for `/t/[token]`, drawn in the SAME shell the page will resolve to.
 //
 // THE ROUTE HAS TWO SHELLS. A signed-out visitor gets a bare `PageShell` around
-// `PublicDealInvitePreview`; a member gets `MarketplaceShell center` — desktop rail and
+// `PublicDealInvitePreview`; a member gets `MarketplaceShell` — desktop rail and
 // all — around `DealJoinForm`. The loader used to draw the bare one for everybody, so on
 // every member visit from `md` up the rail vanished for the loading moment and then the
 // whole page slid sideways by the rail's width when it came back.
@@ -26,17 +26,17 @@ export function DealInviteSkeleton() {
 
   if (staff) {
     return (
-      <MarketplaceShellSkeleton title="Private deal" center>
+      <MarketplaceShellSkeleton title="Private deal">
         <DealInviteCardSkeleton withFooterNote />
       </MarketplaceShellSkeleton>
     );
   }
 
+  // Both branches are TOP-ALIGNED, as the page is — see the note there.
   // The guest branch's `PageShell` VERBATIM, bottom reserve included — see the note on
   // it in the page for why the reserve exists.
   return (
     <PageShell
-      centered
       className="max-w-lg pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10"
     >
       <div role="status" aria-busy="true" aria-label="Loading private deal">
@@ -92,7 +92,8 @@ function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: b
           the same button row. `Button` default size: `h-9 md:h-8`. */}
       <div className="flex flex-col items-stretch gap-snug p-group pt-0 sm:flex-row sm:items-center sm:justify-between">
         {withFooterNote ? (
-          <TextLines className="text-meta" widths={['w-56 max-w-full']} />
+          // Two lines, as the join form's footer note now always reserves.
+          <TextLines className="text-meta" widths={['w-56 max-w-full', 'w-24']} />
         ) : null}
         <Skeleton className="h-9 w-full sm:w-32 md:h-8" />
       </div>

@@ -67,10 +67,15 @@ export default function SellerProfileLoading() {
               <div className="flex h-[1.175rem] items-center">
                 <Skeleton className="h-4 w-32" />
               </div>
-              <TextLines className="text-body" widths={['w-24']} />
+              {/* The social links row: a fixed `min-h-6` on the page now, links or not. */}
+              <div className="flex min-h-6 items-center">
+                <Skeleton className="h-4 w-24" />
+              </div>
+              {/* The bio: always two lines on the page (clamped and reserved). */}
+              <TextLines className="max-w-prose text-body" widths={['w-full', 'w-1/2']} />
             </div>
           </div>
-          {/* Report. `size="sm"` — h-8 on touch, h-7 from `md` — and full-width below
+          {/* Report (or Edit profile / Sign in to report — one control for every viewer). `size="sm"` — h-8 on touch, h-7 from `md` — and full-width below
               `sm`, so it also carries the 12px column gap. Drawn unconditionally even
               though the real trigger needs a signed-in viewer on someone else's
               profile: that is how this page is normally reached, and the alternative is
@@ -101,8 +106,11 @@ export default function SellerProfileLoading() {
                 for a seller with a provider-registered trading name, which an
                 individual seller does not have — and on a phone a third fact
                 wraps the two-column grid onto a second 39px row. */}
+            {/* All three facts, as the band now always renders them (a dash where a
+                seller has no value): two rows on a phone, one from `sm`. */}
             <div className={FACT_GRID}>
               <FactSkeleton labelWidth="w-24" />
+              <FactSkeleton labelWidth="w-12" />
               <FactSkeleton labelWidth="w-20" />
             </div>
           </div>

@@ -260,7 +260,7 @@ export function MessageComposer({
           to the same column the message log uses, so the two agree; putting that cap on
           the form itself would pull the border-t in with it and leave the composer
           looking like a floating card rather than the bottom of the surface. */}
-      <div className={cn('min-w-0', contentClassName)}>
+      <div className={cn('relative min-w-0', contentClassName)}>
       <label htmlFor={inputId} className="sr-only">
         Write a message
       </label>
@@ -384,8 +384,16 @@ export function MessageComposer({
       <span className="sr-only" role="status" aria-live="polite">
         {isPending ? 'Sending message…' : ''}
       </span>
+      {/* FLOATS ABOVE THE COMPOSER rather than growing it. Rendered in flow, a send
+          failure added a line under the field, which made the composer taller, which
+          shrank the thread above and lifted the contract room's action dock — the
+          whole conversation moved because a request failed. */}
       {error ? (
-        <p id={`${inputId}-error`} role="alert" className="mt-snug text-body text-destructive">
+        <p
+          id={`${inputId}-error`}
+          role="alert"
+          className="absolute inset-x-0 bottom-full z-10 mb-snug rounded-md border border-destructive/40 bg-card px-cozy py-snug text-body text-destructive shadow-sm"
+        >
           {error}
         </p>
       ) : null}

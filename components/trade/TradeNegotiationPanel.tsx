@@ -18,13 +18,13 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import Link from 'next/link';
 
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
 import { ContractMoneyTable } from '@/components/contract/ContractMoneyTable';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
+import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import {
   SavedCardRow,
   type SavedCardStatus,
@@ -150,6 +150,8 @@ export function TradeNegotiationPanel({
     terms.counterpartGoodsDescription ?? '',
   );
   const [error, setError] = useState<string | null>(null);
+  // A response failure is a toast, not a paragraph that resizes this surface late.
+  useErrorToast(error);
 
   const actions = availableActions('NEGOTIATING', viewer);
 
@@ -171,7 +173,6 @@ export function TradeNegotiationPanel({
         } else {
           const message = result.message ?? 'Something went wrong. Please try again.';
           setError(message);
-          toast.error(message);
           resolve(false);
         }
       });
@@ -307,11 +308,6 @@ export function TradeNegotiationPanel({
                 placeholder="Explain what you changed"
               />
             </div>
-            {error ? (
-              <p role="alert" className="text-body text-destructive">
-                {error}
-              </p>
-            ) : null}
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCounterOpen(false)} disabled={isPending}>

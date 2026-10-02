@@ -27,8 +27,9 @@
 // it is collected at onboarding: it cannot be assumed from a click on "Propose
 // Trade". Nothing sensitive is gathered — the provider collects the document itself.
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ExternalLinkIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
@@ -74,6 +75,15 @@ export function IdentityGatePrompt({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Surfaced as toasts rather than paragraphs inside the dialog body, so a response
+  // arriving cannot resize the dialog or move its footer button.
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
+  useEffect(() => {
+    if (notice) toast(notice);
+  }, [notice]);
   const [isPending, startTransition] = useTransition();
 
   const resuming = state === 'IN_PROGRESS';
@@ -138,12 +148,9 @@ export function IdentityGatePrompt({
         </p>
       ) : null}
 
-      {error ? (
-        <p role="alert" className="text-body text-destructive">
-          {error}
-        </p>
-      ) : null}
-      {notice ? <p className="text-body text-muted-foreground">{notice}</p> : null}
+      {/* Errors and notices are toasts (see the effect above): rendered here, between
+          the steps and the footer, they grew the centred dialog and moved its button
+          when the request came back. */}
 
       <CustodyNote>
         This step opens on Stripe&apos;s pages. NoDitto never sees the document.

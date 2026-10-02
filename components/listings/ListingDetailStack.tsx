@@ -113,19 +113,36 @@ export function ListingDetailStack({
         ) : null}
       </Link>
 
-      {sellerIdentity && !isOwner ? (
-        <p className="mt-tight text-meta text-muted-foreground">
-          {sellerIdentity.nameIsDocumentVerified ? 'Real name' : 'Stated name'}{' '}
-          <span className="font-medium text-foreground">
-            {sellerIdentity.legalEntityName}
-          </span>
-          {sellerIdentity.tradingName ? (
-            <>
-              {' · '}
-              Trading as {sellerIdentity.tradingName}
-            </>
-          ) : null}
-        </p>
+      {/* BOTH SELLER LINES ALWAYS RENDER, one line each. They used to be omitted for
+          an owner, a seller with no disclosure, or an unrated seller — 21px apiece —
+          so the price, description and carousel below sat at a different height for
+          every listing and never where the placeholder put them. Absence now reads
+          as a neutral fact in the same box. */}
+      <p className="mt-tight truncate text-meta text-muted-foreground">
+        {sellerIdentity && !isOwner ? (
+          <>
+            {sellerIdentity.nameIsDocumentVerified ? 'Real name' : 'Stated name'}{' '}
+            <span className="font-medium text-foreground">
+              {sellerIdentity.legalEntityName}
+            </span>
+            {sellerIdentity.tradingName ? (
+              <>
+                {' · '}
+                Trading as {sellerIdentity.tradingName}
+              </>
+            ) : null}
+          </>
+        ) : isOwner ? (
+          'Buyers see your verified name here'
+        ) : (
+          'Name not verified yet'
+        )}
+      </p>
+
+      {sellerRating == null ? (
+        <span className="mt-tight inline-flex w-fit border border-transparent text-meta text-muted-foreground">
+          No ratings yet
+        </span>
       ) : null}
 
       {sellerRating != null ? (
@@ -199,7 +216,9 @@ export function ListingDetailStack({
 
       {mobileMeta ? (
         <p
-          className="mt-snug text-meta text-muted-foreground md:hidden"
+          // Always two lines tall, at most two: with a location it wraps on a phone
+          // and without one it does not, which moved the title and description.
+          className="mt-snug line-clamp-2 min-h-[2lh] text-meta text-muted-foreground md:hidden"
           suppressHydrationWarning
         >
           {mobileMeta}

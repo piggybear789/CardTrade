@@ -34,6 +34,10 @@ import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { regionLabel } from '@/domain/region/regions';
 import { formatShortDate } from '@/lib/format';
+import { cn } from '@/lib/utils';
+
+/** What a fact cell shows when there is no value. */
+const EMPTY = '—';
 
 export interface SellerTrustBandProps {
   /**
@@ -98,11 +102,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * A seller's checkable facts, or nothing at all when there are none.
- *
- * Returns null rather than an empty box when a member holds no disclosure and no
- * readable record — which is exactly a buy-only member's profile, and rendering a
- * bordered "no information" panel on it would invent a deficiency.
+ * A seller's checkable facts, in one fixed shape whatever the seller holds.
  */
 export function SellerTrustBand({
   legalName,
@@ -115,46 +115,52 @@ export function SellerTrustBand({
   const region = regionCode ? regionLabel(regionCode) : null;
 
   const verified = Boolean(legalName);
-  const hasRecord = completedSales !== null || Boolean(region);
 
-  if (!verified && !hasRecord) return null;
-
+  // ONE SHAPE FOR EVERY SELLER. The band used to drop whichever facts a seller lacked
+  // — the whole band for a member with nothing to show, the Store and ID-checked cells
+  // for most individuals, Completed sales for a signed-out viewer — so on a phone its
+  // two-column grid was anywhere from zero to three rows, and the tab strip and listings
+  // under it started at a different height on every profile. Every cell now always
+  // renders, with an em dash where there is no value.
+  //
+  // THE DASH IS NOT A WARNING. An unverified member is usually a buyer who never needed
+  // to verify, and the heading for that case states what is on file in muted type
+  // rather than flagging an absence in the trust colour.
   return (
     <section
       aria-label="Seller checks"
       className="mt-cozy rounded-lg border bg-muted/60"
     >
-      {verified ? (
-        <div className="p-group">
-          {/* Same glyph as `IdentityBadge`: one fact, one icon vocabulary. The claim
-              is a document plus a selfie, which is what the Identity_Gate has actually
-              checked since 0069 — never anything about being payable, which is a
-              separate later step a verified member may not have taken. */}
-          <h3 className="text-trust mb-cozy flex items-center gap-tight text-body font-medium">
-            <HugeiconsIcon icon={ShieldCheckIcon} className="h-4 w-4 shrink-0" aria-hidden />
-            Verified with photo ID by Stripe
-          </h3>
-          <dl className={FACT_GRID}>
-            <Fact label="Verified name" value={legalName!} />
-            {tradingName ? <Fact label="Store" value={tradingName} /> : null}
-            {checkedOn ? <Fact label="ID checked" value={checkedOn} /> : null}
-          </dl>
-        </div>
-      ) : null}
-
-      {hasRecord ? (
-        // `border-t` only when something sits above it, or an unverified member's band
-        // would open with a rule against its own top edge.
-        <dl className={`${FACT_GRID} p-group ${verified ? 'border-t' : ''}`}>
-          {completedSales !== null ? (
-            <Fact
-              label="Completed sales"
-              value={String(completedSales)}
-            />
-          ) : null}
-          {region ? <Fact label="Trades in" value={region} /> : null}
+      <div className="p-group">
+        {/* Same glyph as `IdentityBadge`: one fact, one icon vocabulary. The claim is a
+            document plus a selfie, which is what the Identity_Gate has actually checked
+            since 0069 — never anything about being payable, which is a separate later
+            step a verified member may not have taken. */}
+        <h3
+          className={cn(
+            'mb-cozy flex items-center gap-tight text-body font-medium',
+            verified ? 'text-trust' : 'text-muted-foreground',
+          )}
+        >
+          <HugeiconsIcon icon={ShieldCheckIcon} className="h-4 w-4 shrink-0" aria-hidden />
+          {verified ? 'Verified with photo ID by Stripe' : 'No photo ID check on file'}
+        </h3>
+        <dl className={FACT_GRID}>
+          <Fact label="Verified name" value={legalName ?? EMPTY} />
+          <Fact label="Store" value={tradingName ?? EMPTY} />
+          <Fact label="ID checked" value={checkedOn ?? EMPTY} />
         </dl>
-      ) : null}
+      </div>
+
+      <dl className={`${FACT_GRID} border-t p-group`}>
+        {/* Null (a signed-out viewer may not read the aggregate) still renders as a
+            dash, never as 0 — see the note on the prop. */}
+        <Fact
+          label="Completed sales"
+          value={completedSales !== null ? String(completedSales) : EMPTY}
+        />
+        <Fact label="Trades in" value={region ?? EMPTY} />
+      </dl>
     </section>
   );
 }

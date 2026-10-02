@@ -12,7 +12,7 @@
 // Pressing retry repeatedly is harmless: the release reuses the sale's persisted
 // nonce, so the provider deduplicates instead of paying twice.
 
-import { useState, useTransition } from 'react';
+import { useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LoaderCircleIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
@@ -68,21 +68,22 @@ export function RetryPayoutButton({ cashSaleId }: RetryPayoutButtonProps) {
 }
 
 /** Run one pass of the whole owed-release queue. */
-export function DrainPayoutsButton() {
+export function DrainPayoutsButton({ disabled = false }: { disabled?: boolean } = {}) {
   const [isPending, startTransition] = useTransition();
-  const [summary, setSummary] = useState<string | null>(null);
 
   function handleClick() {
     startTransition(async () => {
       const result = await drainCashSalePayouts();
       if (result.ok) {
         const { considered, settled, stillOwed } = result.data;
-        setSummary(
+        // A TOAST, not an inline summary: the line used to arrive beside the button
+        // when the drain returned, wrapping onto its own row on a narrow column and
+        // pushing the whole queue down. Sonner's region announces it.
+        toast.success(
           considered === 0
             ? 'Nothing owed.'
             : `${settled} of ${considered} released, ${stillOwed} still owed.`,
         );
-        
         return;
       }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Drain failed.');
@@ -95,7 +96,7 @@ export function DrainPayoutsButton() {
         type="button"
         size="sm"
         onClick={handleClick}
-        disabled={isPending}
+        disabled={disabled || isPending}
         aria-busy={isPending}
       >
         {isPending ? (
@@ -105,12 +106,6 @@ export function DrainPayoutsButton() {
         )}
         Run release queue
       </Button>
-      {/* ALWAYS MOUNTED, so the live region exists before its text changes — one
-          inserted together with its content is not reliably announced. `empty:hidden`
-          keeps it from taking a flex gap while there is nothing to say. */}
-      <span aria-live="polite" className="text-body text-muted-foreground empty:hidden">
-        {summary ?? ''}
-      </span>
     </div>
   );
 }

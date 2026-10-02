@@ -294,7 +294,10 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         {/* TWO LINES AT EVERY WIDTH. This used to add `md:truncate`, so the
             WIDER screen showed less of the string — and for a graded card the
             set, year and grade all live in the tail that got cut. */}
-        <h3 className="line-clamp-2 text-body font-medium text-foreground">
+        {/* `min-h-[2lh]`: always TWO lines tall. A one-line title made its tile 22px
+            shorter than the next, so a grid row's height (and the mosaic column's)
+            depended on how long sellers' titles happened to be. */}
+        <h3 className="line-clamp-2 min-h-[2lh] text-body font-medium text-foreground">
           {item.title}
         </h3>
         {/* THE GAME ONLY. Condition used to follow it behind a hairline — the
@@ -393,7 +396,12 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             </span>
             <SellerReputation seller={item.seller} />
           </Link>
-        ) : null}
+        ) : (
+          // THE ROW IS KEPT when the seller did not resolve. Every tile in a grid row
+          // is meant to be one height, and the skeleton reserves this row; a tile
+          // whose seller lookup came back empty was 28px short of its neighbours.
+          <div className="min-h-6" aria-hidden="true" />
+        )}
       </div>
     </Card>
   );

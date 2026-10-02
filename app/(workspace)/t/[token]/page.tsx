@@ -43,9 +43,13 @@ export default async function DealInvitePage({
     // and renders for guests too. Without the reserve, `centered` optically centred
     // the invite against a container that runs behind the bar, so it sat up to 56px
     // low and a tall preview clipped.
+    // TOP-ALIGNED, NOT CENTRED, here and in the member branch below. What the card
+    // holds depends on the invite — a wanted description, a note, a row for the
+    // joiner's own card on a trade — and the loader cannot know which. Centred, every
+    // extra row re-centred the whole card on arrival, so its top edge jumped by half
+    // the difference; top-aligned, extra rows only extend the card downward.
     return (
       <PageShell
-        centered
         className="max-w-lg pb-[calc(5.5rem+env(safe-area-inset-bottom))] md:pb-10"
       >
         <PublicDealInvitePreview preview={preview} />
@@ -64,7 +68,7 @@ export default async function DealInvitePage({
     preview.hostRegion != null && regions.some((region) => region.code === preview.hostRegion);
 
   return (
-    <MarketplaceShell title="Private deal" center>
+    <MarketplaceShell title="Private deal">
       <DealJoinForm
         preview={preview}
         viewer={{ needsOnboarding, displayName: profile?.display_name ?? null }}

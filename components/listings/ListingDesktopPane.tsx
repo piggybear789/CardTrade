@@ -244,16 +244,23 @@ export function ListingDesktopPane({
                     />
                   </Link>
                 )
-              ) : null}
+              ) : (
+                // Unrated: the same one-line box, so the seller card and the
+                // description below it are one height for every seller.
+                <p className="inline-flex border border-transparent text-meta text-muted-foreground">
+                  No ratings yet
+                </p>
+              )}
               {sellerIdentity && !isOwner ? (
-                <dl className="flex min-w-0 flex-wrap gap-x-cozy gap-y-0 text-meta leading-snug">
+                // ONE LINE, clipped, so a trading name cannot wrap the card taller.
+                <dl className="flex min-w-0 flex-nowrap gap-x-cozy gap-y-0 overflow-hidden whitespace-nowrap text-meta leading-snug">
                   <div className="flex min-w-0 gap-tight">
                     <dt className="shrink-0 text-muted-foreground">
                       {sellerIdentity.nameIsDocumentVerified
                         ? 'Real name'
                         : 'Stated name'}
                     </dt>
-                    <dd className="min-w-0 break-words font-medium">
+                    <dd className="min-w-0 truncate font-medium">
                       {sellerIdentity.legalEntityName}
                     </dd>
                   </div>
@@ -262,13 +269,18 @@ export function ListingDesktopPane({
                       <dt className="shrink-0 text-muted-foreground">
                         Trading as
                       </dt>
-                      <dd className="min-w-0 break-words font-medium">
+                      <dd className="min-w-0 truncate font-medium">
                         {sellerIdentity.tradingName}
                       </dd>
                     </div>
                   ) : null}
                 </dl>
-              ) : null}
+              ) : (
+                // No disclosure, or the owner's own listing: the line stays, neutral.
+                <p className="truncate text-meta leading-snug text-muted-foreground">
+                  {isOwner ? 'Buyers see your verified name here' : 'Name not verified yet'}
+                </p>
+              )}
             </div>
           </div>
         </Card>

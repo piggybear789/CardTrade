@@ -19,6 +19,7 @@ import { Camera01Icon, XIcon } from '@hugeicons/core-free-icons';
 
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
+import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import {
   Dialog,
   DialogContent,
@@ -69,6 +70,8 @@ export function AcceptWithPhotoDialog({
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // A response failure is a toast, not a paragraph that resizes this surface late.
+  useErrorToast(error);
   const [isPending, startTransition] = useTransition();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -211,11 +214,6 @@ export function AcceptWithPhotoDialog({
             disabled={isPending}
           />
 
-          {error ? (
-            <p role="alert" className="mt-cozy text-body text-destructive">
-              {error}
-            </p>
-          ) : null}
         </div>
 
         <DialogFooter>

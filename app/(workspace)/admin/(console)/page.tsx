@@ -495,13 +495,17 @@ export default async function AdminPage({
               <h3 id="payouts-heading" className="text-subhead font-semibold">
                 Seller releases owed
               </h3>
-              {owedPayouts.length > 0 && (
-                <Badge variant="destructive">
-                  {formatAud(owedCents)} across {owedPayouts.length}
-                </Badge>
-              )}
+              {/* ALWAYS RENDERED, badge and button both, so this row is one height
+                  whatever is owed — the explanation and queue under it used to move
+                  when the count came back zero. Nothing to drain disables the button
+                  rather than removing it. */}
+              <Badge variant={owedPayouts.length > 0 ? 'destructive' : 'secondary'}>
+                {owedPayouts.length > 0
+                  ? `${formatAud(owedCents)} across ${owedPayouts.length}`
+                  : 'Nothing owed'}
+              </Badge>
             </div>
-            {owedPayouts.length > 0 && <DrainPayoutsButton />}
+            <DrainPayoutsButton disabled={owedPayouts.length === 0} />
           </div>
 
           <p className="mb-group text-body text-muted-foreground">
@@ -590,7 +594,7 @@ export default async function AdminPage({
             <h3 id="reports-heading" className="text-subhead font-semibold">
               Community reports
             </h3>
-            {openReports > 0 && <Badge>{openReports} open</Badge>}
+            <Badge variant={openReports > 0 ? 'default' : 'secondary'}>{openReports} open</Badge>
           </div>
 
           <p className="mb-group text-body text-muted-foreground">
@@ -683,7 +687,7 @@ export default async function AdminPage({
             <h3 id="feedback-heading" className="text-subhead font-semibold">
               Product feedback
             </h3>
-            {openFeedback > 0 && <Badge>{openFeedback} open</Badge>}
+            <Badge variant={openFeedback > 0 ? 'default' : 'secondary'}>{openFeedback} open</Badge>
           </div>
 
           {/* NO LINK OUT AND NO TARGET, unlike the Reports tab above. Feedback is about
@@ -772,7 +776,7 @@ export default async function AdminPage({
             <h3 id="trades-heading" className="text-subhead font-semibold">
               Flagged trades
             </h3>
-            {flaggedTrades > 0 && <Badge variant="secondary">{flaggedTrades}</Badge>}
+            <Badge variant="secondary">{flaggedTrades}</Badge>
           </div>
 
           <p className="mb-group text-body text-muted-foreground">

@@ -119,7 +119,9 @@ function PhoneStackSkeleton() {
 
       {/* Meta line. Bars sit in a real `text-meta` line box so the height comes from the
           type scale rather than a guess. */}
-      <TextLines className="mt-snug text-meta" widths={['w-2/3']} />
+      {/* Two lines below `md`: the stack now always reserves two for this line
+          (`line-clamp-2 min-h-[2lh]`), so the title cannot move with the location. */}
+      <TextLines className="mt-snug text-meta" widths={['w-2/3', 'w-1/3 md:hidden']} />
 
       {/* The title only renders from `md` up — on a phone the stack's `h2` is `sr-only`,
           and the visible title lives in the description. */}

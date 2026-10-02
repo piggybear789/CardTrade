@@ -41,7 +41,9 @@ Put a page's loader in a LEAF position — a route group where the segment also 
 
 **There is deliberately NO `app/(workspace)/loading.tsx`, and no root `app/loading.tsx`.** A boundary that high is the fallback for every route beneath it, so it renders on virtually every navigation and is by construction never the page being navigated to. It was tried twice — first holding the catalog skeleton, then a generic row list — and both times the result was a wrong page shown before the right one, app-wide. With the slot empty, a navigation holds the CURRENT page until the target's own skeleton arrives, which is strictly better: a correct page for a moment longer beats a placeholder that is right about nothing but the chrome.
 
-A parent loader is legitimate only when every descendant genuinely shares the shape. `(marketing)/loading.tsx` is the one case — `help`, `terms` and `privacy` are the same prose column.
+A parent loader is legitimate only when every descendant genuinely shares the shape. `(marketing)/loading.tsx` is the one case — `terms` and `privacy` are the same flat prose column. `help` (sectioned) and `safety` (warning card plus role tabs) are different shapes and carry their own leaf loaders, which take precedence for their segments.
+
+**Arriving data must not move anything outside its own region.** A skeleton cannot know the data, so the real components hold fixed geometry instead: always render a row and say "No ratings yet" / "—" rather than omitting it, reserve a phone action's height (`SectionHeader`'s `min-h-9`), clamp member text to a fixed line count with a matching `min-h-[Nlh]`, keep a disabled control rather than unmounting it, and report request failures as toasts (`lib/hooks/useErrorToast.ts`) rather than paragraphs that resize a dialog. Field-level validation beside its field stays inline. The list itself (rows versus an empty state) is the data, and is the one place height may follow it.
 
 ## components/
 

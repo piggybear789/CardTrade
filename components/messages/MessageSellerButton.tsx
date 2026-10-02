@@ -12,8 +12,9 @@
 // Both call `getOrCreateConversation` and, on success, route the buyer to the
 // conversation thread at `/messages/[conversationId]`.
 
-import { useId, useState, useTransition } from 'react';
+import { useEffect, useId, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LoaderCircleIcon, MessageCircleIcon, SendIcon } from '@hugeicons/core-free-icons';
 
@@ -69,6 +70,13 @@ export function MessageSellerButton({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState('');
+
+  // FAILURES ARE TOASTS. The error used to render as a paragraph under the control,
+  // which pushed the rest of the listing page down a line when the request came back
+  // refused. A toast says the same thing — and announces it — without moving anything.
+  useEffect(() => {
+    if (error) toast.error(error);
+  }, [error]);
   const inlineInputId = useId();
 
   function handleClick() {
@@ -137,11 +145,6 @@ export function MessageSellerButton({
             <HugeiconsIcon icon={MessageCircleIcon} className="size-5" aria-hidden />
           )}
         </button>
-        {error ? (
-          <p role="alert" className="sr-only">
-            {error}
-          </p>
-        ) : null}
       </div>
     );
   }
@@ -220,11 +223,6 @@ export function MessageSellerButton({
             </Button>
           </form>
         </div>
-        {error && (
-          <p role="alert" className="text-body text-destructive">
-            {error}
-          </p>
-        )}
       </div>
     );
   }
@@ -251,12 +249,6 @@ export function MessageSellerButton({
             it is working, and `aria-busy` says so to assistive tech. */}
         Message seller
       </Button>
-
-      {error && (
-        <p role="alert" className="text-body text-destructive">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

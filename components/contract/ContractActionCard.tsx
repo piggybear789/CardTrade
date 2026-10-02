@@ -259,7 +259,11 @@ export function ContractActionCard({
             desktop column, so it alone wrapped to a second line and sat orphaned
             at the far left under the title. Grouped, the pair wraps together and
             `ml-auto` keeps it on the right when it does. */}
-        <div className="flex flex-wrap items-center gap-x-cozy gap-y-snug md:flex-nowrap">
+        {/* `min-h-10 md:min-h-8`: the controls' height, reserved whether or not this
+            step gives the viewer a control. "Your move" and "their move" were 56px and
+            36px docks on a phone, so the conversation above resized every time the
+            contract's state arrived over Realtime. */}
+        <div className="flex min-h-10 flex-wrap items-center gap-x-cozy gap-y-snug md:min-h-8 md:flex-nowrap">
           {/* ONE ROW FROM `md`, ALWAYS. The text is `basis-0` so it takes whatever
               the controls leave and truncates (the title is already `line-clamp-1`
               there); `md:flex-nowrap` on the row means the controls can never drop
@@ -301,11 +305,11 @@ export function ContractActionCard({
                 record the carrier and tracking number", above a button reading
                 "Record shipment". The desktop dock is a strip in its own column
                 and has the room. Clamped to one line either way. */}
-            {detail ?? step?.detail ? (
-              <p className="mt-0.5 hidden line-clamp-1 text-body text-muted-foreground md:block">
-                {detail ?? step?.detail}
-              </p>
-            ) : null}
+            {/* ALWAYS RENDERED from `md`, a non-breaking space when the step has no
+                detail, so the desktop dock is one height for every step. */}
+            <p className="mt-0.5 hidden line-clamp-1 text-body text-muted-foreground md:block">
+              {detail ?? step?.detail ?? '\u00a0'}
+            </p>
             {note ? (
               <p className="mt-0.5 line-clamp-1 text-meta text-muted-foreground">
                 {note}

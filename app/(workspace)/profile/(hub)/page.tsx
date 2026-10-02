@@ -365,7 +365,7 @@ function ProfilePanel({
           // `icon`: `PaymentMethodRow` carries a `CreditCardIcon` medallion, and
           // without a slot for it the label and value slid 48px right on arrival.
           fallback={
-            <SettingsRowSkeleton icon labelClassName="w-32" valueClassName="w-24" />
+            <SettingsRowSkeleton icon description labelClassName="w-32" valueClassName="w-24" />
           }
         >
           <PaymentMethodRow />

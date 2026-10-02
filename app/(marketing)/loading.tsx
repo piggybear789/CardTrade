@@ -1,7 +1,7 @@
 // app/(marketing)/loading.tsx
 //
-// Help, Terms, and Privacy are a single prose column. Safety is NOT — it opens on a
-// warning card and a role tab strip — so it has its own leaf loader beside its page.
+// Terms and Privacy: a single flat prose column. Help (sectioned) and Safety (a warning
+// card and a role tab strip) are different shapes, so each has its own leaf loader.
 
 import { Fragment } from 'react';
 

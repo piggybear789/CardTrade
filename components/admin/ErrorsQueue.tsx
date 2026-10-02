@@ -203,9 +203,13 @@ export function ErrorsQueue({
           <h3 id="errors-heading" className="text-subhead font-semibold">
             Errors
           </h3>
-          {openErrors > 0 && <Badge variant="destructive">{openErrors} open</Badge>}
+          {/* Always rendered, so the heading row is one width whatever the count. */}
+          <Badge variant={openErrors > 0 ? 'destructive' : 'secondary'}>{openErrors} open</Badge>
         </div>
-        <nav aria-label="Error filters" className="flex flex-wrap gap-tight">
+        {/* `w-full md:w-auto`: on a phone the filters ALWAYS take their own row. They
+            used to fit beside the heading only when there was no count badge, so the
+            explanation and the queue below moved by a row with the error count. */}
+        <nav aria-label="Error filters" className="flex w-full flex-wrap gap-tight md:w-auto">
           <FilterLink href={errorsHref(filters, { view: 'open', group: null })} current={filters.view === 'open'}>
             Open
           </FilterLink>

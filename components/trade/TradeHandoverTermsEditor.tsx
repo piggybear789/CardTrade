@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 
 
 import { Button } from '@/components/ui/button';
+import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Dialog,
@@ -110,6 +111,15 @@ export function TradeHandoverTermsEditor({
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // The request-level failure is a toast; the meeting-point and address errors still
+  // render at their own fields. Inline, this paragraph arrived late and grew the dialog.
+  useErrorToast(
+    error &&
+      error !== FULFILMENT_FIELD_ERRORS.meeting &&
+      error !== FULFILMENT_FIELD_ERRORS.address
+      ? error
+      : null,
+  );
 
   const [method, setMethod] = useState<FulfilmentMethod | null>(trade.handover_method);
   const [meetingPlace, setMeetingPlace] = useState<PlaceValue | null>(() =>
@@ -239,14 +249,6 @@ export function TradeHandoverTermsEditor({
             error={error}
             disabled={isPending}
           />
-
-          {error &&
-          error !== FULFILMENT_FIELD_ERRORS.meeting &&
-          error !== FULFILMENT_FIELD_ERRORS.address ? (
-            <p role="alert" className="text-body text-destructive">
-              {error}
-            </p>
-          ) : null}
         </div>
 
         <DialogFooter className="gap-snug">

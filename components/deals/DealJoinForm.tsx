@@ -2,18 +2,21 @@
 
 // components/deals/DealJoinForm.tsx
 //
-// Claim a private-deal invite. Cash (host selling) needs seller-identity
-// confirmation and a saved card, same as Buy now. Cash (host buying) and trade
-// need an unlisted card from the joiner. Hosts get DealInviteShare.
+// Claim a private-deal invite. Joining needs no Stripe Identity and no payment card:
+// it opens a deal room where the two of them agree terms. The notice on the invite
+// says plainly where those checks sit instead — the seller must verify before the
+// buyer can pay, and BOTH traders must verify before a swap can start.
+//
+// A swap (and a legacy host-BUYER sale) still asks for the joiner's unlisted card.
+// A brand-new account answers the composer's two questions here too. The host gets
+// DealInviteShare.
 
-import { useEffect, useState, useTransition } from 'react';
-import dynamic from 'next/dynamic';
 import Link from 'next/link';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -35,49 +38,17 @@ import {
 } from '@/components/trade/UnlistedItemDialog';
 import { DealInviteFacts } from '@/components/deals/DealInviteFacts';
 import { DealInviteShare } from '@/components/deals/DealInviteShare';
+import { InviteeVerificationNotice } from '@/components/deals/DealVerificationNotice';
 import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
+import { QuickProfileFields } from '@/components/deals/QuickProfileFields';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
 import { dollarsToCents, joinerPutsUpACard } from '@/domain/deals/dealInvite';
 import { deriveItemTitle } from '@/domain/validation';
 import { claimDealInvite, type DealInvitePreview } from '@/lib/actions/dealInvites';
-import { getPaymentMethodStatus } from '@/lib/actions/payments';
+import { completeQuickOnboarding } from '@/lib/actions/quickOnboarding';
+import type { SelectableRegion } from '@/lib/actions/regionOptions';
+import { dealInvitePath } from '@/lib/deals/paths';
 import { navigateWithType } from '@/lib/motion/navigate';
-import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
-import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
-
-const AddPaymentMethodForm = dynamic(
-  () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
-  {
-    ssr: false,
-    loading: () => <PaymentFormSkeleton />,
-  },
-);
-
-/**
- * Where a blocked viewer goes to fix it, or `null` when there is nothing they can do.
- *
- * A refusal with no route out is the shape this surface had: the Join button went
- * permanently `disabled` beneath one line of red text, which reads as broken rather
- * than as a step the member has not taken. Only the reasons the VIEWER owns get a
- * link — nobody can verify on their counterparty's behalf.
- */
-type ViewerBlock = NonNullable<DealInvitePreview['viewerBlock']>;
-
-function blockRemedy(reason: ViewerBlock['reason']): { href: string; label: string } | null {
-  switch (reason) {
-    case 'own-identity-unverified':
-    case 'seller-disclosure-incomplete':
-      return { href: '/profile?tab=verification', label: 'Verify my identity' };
-    // `no-region` deliberately has no remedy. A member without a trading region is on
-    // the waitlist for a region that is not open (0118); there is no control anywhere
-    // that would give them one, and the link this used to offer — "Set my region" into
-    // the Verification tab — pointed at a page with no such setting.
-    case 'no-payment-method':
-      return { href: '/profile', label: 'Add a payment method' };
-    default:
-      return null;
-  }
-}
 
 function statusCopy(status: DealInvitePreview['status']): {
   title: string;
@@ -100,111 +71,129 @@ function statusCopy(status: DealInvitePreview['status']): {
   }
 }
 
+function headline(preview: DealInvitePreview): string {
+  const host = preview.hostName ?? 'A member';
+  if (preview.kind === 'TRADE') return `${host} wants to trade`;
+  return preview.hostRole === 'BUYER' ? `${host} wants to buy` : `${host} is selling`;
+}
+
+function ClosedInvite({ preview }: { preview: DealInvitePreview }) {
+  const copy = statusCopy(preview.status);
+  return (
+    <Card className="mx-auto w-full max-w-lg">
+      <CardHeader>
+        <CardTitle>{copy.title}</CardTitle>
+        <CardDescription>{copy.description}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
 export function DealInviteSummary({ preview }: { preview: DealInvitePreview }) {
   return (
     <div className="grid gap-group">
-      {preview.hostName ? (
-        <p className="text-body text-muted-foreground">From {preview.hostName}</p>
-      ) : null}
       <DealInviteFacts preview={preview} audience="guest" />
+      {preview.kind ? (
+        <InviteeVerificationNotice
+          kind={preview.kind}
+          readiness={preview.hostReadiness}
+          hostName={preview.hostName ?? 'They'}
+        />
+      ) : null}
     </div>
   );
 }
 
-export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
+export interface DealJoinViewer {
+  /** A new account that has not yet given a display name and trading region. */
+  needsOnboarding: boolean;
+  displayName: string | null;
+}
+
+export function DealJoinForm({
+  preview,
+  viewer,
+  regions,
+  suggestedRegion,
+}: {
+  preview: DealInvitePreview;
+  viewer: DealJoinViewer;
+  regions: SelectableRegion[];
+  suggestedRegion: string | null;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<UnlistedItemDraft | null>(null);
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [valueDollars, setValueDollars] = useState('');
-  const [paymentLabel, setPaymentLabel] = useState<string | null>(null);
-  const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(null);
-  const [loadingStatus, setLoadingStatus] = useState(false);
+  const [displayName, setDisplayName] = useState(viewer.displayName ?? '');
+  const [regionCode, setRegionCode] = useState(suggestedRegion ?? regions[0]?.code ?? '');
+
+  if (preview.status !== 'open') return <ClosedInvite preview={preview} />;
+  if (preview.isHost) return <DealInviteShare preview={preview} />;
 
   const needsCard = joinerPutsUpACard(preview.kind ?? 'TRADE', preview.hostRole);
-  const needsCheckout =
-    preview.kind === 'CASH_SALE' && preview.hostRole === 'SELLER' && !preview.isHost;
   const cardLabel = draft ? deriveItemTitle(draft.description) : '';
 
-  useEffect(() => {
-    if (!needsCheckout) return;
-    let cancelled = false;
-    setLoadingStatus(true);
-    getPaymentMethodStatus()
-      .then((result) => {
-        if (cancelled) return;
-        setLoadingStatus(false);
-        if (result.ok) {
-          setHasPaymentMethod(result.data.hasPaymentMethod);
-          setPaymentLabel(result.data.label);
-        } else {
-          setHasPaymentMethod(false);
-          setPaymentLabel(null);
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLoadingStatus(false);
-        setHasPaymentMethod(false);
-        setPaymentLabel(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [needsCheckout]);
+  // A brand-new account has no region yet, which `claimBlock` reports as `no-region`.
+  // The two questions below answer exactly that, so it is not a reason to stop here.
+  // Anything else it reports — the host is in another region — is.
+  const block =
+    preview.viewerBlock && !(viewer.needsOnboarding && preview.viewerBlock.reason === 'no-region')
+      ? preview.viewerBlock
+      : null;
 
-  if (preview.status !== 'open') {
-    const copy = statusCopy(preview.status);
+  // BEFORE the form, not after submitting it: `claimDealInvite` refuses for exactly
+  // these reasons, and saying so here means nobody describes a card and uploads photos
+  // for a claim that cannot succeed. Same `message`, so the two never disagree.
+  if (block) {
     return (
       <Card className="mx-auto w-full max-w-lg">
         <CardHeader>
-          <CardTitle>{copy.title}</CardTitle>
-          <CardDescription>{copy.description}</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
-
-  if (preview.isHost) {
-    return <DealInviteShare preview={preview} />;
-  }
-
-  // BEFORE the form, not after submitting it. `claimDealInvite` refuses for exactly
-  // these reasons; showing them here means the member is not asked to describe a
-  // card and upload photos for a claim that cannot succeed. Same `message`, so the
-  // two never say different things.
-  if (preview.viewerBlock) {
-    const remedy = blockRemedy(preview.viewerBlock.reason);
-    return (
-      <Card className="mx-auto w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>You cannot join this deal yet</CardTitle>
-          <CardDescription>{preview.viewerBlock.message}</CardDescription>
+          <CardTitle>You cannot join this deal</CardTitle>
+          <CardDescription>{block.message}</CardDescription>
         </CardHeader>
         <CardContent>
           <DealInviteSummary preview={preview} />
         </CardContent>
-        {remedy ? (
-          <CardFooter>
-            <Button asChild className="w-full sm:w-auto">
-              <Link href={remedy.href}>{remedy.label}</Link>
-            </Button>
-          </CardFooter>
-        ) : null}
       </Card>
     );
   }
 
+  const missing = viewer.needsOnboarding
+    ? displayName.trim() === ''
+      ? 'Add the name other members see.'
+      : !regionCode
+        ? 'Choose where you trade.'
+        : null
+    : null;
+  const cardMissing = needsCard
+    ? !draft
+      ? 'Describe the card you are offering.'
+      : preview.kind === 'TRADE' && dollarsToCents(valueDollars) == null
+        ? 'Say what your card is worth.'
+        : null
+    : null;
+  const blocker = missing ?? cardMissing;
+
   function join() {
     setError(null);
     startTransition(async () => {
+      if (viewer.needsOnboarding) {
+        const done = await completeQuickOnboarding({ displayName: displayName.trim(), regionCode });
+        if (!done.ok) {
+          setError(done.message);
+          return;
+        }
+      }
+
       let item = undefined as
         | { description: string; category: string; condition: string; fmvCents: number; images: string[] }
         | undefined;
       if (needsCard) {
         if (!draft || !isUnlistedDraftComplete(draft)) {
-          setError('Describe the card you are putting up.');
+          setError('Describe the card you are offering.');
           return;
         }
         const fmvCents =
@@ -213,9 +202,7 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
             : dollarsToCents(valueDollars);
         if (fmvCents == null || fmvCents < 1) {
           setError(
-            preview.kind === 'CASH_SALE'
-              ? 'This sale is missing a price.'
-              : 'Say what your card is worth.',
+            preview.kind === 'CASH_SALE' ? 'This sale is missing a price.' : 'Say what your card is worth.',
           );
           return;
         }
@@ -227,27 +214,16 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
         item = uploaded.item;
       }
 
-      const result = await claimDealInvite({
-        token: preview.token,
-        item,
-        buyerConfirmedSellerIdentity: needsCheckout ? true : undefined,
-      });
+      const result = await claimDealInvite({ token: preview.token, item });
       if (!result.ok) {
-        if (result.error === 'no-payment-method') {
-          setHasPaymentMethod(false);
-          setPaymentLabel(null);
-        }
-        setError(result.message || DEAL_INVITE_ERROR_COPY[result.error]);
-        toast.error(result.message || DEAL_INVITE_ERROR_COPY[result.error]);
+        const message = result.message || DEAL_INVITE_ERROR_COPY[result.error];
+        setError(message);
+        toast.error(message);
         return;
       }
       navigateWithType(router, result.data.path, 'nav-forward');
     });
   }
-
-  const showCardForm = needsCheckout && hasPaymentMethod === false;
-  const showCheckout = !needsCheckout || hasPaymentMethod === true;
-  const loading = needsCheckout && (loadingStatus || hasPaymentMethod === null);
 
   return (
     <Card className="mx-auto w-full max-w-lg">
@@ -255,10 +231,10 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
         <CardTitle>Join this deal</CardTitle>
         <CardDescription>
           {preview.kind === 'TRADE'
-            ? 'Describe your unlisted card. You both continue in a trade room.'
+            ? "Describe the card you're offering."
             : preview.hostRole === 'SELLER'
-              ? 'This reserves the card and opens a sale. You do not pay yet.'
-              : 'Describe the card they are buying. You both continue in a sale room.'}
+              ? 'This reserves the card for you.'
+              : 'Describe the card they are buying.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-group">
@@ -287,99 +263,38 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
           </>
         ) : null}
 
-        {loading ? (
-          // The saved-card block's shape, not the card-entry form's: that is the
-          // usual answer, and this card is vertically centred, so a 330px
-          // placeholder collapsing to ~150px re-centred the whole card.
-          <CheckoutSummarySkeleton />
-        ) : showCardForm ? (
-          <div className="space-y-cozy">
-            <div className="space-y-tight">
-              <p className="text-body font-medium">Add a payment method</p>
-              <p className="text-body text-muted-foreground">
-                Stripe stores the card. Nothing is charged until you agree to terms.
-              </p>
-            </div>
-            <AddPaymentMethodForm
-              onAttached={() => {
-                setLoadingStatus(true);
-                getPaymentMethodStatus()
-                  .then((result) => {
-                    setLoadingStatus(false);
-                    if (result.ok) {
-                      setHasPaymentMethod(result.data.hasPaymentMethod);
-                      setPaymentLabel(result.data.label);
-                    }
-                  })
-                  .catch(() => setLoadingStatus(false));
-              }}
-            />
-          </div>
-        ) : needsCheckout && showCheckout ? (
-          <>
-            {/* No `else` branch. A missing disclosure is a `viewerBlock` and returned
-                above, so this component never reaches here without one — the second,
-                hardcoded copy of "The seller has not verified their identity yet."
-                that used to sit here could contradict the server's own wording, and
-                on a host-BUYER invite it was about the reader rather than the host. */}
-            {preview.sellerIdentity ? (
-              <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
-                <p className="font-medium">Verified seller</p>
-                {preview.sellerIdentity.tradingName ? (
-                  <p className="break-words">{preview.sellerIdentity.tradingName}</p>
-                ) : null}
-                <p className="break-words text-muted-foreground">
-                  {preview.sellerIdentity.legalEntityName}
-                </p>
-              </div>
-            ) : null}
-            <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-              <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-body font-medium">
-                  {paymentLabel ?? 'Card on file'}
-                </p>
-                <p className="text-body text-muted-foreground">Stripe method</p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setHasPaymentMethod(false);
-                  setPaymentLabel(null);
-                }}
-              >
-                Change
-              </Button>
-            </div>
-          </>
+        {viewer.needsOnboarding ? (
+          <QuickProfileFields
+            idPrefix="join"
+            displayName={displayName}
+            onDisplayName={setDisplayName}
+            regionCode={regionCode}
+            onRegion={setRegionCode}
+            regions={regions}
+            quoteCurrency={preview.currency}
+          />
         ) : null}
 
         <FieldError message={error ?? undefined} />
       </CardContent>
-      {/* While the card form is up, saving the card IS the action. A second,
-          permanently disabled Join button below it just reads as broken. */}
-      {showCardForm ? null : (
-        <CardFooter>
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            onClick={join}
-            disabled={
-              isPending || loading || (needsCheckout && !preview.sellerIdentity)
-            }
-            aria-busy={isPending}
-          >
-            {/* WIDTH-STABLE, spinner included. From `sm` the button is `w-auto`; the
-                hand-pinned label this replaced held the text still but let the spinner
-                add its own width while pending. */}
-            <PendingLabel pending={isPending} pendingLabel="Opening…">
-              Join this deal
-            </PendingLabel>
-          </Button>
-        </CardFooter>
-      )}
+      <CardFooter className="flex-col items-stretch gap-snug sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-meta text-muted-foreground" id="join-blocker">
+          {blocker && !isPending ? blocker : 'Nothing is paid or held when you join.'}
+        </p>
+        <Button
+          type="button"
+          onClick={join}
+          disabled={isPending || blocker != null}
+          aria-busy={isPending}
+          aria-describedby="join-blocker"
+        >
+          {/* Width-stable: the spinner and "Opening…" share the resting label's cell,
+              so the button does not resize under the pointer that pressed it. */}
+          <PendingLabel pending={isPending} pendingLabel="Opening…">
+            Join this deal
+          </PendingLabel>
+        </Button>
+      </CardFooter>
 
       <UnlistedItemDialog
         open={itemDialogOpen}
@@ -393,38 +308,37 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
   );
 }
 
-export function PublicDealInvitePreview({
-  preview,
-  signInHref,
-}: {
-  preview: DealInvitePreview;
-  signInHref: string;
-}) {
-  if (preview.status !== 'open') {
-    const copy = statusCopy(preview.status);
-    return (
-      <Card className="mx-auto w-full max-w-lg">
-        <CardHeader>
-          <CardTitle>{copy.title}</CardTitle>
-          <CardDescription>{copy.description}</CardDescription>
-        </CardHeader>
-      </Card>
-    );
-  }
+export function PublicDealInvitePreview({ preview }: { preview: DealInvitePreview }) {
+  if (preview.status !== 'open') return <ClosedInvite preview={preview} />;
 
+  const path = dealInvitePath(preview.token);
   return (
     <Card className="mx-auto w-full max-w-lg">
       <CardHeader>
-        <CardTitle>Private deal</CardTitle>
-        <CardDescription>Sign in to join this deal with {preview.hostName}.</CardDescription>
+        <CardTitle>{headline(preview)}</CardTitle>
+        <CardDescription>
+          Nothing is paid or held when you join.
+        </CardDescription>
       </CardHeader>
       <CardContent>
         <DealInviteSummary preview={preview} />
       </CardContent>
-      <CardFooter>
-        <Button asChild>
-          <Link href={signInHref}>Sign in to join</Link>
+      <CardFooter className="flex-col items-stretch gap-snug">
+        <GoogleSignInButton mode="sign-up" redirectTo={path}>
+          Join with Google
+        </GoogleSignInButton>
+        <Button asChild variant="outline" className="min-h-11 w-full">
+          <Link href={`/sign-up?redirectTo=${encodeURIComponent(path)}`}>Join with email</Link>
         </Button>
+        <p className="text-meta text-muted-foreground">
+          Already have an account?{' '}
+          <Link
+            href={`/sign-in?redirectTo=${encodeURIComponent(path)}`}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            Sign in to join
+          </Link>
+        </p>
       </CardFooter>
     </Card>
   );

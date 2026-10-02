@@ -124,8 +124,10 @@ export function makeCashSaleRepository(options: {
     events: [],
     payerRefs: {},
   };
-  const buyer = options.buyer === undefined ? BUYER : options.buyer;
-  const payee = options.payee === undefined ? APPROVED_SELLER : options.payee;
+  // Mutable so a private-deal test can verify the seller, or add the buyer's card,
+  // between opening the sale and paying for it. See `setBuyer` / `setPayee`.
+  let buyer = options.buyer === undefined ? BUYER : options.buyer;
+  let payee = options.payee === undefined ? APPROVED_SELLER : options.payee;
 
   const repository: CashSaleRepository = {
     async loadBuyer() {
@@ -395,7 +397,7 @@ export function makeCashSaleRepository(options: {
         sellerHandoverConfirmedAt: null,
         completedAt: null,
         conversationId: 'conversation-1',
-        sellerIdentity: { sellerId: params.sellerId, ...IDENTITY },
+        sellerIdentity: params.sellerIdentity ? { sellerId: params.sellerId, ...IDENTITY } : null,
         buyerSellerIdentityConfirmedAt: params.buyerSellerIdentityConfirmedAt,
         sellerPayoutStatus: 'NOT_DUE',
         sellerPayoutRef: null,
@@ -405,6 +407,18 @@ export function makeCashSaleRepository(options: {
       return state.sale;
     },
     async loadCashSale() {
+      return state.sale;
+    },
+    async recordSellerIdentity({ sellerIdentity, confirmedAt }) {
+      // Mirrors the SQL guard: AGREEMENT only, and write-once.
+      if (!state.sale || state.sale.status !== 'AGREEMENT' || state.sale.sellerIdentity) {
+        return null;
+      }
+      state.sale = {
+        ...state.sale,
+        sellerIdentity,
+        buyerSellerIdentityConfirmedAt: confirmedAt,
+      };
       return state.sale;
     },
     async updateTerms({ expectedTermsVersion, terms }) {
@@ -684,7 +698,16 @@ export function makeCashSaleRepository(options: {
     },
   };
 
-  return { repository, state };
+  return {
+    repository,
+    state,
+    setBuyer(next: BuyerRecord | null) {
+      buyer = next;
+    },
+    setPayee(next: MerchantRecord | null) {
+      payee = next;
+    },
+  };
 }
 
 /** Payment service double recording transfer calls and their nonces. */

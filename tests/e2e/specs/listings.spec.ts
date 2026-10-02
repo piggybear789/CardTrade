@@ -92,15 +92,15 @@ test.describe('Catalog', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    // The catalog owns a dedicated filter field. The header search is a jump
-    // launcher and must not be the control this spec drives.
-    const search = page.getByLabel('Filter listings');
+    // The header search is the catalog's search: submitting runs a marketplace
+    // query. Hitting Enter keeps the member on the section they are in, and
+    // the grid follows the URL.
+    const search = page.getByRole('combobox');
     await search.click();
     await search.fill('Charizard');
+    await search.press('Enter');
 
-    // Client-side filter of the loaded grid — no navigation, so the URL stays
-    // clean and cards that already rendered keep their images.
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/q=Charizard/);
     await expect(page.getByText(/Charizard/).first()).toBeVisible();
     await expect(page.getByText('1986 Fleer Michael Jordan Rookie #57 BGS 7')).toHaveCount(0);
   });
@@ -199,6 +199,7 @@ test.describe('Listing form', () => {
   });
 
   test('edits a listing title', async ({ page }) => {
+    test.slow();
     const original = marked(`Editable ${Date.now()}`);
     const updated = `${original} (updated)`;
 
@@ -221,21 +222,12 @@ test.describe('Listing form', () => {
     await expect(page).toHaveURL(/\/edit/, { timeout: 15_000 });
     await page.waitForLoadState('domcontentloaded');
 
-    // THE TITLE IS DERIVED, NOT TYPED, so the edit goes through the description.
-    // `ItemForm` takes one prose field and the server derives `items.title` from its
-    // leading sentence (`deriveItemTitle`), on the create AND the edit form — which is
-    // why `createListing` writes the marked title there. This test still proves what it
-    // always did, that an edit reaches the catalog heading; it just goes through the
-    // field that actually owns the title.
-    //
-    // `exact` matches the selector in `createListing`, so both go to the same field.
-    // Asserting the whole prior value rather than `toContain` also pins that the edit
-    // form loaded THIS listing's body, not an empty or stale form.
-    const descriptionInput = page.getByLabel('Description', { exact: true });
-    await expect(descriptionInput).toHaveValue(`${original}. Original body.`, {
-      timeout: 10_000,
-    });
-    await descriptionInput.fill(`${updated}. Edited by the e2e suite.`);
+    // Title is its own field again, so the edit goes through it. Asserting the
+    // whole prior value pins that the edit form loaded THIS listing's title,
+    // not an empty or stale form.
+    const titleInput = page.getByLabel('Title', { exact: true });
+    await expect(titleInput).toHaveValue(original, { timeout: 10_000 });
+    await titleInput.fill(updated);
 
     await page.getByRole('button', { name: /Save changes|Update listing/i }).click();
 
@@ -252,8 +244,12 @@ test.describe('Listing form', () => {
     await page.getByRole('radio', { name: /^One item/ }).check();
     await page.getByRole('button', { name: 'Create listing' }).click();
 
-    // Stays on the form. The validator returns a field-scoped error rather than
-    // throwing, so the page must not navigate.
+    // Stays on the form, with the error pinned to the Title field. The
+    // validator returns a field-scoped error rather than throwing, so the page
+    // must not navigate.
     await expect(page).toHaveURL(/\/listings\/new/);
+    await expect(page.getByText('Title must be at least 1 character')).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });

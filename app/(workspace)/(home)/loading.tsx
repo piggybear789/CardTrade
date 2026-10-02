@@ -26,80 +26,28 @@ import { CatalogGridSkeleton } from '@/components/layout/catalogSkeletons';
  * Filters button — 64px of toolbar above the results on every phone load, which
  * then vanished. The live page prints nothing there: `CatalogFilters` puts every
  * phone control inside a `Sheet` that starts closed, and a closed sheet renders
- * no DOM, while the keyword field is wrapped in `DesktopOnly`. The rail below is
- * the only thing this placeholder has ever stood for.
- *
- * BLOCK FOR BLOCK `CatalogFilters`' desktop panel: `mt-group space-y-5`, the
- * 36px filter field, Condition as a CLOSED disclosure (it opens on mount only
- * when the URL already filters by condition), Price, then Availability. It used
- * to be a `border-t pt-5` column of five generic slabs — a 96px box standing for
- * a 45px disclosure, three thin bars standing for a 190px price block, and two
- * 36px slabs for an Availability group whose label it never drew — so the whole
- * rail rearranged itself on swap.
+ * no DOM — so the rail below is the only thing this placeholder has ever stood
+ * for.
  */
 function FilterRailSkeleton() {
   return (
-    <div className="hidden min-w-0 md:block">
-      <div className="mt-group space-y-5">
-        <Skeleton className="h-9 w-full rounded-md" />
-
-        {/* Condition, collapsed: `border-t pt-snug`, then the trigger at
-            `py-1.5` around one `text-body` line inside a 1px transparent border. */}
-        <div className="border-t border-border pt-snug">
-          <div className="flex items-center justify-between gap-snug border border-transparent py-1.5">
-            <TextLines className="text-body" widths={['w-20']} />
-            <Skeleton className="size-4 shrink-0 rounded-sm" />
+    // THREE ROWS: Condition, Price, Showing — matching the property rows the
+    // live rail renders. Each is a 40px row with an icon slot, a label, and the
+    // value the filter currently carries at the right.
+    <div className="hidden min-w-0 flex-col gap-0.5 md:flex">
+      {[
+        { label: 'Condition', value: 'w-14' },
+        { label: 'Price', value: 'w-20' },
+        { label: 'Showing', value: 'w-16' },
+      ].map((row) => (
+        <div key={row.label} className="flex h-10 items-center gap-snug px-cozy">
+          <Skeleton className="size-4 shrink-0 rounded-sm" />
+          <Skeleton className="h-3.5 w-16 shrink-0" />
+          <div className="flex min-w-0 flex-1 justify-end">
+            <Skeleton className={`h-3.5 ${row.value}`} />
           </div>
         </div>
-
-        {/* Price: label + readout on one `text-body` line, the 32px histogram,
-            the slider (24px thumb inside `py-snug`), the bound captions, then the
-            typed min/max pair. */}
-        <div className="border-t border-border pt-group">
-          <div className="mb-cozy flex items-baseline justify-between gap-snug">
-            <TextLines className="text-body" widths={['w-10']} />
-            <TextLines className="text-body" widths={['w-20']} />
-          </div>
-          <div className="flex h-8 items-end gap-px px-cozy" aria-hidden="true">
-            {[40, 70, 100, 55, 30, 20, 12, 8].map((height, index) => (
-              <Skeleton
-                key={index}
-                className="min-w-0 flex-1 rounded-none rounded-t-[2px]"
-                style={{ height: `${height}%` }}
-              />
-            ))}
-          </div>
-          <div className="box-content flex h-6 items-center px-tight py-snug">
-            <Skeleton className="h-2 w-full rounded-full" />
-          </div>
-          <div className="mt-tight flex justify-between">
-            <TextLines className="text-meta" widths={['w-6']} />
-            <TextLines className="text-meta" widths={['w-12']} />
-          </div>
-          <div className="mt-cozy flex items-center gap-snug">
-            <Skeleton className="h-8 min-w-0 flex-1 rounded-md" />
-            <TextLines className="text-meta" widths={['w-3']} />
-            <Skeleton className="h-8 min-w-0 flex-1 rounded-md" />
-          </div>
-        </div>
-
-        {/* Availability: a `market-label` caption over two check rows
-            (`px-cozy py-snug` around a 16px box and one `text-body` line). */}
-        <div className="border-t border-border pt-group">
-          <TextLines className="mb-snug text-meta" widths={['w-20']} />
-          <div className="space-y-tight">
-            {['w-40', 'w-32'].map((width) => (
-              <div
-                key={width}
-                className="flex items-center gap-cozy rounded-lg border border-transparent px-cozy py-snug"
-              >
-                <Skeleton className="size-4 shrink-0 rounded-[0.25rem]" />
-                <TextLines className="min-w-0 flex-1 text-body" widths={[width]} />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      ))}
     </div>
   );
 }

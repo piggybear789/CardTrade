@@ -103,11 +103,8 @@ export interface CreateListingOptions {
   /**
    * Marked label — pass `marked(...)` so teardown can find the row.
    *
-   * The form no longer HAS a Title field: it takes one description and the server
-   * derives `items.title` from it via `deriveItemTitle`. This string is filled as the
-   * OPENING of the description, so it still lands in `items.title` verbatim — it is
-   * far shorter than the 80-character derivation budget — and cleanup keeps matching
-   * on it.
+   * Filled as the form's Title, which the server stores in `items.title` verbatim
+   * (it is far shorter than the title bound), and cleanup keeps matching on it.
    */
   title: string;
   /** Dollars, as typed into the form. Converted to integer cents by the form. */
@@ -184,22 +181,15 @@ export async function createListing(
   // rather than a change to the component.
   await expect(page.locator('#condition')).toBeFocused({ timeout: 10_000 });
 
-  // One prose field, and the marked label leads it so the derived title contains it.
+  // Title first, then the body — matching the form's own order. The title is stored
+  // verbatim in `items.title`; the derivation only survives as the fallback when it
+  // is blank.
   //
-  // Matched EXACTLY on `Description`, which is what `ItemForm` labels it. This helper
-  // previously looked for `Describe what you are selling`; that sentence still appears
-  // on the form, but only as the card's own `CardDescription` ("Describe your
-  // collectible and set its price…"), which `getByLabel` cannot see. So the stale
-  // selector matched nothing while the page plainly showed the words — which read as a
-  // hang rather than a rename. It cost 6 failures across three lifecycles, because
-  // cash-sale, trade and offers all reach escrow through this one line.
-  //
-  // `exact` because a substring match would also accept a future second field whose
-  // label merely CONTAINS "Description", and filling the wrong box here would fail
-  // much later, at the derived title.
-  await page
-    .getByLabel('Description', { exact: true })
-    .fill(`${title}. ${description}`);
+  // Matched EXACTLY, because a substring match would also accept a future second
+  // field whose label merely CONTAINS the word, and filling the wrong box here
+  // would fail much later, on the detail page's heading.
+  await page.getByLabel('Title', { exact: true }).fill(title);
+  await page.getByLabel('Description', { exact: true }).fill(description);
   await page.getByLabel('Price').fill(priceDollars);
 
   // PLACE BEFORE PHOTOS, and the order matters.

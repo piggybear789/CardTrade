@@ -55,6 +55,7 @@ import { readListingGate } from '@/lib/sellerListingGate';
 import { normalizeRegionCode } from '@/domain/region';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { CARD_GAME_NAMES, isCardGameName } from '@/lib/catalog/cardGames';
+import { normalizeConditionFilter } from '@/lib/catalog/conditions';
 import { catalogSearchAttempts } from '@/lib/catalog/searchQuery';
 import {
   buildPriceLadderCents,
@@ -100,9 +101,10 @@ export interface ItemLocationInput {
 /** Fields accepted when creating an Item (images are uploaded, then validated). */
 export interface CreateItemInput {
   /**
-   * Short listing label. Optional: if omitted or blank, derived from the
-   * description via {@link deriveItemTitle} so older callers and the mobile
-   * path still work.
+   * Short listing label. Optional: when blank, derived from the description via
+   * {@link deriveItemTitle} — not because deriving is wanted, but because the
+   * column and every contract snapshot read off it are `not null`, and a blank
+   * title must not become a failed insert on a contract.
    */
   title?: string;
   description: string;
@@ -539,8 +541,9 @@ export const createPrivateTradeItem = withActionLog('listings.createPrivateTrade
 
   // A private trade item is never browsed, but it still reaches arbitration through
   // `trades.counterpart_goods_description` and the trade contract, so it needs the
-  // same short label every other item carries.
-  const derivedTitle = deriveItemTitle(input.description);
+  // same short label every other item carries. A typed title wins; the description
+  // derives the fallback under the same rules as a public listing.
+  const derivedTitle = resolveListingTitle(input);
 
   // Validate text/number fields against placeholder paths before uploading.
   const preValidation = validateItemSubmission({
@@ -1140,9 +1143,11 @@ export interface SearchCatalogParams {
   q?: string;
   /** Restrict to these categories (OR-ed together). */
   categories?: string[];
-  /** Restrict to a single condition (legacy, prefer `conditions`). */
-  condition?: string;
-  /** Restrict to these conditions (OR-ed together, multi-select). */
+  /**
+   * Restrict to these conditions (OR-ed together, multi-select). Cleaned by
+   * `normalizeConditionFilter`: a retired grade maps to its replacement and anything
+   * else off the scale is ignored.
+   */
   conditions?: string[];
   /** Minimum fair market value, in integer AUD cents (inclusive). */
   minCents?: number;
@@ -1347,13 +1352,9 @@ export const searchCatalog = withActionLog('listings.searchCatalog', async funct
     query = query.in('category', requestedGames.length > 0 ? requestedGames : CARD_GAME_NAMES);
 
     // Condition multi-select.
-    const conditions = (params.conditions ?? []).filter((c) => c.trim() !== '');
+    const conditions = normalizeConditionFilter(params.conditions ?? []);
     if (conditions.length > 0) {
       query = query.in('condition', conditions);
-    }
-    // Legacy single-condition param (backwards compat with old URLs).
-    if (conditions.length === 0 && params.condition && params.condition.trim() !== '') {
-      query = query.eq('condition', params.condition);
     }
 
     // Price range (integer AUD cents).

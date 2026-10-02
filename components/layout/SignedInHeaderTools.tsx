@@ -15,8 +15,6 @@ import {
   NotificationBell,
   type NotificationBellProps,
 } from '@/components/notifications/NotificationBell';
-import { Avatar } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
 export function SignedInHeaderTools({
@@ -76,30 +74,7 @@ export function SignedInHeaderTools({
           to us rather than about the marketplace, so it sits after the bell
           and before the account. */}
       <FeedbackDialog appearance="header-text" className="hidden xl:inline-flex" />
-      {/* `!h-10` matches the 40px icon targets beside it. The `sm` size
-          collapses to 24px from `md`, the same height as the avatar, and the
-          button's clip cropped the circle into an ellipse.
-
-          `xl:max-w-[10rem]` until `2xl`: from `xl` the header keeps this rail at
-          full width and takes the room from the search (see `SiteHeader`), and a
-          display name may run to 255 characters. At 14rem a long one left a
-          ~110px search box at 1280px; at 10rem it leaves ~170px. */}
-      <Button asChild variant="ghost" size="sm" className="hidden !h-10 min-w-0 max-w-[9rem] px-snug md:inline-flex md:max-w-[14rem] xl:max-w-[10rem] 2xl:max-w-[14rem]">
-        <Link
-          href="/profile"
-          className="flex min-w-0 items-center gap-snug"
-          aria-label={displayName ?? 'Your profile'}
-          title={displayName ?? 'Your profile'}
-        >
-          <Avatar
-            avatarPath={avatarPath}
-            displayName={displayName}
-            size="xs"
-            className="border-white/25"
-          />
-          <span className="hidden min-w-0 truncate md:inline">{displayName ?? 'Profile'}</span>
-        </Link>
-      </Button>
+      {/* The avatar chip. It opens the menu, whose first row is Account. */}
       <SiteMenu
         isAuthenticated
         isAdmin={isAdmin}

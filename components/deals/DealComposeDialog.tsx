@@ -2,10 +2,10 @@
 
 import { useRouter } from 'next/navigation';
 
-import { DealComposeForm } from '@/components/deals/DealComposeForm';
+import { DealComposeForm, type DealComposeFormProps } from '@/components/deals/DealComposeForm';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
-export function DealComposeDialog() {
+export function DealComposeDialog(props: Omit<DealComposeFormProps, 'onSuccess'>) {
   const router = useRouter();
 
   return (
@@ -16,7 +16,7 @@ export function DealComposeDialog() {
       }}
     >
       <DialogContent className="sm:max-w-lg">
-        <DealComposeForm />
+        <DealComposeForm {...props} />
       </DialogContent>
     </Dialog>
   );

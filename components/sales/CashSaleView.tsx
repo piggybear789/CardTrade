@@ -76,8 +76,11 @@ import { CashSaleReturnPanel } from './CashSaleReturnPanel';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { cashSaleErrorMessage } from './errorCopy';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
+import { PayCardSection, usePayCard, VerifiedSellerConfirmation } from './PayStepDetails';
 import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDialog';
+import { OffPlatformWarning } from '@/components/deals/DealVerificationNotice';
 import { ReportDialog } from '@/components/reports/ReportDialog';
+import type { SellerPayReadiness } from '@/lib/sellerIdentity';
 
 import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { formatMoney, formatContractDateTime, itemImageUrl } from '@/lib/format';
@@ -387,6 +390,15 @@ export interface CashSaleViewProps {
    * it belongs in the one place that answers that question.
    */
   reviewAction?: ReactNode;
+  /**
+   * Whether the seller can be paid yet, on an unpaid sale that has no verified
+   * identity frozen onto it — a private deal, which opens before the seller
+   * verifies. Null for every other sale, whose seller was confirmed at Buy.
+   *
+   * Drives the Pay step: nobody can pay until the seller is `ready`, and the buyer
+   * then confirms the verified name it carries.
+   */
+  sellerPayReadiness?: SellerPayReadiness | null;
 }
 
 /**
@@ -445,6 +457,7 @@ function CashSaleRoom({
   disputeEvidence = [],
   returnAddress = null,
   reviewAction,
+  sellerPayReadiness = null,
 }: CashSaleViewProps) {
   const router = useRouter();
   const { focusSection } = useContractFocus();
@@ -472,6 +485,10 @@ function CashSaleRoom({
   const [detailsFor, setDetailsFor] = useState<'DELIVERY' | 'IN_PERSON' | null>(
     null,
   );
+  // The Pay step's two inputs besides the charge: the buyer's card, read when the
+  // step opens, and their confirmation of a private-deal seller's verified name.
+  const payCard = usePayCard(confirming === 'pay');
+  const [confirmedSeller, setConfirmedSeller] = useState(false);
 
   // Contracts opened before chat was linked (or an interrupted create) heal on first
   // view: the server resolves or creates the participant thread.
@@ -493,6 +510,24 @@ function CashSaleRoom({
 
   const termsSet = sale.fulfillment_method !== null;
   const editable = sale.status === 'AGREEMENT';
+
+  // A PRIVATE DEAL CANNOT BE PAID UNTIL ITS SELLER CAN BE. The room opened before
+  // they verified; the terms can be agreed meanwhile, but Pay waits for Stripe
+  // Identity and payout setup. Once they are ready, the buyer confirms the verified
+  // name on the Pay step. Null for a sale whose seller was confirmed at Buy.
+  const payReadiness = editable ? sellerPayReadiness : null;
+  const payBlocked = payReadiness != null && payReadiness.state !== 'ready';
+  const pendingSellerIdentity = payReadiness?.state === 'ready' ? payReadiness.identity : null;
+  const payoutSetupOnly = payReadiness?.state === 'payout-setup-needed';
+  const verificationNote = !payBlocked
+    ? undefined
+    : iAmBuyer
+      ? payoutSetupOnly
+        ? `${seller.name} hasn't finished payout setup yet.`
+        : `${seller.name} hasn't verified with Stripe Identity yet.`
+      : payoutSetupOnly
+        ? `Finish payout setup so ${buyer.name} can pay.`
+        : `Verify with Stripe Identity and finish payout setup so ${buyer.name} can pay.`;
   const isDelivery = sale.fulfillment_method === 'DELIVERY';
   const deliveryReady = !isDelivery || sale.delivery_address_configured;
   const sellerCanReceiveDeliveryAddress =
@@ -713,6 +748,14 @@ function CashSaleRoom({
           The trade room has always rendered it here (`TradeContract`), so this also
           removes a divergence rather than adding one — two rooms were using one
           component in two places, and only one of them was visible. */}
+      {payBlocked ? (
+        <OffPlatformWarning>
+          {iAmBuyer
+            ? 'Anyone asking you to pay by PayID or bank transfer is running a scam.'
+            : 'A payment outside NoDitto has no protection for either of you.'}
+        </OffPlatformWarning>
+      ) : null}
+
       {sale.status === 'INSPECTION' ? (
         <InspectionCountdown
           deadlineAt={sale.inspection_deadline_at}
@@ -790,7 +833,8 @@ function CashSaleRoom({
                   // Read, not clicked — so it is a note beside the title rather than a
                   // child in the button column.
                   note={
-                    sale.tracking_number && sale.status === 'IN_TRANSIT' ? (
+                    verificationNote ??
+                    (sale.tracking_number && sale.status === 'IN_TRANSIT' ? (
                       <>
                         {sale.tracking_carrier} · {sale.tracking_number}
                         {sale.tracking_url ? (
@@ -807,7 +851,7 @@ function CashSaleRoom({
                           </>
                         ) : null}
                       </>
-                    ) : undefined
+                    ) : undefined)
                   }
                   more={
                     <>
@@ -893,13 +937,22 @@ function CashSaleRoom({
                           type="button"
                           variant="action"
                           size="sm"
-                          disabled={isPending || !deliveryReady}
+                          disabled={isPending || !deliveryReady || payBlocked}
                           aria-busy={busy('accept')}
                           onClick={() => setConfirming('pay')}
                         >
                           <PendingLabel pending={busy('accept')}>
                             Accept terms and pay
                           </PendingLabel>
+                        </Button>
+                      ) : null}
+                      {/* The seller's half of a blocked Pay step: the one thing that
+                          unblocks it, beside whatever the terms still need. */}
+                      {payBlocked && iAmSeller ? (
+                        <Button asChild variant={termsSet ? 'action' : 'outline'} size="sm">
+                          <Link href="/profile?tab=verification">
+                            {payoutSetupOnly ? 'Finish payout setup' : 'Verify with Stripe'}
+                          </Link>
                         </Button>
                       ) : null}
                     </>
@@ -1559,17 +1612,33 @@ function CashSaleRoom({
       {/* Confirmation steps for irreversible actions in this room. */}
       <ConfirmDialog
         open={confirming === 'pay'}
-        onOpenChange={(next) => setConfirming(next ? 'pay' : null)}
+        onOpenChange={(next) => {
+          setConfirming(next ? 'pay' : null);
+          if (!next) setConfirmedSeller(false);
+        }}
         title="Accept these terms and pay?"
         description={`This charges ${money(sale.amount_cents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`}
         confirmLabel={`Accept terms and pay ${money(sale.amount_cents)}`}
+        confirmDisabled={
+          payCard.card.state !== 'saved' || (pendingSellerIdentity != null && !confirmedSeller)
+        }
         pending={busy('accept')}
         helpHref="/help#holds"
         onConfirm={() => {
           setConfirming(null);
-          run('accept', () => acceptCashSaleTerms(sale.id, sale.terms_version));
+          setConfirmedSeller(false);
+          run('accept', () =>
+            acceptCashSaleTerms(sale.id, sale.terms_version, pendingSellerIdentity?.version),
+          );
         }}
       >
+        {pendingSellerIdentity ? (
+          <VerifiedSellerConfirmation
+            identity={pendingSellerIdentity}
+            confirmed={confirmedSeller}
+            onConfirmedChange={setConfirmedSeller}
+          />
+        ) : null}
         {/* The same breakdown as the Payment section, repeated here on purpose. That
             section is the third row of the inspector and on a phone the whole
             inspector sits behind a sheet, so a Buyer can reach this button having
@@ -1594,6 +1663,11 @@ function CashSaleRoom({
               total: true,
             },
           ]}
+        />
+        <PayCardSection
+          card={payCard.card}
+          onAttached={payCard.refresh}
+          onReplace={payCard.replace}
         />
       </ConfirmDialog>
       <ConfirmDialog

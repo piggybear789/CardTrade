@@ -101,14 +101,12 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
       <Dialog open={pendingId != null} onOpenChange={(open) => !open && setPendingId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Cancel invite</DialogTitle>
-            <DialogDescription>
-              The link stops working. Anyone who has it will not be able to join.
-            </DialogDescription>
+            <DialogTitle>Cancel this link?</DialogTitle>
+            <DialogDescription>It stops working straight away.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setPendingId(null)}>
-              Keep invite
+              Keep link
             </Button>
             <Button
               type="button"
@@ -116,7 +114,7 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
               disabled={isPending || pendingId == null}
               onClick={() => pendingId && revoke(pendingId)}
             >
-              Cancel invite
+              Cancel link
             </Button>
           </DialogFooter>
         </DialogContent>

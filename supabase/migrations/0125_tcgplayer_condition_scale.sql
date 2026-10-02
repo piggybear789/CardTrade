@@ -1,0 +1,22 @@
+-- 0125_tcgplayer_condition_scale.sql
+--
+-- Moves item condition onto TCGplayer's scale for singles: Near Mint, Lightly Played,
+-- Moderately Played, Heavily Played, Damaged, plus the Graded and Unopened buckets that
+-- sit outside it. Near Mint is the top of the scale; Mint is not a TCGplayer grade and
+-- is retired here. The app-side list is `lib/catalog/conditions.ts`, and
+-- `validateItemSubmission` now refuses anything off it.
+--
+-- `items.condition` is plain text with no constraint, so there is no type to alter —
+-- only rows to reclassify. Moderately Played needs no data change: nothing can hold it
+-- until the app offers it.
+--
+-- LIVE LISTINGS ONLY. `cash_sales.item_condition` and `cash_sale_items.condition` are
+-- snapshots taken when a contract was agreed, and arbitration reads them as the terms
+-- both parties accepted. Rewriting them would change what was agreed, so they keep the
+-- grade they were signed at.
+--
+-- Zero rows in production at the time of writing, so this is a no-op there; it is here
+-- so a branch, a seeded environment or a restored backup cannot keep a grade the app no
+-- longer offers or accepts.
+
+update cardtrade.items set condition = 'Near Mint' where condition = 'Mint';

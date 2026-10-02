@@ -2,8 +2,8 @@
 
 // Site-wide jump search. Finds a listing from anywhere: typeahead opens the
 // card, Enter starts a marketplace query. Already on the catalog (`/`), that
-// query is applied in place so the page is not remounted. It does not live-filter
-// the grid — that is `CatalogFilterSearch`. Phone chrome uses `appearance="pill"`.
+// query is applied in place so the page is not remounted. It is the catalog's
+// only search field. Phone chrome uses `appearance="pill"`.
 
 import {
   Suspense,
@@ -47,16 +47,13 @@ function retainSlashListener() {
           return;
         }
       }
-      const selectors = ['input[data-market-search]', 'input[data-catalog-filter]'];
-      for (const selector of selectors) {
-        const candidates = document.querySelectorAll<HTMLInputElement>(selector);
-        for (const field of candidates) {
-          if (field.disabled || field.getClientRects().length === 0) continue;
-          event.preventDefault();
-          field.focus();
-          field.select();
-          return;
-        }
+      const candidates = document.querySelectorAll<HTMLInputElement>('input[data-market-search]');
+      for (const field of candidates) {
+        if (field.disabled || field.getClientRects().length === 0) continue;
+        event.preventDefault();
+        field.focus();
+        field.select();
+        return;
       }
     }
     window.addEventListener('keydown', onSlash);

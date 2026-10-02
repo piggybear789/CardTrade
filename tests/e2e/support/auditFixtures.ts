@@ -7,7 +7,7 @@
 
 import { expect, test, type Browser, type Page } from '@playwright/test';
 
-import { chooseTile, fillUnlistedCard } from './deals';
+import { composeCashDeal } from './deals';
 import { ensureFreshSessions } from './auth';
 import { createListing, itemIdFromUrl } from './listings';
 import { marked } from './marker';
@@ -105,17 +105,12 @@ async function openTrade(
 }
 
 async function createPrivateInvite(page: Page, label: string): Promise<string> {
-  await page.goto('/deals/new');
+  await page.goto('/deals');
   await page.waitForLoadState('domcontentloaded');
-  await expect(page.getByRole('heading', { name: 'Private deal' })).toBeVisible({
+  await expect(page.getByRole('heading', { name: 'Start a deal' })).toBeVisible({
     timeout: COLD_ROUTE,
   });
-  await chooseTile(page, /Sell a card/i);
-  await fillUnlistedCard(page, marked(`Visual audit private card ${label}`));
-  await page.getByLabel('Price', { exact: true }).fill('75.00');
-  await page.getByRole('button', { name: 'Create link' }).click();
-  await expect(page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
-  return new URL(page.url()).pathname;
+  return composeCashDeal(page, marked(`Visual audit private card ${label}`), '75.00');
 }
 
 /** Create every dynamic route the visual sweep needs, once per Playwright project. */

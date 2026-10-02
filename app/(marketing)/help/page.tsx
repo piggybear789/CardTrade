@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { StartDealTextLink } from '@/components/deals/StartDealButton';
-import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 
 import { PolicyArticle } from '../policy-article';
 
@@ -12,10 +11,7 @@ export const metadata: Metadata = {
     'How identity, Stripe holds, password reset, and trades work on NoDitto.',
 };
 
-export default async function HelpPage() {
-  const user = await getCachedAuthUser();
-  const isAuthenticated = Boolean(user);
-
+export default function HelpPage() {
   return (
     <PolicyArticle
       title="Help"
@@ -111,10 +107,7 @@ export default async function HelpPage() {
         </p>
         <p>
           Open{' '}
-          <StartDealTextLink
-            isAuthenticated={isAuthenticated}
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          />{' '}
+          <StartDealTextLink className="font-medium text-primary underline-offset-4 hover:underline" />{' '}
           to create a link, or check{' '}
           <Link
             href="/sales"

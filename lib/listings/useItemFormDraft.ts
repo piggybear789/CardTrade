@@ -46,8 +46,14 @@
 
 import * as React from 'react';
 
-/** Bump when the shape below changes, so a stale payload is discarded rather than read. */
-const DRAFT_VERSION = 1;
+/**
+ * Bump when the shape below changes, so a stale payload is discarded rather than read.
+ *
+ * Was 1 before the Title field returned: a titleless draft from an older build has no
+ * `title`, and treating the absence as deliberate would blank a title the seller meant
+ * to keep. See the read path.
+ */
+const DRAFT_VERSION = 2;
 
 /** One key for the create form. Edit mode does not use this hook — see `useItemFormDraft`. */
 const STORAGE_KEY = 'nd.listing.draft.v1';
@@ -63,6 +69,7 @@ const WRITE_DEBOUNCE_MS = 400;
  */
 export interface ItemFormDraft {
   version: number;
+  title: string;
   description: string;
   game: string;
   condition: string;
@@ -77,6 +84,7 @@ export type ItemFormDraftFields = Omit<ItemFormDraft, 'version'>;
 /** True when a draft holds anything worth restoring. */
 function isWorthKeeping(fields: ItemFormDraftFields): boolean {
   return (
+    fields.title.trim() !== '' ||
     fields.description.trim() !== '' ||
     fields.fmvDollars.trim() !== '' ||
     fields.condition !== '' ||
@@ -98,6 +106,7 @@ function readDraft(): ItemFormDraftFields | null {
     if (parsed.version !== DRAFT_VERSION) return null;
 
     return {
+      title: typeof parsed.title === 'string' ? parsed.title : '',
       description: typeof parsed.description === 'string' ? parsed.description : '',
       game: typeof parsed.game === 'string' ? parsed.game : '',
       condition: typeof parsed.condition === 'string' ? parsed.condition : '',

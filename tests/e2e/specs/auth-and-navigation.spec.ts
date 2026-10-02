@@ -37,7 +37,7 @@ async function signInAs(
 test.describe('protected routes redirect unauthenticated users', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new', '/deals/new'];
+  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new'];
 
   for (const path of protectedPaths) {
     test(`${path} -> /sign-in?redirectTo=${path}`, async ({ page }) => {
@@ -83,6 +83,19 @@ test.describe('public routes are accessible without auth', () => {
     await expect(
       page.getByRole('heading', { name: 'Create your account' }),
     ).toBeVisible();
+  });
+
+  test('/deals -> the deal composer opens for a signed-out visitor', async ({ page }) => {
+    // The account is asked for at Get link, after the deal is written, not before.
+    await page.goto('/deals');
+    await expect(page).not.toHaveURL(/\/sign-in/);
+    await expect(page.getByRole('heading', { name: 'Start a deal' })).toBeVisible();
+  });
+
+  test('/deals/new -> permanently redirects to /deals', async ({ page }) => {
+    const response = await page.goto('/deals/new');
+    await expect(page).toHaveURL(/\/deals$/);
+    expect(response?.request().redirectedFrom()).not.toBeNull();
   });
 });
 
@@ -147,29 +160,26 @@ test.describe('navigation structure (regular user)', () => {
     const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
 
     if (isDesktop) {
-      const menuButton = page.getByRole('button', { name: /open menu/i });
+      // The avatar chip opens the menu, and the menu opens with the account row.
+      const menuButton = page.getByRole('button', { name: /account menu/i });
       await expect(menuButton).toBeVisible({ timeout: RENDERED });
+      await expect(menuButton).toHaveAccessibleName(`${ALICE.displayName}, account menu`);
       await menuButton.click();
 
       const nav = page.getByRole('navigation', { name: 'Menu' });
       await expect(nav).toBeVisible({ timeout: 10_000 });
 
+      await expect(nav.getByRole('link', { name: ALICE.displayName })).toBeVisible();
       await expect(nav.getByRole('link', { name: /browse all|marketplace/i })).toBeVisible();
       await expect(nav.getByRole('link', { name: /trades/i }).first()).toBeVisible();
       await expect(nav.getByRole('link', { name: /sales/i })).toBeVisible();
 
       await expect(header.getByRole('link', { name: 'Messages' })).toBeVisible();
       await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
-      // `.first()`: with the menu open the header holds two links to /profile —
-      // the avatar chip and the menu's own account row — and both are named for
-      // the member.
-      await expect(
-        header.getByRole('link', { name: ALICE.displayName }).first(),
-      ).toBeVisible();
     } else {
-      // Signed-in phones drop the header burger; hubs and header icons cover
+      // Signed-in phones drop the header menu; hubs and header icons cover
       // the same map.
-      await expect(header.getByRole('button', { name: /open menu/i })).toHaveCount(0);
+      await expect(header.getByRole('button', { name: /account menu/i })).toHaveCount(0);
       await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
 
       const hubs = page.getByRole('navigation', { name: 'Marketplace hubs' });
@@ -194,7 +204,7 @@ test.describe('navigation structure (regular user)', () => {
 
     if (isDesktop) {
       await page.goto('/');
-      const menuButton = page.getByRole('button', { name: /open menu/i });
+      const menuButton = page.getByRole('button', { name: /account menu/i });
       await expect(menuButton).toBeVisible({ timeout: RENDERED });
       await menuButton.click();
 
@@ -221,7 +231,7 @@ test.describe('navigation structure (admin user)', () => {
 
     if (isDesktop) {
       await page.goto('/');
-      const menuButton = page.getByRole('button', { name: /open menu/i });
+      const menuButton = page.getByRole('button', { name: /account menu/i });
       await expect(menuButton).toBeVisible({ timeout: RENDERED });
       await menuButton.click();
 
@@ -268,8 +278,8 @@ test.describe('sign-out', () => {
     await signInAs(page, HEIDI_SIGNOUT.email, HEIDI_SIGNOUT.password);
     await expect(page).toHaveURL(isSignedInDestination, { timeout: COLD_ROUTE });
 
-    // Sign-out lives on Settings so a phone without the header burger can
-    // still leave. Desktop still has it in the overflow menu too.
+    // Sign-out lives on Settings so a phone without the header menu can
+    // still leave. Desktop still has it in the account menu too.
     await page.goto('/profile');
     const signOutButton = page.getByRole('button', { name: /sign out/i });
     await signOutButton.waitFor({ state: 'attached', timeout: 10_000 });

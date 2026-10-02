@@ -370,11 +370,27 @@ export const proposeCashSalePrice = withActionLog('cashSale.proposeCashSalePrice
 export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms', async function acceptCashSaleTerms(
   cashSaleId: string,
   termsVersion: number,
+  /**
+   * The verified Seller the Buyer confirmed on the Pay step. Sent only for a
+   * private-deal sale, which opened before the Seller verified; see
+   * `acceptCashSaleTerms` in the orchestrator.
+   */
+  confirmedSellerIdentityVersion?: string,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
   const result = actionResult(
-    await orchestrator().acceptTerms({ actorId: userId, cashSaleId, termsVersion }),
+    await orchestrator().acceptTerms({
+      actorId: userId,
+      cashSaleId,
+      termsVersion,
+      ...(confirmedSellerIdentityVersion
+        ? {
+            sellerIdentityVersion: confirmedSellerIdentityVersion,
+            buyerConfirmedSellerIdentity: true,
+          }
+        : {}),
+    }),
   );
   if (result.ok) {
     // Stripe realtime (and the mock) settle INLINE inside acceptTerms. We key the

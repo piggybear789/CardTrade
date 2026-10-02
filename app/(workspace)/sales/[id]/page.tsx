@@ -11,6 +11,7 @@ import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
+import { readSellerPayReadiness } from '@/lib/sellerIdentity';
 import { scheduleCashSaleTrackingCheck } from '@/lib/tracking/refreshOnRead';
 import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import { createClient } from '@/lib/supabase/server';
@@ -175,6 +176,15 @@ export default async function CashSalePage({
   const existingReview =
     sale.status === 'COMPLETED' ? await myReviewFor('cash_sale', sale.id) : null;
 
+  // A private-deal sale opens before the seller verifies, with no identity frozen
+  // onto it. Until the buyer pays, the Pay step needs to know whether the seller can
+  // be paid yet, and the verified name the buyer confirms there. Read fresh on each
+  // load: this is the one thing about the contract that changes outside it.
+  const sellerPayReadiness =
+    sale.status === 'AGREEMENT' && !sale.seller_identity_version
+      ? await readSellerPayReadiness(sale.seller_id)
+      : null;
+
   // ASK THE CARRIER, AFTER THIS RESPONSE HAS BEEN SENT.
   //
   // Not awaited and not in the render path: `scheduleCashSaleTrackingCheck` wraps its work
@@ -209,6 +219,7 @@ export default async function CashSalePage({
         lineItems={lineItems}
         disputeEvidence={disputeEvidence}
         returnAddress={returnDetails ?? null}
+        sellerPayReadiness={sellerPayReadiness}
         // Just the control — the action card states the step in its own title,
         // so the strip that used to repeat it under the room is gone.
         reviewAction={

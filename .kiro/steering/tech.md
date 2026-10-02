@@ -131,9 +131,9 @@ Middleware (`proxy.ts`) is separate: it runs on the Edge Network near the USER, 
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/`, currently through `0123_error_logs.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0124_update_deal_invite.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
 
-**The Supabase MCP `apply_migration` fails on this project** with `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`: the tool's history upsert does not match the project's `supabase_migrations.schema_migrations` constraints. It rolls back cleanly. 0121, 0122 and 0123 were therefore applied with `execute_sql` in a single transaction and have NO history row; check the catalog (`to_regclass`), not the history, before assuming a migration is missing.
+**The Supabase MCP `apply_migration` fails on this project** with `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`: the tool's history upsert does not match the project's `supabase_migrations.schema_migrations` constraints. It rolls back cleanly. 0121, 0122, 0123 and 0124 were therefore applied with `execute_sql` in a single transaction and have NO history row; check the catalog (`to_regclass`), not the history, before assuming a migration is missing.
 
 `lib/supabase/database.types.ts` is hand-maintained and its `Functions` block is part of that: `client.rpc('name', …)` is typed against it, so a new RPC or a new argument must be added there or the call fails `tsc` even though the SQL is correct. Adding a column to `cash_sales` also means adding it to `CASH_SALE_PUBLIC_SELECT` in `lib/supabase/cashSaleProjection.ts`, which is an explicit column list — the contract room reads through it and will simply not see the column otherwise.
 

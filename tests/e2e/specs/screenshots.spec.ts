@@ -424,7 +424,7 @@ async function shoot(
   monitorPage(page);
   await page.goto(route);
   await page.waitForLoadState('domcontentloaded');
-  // Redirect routes (`/profile/payouts`, `/deals/new`) replace the document after
+  // Redirect routes (`/profile/payouts`) replace the document after
   // the first paint. Settle on a stable URL so diagnostics run against the page a
   // member actually lands on rather than the one being torn down.
   let previous = '';
@@ -586,8 +586,8 @@ test.describe('member surfaces', () => {
   });
 
   test('capture private-deal-compose', async ({ page }, testInfo) => {
-    await shoot(page, testInfo, 'private-deal-compose', '/deals/new');
-    await expect(page.getByRole('heading', { name: 'Private deal' })).toBeVisible();
+    await shoot(page, testInfo, 'private-deal-compose', '/deals');
+    await expect(page.getByRole('heading', { name: 'Start a deal' })).toBeVisible();
   });
 
   test('capture private-invite-host', async ({ page }, testInfo) => {

@@ -10,7 +10,7 @@
 // an external origin. The round-trip lands on /auth/callback, which creates the
 // Profile on first sign-in.
 
-import { useTransition } from "react";
+import { useTransition, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -47,20 +47,29 @@ function GoogleIcon() {
  * @param mode - Only affects the label wording; the OAuth flow is identical for
  *   sign-in and sign-up because Google decides whether the account is new.
  * @param disabled - Set while the sibling credentials form is submitting.
+ * @param redirectTo - Where to return after Google. Defaults to the page's own
+ *   `redirectTo` param, which is what the sign-in and sign-up pages carry.
+ * @param children - Replaces the label, for a surface that is not a sign-in page.
  */
 export function GoogleSignInButton({
   mode,
   disabled,
+  redirectTo,
+  children,
 }: {
   mode: "sign-in" | "sign-up";
   disabled?: boolean;
+  redirectTo?: string;
+  children?: ReactNode;
 }) {
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
 
   function handleClick() {
     startTransition(async () => {
-      const result = await signInWithGoogle(searchParams.get("redirectTo") ?? undefined);
+      const result = await signInWithGoogle(
+        redirectTo ?? searchParams.get("redirectTo") ?? undefined,
+      );
       if (!result.ok) {
         toast.error(result.message);
         return;
@@ -83,7 +92,7 @@ export function GoogleSignInButton({
       ) : (
         <>
           <GoogleIcon />
-          {mode === "sign-up" ? "Sign up with Google" : "Continue with Google"}
+          {children ?? (mode === "sign-up" ? "Sign up with Google" : "Continue with Google")}
         </>
       )}
     </Button>

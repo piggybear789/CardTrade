@@ -42,6 +42,8 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ImageOffIcon, ImagePlusIcon, LibraryIcon, PackageIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
+import { TITLE_MAX_LENGTH } from "@/domain/validation/item";
+import { Input } from "@/components/ui/input";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
 import {
   clearItemFormDraft,
@@ -55,6 +57,7 @@ import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { itemImageUrl } from "@/lib/format";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
+import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
 import {
   ITEM_FORM_ID,
   publishItemFormChrome,
@@ -82,23 +85,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/** Condition grades shown for a collectible, matching TCGplayer's standard scale. */
-const CONDITIONS = [
-  "Graded",
-  "Unopened",
-  "Near Mint",
-  "Mint",
-  "Lightly Played",
-  "Heavily Played",
-  "Damaged",
-] as const;
-
 /** Inclusive image-count bounds enforced in the UI (mirrors Req 3.1/3.3). */
 const IMAGES_MIN = 1;
 const IMAGES_MAX = 10;
 
 /** Which server field a validation error maps to for inline display. */
 type ErrorField =
+  | "title"
   | "description"
   | "category"
   | "condition"
@@ -234,15 +227,22 @@ function ItemFormInner({
   // EVERY INITIALISER PREFERS THE ROW, THEN THE DRAFT, THEN EMPTY. The row can only be
   // present in edit mode and the draft only in create mode, so the two never compete; the
   // order is written out anyway so adding a third source later has an obvious place to go.
+  const [title, setTitle] = React.useState(
+    item?.title ?? restored?.title ?? "",
+  );
   const [description, setDescription] = React.useState(
     item?.description ?? restored?.description ?? "",
   );
   const [game, setGame] = React.useState(() =>
     item ? cardGameSlug(item.category) : (restored?.game ?? ''),
   );
-  const [condition, setCondition] = React.useState(
-    item?.condition ?? restored?.condition ?? "",
-  );
+  // A stored grade that has since left the scale starts EMPTY rather than prefilled: the
+  // Select cannot display a value it has no option for, so it would sit blank while still
+  // holding one, and the seller could not see what they were about to save.
+  const [condition, setCondition] = React.useState<string>(() => {
+    const stored = item?.condition ?? restored?.condition ?? "";
+    return isItemCondition(stored) ? stored : "";
+  });
   // Immutable after creation: contracts already open against a shopfront depend
   // on it not being reserved, and a single listing's live contract depends on the
   // opposite. Switching either way mid-flight would break one of them.
@@ -298,6 +298,7 @@ function ItemFormInner({
   // keystroke; the dirty flag only changes when the form goes from empty to touched
   // (or back), which is the only time the listener needs to change.
   const isDirty =
+    title.trim() !== "" ||
     description.trim() !== "" ||
     newFiles.length > 0 ||
     fmvDollars.trim() !== "";
@@ -321,6 +322,7 @@ function ItemFormInner({
   // out; `clearItemFormDraft()` on success is what actually retires it.
   useItemFormDraft(
     {
+      title,
       description,
       game,
       condition,
@@ -463,6 +465,7 @@ function ItemFormInner({
 
       if (mode === "create") {
         const result = await createItem({
+          title,
           description,
           category: cardGameName(game),
           condition,
@@ -488,6 +491,7 @@ function ItemFormInner({
         // plain object paths, so the action does no byte handling at all.
         const images: string[] = [...keptPaths, ...uploadedPaths];
         const result = await updateItem(item!.id, {
+          title,
           description,
           category: cardGameName(game),
           condition,
@@ -575,6 +579,7 @@ function ItemFormInner({
     toast.error(fallback);
   }
 
+  const titleError = errorFor("title");
   const descriptionError = errorFor("description");
   const gameError = errorFor("category");
   const conditionError = errorFor("condition");
@@ -1018,6 +1023,30 @@ function ItemFormInner({
               ) : null}
             </fieldset>
 
+            {/* Title FIRST, its own field again. It was derived from the description's
+                first line, which made the seller's one sentence do two jobs — a
+                label for contracts and emails, and the pitch shown on the tile —
+                and wrote the first words twice when both were shown. */}
+            <div className="space-y-snug">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                maxLength={TITLE_MAX_LENGTH}
+                placeholder="Charizard Base Set Holo"
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={titleError ? true : undefined}
+                aria-describedby={titleError ? "title-error" : undefined}
+                disabled={isSubmitting}
+              />
+              {titleError ? (
+                <FieldError id="title-error" message={titleError} />
+              ) : null}
+            </div>
+
             <div className="space-y-snug">
               <Label htmlFor="description">Description</Label>
               <Textarea
@@ -1033,11 +1062,6 @@ function ItemFormInner({
                 }
                 disabled={isSubmitting}
               />
-              {/* `justify-end`, not `justify-between`. The row used to pair the
-                  counter with "The first line is used as the listing title in the
-                  catalog."; with that hint gone, `justify-between` would park the
-                  counter on the left. The title derivation still happens —
-                  `deriveItemTitle` reads the first line — it just is not narrated. */}
               <div className="flex items-center justify-end">
                 <span className="text-meta text-muted-foreground tabular-nums">
                   {description.length}/2000
@@ -1099,7 +1123,7 @@ function ItemFormInner({
                     <SelectValue placeholder="Select a condition" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CONDITIONS.map((c) => (
+                    {ITEM_CONDITIONS.map((c) => (
                       <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>

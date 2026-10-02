@@ -245,7 +245,7 @@ test.describe('Identity gate', () => {
 
     // Actionable message: explains what to do.
     await expect(
-      page.getByText(/Verify your identity before you publish a listing/),
+      page.getByText(/Verify with Stripe Identity before you publish a listing/),
     ).toBeVisible();
 
     // The form itself must NOT be present. Probed on the description field, which is

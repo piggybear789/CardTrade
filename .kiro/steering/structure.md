@@ -27,7 +27,7 @@ middleware.ts       Auth guard; redirects unauthenticated users off protected pr
 
 ## app/
 
-Route folders mirror features: `(auth)/sign-in`, `(auth)/sign-up`, `(auth)/forgot-password`, `auth/update-password`, `onboarding`, `admin` (+ `arbitration`), `listings` (+ `new`, `[id]`, `[id]/edit`, `mine`), `messages` (+ `[id]`), `notifications`, `offers`, `profile` (+ `payouts`), `purchases`, `sales` (+ `[id]`), `saved`, `sellers/[id]`, `trades` (+ `new`, `[id]`), `deals/new`, `t/[token]`, `account-suspended`, `(marketing)/help|terms|privacy`, `api/webhooks/stripe`, `api/webhooks/ship24`, `api/jobs/cash-sale-payouts`, `api/jobs/trade-inspections`, `api/errors` (browser error capture, 0123), and `api/mobile/**`.
+Route folders mirror features: `(auth)/sign-in`, `(auth)/sign-up`, `(auth)/forgot-password`, `auth/update-password`, `onboarding`, `admin` (+ `arbitration`), `listings` (+ `new`, `[id]`, `[id]/edit`, `mine`), `messages` (+ `[id]`), `notifications`, `offers`, `profile` (+ `payouts`), `purchases`, `sales` (+ `[id]`), `saved`, `sellers/[id]`, `trades` (+ `new`, `[id]`), `deals`, `t/[token]`, `account-suspended`, `(marketing)/help|terms|privacy`, `api/webhooks/stripe`, `api/webhooks/ship24`, `api/jobs/cash-sale-payouts`, `api/jobs/trade-inspections`, `api/errors` (browser error capture, 0123), and `api/mobile/**`.
 
 Pages are Server Components by default: fetch data with the cookie-bound Supabase client and pass plain data down. Add `'use client'` only on components that need state, effects, or Realtime.
 

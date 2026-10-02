@@ -5,19 +5,23 @@
 // Prices stay readable dollars in the URL and integer cents at the action.
 
 import {
-  startTransition,
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type FormEvent,
   type ReactNode,
 } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, Search01Icon, XIcon } from '@hugeicons/core-free-icons';
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  GemIcon,
+  HotPriceIcon,
+  SparklesIcon,
+} from '@hugeicons/core-free-icons';
 
 import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
 import { subscribeCatalogFilters } from '@/lib/catalog/browseEvents';
+import { ITEM_CONDITIONS } from '@/lib/catalog/conditions';
 import {
   buildPriceLadderCents,
   nearestPriceStop,
@@ -25,13 +29,6 @@ import {
 } from '@/lib/catalog/priceLadder';
 
 import { useCatalogView } from '@/components/listings/CatalogView';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -73,21 +70,11 @@ const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
    the histogram buckets against the same stops the slider thumbs snap to. See the note
    there. */
 
-/** Condition filter options — matches ItemForm + adds "Graded" as a bucket. */
-const CONDITION_OPTIONS = [
-  'Graded',
-  'Unopened',
-  'Mint',
-  'Near Mint',
-  'Lightly Played',
-  'Heavily Played',
-  'Damaged',
-] as const;
-
 /** Current URL-backed catalog filter values. */
 export interface CatalogFilterState {
   q: string;
   categories: string[];
+  /** Conditions, in the order `ITEM_CONDITIONS` lists them. */
   conditions: string[];
   /** Dollar strings suitable for filter inputs; empty when unset. */
   min: string;
@@ -98,84 +85,50 @@ export interface CatalogFilterState {
   includeReserved: boolean;
 }
 
+/** Plain-language summary of the selected conditions, for a property-row value. */
+function conditionSummary(conditions: readonly string[]): string {
+  const ordered = ITEM_CONDITIONS.filter((condition) => conditions.includes(condition));
+  if (ordered.length === 0) return 'Any';
+  if (ordered.length <= 2) return ordered.join(', ');
+  return `${ordered.length} selected`;
+}
+
+/** Plain-language summary of the selected price range, for a property-row value. */
+function priceSummary(
+  ladder: number[],
+  [minStop, maxStop]: [number, number],
+  topStop: number,
+): string {
+  const openEnded = maxStop >= topStop;
+  if (minStop <= 0 && openEnded) return 'Any';
+  const from = AUD_WHOLE_FORMATTER.format(ladder[minStop] / 100);
+  if (openEnded) return `${from}+`;
+  return `${from} – ${AUD_WHOLE_FORMATTER.format(ladder[maxStop] / 100)}`;
+}
+
+/** Plain-language summary of the availability toggles, for a property-row value. */
+/**
+ * Plain-language summary of the availability toggles.
+ *
+ * Each active toggle is named in full: at ~230px of rail a combined label
+ * ("+ Reserved, sold") is only a couple of words shorter than the plain list,
+ * and truncation mid-label ("+ Reserve…") would land on the common case rather
+ * than on a long-tail one.
+ */
+function availabilitySummary(includeReserved: boolean, includeSold: boolean): string {
+  const parts: string[] = [];
+  if (includeReserved) parts.push('Reserved');
+  if (includeSold) parts.push('sold');
+  return parts.length > 0 ? `Including ${parts.join(' + ')}` : 'Available';
+}
+
 /** Browse updates stay on the client — see CatalogViewProvider. */
 function useCatalogNav() {
   const { apply, reset, isPending } = useCatalogView();
   return { isPending, pushWith: apply, reset };
 }
 
-/**
- * Instant filter over the listings already on the page. Does not touch the
- * URL — the header search is the one that runs a marketplace query.
- */
-export function CatalogFilterSearch() {
-  const { filter, setFilter } = useCatalogView();
-  // The field paints from local state. `setFilter` is a transition so the
-  // grid (every tile subscribes through catalog context) does not block the
-  // keystroke. An external clear — the rail's reset — still empties the field.
-  const [draft, setDraft] = useState(filter);
-  const filterRef = useRef(filter);
-
-  useEffect(() => {
-    if (filter === '' && filterRef.current !== '') setDraft('');
-    filterRef.current = filter;
-  }, [filter]);
-
-  function publish(value: string) {
-    setDraft(value);
-    startTransition(() => setFilter(value));
-  }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-  }
-
-  return (
-    // Width comes from the container now. The old `sm:w-56` was sized for a
-    // toolbar slot and would overflow the rail, whose content box is narrower
-    // than 224px at its minimum width.
-    <form role="search" onSubmit={handleSubmit} className="relative w-full min-w-0">
-      <HugeiconsIcon icon={Search01Icon}
-        className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-        aria-hidden
-      />
-      <Input
-        type="search"
-        name="q"
-        value={draft}
-        data-catalog-filter=""
-        onChange={(event) => publish(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            event.preventDefault();
-            if (draft) publish('');
-          }
-        }}
-        placeholder="Filter…"
-        aria-label="Filter listings"
-        autoComplete="off"
-        spellCheck={false}
-        enterKeyHint="search"
-        className={cn(
-          'h-9 w-full bg-card pl-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
-          draft ? 'pr-9' : 'pr-cozy',
-        )}
-      />
-      {draft ? (
-        <button
-          type="button"
-          onClick={() => publish('')}
-          aria-label="Clear listing filter"
-          className="absolute right-1 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
-        >
-          <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
-        </button>
-      ) : null}
-    </form>
-  );
-}
-
-/** Marketplace navigation and filter rail. Phone: sheet. Desktop: in-page rail. */
+/** Marketplace filter rail. Phone: bottom sheet. Desktop: in-page rows. */
 export function CatalogFilters() {
   const { current, facets } = useCatalogView();
   const { isPending, pushWith, reset } = useCatalogNav();
@@ -229,10 +182,10 @@ export function CatalogFilters() {
 
   useEffect(() => setPriceStops([urlMinStop, urlMaxStop]), [urlMinStop, urlMaxStop]);
 
-  // `categories` belongs in here. Without it, picking a game pill produced no
-  // "Clear all" anywhere on the page — four of five filter types were
-  // reversible and the most prominent one was not, even though `reset()` would
-  // have cleared it if anything had offered to.
+  // `categories` belongs here for the MOUNTED controls, even though this component
+  // no longer shows it: picking a game pill still applies a filter its chip cannot
+  // unset, so the "Clear all" in the sheet and the "Reset" in the rail must still
+  // appear — and `reset()` is the only thing that clears it.
   const hasActiveFilters =
     current.q !== '' ||
     current.categories.length > 0 ||
@@ -300,7 +253,7 @@ export function CatalogFilters() {
                 <p className="market-label mb-snug text-muted-foreground">Sort</p>
                 <CatalogSortControl fullWidth />
               </div>
-              <CatalogRefineFields
+              <CatalogPhoneRefineFields
                 current={current}
                 isPending={isPending}
                 onToggleCondition={toggleCondition}
@@ -315,7 +268,6 @@ export function CatalogFilters() {
                 topStop={topStop}
                 ceilingCents={ceilingCents}
                 histogram={facets.priceHistogram}
-                choiceStyle="squares"
               />
             </div>
             <SheetFooter className="border-t border-border p-group">
@@ -330,34 +282,28 @@ export function CatalogFilters() {
       </MobileOnly>
 
       <DesktopOnly>
-        {/* No heading and no chrome of its own. "Refine results" titled a panel
-            that had nothing to be distinguished from — the rail's h1 already
-            says Marketplace and every block below carries its own label — and
-            it cost 25px of a rail that did not have 25px to spare. Each block
-            brings its own `border-t`, so a border here as well would draw two
-            rules a hair apart.
-
-            No "Clear all" either. Every filter in the rail reverses where it
-            was set: chips toggle off, the slider drags back, the checkbox
-            unticks. A bulk reset is still one click away on the one screen that
-            needs it — the empty state offers "Clear Filters" when a search
-            returns nothing, which is the case where undoing filters one at a
-            time is genuinely tedious. */}
-        <div id="catalog-filter-panel" className="mt-group space-y-5 bg-transparent">
-          {hasActiveFilters ? (
-            <div className="flex items-center justify-between">
-              <span className="text-meta text-muted-foreground">Active filters</span>
+        {/* No heading and no chrome of its own — the rail's h1 already says
+            Marketplace. What the rail does say is one row per filter with its
+            current value, opening inline: "Condition · Near Mint, Lightly
+            Played" and "Price · $100 – $500". A game pill is the one filter that
+            is set outside the rail, so the "Reset" beside "Filters" is its only
+            way back — without it, picking a game leaves a filter nothing on
+            this page can undo. */}
+        <div id="catalog-filter-panel" className="mt-group bg-transparent">
+          <div className="flex items-center justify-between px-cozy pb-tight">
+            <span className="market-label text-muted-foreground">Filters</span>
+            {hasActiveFilters ? (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="text-meta font-medium text-iris-ink hover:underline focus:outline-none focus-visible:underline"
+                disabled={isPending}
+                className="text-meta font-medium text-iris-ink hover:underline focus:outline-none focus-visible:underline disabled:opacity-50"
               >
-                Clear all
+                Reset
               </button>
-            </div>
-          ) : null}
-          <CatalogFilterSearch />
-          <CatalogRefineFields
+            ) : null}
+          </div>
+          <CatalogPropertyRows
             current={current}
             isPending={isPending}
             onToggleCondition={toggleCondition}
@@ -372,8 +318,6 @@ export function CatalogFilters() {
             topStop={topStop}
             ceilingCents={ceilingCents}
             histogram={facets.priceHistogram}
-            choiceStyle="list"
-            collapsibleCondition
           />
         </div>
       </DesktopOnly>
@@ -381,7 +325,19 @@ export function CatalogFilters() {
   );
 }
 
-function CatalogRefineFields({
+type CatalogPropertyKey = 'condition' | 'price' | 'showing';
+
+/**
+ * The desktop rail as property rows: one row per filter that states its value
+ * and opens inline, so the whole search reads in three rows. Only one is open
+ * at a time — there is a single disclosure's worth of room on a laptop rail.
+ *
+ * Closed unless the URL already carries the row's filter: a shared or bookmarked
+ * filtered link must never hide the filter it is applying. After mount the state
+ * belongs to the member — the rows do not close when a filter is set inside one,
+ * because closing on select would hide the result of the tap that just happened.
+ */
+function CatalogPropertyRows({
   current,
   isPending,
   onToggleCondition,
@@ -394,8 +350,6 @@ function CatalogRefineFields({
   topStop,
   ceilingCents,
   histogram,
-  choiceStyle,
-  collapsibleCondition = false,
 }: {
   current: Pick<
     CatalogFilterState,
@@ -413,115 +367,231 @@ function CatalogRefineFields({
   ceilingCents: number;
   /**
    * Relative listing density per ladder segment, from `CatalogFacets.priceHistogram`.
-   * Length is `priceLadder.length - 1`; empty renders no histogram at all rather than a
-   * flat bar, so a catalog with no prices does not imply a uniform spread.
+   * Empty renders no histogram at all rather than a flat bar, so a catalog with no
+   * prices does not imply a uniform spread.
    */
   histogram: number[];
-  choiceStyle: 'squares' | 'list';
-  /**
-   * Put Condition behind a disclosure, closed unless it is already filtering.
-   *
-   * For the rail only. Seven stacked rows measured 348px — a third of the whole
-   * rail, and enough on its own to push the price slider off a 1366x768 screen.
-   * The sheet has the room and its chips are half the height, so it stays flat.
-   */
-  collapsibleCondition?: boolean;
 }) {
-  // CHIPS EVERYWHERE, INCLUDING THE RAIL. Condition used to render as seven
-  // full-width checkbox rows on desktop: 40px each, 348px in total, and the
-  // single largest block in a rail with a 703px ceiling. Wrapping chips carry
-  // the same seven `aria-pressed` toggles in three rows of ~120px, which is what
-  // lets the section open without pushing the price slider off a laptop screen.
-  //
-  // Width is the real argument. The rail gives these ~225px, and a full-width
-  // row spends all of it on one short label; the sheet reached the same answer
-  // for the same reason.
-  const conditionRows = (
-    <div className="flex flex-wrap gap-1.5">
-      {CONDITION_OPTIONS.map((condition) => (
-        <FilterSquare
-          key={condition}
-          label={condition}
-          pressed={current.conditions.includes(condition)}
-          onClick={() => onToggleCondition(condition)}
-          disabled={isPending}
-        />
-      ))}
-    </div>
+  const [open, setOpen] = useState<CatalogPropertyKey | null>(() =>
+    current.conditions.length > 0
+      ? 'condition'
+      : priceStopsActive(priceStops, topStop)
+        ? 'price'
+        : current.includeSold || current.includeReserved
+          ? 'showing'
+          : null,
   );
 
+  function toggle(key: CatalogPropertyKey) {
+    setOpen((value) => (value === key ? null : key));
+  }
+
+  const priceRangeLabel = priceSummary(priceLadder, priceStops, topStop);
+  const showingLabel = availabilitySummary(current.includeSold, current.includeReserved);
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <CatalogPropertyRow
+        label="Condition"
+        value={conditionSummary(current.conditions)}
+        active={current.conditions.length > 0}
+        open={open === 'condition'}
+        onClick={() => toggle('condition')}
+        icon={GemIcon}
+      >
+        <div className="flex flex-col gap-tight">
+          {ITEM_CONDITIONS.map((condition) => (
+            <FilterCheckRow
+              key={condition}
+              label={condition}
+              pressed={current.conditions.includes(condition)}
+              onClick={() => onToggleCondition(condition)}
+              disabled={isPending}
+            />
+          ))}
+        </div>
+      </CatalogPropertyRow>
+      <CatalogPropertyRow
+        label="Price"
+        value={priceRangeLabel}
+        active={priceStopsActive(priceStops, topStop)}
+        open={open === 'price'}
+        onClick={() => toggle('price')}
+        icon={HotPriceIcon}
+      >
+        <div className="border-t border-border pt-group">
+          <div className="mb-cozy text-body font-semibold tabular-nums">{priceRangeLabel}</div>
+          <PriceRefineBlock
+            priceStops={priceStops}
+            onPriceStopsChange={onPriceStopsChange}
+            onPriceCommit={onPriceCommit}
+            priceLadder={priceLadder}
+            topStop={topStop}
+            ceilingCents={ceilingCents}
+            histogram={histogram}
+            disabled={isPending}
+          />
+        </div>
+      </CatalogPropertyRow>
+      <CatalogPropertyRow
+        label="Showing"
+        value={showingLabel}
+        active={current.includeSold || current.includeReserved}
+        open={open === 'showing'}
+        onClick={() => toggle('showing')}
+        icon={SparklesIcon}
+      >
+        <div className="flex flex-col gap-tight">
+          <FilterCheckRow
+            label="Include reserved listings"
+            pressed={current.includeReserved}
+            onClick={onToggleReserved}
+            disabled={isPending}
+          />
+          <FilterCheckRow
+            label="Include sold listings"
+            pressed={current.includeSold}
+            onClick={onToggleSold}
+            disabled={isPending}
+          />
+        </div>
+      </CatalogPropertyRow>
+    </div>
+  );
+}
+
+function priceStopsActive([minStop, maxStop]: [number, number], topStop: number): boolean {
+  return minStop > 0 || maxStop < topStop;
+}
+
+/**
+ * One filter as a row: an icon, the filter's name, and on the right the value
+ * it currently carries. Opening is a native `button`; the accordion primitive is
+ * for stacked labeled sections, not for rows whose open state is mutually exclusive.
+ */
+function CatalogPropertyRow({
+  label,
+  value,
+  active,
+  open,
+  onClick,
+  icon,
+  children,
+}: {
+  label: string;
+  value: string;
+  /** Whether the row's filter is currently narrowing the grid. */
+  active: boolean;
+  open: boolean;
+  onClick: () => void;
+  icon: typeof GemIcon;
+  children: ReactNode;
+}) {
+  const Icon = icon;
+  return (
+    <div
+      className={cn(
+        'rounded-lg border transition-colors',
+        open ? 'border-border bg-card' : 'border-transparent',
+      )}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-expanded={open}
+        className="flex h-10 w-full items-center gap-snug px-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris rounded-lg"
+      >
+        <HugeiconsIcon icon={Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="text-body text-muted-foreground">{label}</span>
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-right text-body tabular-nums',
+            active ? 'font-semibold text-foreground' : 'text-muted-foreground',
+          )}
+        >
+          {value}
+        </span>
+        <HugeiconsIcon
+          icon={ChevronRightIcon}
+          className={cn(
+            'size-3.5 shrink-0 text-muted-foreground transition-transform',
+            open && 'rotate-90',
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      {open ? <div className="px-cozy pb-cozy pt-tight">{children}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * The phone refine fields, flat inside the bottom sheet. Kept deliberately
+ * flat — the sheet has the vertical room the rail does not, and the sheet is
+ * also the only place a phone can reach sort, so sort leads here.
+ */
+function CatalogPhoneRefineFields({
+  current,
+  isPending,
+  onToggleCondition,
+  onToggleSold,
+  onToggleReserved,
+  priceStops,
+  onPriceStopsChange,
+  onPriceCommit,
+  priceLadder,
+  topStop,
+  ceilingCents,
+  histogram,
+}: {
+  current: Pick<
+    CatalogFilterState,
+    'conditions' | 'includeSold' | 'includeReserved'
+  >;
+  isPending: boolean;
+  onToggleCondition: (condition: string) => void;
+  onToggleSold: () => void;
+  onToggleReserved: () => void;
+  priceStops: [number, number];
+  onPriceStopsChange: (next: [number, number]) => void;
+  onPriceCommit: (next: [number, number]) => void;
+  priceLadder: number[];
+  topStop: number;
+  ceilingCents: number;
+  /**
+   * Relative listing density per ladder segment, from `CatalogFacets.priceHistogram`.
+   * Empty renders no histogram at all rather than a flat bar, so a catalog with no
+   * prices does not imply a uniform spread.
+   */
+  histogram: number[];
+}) {
   return (
     <>
-      {collapsibleCondition ? (
-        <ConditionDisclosure selectedCount={current.conditions.length}>
-          {conditionRows}
-        </ConditionDisclosure>
-      ) : (
-        <fieldset className="border-t border-border pt-group">
-          <legend className="market-label mb-snug text-muted-foreground">Condition</legend>
-          {conditionRows}
-        </fieldset>
-      )}
-
-      <div className="border-t border-border pt-group">
-        <div className="mb-cozy flex items-baseline justify-between gap-snug">
-          <p className="market-label text-muted-foreground">Price</p>
-          <p className="text-body font-semibold tabular-nums">
-            {priceRangeLabel(priceLadder, priceStops, topStop)}
-          </p>
+      <fieldset className="border-t border-border pt-group">
+        <legend className="market-label mb-snug text-muted-foreground">Condition</legend>
+        <div className="flex flex-wrap gap-1.5">
+          {ITEM_CONDITIONS.map((condition) => (
+            <FilterSquare
+              key={condition}
+              label={condition}
+              pressed={current.conditions.includes(condition)}
+              onClick={() => onToggleCondition(condition)}
+              disabled={isPending}
+            />
+          ))}
         </div>
-        {/* WHERE THE STOCK ACTUALLY IS, above the control that filters it. A range
-            slider tells a member what they CAN ask for and nothing about what asking
-            would return — so the common failure is dragging into an empty band and
-            reading the empty grid as a broken filter. `aria-hidden` because it is a
-            summary of the result count, which the results header states in words. */}
-        <PriceHistogram
-          buckets={histogram}
-          stops={priceStops}
-          segments={Math.max(priceLadder.length - 1, 0)}
-        />
-        <Slider
-          value={priceStops}
-          onValueChange={(next) => onPriceStopsChange([next[0], next[1]])}
-          onValueCommit={(next) => onPriceCommit([next[0], next[1]])}
-          min={0}
-          max={topStop}
-          step={1}
-          minStepsBetweenThumbs={1}
-          thumbLabels={['Minimum price', 'Maximum price']}
-          thumbValueText={(stop) => priceStopLabel(priceLadder, stop, topStop)}
-          className="px-tight py-snug"
-        />
-        <div
-          className="mt-tight flex justify-between text-meta text-muted-foreground tabular-nums"
-          aria-hidden="true"
-        >
-          <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
-          <span>{AUD_WHOLE_FORMATTER.format(ceilingCents / 100)}+</span>
-        </div>
+      </fieldset>
 
-        {/* TYPED BOUNDS, BESIDE THE LADDER RATHER THAN INSTEAD OF IT.
-            
-            The ladder is the right mechanic — each drag stays proportionate to the price
-            it lands on — but it has exactly the stops it has, so a member who wants $500
-            when the nearest stop is $400 has no way to say so. These commit to the same
-            URL params the thumbs write, and `nearestPriceStop` snaps the thumbs to
-            follow, so the two controls stay one filter rather than becoming two. */}
-        <PriceBoundsFields
-          ladder={priceLadder}
-          stops={priceStops}
-          topStop={topStop}
-          disabled={isPending}
-          onCommit={onPriceCommit}
-        />
-      </div>
-
-      {/* The "ID-verified sellers only" toggle used to sit here. Removed because
-          publishing a listing now requires the Identity_Gate, so every item in
-          the catalog has a verified seller and the filter matched all of them.
-          Offering it implied the unfiltered catalog contained unverified
-          sellers, which is the opposite of what is true. Per-card badges still
-          show each seller's verified given name. */}
+      <PriceRefineBlock
+        priceStops={priceStops}
+        onPriceStopsChange={onPriceStopsChange}
+        onPriceCommit={onPriceCommit}
+        priceLadder={priceLadder}
+        topStop={topStop}
+        ceilingCents={ceilingCents}
+        histogram={histogram}
+        disabled={isPending}
+      />
 
       {/* TWO INDEPENDENT TOGGLES, not one "show unavailable". They answer
           different questions and a buyer wants them separately.
@@ -537,101 +607,94 @@ function CatalogRefineFields({
           into a single control would imply the states mean the same thing. */}
       <div className="border-t border-border pt-group">
         <p className="market-label mb-snug text-muted-foreground">Availability</p>
-        {choiceStyle === 'squares' ? (
-          <div className="flex flex-wrap gap-1.5">
-            <FilterSquare
-              label="Include reserved"
-              pressed={current.includeReserved}
-              onClick={onToggleReserved}
-              disabled={isPending}
-            />
-            <FilterSquare
-              label="Include sold"
-              pressed={current.includeSold}
-              onClick={onToggleSold}
-              disabled={isPending}
-            />
-          </div>
-        ) : (
-          <div className="space-y-tight">
-            <FilterCheckRow
-              label="Include reserved items"
-              pressed={current.includeReserved}
-              onClick={onToggleReserved}
-              disabled={isPending}
-            />
-            <FilterCheckRow
-              label="Include sold items"
-              pressed={current.includeSold}
-              onClick={onToggleSold}
-              disabled={isPending}
-            />
-          </div>
-        )}
+        <div className="flex flex-wrap gap-1.5">
+          <FilterSquare
+            label="Include reserved"
+            pressed={current.includeReserved}
+            onClick={onToggleReserved}
+            disabled={isPending}
+          />
+          <FilterSquare
+            label="Include sold"
+            pressed={current.includeSold}
+            onClick={onToggleSold}
+            disabled={isPending}
+          />
+        </div>
       </div>
     </>
   );
 }
 
 /**
- * Condition behind a disclosure, for the rail.
- *
- * Closed by default, but open on mount when the URL already carries
- * `?condition=` — a shared or bookmarked filtered link must never hide the
- * filter it is applying. After mount the state belongs to the user: selecting
- * or clearing conditions does not force it back open, and the count on the
- * trigger keeps a collapsed section from ever filtering silently.
+ * The price control shared by the rail row and the phone sheet: the density the
+ * stock sits in, above the control that filters it. A range slider tells a
+ * member what they CAN ask for and nothing about what asking would return — so
+ * the common failure is dragging into an empty band and reading the empty grid
+ * as a broken filter. `aria-hidden` on the histogram because it is a summary of
+ * the result count, which the results header states in words.
  */
-function ConditionDisclosure({
-  selectedCount,
-  children,
+function PriceRefineBlock({
+  priceStops,
+  onPriceStopsChange,
+  onPriceCommit,
+  priceLadder,
+  topStop,
+  ceilingCents,
+  histogram,
+  disabled,
 }: {
-  selectedCount: number;
-  children: ReactNode;
+  priceStops: [number, number];
+  onPriceStopsChange: (next: [number, number]) => void;
+  onPriceCommit: (next: [number, number]) => void;
+  priceLadder: number[];
+  topStop: number;
+  ceilingCents: number;
+  histogram: number[];
+  disabled: boolean;
 }) {
-  const [open, setOpen] = useState(() => (selectedCount > 0 ? 'condition' : ''));
-
   return (
-    <Accordion
-      type="single"
-      collapsible
-      value={open}
-      onValueChange={setOpen}
-      className="border-t border-border pt-snug"
-    >
-      {/* `border-b-0`: the next block draws the rule below this one, the same
-          way every other block in the panel separates itself with a top border. */}
-      <AccordionItem value="condition" className="border-b-0">
-        <AccordionTrigger headingAs="div" className="group py-1.5">
-          <span className="flex min-w-0 items-center gap-snug">
-            <span className="market-label text-muted-foreground transition-colors group-hover:text-foreground">
-              Condition
-            </span>
-            {selectedCount > 0 ? (
-              <>
-                <Badge
-                  className="border-foreground bg-foreground px-1.5 py-0 tabular-nums text-primary-foreground"
-                  aria-hidden="true"
-                >
-                  {selectedCount}
-                </Badge>
-                {/* The badge alone would read as a bare "2" appended to the
-                    label. Spelling it out makes the trigger announce
-                    "Condition, 2 selected". */}
-                <span className="sr-only">({selectedCount} selected)</span>
-              </>
-            ) : null}
-          </span>
-        </AccordionTrigger>
-        {/* No max-height and no inner scroll. As chips the seven options are
-            ~120px, so the section opens inside the rail's budget on a 1366x768
-            laptop with room to spare. A capped, internally scrolling list was
-            the alternative and it was worse: it showed three of seven with no
-            visible scrollbar, which is the same silent clip this change set
-            exists to remove, just moved one container inwards. */}
-        <AccordionContent className="pb-cozy pt-tight">{children}</AccordionContent>
-      </AccordionItem>
-    </Accordion>
+    <>
+      <PriceHistogram
+        buckets={histogram}
+        stops={priceStops}
+        segments={Math.max(priceLadder.length - 1, 0)}
+      />
+      <Slider
+        value={priceStops}
+        onValueChange={(next) => onPriceStopsChange([next[0], next[1]])}
+        onValueCommit={(next) => onPriceCommit([next[0], next[1]])}
+        min={0}
+        max={topStop}
+        step={1}
+        minStepsBetweenThumbs={1}
+        thumbLabels={['Minimum price', 'Maximum price']}
+        thumbValueText={(stop) => priceStopLabel(priceLadder, stop, topStop)}
+        className="px-tight py-snug"
+      />
+      <div
+        className="mt-tight flex justify-between text-meta text-muted-foreground tabular-nums"
+        aria-hidden="true"
+      >
+        <span>{AUD_WHOLE_FORMATTER.format(0)}</span>
+        <span>{AUD_WHOLE_FORMATTER.format(ceilingCents / 100)}+</span>
+      </div>
+
+      {/* TYPED BOUNDS, BESIDE THE LADDER RATHER THAN INSTEAD OF IT.
+
+          The ladder is the right mechanic — each drag stays proportionate to the price
+          it lands on — but it has exactly the stops it has, so a member who wants $500
+          when the nearest stop is $400 has no way to say so. These commit to the same
+          URL params the thumbs write, and `nearestPriceStop` snaps the thumbs to
+          follow, so the two controls stay one filter rather than becoming two. */}
+      <PriceBoundsFields
+        ladder={priceLadder}
+        stops={priceStops}
+        topStop={topStop}
+        disabled={disabled}
+        onCommit={onPriceCommit}
+      />
+    </>
   );
 }
 
@@ -924,17 +987,4 @@ function PriceBoundsFields({
 function priceStopLabel(ladder: number[], stop: number, topStop: number): string {
   const price = AUD_WHOLE_FORMATTER.format(ladder[stop] / 100);
   return stop >= topStop ? `${price} or more` : price;
-}
-
-/** Plain-language summary of the selected range for the rail readout. */
-function priceRangeLabel(
-  ladder: number[],
-  [minStop, maxStop]: [number, number],
-  topStop: number,
-): string {
-  const openEnded = maxStop >= topStop;
-  if (minStop <= 0 && openEnded) return 'Any price';
-  const from = AUD_WHOLE_FORMATTER.format(ladder[minStop] / 100);
-  if (openEnded) return `${from}+`;
-  return `${from} – ${AUD_WHOLE_FORMATTER.format(ladder[maxStop] / 100)}`;
 }

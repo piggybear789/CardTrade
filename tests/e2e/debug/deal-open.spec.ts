@@ -60,7 +60,7 @@ const STRATEGIES: Array<
 
 for (const [name, act] of STRATEGIES) {
   test(`select the cash tile via ${name}`, async ({ page }) => {
-    await page.goto('/deals/new');
+    await page.goto('/deals');
     const radio = page.getByRole('radio', { name: /Sell a card/i });
     await expect(radio).toHaveCount(1, { timeout: 20_000 });
 

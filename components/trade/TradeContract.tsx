@@ -40,6 +40,7 @@ import {
   FulfilmentMethodSummary,
   InspectionCountdown,
 } from '@/components/fulfilment';
+import { SwapIdentityRequirement } from '@/components/deals/DealVerificationNotice';
 import { inspectionHoldRisk } from '@/domain/fulfilment';
 
 import { DesktopOnly } from '@/components/layout/Breakpoint';
@@ -991,6 +992,14 @@ function TradeContractRoom({
             arrived late. */}
         {trade === null ? null : (
           <>
+            {trade.state === 'NEGOTIATING' && me && them ? (
+              <SwapIdentityRequirement
+                youVerified={me.verified}
+                theyVerified={them.verified}
+                theirName={them.name}
+              />
+            ) : null}
+
             {goods ? (
               <TradeCashSettlementNotice
                 trade={trade}

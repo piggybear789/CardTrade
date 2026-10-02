@@ -18,7 +18,7 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   // because the seller has not passed the identity check, and a buyer told to wait on
   // bank setup would be watching the wrong thing. `seller-not-payable` below is the
   // one that really is about payouts.
-  'seller-identity-unverified': 'The seller has not verified their identity yet.',
+  'seller-identity-unverified': "The seller hasn't finished verifying with Stripe yet.",
   'seller-identity-changed': 'The seller identity changed. Review it before continuing.',
   'seller-not-payable': 'The seller cannot receive payment right now.',
   // Fallback only. The orchestrator sends a `detail` naming both regions, and

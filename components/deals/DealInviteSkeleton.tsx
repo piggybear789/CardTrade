@@ -20,7 +20,6 @@ import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSk
 import { PageShell } from '@/components/layout/PageShell';
 import { useWorkspaceChrome } from '@/components/layout/WorkspaceChrome';
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
-import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
 
 export function DealInviteSkeleton() {
   const { staff } = useWorkspaceChrome();
@@ -28,7 +27,7 @@ export function DealInviteSkeleton() {
   if (staff) {
     return (
       <MarketplaceShellSkeleton title="Private deal" center>
-        <DealInviteCardSkeleton withCheckout />
+        <DealInviteCardSkeleton withFooterNote />
       </MarketplaceShellSkeleton>
     );
   }
@@ -58,15 +57,13 @@ export function DealInviteSkeleton() {
  * is a `text-body` label over a `text-lead` value at `gap-tight`; the price is
  * `text-head`, and the card fact carries a `size-16` thumbnail beside its title.
  */
-function DealInviteCardSkeleton({ withCheckout = false }: { withCheckout?: boolean }) {
+function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: boolean }) {
   return (
     <div className="mx-auto w-full max-w-lg rounded-lg border border-border bg-card shadow-market">
       <div className="flex flex-col space-y-snug p-group">
         <TextLines className="text-subhead" widths={['w-32']} />
-        {/* Every `CardDescription` branch runs ~60 characters: one line in the 480px
-            card from `sm`, two in a phone's ~311px. One bar under-reserved the phone
-            card by a line, and the shell is `center`, so it moved by half of that. */}
-        <TextLines className="text-body" widths={['w-full sm:w-4/5', 'w-2/5 sm:hidden']} />
+        {/* Every `CardDescription` branch is ~35 characters, one line at every width. */}
+        <TextLines className="text-body" widths={['w-56 max-w-full']} />
       </div>
 
       <div className="grid gap-group p-group pt-0">
@@ -88,18 +85,15 @@ function DealInviteCardSkeleton({ withCheckout = false }: { withCheckout?: boole
             </div>
           </div>
         </div>
-        {/* A member joining a sale link lands on `DealJoinForm`, whose content opens
-            with the summary above and then the checkout block — the verified seller
-            over the saved card — under `space-y-group`. That block is ~150px and the
-            shell is `center`, so leaving it out moved the whole card up by half of it
-            on swap. Reserved with the form's own placeholder for it, so the loader and
-            the form's in-place loading state are one shape. A trade link shows a
-            card-description row there instead, which this does not guess at. */}
-        {withCheckout ? <CheckoutSummarySkeleton /> : null}
       </div>
 
-      {/* `Button` default size: `h-9 md:h-8`. `w-full sm:w-auto` is the join form's. */}
-      <div className="flex items-center p-group pt-0">
+      {/* The join form's footer: the "Nothing is paid or held" note and the Join
+          button, stacked on a phone and side by side from `sm`. A guest's preview has
+          the same button row. `Button` default size: `h-9 md:h-8`. */}
+      <div className="flex flex-col items-stretch gap-snug p-group pt-0 sm:flex-row sm:items-center sm:justify-between">
+        {withFooterNote ? (
+          <TextLines className="text-meta" widths={['w-56 max-w-full']} />
+        ) : null}
         <Skeleton className="h-9 w-full sm:w-32 md:h-8" />
       </div>
     </div>

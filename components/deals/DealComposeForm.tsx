@@ -2,49 +2,41 @@
 
 // components/deals/DealComposeForm.tsx
 //
-// Start a private deal: sell a card for cash, or trade cards. Every card is
-// unlisted (createPrivateTradeItem). Rendered inside StartDealProvider. Success
-// navigates to /t/… so the host can copy the link.
+// Start a private deal: sell a card, or trade cards. Anyone can write one. The
+// account is asked for at Get link, after the work is done, and the draft — photos
+// included — survives that sign-in in IndexedDB (`dealDraftStore`).
 //
-// TWO STEPS, ESSENTIALS ONLY. The previous version was three forms sharing one
-// modal — cash-as-seller, cash-as-buyer, trade — plus two nested dialogs, with a
-// titled section and a sentence of consequence for every field. Eleven lines of
-// prose before anything was typed. Each sentence was defensible; together they
-// were a wall, and the header comment listed five earlier fixes that had each
-// added one more. Redesigned from the data the server actually needs:
+//   Deal type    sell or trade
+//   Your card    photos first, then what it is, category and condition
+//   Price        what they pay, the fee, what you receive              (sell)
+//   Trade terms  what you want, what yours is worth, the hold and fee  (trade)
+//   Review      the invite as they will see it, and what happens next
+//   then, only when needed:
+//   Save your deal  sign in (a signed-out visitor)
+//   Almost done     the name others see, and where they trade (a new account)
 //
-//   Sell a card   the card · a price
-//   Trade cards   your card · what you want · your card's value
+// STRIPE IDENTITY IS NOT ASKED FOR HERE, AND THE COPY SAYS EXACTLY WHERE IT IS: a
+// seller verifies (and finishes payout setup) before the buyer can pay, and BOTH
+// traders verify before a swap can start. Those are the checks `acceptCashSaleTerms`
+// and `acceptTradeTerms` enforce; nothing on these screens may read as optional
+// about them.
 //
-// So step 1 is one question with two answers, and step 2 is those controls and
-// nothing else. The card's four fields render INLINE (`UnlistedItemFields`)
-// rather than behind a "Your card" row that opened a second modal.
-//
-// WHAT LEFT THE COMPOSER, AND WHERE IT WENT:
-//
-//   "I'm buying" (buyer hosts, seller joins and puts up the card)
-//                 dropped. It was the most complex branch, the only one that made
-//                 the JOINER pass the identity gate, and a buyer who wants a card can
-//                 browse or message. The server still accepts `hostRole: 'BUYER'`
-//                 for invites that already exist; the UI simply stops making new ones.
-//   the note      the room. They see it after they join, which is when there is
-//                 something to say it about.
-//   cash to even  the room's Payment Terms. A trade is sent as an even swap and
-//                 negotiated from there; that is what the negotiation states exist
-//                 for. `cashAmountCents: 0`.
-//   the prose     the fee is stated once, under the price, as the number it produces.
-//                 The link's two facts — 14 days, first to open joins — are one line
-//                 in the footer. Everything else was the room's job to explain.
-//
-// KEPT: the footer names the next thing to do while the button is disabled. That
-// is the one line of guidance that was earning its place.
+// KEPT from the previous composer: the line above the action names the next thing
+// to do while the button is disabled.
 
-import { useState, useTransition } from 'react';
+import Link from 'next/link';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, BanknoteIcon, RepeatIcon } from '@hugeicons/core-free-icons';
+import {
+  ArrowLeft01Icon,
+  BanknoteIcon,
+  LoaderCircleIcon,
+  RepeatIcon,
+} from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -61,169 +53,277 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   EMPTY_UNLISTED_DRAFT,
-  UnlistedItemFields,
-  isUnlistedDraftComplete,
+  UnlistedCategoryConditionFields,
+  UnlistedDescriptionField,
+  UnlistedPhotoField,
+  UnlistedTitleField,
+  unlistedDraftGap,
   type UnlistedItemDraft,
 } from '@/components/trade/UnlistedItemFields';
+import {
+  clearDealDraft,
+  loadDealDraft,
+  saveDealDraft,
+  type DraftKind,
+} from '@/components/deals/dealDraftStore';
+import { SaleTermsBreakdown, TradeTermsBreakdown } from '@/components/deals/DealTermsBreakdown';
 import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
+import { QuickProfileFields } from '@/components/deals/QuickProfileFields';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
 import { cashPriceProblem, dollarsToCents } from '@/domain/deals/dealInvite';
-import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { deriveItemTitle } from '@/domain/validation';
 import { createDealInvite } from '@/lib/actions/dealInvites';
-import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
-import { formatAud } from '@/lib/format';
+import { completeQuickOnboarding } from '@/lib/actions/quickOnboarding';
+import type { SelectableRegion } from '@/lib/actions/regionOptions';
+import { DEAL_RESUME_PATH } from '@/lib/deals/paths';
+import { formatMoney } from '@/lib/format';
 import { navigateWithType } from '@/lib/motion/navigate';
 
-type Kind = 'CASH_SALE' | 'TRADE';
+type Step = 'kind' | 'card' | 'terms' | 'review' | 'account' | 'profile';
 
-/**
- * The currency this form quotes in. It already formats every figure with `formatAud`,
- * so the fee (and its minimum) is sized in the same currency it is shown in. When a
- * second trading region opens, this becomes the host's region currency — along with
- * every `formatAud` below.
- */
-const QUOTE_CURRENCY = 'aud';
+/** Where each step's back arrow goes. `kind` has none. */
+const BACK: Record<Exclude<Step, 'kind'>, Step> = {
+  card: 'kind',
+  terms: 'card',
+  review: 'terms',
+  account: 'review',
+  profile: 'review',
+};
 
-/** Derived from the charge constants so the copy cannot drift from what is charged. */
-const FEE_RATE_LABEL = platformFeeRateLabel(QUOTE_CURRENCY);
+/** The three steps the progress bar counts. The chooser and the account steps sit outside it. */
+const PROGRESS: Partial<Record<Step, number>> = { card: 1, terms: 2, review: 3 };
 
-/** The invite TTL in days, for the footer. */
-const INVITE_TTL_DAYS = 14;
+export interface DealComposerViewer {
+  signedIn: boolean;
+  /** A new account that has not yet given a display name and trading region. */
+  needsOnboarding: boolean;
+  displayName: string | null;
+}
 
-export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
+export interface DealComposeFormProps {
+  viewer: DealComposerViewer;
+  /** Regions a new account may choose, for the two-question step. */
+  regions: SelectableRegion[];
+  /** Where that picker starts: the member's region, else the one they browse. */
+  suggestedRegion: string | null;
+  /** The currency the price is quoted in, from the same region. */
+  quoteCurrency: string;
+  /** Returning from sign-in: pick the stored draft back up. */
+  resume: boolean;
+  onSuccess?: () => void;
+}
+
+export function DealComposeForm({
+  viewer,
+  regions,
+  suggestedRegion,
+  quoteCurrency,
+  resume,
+  onSuccess,
+}: DealComposeFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [kind, setKind] = useState<Kind | null>(null);
-  const [draft, setDraft] = useState<UnlistedItemDraft>(EMPTY_UNLISTED_DRAFT);
+  const [kind, setKind] = useState<DraftKind | null>(null);
+  const [step, setStep] = useState<Step>('kind');
+  const [card, setCard] = useState<UnlistedItemDraft>(EMPTY_UNLISTED_DRAFT);
   const [priceDollars, setPriceDollars] = useState('');
   const [valueDollars, setValueDollars] = useState('');
   const [wanted, setWanted] = useState('');
+  const [displayName, setDisplayName] = useState(viewer.displayName ?? '');
+  const [regionCode, setRegionCode] = useState(suggestedRegion ?? regions[0]?.code ?? '');
+  const [restoring, setRestoring] = useState(resume);
 
-  const cardComplete = isUnlistedDraftComplete(draft);
+  // Back from sign-in: restore the draft and carry on from where Get link was pressed.
+  useEffect(() => {
+    if (!resume) return;
+    let cancelled = false;
+    void loadDealDraft().then((stored) => {
+      if (cancelled) return;
+      setRestoring(false);
+      if (!stored) return;
+      setKind(stored.kind);
+      setCard(stored.card);
+      setPriceDollars(stored.priceDollars);
+      setValueDollars(stored.valueDollars);
+      setWanted(stored.wanted);
+      setStep(viewer.signedIn && viewer.needsOnboarding ? 'profile' : 'review');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [resume, viewer.signedIn, viewer.needsOnboarding]);
+
+  const selling = kind === 'CASH_SALE';
   const priceCents = dollarsToCents(priceDollars);
   const valueCents = dollarsToCents(valueDollars);
-  /** The collateral figure as typed, or a placeholder until there is one. */
-  const valueLabel = valueCents != null && valueCents > 0 ? formatAud(valueCents) : 'This amount';
-  const feeCents = priceCents != null && priceCents > 0 ? platformFeeCentsFor(priceCents, QUOTE_CURRENCY) : null;
+  const money = (cents: number) => formatMoney(cents, quoteCurrency);
 
   /**
-   * The next thing the member has to do, or `null` when the form is ready to send.
-   * Drives the footer hint AND the button's disabled state, so the two cannot
-   * disagree. Covers PRESENCE only — range rules stay as messages on submit.
+   * What the current step still needs, or `null` when it is complete. Drives the
+   * line beside the action AND the button's disabled state, so the two cannot
+   * disagree. Presence only — range rules come back as messages on Next.
    */
-  function missingRequirement(): string | null {
-    if (!kind) return null;
-    if (!cardComplete) return 'Describe your card and add a photo.';
-    if (kind === 'CASH_SALE') {
-      if (priceCents == null) return 'Enter a price.';
-      return null;
+  function gap(): string | null {
+    if (step === 'card') return unlistedDraftGap(card);
+    if (step === 'terms') {
+      if (selling) return priceCents == null ? 'Enter a price.' : null;
+      if (wanted.trim() === '') return 'Say what you want for it.';
+      if (valueCents == null || valueCents < 1) return 'Say what your card is worth.';
     }
-    if (wanted.trim() === '') return 'Say what you want from them.';
-    if (dollarsToCents(valueDollars) == null) return "Say what your card is worth.";
+    if (step === 'profile') {
+      if (displayName.trim() === '') return 'Add the name other members see.';
+      if (!regionCode) return 'Choose where you trade.';
+    }
     return null;
   }
+  const missing = gap();
 
-  const missing = missingRequirement();
-
-  function submit() {
-    if (!kind) return;
+  function go(next: Step) {
     setError(null);
+    setStep(next);
+  }
 
-    startTransition(async () => {
-      if (!isUnlistedDraftComplete(draft)) {
-        setError('Describe your card and add a photo.');
-        return;
-      }
+  function chooseKind(next: DraftKind) {
+    setKind(next);
+    go('card');
+  }
 
-      if (kind === 'CASH_SALE') {
-        const cents = dollarsToCents(priceDollars);
-        const priceProblem = cashPriceProblem(cents);
-        if (priceProblem) {
-          setError(priceProblem);
-          return;
-        }
-        const uploaded = await pathsFromUnlistedDraft(draft, cents!);
-        if (!uploaded.ok) {
-          setError(uploaded.message);
-          return;
-        }
-        const result = await createDealInvite({
-          kind: 'CASH_SALE',
-          hostRole: 'SELLER',
-          item: uploaded.item,
-          priceCents: cents!,
-        });
-        if (!result.ok) {
-          const message = result.message || DEAL_INVITE_ERROR_COPY[result.error];
-          setError(message);
-          toast.error(message);
-          return;
-        }
-        onSuccess?.();
-        navigateWithType(router, result.data.path, 'nav-forward');
+  function leaveTerms() {
+    if (selling) {
+      const problem = cashPriceProblem(priceCents);
+      if (problem) {
+        setError(problem);
         return;
       }
+    }
+    go('review');
+  }
 
-      const fmvCents = dollarsToCents(valueDollars);
-      if (fmvCents == null || fmvCents < 1) {
-        setError("Say what your card is worth.");
-        return;
-      }
-      const uploaded = await pathsFromUnlistedDraft(draft, fmvCents);
-      if (!uploaded.ok) {
-        setError(uploaded.message);
-        return;
-      }
-      // An even swap. Cash to even, if any, is negotiated in the room.
-      const result = await createDealInvite({
-        kind: 'TRADE',
-        item: uploaded.item,
-        wantedDescription: wanted,
-        cashAmountCents: 0,
-        cashDirection: 'PROPOSER_PAYS',
-        declaredValueCents: fmvCents,
+  function getLink() {
+    setError(null);
+    if (!kind) return;
+    if (!viewer.signedIn) {
+      // THE ONE WRITE. The draft is only ever restored on the way back from sign-in,
+      // so it is saved here, as the visitor heads there, rather than on every edit
+      // (which would rewrite every photo on each pause in typing). Pressing Get link
+      // again after going back to edit saves the edited draft. Awaited, so the
+      // sign-in buttons only appear once the write is done.
+      const draftKind = kind;
+      startTransition(async () => {
+        await saveDealDraft({ kind: draftKind, card, priceDollars, valueDollars, wanted });
+        go('account');
       });
-      if (!result.ok) {
-        const message = result.message || DEAL_INVITE_ERROR_COPY[result.error];
-        setError(message);
-        toast.error(message);
-        return;
-      }
-      onSuccess?.();
-      navigateWithType(router, result.data.path, 'nav-forward');
+      return;
+    }
+    if (viewer.needsOnboarding) {
+      go('profile');
+      return;
+    }
+    startTransition(async () => {
+      await createLink();
     });
   }
 
-  // ---------------------------------------------------------------- step 1 ----
-  if (!kind) {
+  function finishProfile() {
+    setError(null);
+    startTransition(async () => {
+      const done = await completeQuickOnboarding({ displayName: displayName.trim(), regionCode });
+      if (!done.ok) {
+        setError(done.message);
+        return;
+      }
+      await createLink();
+    });
+  }
+
+  async function createLink() {
+    if (!kind) return;
+    const fmvCents = selling ? priceCents : valueCents;
+    if (fmvCents == null || fmvCents < 1) {
+      setError(selling ? 'Enter a price.' : 'Say what your card is worth.');
+      return;
+    }
+    const uploaded = await pathsFromUnlistedDraft(card, fmvCents);
+    if (!uploaded.ok) {
+      setError(uploaded.message);
+      return;
+    }
+    const result = selling
+      ? await createDealInvite({
+          kind: 'CASH_SALE',
+          hostRole: 'SELLER',
+          item: uploaded.item,
+          priceCents: fmvCents,
+        })
+      : // An even swap. Cash to even, if any, is agreed in the room.
+        await createDealInvite({
+          kind: 'TRADE',
+          item: uploaded.item,
+          wantedDescription: wanted,
+          cashAmountCents: 0,
+          cashDirection: 'PROPOSER_PAYS',
+          declaredValueCents: fmvCents,
+        });
+    if (!result.ok) {
+      const message = result.message || DEAL_INVITE_ERROR_COPY[result.error];
+      setError(message);
+      toast.error(message);
+      return;
+    }
+    await clearDealDraft();
+    onSuccess?.();
+    navigateWithType(router, result.data.path, 'nav-forward');
+  }
+
+  if (restoring) {
     return (
       <>
         <DialogHeader>
-          <DialogTitle>Private deal</DialogTitle>
-          <DialogDescription>Send a link. Whoever opens it joins you in a room.</DialogDescription>
+          <DialogTitle>Picking up your deal</DialogTitle>
+          <DialogDescription>Restoring your card and photos.</DialogDescription>
+        </DialogHeader>
+        <div role="status" className="flex justify-center py-section text-muted-foreground">
+          <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin" aria-hidden />
+          <span className="sr-only">Loading</span>
+        </div>
+      </>
+    );
+  }
+
+  // ------------------------------------------------------------- deal type ----
+  if (step === 'kind' || !kind) {
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle>Start a deal</DialogTitle>
+          <DialogDescription>Send someone a link and agree the details together.</DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-snug">
+        <div className="grid grid-cols-2 gap-snug">
           <ChoiceTile
             id="deal-kind-cash"
             name="deal-kind"
             type="radio"
             checked={false}
-            onChange={() => setKind('CASH_SALE')}
+            onChange={() => chooseKind('CASH_SALE')}
             icon={BanknoteIcon}
             label="Sell a card"
+            align="center"
+            layout="stacked"
           />
           <ChoiceTile
             id="deal-kind-trade"
             name="deal-kind"
             type="radio"
             checked={false}
-            onChange={() => setKind('TRADE')}
+            onChange={() => chooseKind('TRADE')}
             icon={RepeatIcon}
             label="Trade cards"
+            align="center"
+            layout="stacked"
           />
         </div>
 
@@ -238,82 +338,80 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
     );
   }
 
-  // ---------------------------------------------------------------- step 2 ----
-  const selling = kind === 'CASH_SALE';
+  const title =
+    step === 'review'
+      ? 'Review your deal'
+      : step === 'account'
+        ? 'Save your deal'
+        : step === 'profile'
+          ? 'Almost done'
+          : selling
+            ? 'Sell a card'
+            : 'Trade cards';
 
   return (
     <>
-      <DialogHeader>
-        {/* The back arrow shares the title row rather than sitting above it: one
-            line of chrome, and the title says which branch you are in. */}
-        <div className="flex items-center gap-snug">
-          <button
-            type="button"
-            onClick={() => {
-              setKind(null);
-              setError(null);
-            }}
-            disabled={isPending}
-            aria-label="Back to deal type"
-            className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
-          </button>
-          <DialogTitle>{selling ? 'Sell a card' : 'Trade cards'}</DialogTitle>
-        </div>
-        <DialogDescription className="sr-only">
-          {selling
-            ? 'Describe the card and set a price.'
-            : 'Describe your card, what you want for it, and what it is worth.'}
-        </DialogDescription>
-      </DialogHeader>
+      <StepHeader
+        title={title}
+        progress={PROGRESS[step]}
+        onBack={() => go(BACK[step])}
+        backDisabled={isPending}
+        description={
+          step === 'account' ? 'Sign in to get the link. Your draft is kept.' : undefined
+        }
+      />
 
-      {/* `space-y-group`, not `section`. Every group opens with its own label, so
-          the labels do the separating; 32px between them was a third of a phone
-          sheet spent on air. */}
       <div className="space-y-group">
-        <UnlistedItemFields
-          draft={draft}
-          onChange={setDraft}
-          idPrefix="deal-card"
-          descriptionLabel={selling ? 'What are you selling?' : 'What are you trading?'}
-          descriptionPlaceholder="What it is, set, grade — anything they should know."
-        />
-
-        {selling ? (
-          <div className="space-y-snug">
-            <Label htmlFor="deal-price">Price</Label>
-            <MoneyInput
-              id="deal-price"
-              size="lg"
-              min="0.01"
-              value={priceDollars}
-              onChange={(event) => setPriceDollars(event.target.value)}
+        {step === 'card' ? (
+          <>
+            <UnlistedPhotoField draft={card} onChange={setCard} idPrefix="deal-card" />
+            <UnlistedTitleField draft={card} onChange={setCard} idPrefix="deal-card" />
+            <UnlistedDescriptionField
+              draft={card}
+              onChange={setCard}
+              idPrefix="deal-card"
+              label={selling ? 'What are you selling?' : 'What are you swapping?'}
+              placeholder="Condition details, grade, anything they should know."
             />
-            {/* THE ONE LINE OF ARITHMETIC. The fee as the number it produces, not
-                as a rule to apply. Postage and everything else are the room's. */}
-            <p className="text-meta text-muted-foreground">
-              {feeCents != null
-                ? `They pay ${formatAud(priceCents! + feeCents)} including the NoDitto fee (${FEE_RATE_LABEL}).`
-                : `A NoDitto fee (${FEE_RATE_LABEL}) is added for the buyer.`}
-            </p>
-          </div>
-        ) : (
+            <UnlistedCategoryConditionFields draft={card} onChange={setCard} idPrefix="deal-card" />
+          </>
+        ) : null}
+
+        {step === 'terms' && selling ? (
           <>
             <div className="space-y-snug">
-              <Label htmlFor="deal-wanted">What you want from them</Label>
+              <Label htmlFor="deal-price">Price</Label>
+              <MoneyInput
+                id="deal-price"
+                size="lg"
+                min="0.01"
+                value={priceDollars}
+                onChange={(event) => setPriceDollars(event.target.value)}
+              />
+            </div>
+            <SaleTermsBreakdown priceCents={priceCents} currency={quoteCurrency} />
+            <p className="text-meta text-muted-foreground">
+              Postage or a meetup is agreed in the deal room.
+            </p>
+          </>
+        ) : null}
+
+        {step === 'terms' && !selling ? (
+          <>
+            <div className="space-y-snug">
+              <Label htmlFor="deal-wanted">What do you want for it?</Label>
               <Textarea
                 id="deal-wanted"
                 value={wanted}
                 onChange={(event) => setWanted(event.target.value)}
                 maxLength={1000}
                 rows={2}
-                placeholder="Set, card, or grade they should put up."
+                placeholder="The card, set or grade they should put up."
                 className="resize-none"
               />
             </div>
             <div className="space-y-snug">
-              <Label htmlFor="deal-value">Your card&apos;s value</Label>
+              <Label htmlFor="deal-value">What is your card worth?</Label>
               <MoneyInput
                 id="deal-value"
                 size="lg"
@@ -321,49 +419,229 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
                 value={valueDollars}
                 onChange={(event) => setValueDollars(event.target.value)}
               />
-              {/* THE COLLATERAL, STATED FROM THE RULES. This figure becomes the card's
-                  FMV, and `bondPolicy` authorises 100% of a trader's OWN side as their
-                  hold — so it sizes YOUR hold, not theirs (they enter their own value
-                  when they join). "Both of you hold this much" was wrong. The hold is an
-                  authorisation, released in full when the swap completes; a condition
-                  dispute captures at most `FRICTION_TAX_CENTS` ($20) from the party
-                  found against, and only fraud takes the whole hold. */}
-              <p className="text-meta text-muted-foreground">
-                {`${valueLabel} is held on your card as collateral and released when the swap completes. If a dispute goes against you, up to ${formatAud(FRICTION_TAX_CENTS)} of it is kept.`}
-              </p>
+            </div>
+            <TradeTermsBreakdown valueCents={valueCents} currency={quoteCurrency} />
+          </>
+        ) : null}
+
+        {step === 'review' ? (
+          <>
+            <div className="space-y-snug">
+              <p className="text-meta text-muted-foreground">What they will see</p>
+              <DraftPreview
+                card={card}
+                line={
+                  selling
+                    ? priceCents
+                      ? `They pay ${money(priceCents + platformFeeCentsFor(priceCents, quoteCurrency))}`
+                      : null
+                    : `Wants: ${wanted.trim()}`
+                }
+              />
+            </div>
+            <div className="space-y-snug">
+              <p className="text-meta text-muted-foreground">What happens next</p>
+              <NextSteps
+                items={
+                  selling
+                    ? [
+                        'They join. Nothing is charged.',
+                        'You agree the handover in the deal room.',
+                        'You verify with Stripe Identity and set up payouts, then they pay.',
+                      ]
+                    : [
+                        'They join with the card they are offering.',
+                        'You agree the trade in the deal room.',
+                        'You both verify with Stripe Identity, then a hold goes on each card.',
+                      ]
+                }
+              />
             </div>
           </>
-        )}
+        ) : null}
+
+        {step === 'account' ? (
+          <div className="grid gap-snug">
+            <GoogleSignInButton mode="sign-up" redirectTo={DEAL_RESUME_PATH}>
+              Continue with Google
+            </GoogleSignInButton>
+            <Button asChild variant="outline" className="min-h-11 w-full">
+              <Link href={`/sign-up?redirectTo=${encodeURIComponent(DEAL_RESUME_PATH)}`}>
+                Continue with email
+              </Link>
+            </Button>
+            <p className="text-meta text-muted-foreground">
+              Already have an account?{' '}
+              <Link
+                href={`/sign-in?redirectTo=${encodeURIComponent(DEAL_RESUME_PATH)}`}
+                className="font-medium text-foreground underline underline-offset-4"
+              >
+                Sign in
+              </Link>
+            </p>
+          </div>
+        ) : null}
+
+        {step === 'profile' ? (
+          <QuickProfileFields
+            idPrefix="deal"
+            displayName={displayName}
+            onDisplayName={setDisplayName}
+            regionCode={regionCode}
+            onRegion={setRegionCode}
+            regions={regions}
+            quoteCurrency={quoteCurrency}
+          />
+        ) : null}
 
         <FieldError message={error ?? undefined} />
       </div>
 
-      {/* The reason the action is unavailable, beside the action; and the link's two
-          facts, once, where the link is made. */}
-      <p className="text-meta text-muted-foreground" id="deal-submit-blocker">
-        {missing && !isPending
-          ? missing
-          : `The link works for ${INVITE_TTL_DAYS} days and the first person to open it joins.`}
-      </p>
-
-      <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline" disabled={isPending}>
-            Cancel
-          </Button>
-        </DialogClose>
-        <Button
-          type="button"
-          onClick={submit}
-          disabled={isPending || missing != null}
-          aria-busy={isPending}
-          aria-describedby="deal-submit-blocker"
-        >
-          <PendingLabel pending={isPending} pendingLabel="Creating link…">
-            Create link
-          </PendingLabel>
-        </Button>
-      </DialogFooter>
+      {step === 'account' ? null : (
+        <>
+          <p className="text-meta text-muted-foreground" id="deal-step-blocker">
+            {missing && !isPending
+              ? missing
+              : step === 'review' && !viewer.signedIn
+                ? "You'll sign in next."
+                : null}
+          </p>
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={
+                step === 'card'
+                  ? () => go('terms')
+                  : step === 'terms'
+                    ? leaveTerms
+                    : step === 'profile'
+                      ? finishProfile
+                      : getLink
+              }
+              disabled={isPending || missing != null}
+              aria-busy={isPending}
+              aria-describedby="deal-step-blocker"
+            >
+              {/* Width-stable: the pending text and spinner share the resting label's
+                  grid cell, so the footer does not slide while the link is made. */}
+              <PendingLabel
+                pending={isPending}
+                pendingLabel={viewer.signedIn ? 'Creating link…' : 'Saving…'}
+              >
+                {step === 'card' || step === 'terms' ? 'Next' : 'Get link'}
+              </PendingLabel>
+            </Button>
+          </DialogFooter>
+        </>
+      )}
     </>
+  );
+}
+
+function StepHeader({
+  title,
+  description,
+  progress,
+  onBack,
+  backDisabled,
+}: {
+  title: string;
+  description?: string;
+  progress?: number;
+  onBack: () => void;
+  backDisabled: boolean;
+}) {
+  return (
+    <>
+      <DialogHeader>
+        {/* The back arrow shares the title row rather than sitting above it: one line
+            of chrome, and the title says where you are. */}
+        <div className="flex items-center gap-snug">
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={backDisabled}
+            aria-label="Back"
+            className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50"
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+          </button>
+          <DialogTitle className="min-w-0 flex-1">{title}</DialogTitle>
+          {progress ? (
+            <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
+              Step {progress} of 3
+            </span>
+          ) : null}
+        </div>
+        {description ? (
+          <DialogDescription>{description}</DialogDescription>
+        ) : (
+          <DialogDescription className="sr-only">{title}</DialogDescription>
+        )}
+      </DialogHeader>
+      {/* OUTSIDE THE HEADER, which keeps `pr-12` clear of the close button. The bar
+          measures the whole form, so it spans the same width as the fields below it. */}
+      {progress ? (
+        <div className="grid grid-cols-3 gap-tight" aria-hidden>
+          {[1, 2, 3].map((n) => (
+            <span
+              key={n}
+              className={n <= progress ? 'h-1 rounded-full bg-primary' : 'h-1 rounded-full bg-muted'}
+            />
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | null }) {
+  const [thumb, setThumb] = useState<string | null>(null);
+  useEffect(() => {
+    const first = card.images[0];
+    if (!first) return;
+    const url = URL.createObjectURL(first);
+    setThumb(url);
+    return () => URL.revokeObjectURL(url);
+  }, [card.images]);
+
+  return (
+    <div className="flex items-center gap-cozy rounded-lg border p-cozy">
+      <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
+        {thumb ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumb} alt="" className="size-full object-cover" />
+        ) : null}
+      </div>
+      <div className="min-w-0 space-y-tight">
+        <p className="truncate text-body font-medium">{deriveItemTitle(card.description)}</p>
+        <p className="text-meta text-muted-foreground">
+          {[card.condition, card.category].filter(Boolean).join(' · ')}
+        </p>
+        {line ? <p className="line-clamp-2 text-body text-muted-foreground">{line}</p> : null}
+      </div>
+    </div>
+  );
+}
+
+function NextSteps({ items }: { items: string[] }) {
+  return (
+    <ol className="grid gap-snug">
+      {items.map((item, index) => (
+        <li key={item} className="flex items-center gap-snug">
+          <span
+            aria-hidden
+            className={
+              index === items.length - 1
+                ? 'grid size-5 shrink-0 place-items-center rounded-full bg-primary text-meta font-semibold text-primary-foreground'
+                : 'grid size-5 shrink-0 place-items-center rounded-full bg-muted text-meta font-semibold text-muted-foreground'
+            }
+          >
+            {index + 1}
+          </span>
+          <span className="text-body text-muted-foreground">{item}</span>
+        </li>
+      ))}
+    </ol>
   );
 }

@@ -142,7 +142,8 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     sellerHandoverConfirmedAt: row.seller_handover_confirmed_at,
     completedAt: row.completed_at,
     conversationId: row.conversation_id,
-    sellerIdentity: {
+    // A private-deal sale carries no identity until its Buyer confirms one at Pay.
+    sellerIdentity: row.seller_identity_version === null ? null : {
       sellerId: row.seller_id,
       version: row.seller_identity_version ?? '',
       legalEntityName: row.seller_legal_entity_name ?? '',
@@ -164,7 +165,7 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
       organisationType: row.seller_organisation_type,
       verifiedAt: row.seller_identity_verified_at ?? '',
     },
-    buyerSellerIdentityConfirmedAt: row.buyer_seller_identity_confirmed_at ?? '',
+    buyerSellerIdentityConfirmedAt: row.buyer_seller_identity_confirmed_at,
     sellerPayoutStatus: row.seller_payout_status ?? 'NOT_DUE',
     sellerPayoutRef: row.seller_payout_ref ?? null,
     sellerPayoutNonce: row.seller_payout_nonce ?? null,
@@ -335,14 +336,14 @@ export function createSupabaseCashSaleRepository(
         p_buyer_id: params.buyerId,
         p_agreed_price_cents: params.agreedPriceCents,
         p_platform_fee_cents: params.platformFeeCents,
-        p_seller_identity_version: params.sellerIdentity.version,
-        p_seller_legal_entity_name: params.sellerIdentity.legalEntityName,
-        p_seller_trading_name: params.sellerIdentity.tradingName,
+        p_seller_identity_version: params.sellerIdentity?.version ?? null,
+        p_seller_legal_entity_name: params.sellerIdentity?.legalEntityName ?? null,
+        p_seller_trading_name: params.sellerIdentity?.tradingName ?? null,
         // Retired vocabulary, kept only to satisfy the applied RPC signature from
         // 0008. Stripe returns no tax ID, so there is nothing to record.
         p_seller_registration_number: '',
-        p_seller_organisation_type: params.sellerIdentity.organisationType,
-        p_seller_identity_verified_at: params.sellerIdentity.verifiedAt,
+        p_seller_organisation_type: params.sellerIdentity?.organisationType ?? null,
+        p_seller_identity_verified_at: params.sellerIdentity?.verifiedAt ?? null,
         p_buyer_identity_confirmed_at: params.buyerSellerIdentityConfirmedAt,
         // Written inside the same transaction as the agreement (0064). A shopfront
         // contract must never exist, even momentarily, without saying which goods
@@ -400,6 +401,26 @@ export function createSupabaseCashSaleRepository(
 
     loadCashSale(cashSaleId: string) {
       return selectSale(client, cashSaleId);
+    },
+    async recordSellerIdentity({ cashSaleId, sellerIdentity, confirmedAt }) {
+      // `is(... null)` is the guard that makes this write-once: an identity a Buyer
+      // already confirmed is never replaced by a later read of the Seller's profile.
+      const { data } = await client
+        .from('cash_sales')
+        .update({
+          seller_identity_version: sellerIdentity.version,
+          seller_legal_entity_name: sellerIdentity.legalEntityName,
+          seller_trading_name: sellerIdentity.tradingName,
+          seller_organisation_type: sellerIdentity.organisationType,
+          seller_identity_verified_at: sellerIdentity.verifiedAt,
+          buyer_seller_identity_confirmed_at: confirmedAt,
+        })
+        .eq('id', cashSaleId)
+        .eq('status', 'AGREEMENT')
+        .is('seller_identity_version', null)
+        .select('*')
+        .maybeSingle();
+      return data ? toCashSale(data as CashSaleRow) : null;
     },
     async updateTerms({ cashSaleId, actorId, expectedTermsVersion, terms }) {
       const { data, error } = await client.rpc('update_cash_sale_terms', {

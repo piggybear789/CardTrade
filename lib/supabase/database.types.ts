@@ -2669,13 +2669,17 @@ export type Database = {
           p_buyer_id: string;
           p_agreed_price_cents: number;
           p_platform_fee_cents: number;
-          p_seller_identity_version: string;
-          p_seller_legal_entity_name: string;
+          /**
+           * The identity arguments are null for a private-deal sale, whose Buyer
+           * confirms the verified Seller at Pay instead. The columns are nullable.
+           */
+          p_seller_identity_version: string | null;
+          p_seller_legal_entity_name: string | null;
           p_seller_trading_name: string | null;
           p_seller_registration_number: string;
           p_seller_organisation_type: string | null;
-          p_seller_identity_verified_at: string;
-          p_buyer_identity_confirmed_at: string;
+          p_seller_identity_verified_at: string | null;
+          p_buyer_identity_confirmed_at: string | null;
           /**
            * Opening line items for a SHOPFRONT contract, written in the same
            * transaction (0064). Required for a shopfront, null for a SINGLE
@@ -2777,6 +2781,30 @@ export type Database = {
           p_counterpart_goods_description?: string | null;
         };
         Returns: Database['cardtrade']['Tables']['trades']['Row'];
+      };
+      /**
+       * Edit an unclaimed private-deal invite and its hidden card in one
+       * transaction (0124). Raises `invite-not-host`, `invite-claimed`,
+       * `invite-revoked`, `invite-expired`, `invite-not-editable` or
+       * `invite-item-unavailable`. Service role only.
+       */
+      update_deal_invite: {
+        Args: {
+          p_invite_id: string;
+          p_host_id: string;
+          p_price_cents: number | null;
+          p_declared_value_cents: number | null;
+          p_wanted_description: string | null;
+          p_item_title: string;
+          p_item_description: string;
+          p_item_category: string;
+          p_item_condition: string;
+          p_item_fmv_cents: number;
+          p_item_image_paths: string[];
+          p_item_image_dims: Json;
+        };
+        /** The card's photos before the edit, so the caller can delete the dropped ones. */
+        Returns: string[];
       };
       update_trade_terms: {
         Args: {

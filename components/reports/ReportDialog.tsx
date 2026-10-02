@@ -16,9 +16,10 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Flag01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Flag01Icon } from '@hugeicons/core-free-icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import {
   Dialog,
@@ -239,8 +240,10 @@ export function ReportDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              {isPending ? 'Submitting…' : 'Submit report'}
+              {/* Width-stable, so Cancel beside it does not slide on press. */}
+              <PendingLabel pending={isPending} pendingLabel="Submitting…">
+                Submit report
+              </PendingLabel>
             </Button>
           </DialogFooter>
         </form>

@@ -47,6 +47,7 @@ import { toast } from 'sonner';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { ChoiceTile } from '@/components/ui/choice-tile';
 import {
   DialogClose,
@@ -358,7 +359,9 @@ export function DealComposeForm({ onSuccess }: { onSuccess?: () => void }) {
           aria-busy={isPending}
           aria-describedby="deal-submit-blocker"
         >
-          {isPending ? 'Creating link…' : 'Create link'}
+          <PendingLabel pending={isPending} pendingLabel="Creating link…">
+            Create link
+          </PendingLabel>
         </Button>
       </DialogFooter>
     </>

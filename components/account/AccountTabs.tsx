@@ -48,6 +48,11 @@ export function AccountTabs({ initialTab, panels }: AccountTabsProps) {
 }
 
 /** The strip's loading placeholder, in the shape the real strip occupies. */
-export function AccountTabsSkeleton() {
-  return <TabbedPanelsSkeleton labels={ACCOUNT_TABS.map((tab) => tab.label)} />;
+export function AccountTabsSkeleton({ active = 'profile' }: { active?: AccountTabId } = {}) {
+  return (
+    <TabbedPanelsSkeleton
+      labels={ACCOUNT_TABS.map((tab) => tab.label)}
+      activeIndex={Math.max(0, ACCOUNT_TABS.findIndex((tab) => tab.id === active))}
+    />
+  );
 }

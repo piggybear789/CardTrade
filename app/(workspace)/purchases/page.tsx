@@ -98,7 +98,13 @@ export default async function PurchasesPage({
           <CashSalesSection
             sales={visibleSales}
             variant="purchases"
-            empty={<ContractScopeEmptyState scope={scope} noun="purchases" />}
+            // Only for a filtered scope — see the same prop on `/sales`: an element is
+            // truthy even when it renders null, and it blanked the Active tab.
+            empty={
+              scope === 'active' ? undefined : (
+                <ContractScopeEmptyState scope={scope} noun="purchases" />
+              )
+            }
           />
         ) : null
       ) : (

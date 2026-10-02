@@ -44,8 +44,15 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         {/* The h1 is `text-head leading-none`, a 21px line box. An `h-8` bar was 32. */}
         <TextLines className="w-full text-head leading-none" widths={['w-40']} />
         {/* `CardDescription` is `text-body`. Sign-in's line is 49 characters, which
-            wraps in the 311px the card leaves inside `p-group` on a 375px phone. */}
-        <TextLines className="w-full text-body" widths={['w-full', 'w-2/3']} />
+            wraps in the 311px the card leaves inside `p-group` on a 375px phone and
+            fits on one line from `sm` — the second bar was 22px of card that the
+            desktop form never had, measured as the card shrinking on swap. Hiding the
+            bar collapses its line box, because the block holds nothing else.
+            Sign-up's 38 characters fit on one line at every width. */}
+        <TextLines
+          className="w-full text-body"
+          widths={mode === 'sign-in' ? ['w-full', 'w-2/3 sm:hidden'] : ['w-56 max-w-full']}
+        />
       </CardHeader>
 
       <CardContent className="space-y-group">

@@ -21,6 +21,7 @@ import { TradeContract } from '@/components/trade/TradeContract';
 import { scheduleTradeTrackingCheck } from '@/lib/tracking/refreshOnRead';
 import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
+import { getTradeDeliveryAddresses } from '@/lib/actions/trades';
 import { DemoPanel } from '@/components/trade/DemoPanel';
 import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -92,6 +93,15 @@ export default async function TradePage({
   // beat after they painted. `app/profile/page.tsx` already reads this
   // server-side, so the room is now consistent with it.
   const paymentMethodPromise = getPaymentMethodStatus();
+  // The postal addresses, for the same reason. The room fetched them in a mount effect,
+  // so a posted trade painted "No address yet." and an "Add address" button, then
+  // swapped in the real address — which wraps, and whose button is a different width —
+  // a beat later. The read is RLS-scoped exactly as before; the room still re-reads
+  // when the state changes, because that is what discloses the counterpart's address.
+  const addressesPromise =
+    trade.handover_method === 'DELIVERY'
+      ? getTradeDeliveryAddresses(trade.id)
+      : Promise.resolve(undefined);
 
   // FOUR INDEPENDENT READS, ONE ROUND TRIP. All that any of them needs is the
   // trade row above, so running them in sequence — which is what writing them as
@@ -259,7 +269,10 @@ export default async function TradePage({
     );
   }
 
-  const paymentMethodResult = await paymentMethodPromise;
+  const [paymentMethodResult, initialAddresses] = await Promise.all([
+    paymentMethodPromise,
+    addressesPromise,
+  ]);
 
   // Ask both carriers after this response is sent — see the matching note on the cash
   // sale route. A trade posts in both directions, so each side carries its own throttle
@@ -291,6 +304,7 @@ export default async function TradePage({
         goods={goods}
         participants={participants}
         paymentMethod={paymentMethodResult.ok ? paymentMethodResult.data : null}
+        initialAddresses={initialAddresses}
         cashReceiverPayoutReady={cashReceiverPayoutReady}
         demoPanel={
           isPaymentDemoEnabled() ? <DemoPanel tradeId={trade.id} /> : null

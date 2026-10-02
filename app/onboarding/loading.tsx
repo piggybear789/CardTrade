@@ -1,6 +1,7 @@
 // app/onboarding/loading.tsx
 //
-// Mirrors the wizard's welcome step.
+// Mirrors the step the wizard will open on: welcome, or the seller step when the URL
+// carries a provider return marker (see `OnboardingStepSkeletonSwitch`).
 //
 // ON A PHONE THE WIZARD IS THE PAGE. `OnboardingWizard` renders its dialog with
 // `mobile="page"`, so below `md` it is a fixed full-viewport panel with safe-area
@@ -8,7 +9,11 @@
 // this used to draw, which was a different shape at a different size in a different
 // place. It also listed four rules; there are three (`WELCOME_POINTS`).
 
+import type { ReactNode } from 'react';
+
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
+import { OnboardingSpineSkeleton } from '@/components/onboarding/OnboardingSpineSkeleton';
+import { OnboardingStepSkeletonSwitch } from '@/components/onboarding/OnboardingStepSkeletonSwitch';
 
 
 /**
@@ -20,6 +25,91 @@ import { Skeleton, TextLines } from '@/components/ui/skeleton';
  * of this: 36px against 67-88px, three times over.
  */
 const WELCOME_POINT_BODY_LINES = [2, 2, 3] as const;
+
+/** `WIZARD_SCROLL` + `WIZARD_CENTER`: the step centres in the leftover height on a
+ *  phone, so the skeleton has to sit where the real content will. */
+function StepBody({ children }: { children: ReactNode }) {
+  return (
+    <div className="max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-y-auto">
+      <div className="space-y-group max-md:my-auto max-md:shrink-0">{children}</div>
+    </div>
+  );
+}
+
+/** `WizardFooter`: pinned to the bottom on a phone, right-aligned from `md`. */
+function StepFooter({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex flex-row gap-snug max-md:mt-auto max-md:shrink-0 max-md:border-t max-md:pt-cozy md:justify-end">
+      {children}
+    </div>
+  );
+}
+
+function WelcomeStepSkeleton() {
+  return (
+    <>
+      <StepBody>
+        {/* `DialogHeader`'s `gap-1.5` and the wizard's own `space-y-snug` are
+            different twMerge groups, so both apply: 14px between title and
+            description, not 8. */}
+        <div className="flex flex-col gap-1.5 space-y-snug text-center">
+          <div className="text-head">
+            <Skeleton className="mx-auto inline-block h-[0.9em] w-56 max-w-full align-middle" />
+          </div>
+          <div className="text-body">
+            <Skeleton className="mx-auto inline-block h-[0.9em] w-72 max-w-full align-middle" />
+          </div>
+        </div>
+
+        {/* Three promises, each an icon medallion beside a `text-body font-medium`
+            title and a `text-body` body. */}
+        <ul className="space-y-cozy text-left">
+          {WELCOME_POINT_BODY_LINES.map((bodyLines, index) => (
+            <li key={index} className="flex items-center gap-cozy">
+              <Skeleton className="size-8 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-tight">
+                <TextLines className="text-body" widths={['w-2/5']} />
+                <TextLines
+                  className="text-body"
+                  widths={[...Array.from({ length: bodyLines - 1 }, () => 'w-full'), 'w-3/4']}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      </StepBody>
+
+      {/* `h-9` because "Get started" is a default `Button`. */}
+      <StepFooter>
+        <Skeleton className="h-9 w-full rounded-md md:w-32" />
+      </StepFooter>
+    </>
+  );
+}
+
+/**
+ * The seller step a provider return lands on: the "Two steps to start selling" header
+ * (an `h-8` info button beside the title sets the row's height), the verification spine,
+ * and the footer the wizard lays out with an INVISIBLE Back button while the status is
+ * unknown — so the slot is reserved here too.
+ */
+function SellerStepSkeleton() {
+  return (
+    <>
+      <StepBody>
+        <div className="flex min-h-8 items-center justify-center gap-tight text-head">
+          <Skeleton className="inline-block h-[0.9em] w-64 max-w-full align-middle" />
+          <Skeleton className="size-8 shrink-0 rounded-full" />
+        </div>
+        <OnboardingSpineSkeleton />
+      </StepBody>
+
+      <StepFooter>
+        <div className="h-9 w-24" aria-hidden />
+      </StepFooter>
+    </>
+  );
+}
 
 export default function OnboardingLoading() {
   return (
@@ -36,50 +126,10 @@ export default function OnboardingLoading() {
           mobile panel sets `rounded-none border-0 shadow-none` — it is the page, and a
           hairline down both edges of the viewport vanished on swap. */}
       <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex w-full flex-col gap-group border-0 bg-card p-group pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:border md:border-border md:p-6 md:shadow-lg">
-        {/* `WIZARD_SCROLL` + `WIZARD_CENTER`: the step centres in the leftover height
-            on a phone, so the skeleton has to sit where the real content will. */}
-        <div className="max-md:flex max-md:min-h-0 max-md:flex-1 max-md:flex-col max-md:overflow-y-auto">
-          <div className="space-y-group max-md:my-auto max-md:shrink-0">
-            {/* `DialogHeader`'s `gap-1.5` and the wizard's own `space-y-snug` are
-                different twMerge groups, so both apply: 14px between title and
-                description, not 8. */}
-            <div className="flex flex-col gap-1.5 space-y-snug text-center">
-              <div className="text-head">
-                <Skeleton className="mx-auto inline-block h-[0.9em] w-56 max-w-full align-middle" />
-              </div>
-              <div className="text-body">
-                <Skeleton className="mx-auto inline-block h-[0.9em] w-72 max-w-full align-middle" />
-              </div>
-            </div>
-
-            {/* Three promises, each an icon medallion beside a `text-body font-medium`
-                title and a `text-body` body. */}
-            <ul className="space-y-cozy text-left">
-              {WELCOME_POINT_BODY_LINES.map((bodyLines, index) => (
-                <li key={index} className="flex items-center gap-cozy">
-                  <Skeleton className="size-8 shrink-0 rounded-full" />
-                  <div className="min-w-0 flex-1 space-y-tight">
-                    <TextLines className="text-body" widths={['w-2/5']} />
-                    <TextLines
-                      className="text-body"
-                      widths={[
-                        ...Array.from({ length: bodyLines - 1 }, () => 'w-full'),
-                        'w-3/4',
-                      ]}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* `WizardFooter`: pinned to the bottom on a phone, right-aligned from `md`.
-            `h-9` because "Get started" is a default `Button`; `h-10` was 4px taller
-            than anything this footer holds. */}
-        <div className="flex flex-row gap-snug max-md:mt-auto max-md:shrink-0 max-md:border-t max-md:pt-cozy md:justify-end">
-          <Skeleton className="h-9 w-full rounded-md md:w-32" />
-        </div>
+        <OnboardingStepSkeletonSwitch
+          welcome={<WelcomeStepSkeleton />}
+          seller={<SellerStepSkeleton />}
+        />
       </div>
     </main>
   );

@@ -18,11 +18,10 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { resolveCashSaleReturnCase } from '@/lib/actions/admin';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { formatMoney } from '@/lib/format';
 
@@ -100,8 +99,7 @@ export function ReturnCaseActions({
           aria-haspopup="dialog"
           onClick={() => setConfirming('REFUND_BUYER')}
         >
-          {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-          Refund the buyer
+          <PendingLabel pending={isPending}>Refund the buyer</PendingLabel>
         </Button>
         <Button
           type="button"

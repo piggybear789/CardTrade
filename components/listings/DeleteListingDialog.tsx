@@ -14,9 +14,10 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Delete02Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Delete02Icon } from '@hugeicons/core-free-icons';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Dialog,
   DialogContent,
@@ -112,8 +113,10 @@ export function DeleteListingDialog({
             disabled={isPending}
             aria-busy={isPending}
           >
-            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : <HugeiconsIcon icon={Delete02Icon} aria-hidden />}
-            {isPending ? 'Deleting…' : 'Delete listing'}
+            <PendingLabel pending={isPending} pendingLabel="Deleting…">
+              <HugeiconsIcon icon={Delete02Icon} aria-hidden />
+              Delete listing
+            </PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

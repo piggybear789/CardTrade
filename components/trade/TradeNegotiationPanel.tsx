@@ -18,13 +18,12 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import Link from 'next/link';
 
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
 import { ContractMoneyTable } from '@/components/contract/ContractMoneyTable';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   SavedCardRow,
@@ -236,8 +235,7 @@ export function TradeNegotiationPanel({
             aria-haspopup="dialog"
             onClick={() => setAcceptOpen(true)}
           >
-            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-            Accept terms
+            <PendingLabel pending={isPending}>Accept terms</PendingLabel>
           </Button>
         ) : null}
       </div>
@@ -320,8 +318,7 @@ export function TradeNegotiationPanel({
               Cancel
             </Button>
             <Button onClick={submitCounter} disabled={isPending} aria-busy={isPending}>
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              Save cash
+              <PendingLabel pending={isPending}>Save cash</PendingLabel>
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -392,8 +389,7 @@ export function TradeNegotiationPanel({
                 });
               }}
             >
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              Accept terms
+              <PendingLabel pending={isPending}>Accept terms</PendingLabel>
             </Button>
           </DialogFooter>
         </DialogContent>

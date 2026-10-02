@@ -18,9 +18,10 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArchiveIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { ArchiveIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Dialog,
   DialogContent,
@@ -97,12 +98,10 @@ export function CloseShopfrontDialog({
             disabled={isPending}
             aria-busy={isPending}
           >
-            {isPending ? (
-              <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-            ) : (
+            <PendingLabel pending={isPending} pendingLabel="Closing…">
               <HugeiconsIcon icon={ArchiveIcon} aria-hidden />
-            )}
-            {isPending ? 'Closing…' : 'Close listing'}
+              Close listing
+            </PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

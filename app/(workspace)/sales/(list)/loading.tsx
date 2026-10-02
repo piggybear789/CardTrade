@@ -22,7 +22,7 @@ export default function SalesLoading() {
       {/* No wrapper div: `sales/page.tsx` hangs these straight off `MarketplaceShell`,
           and an extra node here breaks the `flex-1` chain that `ContractScopeEmptyState`
           (`EmptyState … compact fill`) needs to claim the column's height. */}
-      <SectionHeaderSkeleton hasMobileAction />
+      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-44" />
       <SectionFilterSkeleton labels={['Active', 'Needs you', 'Waiting', 'Past']} />
       <ContractCardListSkeleton count={4} />
     </MarketplaceShellSkeleton>

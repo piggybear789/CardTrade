@@ -33,6 +33,7 @@ import {
   type ShipmentInput,
 } from '@/components/fulfilment';
 import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDialog';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { availableActions } from '@/domain/state-machine/actions';
 import type {
   TradeAction,
@@ -321,7 +322,9 @@ export function ActionBar({
                   disabled={isPending}
                   aria-busy={isPending}
                 >
-                  {isPending ? 'Retrying…' : 'Retry hold'}
+                  <PendingLabel pending={isPending} pendingLabel="Retrying…" spinner={false}>
+                    Retry hold
+                  </PendingLabel>
                 </Button>
               </div>
             );

@@ -235,8 +235,11 @@ export function MessageLog({
                       mine={cluster.mine}
                       last={lastInCluster}
                       url={
+                        // `undefined` while the path is still being signed, `null`
+                        // once signing has answered without a URL. The bubble needs
+                        // the difference — see `MessageBubble`.
                         message.attachment_path
-                          ? (urls[message.attachment_path] ?? null)
+                          ? urls[message.attachment_path]
                           : null
                       }
                       onOpenImage={() => {
@@ -444,7 +447,8 @@ function MessageBubble({
   message: ChatMessage;
   mine: boolean;
   last: boolean;
-  url: string | null;
+  /** Signed URL; `undefined` while signing is in flight, `null` when it failed. */
+  url: string | null | undefined;
   onOpenImage: () => void;
 }) {
   const image = isImageAttachmentMime(message.attachment_mime);
@@ -502,18 +506,21 @@ function MessageBubble({
               mine ? 'text-primary-foreground' : 'text-foreground',
             )}
           >
-            <HugeiconsIcon icon={FileTextIcon} className="size-4 shrink-0" aria-hidden />
-            <span className="min-w-0">
-              <span className="block truncate font-medium">
-                {message.attachment_name ?? 'File'}
-              </span>
-              {message.attachment_bytes != null ? (
-                <span className={cn('block text-meta', mine ? 'opacity-70' : 'text-muted-foreground')}>
-                  {formatAttachmentBytes(message.attachment_bytes)}
-                </span>
-              ) : null}
-            </span>
+            <FileAttachmentLabel message={message} mine={mine} />
           </a>
+        ) : url === undefined ? (
+          // STILL SIGNING: the same two-line row the link will be, inert and dimmed.
+          // This used to fall through to "Attachment unavailable" — one line of the
+          // wrong claim — and then grow into the two-line link when the URL arrived,
+          // so every file in a thread both lied for a moment and pushed the log down.
+          <div
+            className={cn(
+              'flex items-center gap-snug px-cozy py-snug opacity-70',
+              mine ? 'text-primary-foreground' : 'text-foreground',
+            )}
+          >
+            <FileAttachmentLabel message={message} mine={mine} />
+          </div>
         ) : (
           <p className="px-cozy py-snug opacity-70">Attachment unavailable</p>
         )
@@ -524,5 +531,31 @@ function MessageBubble({
         </p>
       ) : null}
     </div>
+  );
+}
+
+
+/** Glyph, name and size of a file attachment — shared by the link and its pending row. */
+function FileAttachmentLabel({
+  message,
+  mine,
+}: {
+  message: ChatMessage;
+  mine: boolean;
+}) {
+  return (
+    <>
+      <HugeiconsIcon icon={FileTextIcon} className="size-4 shrink-0" aria-hidden />
+      <span className="min-w-0">
+        <span className="block truncate font-medium">
+          {message.attachment_name ?? 'File'}
+        </span>
+        {message.attachment_bytes != null ? (
+          <span className={cn('block text-meta', mine ? 'opacity-70' : 'text-muted-foreground')}>
+            {formatAttachmentBytes(message.attachment_bytes)}
+          </span>
+        ) : null}
+      </span>
+    </>
   );
 }

@@ -61,9 +61,11 @@ import { ArrowRight01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { getIdentityCheckState, refreshIdentityCheck } from '@/lib/actions/identity';
 import { getMerchantState, refreshPayoutStatus } from '@/lib/actions/merchant';
 import { Button } from '@/components/ui/button';
-import { Skeleton, TextLines } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
+// Width-stable "Check again" / "Checking…": from `sm` these buttons sit beside the
+// step's copy, so a label that changed width on press re-wrapped that copy.
+import { PendingLabel } from '@/components/ui/pending-label';
 import { OnboardingSpine, OnboardingSpineStep } from './OnboardingSpine';
+import { OnboardingSpineSkeleton } from './OnboardingSpineSkeleton';
 import { HostedProviderStep } from './HostedProviderStep';
 import type { ProviderReturn } from './providerReturn';
 
@@ -674,53 +676,7 @@ export function UnifiedOnboardingSurface({
     // runs the height of both steps had no placeholder at all, so it materialised out
     // of nothing; the gap between steps is `pb-section` INSIDE the content column, not
     // a hard break across both, which is what keeps that rail continuous.
-    return (
-      <div className="grid gap-0" role="status" aria-label="Loading your setup">
-        {[0, 1].map((row) => (
-          <div key={row} className="grid grid-cols-[auto_1fr] gap-x-group">
-            <div className="flex flex-col items-center">
-              <span aria-hidden className="w-[3px] flex-1 rounded-full bg-transparent" />
-              <Skeleton className="my-tight size-7 shrink-0 rounded-full" />
-              <span
-                aria-hidden
-                className={cn(
-                  'w-[3px] flex-1 rounded-full',
-                  row === 0 ? 'bg-border' : 'bg-transparent',
-                )}
-              />
-            </div>
-            <div className="min-w-0 py-tight">
-              <div className="flex flex-col gap-cozy sm:flex-row sm:items-start sm:justify-between sm:gap-group">
-                <div className="min-w-0 flex-1">
-                  <TextLines className="text-lead" widths={['w-40']} />
-                  {/* Both step descriptions run past 75 characters, so they wrap
-                      in the dialog's content column. */}
-                  <TextLines
-                    className="mt-tight text-body"
-                    widths={['w-full', 'w-2/3']}
-                  />
-                </div>
-                {/* Step one is the active step on a fresh mount, so it is the one
-                    that carries a control. */}
-                {row === 0 ? (
-                  <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-44" />
-                ) : null}
-              </div>
-            </div>
-            <div className="flex justify-center">
-              <span
-                aria-hidden
-                className={cn(
-                  'w-[3px] rounded-full',
-                  row === 0 ? 'bg-border' : 'bg-transparent',
-                )}
-              />
-            </div>
-            <div className={cn('min-w-0', row === 0 ? 'pb-section' : 'pb-0')} />
-          </div>
-        ))}
-      </div>
-    );
+    return <OnboardingSpineSkeleton />;
   }
 
   if (loadError) {
@@ -797,7 +753,13 @@ export function UnifiedOnboardingSurface({
                   aria-busy={identityRechecking}
                   className="w-full sm:w-auto"
                 >
-                  {identityRechecking ? 'Checking…' : 'Check again'}
+                  <PendingLabel
+                    pending={identityRechecking}
+                    pendingLabel="Checking…"
+                    spinner={false}
+                  >
+                    Check again
+                  </PendingLabel>
                 </Button>
               ) : null}
             </WaitingOnProvider>
@@ -858,7 +820,13 @@ export function UnifiedOnboardingSurface({
                   aria-busy={payoutRechecking}
                   className="w-full sm:w-auto"
                 >
-                  {payoutRechecking ? 'Checking…' : 'Check again'}
+                  <PendingLabel
+                    pending={payoutRechecking}
+                    pendingLabel="Checking…"
+                    spinner={false}
+                  >
+                    Check again
+                  </PendingLabel>
                 </Button>
               ) : null}
             </div>

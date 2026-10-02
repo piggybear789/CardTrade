@@ -138,9 +138,17 @@ export const CatalogItemCard = memo(function CatalogItemCard({
   return (
     <Card
       className={cn(
+        // `contain-intrinsic-size` is the height a tile skipped by
+        // `content-visibility: auto` is assumed to have until it first renders.
+        // 22rem, not 15rem: a square cover plus the ~142px text block measures
+        // ~19.5rem in a two-column phone grid and ~24rem at desktop widths, so
+        // 240px under-reserved every off-screen row by more than a third and the
+        // page grew — and the scrollbar jumped — each time a row came into range.
+        // The mosaic replaces this per tile below md (`.catalog-tile`).
+        //
         // A border, not `border-0`: the card and the page are both white now,
         // so the edge is the only thing separating them.
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_15rem]',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_22rem]',
         // `cursor-pointer` ON THE CARD, not left to the anchor. The hit area is
         // `absolute inset-0 z-0` and the cover paints above it without
         // `pointer-events-none`, so hovering the photo — most of the tile —
@@ -196,7 +204,15 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           'pointer-events-none',
           // Square at every width. The desktop cover used to be 3:4, which made
           // the tile tall enough that a row of them dominated the grid.
-          inMosaic ? 'catalog-cover' : 'aspect-square',
+          //
+          // `md:!aspect-square` ON THE MOSAIC BRANCH, because `.catalog-cover` in
+          // `globals.css` still carries that old 3:4 as its base rule and, as a
+          // plain rule after `@tailwind utilities`, beats any unprefixed utility.
+          // The server renders the mosaic whenever it has no viewport hint, so on
+          // a desktop first visit every tile painted 3:4 and then shrank to square
+          // when hydration swapped in the flat grid — a whole-page shift on the
+          // one load that is most likely to be measured.
+          inMosaic ? 'catalog-cover md:!aspect-square' : 'aspect-square',
         )}
       >
         {imageUrl ? (

@@ -2,11 +2,31 @@
 //
 // Offer form is a centred max-w-lg card: requested item strip, your-side
 // picker, terms, footer actions.
+//
+// REAL LINE BOXES AND THE REAL BLOCKS, because this route is `center`: the shell
+// centres the card vertically, so every pixel the placeholder is short moves the
+// whole card by half of it when the form lands. It was ~70px short — the two-row
+// "You offer" group was drawn as a 64px and a 40px slab, "Payment terms" and the
+// running-total box were one 80px bar between them, and every label was an `h-4`
+// standing in for a 22.4px `text-body` line. Below mirrors `TradeOfferForm`'s page
+// layout for the common case: a single listing, a member with listings of their own,
+// not a counter.
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
+
+/** `DialogRow`: `rounded-lg border px-cozy py-2.5` around one `text-body` line. */
+function DialogRowSkeleton({ label, hint }: { label: string; hint: string }) {
+  return (
+    <div className="flex w-full items-center gap-snug rounded-lg border border-border px-cozy py-2.5 text-body">
+      <Skeleton className="size-4 shrink-0 rounded-sm" />
+      <TextLines className="shrink-0" widths={[label]} />
+      <TextLines className="ml-auto min-w-0" widths={[hint]} />
+    </div>
+  );
+}
 
 export default function NewTradeLoading() {
   return (
@@ -21,33 +41,47 @@ export default function NewTradeLoading() {
     >
       <Card className="mx-auto w-full max-w-lg">
         <CardHeader className="pb-group">
-          <Skeleton className="h-6 w-36" />
-          <Skeleton className="mt-snug h-4 w-64 max-w-full" />
+          <TextLines className="text-subhead" widths={['w-36']} />
+          <TextLines className="text-body" widths={['w-64 max-w-full']} />
         </CardHeader>
-        {/* `space-y-group`, matching `TradeOfferForm`'s CardContent. `space-y-5` put
-            an extra 4px between every block. */}
         <CardContent className="space-y-group">
+          {/* The requested item: 48px thumb beside an eyebrow and the title, price
+              on the right. */}
           <div className="flex items-center gap-cozy rounded-lg border bg-muted p-cozy">
             <Skeleton className="size-12 shrink-0 rounded-md" />
-            <div className="min-w-0 flex-1 space-y-snug">
-              <Skeleton className="h-3 w-32" />
-              <Skeleton className="h-4 w-48" />
+            <div className="min-w-0 flex-1">
+              <TextLines className="text-meta" widths={['w-32']} />
+              <TextLines className="text-lead" widths={['w-48 max-w-full']} />
             </div>
-            <Skeleton className="h-4 w-16 shrink-0" />
+            <TextLines className="ml-auto shrink-0 text-body" widths={['w-14']} />
           </div>
-          <div className="space-y-snug">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-16 w-full rounded-md" />
-            <Skeleton className="h-10 w-full rounded-md" />
+          {/* "You offer": the legend, then the "Your listings" and "Unlisted item"
+              rows. */}
+          <div className="min-w-0 space-y-snug">
+            <TextLines className="text-body" widths={['w-20']} />
+            <DialogRowSkeleton label="w-24" hint="w-32" />
+            <DialogRowSkeleton label="w-24" hint="w-48" />
           </div>
-          <div className="space-y-snug">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-20 w-full rounded-md" />
+          <DialogRowSkeleton label="w-28" hint="w-16" />
+          {/* Running total: You give / They give, then the verdict under a rule. */}
+          <div className="rounded-lg border bg-muted p-cozy text-body">
+            <div className="flex items-baseline justify-between gap-cozy">
+              <TextLines widths={['w-16']} />
+              <TextLines widths={['w-14']} />
+            </div>
+            <div className="mt-tight flex items-baseline justify-between gap-cozy">
+              <TextLines widths={['w-16']} />
+              <TextLines widths={['w-14']} />
+            </div>
+            <div className="mt-snug border-t pt-snug">
+              <TextLines widths={['w-40']} />
+            </div>
           </div>
         </CardContent>
+        {/* Default `Button`s: 36px on touch, 32px from `md`. */}
         <CardFooter className="flex-col-reverse items-stretch gap-snug border-t bg-muted px-6 pb-group pt-group sm:flex-row sm:justify-end">
-          <Skeleton className="h-9 w-full sm:w-24" />
-          <Skeleton className="h-9 w-full sm:w-32" />
+          <Skeleton className="h-9 w-full sm:w-20 md:h-8" />
+          <Skeleton className="h-9 w-full sm:w-28 md:h-8" />
         </CardFooter>
       </Card>
     </MarketplaceShellSkeleton>

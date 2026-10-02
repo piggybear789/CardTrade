@@ -54,7 +54,7 @@ const STATUS_ORDER: Record<Enums<'item_status'>, number> = {
  * A fixed track is the only thing that makes columns align across separate grids. It
  * fits both labels at `size="sm"`; anything wider belongs in a menu, not a third verb.
  */
-const ROW_GRID =
+export const ROW_GRID =
   'grid grid-cols-[3rem_minmax(0,1fr)_4.5rem] items-center gap-cozy ' +
   'md:grid-cols-[3rem_minmax(0,1fr)_7rem_5rem_9rem_4.5rem]';
 

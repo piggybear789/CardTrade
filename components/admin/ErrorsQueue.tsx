@@ -27,7 +27,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { formatRelativeTime } from '@/lib/format';
+import { formatContractDateTime, formatRelativeTime } from '@/lib/format';
 import type { Database, Tables } from '@/lib/supabase/database.types';
 
 export type ErrorLogRow = Tables<'error_logs'>;
@@ -115,7 +115,7 @@ function Occurrence({ row, nameFor }: { row: ErrorLogRow; nameFor: (id: string) 
         </div>
         <time
           dateTime={row.created_at}
-          title={new Date(row.created_at).toLocaleString('en-AU')}
+          title={formatContractDateTime(row.created_at) ?? undefined}
           className="shrink-0 text-meta text-muted-foreground"
         >
           {formatRelativeTime(row.created_at)}
@@ -315,7 +315,7 @@ export function ErrorsQueue({
                     </div>
                     <time
                       dateTime={group.last_seen}
-                      title={new Date(group.last_seen).toLocaleString('en-AU')}
+                      title={formatContractDateTime(group.last_seen) ?? undefined}
                       className="shrink-0 text-meta text-muted-foreground"
                     >
                       {formatRelativeTime(group.last_seen)}

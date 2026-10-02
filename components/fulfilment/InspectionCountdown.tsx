@@ -11,12 +11,33 @@
 // clock but never rendered it either — the sale simply completed one day and the
 // buyer had no warning.
 
+import { useSyncExternalStore } from 'react';
+
 import { cn } from '@/lib/utils';
 import { formatContractDateTime } from '@/lib/format';
 import type { InspectionHoldRisk } from '@/domain/fulfilment';
 
 /** One hour in milliseconds. */
 const HOUR_MS = 3_600_000;
+const MINUTE_MS = 60_000;
+
+/**
+ * A clock that ticks once a minute, read through `useSyncExternalStore`.
+ *
+ * `Date.now()` straight in render gave the server and the browser two different
+ * instants, so the urgency styling and `role="alert"` could disagree across
+ * hydration near the 24-hour mark, and the banner never moved again until a
+ * refresh. Flooring to the minute makes the two renders agree except in the
+ * seconds either side of a minute boundary, and the subscription keeps the label
+ * honest while the room sits open.
+ */
+function subscribeMinute(onTick: () => void): () => void {
+  const id = window.setInterval(onTick, MINUTE_MS);
+  return () => window.clearInterval(id);
+}
+function minuteNow(): number {
+  return Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
+}
 
 /** Round hours remaining down, so "1 hour left" never means 119 minutes. */
 function hoursUntil(deadlineIso: string, now: number): number {
@@ -60,9 +81,10 @@ export function InspectionCountdown({
   expiryConsequence,
   className,
 }: InspectionCountdownProps) {
+  const now = useSyncExternalStore(subscribeMinute, minuteNow, minuteNow);
   if (!deadlineAt) return null;
 
-  const hours = hoursUntil(deadlineAt, Date.now());
+  const hours = hoursUntil(deadlineAt, now);
   const urgent = hours < 24;
   const collateralLapsesFirst = holdRisk === 'expired-first';
   const alarming = urgent || collateralLapsesFirst;

@@ -351,13 +351,24 @@ export default async function SellerProfilePage({
             {seller.ratingCount > 0 ? (
               <Link
                 href={`/sellers/${id}?tab=reviews`}
-                className="w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
+                // `flex`, not the default inline `<a>`. An inline box ignores
+                // vertical margin, so this row silently dropped the column's
+                // `space-y-1.5` and sat on an anonymous line box sized by the
+                // inherited font rather than by the stars — a different height
+                // and offset from the row the loading skeleton reserves.
+                className="flex w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
                 aria-label={`Read ${seller.ratingCount} reviews`}
               >
                 <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
               </Link>
             ) : (
-              <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
+              // Block-level for the same reason as the link above.
+              <StarRating
+                rating={seller.rating}
+                count={seller.ratingCount}
+                size={16}
+                className="flex w-fit"
+              />
             )}
             <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
             {/* MEMBER-AUTHORED, so it is presented as their words and nothing more.

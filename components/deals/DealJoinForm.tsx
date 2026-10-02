@@ -11,11 +11,12 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { CreditCardIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Card,
   CardContent,
@@ -42,6 +43,7 @@ import { claimDealInvite, type DealInvitePreview } from '@/lib/actions/dealInvit
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
+import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
@@ -286,9 +288,10 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
         ) : null}
 
         {loading ? (
-          <div role="status" aria-label="Loading payment details">
-            <PaymentFormSkeleton />
-          </div>
+          // The saved-card block's shape, not the card-entry form's: that is the
+          // usual answer, and this card is vertically centred, so a 330px
+          // placeholder collapsing to ~150px re-centred the whole card.
+          <CheckoutSummarySkeleton />
         ) : showCardForm ? (
           <div className="space-y-cozy">
             <div className="space-y-tight">
@@ -368,8 +371,12 @@ export function DealJoinForm({ preview }: { preview: DealInvitePreview }) {
             }
             aria-busy={isPending}
           >
-            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-            {isPending ? 'Opening…' : 'Join this deal'}
+            {/* WIDTH-STABLE, spinner included. From `sm` the button is `w-auto`; the
+                hand-pinned label this replaced held the text still but let the spinner
+                add its own width while pending. */}
+            <PendingLabel pending={isPending} pendingLabel="Opening…">
+              Join this deal
+            </PendingLabel>
           </Button>
         </CardFooter>
       )}

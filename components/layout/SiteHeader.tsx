@@ -13,7 +13,11 @@ import Link from 'next/link';
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import { Skeleton } from '@/components/ui/skeleton';
-import { HeaderAccountSlot } from '@/components/layout/HeaderAccountSlot';
+import { GuestHeaderCtas } from '@/components/layout/GuestHeaderCtas';
+import {
+  HeaderAccountSlot,
+  SignedInHeaderToolsPlaceholder,
+} from '@/components/layout/HeaderAccountSlot';
 import { Logo } from '@/components/layout/Logo';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { MobileTopChrome } from '@/components/layout/MobileTopChrome';
@@ -128,8 +132,10 @@ export async function SiteHeader() {
 export function SiteHeaderSkeleton({
   /**
    * Cookie-derived guess, for placeholder geometry only — never for access.
-   * It changes the rendered height on unlisted routes alone (`/help`, `/terms`,
-   * `/privacy`), where a guest gets the marketing bar and a member gets none.
+   * On a phone it changes the rendered height on unlisted routes alone (`/help`,
+   * `/terms`, `/privacy`), where a guest gets the marketing bar and a member gets
+   * none. On the desktop bar it picks which nav links and which account rail the
+   * placeholder draws, so the bar does not swap one set for the other on resolve.
    */
   isAuthenticated = false,
 }: {
@@ -144,31 +150,37 @@ export function SiteHeaderSkeleton({
         className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
       >
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
-          {/* Same gap as the real bar above, so the skeleton does not shift when it
-              resolves. */}
-          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6">
+          {/* Same three columns as the real bar above, CLASS FOR CLASS, including
+              `xl:min-w-max` on both sides. From `xl` the side columns are sized by
+              their content and the search takes the rest, so a side column that
+              drew different content here moved the search when the header
+              resolved. That is why what can be real below is real. */}
+          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6 xl:min-w-max">
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-mist border border-transparent focus:outline-none focus-visible:border-iris"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris"
             >
               <Logo />
             </Link>
-            {/* `Skeleton` with the tint overridden, not a hand-rolled div. These
-                four placeholders carried their own `animate-pulse`, which is how
-                the one loader on screen for EVERY desktop route ended up outside
-                the amplitude fix in `skeleton.tsx`. The bar has to stay
-                `bg-white/10` because it sits on the obsidian header rather than on
-                paper, and `bg-muted/70` would be a light block on a dark bar —
-                but the tint is the only thing about it that is special. */}
-            <Skeleton className="hidden h-8 w-24 rounded bg-white/10 md:block" />
+            {/* THE REAL NAV, not a bar. It reads only the pathname and the session
+                hint, so there is nothing to wait for — and a 96px bar standing in
+                for three or four labelled links was a visible swap on every hard
+                load of every desktop route. The hint can only be wrong about the
+                Trades link, whose route is protected anyway. */}
+            <PrimaryNav isAuthenticated={isAuthenticated} />
           </div>
           <div className="hidden min-w-0 flex-1 justify-center px-snug md:flex">
-            <Skeleton className="h-9 w-full max-w-sm bg-white/10" />
+            {/* `h-8 w-full`: the real field is `md:h-8` and spans this column. This
+                was `h-9 max-w-sm`, a narrower, taller box than the one it became.
+                `Skeleton` with the tint overridden, because the bar sits on the
+                obsidian header rather than on paper. */}
+            <Skeleton className="h-8 w-full bg-white/10" />
           </div>
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-tight md:flex-1 md:gap-snug">
-            <Skeleton className="hidden h-8 w-16 rounded bg-white/10 md:block" />
-            <Skeleton className="size-8 rounded-full bg-white/10" />
+          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug xl:min-w-max">
+            {/* A guest's links need no session, so they render for real. A member's
+                tools wait on the session; the placeholder is their footprint. */}
+            {isAuthenticated ? <SignedInHeaderToolsPlaceholder /> : <GuestHeaderCtas />}
           </div>
         </div>
       </header>

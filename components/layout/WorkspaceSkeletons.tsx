@@ -30,7 +30,21 @@ export function SectionHeaderSkeleton({
   actionsClassName = 'w-28',
   titleClassName = 'w-40',
   descriptionClassName = 'w-64',
+  descriptionLines = 1,
+  mobileActionClassName = 'w-36',
 }: {
+  /**
+   * Width of the phone-only action. The real one is a content-sized `Button`, and the
+   * labels differ by ~30px ("Create New Listing" with its glyph against "Browse
+   * Marketplace"), so a single `w-36` moved the left edge of every one on swap.
+   */
+  mobileActionClassName?: string;
+  /**
+   * How many lines the description wraps to from `md`. One for most headers; the
+   * arbitration queue's ~150-character line wraps beside its action button, and a
+   * one-line reserve stood everything under that header 22px high.
+   */
+  descriptionLines?: number;
   hasMobileAction?: boolean;
   /**
    * Match `SectionHeader.actions` — the slot that stays visible at every width (the
@@ -56,7 +70,10 @@ export function SectionHeaderSkeleton({
         <TextLines className="text-subhead md:text-head" widths={[titleClassName]} />
         <TextLines
           className="mt-tight hidden text-body md:mt-1.5 md:block"
-          widths={[cn('max-w-full', descriptionClassName)]}
+          widths={[
+            ...Array.from({ length: descriptionLines - 1 }, () => 'w-full'),
+            cn('max-w-full', descriptionClassName),
+          ]}
         />
       </div>
       {/* `h-9 md:h-8`, `Button`'s default size at BOTH widths. These were `h-10`,
@@ -71,7 +88,9 @@ export function SectionHeaderSkeleton({
         </div>
       ) : null}
       {hasMobileAction ? (
-        <Skeleton className="h-9 w-36 shrink-0 rounded-md md:hidden" />
+        <Skeleton
+          className={cn('h-9 shrink-0 rounded-md md:hidden', mobileActionClassName)}
+        />
       ) : null}
     </header>
   );
@@ -267,7 +286,14 @@ function OfferRowSkeleton() {
       <div className="px-cozy py-group">
         <div className="flex items-baseline justify-between gap-snug">
           <TextLines className="min-w-0 text-lead" widths={['w-20']} />
-          <Skeleton className="h-6 w-16 shrink-0 rounded-md" />
+          {/* A TEXT-BEARING badge box, not an empty `h-6` slab. This row is
+              `items-baseline`, and an empty block's baseline is its bottom edge, so the
+              slab sat with its foot on the amount's baseline and stood the row ~3px
+              tall — every card in the list ran long. The invisible word gives the box
+              a real baseline, and its height comes from `Badge`'s own padding. */}
+          <Skeleton className="inline-flex shrink-0 rounded-md border border-transparent px-2.5 py-0.5 text-meta">
+            <span className="invisible">Pending</span>
+          </Skeleton>
         </div>
         <TextLines className="mt-0.5 text-body" widths={['w-4/5']} />
         <TextLines className="mt-snug text-meta" widths={['w-2/5']} />
@@ -392,173 +418,6 @@ export function NotificationRowSkeleton({
   );
 }
 
-/**
- * Contract room, in the three shapes the real room actually has — and they turn on TWO
- * different breakpoints, which is the thing this placeholder used to get wrong.
- *
- * The identity card is `md` (768), because `ContractHeader` is wrapped in `DesktopOnly`.
- * The details/chat split is `lg` (1024), because `useContractSplit` says so — it needs
- * 24rem for the chat column on top of the workspace rail. So:
- *
- *   below md    thread alone — bar, log, action dock, composer
- *   md to lg    identity card above a thread, details still behind a sheet
- *   lg and up   identity card above the details/chat split, both panes full height
- *
- * Reading both forks off one breakpoint is what put the inspector on screen between 768
- * and 1023 against a page that was about to draw a conversation.
- */
-export function ContractRoomSkeleton() {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col gap-group md:px-group md:pt-group lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
-      {/* REAL LINE BOXES on the desktop half too. The phone thread below already used
-          `TextLines`; this card was still on fixed bars, so the one part of the room a
-          desktop viewer sees first was the least accurate. `ContractHeader`'s title is
-          `font-display text-subhead font-semibold` — a 23.8px line box against the 20px
-          an `h-5` reserved — and the money figure beside it is `text-lead` (24px)
-          against `h-5`. */}
-      <Card className="hidden border-border shadow-sm md:block">
-        <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug px-group py-cozy">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-tight">
-            <TextLines className="text-subhead" widths={['w-40']} />
-            <div className="flex items-center gap-snug">
-              <Skeleton className="size-6 rounded-full" />
-              <TextLines className="text-body" widths={['w-24']} />
-              <Skeleton className="size-6 rounded-full" />
-              <TextLines className="text-body" widths={['w-20']} />
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-cozy">
-            {/* The status badge stays a box — it IS one. The money figure is
-                `display-value text-lead`, so it gets a line box. */}
-            <Skeleton className="h-6 w-24 rounded-full" />
-            <TextLines className="text-lead" widths={['w-20']} />
-          </div>
-        </div>
-      </Card>
-
-      {/* Below the split: the thread — bar, log, action dock, composer, in that order.
-          Mirrors `ContractChat`.
-
-          `lg:hidden`, NOT `md:hidden`. `useContractSplit` switches at 1024px, so between
-          768 and 1023 the real room is still a thread, and this branch used to stop at
-          768 while the split branch below started there. For 256px of viewport the
-          placeholder therefore drew the details inspector against a page that was about
-          to draw a conversation — not a shifted layout but a different one. The header
-          card above stays `md:block` because `DesktopOnly` genuinely is 768. */}
-      <div className="flex min-h-0 flex-1 flex-col lg:hidden">
-        {/* `bg-card` and `size-11` on the back control, both of which the real
-            bar has: it is opaque, and the chevron is a touch target because it
-            only exists at this width. A `size-10` here left the bar 4px short. */}
-        <div className="flex shrink-0 items-center gap-cozy border-b bg-card px-cozy py-2.5">
-          <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-full" />
-          <Skeleton className="size-9 shrink-0 rounded-md" />
-          <div className="min-w-0 flex-1">
-            <TextLines className="text-lead leading-tight" widths={['w-2/5']} />
-            <TextLines className="text-body leading-tight" widths={['w-28']} />
-          </div>
-        </div>
-        {/* The log is `flex-1`; its height is whatever the fixed bands leave, so
-            the bubbles are texture rather than geometry. */}
-        <div className="min-h-0 flex-1 space-y-cozy p-cozy">
-          <Skeleton className="h-12 w-2/3 rounded-2xl" />
-          <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
-          <Skeleton className="h-10 w-1/2 rounded-2xl" />
-        </div>
-        {/* THE ACTION DOCK, which this skeleton used to omit entirely. Every
-            contract room renders one — it is the room's single live control —
-            so a ~56px tinted band appeared above the composer on swap and shoved
-            the whole log up. `px-cozy py-snug` around a 40px control row is
-            `ContractActionCard`'s own geometry. */}
-        <div className="relative z-10 shrink-0 border-t bg-card">
-          <div className="flex items-center gap-cozy px-cozy py-snug">
-            <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
-          </div>
-        </div>
-        {/* `pt-group` and nothing else: the compact composer resolves to
-            `max-md:px-0 max-md:pb-0`, so the old `p-cozy` inset the two round
-            buttons 12px from the edges they actually sit on. */}
-        <div className="flex shrink-0 items-center gap-snug border-t pt-group">
-          <Skeleton className="size-11 shrink-0 rounded-md" />
-          <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl" />
-          <Skeleton className="size-11 shrink-0 rounded-md" />
-        </div>
-      </div>
-
-      {/* From `lg`, the split. Structure is `ContractLiveRow`'s, term for term: one grid
-          row of two panes, each bounded so it scrolls inside itself rather than growing
-          the page. */}
-      <div className="hidden min-h-0 flex-1 flex-col gap-group lg:flex">
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)] gap-group">
-          {/* ONE FULL-HEIGHT CARD, NOT A STACK OF THREE SHORT ONES — the largest single
-              mismatch left in the loading set. `ContractLiveRow` hands this pane
-              `[&>*]:h-full`, and `ContractDetailList`'s root is
-              `flex h-full min-h-0 flex-col overflow-hidden`: a tabbed inspector that
-              fills the row and scrolls internally. The three `p-5` cards that stood in
-              for it came to ~370px inside a pane that is ~730px on a 900px-tall window,
-              and the chat beside it was pinned at `min-h-[22rem]` against the same 730px.
-              So both panes were roughly HALF their height and the whole room doubled and
-              re-seated itself on swap — on `/sales/[id]` and `/trades/[id]`, the two
-              screens where the reader is waiting on money and reading the page hardest. */}
-          <Card className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border shadow-sm">
-            {/* The inspector's tab strip: `min-h-11 shrink-0 border-b`, its own box. Bar
-                heights inside are free, because the cell is sized by `min-h-11` rather
-                than by its contents. */}
-            <div className="flex min-h-11 shrink-0 items-center gap-group border-b px-cozy">
-              {['w-16', 'w-12', 'w-14', 'w-20'].map((width) => (
-                <Skeleton key={width} className={cn('h-4 shrink-0', width)} />
-              ))}
-            </div>
-            {/* The active panel: label/value rows on real line boxes. It does not have to
-                reach the bottom — the real panel rarely does, and the card's border is
-                what holds the shape. */}
-            <div className="min-h-0 flex-1 space-y-group p-5">
-              {['w-24', 'w-20', 'w-28', 'w-16', 'w-24', 'w-20'].map((width, index) => (
-                <div
-                  key={index}
-                  className="flex items-baseline justify-between gap-group"
-                >
-                  <TextLines className="shrink-0 text-meta" widths={[width]} />
-                  <TextLines className="min-w-0 text-body" widths={['w-24']} />
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* The conversation panel, `h-full` in the real row too. Bar, log, the action
-              dock it carries internally, then the composer. */}
-          <Card className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border shadow-sm">
-            <div className="flex shrink-0 items-center gap-cozy border-b px-group py-cozy">
-              <Skeleton className="size-8 shrink-0 rounded-full" />
-              <TextLines className="min-w-0 flex-1 text-lead" widths={['w-32']} />
-            </div>
-            {/* BOTTOM-ANCHORED, via `justify-end`. A chat log opens scrolled to the
-                newest message, so three bubbles pinned to the top of a 700px pane is the
-                one arrangement a real conversation never has — it read as an empty room
-                rather than a loading one. */}
-            <div className="flex min-h-0 flex-1 flex-col justify-end gap-cozy p-group">
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
-              <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
-              <Skeleton className="h-16 w-3/5 rounded-2xl" />
-              <Skeleton className="ml-auto h-12 w-2/5 rounded-2xl" />
-              <Skeleton className="h-10 w-1/2 rounded-2xl" />
-            </div>
-            <div className="shrink-0 border-t px-group py-snug">
-              <Skeleton className="h-10 w-full rounded-md" />
-            </div>
-            <div className="shrink-0 border-t px-group py-group">
-              <div className="flex items-center gap-snug">
-                <Skeleton className="size-9 shrink-0 rounded-full" />
-                <Skeleton className="h-9 min-w-0 flex-1 rounded-2xl" />
-                <Skeleton className="size-9 shrink-0 rounded-full" />
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function ChatThreadSkeleton() {
   return (
     <section
@@ -599,8 +458,8 @@ export function ChatThreadSkeleton() {
           <TextLines className="text-lead leading-tight" widths={['w-2/5']} />
           <TextLines className="mt-0.5 text-body" widths={['w-28']} />
         </div>
-        {/* The thread CTA is a 44px touch target and keeps its compact desktop size. */}
-        <Skeleton className="h-11 w-24 shrink-0 rounded-md md:h-7" />
+        {/* The thread CTA is `Button size="sm"`: 32px on phones, 28px from `md`. */}
+        <Skeleton className="h-8 w-24 shrink-0 rounded-md md:h-7" />
       </header>
       <div className={cn('min-h-0 flex-1 space-y-cozy pt-5', MESSAGE_GUTTER)}>
         <Skeleton className="h-12 w-3/5 rounded-2xl" />
@@ -617,10 +476,13 @@ export function ChatThreadSkeleton() {
           kind of thread it is about to show, so it reserves neither. */}
       {/* The composer owns the complete symmetric band, matching ChatThread. */}
       <div className={cn('shrink-0 border-t py-group', MESSAGE_GUTTER)}>
+        {/* 44px touch controls on phones, 36px from `md` with square-ish corners —
+            `MessageComposer`'s `icon-lg` buttons and field. A 44px row at every width
+            put the desktop composer's top edge ~8px off on swap. */}
         <div className="flex items-center gap-snug">
-          <Skeleton className="size-11 shrink-0 rounded-full" />
-          <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl" />
-          <Skeleton className="size-11 shrink-0 rounded-full" />
+          <Skeleton className="size-11 shrink-0 rounded-full md:size-9 md:rounded-md" />
+          <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl md:h-9 md:rounded-md" />
+          <Skeleton className="size-11 shrink-0 rounded-full md:size-9 md:rounded-md" />
         </div>
       </div>
     </section>

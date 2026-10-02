@@ -25,8 +25,9 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, PencilLineIcon } from '@hugeicons/core-free-icons';
+import { PencilLineIcon } from '@hugeicons/core-free-icons';
 
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -162,8 +163,9 @@ export function EditContractItemsDialog({
             disabled={isPending}
             aria-busy={isPending}
           >
-            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-            {isPending ? 'Saving…' : 'Save items'}
+            <PendingLabel pending={isPending} pendingLabel="Saving…">
+              Save items
+            </PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

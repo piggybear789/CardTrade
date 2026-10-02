@@ -18,9 +18,10 @@ import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, ChevronRightIcon, InfoIcon, LoaderCircleIcon, TruckIcon } from '@hugeicons/core-free-icons';
+import { CheckIcon, ChevronRightIcon, InfoIcon, TruckIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
+import { PendingLabel } from '@/components/ui/pending-label';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -358,8 +359,9 @@ export function DeliveryAddressPanel({
               Cancel
             </Button>
             <Button type="button" onClick={handleSave} disabled={isPending} aria-busy={isPending}>
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              {isPending ? 'Saving…' : 'Save address'}
+              <PendingLabel pending={isPending} pendingLabel="Saving…">
+                Save address
+              </PendingLabel>
             </Button>
           </DialogFooter>
         </DialogContent>

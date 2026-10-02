@@ -553,11 +553,16 @@ function GenrePill({
           fill and a full-colour logo cannot follow the foreground; several of the
           real marks are themselves black (Magic, Gundam, One Piece) and would vanish.
           The answer is a surface, not a different icon: when active the logo sits in
-          a small white disc, so the pill inverts and the mark stays legible. */}
+          a small white disc, so the pill inverts and the mark stays legible.
+
+          `size-6` IN BOTH STATES; only the disc's fill is conditional. The slot used
+          to be sized only when active, so it was the 20px icon at rest and the 24px
+          disc when picked — every pick widened one pill by 4px and narrowed another,
+          and the whole row after them slid sideways under the pointer. */}
       <span
         className={cn(
-          'grid shrink-0 place-items-center rounded-full',
-          active && 'size-6 bg-card',
+          'grid size-6 shrink-0 place-items-center rounded-full',
+          active && 'bg-card',
         )}
       >
         <GameIcon slug={slug} active={active} className={cn(active && 'scale-[0.8]')} />

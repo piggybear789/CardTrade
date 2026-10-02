@@ -50,6 +50,7 @@ import { joinRegionWaitlist, setTradingRegion } from '@/lib/actions/region';
 import { type SelectableRegion } from '@/lib/actions/regionOptions';
 import type { ProviderReturn } from '@/components/onboarding/providerReturn';
 import { isTradingRegion, REGIONS, regionLabel } from '@/domain/region';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -845,14 +846,17 @@ export function OnboardingWizard({
               >
                 {/* Named for what it does, because the two answers do different
                     things: one continues the wizard, the other ends it. "Continue"
-                    on the waitlist tile would promise a next step that is not coming. */}
-                {saving
-                  ? regionChoice === 'waitlist'
-                    ? 'Joining…'
-                    : 'Saving…'
-                  : regionChoice === 'waitlist'
-                    ? 'Join the waitlist'
-                    : 'Continue'}
+                    on the waitlist tile would promise a next step that is not coming.
+
+                    WIDTH-STABLE: "Continue" → "Saving…" resized the button under the
+                    pointer and slid Back beside it in the right-aligned footer. */}
+                <PendingLabel
+                  pending={saving}
+                  spinner={false}
+                  pendingLabel={regionChoice === 'waitlist' ? 'Joining…' : 'Saving…'}
+                >
+                  {regionChoice === 'waitlist' ? 'Join the waitlist' : 'Continue'}
+                </PendingLabel>
                 <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
@@ -870,34 +874,46 @@ export function OnboardingWizard({
                 disabled={!intent || saving}
                 aria-busy={saving}
               >
-                {saving
-                  ? intent === 'seller'
-                    ? 'Opening Stripe…'
-                    : 'Saving…'
-                  : intent === 'seller'
-                    ? 'Verify Identity'
-                    // "Continue", matching every other step in this wizard. It read
-                    // "Next" here alone, which is a second word for one action and
-                    // bought nothing. `Verify Identity` stays different because the
-                    // action IS different — it leaves for Stripe.
-                    : 'Continue'}
+                {/* "Continue", matching every other step in this wizard. It read
+                    "Next" here alone, which is a second word for one action and
+                    bought nothing. `Verify Identity` stays different because the
+                    action IS different — it leaves for Stripe. Width-stable for the
+                    same reason as the region step's button. */}
+                <PendingLabel
+                  pending={saving}
+                  spinner={false}
+                  pendingLabel={intent === 'seller' ? 'Opening Stripe…' : 'Saving…'}
+                >
+                  {intent === 'seller' ? 'Verify Identity' : 'Continue'}
+                </PendingLabel>
                 <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
 
           {/* A way back to the intent question — this step sits off the wizard's
-              main spine, so `goBack` does not reach it. Rendered only once the status
-              is KNOWN and outstanding: dropped when both steps are done, because the
+              main spine, so `goBack` does not reach it. Shown only once the status is
+              KNOWN and outstanding: dropped when both steps are done, because the
               surface renders its own forward action and "Back" beside it is the more
               prominent of two controls pointing opposite ways — and withheld while
-              still unknown, so it does not appear and then retract. */}
-          {step === 'seller-onboarding' && sellerSettled === false ? (
+              still unknown, so it does not appear and then retract.
+
+              WITHHELD IS NOT ABSENT. While the status is unknown the footer is laid
+              out with the button `invisible` (not focusable, not announced), so the
+              slot already exists when the answer lands. Mounting it only then grew
+              the panel by a footer: on a phone the centred step jumped up by half of
+              it, and from `md` the translate-centred card moved bodily. A settled
+              answer swaps this slot for the surface's own exit, which is about the
+              same height. */}
+          {step === 'seller-onboarding' && sellerSettled !== true ? (
             <WizardFooter>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setStep('intent')}
+                disabled={sellerSettled === null}
+                aria-hidden={sellerSettled === null || undefined}
+                className={sellerSettled === null ? 'invisible' : undefined}
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
                 Back

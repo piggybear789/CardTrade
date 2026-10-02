@@ -63,7 +63,6 @@ import Image from 'next/image';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   EyeIcon,
-  LoaderCircleIcon,
   LockIcon,
   PaperclipIcon,
   PlusIcon,
@@ -72,6 +71,7 @@ import {
   XIcon,
 } from '@hugeicons/core-free-icons';
 
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   submitDisputeEvidence,
   type DisputeCaseKind,
@@ -564,12 +564,13 @@ export function DisputeEvidencePanel({
                     </span>
                   ) : null}
                   <Button type="submit" size="xs" disabled={!ready} aria-busy={busy}>
-                    {busy ? (
-                      <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                    ) : (
+                    <PendingLabel
+                      pending={busy}
+                      pendingLabel={uploading ? 'Uploading…' : 'Submitting…'}
+                    >
                       <HugeiconsIcon icon={SendHorizontalIcon} aria-hidden />
-                    )}
-                    {uploading ? 'Uploading…' : isPending ? 'Submitting…' : 'Submit'}
+                      Submit
+                    </PendingLabel>
                   </Button>
                 </div>
               </div>

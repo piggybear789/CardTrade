@@ -9,10 +9,11 @@
 
 import { useState, useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronDownIcon, ChevronUpIcon, FlaskConicalIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { ChevronDownIcon, ChevronUpIcon, FlaskConicalIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   fireCashSaleWebhook,
   type DemoCashSaleWebhookKind,
@@ -95,10 +96,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               disabled={isPending}
               aria-busy={busy('settle-payment')}
             >
-              {busy('settle-payment') ? (
-                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-              ) : null}
-              Simulate payment settled
+              <PendingLabel pending={busy('settle-payment')}>Simulate payment settled</PendingLabel>
             </Button>
             <Button
               size="sm"
@@ -107,10 +105,7 @@ export function CashSaleDemoControls({ cashSaleId }: { cashSaleId: string }) {
               disabled={isPending}
               aria-busy={busy('fail-payment')}
             >
-              {busy('fail-payment') ? (
-                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-              ) : null}
-              Simulate Stripe failure
+              <PendingLabel pending={busy('fail-payment')}>Simulate Stripe failure</PendingLabel>
             </Button>
           </div>
         </div>

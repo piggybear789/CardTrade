@@ -265,6 +265,7 @@ export function formatRelativeTime(
 
   // Older than a week: show an absolute, localized date (no time-of-day).
   return then.toLocaleDateString('en-AU', {
+    timeZone: DISPLAY_TIME_ZONE,
     day: 'numeric',
     month: 'short',
     year: then.getFullYear() === now.getFullYear() ? undefined : 'numeric',
@@ -272,13 +273,31 @@ export function formatRelativeTime(
 }
 
 /**
- * Format an ISO timestamp as the absolute local date + time used across every
+ * The ONE zone server-rendered dates are shown in.
+ *
+ * A date formatted with no `timeZone` is formatted in the RUNTIME's zone: UTC on
+ * Vercel, the member's own zone in the browser. The two strings then differ, the
+ * hydration warning was suppressed rather than fixed, and the label visibly changed
+ * (and re-wrapped) a moment after the page appeared. Pinning one zone makes server
+ * and client agree by construction.
+ *
+ * Sydney because AU is the only trading region and it is the zone chat already uses
+ * (`components/messages/groupMessages.ts`). Times that carry a time of day also
+ * print the zone (`AEST`/`AEDT`), so a member in Perth or Brisbane reads an honest
+ * figure rather than one silently two hours off. A second trading region makes this
+ * a per-region lookup.
+ */
+export const DISPLAY_TIME_ZONE = 'Australia/Sydney';
+
+/**
+ * Format an ISO timestamp as the absolute date + time used across every
  * contract room (cash sale, 2-way trade, private deal) — e.g.
- * `"Tue, 28 Jul, 3:04 pm"`.
+ * `"Tue, 28 Jul, 3:04 pm AEST"`.
  *
  * Deliberately absolute rather than relative: contract rooms are rendered on the
  * server and hydrated in the browser, and a relative label ("3h ago") computed
- * at two different instants produces a hydration mismatch.
+ * at two different instants produces a hydration mismatch. For the same reason the
+ * zone is fixed — see {@link DISPLAY_TIME_ZONE}.
  *
  * Returns `null` for missing or unparseable input so callers can render nothing.
  */
@@ -290,6 +309,8 @@ export function formatContractDateTime(
   return Number.isNaN(date.getTime())
     ? null
     : date.toLocaleString('en-AU', {
+        timeZone: DISPLAY_TIME_ZONE,
+        timeZoneName: 'short',
         weekday: 'short',
         day: 'numeric',
         month: 'short',
@@ -318,6 +339,7 @@ export function formatShortDate(iso: string | null | undefined): string | null {
   return Number.isNaN(date.getTime())
     ? null
     : date.toLocaleDateString('en-AU', {
+        timeZone: DISPLAY_TIME_ZONE,
         day: 'numeric',
         month: 'short',
         year: 'numeric',

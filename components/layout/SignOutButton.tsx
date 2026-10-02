@@ -14,6 +14,7 @@ import { LogOutIcon } from '@hugeicons/core-free-icons';
 
 import { signOut } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 
 export function SignOutButton({ className }: { className?: string }) {
   const router = useRouter();
@@ -39,7 +40,9 @@ export function SignOutButton({ className }: { className?: string }) {
       className={className}
     >
       <HugeiconsIcon icon={LogOutIcon} className="size-4" aria-hidden />
-      <span>{isPending ? 'Signing out…' : 'Sign out'}</span>
+      <PendingLabel pending={isPending} spinner={false} pendingLabel="Signing out…">
+        Sign out
+      </PendingLabel>
     </Button>
   );
 }

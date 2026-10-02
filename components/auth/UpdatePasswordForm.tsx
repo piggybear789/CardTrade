@@ -13,10 +13,11 @@ import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { KeyRoundIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { KeyRoundIcon } from '@hugeicons/core-free-icons';
 
 import { updatePassword } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Card,
   CardContent,
@@ -128,12 +129,10 @@ export function UpdatePasswordForm() {
           </div>
 
           <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
-            {isPending ? (
-              <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-            ) : (
+            <PendingLabel pending={isPending} pendingLabel="Saving…">
               <HugeiconsIcon icon={KeyRoundIcon} className="size-3.5" aria-hidden />
-            )}
-            {isPending ? 'Saving…' : 'Save new password'}
+              Save new password
+            </PendingLabel>
           </Button>
         </CardContent>
       </form>

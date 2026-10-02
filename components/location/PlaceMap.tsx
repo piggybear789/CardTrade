@@ -130,7 +130,9 @@ export function PlaceMap({
   if (precision === 'suburb') {
     const imgUrl = staticMapUrl(lat, lng, { precision: 'suburb' });
 
-    if (!imgUrl || imgFailed) {
+    // No key is known at render time, on the server and the client alike, so a plain
+    // row here never swaps after paint.
+    if (!imgUrl) {
       return (
         <LocationRow
           label={label ?? 'Unknown location'}
@@ -149,14 +151,25 @@ export function PlaceMap({
           className="relative block h-36 w-full overflow-hidden bg-muted"
           aria-label={label ? `Open ${label} in Maps` : 'Open location in Maps'}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- remote static map */}
-          <img
-            src={imgUrl}
-            alt={label ? `Map of ${label}` : 'Location map'}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={() => setImgFailed(true)}
-          />
+          {/* A FAILED IMAGE KEEPS THE FRAME. This used to swap the whole card for a
+              one-line `LocationRow` from `onError` — after paint — so everything below
+              a listing's location jumped up by ~110px whenever the static map was
+              refused. The pin stands in for the picture inside the same `h-36` box. */}
+          {imgFailed ? (
+            <span className="flex h-full w-full flex-col items-center justify-center gap-tight text-body text-muted-foreground">
+              <HugeiconsIcon icon={MapPinIcon} className="size-5" aria-hidden />
+              Map unavailable
+            </span>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- remote static map
+            <img
+              src={imgUrl}
+              alt={label ? `Map of ${label}` : 'Location map'}
+              className="h-full w-full object-cover"
+              loading="lazy"
+              onError={() => setImgFailed(true)}
+            />
+          )}
         </a>
         {label ? (
           <div className="flex items-center justify-between gap-cozy border-t px-cozy py-snug text-body">
@@ -184,7 +197,9 @@ export function PlaceMap({
       <div
         className={cn(
           'flex flex-col items-center justify-center gap-snug rounded-lg border bg-muted p-group text-center text-body',
-          'h-32',
+          // The caller's map height, not a fixed `h-32`: callers and their skeletons
+          // reserve `heightClassName`, so a keyless fallback must occupy the same box.
+          heightClassName,
           className,
         )}
       >

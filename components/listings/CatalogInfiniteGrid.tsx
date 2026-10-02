@@ -29,7 +29,13 @@ import {
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { useCatalogView } from '@/components/listings/CatalogView';
 
-const MOBILE_MAX = '(max-width: 1023px)';
+// THE SAME 768px SPLIT AS EVERYTHING ELSE. This was `(max-width: 1023px)` with
+// the status block below at `lg:hidden`, left over from when the desktop chrome
+// began at `lg`. It now begins at `md` (`useIsDesktop`, the pager's `md:flex`),
+// so between 768 and 1023px the page drew the desktop pager AND kept appending
+// pages under it from the sentinel: the grid grew beneath a "Page 1 of N" bar,
+// with a "Load more" button stacked above it.
+const MOBILE_MAX = '(max-width: 767px)';
 
 /** Hoisted: these are inputs to the mosaic's column balance, which is memoised. */
 const itemKey = (item: CatalogItem) => item.id;
@@ -268,7 +274,7 @@ export function CatalogInfiniteGrid({
       )}
 
       {/* Sentinel + status — mobile only; desktop uses the page nav below. */}
-      <div className="lg:hidden">
+      <div className="md:hidden">
         <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
         {hasMore && !loadingMore && !error ? (
           <button

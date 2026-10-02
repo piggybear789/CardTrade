@@ -22,10 +22,11 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, ScanFaceIcon } from '@hugeicons/core-free-icons';
+import { ScanFaceIcon } from '@hugeicons/core-free-icons';
 
 import { beginEmbeddedIdentity, refreshIdentityCheck } from '@/lib/actions/identity';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { CustodyNote } from './OnboardingSpine';
 import { getStripe, isRealPublishableKey } from './stripeBrowser';
 
@@ -213,27 +214,29 @@ export function EmbeddedIdentityStep({
 
   return (
     <div className="space-y-group">
-      {error ? (
-        <p role="alert" className="text-body text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       <div className="space-y-cozy">
         <Button type="button" onClick={handleStart} disabled={busy} aria-busy={busy}>
-          {busy ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-          ) : (
+          {/* WIDTH-STABLE. This cycled four labels on one content-sized button, so it
+              resized at every phase change under the pointer that had just pressed it.
+              Both pending labels are shorter than the resting one, so the button holds
+              the resting width for the whole round trip. */}
+          <PendingLabel
+            pending={busy}
+            pendingLabel={phase === 'checking' ? 'Checking…' : 'Opening Stripe…'}
+          >
             <HugeiconsIcon icon={ScanFaceIcon} className="size-3.5" aria-hidden />
-          )}
-          {phase === 'opening'
-            ? 'Opening Stripe…'
-            : phase === 'checking'
-              ? 'Checking…'
-              : phase === 'failed'
-                ? 'Try again'
-                : 'Start identity check'}
+            {phase === 'failed' ? 'Try again' : 'Start identity check'}
+          </PendingLabel>
         </Button>
+
+        {/* BELOW the button, not above it. A failure arrives after a press, and an
+            error inserted above the control pushed it down out from under the pointer
+            that had just pressed it — the retry was no longer where the member was. */}
+        {error ? (
+          <p role="alert" className="text-body text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <CustodyNote>
           Your ID and selfie go straight to Stripe. NoDitto only receives the name.

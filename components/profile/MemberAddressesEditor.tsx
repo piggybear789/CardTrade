@@ -31,8 +31,10 @@ import {
   setDefaultAddress,
   type SavedAddress,
 } from '@/lib/actions/addresses';
+import { readAddressBook, rememberAddressBook } from '@/lib/addresses/addressBookCache';
 import { PlacePicker, type PlaceValue } from '@/components/location';
 import { SettingsPlaceholder } from '@/components/account/SettingsPrimitives';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,7 +53,10 @@ function isResolved(place: PlaceValue | null): place is PlaceValue {
 
 export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
   const router = useRouter();
-  const [addresses, setAddresses] = useState<SavedAddress[] | null>(null);
+  // Seeded from the tab's remembered book (see `lib/addresses/addressBookCache.ts`), so
+  // reopening the Addresses dialog paints the list at once instead of a one-line
+  // "Loading…" that then grew into rows and moved the dialog under the pointer.
+  const [addresses, setAddresses] = useState<SavedAddress[] | null>(() => readAddressBook());
   const [loadFailed, setLoadFailed] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -59,8 +64,14 @@ export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
     let cancelled = false;
     void listMyAddresses().then((result) => {
       if (cancelled) return;
-      if (result.ok) setAddresses(result.data);
-      else setLoadFailed(true);
+      if (result.ok) {
+        rememberAddressBook(result.data);
+        setAddresses(result.data);
+      } else if (readAddressBook() === null) {
+        // Only when there is nothing to show: a failed revalidation must not replace a
+        // list the member is already looking at.
+        setLoadFailed(true);
+      }
     });
     return () => {
       cancelled = true;
@@ -69,7 +80,10 @@ export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
 
   function refresh() {
     void listMyAddresses().then((result) => {
-      if (result.ok) setAddresses(result.data);
+      if (result.ok) {
+        rememberAddressBook(result.data);
+        setAddresses(result.data);
+      }
     });
     router.refresh();
   }
@@ -342,10 +356,9 @@ function AddAddressForm({
           Cancel
         </Button>
         <Button type="button" size="sm" onClick={submit} disabled={pending} aria-busy={pending}>
-          {pending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-          ) : null}
-          Save address
+          {/* Width-stable: the spinner used to be PREPENDED, widening the button and
+              sliding Cancel beside it. */}
+          <PendingLabel pending={pending}>Save address</PendingLabel>
         </Button>
       </div>
     </div>

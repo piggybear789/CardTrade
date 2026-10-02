@@ -20,12 +20,11 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { updateProfile } from '@/lib/actions/profile';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import { DialogClose, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -207,8 +206,10 @@ export function ProfileForm({
           </Button>
         </DialogClose>
         <Button type="submit" disabled={isSaving} aria-busy={isSaving}>
-          {isSaving ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-          {isSaving ? 'Saving…' : 'Save changes'}
+          {/* Width-stable, so Cancel beside it does not slide on press. */}
+          <PendingLabel pending={isSaving} pendingLabel="Saving…">
+            Save changes
+          </PendingLabel>
         </Button>
       </DialogFooter>
     </form>

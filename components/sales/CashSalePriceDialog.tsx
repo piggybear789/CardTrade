@@ -6,7 +6,8 @@
 
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, TicketPercentIcon } from '@hugeicons/core-free-icons';
+import { TicketPercentIcon } from '@hugeicons/core-free-icons';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -117,8 +118,7 @@ export function CashSalePriceDialog({
           </div>
           <DialogFooter>
             <Button type="submit" disabled={pending} aria-busy={pending}>
-              {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              Send request
+              <PendingLabel pending={pending}>Send request</PendingLabel>
             </Button>
           </DialogFooter>
         </form>

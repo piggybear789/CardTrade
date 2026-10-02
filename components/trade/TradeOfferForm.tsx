@@ -26,6 +26,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { LockIcon, PencilIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { FieldError } from '@/components/motion/FieldError';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -542,7 +543,9 @@ export function TradeOfferForm({
         aria-busy={isPending}
         className="w-full sm:w-auto"
       >
-        {isPending ? 'Sending Offer…' : 'Send Offer'}
+        <PendingLabel pending={isPending} pendingLabel="Sending Offer…" spinner={false}>
+          Send Offer
+        </PendingLabel>
       </Button>
     </>
   );

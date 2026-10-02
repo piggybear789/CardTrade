@@ -1,13 +1,20 @@
 // app/admin/loading.tsx
 //
-// Operations console chrome: section header with the Cases hand-off, the three queue
-// tabs, then the Payouts queue — the tab `?tab=` resolves to when it is absent.
+// Operations console chrome: section header with the Cases hand-off, the five queue
+// tabs, then the body of whichever queue `?tab=` names.
 //
 // USES THE SHARED HEADER AND FILTER SKELETONS rather than redrawing them. The
 // hand-drawn versions applied the header's DESKTOP spacing at every width — `mb-5`,
 // `pb-5`, `gap-cozy` where `SectionHeader` uses `mb-snug`, `pb-snug`, `gap-tight` below
 // `md` — so the console header was roughly 24px too tall on a phone, and it drew a
 // description line that the real header hides below `md`.
+//
+// THE BODY FOLLOWS `?tab=`. This used to draw the Payouts queue for every URL, so the
+// Reports, Feedback, Errors and Reconciliation tabs each opened behind a ~400px custody
+// panel that then vanished. `ConsoleTabSkeletonSwitch` reads the committed URL through
+// the page's own `resolveConsoleTab` and picks one of the bodies below.
+
+import type { ReactNode } from 'react';
 
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -16,107 +23,186 @@ import {
   SectionFilterSkeleton,
   SectionHeaderSkeleton,
 } from '@/components/layout/WorkspaceSkeletons';
+import { ConsoleTabSkeletonSwitch } from '@/components/admin/ConsoleTabSkeletonSwitch';
 
+/**
+ * The custody panel that leads the Payouts tab: `mb-section rounded-lg border p-group`
+ * around a wrapping heading row and three `<dl>` cells that stack below `sm`. One panel,
+ * because a single-region deployment is the common case and a second would be a worse
+ * guess than a missing one.
+ */
+function CustodyPanelSkeleton() {
+  return (
+    // `bg-muted` like the real panel, which made every `bg-muted/70` bar inside it
+    // invisible: the panel loaded as an empty grey slab. The bars step up to the
+    // border tone here so the placeholder reads as content arriving.
+    <section className="mb-section rounded-lg border border-border bg-muted p-group [&_.animate-skeleton]:bg-border/70">
+      <div className="mb-cozy flex flex-wrap items-center gap-snug">
+        <Skeleton className="size-4 shrink-0 rounded-sm" />
+        <TextLines className="text-lead" widths={['w-56']} />
+        <Skeleton className="h-6 w-28 shrink-0 rounded-md" />
+        <Skeleton className="h-6 w-16 shrink-0 rounded-md" />
+      </div>
+      <div className="grid gap-cozy sm:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index}>
+            <TextLines className="text-meta" widths={['w-28']} />
+            <TextLines className="mt-0.5 text-subhead" widths={['w-24']} />
+            <TextLines className="mt-0.5 text-body" widths={['w-full', 'w-4/5']} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The queue's heading row (`mb-group`, a `text-subhead` h3 plus its count badge) and the
+ * standing explanation under it. `trailing` is what sits at the right of the row on the
+ * two tabs that have something there: the drain button on Payouts, the filter links on
+ * Errors.
+ */
+function QueueIntroSkeleton({
+  headingWidth,
+  trailing,
+  lines,
+  desktopLines,
+}: {
+  headingWidth: string;
+  trailing?: ReactNode;
+  /** Widths of the explanation's lines AT PHONE WIDTH, where it wraps the most. */
+  lines: readonly string[];
+  /**
+   * How many of those lines remain from `md`, where the column is ~1000px wide and
+   * the explanation wraps far less. The rest are `md:hidden`, which collapses their
+   * line boxes (the block holds nothing else). Measured: a three-line reserve for the
+   * one-line Reports explanation stood the queue 44px low on desktop.
+   */
+  desktopLines: number;
+}) {
+  const widths = lines.map((width, index) =>
+    index >= desktopLines ? `${width} md:hidden` : index === desktopLines - 1 ? `${width} md:w-3/5` : width,
+  );
+  return (
+    <>
+      <div className="mb-group flex flex-wrap items-center justify-between gap-cozy">
+        <div className="flex min-w-0 flex-wrap items-center gap-snug">
+          <TextLines className="text-subhead" widths={[headingWidth]} />
+          <Skeleton className="h-6 w-20 shrink-0 rounded-md" />
+        </div>
+        {trailing}
+      </div>
+      <TextLines className="mb-group text-body" widths={widths} />
+    </>
+  );
+}
+
+/**
+ * PLAIN CARDS, NOT ARTICULATED ROWS. Every queue renders a `<Card>` per row in a
+ * `space-y-group` list that opens with a wrapping badge row and a `CardDescription`;
+ * below that this reserves one block and guesses nothing about which controls follow.
+ */
+function QueueCardsSkeleton() {
+  return (
+    <div className="space-y-group">
+      {Array.from({ length: 3 }, (_, index) => (
+        <Card key={index}>
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-snug">
+              <div className="flex min-w-0 flex-wrap items-center gap-snug">
+                <Skeleton className="h-6 w-24 shrink-0 rounded-md" />
+                <TextLines className="text-lead" widths={['w-40']} />
+              </div>
+              <TextLines className="shrink-0 text-meta" widths={['w-24']} />
+            </div>
+            <TextLines className="text-body" widths={['w-full', 'w-3/5']} />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-16 w-full" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 export default function AdminLoading() {
   return (
     <MarketplaceShellSkeleton title="Operations">
-      <div className="min-w-0">
-        <SectionHeaderSkeleton
-          hasActions
-          titleClassName="w-44"
-          descriptionClassName="w-96"
-        />
+      <SectionHeaderSkeleton hasActions titleClassName="w-44" descriptionClassName="w-96" />
 
-        {/* The console's own strip: Payouts / Reports / Reconciliation. The last one
-            shortens to "Reconcile" below `md`, so the desktop label is the width
-            reserved — the strip scrolls on a phone, where an over-wide tab costs scroll
-            extent rather than layout. */}
-        <SectionFilterSkeleton
-          labels={['Payouts', 'Reports', 'Feedback', 'Errors', 'Reconciliation']}
-        />
+      {/* "Reconciliation" shortens to "Reconcile" below `md`, so the desktop label is
+          the width reserved — the strip scrolls on a phone, where an over-wide tab costs
+          scroll extent rather than layout. */}
+      <SectionFilterSkeleton
+        labels={['Payouts', 'Reports', 'Feedback', 'Errors', 'Reconciliation']}
+      />
 
-        {/* THE CUSTODY PANEL, which this file used to omit entirely. `?tab=` defaults
-            to Payouts, and Payouts leads with one `CustodyPanel` per Stripe platform
-            account: `mb-section rounded-lg border p-group` around a wrapping heading
-            row and three `<dl>` cells that stack to one column below `sm`. That is
-            close to 400px sitting ABOVE everything this skeleton did draw, so the
-            entire console slid down by a panel's height on swap.
-
-            One panel, because a single-region deployment is the common case and a
-            second would be a worse guess than a missing one. */}
-        <section className="mb-section rounded-lg border border-border bg-muted p-group">
-          <div className="mb-cozy flex flex-wrap items-center gap-snug">
-            <Skeleton className="size-4 shrink-0 rounded-sm" />
-            {/* `text-lead` heading, then the state and currency badges — which wrap
-                to a second row on a phone, as they do in the real panel. */}
-            <TextLines className="text-lead" widths={['w-56']} />
-            <Skeleton className="h-6 w-28 shrink-0 rounded-md" />
-            <Skeleton className="h-6 w-16 shrink-0 rounded-md" />
-          </div>
-          <div className="grid gap-cozy sm:grid-cols-3">
-            {Array.from({ length: 3 }, (_, index) => (
-              <div key={index}>
-                <TextLines className="text-meta" widths={['w-28']} />
-                <TextLines className="mt-0.5 text-subhead" widths={['w-24']} />
-                <TextLines
-                  className="mt-0.5 text-body"
-                  widths={['w-full', 'w-4/5']}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <div className="mb-group flex flex-wrap items-center justify-between gap-cozy">
-          <div className="flex min-w-0 flex-wrap items-center gap-snug">
-            {/* `text-subhead` (23.8px), not `h-7`. */}
-            <TextLines className="text-subhead" widths={['w-48']} />
-            <Skeleton className="h-6 w-32 shrink-0 rounded-md" />
-          </div>
-          {/* `DrainPayoutsButton` is `size="sm"` — `h-8` below `md`, not `h-9`. */}
-          <Skeleton className="h-8 w-36 shrink-0 rounded-md" />
-        </div>
-
-        {/* The queue's standing explanation is ~200 characters of `text-body`, which
-            is four lines in the 343px the shell leaves on a 375px phone. It was one
-            16px bar. */}
-        <TextLines
-          className="mb-group text-body"
-          widths={['w-full', 'w-full', 'w-full', 'w-3/5']}
-        />
-
-        {/* PLAIN CARDS, NOT ARTICULATED ROWS. The three `?tab=` values render three
-            different row bodies behind this one skeleton — Payouts a `<dl>` grid and
-            one button, Reports free text and a `ReportActions` group, Reconciliation
-            neither — so the badge/title/timestamp/two-buttons arrangement that was
-            here could only ever be right for one of them. What all three DO share is
-            a `<Card>` in a `space-y-group` list, opening with a wrapping badge row and a
-            `CardDescription`; below that this reserves one block and guesses nothing.
-
-            `Card` also gets the container right: these were `rounded-xl border p-group`
-            against `rounded-lg border bg-card shadow-market` with the padding split
-            between `CardHeader` and `CardContent`. */}
-        <div className="space-y-group">
-          {Array.from({ length: 3 }, (_, index) => (
-            <Card key={index}>
-              <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-snug">
-                  <div className="flex min-w-0 flex-wrap items-center gap-snug">
-                    <Skeleton className="h-6 w-24 shrink-0 rounded-md" />
-                    <TextLines className="text-lead" widths={['w-40']} />
+      <ConsoleTabSkeletonSwitch
+        panels={{
+          payouts: (
+            <>
+              <CustodyPanelSkeleton />
+              <QueueIntroSkeleton
+                headingWidth="w-48"
+                // `DrainPayoutsButton` is `size="sm"`.
+                trailing={<Skeleton className="h-8 w-36 shrink-0 rounded-md md:h-7" />}
+                lines={['w-full', 'w-full', 'w-full', 'w-3/5']}
+                desktopLines={2}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+          reports: (
+            <>
+              <QueueIntroSkeleton
+                headingWidth="w-44"
+                lines={['w-full', 'w-full', 'w-2/5']}
+                desktopLines={1}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+          feedback: (
+            <>
+              <QueueIntroSkeleton
+                headingWidth="w-40"
+                lines={['w-full', 'w-full', 'w-full', 'w-1/2']}
+                desktopLines={2}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+          errors: (
+            <>
+              <QueueIntroSkeleton
+                headingWidth="w-20"
+                // The Open / All / Show refusals filter links: `size="sm"`, so `h-8 md:h-7`.
+                trailing={
+                  <div className="flex flex-wrap gap-tight">
+                    <Skeleton className="h-8 w-14 rounded-md md:h-7" />
+                    <Skeleton className="h-8 w-10 rounded-md md:h-7" />
+                    <Skeleton className="h-8 w-28 rounded-md md:h-7" />
                   </div>
-                  <TextLines className="shrink-0 text-meta" widths={['w-24']} />
-                </div>
-                <TextLines className="text-body" widths={['w-full', 'w-3/5']} />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-16 w-full" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
+                }
+                lines={['w-full', 'w-full', 'w-full', 'w-full', 'w-1/3']}
+                desktopLines={3}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+          reconciliation: (
+            <>
+              <QueueIntroSkeleton
+                headingWidth="w-36"
+                lines={['w-full', 'w-full', 'w-full', 'w-1/4']}
+                desktopLines={2}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+        }}
+      />
     </MarketplaceShellSkeleton>
   );
 }

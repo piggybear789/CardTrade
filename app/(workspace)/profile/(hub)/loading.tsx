@@ -13,14 +13,35 @@
 // PROFILE'S SHAPE, because `loading.tsx` cannot read the query string and `/profile`
 // resolves to that tab. The other two tabs open with a group of rows as well, so the
 // header, strip and first group all land in place regardless.
+//
+// ROW FOR ROW WITH `ProfilePanel`. This drew three plain rows and the payment group,
+// then jumped to Sign out — while the real tab has FOUR rows in its first group (the
+// Addresses row carries a description line, so it is the tallest of them), a whole
+// Browsing region group, and a Support group of three described rows above Sign out.
+// About 330px of page arrived on swap, all of it pushing the lower groups and the Sign
+// out row down. Each row below names the real row it stands for, and reserves a
+// description line exactly where the real row always has one.
+//
+// What it still cannot know is left at its commonest value: a bio is drawn unset (a
+// value, not a description), the payment row with a saved card (no "Required to buy"
+// line), and the staff group absent — that depends on a profile read a placeholder
+// must not perform.
+
+// The tab panel follows `?tab=`. `loading.tsx` gets no `searchParams`, so this used to
+// draw the Profile tab for every URL — including every return from Stripe, which lands
+// on `?tab=verification` — and then swap in a different panel. The panels are the
+// shared ones in `AccountHubSkeletons` (the page's own Suspense fallback is one of
+// them), and `AccountTabSkeletonSwitch` reads the committed URL to choose.
 
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import { AccountTabsSkeleton } from '@/components/account/AccountTabs';
 import {
-  SettingsGroup,
-  SettingsRowSkeleton,
-} from '@/components/account/SettingsPrimitives';
+  PayoutsPanelSkeleton,
+  ProfilePanelSkeleton,
+  VerificationPanelSkeleton,
+} from '@/components/account/AccountHubSkeletons';
+import { AccountTabSkeletonSwitch } from '@/components/account/AccountTabSkeletonSwitch';
 
 export default function ProfileLoading() {
   return (
@@ -41,28 +62,31 @@ export default function ProfileLoading() {
           </div>
         </header>
 
-        <AccountTabsSkeleton />
-
-        <div className="space-y-group md:space-y-section">
-          <SettingsGroup>
-            <SettingsRowSkeleton labelClassName="w-32" valueClassName="w-36" />
-            <SettingsRowSkeleton labelClassName="w-10" valueClassName="w-16" />
-            <SettingsRowSkeleton labelClassName="w-14" valueClassName="w-14" />
-          </SettingsGroup>
-
-          <SettingsGroup>
-            {/* The payment row has a `CreditCardIcon` medallion. */}
-            <SettingsRowSkeleton icon labelClassName="w-32" valueClassName="w-24" />
-          </SettingsGroup>
-
-          {/* Sign out sits under a rule on this tab for every signed-in member, so
-              reserving it keeps the page from growing by a row on arrival. The staff
-              group above it is deliberately absent: it depends on a profile read a
-              placeholder must not perform. */}
-          <div className="border-t border-border pt-section">
-            <Skeleton className="h-12 w-full rounded-xl" />
-          </div>
-        </div>
+        {/* The strip is inside the switch too, so its chip sits on the tab the URL
+            names. It used to stay on Profile while the Verification or Payouts panel
+            loaded beneath it, then slide across on arrival. */}
+        <AccountTabSkeletonSwitch
+          panels={{
+            profile: (
+              <>
+                <AccountTabsSkeleton active="profile" />
+                <ProfilePanelSkeleton />
+              </>
+            ),
+            verification: (
+              <>
+                <AccountTabsSkeleton active="verification" />
+                <VerificationPanelSkeleton />
+              </>
+            ),
+            payouts: (
+              <>
+                <AccountTabsSkeleton active="payouts" />
+                <PayoutsPanelSkeleton />
+              </>
+            ),
+          }}
+        />
       </div>
     </MarketplaceShellSkeleton>
   );

@@ -32,7 +32,10 @@ vi.mock('@/lib/location/googleMaps', () => ({
   readGoogleMapsKey: () => null,
 }));
 
-import { SavedAddressField } from '@/components/fulfilment/SavedAddressField';
+import {
+  SavedAddressField,
+  resetSavedAddressCache,
+} from '@/components/fulfilment/SavedAddressField';
 
 const SAVED = [
   {
@@ -58,6 +61,8 @@ const SAVED = [
 ];
 
 beforeEach(() => {
+  // The field remembers the book for the session; each case starts cold.
+  resetSavedAddressCache();
   listMyAddresses.mockReset();
   saveAddress.mockReset();
   listMyAddresses.mockResolvedValue({ ok: true, data: SAVED });
@@ -116,6 +121,18 @@ describe('SavedAddressField', () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ placeId: 'ChIJwork' }),
     );
+  });
+
+  it('paints the remembered book on the first frame of a later mount', async () => {
+    const first = render(<SavedAddressField id="buy" value={null} onChange={vi.fn()} />);
+    await screen.findByText('Home');
+    first.unmount();
+
+    // A dialog reopening: the list must be there synchronously, not after a fetch,
+    // or the dialog grows under the member's pointer.
+    render(<SavedAddressField id="buy" value={null} onChange={vi.fn()} />);
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Work')).toBeInTheDocument();
   });
 
   it('surfaces the picker with no chooser when the book is empty', async () => {

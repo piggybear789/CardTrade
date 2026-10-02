@@ -212,8 +212,8 @@ test.describe('Onboarding', () => {
     // THE REPAIR IS ASSERTED AT LOAD, not at the end. Writing the repair into
     // `completeOnboarding` alone was not enough and this test is what showed
     // it: the first write is `setTradingRegion` when they submit a name, which
-    // would still have hit a row that did not exist. The fix moved to
-    // `app/onboarding/layout.tsx`, which every step is downstream of.
+    // would still have hit a row that did not exist. The fix lives in
+    // `app/onboarding/page.tsx` (formerly its layout), which every step is downstream of.
     await page.reload();
     await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });
 

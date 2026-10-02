@@ -1122,9 +1122,17 @@ export type CatalogSort = 'newest' | 'price-asc' | 'price-desc' | 'rating';
  *
  * Keep this in step with `CatalogItemCard`. A field added to the tile without
  * being added here arrives `undefined`.
+ *
+ * `image_dims` IS THAT CASE, AND IT SHIPPED. The phone mosaic reads the cover's
+ * stored shape through `catalogCoverDim` (0106) to reserve each tile's height
+ * before the photo arrives. Left out of this list it arrived `undefined`, which
+ * `readImageDims` sanitises to null, so every tile fell back to square: the
+ * feed never staggered, and the skeleton — which draws card-shaped portrait
+ * placeholders on purpose — swapped into a grid of squares on every load. The
+ * column is a handful of integers per row.
  */
 const CATALOG_TILE_COLUMNS =
-  'id, owner_id, title, category, condition, image_paths, fmv_cents, watch_count, listing_kind, status';
+  'id, owner_id, title, category, condition, image_paths, image_dims, fmv_cents, watch_count, listing_kind, status';
 
 /** Parameters accepted by {@link searchCatalog} (all optional). */
 export interface SearchCatalogParams {

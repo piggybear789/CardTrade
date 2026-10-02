@@ -14,10 +14,11 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, StarIcon } from '@hugeicons/core-free-icons';
+import { StarIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Dialog,
   DialogContent,
@@ -122,7 +123,8 @@ export function LeaveReviewDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-auto">
+        <Button variant="outline" className="w-full sm:w-auto">
+
           Leave a review
         </Button>
       </DialogTrigger>
@@ -212,8 +214,9 @@ export function LeaveReviewDialog({
             disabled={isPending || rating < 1}
             aria-busy={isPending}
           >
-            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-            {isPending ? 'Submitting…' : 'Submit review'}
+            <PendingLabel pending={isPending} pendingLabel="Submitting…">
+              Submit review
+            </PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

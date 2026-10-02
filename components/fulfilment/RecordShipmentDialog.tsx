@@ -12,9 +12,7 @@
 // confirms a handover instead.
 
 import { useEffect, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
-
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -165,8 +163,9 @@ export function RecordShipmentDialog({
               })
             }
           >
-            {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-            {pending ? 'Saving…' : (submitLabel ?? 'Record')}
+            <PendingLabel pending={pending} pendingLabel="Saving…">
+              {submitLabel ?? 'Record'}
+            </PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -12,6 +12,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { CheckIcon, LinkIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import { Button, type ButtonProps } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 
 interface CopyTradeLinkProps {
   /**
@@ -47,8 +48,21 @@ export function CopyTradeLink({ itemId, className, size }: CopyTradeLinkProps) {
       onClick={handleCopy}
       aria-label={copied ? 'Trade link copied' : 'Copy trade link'}
     >
-      {copied ? <HugeiconsIcon icon={CheckIcon} aria-hidden /> : <HugeiconsIcon icon={LinkIcon} aria-hidden />}
-      {copied ? 'Copied' : 'Copy'}
+      {/* Width-stable: "Copied" is wider than "Copy", and the swap shoved the owner
+          row's neighbours sideways for two seconds. */}
+      <PendingLabel
+        pending={copied}
+        spinner={false}
+        pendingLabel={
+          <>
+            <HugeiconsIcon icon={CheckIcon} aria-hidden />
+            Copied
+          </>
+        }
+      >
+        <HugeiconsIcon icon={LinkIcon} aria-hidden />
+        Copy
+      </PendingLabel>
     </Button>
   );
 }

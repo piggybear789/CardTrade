@@ -127,10 +127,17 @@ export function MarketplaceShellSkeleton({
             'flex w-full min-w-0 flex-1 flex-col items-center md:w-auto md:bg-transparent',
             // Mirrors MarketplaceShell: a flush route is one white surface on a phone.
             flush ? 'bg-card' : 'bg-background',
-            flush ? 'px-0 pt-0' : 'px-group pt-cozy sm:px-6 md:px-7 md:py-7 xl:px-section',
+            // The shell's gutters VERBATIM, safe-area `max()` terms included. This
+            // read `px-group … md:px-7 … xl:px-section`, which is the same 16/24/28/32
+            // ramp only while the insets are zero: on a notched phone in landscape
+            // the shell's gutter grows to clear the notch and the placeholder's did
+            // not, so every workspace page slid sideways on resolve.
+            flush ? 'px-0 pt-0' : 'pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-cozy sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] md:pl-[max(1.75rem,env(safe-area-inset-left))] md:pr-[max(1.75rem,env(safe-area-inset-right))] md:py-7 xl:pl-[max(2rem,env(safe-area-inset-left))] xl:pr-[max(2rem,env(safe-area-inset-right))]',
             flush && 'min-h-0 overflow-hidden',
+            // Same ceiling expression as the shell, variables and all, so an open
+            // keyboard caps both the same way.
             flush &&
-              'max-h-[calc(100dvh-env(safe-area-inset-top)-3.5rem-1px-env(safe-area-inset-bottom))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))]',
+              'max-h-[calc(100dvh-env(safe-area-inset-top)-var(--mobile-hub-offset)-var(--keyboard-inset,0px))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-var(--keyboard-inset,0px))]',
             flush
               ? contentOwnsBottomPadding
                 ? 'pb-0'

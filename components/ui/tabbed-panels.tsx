@@ -285,9 +285,16 @@ export function TabbedPanels<Id extends string>({
  */
 export function TabbedPanelsSkeleton({
   labels,
+  activeIndex = 0,
 }: {
   /** The real labels, so each segment reserves the width its text will need. */
   labels: readonly string[];
+  /**
+   * Which segment carries the chip. A caller that can resolve the tab from the
+   * committed URL (a client switch inside the loader) passes it, so a deep link to the
+   * third tab does not load with the chip on the first and then slide across.
+   */
+  activeIndex?: number;
 }) {
   return (
     <div className={NAV_SHAPE} aria-hidden>
@@ -297,7 +304,7 @@ export function TabbedPanelsSkeleton({
             key={text}
             className={cn(
               ITEM_SHAPE,
-              index === 0 ? 'bg-card shadow-sm md:bg-transparent md:shadow-none' : null,
+              index === activeIndex ? 'bg-card shadow-sm md:bg-transparent md:shadow-none' : null,
             )}
           >
             <Skeleton className="h-4 w-16" />

@@ -28,7 +28,7 @@ export default function OffersLoading() {
     >
       {/* No wrapper div — see the note in `sales/loading.tsx`. `OffersSection`'s empty
           state is `SharedEmptyState … compact fill` and wants the same column height. */}
-      <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
+      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-[9.5rem]" titleClassName="w-28" />
       {/* Two, not four: this route uses the `SectionFilter` Active/Past preset rather
           than `ContractFilter`. */}
       <SectionFilterSkeleton labels={['Active', 'Past']} />

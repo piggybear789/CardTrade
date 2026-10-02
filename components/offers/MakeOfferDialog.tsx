@@ -192,9 +192,18 @@ export function MakeOfferDialog({
           </div>
 
           <DialogFooter>
+            {/* The spinner REPLACES a glyph rather than appearing beside the label, and
+                the label does not change. Prepending a spinner and swapping "Send offer"
+                for "Sending…" resized the button twice in one click, and on a phone the
+                footer stacks full-width so it also pushed the dialog's height around.
+                `aria-busy` carries the state for assistive tech. */}
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              {isPending ? 'Sending…' : 'Send offer'}
+              <HugeiconsIcon
+                icon={isPending ? LoaderCircleIcon : HandCoinsIcon}
+                className={isPending ? 'animate-spin' : undefined}
+                aria-hidden
+              />
+              Send offer
             </Button>
           </DialogFooter>
         </form>

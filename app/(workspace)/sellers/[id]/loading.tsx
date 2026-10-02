@@ -58,8 +58,15 @@ export default function SellerProfileLoading() {
               </div>
               {/* StarRating, then the social links row. Both are conditional on the
                   seller having them, and both are the common case on a profile reached
-                  through a listing. */}
-              <TextLines className="text-body" widths={['w-36']} />
+                  through a listing.
+
+                  The rating row is 16px stars beside a `text-meta` label inside the
+                  link's 1px transparent border — 18.8px, not a 22.4px `text-body`
+                  line. The page now lays that link out as a block (`flex w-fit`) so
+                  it takes the column's `space-y-1.5` like every other row here. */}
+              <div className="flex h-[1.175rem] items-center">
+                <Skeleton className="h-4 w-32" />
+              </div>
               <TextLines className="text-body" widths={['w-24']} />
             </div>
           </div>
@@ -76,9 +83,12 @@ export default function SellerProfileLoading() {
             object on the page above the fold — an icon heading plus a row of facts,
             which is what pushed the grid down when it arrived.
 
-            The verified group only; the record group beneath it is a second `p-group`
-            block behind a `border-t` and appears on a narrower set of profiles, so
-            reserving both would over-shoot the common case in the other direction. */}
+            The verified group, AND the record group beneath it. The record group was
+            left out on the belief that it appears on a narrower set of profiles, but
+            it renders whenever the seller has a trading region (`Trades in`), which
+            every onboarded member states — so on a normal seller profile the band
+            arrived ~73px taller than reserved and pushed the strip and grid down. A
+            signed-in viewer also gets "Completed sales" in the same row. */}
         <section className="mt-cozy rounded-lg border bg-muted/60">
           <div className="p-group">
             {/* `mb-cozy flex items-center gap-tight text-body font-medium` — a 16px
@@ -87,11 +97,18 @@ export default function SellerProfileLoading() {
               <Skeleton className="size-4 shrink-0 rounded-sm" />
               <TextLines className="min-w-0 text-body" widths={['w-56']} />
             </div>
+            {/* Two facts: "Verified name" and "ID checked". "Store" appears only
+                for a seller with a provider-registered trading name, which an
+                individual seller does not have — and on a phone a third fact
+                wraps the two-column grid onto a second 39px row. */}
             <div className={FACT_GRID}>
               <FactSkeleton labelWidth="w-24" />
-              <FactSkeleton labelWidth="w-12" />
               <FactSkeleton labelWidth="w-20" />
             </div>
+          </div>
+          <div className={`${FACT_GRID} border-t p-group`}>
+            <FactSkeleton labelWidth="w-28" />
+            <FactSkeleton labelWidth="w-16" />
           </div>
         </section>
       </header>

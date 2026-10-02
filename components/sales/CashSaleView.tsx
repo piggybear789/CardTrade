@@ -28,8 +28,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { HandshakeIcon, LoaderCircleIcon, TriangleAlertIcon, TruckIcon } from '@hugeicons/core-free-icons';
+import { HandshakeIcon, TriangleAlertIcon, TruckIcon } from '@hugeicons/core-free-icons';
 import { DesktopOnly } from '@/components/layout/Breakpoint';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { PlaceMap } from '@/components/location';
 import { ImageGallery, PORTRAIT_STAGE_FRAME } from '@/components/listings/ImageGallery';
 import { Badge } from '@/components/ui/badge';
@@ -896,10 +897,9 @@ function CashSaleRoom({
                           aria-busy={busy('accept')}
                           onClick={() => setConfirming('pay')}
                         >
-                          {busy('accept') ? (
-                            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                          ) : null}
-                          Accept terms and pay
+                          <PendingLabel pending={busy('accept')}>
+                            Accept terms and pay
+                          </PendingLabel>
                         </Button>
                       ) : null}
                     </>
@@ -937,10 +937,7 @@ function CashSaleRoom({
                       aria-busy={busy('receive')}
                       onClick={() => setConfirming('receive')}
                     >
-                      {busy('receive') ? (
-                        <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                      ) : null}
-                      Confirm delivery
+                      <PendingLabel pending={busy('receive')}>Confirm delivery</PendingLabel>
                     </Button>
                   ) : null}
 
@@ -958,14 +955,9 @@ function CashSaleRoom({
                         setConfirming('handover');
                       }}
                     >
-                      {busy('handover') ? (
-                        <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                      ) : null}
-                      {busy('handover')
-                        ? 'Confirming…'
-                        : myHandoverConfirmed
-                          ? 'Handover confirmed'
-                          : 'Confirm handover'}
+                      <PendingLabel pending={busy('handover')} pendingLabel="Confirming…">
+                        {myHandoverConfirmed ? 'Handover confirmed' : 'Confirm handover'}
+                      </PendingLabel>
                     </Button>
                   ) : null}
 
@@ -1161,14 +1153,7 @@ function CashSaleRoom({
                       )
                     }
                   >
-                    {busy('ship') ? (
-                      <HugeiconsIcon
-                        icon={LoaderCircleIcon}
-                        className="animate-spin"
-                        aria-hidden
-                      />
-                    ) : null}
-                    Record shipment
+                    <PendingLabel pending={busy('ship')}>Record shipment</PendingLabel>
                   </Button>
                 </div>
               ) : null}

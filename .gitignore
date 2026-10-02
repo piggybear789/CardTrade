@@ -40,6 +40,8 @@ next-env.d.ts
 /playwright-report/
 /playwright/.auth/
 /ux-review/captures/
+/ux-review/skeleton-fidelity/
+/ux-review/layout-shift.*.jsonl
 /blob-report/
 
 # Scratch dump artifact, regenerated locally

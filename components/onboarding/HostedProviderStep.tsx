@@ -18,10 +18,11 @@
 
 import { useState, useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ExternalLinkIcon, LoaderCircleIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
+import { ExternalLinkIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { startIdentityVerification, refreshPayoutStatus } from '@/lib/actions/merchant';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -133,6 +134,33 @@ export function HostedProviderStep({
 
   return (
     <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
+      <Button
+        type="button"
+        onClick={handleContinue}
+        disabled={isPending}
+        aria-busy={isPending}
+        // Demoted once the platform is the blocker: leaving a primary call to action
+        // on screen invites a press that cannot succeed.
+        variant={tone === 'notice' ? 'outline' : 'default'}
+        className="w-full sm:w-auto"
+      >
+        {/* WIDTH-STABLE. From `sm` this button is `w-auto` beside the step's title and
+            description, so "Continue with Stripe" shrinking to "Opening…" on press
+            widened the text column and re-wrapped the description under the pointer.
+            Both states share one grid cell now; the spinner replaces the glyph in the
+            pending state as it did before. */}
+        <PendingLabel pending={isPending} pendingLabel="Opening…">
+          <HugeiconsIcon
+            icon={tone === 'notice' ? RefreshCwIcon : ExternalLinkIcon}
+            className="size-3.5"
+            aria-hidden
+          />
+          {tone === 'notice' ? 'Check again' : retry ? 'Try again' : 'Continue with Stripe'}
+        </PendingLabel>
+      </Button>
+
+      {/* BELOW the button. Above it, a failure pushed the retry down out from under the
+          pointer that had just pressed it. */}
       {error ? (
         <p
           // `status`, not `alert`, when the platform is the blocker: no error has
@@ -149,34 +177,6 @@ export function HostedProviderStep({
           {error}
         </p>
       ) : null}
-
-      <Button
-        type="button"
-        onClick={handleContinue}
-        disabled={isPending}
-        aria-busy={isPending}
-        // Demoted once the platform is the blocker: leaving a primary call to action
-        // on screen invites a press that cannot succeed.
-        variant={tone === 'notice' ? 'outline' : 'default'}
-        className="w-full sm:w-auto"
-      >
-        {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-        ) : (
-          <HugeiconsIcon
-            icon={tone === 'notice' ? RefreshCwIcon : ExternalLinkIcon}
-            className="size-3.5"
-            aria-hidden
-          />
-        )}
-        {isPending
-          ? 'Opening…'
-          : tone === 'notice'
-            ? 'Check again'
-            : retry
-              ? 'Try again'
-              : 'Continue with Stripe'}
-      </Button>
     </div>
   );
 }

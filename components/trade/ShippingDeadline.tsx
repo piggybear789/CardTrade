@@ -1,3 +1,5 @@
+'use client';
+
 // components/trade/ShippingDeadline.tsx
 //
 // Surfaces the dispatch deadline on a DELIVERY trade (Req 5.4 timeline).
@@ -13,6 +15,7 @@
 // Renders nothing for IN_PERSON trades, which have no deadline: both parties meet
 // and inspect on the spot, so they never race the authorisation window.
 
+import { useSyncExternalStore } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Clock01Icon, PackageCheckIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
@@ -40,9 +43,27 @@ export interface ShippingDeadlineProps {
   className?: string;
 }
 
+const MINUTE_MS = 60 * 1000;
+
+/**
+ * A minute clock, the same one `InspectionCountdown` uses. `Date.now()` straight in
+ * render gave the server and the browser two different instants, so near an hour
+ * boundary the label (and the `hours <= 12` urgency styling) disagreed across
+ * hydration and React re-rendered the subtree on the client — a visible relabel and
+ * restyle after paint. Flooring to the minute makes both renders agree, and the
+ * subscription keeps the label honest while the room sits open.
+ */
+function subscribeMinute(onTick: () => void): () => void {
+  const id = window.setInterval(onTick, MINUTE_MS);
+  return () => window.clearInterval(id);
+}
+function minuteNow(): number {
+  return Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
+}
+
 /** Whole hours remaining, floored, never negative. */
-function hoursUntil(iso: string): number {
-  const ms = new Date(iso).getTime() - Date.now();
+function hoursUntil(iso: string, now: number): number {
+  const ms = new Date(iso).getTime() - now;
   return Math.max(0, Math.floor(ms / (60 * 60 * 1000)));
 }
 
@@ -73,6 +94,7 @@ export function ShippingDeadline({
   compact = false,
   className,
 }: ShippingDeadlineProps) {
+  const now = useSyncExternalStore(subscribeMinute, minuteNow, minuteNow);
   // IN_PERSON, or collateral has not locked yet: nothing to say.
   if (!deadlineAt) return null;
 
@@ -85,7 +107,7 @@ export function ShippingDeadline({
     if (bothShipped) return null;
 
     const late = Boolean(overdueAt);
-    const hours = hoursUntil(deadlineAt);
+    const hours = hoursUntil(deadlineAt, now);
     return (
       <span
         className={cn(
@@ -146,7 +168,7 @@ export function ShippingDeadline({
     );
   }
 
-  const hours = hoursUntil(deadlineAt);
+  const hours = hoursUntil(deadlineAt, now);
   // Only the person who still owes a dispatch gets the urgent treatment.
   const urgent = !viewerShipped && hours <= 12;
 

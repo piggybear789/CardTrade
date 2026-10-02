@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Dialog,
   DialogContent,
@@ -258,7 +259,9 @@ export function TradeHandoverTermsEditor({
             aria-busy={isPending}
             onClick={handleSave}
           >
-            {isPending ? 'Saving…' : 'Save terms'}
+            <PendingLabel pending={isPending} pendingLabel="Saving…">
+              Save terms
+            </PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

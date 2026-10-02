@@ -15,8 +15,9 @@
 
 import { useRef, useState, useTransition, type ChangeEvent } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Camera01Icon, LoaderCircleIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Camera01Icon, XIcon } from '@hugeicons/core-free-icons';
 
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -233,12 +234,9 @@ export function AcceptWithPhotoDialog({
             disabled={isPending}
             aria-busy={isPending}
           >
-            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden /> : null}
-            {isPending
-              ? 'Confirming…'
-              : photo
-                ? confirmWithPhotoLabel
-                : confirmWithoutPhotoLabel}
+            <PendingLabel pending={isPending} pendingLabel="Confirming…">
+              {photo ? confirmWithPhotoLabel : confirmWithoutPhotoLabel}
+            </PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

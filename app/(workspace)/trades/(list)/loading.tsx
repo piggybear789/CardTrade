@@ -22,7 +22,7 @@ export default function TradesLoading() {
           `StartDealEmptyState … compact fill`, and `fill` resolves to `flex-1`, which
           claims height only as far as the flex chain reaches. So a member with no trades
           watched a content-height stack become a full-column island. */}
-      <SectionHeaderSkeleton hasMobileAction />
+      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-32" />
       <SectionFilterSkeleton labels={['Active', 'Needs you', 'Waiting', 'Past']} />
       {/* The group heading — "Open", "Waiting on you", "Finished" — which this
           placeholder used to skip. The list is always inside a labelled section, so

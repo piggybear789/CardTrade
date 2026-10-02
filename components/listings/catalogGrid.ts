@@ -87,15 +87,22 @@ export const CATALOG_MOSAIC_COLUMNS = 2;
  * Height of the text under a cover — title, price, seller — as a fraction of
  * the tile's width.
  *
- * A constant, because the block is the same three rows on every tile and its
- * height is set by the type scale rather than the tile width: roughly 87px
- * under a column that is roughly 176px wide on a 390pt phone. It exists only so
- * the balancer compares whole tiles rather than bare covers; being a few
- * percent out shifts nothing, since a constant added to every tile cannot
+ * A constant, because the block is the same rows on every tile and its height
+ * is set by the type scale rather than the tile width. Measured term for term
+ * from `CatalogItemCard` (padding, a two-line `text-body` title, the category,
+ * the `text-head` price line, the 24px seller row and the gaps between them) it
+ * is ~142px, or ~120px when the title fits one line, under a column that is
+ * roughly 176px wide on a 390pt phone. It was 0.48 (~85px), a figure that
+ * predated the seller row and the two-line title, so every estimated tile was
+ * ~50px short — which mattered less for the balance than for
+ * {@link tileIntrinsicHeight}, where it under-reserved every skipped tile.
+ *
+ * It exists so the balancer compares whole tiles rather than bare covers; being
+ * a few percent out shifts nothing, since a constant added to every tile cannot
  * change which column is shorter unless the columns hold different numbers of
  * tiles — which is exactly when it should count.
  */
-const TILE_TEXT_RATIO = 0.48;
+const TILE_TEXT_RATIO = 0.75;
 
 /** Nominal mosaic column width in rem, for intrinsic-size estimates. */
 const TILE_WIDTH_REM = 11;

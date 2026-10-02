@@ -45,6 +45,7 @@ import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
 import {
   clearItemFormDraft,
+  hasItemFormDraft,
   useInitialItemFormDraft,
   useItemFormDraft,
 } from "@/lib/listings/useItemFormDraft";
@@ -172,13 +173,63 @@ function centsToDollars(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
-export function ItemForm({ mode, item }: ItemFormProps) {
+/** No-op subscription: the value below only changes once, at hydration. */
+function subscribeNever(): () => void {
+  return () => {};
+}
+
+/**
+ * The listing form, with the create-mode draft restored WITHOUT a hydration mismatch.
+ *
+ * `useInitialItemFormDraft` reads sessionStorage, which the server cannot see. Reading it
+ * during the hydration render made the browser's first render (restored form plus the
+ * "We kept what you had typed" notice) disagree with the server's HTML (empty form), and
+ * React threw the server tree away and re-rendered the whole form on the client.
+ *
+ * So the hydration render is the empty form the server sent, and the draft is consulted
+ * only once hydration is done. When one exists, the inner form remounts ONCE under a new
+ * key and seeds itself from it, which is the effect-free restore the hook was written for.
+ * A member with no draft — nearly everyone — gets no remount. On a client navigation
+ * `hydrated` is already true on the first render, so the draft is read immediately and
+ * nothing remounts at all.
+ *
+ * The decision is captured in a ref so it is made exactly once: the form writes its own
+ * draft as the member types, and re-deciding later would remount the form under them.
+ */
+export function ItemForm(props: ItemFormProps) {
+  const hydrated = React.useSyncExternalStore(
+    subscribeNever,
+    () => true,
+    () => false,
+  );
+  const restoreDecision = React.useRef<boolean | null>(null);
+  if (hydrated && restoreDecision.current === null) {
+    restoreDecision.current = props.mode === "create" && hasItemFormDraft();
+  }
+  const restoreDraft = restoreDecision.current === true;
+
+  return (
+    <ItemFormInner
+      key={restoreDraft ? "restored" : "fresh"}
+      {...props}
+      restoreDraft={restoreDraft}
+      draftDecided={restoreDecision.current !== null}
+    />
+  );
+}
+
+function ItemFormInner({
+  mode,
+  item,
+  restoreDraft,
+  draftDecided,
+}: ItemFormProps & { restoreDraft: boolean; draftDecided: boolean }) {
   const router = useRouter();
 
   // CREATE ONLY. An edit form is backed by a row, so a stored draft would raise a
   // "which is newer" conflict with no safe default — see `useItemFormDraft`.
   const draftEnabled = mode === "create";
-  const restored = useInitialItemFormDraft(draftEnabled);
+  const restored = useInitialItemFormDraft(draftEnabled && restoreDraft);
 
   // EVERY INITIALISER PREFERS THE ROW, THEN THE DRAFT, THEN EMPTY. The row can only be
   // present in edit mode and the draft only in create mode, so the two never compete; the
@@ -277,7 +328,9 @@ export function ItemForm({ mode, item }: ItemFormProps) {
       fmvDollars,
       location,
     },
-    draftEnabled && !isSubmitting,
+    // `draftDecided`: never write before the restore decision is made, or the empty
+    // hydration render would CLEAR the stored draft before it could be restored.
+    draftEnabled && draftDecided && !isSubmitting,
   );
 
   // RECORDS LEAVING A FORM WITH UNSAVED INPUT (0121). On its own an abandonment is
@@ -1117,7 +1170,17 @@ export function ItemForm({ mode, item }: ItemFormProps) {
             aria-busy={isSubmitting}
             className="w-full sm:w-auto"
           >
-            {isSubmitting ? "Saving…" : submitLabel}
+            {/* WIDTH PINNED TO THE RESTING LABEL. From `sm` the button is `w-auto`, so
+                swapping "Create listing" for the shorter "Saving…" shrank it under the
+                pointer on every submit. The resting label stays in the box,
+                `invisible` (so it is out of the accessibility tree and the name stays
+                single), and the live label is laid over it in the same grid cell. */}
+            <span className="grid">
+              <span className="invisible col-start-1 row-start-1">{submitLabel}</span>
+              <span className="col-start-1 row-start-1">
+                {isSubmitting ? "Saving…" : submitLabel}
+              </span>
+            </span>
           </Button>
         </CardFooter>
       </form>

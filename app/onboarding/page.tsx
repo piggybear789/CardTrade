@@ -23,7 +23,8 @@ import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
 import { resolveProviderReturn } from '@/components/onboarding/providerReturn';
 import { listSelectableRegions } from '@/lib/actions/regionOptions';
 import { geoRegionFromRequest } from '@/lib/location/resolveRegion';
-import { getCachedProfile } from '@/lib/supabase/cachedAuth';
+import { ensureProfile } from '@/lib/auth/ensureProfile';
+import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 
 // Profile setup destinations that onboarding itself supersedes. A member sent to
 // `/onboarding` by the gate in `proxy.ts` was, more often than not, trying to reach the
@@ -75,6 +76,41 @@ export default async function OnboardingPage({
     : params.redirectTo;
   const nextPath = safeRedirectPath(redirectTo ?? null);
 
+  // Started now, awaited below: neither depends on the profile repair, so sequencing
+  // them after it would be a round trip of pure latency.
+  const optionsPromise = Promise.all([listSelectableRegions(), geoRegionFromRequest()]);
+  // Marks it handled for the `redirect()` path below, which throws before the await;
+  // the await itself still rethrows a real failure.
+  optionsPromise.catch(() => undefined);
+
+  // GUARANTEE A `profiles` ROW BEFORE THE WIZARD RENDERS. A session whose row went
+  // missing after sign-up is reachable — an already-signed-in member never passes
+  // through the OAuth callback again — and without the row every wizard write matched
+  // zero rows and surfaced PostgREST's "Cannot coerce the result to a single JSON
+  // object" with no way out. This is the one place every step is downstream of.
+  //
+  // It lived in `app/onboarding/layout.tsx` until this pass, and that placement cost a
+  // visible beat on every navigation here: a layout sits ABOVE `loading.tsx`, so its two
+  // awaits (auth, then the repair) ran before the skeleton could paint and the previous
+  // page simply froze. In the page they run behind the loader.
+  //
+  // No redirect on a missing user: `proxy.ts` owns that decision for this route. A
+  // repair failure is deliberately not fatal — the steps report their own errors in
+  // member-facing language, which beats replacing the whole screen with one.
+  // `completeOnboarding` keeps its own repair as defence in depth.
+  const user = await getCachedAuthUser();
+  if (user) {
+    const metadata = (user.user_metadata ?? {}) as {
+      full_name?: string;
+      name?: string;
+    };
+    await ensureProfile(
+      user.id,
+      user.email ?? '',
+      metadata.full_name ?? metadata.name ?? null,
+    );
+  }
+
   // Completed members who type /onboarding (or follow a stale bookmark) should
   // not restart the welcome wizard. Stripe return visits still land on the
   // seller step so hosted identity/payout can finish.
@@ -94,10 +130,7 @@ export default async function OnboardingPage({
   // the waitlist tile with their country already chosen — and it never becomes a
   // trading region (see `domain/region/regions.ts` on why an IP must not). Null
   // off-Vercel and in local development, where the step opens as it always has.
-  const [regions, guessedRegion] = await Promise.all([
-    listSelectableRegions(),
-    geoRegionFromRequest(),
-  ]);
+  const [regions, guessedRegion] = await optionsPromise;
 
   return (
     <OnboardingWizard

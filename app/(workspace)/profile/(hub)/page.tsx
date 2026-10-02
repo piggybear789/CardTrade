@@ -84,6 +84,9 @@ import {
   staffNavLinksFor,
 } from '@/components/layout/marketplace-nav-config';
 import { Badge } from '@/components/ui/badge';
+// The Payouts tab's Suspense fallback is the SAME placeholder the route loader draws,
+// imported rather than restated, so the two cannot drift apart.
+import { PayoutsPanelSkeleton } from '@/components/account/AccountHubSkeletons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { resolveScope, type SectionScope } from '@/components/layout/SectionFilter';
 import { formatShortDate } from '@/lib/format';
@@ -622,23 +625,6 @@ async function PayoutsPanel({ scope }: { scope: SectionScope }) {
         scope={scope}
         currency={currency}
       />
-    </div>
-  );
-}
-
-/** Holds the panel's height while the chain resolves, so tapping through never jumps. */
-function PayoutsPanelSkeleton() {
-  return (
-    <div className="space-y-group md:space-y-section" aria-hidden>
-      <SettingsGroup>
-        <SettingsRowSkeleton labelClassName="w-24" valueClassName="w-20" />
-        <SettingsRowSkeleton labelClassName="w-28" valueClassName="w-20" />
-        <SettingsRowSkeleton labelClassName="w-20" valueClassName="w-20" />
-      </SettingsGroup>
-      <SettingsGroup>
-        <SettingsRowSkeleton labelClassName="w-36" valueClassName="w-16" />
-        <SettingsRowSkeleton labelClassName="w-28" valueClassName="w-16" />
-      </SettingsGroup>
     </div>
   );
 }

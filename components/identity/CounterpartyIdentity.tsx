@@ -27,6 +27,9 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { cn } from '@/lib/utils';
+// Fixed display zone: this block renders inside client rooms, and a zone-less date
+// can name a different DAY on the server than in the browser.
+import { formatShortDate } from '@/lib/format';
 
 export interface CounterpartyIdentityProps {
   /**
@@ -68,7 +71,7 @@ export function CounterpartyIdentity({
         <p className="text-muted-foreground">
           {displayName ? `${displayName} had ` : 'They had '}
           this name verified by our payment provider
-          {verifiedAt ? ` on ${new Date(verifiedAt).toLocaleDateString('en-AU')}` : ''}.
+          {verifiedAt ? ` on ${formatShortDate(verifiedAt)}` : ''}.
         </p>
       </div>
     </div>

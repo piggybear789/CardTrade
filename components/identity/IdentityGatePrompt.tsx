@@ -30,11 +30,12 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ExternalLinkIcon, LoaderCircleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { ExternalLinkIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { CustodyNote } from '@/components/onboarding/OnboardingSpine';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { DialogFooter } from '@/components/ui/dialog';
 import { type VerificationState } from '@/domain/identity/identityGate';
 
@@ -157,12 +158,10 @@ export function IdentityGatePrompt({
           disabled={isPending}
           aria-busy={isPending}
         >
-          {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-          ) : (
+          <PendingLabel pending={isPending} pendingLabel="Opening Stripe…">
             <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
-          )}
-          {isPending ? 'Opening Stripe…' : actionLabel}
+            {actionLabel}
+          </PendingLabel>
         </Button>
       </DialogFooter>
     </div>

@@ -105,11 +105,12 @@ export function DrainPayoutsButton() {
         )}
         Run release queue
       </Button>
-      {summary ? (
-        <span aria-live="polite" className="text-body text-muted-foreground">
-          {summary}
-        </span>
-      ) : null}
+      {/* ALWAYS MOUNTED, so the live region exists before its text changes — one
+          inserted together with its content is not reliably announced. `empty:hidden`
+          keeps it from taking a flex gap while there is nothing to say. */}
+      <span aria-live="polite" className="text-body text-muted-foreground empty:hidden">
+        {summary ?? ''}
+      </span>
     </div>
   );
 }

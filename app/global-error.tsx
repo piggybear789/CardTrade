@@ -137,7 +137,29 @@ export default function GlobalError({
                     textUnderlineOffset: '4px',
                   }}
                 >
-                  {report === 'sending' ? 'Sending…' : 'Report this problem'}
+                  {/* Width-stable without the UI primitives this file cannot import:
+                      both labels share one grid cell, so "Sending…" does not reflow the
+                      sentence and drag the Ref across. */}
+                  <span style={{ display: 'inline-grid' }}>
+                    <span
+                      style={{
+                        gridArea: '1 / 1',
+                        visibility: report === 'sending' ? 'hidden' : 'visible',
+                      }}
+                      aria-hidden={report === 'sending' || undefined}
+                    >
+                      Report this problem
+                    </span>
+                    <span
+                      style={{
+                        gridArea: '1 / 1',
+                        visibility: report === 'sending' ? 'visible' : 'hidden',
+                      }}
+                      aria-hidden={report !== 'sending' || undefined}
+                    >
+                      Sending…
+                    </span>
+                  </span>
                 </button>
                 {report === 'failed' ? ' (did not send, try again) ' : ' · '}
               </>

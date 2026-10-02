@@ -20,7 +20,7 @@
 // render without a reload (Req 11.2), including the connection indicator (Req 11.5,
 // shown only while degraded) and the fraud outcome (Req 8.4).
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 
@@ -84,6 +84,7 @@ import {
   type ContractExchangeItem,
   type ContractParty,
 } from '@/components/contract';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   TRADE_SECTIONS,
   currentStep,
@@ -276,6 +277,12 @@ export interface TradeContractProps {
    */
   paymentMethod?: SavedCardStatus | null;
   /**
+   * The postal addresses as the server read them, for a posted trade. Seeds the
+   * address panel so it paints final instead of "No address yet." followed by the
+   * real address a fetch later. The room still re-reads on a state change.
+   */
+  initialAddresses?: TradeAddressView;
+  /**
    * Whether the cash receiver can take payouts right now. Used to warn before
    * completion; after completion `manual_reconciliation` is the source of truth.
    */
@@ -380,7 +387,9 @@ function TradeCashSettlementNotice({
                 });
               }}
             >
-              {isPending ? 'Settling…' : 'Retry cash settlement'}
+              <PendingLabel pending={isPending} pendingLabel="Settling…" spinner={false}>
+                Retry cash settlement
+              </PendingLabel>
             </Button>
           </div>
         </>
@@ -754,6 +763,7 @@ function TradeContractRoom({
   goods,
   participants,
   paymentMethod = null,
+  initialAddresses,
   cashReceiverPayoutReady = true,
   demoPanel,
   disputeEvidence = [],
@@ -775,10 +785,9 @@ function TradeContractRoom({
   // cookie-bound client so RLS decides disclosure, which means re-reading when the
   // state changes: the counterpart's address becomes visible at COLLATERAL_LOCKED,
   // and a realtime state change alone would not fetch it.
-  const [addresses, setAddresses] = useState<TradeAddressView>({
-    mine: null,
-    theirs: null,
-  });
+  const [addresses, setAddresses] = useState<TradeAddressView>(
+    () => initialAddresses ?? { mine: null, theirs: null },
+  );
   const isDeliveryTrade = trade?.handover_method === 'DELIVERY';
   const tradeState = trade?.state;
 
@@ -788,11 +797,15 @@ function TradeContractRoom({
     setAddresses(next);
   }, [tradeId]);
 
+  // The state the seed was read in. The mount-time fetch is skipped when the server
+  // already supplied the answer for this state; a later state change still re-reads,
+  // because entering COLLATERAL_LOCKED is what unlocks the counterpart's address.
+  const seededState = useRef(initialAddresses ? tradeState : undefined);
   useEffect(() => {
     if (!isDeliveryTrade) return;
+    if (seededState.current !== undefined && seededState.current === tradeState) return;
+    seededState.current = undefined;
     void refreshAddresses();
-    // `tradeState` is a dependency on purpose: entering COLLATERAL_LOCKED is what
-    // unlocks the counterpart's address.
   }, [isDeliveryTrade, tradeState, refreshAddresses]);
 
   // How many actions the state machine permits the viewer right now — drives the

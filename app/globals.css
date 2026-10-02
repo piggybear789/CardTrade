@@ -405,8 +405,30 @@
     scroll-padding-bottom: calc(
       var(--mobile-hub-offset) + var(--keyboard-inset, 0px)
     );
+    /* RESERVE THE SCROLLBAR'S WIDTH ON EVERY PAGE. With classic scrollbars (Windows,
+       and macOS with "always show"), a route that fits the viewport has no bar and a
+       route that does not has a ~15px one, so the whole layout — header search, rail,
+       content column — slid sideways on navigation between the two, and again when a
+       loader shorter than its page swapped out. `stable` keeps the gutter whether or
+       not a bar is drawn. Overlay scrollbars (phones, default macOS) reserve nothing,
+       so this costs those nothing. The flush inbox pane has done the same internally
+       for the same reason (`InboxTwoPane`). See the scroll-lock rule below, which this
+       makes necessary. */
+    scrollbar-gutter: stable;
     /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* SCROLL LOCK MUST NOT ADD A SECOND GUTTER. Radix dialogs, sheets, selects and
+     popovers lock scrolling through `react-remove-scroll-bar`, which measures the
+     gap as `innerWidth - clientWidth` and adds it to <body> as `margin-right` to
+     compensate for the bar it hides. With `scrollbar-gutter: stable` the root keeps
+     that gutter while locked, so the compensation was applied on top of a gutter
+     that never went away: every dialog nudged the page ~15px left as it opened.
+     The gutter already does the compensating, so the margin goes. Outranks the
+     library's `body[data-scroll-locked]` by one element. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
   }
 
   html[data-keyboard-open='true'] {
@@ -806,17 +828,19 @@
 /* Catalog mosaic (phone). See `components/listings/catalogGrid.ts`.
 
    Three rules, all scoped to below md, because the md-and-up grid must stay
-   exactly what it has always been: a uniform grid of 3:4 covers. */
+   exactly what it is: a uniform grid of SQUARE covers. */
 
 /* The cover's own shape, from `items.image_dims` (0106).
 
-   The base ratio is the 3:4 the md-and-up grid has always used, and only the
-   phone override below reads the stored dimensions. A tile whose dimensions are
-   unknown — a row the backfill has not reached, an external seeded URL, a photo
-   neither reader could decode — falls back through the custom property to
+   The base ratio is the square the md-and-up grid uses, and only the phone
+   override below reads the stored dimensions. It was 3:4 here long after the
+   desktop cover became square, so the mosaic skeleton and a mosaic-first tile
+   both painted 3:4 on desktop and shrank on hydration. A tile whose dimensions
+   are unknown — a row the backfill has not reached, an external seeded URL, a
+   photo neither reader could decode — falls back through the custom property to
    square on phone, rather than collapsing to nothing. */
 .catalog-cover {
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 1 / 1;
 }
 
 @media (max-width: 767px) {
@@ -825,11 +849,11 @@
   }
 
   /* `content-visibility: auto` needs a height for tiles it has skipped, and in a
-     mosaic that height differs per tile. Overrides the flat 18rem the card
+     mosaic that height differs per tile. Overrides the flat 22rem the card
      carries as a Tailwind utility; wins on source order, since this file's
      plain rules come after `@tailwind utilities`. */
   .catalog-tile {
-    contain-intrinsic-size: auto var(--catalog-tile-height, 18rem);
+    contain-intrinsic-size: auto var(--catalog-tile-height, 22rem);
   }
 }
 

@@ -25,6 +25,7 @@ import type {
   MessageLogSaleContext,
   MessageLogShipment,
 } from '@/components/messages/MessageLog';
+import { ContractComposerPlaceholder } from './ContractRoomSkeleton';
 
 export interface ContractConversationPanelProps {
   /** Resolved thread id, or `null` while it is still being opened. */
@@ -139,6 +140,11 @@ export function ContractConversationPanel({
       {actions ? (
         <div className="relative z-10 shrink-0 border-t bg-card">{actions}</div>
       ) : null}
+      {/* The composer's box, held until the thread opens. Without it the composer
+          arrived with the thread and pushed the dock above up by its own height —
+          the one control the reader was looking at. Not drawn once opening has
+          failed: there is nothing to type into, and the retry is above. */}
+      {failed ? null : <ContractComposerPlaceholder />}
     </section>
   );
 }

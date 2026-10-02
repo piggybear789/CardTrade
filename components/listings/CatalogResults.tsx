@@ -1,6 +1,7 @@
 'use client';
 
-import { ViewTransition } from 'react';
+import { useEffect, ViewTransition } from 'react';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ChevronLeftIcon, ChevronRightIcon, PackageOpenIcon, Search01Icon } from '@hugeicons/core-free-icons';
@@ -22,6 +23,8 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { cn } from '@/lib/utils';
 
+const CATALOG_ERROR_TOAST = 'catalog-filter-error';
+
 const PILL_GAMES = CARD_GAMES.map((game) => ({
   slug: game.slug,
   name: game.name,
@@ -42,6 +45,23 @@ export function CatalogResults() {
     retry,
   } = useCatalogView();
   const isDesktop = useIsDesktop();
+
+  // A FAILED FILTER IS A TOAST, NOT A BANNER. It used to be a bordered alert inserted
+  // between the results header and the grid when the fetch came back, pushing every
+  // tile down ~56px a second or more after the member's click. The controls have
+  // already rolled back to the query the grid is showing, so all this needs to do is
+  // explain and offer another go — which a toast with an action does without moving
+  // anything. A stable id keeps repeated failures to one toast.
+  useEffect(() => {
+    if (!error) {
+      toast.dismiss(CATALOG_ERROR_TOAST);
+      return;
+    }
+    toast.error(`${error} Showing your previous results.`, {
+      id: CATALOG_ERROR_TOAST,
+      action: { label: 'Try again', onClick: retry },
+    });
+  }, [error, retry]);
 
   const hasAnyFilter =
     settled.q !== '' ||
@@ -113,27 +133,6 @@ export function CatalogResults() {
         </div>
       </header>
 
-      {/* The controls have already rolled back to the query the grid below is
-          actually showing, so this only has to explain and offer another go. */}
-      {error ? (
-        <div
-          role="alert"
-          className="mb-group flex flex-wrap items-center justify-between gap-cozy rounded-lg border border-destructive/40 bg-destructive/10 px-group py-cozy"
-        >
-          <p className="text-body text-foreground">
-            {error} Showing your previous results.
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={retry}
-            disabled={isPending}
-          >
-            Try again
-          </Button>
-        </div>
-      ) : null}
 
       <div
         aria-busy={isPending}

@@ -21,7 +21,7 @@ export default function PurchasesLoading() {
       }
     >
       {/* No wrapper div — see the note in `sales/loading.tsx`. */}
-      <SectionHeaderSkeleton hasMobileAction />
+      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-[9.5rem]" />
       <SectionFilterSkeleton labels={['Active', 'Needs you', 'Waiting', 'Past']} />
       <ContractCardListSkeleton count={4} />
     </MarketplaceShellSkeleton>

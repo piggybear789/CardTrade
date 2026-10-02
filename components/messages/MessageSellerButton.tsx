@@ -245,7 +245,11 @@ export function MessageSellerButton({
         ) : (
           <HugeiconsIcon icon={MessageCircleIcon} aria-hidden />
         )}
-        {isPending ? 'Opening…' : 'Message seller'}
+        {/* ONE LABEL IN BOTH STATES. This swapped to "Opening…" while pending, and
+            from `sm` the button is `w-auto`, so it narrowed by a word and pulled
+            everything beside it across. The spinner replacing the glyph already says
+            it is working, and `aria-busy` says so to assistive tech. */}
+        Message seller
       </Button>
 
       {error && (

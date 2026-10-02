@@ -19,9 +19,10 @@ import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ChatFeedbackIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { ChatFeedbackIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Dialog,
   DialogContent,
@@ -295,10 +296,9 @@ export function FeedbackDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? (
-                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-              ) : null}
-              {isPending ? 'Sending…' : 'Send feedback'}
+              <PendingLabel pending={isPending} pendingLabel="Sending…">
+                Send feedback
+              </PendingLabel>
             </Button>
           </DialogFooter>
         </form>

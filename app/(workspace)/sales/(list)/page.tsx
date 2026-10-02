@@ -95,7 +95,14 @@ export default async function SalesPage({
           <CashSalesSection
             sales={visibleSales}
             variant="sales"
-            empty={<ContractScopeEmptyState scope={scope} noun="sales" />}
+            // Only for a filtered scope. An ELEMENT is truthy even when it renders null,
+            // so passing `<ContractScopeEmptyState scope="active">` suppressed the list's
+            // own "No Sales Yet" state and left the Active tab blank under its tabs.
+            empty={
+              scope === 'active' ? undefined : (
+                <ContractScopeEmptyState scope={scope} noun="sales" />
+              )
+            }
           />
         ) : null
       ) : (

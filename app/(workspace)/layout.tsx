@@ -24,7 +24,7 @@
 // `MarketplaceNav`, reading capability from the provider below.
 
 import type { ReactNode } from 'react';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import {
@@ -32,6 +32,7 @@ import {
   WorkspaceChromeProvider,
 } from '@/components/layout/WorkspaceChrome';
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
+import { guessViewportFromHeaders, parseViewportCookie } from '@/lib/layout/viewportHint';
 
 export default async function WorkspaceLayout({
   children,
@@ -39,15 +40,20 @@ export default async function WorkspaceLayout({
   // Both helpers are `React.cache`-wrapped, so this is the single auth round
   // trip for the request. `SiteHeader` in the root layout and every action
   // below share the same resolved values.
-  const [user, cookieStore] = await Promise.all([getCachedAuthUser(), cookies()]);
+  const [user, cookieStore, headerStore] = await Promise.all([
+    getCachedAuthUser(),
+    cookies(),
+    headers(),
+  ]);
   const profile = user ? await getCachedProfile(user.id) : null;
 
-  // Written by the browser on the previous render. Absent on a first-ever visit,
-  // in which case both hooks fall back to the phone shape exactly as before.
-  const hint = cookieStore.get(VIEWPORT_HINT_COOKIE)?.value;
-  const viewport = hint
-    ? { isDesktop: hint.includes('d'), isSplit: hint.includes('s') }
-    : undefined;
+  // Written by the browser on the previous render. Absent on the first page of every
+  // browser session (the cookie is session-scoped), and that page used to render the
+  // phone tree for EVERY visitor — a desktop one then watched it rebuild at hydration.
+  // The request's own device signal fills that gap; see `lib/layout/viewportHint.ts`.
+  const viewport =
+    parseViewportCookie(cookieStore.get(VIEWPORT_HINT_COOKIE)?.value) ??
+    guessViewportFromHeaders((name) => headerStore.get(name));
 
   const staff = profile
     ? {

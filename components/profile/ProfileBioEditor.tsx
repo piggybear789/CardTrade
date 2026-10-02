@@ -18,10 +18,11 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { CheckIcon } from '@hugeicons/core-free-icons';
 
 import { updateBio } from '@/lib/actions/profile';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Textarea } from '@/components/ui/textarea';
 
 /** Matches the server-side cap in `updateBio`. */
@@ -88,12 +89,19 @@ export function ProfileBioEditor({
           disabled={isPending || !dirty}
           aria-busy={isPending}
         >
-          {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-          ) : justSaved && !dirty ? (
-            <HugeiconsIcon icon={CheckIcon} aria-hidden />
-          ) : null}
-          {justSaved && !dirty ? 'Saved' : 'Save bio'}
+          {/* Width-stable across all three states: resting, saving (spinner), and
+              the brief "Saved" tick. The pending face is the widest and always sits
+              in the grid cell, so the button holds one width throughout. */}
+          <PendingLabel pending={isPending} pendingLabel="Save bio">
+            {justSaved && !dirty ? (
+              <>
+                <HugeiconsIcon icon={CheckIcon} aria-hidden />
+                Saved
+              </>
+            ) : (
+              'Save bio'
+            )}
+          </PendingLabel>
         </Button>
       </div>
     </div>

@@ -20,11 +20,12 @@
 
 import { useState, useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronDownIcon, ChevronUpIcon, FlaskConicalIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { ChevronDownIcon, ChevronUpIcon, FlaskConicalIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   fireIdentityWebhook,
   type DemoIdentityWebhookKind,
@@ -116,8 +117,7 @@ export function IdentityDemoControls() {
               disabled={isPending}
               aria-busy={busy('verify')}
             >
-              {busy('verify') ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              Simulate verified
+              <PendingLabel pending={busy('verify')}>Simulate verified</PendingLabel>
             </Button>
             <Button
               size="sm"
@@ -126,8 +126,7 @@ export function IdentityDemoControls() {
               disabled={isPending}
               aria-busy={busy('fail')}
             >
-              {busy('fail') ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              Simulate failure
+              <PendingLabel pending={busy('fail')}>Simulate failure</PendingLabel>
             </Button>
           </div>
         </div>

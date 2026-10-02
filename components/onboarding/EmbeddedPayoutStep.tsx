@@ -269,12 +269,6 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
 
   return (
     <div className="space-y-group">
-      {error ? (
-        <p role="alert" className="text-body text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       {/* Reserves height while the iframe boots, so the step does not jump when
           Stripe's form paints. Keyed off the PHASE alone: deriving the skeleton from
           `!connectInstance` would render it forever if the instance were ever missing
@@ -296,6 +290,14 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
             <ConnectAccountOnboarding onExit={handleExit} onLoadError={handleLoadError} />
           </ConnectComponentsProvider>
         </div>
+      ) : null}
+
+      {/* Below the form, not above it: an error that arrived mid-form used to push the
+          whole Stripe iframe down while the member was typing into it. */}
+      {error ? (
+        <p role="alert" className="text-body text-destructive">
+          {error}
+        </p>
       ) : null}
 
       {/* No manual "check status" control. Stripe's own `onExit` is the completion

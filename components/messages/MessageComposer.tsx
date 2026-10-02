@@ -8,6 +8,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useTransition,
@@ -114,11 +115,21 @@ export function MessageComposer({
   // Grow from one line rather than reserving two. Measured against a collapsed
   // box because `scrollHeight` never shrinks on its own — without the reset the
   // field would ratchet taller and never come back down after a deletion.
-  useEffect(() => {
+  //
+  // A LAYOUT EFFECT, so the new height lands before paint. As a passive effect every
+  // keystroke that wrapped a line painted one frame at the old height — the text
+  // jumped inside a scrolling box, then the box jumped — and the thread above, whose
+  // height is whatever the composer leaves it, jumped with it.
+  //
+  // `scrollHeight` excludes the BORDER, and the field is `border-box`, so assigning
+  // it raw left every grown field 2px short of its content: a sliver of scroll and a
+  // scrollbar that flickered in on each new line. The border is added back.
+  useLayoutEffect(() => {
     const field = fieldRef.current;
     if (!field) return;
     field.style.height = '0px';
-    field.style.height = `${field.scrollHeight}px`;
+    const border = field.offsetHeight - field.clientHeight;
+    field.style.height = `${field.scrollHeight + border}px`;
   }, [draft]);
 
   useEffect(() => {

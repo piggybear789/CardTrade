@@ -19,8 +19,9 @@
 import { useRef, useState, useTransition, type ChangeEvent, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ImagePlusIcon, LoaderCircleIcon, TriangleAlertIcon, XIcon } from '@hugeicons/core-free-icons';
+import { ImagePlusIcon, TriangleAlertIcon, XIcon } from '@hugeicons/core-free-icons';
 
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -310,8 +311,9 @@ export function HandoverFailedDialog({
               disabled={reason.trim().length < REASON_MIN || isPending}
               aria-busy={isPending}
             >
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              {isPending ? 'Submitting…' : 'Freeze and report'}
+              <PendingLabel pending={isPending} pendingLabel="Submitting…">
+                Freeze and report
+              </PendingLabel>
             </Button>
           </DialogFooter>
         </form>

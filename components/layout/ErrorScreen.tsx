@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { reportError } from '@/lib/actions/errorReports';
@@ -158,7 +159,9 @@ export function ErrorScreen({
                   Cancel
                 </Button>
                 <Button type="submit" size="sm" disabled={isPending} aria-busy={isPending}>
-                  {isPending ? 'Sending…' : 'Send report'}
+                  <PendingLabel pending={isPending} pendingLabel="Sending…">
+                    Send report
+                  </PendingLabel>
                 </Button>
               </div>
             </div>

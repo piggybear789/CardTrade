@@ -22,7 +22,7 @@ export default function SavedLoading() {
       {/* No wrapper div: `saved/page.tsx` renders `SectionHeader` and
           `WatchlistSection` as direct children of the shell, so the div that used to be
           here was a node the real page does not have. */}
-      <SectionHeaderSkeleton hasMobileAction titleClassName="w-28" />
+      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-[9.5rem]" titleClassName="w-28" />
       <CatalogTileGridSkeleton count={8} />
     </MarketplaceShellSkeleton>
   );

@@ -27,11 +27,12 @@ import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { HandCoinsIcon, ImageOffIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { HandCoinsIcon, ImageOffIcon } from '@hugeicons/core-free-icons';
 
 import { Card } from '@/components/ui/card';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 import {
@@ -387,10 +388,7 @@ function OfferNegotiation({
                 aria-busy={isPending}
                 aria-haspopup="dialog"
               >
-                {isPending ? (
-                  <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                ) : null}
-                Accept
+                <PendingLabel pending={isPending}>Accept</PendingLabel>
               </Button>
               <ConfirmDialog
                 open={confirming === 'accept'}
@@ -454,10 +452,7 @@ function OfferNegotiation({
                 aria-busy={isPending}
                 aria-haspopup="dialog"
               >
-                {isPending ? (
-                  <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                ) : null}
-                Withdraw
+                <PendingLabel pending={isPending}>Withdraw</PendingLabel>
               </Button>
               <ConfirmDialog
                 open={confirming === 'withdraw'}
@@ -587,8 +582,10 @@ function CounterOfferDialog({
 
           <DialogFooter>
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              {isPending ? 'Sending…' : 'Send counter'}
+              {/* Width-stable: the spinner and "Sending…" used to resize the button. */}
+              <PendingLabel pending={isPending} pendingLabel="Sending…">
+                Send counter
+              </PendingLabel>
             </Button>
           </DialogFooter>
         </form>

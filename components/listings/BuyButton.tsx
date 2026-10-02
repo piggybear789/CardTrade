@@ -14,7 +14,7 @@ import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon, LoaderCircleIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
+import { CreditCardIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -23,6 +23,8 @@ import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
+import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
+import { PendingLabel } from '@/components/ui/pending-label';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
@@ -234,13 +236,23 @@ function PurchaseDialog({
       <DialogContent>
         {loading ? (
           <>
+            {/* THE CHECKOUT'S OWN HEADER, children and footer, with only the
+                card-dependent block standing in. This used to be a different
+                header ("Checking payment method" / "Please wait…") over the
+                card-ENTRY placeholder, so every open resized the dialog twice. */}
             <DialogHeader>
-              <DialogTitle>Checking payment method</DialogTitle>
-              <DialogDescription>Please wait…</DialogDescription>
+              <DialogTitle>Start a purchase contract</DialogTitle>
+              <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
-            <div role="status" aria-label="Checking your payment details">
-              <PaymentFormSkeleton />
+            <div className="space-y-group">
+              {children}
+              <CheckoutSummarySkeleton />
             </div>
+            <DialogFooter>
+              <Button type="button" disabled aria-hidden tabIndex={-1}>
+                {confirmLabel}
+              </Button>
+            </DialogFooter>
           </>
         ) : showCardForm ? (
           <>
@@ -317,8 +329,9 @@ function PurchaseDialog({
                 disabled={isPending}
                 aria-busy={isPending}
               >
-                {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-                {isPending ? 'Opening contract…' : confirmLabel}
+                <PendingLabel pending={isPending} pendingLabel="Opening contract…">
+                  {confirmLabel}
+                </PendingLabel>
               </Button>
             </DialogFooter>
           </>

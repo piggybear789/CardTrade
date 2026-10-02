@@ -1,6 +1,7 @@
 // app/(marketing)/loading.tsx
 //
-// Help, Terms, and Privacy are a single prose column.
+// Help, Terms, and Privacy are a single prose column. Safety is NOT — it opens on a
+// warning card and a role tab strip — so it has its own leaf loader beside its page.
 
 import { Fragment } from 'react';
 
@@ -22,7 +23,10 @@ export default function MarketingLoading() {
     <article
       // `py-section md:py-12`, matching `policy-article.tsx`. A flat `py-12` put an extra
       // 16px above and below the column on every phone.
-      className="mx-auto max-w-3xl px-6 py-section md:py-12 lg:px-section"
+      // `px-group sm:px-6`, matching `policy-article.tsx`. A bare `px-6` drew this
+      // column 16px narrower than the article on every phone, so every line of the
+      // placeholder rewrapped on swap.
+      className="mx-auto max-w-3xl px-group py-section sm:px-6 md:py-12 lg:px-section"
       role="status"
       aria-busy="true"
       aria-label="Loading"
@@ -38,16 +42,14 @@ export default function MarketingLoading() {
       <TextLines className="text-subhead md:text-head" widths={['w-40']} />
 
       {/* `mt-snug` (8px) and `text-body` below `md`, not `mt-cozy h-5`. Terms' and
-          Privacy's ledes both run past 120 characters, so they wrap here and fit on
-          one `md:text-lead` line once the column is wide. */}
-      <div className="mt-snug text-body md:mt-cozy md:text-lead">
-        <div>
-          <Skeleton className="inline-block h-[0.9em] w-full align-middle" />
-        </div>
-        <div className="md:hidden">
-          <Skeleton className="inline-block h-[0.9em] w-3/5 align-middle" />
-        </div>
-      </div>
+          Privacy's ledes run ~130 characters: three `text-body` lines in a phone's
+          343px column, and TWO `md:text-lead` lines in the ~704px desktop one — this
+          reserved one there, so both pages grew a line on swap. Help's shorter lede
+          now over-reserves instead; two of the three pages are the long shape. */}
+      <TextLines
+        className="mt-snug text-body md:mt-cozy md:text-lead"
+        widths={['w-full', 'w-full md:w-1/3', 'w-2/5 md:hidden']}
+      />
 
       {/* `mt-section space-y-group md:space-y-6`: 32px above, then 16px between every
           heading and paragraph below `md`. */}

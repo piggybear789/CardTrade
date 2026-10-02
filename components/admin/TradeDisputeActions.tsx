@@ -17,11 +17,12 @@
 
 import { useState, useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, ScaleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { ScaleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { resolveTradeConditionDispute, resolveTradeFraud } from '@/lib/actions/admin';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Label } from '@/components/ui/label';
 import { formatMoney } from '@/lib/format';
@@ -128,8 +129,7 @@ export function TradeDisputeActions({
           aria-haspopup="dialog"
           onClick={() => setConfirming('CONDITION')}
         >
-          {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-          Resolve as condition dispute
+          <PendingLabel pending={isPending}>Resolve as condition dispute</PendingLabel>
         </Button>
         <p className="mt-tight text-body text-muted-foreground">
           Captures {money(frictionTaxCents)} from the disputed-against trader and

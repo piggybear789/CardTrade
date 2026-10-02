@@ -9,9 +9,10 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
+import { TriangleAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Dialog,
   DialogContent,
@@ -130,8 +131,10 @@ export function ConfirmDialog({
             disabled={pending || confirmDisabled}
             aria-busy={pending}
           >
-            {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-            {confirmLabel}
+            {/* Width-stable: prepending the spinner widened the confirm button, and in
+                this right-aligned footer that slid Cancel sideways in every
+                ConfirmDialog in the app. */}
+            <PendingLabel pending={pending}>{confirmLabel}</PendingLabel>
           </Button>
         </DialogFooter>
       </DialogContent>

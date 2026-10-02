@@ -12,6 +12,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -248,34 +249,66 @@ export function ContractChat({
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [unseenCount, setUnseenCount] = useState(0);
   const logRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const previousCount = useRef(messages.length);
+  // Mirrors `isNearBottom` for the ResizeObserver below, which is created once and
+  // would otherwise read the value from its first render forever. Written where the
+  // state is written, not during render.
+  const isNearBottomRef = useRef(true);
 
   // Follow the newest message only while the reader is already near the
   // bottom; otherwise surface a "new messages" affordance instead of yanking
   // their scroll position (demo-contract-ux Req 1.5).
-  useEffect(() => {
+  //
+  // The PIN is a layout effect so it lands before paint: as a passive effect the room
+  // drew its history scrolled to the top for one frame when it arrived, then snapped to
+  // the newest message, and each live message painted below the fold before the log
+  // caught up with it. The read receipt stays passive — it is a network call, not
+  // layout, and has no business delaying a frame.
+  useLayoutEffect(() => {
     const added = messages.length - previousCount.current;
     previousCount.current = messages.length;
     const log = logRef.current;
     if (isNearBottom) {
-      log?.scrollTo({ top: log.scrollHeight });
+      if (log) log.scrollTop = log.scrollHeight;
       setUnseenCount(0);
     } else if (added > 0) {
       setUnseenCount((count) => count + added);
     }
+  }, [messages.length, isNearBottom]);
+
+  useEffect(() => {
     void markConversationRead(conversationId);
   }, [conversationId, messages.length, isNearBottom]);
+
+  // Keep the pin through size changes that are not new messages: signed attachment
+  // URLs resolving inside bubbles that have already mounted, and the log's own box
+  // shrinking when the composer grows a line or the action dock changes height. Without
+  // this the newest entry slid under the dock with nothing to bring it back.
+  useEffect(() => {
+    const log = logRef.current;
+    const content = contentRef.current;
+    if (!log || !content || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (isNearBottomRef.current) log.scrollTop = log.scrollHeight;
+    });
+    observer.observe(content);
+    observer.observe(log);
+    return () => observer.disconnect();
+  }, []);
 
   function handleLogScroll(event: UIEvent<HTMLDivElement>) {
     const log = event.currentTarget;
     const distanceFromBottom = log.scrollHeight - log.scrollTop - log.clientHeight;
     const nearBottom = distanceFromBottom <= FOLLOW_THRESHOLD_PX;
+    isNearBottomRef.current = nearBottom;
     setIsNearBottom(nearBottom);
     if (nearBottom) setUnseenCount(0);
   }
 
   function scrollToLatest() {
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: 'smooth' });
+    isNearBottomRef.current = true;
     setIsNearBottom(true);
     setUnseenCount(0);
   }
@@ -347,17 +380,41 @@ export function ContractChat({
           aria-live={historyReady ? 'polite' : 'off'}
           aria-busy={!historyReady}
         >
-          <MessageLog
-            conversationId={conversationId}
-            messages={messages}
-            currentUserId={currentUserId}
-            counterpartyName={counterpartyName}
-            counterpartyAvatarPath={counterpartyAvatarPath}
-            emptyHint={emptyHint}
-            shipment={shipment}
-            saleContext={saleContext}
-            showNames
-          />
+          {/* NOTHING UNTIL THE HISTORY HAS LOADED. This hook reads history on the
+              client, so for the first round trip `messages` is empty — and the log
+              used to say so, drawing the empty-thread hint ("Use chat to
+              coordinate…") into a room that may hold fifty messages, then swapping
+              it for the transcript. A blank log for that moment is honest; an empty
+              state is a claim that turns out false.
+
+              `|| messages.length > 0`, not `historyReady` alone: the hook renders the
+              fetched backlog one task BEFORE it flips `historyReady`, so the backlog
+              lands while `aria-live` is still off. Gating on the flag alone would mount
+              the whole transcript in the same commit that turns announcements on.
+
+              The wrapper is what the ResizeObserver above watches, and it centres
+              the genuine empty hint the way `ChatThread`'s column does. */}
+          <div
+            ref={contentRef}
+            className={cn(
+              'flex min-h-full flex-col',
+              messages.length === 0 && 'justify-center',
+            )}
+          >
+            {historyReady || messages.length > 0 ? (
+              <MessageLog
+                conversationId={conversationId}
+                messages={messages}
+                currentUserId={currentUserId}
+                counterpartyName={counterpartyName}
+                counterpartyAvatarPath={counterpartyAvatarPath}
+                emptyHint={emptyHint}
+                shipment={shipment}
+                saleContext={saleContext}
+                showNames
+              />
+            ) : null}
+          </div>
         </div>
         {!isNearBottom && unseenCount > 0 ? (
           <button

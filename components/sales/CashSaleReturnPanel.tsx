@@ -33,6 +33,7 @@ import { InspectionCountdown, RecordShipmentDialog } from '@/components/fulfilme
 import { PlacePicker, type PlaceValue } from '@/components/location';
 import { HandoverFailedDialog } from '@/components/fulfilment/HandoverFailedDialog';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { formatMoney } from '@/lib/format';
 
 export interface CashSaleReturnPanelProps {
@@ -194,7 +195,7 @@ export function CashSaleReturnPanel({
             required
           />
           <Button onClick={onSaveAddress} disabled={!address || pending} className="w-full">
-            {pending ? 'Saving…' : 'Save return address'}
+            <PendingLabel pending={pending}>Save return address</PendingLabel>
           </Button>
         </div>
       ) : null}

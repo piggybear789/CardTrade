@@ -127,12 +127,6 @@ export function IdentityCheckCard({
           </p>
         ) : null}
 
-        {error ? (
-          <p role="alert" className="text-body text-destructive">
-            {error}
-          </p>
-        ) : null}
-
         <Button type="button" onClick={start} disabled={isPending} aria-busy={isPending}>
           {isPending ? (
             <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
@@ -141,6 +135,14 @@ export function IdentityCheckCard({
           )}
           {status === 'NONE' ? 'Verify with Stripe' : 'Try again'}
         </Button>
+
+        {/* Below the button, so a failed start does not push the retry out from under
+            the pointer that pressed it. */}
+        {error ? (
+          <p role="alert" className="text-body text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <p className="text-body text-muted-foreground">
           One step on Stripe&apos;s pages, with a photo ID and a selfie — NoDitto never

@@ -43,20 +43,22 @@ export function FeeInfoPopover({
       >
         <HugeiconsIcon icon={InformationCircleIcon} className="size-4" aria-hidden />
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 text-body">
+      {/* w-80 so a six-figure amount and "NoDitto fee (5%, min $1.50)" share one
+          line; capped to the viewport so it never overflows a narrow phone. */}
+      <PopoverContent align="start" className="w-80 max-w-[calc(100vw-2rem)] text-body">
         <p className="font-medium text-foreground">This price includes the NoDitto fee</p>
         <dl className="mt-snug space-y-tight text-muted-foreground">
           <div className="flex justify-between gap-cozy">
             <dt>Seller&apos;s price</dt>
-            <dd className="tabular-nums">{priceText}</dd>
+            <dd className="whitespace-nowrap tabular-nums">{priceText}</dd>
           </div>
           <div className="flex justify-between gap-cozy">
             <dt>NoDitto fee ({rateLabel})</dt>
-            <dd className="tabular-nums">{feeText}</dd>
+            <dd className="whitespace-nowrap tabular-nums">{feeText}</dd>
           </div>
           <div className="flex justify-between gap-cozy border-t pt-tight font-medium text-foreground">
             <dt>You pay</dt>
-            <dd className="tabular-nums">{totalText}</dd>
+            <dd className="whitespace-nowrap tabular-nums">{totalText}</dd>
           </div>
         </dl>
         <p className="mt-snug text-meta text-muted-foreground">

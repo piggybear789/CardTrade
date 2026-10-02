@@ -12,18 +12,23 @@
 // separate, explicit opt-in and never a side effect of committing the contract.
 //
 // It surfaces the requirement BEFORE commitment: the list loads immediately and the
-// picker is always visible, so "you need a delivery address" is stated up front rather
-// than arriving as a late save error.
+// field's label and hint are on screen from the first paint, so "you need a delivery
+// address" is stated up front rather than arriving as a late save error.
 
 import { useEffect, useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { listMyAddresses, saveAddress, type SavedAddress } from '@/lib/actions/addresses';
+import {
+  readAddressBook,
+  rememberAddressBook,
+  resetAddressBookCache,
+} from '@/lib/addresses/addressBookCache';
 import { PlacePicker, type PlaceValue } from '@/components/location';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Label } from '@/components/ui/label';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 /** True for a place the server would accept: resolved, with real coordinates. */
@@ -46,6 +51,13 @@ function toPlace(address: SavedAddress): PlaceValue {
     countryCode: address.countryCode,
     precision: 'exact',
   };
+}
+
+/** Test seam: forget the remembered book between cases. */
+export const resetSavedAddressCache = resetAddressBookCache;
+
+function preferredOf(book: readonly SavedAddress[]): SavedAddress | undefined {
+  return book.find((a) => a.isDefault) ?? book[0];
 }
 
 export interface SavedAddressFieldProps {
@@ -76,38 +88,57 @@ export function SavedAddressField({
   disabled = false,
   prefillDefault = false,
 }: SavedAddressFieldProps) {
-  const [addresses, setAddresses] = useState<SavedAddress[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [addresses, setAddresses] = useState<SavedAddress[]>(() => readAddressBook() ?? []);
+  const [loaded, setLoaded] = useState(() => readAddressBook() !== null);
   const [saveToBook, setSaveToBook] = useState(false);
   const [saving, startSaving] = useTransition();
+  // Whether the default has been offered upward yet. Once, so a member who then
+  // clears the selection is not overruled by the next render.
+  const [prefillDone, setPrefillDone] = useState(!prefillDefault);
+
+  // THE PREFILL IS RENDERED BEFORE IT IS REPORTED. The parent learns of it from the
+  // effect below, one render late; drawing that render with no selection showed the
+  // address search for a frame and then hid it, which was the field collapsing under
+  // the member. So the default stands in for `value` until the parent catches up.
+  const pendingPrefill =
+    !prefillDone && !value && loaded ? preferredOf(addresses) : undefined;
+  const shown = value ?? (pendingPrefill ? toPlace(pendingPrefill) : null);
 
   useEffect(() => {
     let cancelled = false;
-    void listMyAddresses().then((result) => {
-      if (cancelled) return;
-      if (result.ok) {
-        setAddresses(result.data);
-        if (prefillDefault && !value) {
-          const preferred = result.data.find((a) => a.isDefault) ?? result.data[0];
-          if (preferred) onChange(toPlace(preferred));
+    void listMyAddresses()
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          rememberAddressBook(result.data);
+          setAddresses(result.data);
         }
-      }
-      setLoaded(true);
-    });
+      })
+      // A failed read must still release the placeholder, or the field never appears.
+      .finally(() => {
+        if (!cancelled) setLoaded(true);
+      });
     return () => {
       cancelled = true;
     };
-    // Load once on mount. `value`/`onChange` are intentionally excluded so a parent
-    // re-render cannot re-run the prefill and clobber an in-progress edit.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Load (or revalidate) once on mount.
   }, []);
+
+  useEffect(() => {
+    if (prefillDone || !loaded) return;
+    setPrefillDone(true);
+    if (!value && pendingPrefill) onChange(toPlace(pendingPrefill));
+    // `value`/`onChange` intentionally excluded: the prefill runs once, and a parent
+    // re-render must not re-run it and clobber an in-progress edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, prefillDone, pendingPrefill]);
 
   // Which saved address, if any, the current selection matches. Drives the radio
   // list's checked state and lets "new address" be distinguished from a saved one.
   const selectedId = addresses.find(
-    (a) => a.placeId === value?.placeId,
+    (a) => a.placeId === shown?.placeId,
   )?.id;
-  const isNewSelection = Boolean(value) && !selectedId;
+  const isNewSelection = Boolean(shown) && !selectedId;
 
   function saveEntered() {
     if (!isResolved(value)) return;
@@ -129,12 +160,39 @@ export function SavedAddressField({
       toast.success('Address saved to your account.');
       setSaveToBook(false);
       const refreshed = await listMyAddresses();
-      if (refreshed.ok) setAddresses(refreshed.data);
+      if (refreshed.ok) {
+        rememberAddressBook(refreshed.data);
+        setAddresses(refreshed.data);
+      }
     });
   }
 
   return (
     <div className="space-y-cozy">
+      {/* HOLD THE FIELD'S SHAPE UNTIL THE BOOK HAS LOADED. The picker used to render
+          straight away and the saved list arrived a beat later ABOVE it — and when a
+          default was prefilled the picker then vanished, so a member who had already
+          started typing watched the field they were typing into slide down and
+          disappear. The label and hint are real text, so the requirement is still
+          stated up front; only the input is a placeholder, at `Input`'s own height. */}
+      {!loaded ? (
+        <div className="space-y-snug" aria-busy="true">
+          <span className="text-body font-medium leading-none">
+            {label}
+            <span className="text-destructive"> *</span>
+          </span>
+          <Skeleton className="h-9 w-full md:h-8" />
+          {hint && !error ? (
+            <p className="text-body text-muted-foreground">{hint}</p>
+          ) : null}
+          {error ? (
+            <p role="alert" className="text-body text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {loaded && addresses.length > 0 ? (
         <fieldset className="space-y-snug">
           <legend className="text-body font-medium">Choose a saved address</legend>
@@ -197,7 +255,7 @@ export function SavedAddressField({
         </fieldset>
       ) : null}
 
-      {addresses.length === 0 || isNewSelection || !selectedId ? (
+      {loaded && (addresses.length === 0 || isNewSelection || !selectedId) ? (
         <>
           <PlacePicker
             id={id}
@@ -238,10 +296,7 @@ export function SavedAddressField({
                   disabled={disabled || saving}
                   aria-busy={saving}
                 >
-                  {saving ? (
-                    <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-                  ) : null}
-                  Save
+                  <PendingLabel pending={saving}>Save</PendingLabel>
                 </Button>
               ) : null}
             </div>

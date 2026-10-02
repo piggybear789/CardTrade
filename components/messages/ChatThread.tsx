@@ -7,7 +7,7 @@
 // a new contract event arrives. Contract threads read as an ordered ledger above
 // the human chat, while listing enquiries keep the familiar bottom-anchored flow.
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -181,7 +181,13 @@ export function ChatThread({
 
   // Keep scrolling scoped to the log. A short contract ledger remains top-aligned
   // because it has no overflow; a long thread still opens at its newest message.
-  useEffect(() => {
+  //
+  // A LAYOUT EFFECT, NOT A PASSIVE ONE. `useEffect` runs after the browser has painted,
+  // so a client navigation into a long thread drew it scrolled to the TOP for one frame
+  // and then snapped to the newest message — and every incoming message painted one
+  // frame below the fold before the pin caught up. Pinning before paint means the
+  // first frame the reader sees is already the right one.
+  useLayoutEffect(() => {
     const log = logRef.current;
     if (!log) return;
     if (!didPositionRef.current || isNearBottomRef.current) {
@@ -192,6 +198,11 @@ export function ChatThread({
 
   // Signed attachment URLs resolve after their rows mount. Preserve the bottom
   // pin through those intrinsic-content changes only while following the latest.
+  //
+  // THE LOG IS OBSERVED AS WELL AS ITS CONTENT. The content does not change size when
+  // the BOX around it shrinks — the composer growing a line, an attachment chip or a
+  // send error appearing above the field, the phone keyboard resizing the viewport —
+  // and each of those cut the newest message off the bottom with nothing to re-pin it.
   useEffect(() => {
     const log = logRef.current;
     const content = contentRef.current;
@@ -200,6 +211,7 @@ export function ChatThread({
       if (isNearBottomRef.current) log.scrollTop = log.scrollHeight;
     });
     observer.observe(content);
+    observer.observe(log);
     return () => observer.disconnect();
   }, []);
 

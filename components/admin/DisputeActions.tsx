@@ -23,12 +23,13 @@
 
 import { useState, useTransition } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, ScaleIcon } from '@hugeicons/core-free-icons';
+import { ScaleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { resolveCashSaleDispute } from '@/lib/actions/admin';
 import type { CashSaleDisputeOutcome } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
@@ -202,8 +203,7 @@ export function DisputeActions({
           aria-haspopup="dialog"
           onClick={() => setConfirming('REFUND_BUYER')}
         >
-          {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-          Refund buyer in full
+          <PendingLabel pending={isPending}>Refund buyer in full</PendingLabel>
         </Button>
         <Button
           type="button"

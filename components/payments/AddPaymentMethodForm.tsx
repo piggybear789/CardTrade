@@ -202,12 +202,6 @@ function CardSetupFields({
         />
       </div>
 
-      {error ? (
-        <p role="alert" className="text-body text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       <Button type="submit" disabled={busy} aria-busy={busy} className="w-full">
         {busy ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
         {!ready ? 'Loading secure checkout…' : isPending ? 'Saving…' : (
@@ -217,6 +211,14 @@ function CardSetupFields({
           </>
         )}
       </Button>
+
+      {/* Below the submit, so a declined card does not push the button down out from
+          under the pointer that pressed it. */}
+      {error ? (
+        <p role="alert" className="text-body text-destructive">
+          {error}
+        </p>
+      ) : null}
 
       <ProcessorNote />
     </form>

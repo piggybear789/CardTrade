@@ -7,7 +7,8 @@
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, PencilIcon } from '@hugeicons/core-free-icons';
+import { PencilIcon } from '@hugeicons/core-free-icons';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -318,8 +319,9 @@ export function CashSaleTermsDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={pending} aria-busy={pending}>
-              {pending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
-              {pending ? 'Saving…' : sale.fulfillment_method ? 'Save changes' : 'Propose terms'}
+              <PendingLabel pending={pending} pendingLabel="Saving…">
+                {sale.fulfillment_method ? 'Save changes' : 'Propose terms'}
+              </PendingLabel>
             </Button>
           </DialogFooter>
         </form>

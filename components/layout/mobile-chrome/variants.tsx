@@ -14,6 +14,7 @@ import { hierarchicalBackHref } from '@/components/layout/mobile-chrome/routes';
 import { ShareListingButton } from '@/components/listings/ShareListingButton';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   getListingChrome,
   getListingChromeServerSnapshot,
@@ -65,6 +66,13 @@ export function ListingDetailChrome({
           appearance="icon-only"
           triggerClassName="size-10 rounded-full text-foreground hover:bg-foreground/5 md:size-10 [&_svg]:size-4"
         />
+      ) : isAuthenticated && listing == null ? (
+        // RESERVE THE REPORT SLOT until the page publishes. The server snapshot is
+        // null, so without this the icon arrived after hydration and squeezed the
+        // search pill sideways for every signed-in viewer. Most of them are not the
+        // owner, so holding the slot is the likelier outcome; an owner sees it
+        // collapse once, which is the rarer shift.
+        <span aria-hidden className="size-10 shrink-0" />
       ) : null}
       <ShareListingButton className="size-10 [&_svg]:size-4" />
     </MobileChromeFrame>
@@ -137,7 +145,25 @@ function ItemFormChrome({
           aria-busy={chrome.submitting}
           className="shrink-0"
         >
-          {chrome.submitting ? 'Saving…' : chrome.label}
+          {/* BOTH LABELS OCCUPY ONE GRID CELL, so the button is as wide as the
+              longer of the two whichever is showing. "Saving…" is narrower than
+              "Create listing", and the right-aligned button used to shrink on tap,
+              sliding its own left edge and re-truncating the title beside it at
+              the moment the member was watching it. */}
+          <span className="grid">
+            <span
+              className={cn('col-start-1 row-start-1', chrome.submitting && 'invisible')}
+              aria-hidden={chrome.submitting || undefined}
+            >
+              {chrome.label}
+            </span>
+            <span
+              className={cn('col-start-1 row-start-1', !chrome.submitting && 'invisible')}
+              aria-hidden={!chrome.submitting || undefined}
+            >
+              Saving…
+            </span>
+          </span>
         </Button>
       ) : null}
     </MobileChromeFrame>

@@ -112,6 +112,11 @@ function readDraft(): ItemFormDraftFields | null {
   }
 }
 
+/** Whether a restorable draft is stored. Client only; `false` on the server. */
+export function hasItemFormDraft(): boolean {
+  return readDraft() !== null;
+}
+
 /** Remove any stored draft. Safe to call when there is none. */
 export function clearItemFormDraft(): void {
   if (typeof window === 'undefined') return;

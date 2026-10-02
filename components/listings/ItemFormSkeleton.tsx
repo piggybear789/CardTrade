@@ -28,7 +28,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
     // means the placeholder stops at 832px and the real card then jumps taller.
     // `clip` rather than `hidden` for the same reason the form gives: `hidden` makes
     // this a scroll container on both axes.
-    <Card className="mx-auto w-full min-w-0 max-w-7xl overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
       {/* `max-md:hidden` in create mode, matching `ItemForm`: on `/listings/new`
           the title lives in the phone chrome, so a header drawn here is ~80px of
           card that never resolves to anything. */}
@@ -52,7 +52,12 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           to `minmax(0, 1fr)` so it tracks the card's width rather than its
           content, keeping the placeholder the same width as the form it stands in
           for. */}
-      <CardContent className="grid grid-cols-1 gap-5 lg:contents">
+      {/* `max-md:pt-group` in create mode, matching `ItemForm`: with the header hidden
+          below `md`, the form restores the top padding `CardHeader` would otherwise
+          supply. Without it here the whole phone placeholder sat 16px high. */}
+      <CardContent
+        className={cn('grid grid-cols-1 gap-5 lg:contents', isCreate && 'max-md:pt-group')}
+      >
         {/* Photos panel */}
         {/* `lg:bg-card` and the cover's aspect ratio both mirror ItemForm: the
             panel used to paint `lg:bg-muted`, so it visibly changed colour on
@@ -60,8 +65,10 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             `aspect-[16/10] max-h-[22svh]` — a large jump on phones. */}
         {/* `flex flex-col gap-*`, matching the form's column — it moved off `space-y`
             and onto `gap`, and to `group` (16px) at `lg`. A 12px rhythm here against a
-            16px one there shifts every element below the label on swap. */}
-        <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:gap-group lg:bg-card lg:p-section">
+            16px one there shifts every element below the label on swap.
+            `lg:min-h-0 lg:overflow-hidden` are the form's too: they are what let the
+            photo row below take the panel's remainder rather than its content height. */}
+        <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
           {/* The `Photos` label, a 14px `leading-none` `Label`. It was `h-4`, which
               is 16px against a 14px line.
               
@@ -71,33 +78,35 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               on swap. */}
           <TextLines className="text-body leading-none" widths={['w-16']} />
 
-          {/* COVER AND FILMSTRIP SIDE BY SIDE BELOW `lg`, stacked from `lg` — the
-              shape `ItemForm` now uses, via the same `lg:contents` trick so this
-              wrapper dissolves on desktop.
-              
-              The row carries the aspect ratio, exactly as the form does: `15/14` once
-              there is a photo, because the cover takes two thirds of the row and a
-              card is about 5:7. With no photo the form falls back to a full-width
-              `16/10` target with a `22svh` cap, so create keeps that.
-              
+          {/* ONE LAYOUT AT EVERY WIDTH, as `ItemForm` now draws it: the cover in the
+              left two thirds and the other photos stacked down the right third, two to
+              the column, each exactly half its height.
+
+              THE ROW OWNS THE HEIGHT. Below `lg` it is an aspect ratio — `15/14` once
+              there is a photo, a full-width `16/10` capped at `22svh` with none — and
+              from `lg` it is the flex child that takes the panel's remainder
+              (`lg:flex-1 lg:min-h-0 lg:aspect-auto`). `grid-rows-[minmax(0,1fr)]` hands
+              that height to both cells.
+
+              This placeholder used to dissolve the row with `lg:contents` and draw an
+              eight-up strip of squares UNDER the cover — the form's previous desktop
+              layout — so on every desktop edit the cover shrank and the thumbnails
+              jumped from beneath it to beside it on swap.
+
               CREATE HAS NO FILMSTRIP. `ItemForm` renders it only when
-              `totalImages > 0`, which on create is never true, so drawing one here
-              reserved a thumbnail row above fields that then jumped up. */}
+              `totalImages > 0`, which on create is never true. */}
           {isCreate ? (
-            <div className="grid aspect-[16/10] max-h-[22svh] grid-cols-1 gap-cozy lg:contents lg:aspect-auto">
-              <Skeleton className="h-full w-full rounded-lg lg:h-auto lg:min-h-[10rem] lg:flex-1" />
+            <div className="grid aspect-[16/10] max-h-[22svh] grid-cols-1 grid-rows-[minmax(0,1fr)] gap-cozy lg:aspect-auto lg:max-h-none lg:min-h-0 lg:flex-1">
+              <Skeleton className="h-full min-h-0 w-full rounded-lg" />
             </div>
           ) : (
-            <div className="grid aspect-[15/14] grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-cozy lg:contents lg:aspect-auto">
-              <Skeleton className="h-full w-full rounded-lg lg:h-auto lg:min-h-[10rem] lg:flex-1" />
-              {/* One column of card-shaped tiles beside the cover; eight small square
-                  ones from `lg`, matching the real strip's `lg:grid-cols-8`. */}
-              <div className="grid h-full grid-cols-1 content-start gap-snug lg:h-auto lg:grid-cols-8 lg:content-normal">
+            <div className="grid aspect-[15/14] grid-cols-[minmax(0,2fr)_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] gap-cozy lg:aspect-auto lg:max-h-none lg:min-h-0 lg:flex-1">
+              <Skeleton className="h-full min-h-0 w-full rounded-lg" />
+              {/* `auto-rows-[calc(50%_-_0.25rem)]`, the real strip's: two tiles fill
+                  the column edge to edge whatever its height. */}
+              <div className="grid h-full min-h-0 auto-rows-[calc(50%_-_0.25rem)] grid-cols-1 content-start gap-snug overflow-hidden">
                 {Array.from({ length: 2 }, (_, index) => (
-                  <Skeleton
-                    key={index}
-                    className="aspect-[5/7] w-full rounded-md lg:aspect-square"
-                  />
+                  <Skeleton key={index} className="min-h-0 w-full rounded-md" />
                 ))}
               </div>
             </div>
@@ -118,7 +127,11 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               `p-snug md:p-cozy` rather than a measured height, so they follow
               the real tile across the breakpoint on their own. */}
           <div className="space-y-snug">
-            <TextLines className="text-body leading-none" widths={['w-40']} />
+            {/* `mb-snug` is the real `<legend>`'s own margin. A rendered legend sits
+                outside the fieldset's content box, so its margin does NOT collapse
+                with the tile grid's `space-y` margin — the gap is 16px, not 8. Padding
+                here, not margin, because between two plain divs it WOULD collapse. */}
+            <TextLines className="pb-snug text-body leading-none" widths={['w-40']} />
             <div className="grid grid-cols-2 gap-snug">
               {Array.from({ length: 2 }, (_, index) => (
                 <div

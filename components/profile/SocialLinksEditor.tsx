@@ -13,7 +13,7 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, LoaderCircleIcon, PlusIcon, XIcon } from '@hugeicons/core-free-icons';
+import { CheckIcon, PlusIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { updateSocialLinks } from '@/lib/actions/socialLinks';
 import {
@@ -28,6 +28,7 @@ import {
 import { SettingsPlaceholder } from '@/components/account/SettingsPrimitives';
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import {
   Popover,
   PopoverContent,
@@ -177,23 +178,30 @@ export function SocialLinksEditor({
     <AddPlatformControl remaining={remaining} onAdd={add} disabled={isPending} />
   );
 
-  const saveButton =
-    dirty || justSaved ? (
-      <Button
-        type="button"
-        size="sm"
-        onClick={save}
-        disabled={isPending || !dirty || hasIssue}
-        aria-busy={isPending}
-      >
-        {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-        ) : justSaved ? (
-          <HugeiconsIcon icon={CheckIcon} aria-hidden />
-        ) : null}
-        {justSaved && !dirty ? 'Saved' : 'Save links'}
-      </Button>
-    ) : null;
+  // ALWAYS RENDERED, disabled until there is something to save — as `ProfileBioEditor`
+  // does. Mounting it only while dirty or just-saved meant it vanished on a timer two
+  // seconds after a save, and everything under it rose by a button's height with
+  // nothing pressed. The label is width-stable across resting, saving and "Saved".
+  const saveButton = (
+    <Button
+      type="button"
+      size="sm"
+      onClick={save}
+      disabled={isPending || !dirty || hasIssue}
+      aria-busy={isPending}
+    >
+      <PendingLabel pending={isPending} pendingLabel="Save links">
+        {justSaved && !dirty ? (
+          <>
+            <HugeiconsIcon icon={CheckIcon} aria-hidden />
+            Saved
+          </>
+        ) : (
+          'Save links'
+        )}
+      </PendingLabel>
+    </Button>
+  );
 
   if (visible.length === 0) {
     return (
@@ -201,7 +209,9 @@ export function SocialLinksEditor({
         <SettingsPlaceholder action={addControl}>
           None yet.
         </SettingsPlaceholder>
-        {saveButton}
+        {/* Only after removing the last link: a disabled Save under "None yet." is a
+            control with nothing it could ever do from here. */}
+        {dirty || justSaved ? saveButton : null}
       </div>
     );
   }

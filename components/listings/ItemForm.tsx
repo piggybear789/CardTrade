@@ -125,6 +125,12 @@ export interface ItemFormProps {
   mode: "create" | "edit";
   /** The existing item to edit; required when `mode === "edit"`. */
   item?: ItemRow;
+  /**
+   * Create mode: where this seller's most recent listing is based, read server-side.
+   * Prefills "Based near" so a seller who always trades from the same suburb does not
+   * search for it on every listing. Lowest priority — a restored draft's place wins.
+   */
+  defaultLocation?: PlaceValue | null;
 }
 
 /**
@@ -214,6 +220,7 @@ export function ItemForm(props: ItemFormProps) {
 function ItemFormInner({
   mode,
   item,
+  defaultLocation = null,
   restoreDraft,
   draftDecided,
 }: ItemFormProps & { restoreDraft: boolean; draftDecided: boolean }) {
@@ -254,8 +261,16 @@ function ItemFormInner({
     item ? centsToDollars(item.fmv_cents) : (restored?.fmvDollars ?? ""),
   );
   const [location, setLocation] = React.useState<PlaceValue | null>(() =>
-    item ? placeFromItem(item) : ((restored?.location as PlaceValue | null) ?? null),
+    item
+      ? placeFromItem(item)
+      : ((restored?.location as PlaceValue | null) ?? defaultLocation),
   );
+  // Still showing the prefilled place, untouched. Drives the "from your last listing"
+  // hint, and keeps the prefill out of the session draft (below).
+  const locationIsDefault =
+    mode === "create" &&
+    defaultLocation != null &&
+    location?.placeId === defaultLocation.placeId;
 
   // Whether anything was actually brought back, so the form can SAY so. A restored form
   // that silently differs from the empty one it looks like is its own small confusion —
@@ -328,7 +343,10 @@ function ItemFormInner({
       condition,
       listingKind,
       fmvDollars,
-      location,
+      // THE PREFILL IS NOT INPUT. Counted as a draft, a seller who opened the form and
+      // left would come back to "We kept what you had typed" over a form they never
+      // typed in. It comes back from the server on the next visit anyway.
+      location: locationIsDefault ? null : location,
     },
     // `draftDecided`: never write before the restore decision is made, or the empty
     // hydration render would CLEAR the stored draft before it could be restored.
@@ -730,42 +748,47 @@ function ItemFormInner({
                 where a member actually needs to read it. */}
             <Label htmlFor="images">Photos</Label>
 
-            {/* ONE LAYOUT AT EVERY WIDTH: the cover in the left two thirds, the other
-                photos stacked down the right third, two to the column, each exactly
-                half its height. Desktop used to run the extra photos as a row of
-                ~96px squares UNDER the cover, which left the panel's height to the
-                cover alone and made the additional photos an afterthought; the
-                stacked column uses the whole height and reads as a gallery.
+            {/* TWO LAYOUTS, SPLIT AT `lg`.
 
-                THE ROW OWNS THE HEIGHT, so both sides are the same height by
-                construction rather than by one of them winning. Below `lg` that is an
-                aspect ratio: `aspect-[15/14]` is derived, not picked — the cover takes
-                two thirds of the row, a trading card is about 5:7, so a card-shaped
-                cover wants a height of (2/3 x width) x 1.4 = 0.93 x width, and the ROW
-                comes out roughly 15:14. An aspect ratio resolves against WIDTH, which
-                is definite, so the row height never depends on how much content
-                either side has. From `lg` the panel has a FIXED height (see the Card),
-                so the row is the flex child that takes the remainder instead:
-                `lg:flex-1 lg:min-h-0 lg:aspect-auto`. Either way the row is a definite
-                height and `grid-rows-[minmax(0,1fr)]` hands it to both cells, which is
-                what lets the strip's percentage rows below resolve.
+                From `lg`: the cover in the left two thirds, every photo stacked down the
+                right third, two to the column, each exactly half its height. The panel
+                has a FIXED height there (see the Card), so the row is the flex child that
+                takes the remainder (`lg:flex-1`) and `lg:grid-rows-[minmax(0,1fr)]`
+                hands that definite height to both cells, which is what lets the strip's
+                percentage rows resolve. Past two photos the column scrolls.
 
-                `grid-cols-1` when there are no photos yet — otherwise the empty drop
-                target would sit in two thirds of the row with a dead column beside it.
-                `lg:max-h-none` lets the empty target take the desktop panel too. */}
+                Below `lg`: the cover full width, and the photos as a WRAPPING grid of
+                small squares under it. The phone used to run the desktop layout too,
+                and with a third of a ~330px row to work in each tile was ~125x165px, so
+                only two photos were ever visible and the rest sat below an internal
+                scroll with nothing saying they were there. Five to a row, ten photos
+                plus the add tile is three rows of ~60px squares: every photo on screen
+                at once.
+
+                `grid-cols-1` when there are no photos yet, at every width — otherwise the
+                desktop drop target would sit in two thirds of the row with a dead column
+                beside it. The empty state's height is an aspect ratio capped at `22svh`;
+                `lg:max-h-none lg:aspect-auto` lets it take the desktop panel instead.
+
+                `min-h-0` AT EVERY WIDTH. This row is a flex item in a column, and a flex
+                item's automatic minimum height is its CONTENT height, which beats an
+                aspect ratio — a tall phone photo once stretched the whole row to ~3x
+                its intended height. */}
             <div
-              className={`grid grid-rows-[minmax(0,1fr)] gap-cozy lg:aspect-auto lg:max-h-none lg:min-h-0 lg:flex-1${
+              className={`grid min-h-0 grid-cols-1 gap-cozy lg:aspect-auto lg:max-h-none lg:flex-1 lg:grid-rows-[minmax(0,1fr)]${
                 totalImages > 0
-                  ? " aspect-[15/14] grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
-                  : " aspect-[16/10] max-h-[22svh] grid-cols-1"
+                  ? " lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+                  : " aspect-[16/10] max-h-[22svh]"
               }`}
             >
             {/* Large cover preview / empty drop target. Clicking it opens the
                 file picker, same affordance as the add tile in the strip beside it.
 
-                `h-full min-h-0` and nothing about its own size: the row above decides
-                the height and this fills its cell. The image is `object-contain`
-                throughout, so nothing crops. */}
+                Empty, or from `lg`: `h-full min-h-0` and nothing about its own size —
+                the row above decides the height and this fills its cell. With photos
+                below `lg` the row has no height of its own (it is the cover plus the
+                thumbnail grid stacked), so the cover carries an `aspect-[4/3]`. The image
+                is `object-contain` throughout, so nothing crops. */}
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -780,7 +803,7 @@ function ItemFormInner({
               // this form wears, at the 3:1 SC 1.4.11 wants. The dashes were carrying
               // "drop a file here" on a button that says "Add photos" in words directly
               // beneath the icon, and at 2px they were the heaviest line on the page.
-              className={`flex h-full min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-accent focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
+              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-accent focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
               // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
               //
               // With no photo the button's own words ("Add photos", below) are its
@@ -852,7 +875,10 @@ function ItemFormInner({
             {/* Filmstrip of every selected photo, including the cover, so each
                 one can be removed individually, plus the add tile while there is room.
 
-                TWO TILES TALL, ALWAYS. `auto-rows-[calc(50%_-_0.25rem)]` makes every
+                BELOW `lg`: a wrapping grid of `aspect-square` tiles, five to a row
+                (six from `sm`), sized by WIDTH. Nothing scrolls and nothing hides.
+
+                FROM `lg`, TWO TILES TALL. `lg:auto-rows-[calc(50%_-_0.25rem)]` makes every
                 row exactly half the strip's height less half the `gap-snug` (0.5rem)
                 between them, so two tiles fill the column edge to edge and a third
                 starts below the fold: the strip scrolls for the rest. The tiles used to
@@ -867,13 +893,13 @@ function ItemFormInner({
                 a single photo the strip holds that photo and the add tile, and with ten
                 it holds eleven tiles that scroll; neither wants distributing. */}
             {totalImages > 0 ? (
-              <ul className="grid h-full min-h-0 auto-rows-[calc(50%_-_0.25rem)] grid-cols-1 content-start gap-snug overflow-y-auto">
+              <ul className="grid grid-cols-5 gap-snug sm:grid-cols-6 lg:h-full lg:min-h-0 lg:auto-rows-[calc(50%_-_0.25rem)] lg:grid-cols-1 lg:content-start lg:overflow-y-auto">
                 {keptPaths.map((path) => {
                   const url = itemImageUrl(path);
                   return (
                     <li
                       key={path}
-                      className="group relative min-h-0 overflow-hidden rounded-md border bg-muted"
+                      className="group relative aspect-square min-h-0 overflow-hidden rounded-md border bg-muted lg:aspect-auto"
                     >
                       {url ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -894,10 +920,10 @@ function ItemFormInner({
                         type="button"
                         onClick={() => removeKeptPath(path)}
                         disabled={isSubmitting}
-                        className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-iris/60 md:size-8"
+                        className="group/remove absolute right-0 top-0 grid size-8 place-items-center focus:outline-none"
                         aria-label="Remove image"
                       >
-                        <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+                        <RemoveMark />
                       </button>
                     </li>
                   );
@@ -905,7 +931,7 @@ function ItemFormInner({
                 {newFiles.map(({ key, file, url }) => (
                   <li
                     key={key}
-                    className="group relative min-h-0 overflow-hidden rounded-md border bg-muted"
+                    className="group relative aspect-square min-h-0 overflow-hidden rounded-md border bg-muted lg:aspect-auto"
                   >
                     {/* The file's own stable preview URL. Minting one here re-decoded
                         every thumbnail on every render — see `usePreviewFiles`. */}
@@ -921,15 +947,15 @@ function ItemFormInner({
                       type="button"
                       onClick={() => pending.remove(key)}
                       disabled={isSubmitting}
-                      className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-iris/60 md:size-8"
+                      className="group/remove absolute right-0 top-0 grid size-8 place-items-center focus:outline-none"
                       aria-label={`Remove ${file.name}`}
                     >
-                      <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+                      <RemoveMark />
                     </button>
                   </li>
                 ))}
                 {totalImages < IMAGES_MAX ? (
-                  <li className="min-h-0">
+                  <li className="aspect-square min-h-0 lg:aspect-auto">
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
@@ -1168,6 +1194,8 @@ function ItemFormInner({
                 disabled={isSubmitting}
                 required
                 error={locationError}
+                hint={locationIsDefault ? "Same as your last listing." : undefined}
+                locate
               />
             </div>
 
@@ -1209,5 +1237,21 @@ function ItemFormInner({
         </CardFooter>
       </form>
     </Card>
+  );
+}
+
+/**
+ * The visible half of a thumbnail's remove control: a 24px disc inside the 32px
+ * button that is its hit area. The disc was the hit area itself — 44px on a phone —
+ * which on a thumbnail-sized tile covered a third of the photo it was removing.
+ * 32px clears WCAG 2.5.8's 24px minimum with room to spare, and the extra 8px sits
+ * in the tile's corner where there is nothing else to tap. The focus ring is drawn
+ * on the disc, which is the part a keyboard user can see.
+ */
+function RemoveMark() {
+  return (
+    <span className="grid size-6 place-items-center rounded-full border border-transparent bg-background/85 text-foreground shadow-sm transition-colors group-hover/remove:bg-background group-focus-visible/remove:border-iris/60">
+      <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
+    </span>
   );
 }

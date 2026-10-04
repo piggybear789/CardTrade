@@ -10,9 +10,11 @@
 // point the terms were set. Showing where the pin landed at selection time is the
 // cheapest check available.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Gps01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
-import { readGoogleMapsKey } from '@/lib/location/googleMaps';
+import { readGoogleMapsKey, reverseGeocodeSuburb } from '@/lib/location/googleMaps';
 import {
   FALLBACK_MAP_CENTER,
   type PlacePrecision,
@@ -60,6 +62,13 @@ export interface PlacePickerProps {
    * near`, which stores whatever was typed.
    */
   requireResolved?: boolean;
+  /**
+   * Offer "Use my current location", which reverse-geocodes the device position to
+   * its SUBURB. Suburb precision only: the result carries the suburb's centroid, never
+   * the device's coordinates, so it is safe for a public pin — and meaningless for a
+   * field that needs an exact meeting point.
+   */
+  locate?: boolean;
 }
 
 /**
@@ -89,6 +98,7 @@ export function PlacePicker({
   countries,
   biasCountry,
   requireResolved = false,
+  locate = false,
 }: PlacePickerProps) {
   const apiKey = readGoogleMapsKey();
   const [textOnly, setTextOnly] = useState(value?.label ?? '');
@@ -224,6 +234,10 @@ export function PlacePicker({
         }}
       />
 
+      {locate && precision === 'suburb' ? (
+        <LocateMeButton disabled={disabled} onLocated={onChange} />
+      ) : null}
+
       {showMapPreview ? (
         <PlaceMap
           lat={value.lat}
@@ -242,6 +256,93 @@ export function PlacePicker({
       {error ? (
         <p id={errorId} role="alert" className="text-body text-destructive">
           {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * "Use my current location" — device position, reduced to its suburb.
+ *
+ * ASKS ONLY ON A TAP. Requesting the position on mount would put a browser permission
+ * prompt in front of a form the member opened to type into, before they had any
+ * reason to grant it. Low accuracy and a ten-minute `maximumAge`: a suburb does not
+ * need GPS, and a recent fix is as good as a fresh one.
+ *
+ * A FAILURE SAYS WHAT TO DO INSTEAD, which is always the search field directly above.
+ */
+function LocateMeButton({
+  disabled,
+  onLocated,
+}: {
+  disabled?: boolean;
+  onLocated: (place: PlaceValue) => void;
+}) {
+  const [status, setStatus] = useState<'idle' | 'locating'>('idle');
+  const [message, setMessage] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const locate = () => {
+    setMessage(null);
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setMessage('This browser cannot share your location. Search for your suburb instead.');
+      return;
+    }
+    setStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const place = await reverseGeocodeSuburb(
+          position.coords.latitude,
+          position.coords.longitude,
+          controller.signal,
+        );
+        if (controller.signal.aborted) return;
+        setStatus('idle');
+        if (place) {
+          onLocated(place);
+        } else {
+          setMessage("We couldn't work out your suburb. Search for it instead.");
+        }
+      },
+      (error) => {
+        setStatus('idle');
+        setMessage(
+          error.code === error.PERMISSION_DENIED
+            ? 'Location access is blocked for this site. Allow it in your browser settings, or search for your suburb instead.'
+            : "We couldn't get your location. Search for your suburb instead.",
+        );
+      },
+      { enableHighAccuracy: false, timeout: 10_000, maximumAge: 600_000 },
+    );
+  };
+
+  const locating = status === 'locating';
+
+  return (
+    <div className="space-y-tight">
+      <button
+        type="button"
+        onClick={locate}
+        disabled={disabled || locating}
+        aria-busy={locating || undefined}
+        className="inline-flex min-h-8 items-center gap-tight rounded-sm border border-transparent text-body font-medium text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+      >
+        <HugeiconsIcon
+          icon={locating ? LoaderCircleIcon : Gps01Icon}
+          className={cn('size-4', locating && 'animate-spin')}
+          aria-hidden
+        />
+        {locating ? 'Finding your suburb…' : 'Use my current location'}
+      </button>
+      {message ? (
+        <p role="status" className="text-body text-muted-foreground">
+          {message}
         </p>
       ) : null}
     </div>

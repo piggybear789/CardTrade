@@ -299,7 +299,9 @@ export default async function SellerProfilePage({
     <MarketplaceShell title="Seller">
       <JsonLd data={structuredData} />
 
-      <nav className="mb-cozy" aria-label="Breadcrumb">
+      {/* HIDDEN BELOW `md`, where the hierarchical mobile chrome already renders a
+          back chevron to the same place — two back controls stacked on a phone. */}
+      <nav className="mb-cozy hidden md:block" aria-label="Breadcrumb">
         <Link
           href="/"
           transitionTypes={['nav-back']}

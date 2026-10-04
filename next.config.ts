@@ -92,7 +92,11 @@ const nextConfig: NextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+            // `geolocation=(self)`, not `()`: the listing form's "Use my current
+            // location" asks for it. Same-origin only, so no embedded third party
+            // (the Maps iframe included) can prompt for it, and the browser still
+            // asks the member before anything is read.
+            value: 'camera=(), microphone=(), geolocation=(self), interest-cohort=()',
           },
           { key: 'X-DNS-Prefetch-Control', value: 'on' },
           {

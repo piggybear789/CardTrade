@@ -272,12 +272,6 @@ function ItemFormInner({
     defaultLocation != null &&
     location?.placeId === defaultLocation.placeId;
 
-  // Whether anything was actually brought back, so the form can SAY so. A restored form
-  // that silently differs from the empty one it looks like is its own small confusion —
-  // and the photos genuinely are missing, which the member needs told rather than left to
-  // discover at submit.
-  const [draftNoticeVisible, setDraftNoticeVisible] = React.useState(restored != null);
-
   // Edit mode: existing stored object paths the user chooses to keep.
   const [keptPaths, setKeptPaths] = React.useState<string[]>(
     mode === "edit" ? (item?.image_paths ?? []) : [],
@@ -984,31 +978,6 @@ function ItemFormInner({
               `min-height:auto`, which grows the row to fit its content and would
               silently defeat `overflow-y-auto`. */}
           <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-7 lg:pb-7">
-            {/* SAYS WHAT CAME BACK, AND WHAT DID NOT. A silently restored form looks
-                identical to one the member filled in themselves, so the photos being
-                absent would be discovered at submit — the same late refusal this whole
-                change exists to remove. Dismissible, and it never reappears for the same
-                restore, because it is an acknowledgement rather than a warning. */}
-            {draftNoticeVisible ? (
-              <div
-                role="status"
-                className="flex items-start gap-snug rounded-md border border-border bg-muted/40 px-cozy py-snug"
-              >
-                <p className="flex-1 text-body text-muted-foreground">
-                  We kept what you had typed.{" "}
-                  {totalImages === 0 ? "Your photos need picking again." : null}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setDraftNoticeVisible(false)}
-                  aria-label="Dismiss"
-                  className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris/60"
-                >
-                  <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
-                </button>
-              </div>
-            ) : null}
-
             {/* Listing kind (0064). First, because it changes what the rest of
                 this form means: for a shopfront the price below is only a guide
                 and the condition covers a mixed pile. Locked in edit mode. */}

@@ -752,9 +752,17 @@ function ItemFormInner({
 
                 `grid-cols-1` when there are no photos yet — otherwise the empty drop
                 target would sit in two thirds of the row with a dead column beside it.
-                `lg:max-h-none` lets the empty target take the desktop panel too. */}
+                `lg:max-h-none` lets the empty target take the desktop panel too.
+
+                `min-h-0` AT EVERY WIDTH, not just from `lg`. This row is a flex item in
+                a column, and a flex item's automatic minimum height is its CONTENT
+                height — which beats the aspect ratio. Below `lg` the percentage rows in
+                the strip cannot resolve while that content height is measured, so each
+                tile fell back to its photo's natural height, and a tall phone photo
+                stretched the whole row (and the cover's frame) to ~3x its intended
+                height. */}
             <div
-              className={`grid grid-rows-[minmax(0,1fr)] gap-cozy lg:aspect-auto lg:max-h-none lg:min-h-0 lg:flex-1${
+              className={`grid min-h-0 grid-rows-[minmax(0,1fr)] gap-cozy lg:aspect-auto lg:max-h-none lg:flex-1${
                 totalImages > 0
                   ? " aspect-[15/14] grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
                   : " aspect-[16/10] max-h-[22svh] grid-cols-1"

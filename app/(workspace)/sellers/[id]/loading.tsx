@@ -39,7 +39,7 @@ export default function SellerProfileLoading() {
 
           Spacing below is copied from it term for term — `mb-cozy` here, `mb-5 space-y-snug
           pb-group` on the header, and a 40px avatar (`Avatar size="md"`). */}
-      <nav className="mb-cozy">
+      <nav className="mb-cozy hidden md:block">
         <TextLines className="text-body" widths={['w-36']} />
       </nav>
 

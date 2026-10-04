@@ -37,18 +37,22 @@ function CustodyPanelSkeleton() {
     // invisible: the panel loaded as an empty grey slab. The bars step up to the
     // border tone here so the placeholder reads as content arriving.
     <section className="mb-section rounded-lg border border-border bg-muted p-group [&_.animate-skeleton]:bg-border/70">
+      {/* `size-4` icon and the two `h-6` badges keep their reserves; the heading bar is
+          texture and draws canonical. */}
       <div className="mb-cozy flex flex-wrap items-center gap-snug">
         <Skeleton className="size-4 shrink-0 rounded-sm" />
-        <TextLines className="text-lead" widths={['w-56']} />
+        <TextLines className="text-lead" widths={['w-1/2']} />
         <Skeleton className="h-6 w-28 shrink-0 rounded-md" />
         <Skeleton className="h-6 w-16 shrink-0 rounded-md" />
       </div>
+      {/* Each cell: label over figure over a two-line value. Line count is the
+          reservation; widths are canonical texture. */}
       <div className="grid gap-cozy sm:grid-cols-3">
         {Array.from({ length: 3 }, (_, index) => (
           <div key={index}>
-            <TextLines className="text-meta" widths={['w-28']} />
-            <TextLines className="mt-0.5 text-subhead" widths={['w-24']} />
-            <TextLines className="mt-0.5 text-body" widths={['w-full', 'w-4/5']} />
+            <TextLines className="text-meta" widths={['w-1/3']} />
+            <TextLines className="mt-0.5 text-subhead" widths={['w-1/3']} />
+            <TextLines className="mt-0.5 text-body" widths={['w-full', 'w-1/2']} />
           </div>
         ))}
       </div>
@@ -80,8 +84,11 @@ function QueueIntroSkeleton({
    */
   desktopLines: number;
 }) {
+  // The LINE COUNT and the `md:hidden` gate are load-bearing (they reserve how many
+  // lines the explanation wraps to at each width); the taper fraction on the last
+  // desktop line is texture and draws from the canonical set.
   const widths = lines.map((width, index) =>
-    index >= desktopLines ? `${width} md:hidden` : index === desktopLines - 1 ? `${width} md:w-3/5` : width,
+    index >= desktopLines ? `${width} md:hidden` : index === desktopLines - 1 ? `${width} md:w-1/2` : width,
   );
   return (
     <>
@@ -110,12 +117,13 @@ function QueueCardsSkeleton() {
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-snug">
               <div className="flex min-w-0 flex-wrap items-center gap-snug">
+                {/* The `h-6` badge keeps its reserve; the title/meta runs are texture. */}
                 <Skeleton className="h-6 w-24 shrink-0 rounded-md" />
-                <TextLines className="text-lead" widths={['w-40']} />
+                <TextLines className="text-lead" widths={['w-1/2']} />
               </div>
-              <TextLines className="shrink-0 text-meta" widths={['w-24']} />
+              <TextLines className="shrink-0 text-meta" widths={['w-1/3']} />
             </div>
-            <TextLines className="text-body" widths={['w-full', 'w-3/5']} />
+            <TextLines className="text-body" widths={['w-full', 'w-1/2']} />
           </CardHeader>
           <CardContent>
             <Skeleton className="h-16 w-full" />
@@ -144,10 +152,10 @@ export default function AdminLoading() {
             <>
               <CustodyPanelSkeleton />
               <QueueIntroSkeleton
-                headingWidth="w-48"
+                headingWidth="w-1/2"
                 // `DrainPayoutsButton` is `size="sm"`.
                 trailing={<Skeleton className="h-8 w-36 shrink-0 rounded-md md:h-7" />}
-                lines={['w-full', 'w-full', 'w-full', 'w-3/5']}
+                lines={['w-full', 'w-full', 'w-full', 'w-1/2']}
                 desktopLines={2}
               />
               <QueueCardsSkeleton />
@@ -156,8 +164,8 @@ export default function AdminLoading() {
           reports: (
             <>
               <QueueIntroSkeleton
-                headingWidth="w-44"
-                lines={['w-full', 'w-full', 'w-2/5']}
+                headingWidth="w-1/2"
+                lines={['w-full', 'w-full', 'w-1/2']}
                 desktopLines={1}
               />
               <QueueCardsSkeleton />
@@ -166,7 +174,7 @@ export default function AdminLoading() {
           feedback: (
             <>
               <QueueIntroSkeleton
-                headingWidth="w-40"
+                headingWidth="w-1/2"
                 lines={['w-full', 'w-full', 'w-full', 'w-1/2']}
                 desktopLines={2}
               />
@@ -176,7 +184,7 @@ export default function AdminLoading() {
           errors: (
             <>
               <QueueIntroSkeleton
-                headingWidth="w-20"
+                headingWidth="w-1/3"
                 // The Open / All / Show refusals filter links: `size="sm"`, so `h-8 md:h-7`.
                 trailing={
                   // Own row on a phone, as `ErrorsQueue` now always lays it out.
@@ -195,8 +203,8 @@ export default function AdminLoading() {
           reconciliation: (
             <>
               <QueueIntroSkeleton
-                headingWidth="w-36"
-                lines={['w-full', 'w-full', 'w-full', 'w-1/4']}
+                headingWidth="w-1/2"
+                lines={['w-full', 'w-full', 'w-full', 'w-1/3']}
                 desktopLines={2}
               />
               <QueueCardsSkeleton />

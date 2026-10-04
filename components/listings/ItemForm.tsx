@@ -780,7 +780,7 @@ function ItemFormInner({
               // this form wears, at the 3:1 SC 1.4.11 wants. The dashes were carrying
               // "drop a file here" on a button that says "Add photos" in words directly
               // beneath the icon, and at 2px they were the heaviest line on the page.
-              className={`flex h-full min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-accent focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
+              className={`flex h-full min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-accent focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
               // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
               //
               // With no photo the button's own words ("Add photos", below) are its
@@ -894,7 +894,7 @@ function ItemFormInner({
                         type="button"
                         onClick={() => removeKeptPath(path)}
                         disabled={isSubmitting}
-                        className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-iris md:size-8"
+                        className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full bg-background/80 text-foreground shadow-sm hover:bg-background border border-transparent focus:outline-none focus-visible:border-iris/60 md:size-8"
                         aria-label="Remove image"
                       >
                         <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
@@ -921,7 +921,7 @@ function ItemFormInner({
                       type="button"
                       onClick={() => pending.remove(key)}
                       disabled={isSubmitting}
-                      className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-iris md:size-8"
+                      className="absolute right-1 top-1 flex size-11 items-center justify-center rounded-full border border-transparent bg-background/80 text-foreground shadow-sm hover:bg-background focus:outline-none focus-visible:border-iris/60 md:size-8"
                       aria-label={`Remove ${file.name}`}
                     >
                       <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
@@ -934,7 +934,7 @@ function ItemFormInner({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground"
+                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-muted focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground"
                       aria-label="Add another photo"
                     >
                       <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
@@ -976,7 +976,7 @@ function ItemFormInner({
                   type="button"
                   onClick={() => setDraftNoticeVisible(false)}
                   aria-label="Dismiss"
-                  className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
+                  className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris/60"
                 >
                   <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
                 </button>

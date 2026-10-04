@@ -114,7 +114,7 @@ export function ShippingDeadline({
           'inline-flex max-w-full items-center gap-tight truncate rounded-full border px-snug py-0.5 text-meta font-medium',
           late || (!viewerShipped && hours <= 12)
             ? 'border-destructive/40 bg-destructive/10 text-destructive'
-            : 'border-iris/40 bg-iris/10 text-iris-ink',
+            : 'border-border bg-muted text-foreground',
           className,
         )}
       >

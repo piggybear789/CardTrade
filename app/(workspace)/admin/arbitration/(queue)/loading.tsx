@@ -44,8 +44,9 @@ export default function ArbitrationLoading() {
         <div className="mb-6 grid grid-cols-2 gap-cozy sm:grid-cols-4 [&_.animate-skeleton]:bg-border/70">
           {Array.from({ length: 4 }, (_, index) => (
             <div key={index} className="rounded-lg border bg-muted p-cozy">
-              <TextLines className="text-meta" widths={['w-20']} />
-              <TextLines className="mt-0.5 text-subhead" widths={['w-14']} />
+              {/* Label over figure — both texture in their own line boxes, canonical. */}
+              <TextLines className="text-meta" widths={['w-1/3']} />
+              <TextLines className="mt-0.5 text-subhead" widths={['w-1/3']} />
             </div>
           ))}
         </div>
@@ -73,27 +74,32 @@ export default function ArbitrationLoading() {
               <CardHeader className="pb-cozy">
                 <div className="flex flex-wrap items-center justify-between gap-snug">
                   <div className="flex min-w-0 flex-wrap items-center gap-snug">
+                    {/* The two badges keep their honest `h-6` reserves; the title is
+                        texture at `text-lead` (24px line box) and draws canonical. */}
                     <Skeleton className="h-6 w-16 shrink-0 rounded-md" />
                     <Skeleton className="h-6 w-24 shrink-0 rounded-md" />
                     {/* `CardTitle className="text-lead"` — 24px. */}
-                    <TextLines className="text-lead" widths={['w-44']} />
+                    <TextLines className="text-lead" widths={['w-1/2']} />
                   </div>
-                  <TextLines className="shrink-0 text-body" widths={['w-20']} />
+                  <TextLines className="shrink-0 text-body" widths={['w-1/3']} />
                 </div>
                 {/* Age, deadline and note count: short spans in one wrapping
                     `CardDescription`, which is a single line in the common case. It was
-                    drawn as two, 22px over the real row, four times over. */}
-                <TextLines className="text-body" widths={['w-2/5']} />
+                    drawn as two, 22px over the real row, four times over. Width is
+                    canonical texture. */}
+                <TextLines className="text-body" widths={['w-1/2']} />
               </CardHeader>
               {/* `space-y-cozy` over the PRIORITY REASON line and then the parties row.
                   The reason line had no placeholder, so every row grew by it on swap.
                   It is ~110 characters of `text-meta`: two lines on a phone, one from
                   `md`. */}
               <CardContent className="space-y-cozy">
-                <TextLines className="text-meta md:hidden" widths={['w-full', 'w-3/5']} />
+                {/* The reason line's LINE COUNT and `md:` gates are the reservation;
+                    the taper draws from the canonical set. */}
+                <TextLines className="text-meta md:hidden" widths={['w-full', 'w-1/2']} />
                 <TextLines className="hidden text-meta md:block" widths={['w-2/3']} />
                 <div className="flex flex-wrap items-center justify-between gap-cozy">
-                  <TextLines className="min-w-0 text-body" widths={['w-52']} />
+                  <TextLines className="min-w-0 text-body" widths={['w-1/2']} />
                   {/* "Open case" and `CaseAssignButton` are both `size="sm"` — `h-8`. */}
                   <div className="flex items-center gap-snug">
                     <Skeleton className="h-8 w-24 shrink-0 rounded-md" />

@@ -114,6 +114,15 @@ export interface UseConversationRealtimeOptions {
   initialMessages?: readonly MessageRow[];
   /** Called once for each newly inserted SYSTEM row after history is ready. */
   onSystemMessage?: (message: MessageRow) => void;
+  /**
+   * `false` holds the thread still: no history fetch and no channel. Defaults to `true`.
+   *
+   * For a thread drawn as a PREVIEW of itself — the inbox pane shows one for the moment
+   * between a click and the server's answer (`ThreadPane`). That copy is replaced a few
+   * hundred milliseconds later by the real thread, which opens its own channel, so a
+   * channel opened here would only be torn down again.
+   */
+  enabled?: boolean;
 }
 
 const EMPTY_INITIAL_MESSAGES: readonly MessageRow[] = [];
@@ -136,6 +145,7 @@ export function useConversationRealtime(
   options: UseConversationRealtimeOptions = {},
 ): UseConversationRealtimeResult {
   const initialMessages = options.initialMessages;
+  const enabled = options.enabled ?? true;
   const hasServerHistory = initialMessages !== undefined;
   const seed = initialMessages ?? EMPTY_INITIAL_MESSAGES;
   const [messages, setMessages] = useState<MessageRow[]>(() =>
@@ -262,7 +272,7 @@ export function useConversationRealtime(
 
   useEffect(() => {
     const supabase = supabaseRef.current;
-    if (!supabase || !conversationId) return;
+    if (!supabase || !conversationId || !enabled) return;
 
     let isMounted = true;
     let channel: RealtimeChannel | null = null;
@@ -431,7 +441,7 @@ export function useConversationRealtime(
       if (channel) void supabase.removeChannel(channel);
       channel = null;
     };
-  }, [conversationId, announceSystemMessage, applyInsert, applyUpdate]);
+  }, [conversationId, enabled, announceSystemMessage, applyInsert, applyUpdate]);
 
   return {
     messages,

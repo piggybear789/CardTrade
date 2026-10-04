@@ -10,8 +10,10 @@
 // so on every `/messages/A` -> `/messages/B` click Next fell back here and drew a
 // full-width card of nine wide inbox rows in front of a two-pane conversation room.
 //
-// `(inbox)` scopes it to `/messages`. The `messages/` slot is deliberately EMPTY — see
-// `[id]/loading.tsx`, which holds the two-pane thread shape as a leaf loader instead.
+// `(inbox)` scopes it to `/messages`. The `messages/` slot is deliberately EMPTY. The
+// thread route is its own group, `(thread)`, whose layout keeps the shell and the inbox
+// pane mounted across thread switches; its leaf loader, `(thread)/[id]/loading.tsx`,
+// stands in for the thread pane alone.
 
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import {

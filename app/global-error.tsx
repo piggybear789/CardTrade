@@ -52,8 +52,8 @@ export default function GlobalError({
           // boundary replaces the root layout and cannot count on the stylesheet
           // having loaded, so these two must be kept in step with globals.css by
           // hand — as must `viewport.themeColor` in `app/layout.tsx`.
-          background: '#120f15',
-          color: '#efe7f3',
+          background: '#111118',
+          color: '#ececf4',
           fontFamily:
             'Inter, "Segoe UI", "Helvetica Neue", Arial, sans-serif',
           padding: '1.5rem',

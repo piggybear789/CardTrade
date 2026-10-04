@@ -15,7 +15,7 @@ export function DealComposeDialog(props: Omit<DealComposeFormProps, 'onSuccess'>
         if (!next) router.push('/');
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="md:max-w-lg">
         <DealComposeForm {...props} />
       </DialogContent>
     </Dialog>

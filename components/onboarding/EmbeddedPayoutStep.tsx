@@ -275,10 +275,12 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
           in a phase that implies one. */}
       {phase === 'starting' ? (
         <div className="space-y-cozy" role="status" aria-label="Loading payout setup">
-          <Skeleton className="h-4 w-2/5" />
+          {/* The two `h-10` field reserves keep their height; the `h-4` text bars are
+              texture and draw from the canonical set. */}
+          <Skeleton className="h-4 w-1/2" />
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-4 w-3/5" />
+          <Skeleton className="h-4 w-1/2" />
         </div>
       ) : connectInstance ? (
         /* FRAMED. The embedded component paints on a transparent background with no

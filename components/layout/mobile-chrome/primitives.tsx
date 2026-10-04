@@ -54,7 +54,7 @@ export function MobileChromeBack({
       transitionTypes={['nav-back']}
       aria-label={label}
       className={cn(
-        'inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris',
+        'inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris/60',
         className,
       )}
     >
@@ -72,7 +72,7 @@ export function MobileChromeIconButton({
     <button
       type="button"
       className={cn(
-        'relative inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris',
+        'relative inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris/60',
         className,
       )}
       {...props}

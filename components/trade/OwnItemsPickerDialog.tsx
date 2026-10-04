@@ -69,10 +69,10 @@ export function OwnItemsPickerDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* `sm:gap-0 sm:p-0` repeat the bare overrides on purpose — the base
-          DialogContent sets `sm:p-6`/`sm:gap-group`, which a bare `p-0`/`gap-0`
+      {/* `md:gap-0 md:p-0` repeat the bare overrides on purpose — the base
+          DialogContent sets `md:p-6`/`md:gap-group`, which a bare `p-0`/`gap-0`
           does not beat at desktop widths (see ProposeTradeDialog). */}
-      <DialogContent className="flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] flex-col gap-0 overflow-hidden p-0 sm:max-h-[min(92dvh,calc(100dvh-3rem))] sm:max-w-lg sm:gap-0 sm:p-0">
+      <DialogContent className="flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] flex-col gap-0 overflow-hidden p-0 max-md:px-0 md:max-h-[min(92dvh,calc(100dvh-3rem))] md:max-w-lg md:gap-0 md:p-0">
         <DialogHeader className="shrink-0 space-y-tight border-b border-border px-group pb-cozy pt-snug pr-14 sm:px-6 sm:py-group">
           <DialogTitle>Your listings</DialogTitle>
           <DialogDescription>
@@ -112,8 +112,8 @@ export function OwnItemsPickerDialog({
                   <li key={item.id}>
                     <label
                       className={cn(
-                        'flex cursor-pointer items-center gap-cozy rounded-md border p-snug text-body transition-colors',
-                        'has-[:focus-visible]:border-iris has-[:focus-visible]:outline-none',
+                        'flex cursor-pointer items-center gap-cozy rounded-md border border-input bg-card p-snug text-body transition-colors',
+                        'has-[:focus-visible]:border-iris/60 has-[:focus-visible]:outline-none',
                         checked && 'bg-accent text-accent-foreground',
                       )}
                     >

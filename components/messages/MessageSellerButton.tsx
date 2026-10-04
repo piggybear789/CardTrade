@@ -137,7 +137,7 @@ export function MessageSellerButton({
           disabled={isPending}
           aria-busy={isPending}
           aria-label="Message seller"
-          className="grid size-11 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground focus:outline-none focus-visible:border-iris disabled:opacity-60"
+          className="grid size-11 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground focus:outline-none focus-visible:border-iris/60 disabled:opacity-60"
         >
           {isPending ? (
             <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin" aria-hidden />

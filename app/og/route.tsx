@@ -34,9 +34,9 @@ import { OG_IMAGE_SIZE } from '@/lib/seo/site';
 // Satori resolves no CSS custom properties, and `globals.css` is not in scope
 // here. These are the same values `app/layout.tsx` already hardcodes for
 // `themeColor`, for the same reason.
-const OBSIDIAN = '#120f15';
-const IRIS = '#9e67c1';
-const MIST = '#efe7f3';
+const OBSIDIAN = '#111118';
+const IRIS = '#846feb';
+const MIST = '#ececf4';
 
 export async function GET() {
   try {

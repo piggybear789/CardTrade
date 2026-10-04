@@ -94,7 +94,7 @@ export function MarketplaceNav({
                           // just a paragraph that did not match — so the token was
                           // retired. `font-medium` on the active row carries scan
                           // weight instead.
-                          'relative flex items-center gap-cozy rounded-lg px-cozy py-snug text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris',
+                          'relative flex items-center gap-cozy rounded-lg px-cozy py-snug text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris/60',
                           // A NEUTRAL SURFACE AND A 2px VIOLET MARKER, not a
                           // violet slab. The accent pair reads the state in
                           // lilac text on a lilac wash, which was legible

@@ -239,7 +239,7 @@ export function SettingsListRow({
     // `overflow-hidden` group, so an outset ring would be clipped on the first and
     // last row. `ring-inset` stays visible on every row.
     interactive &&
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris/60',
     disabled && 'pointer-events-none opacity-60',
     className,
   );
@@ -364,14 +364,16 @@ export function SettingsRowSkeleton({
   icon = false,
   /** Reserve the second line. It also lifts the row off its `min-h-12` floor. */
   description = false,
-  labelClassName = 'w-28',
-  valueClassName = 'w-20',
+  labelClassName = 'w-1/3',
+  valueClassName = 'w-1/3',
 }: {
   icon?: boolean;
   description?: boolean;
   labelClassName?: string;
   valueClassName?: string;
 }) {
+  // The label and value bars are texture inside the row's `min-h-12` box (the icon
+  // medallion and the row floor carry the height), so they draw from the canonical set.
   return (
     <div className={ROW_SHAPE} aria-hidden>
       {icon ? <Skeleton className="size-9 shrink-0 rounded-full" /> : null}
@@ -380,7 +382,7 @@ export function SettingsRowSkeleton({
         {description ? (
           <TextLines
             className="mt-0.5 text-body leading-snug"
-            widths={['w-3/4']}
+            widths={['w-2/3']}
           />
         ) : null}
       </span>
@@ -472,7 +474,7 @@ const TONE_CLASS: Record<StatusTone, string> = {
   // `trust` is the app's reserved verification colour (see globals.css) — the
   // reference's emerald would introduce a second "this is confirmed" hue.
   verified: 'border-trust/40 bg-trust/10 text-trust',
-  pending: 'border-iris/40 bg-iris/10 text-iris-ink',
+  pending: 'border-border bg-muted text-foreground',
   required: 'border-border bg-muted text-muted-foreground',
   neutral: 'border-border bg-muted text-muted-foreground',
 };
@@ -516,7 +518,7 @@ export function IconMedallion({
 }) {
   const toneClass: Record<StatusTone, string> = {
     verified: 'bg-trust/10 text-trust',
-    pending: 'bg-iris/10 text-iris-ink',
+    pending: 'bg-muted text-foreground',
     required: 'bg-muted text-muted-foreground',
     neutral: 'bg-muted text-muted-foreground',
   };

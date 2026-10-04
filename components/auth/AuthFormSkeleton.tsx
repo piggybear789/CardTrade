@@ -41,17 +41,20 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
       {/* `items-center text-center` and the header's own `space-y-snug` — not the
           `space-y-cozy` that was here. */}
       <CardHeader className="items-center text-center">
-        {/* The h1 is `text-head leading-none`, a 21px line box. An `h-8` bar was 32. */}
-        <TextLines className="w-full text-head leading-none" widths={['w-40']} />
+        {/* The h1 is `text-head leading-none`, a 21px line box (the reserve). An `h-8`
+            bar was 32. The width is texture and draws from the canonical set. */}
+        <TextLines className="w-full text-head leading-none" widths={['w-1/2']} />
         {/* `CardDescription` is `text-body`. Sign-in's line is 49 characters, which
             wraps in the 311px the card leaves inside `p-group` on a 375px phone and
             fits on one line from `sm` — the second bar was 22px of card that the
             desktop form never had, measured as the card shrinking on swap. Hiding the
             bar collapses its line box, because the block holds nothing else.
             Sign-up's 38 characters fit on one line at every width. */}
+        {/* Widths are canonical texture; the `sm:hidden` on sign-in's second line is
+            load-bearing (it collapses the extra reserved line from `sm` up) and stays. */}
         <TextLines
           className="w-full text-body"
-          widths={mode === 'sign-in' ? ['w-full', 'w-2/3 sm:hidden'] : ['w-56 max-w-full']}
+          widths={mode === 'sign-in' ? ['w-full', 'w-2/3 sm:hidden'] : ['w-2/3']}
         />
       </CardHeader>
 
@@ -69,22 +72,23 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         </div>
 
         <div className="space-y-snug">
-          <TextLines className="text-body leading-none" widths={['w-14']} />
+          <TextLines className="text-body leading-none" widths={['w-1/3']} />
           <Skeleton className="h-11 w-full rounded-md" />
         </div>
 
         <div className="space-y-snug">
           {/* Sign-in only. The recovery link sits beside the password label as
-              `inline-flex min-h-11 items-center`, which makes the row 44px rather
-              than the label's own 14px — sign-up has no password to recover, so
-              there the row is just the label. */}
+              `inline-flex min-h-11 items-center`, which makes the row 44px (the reserve)
+              rather than the label's own 14px — sign-up has no password to recover, so
+              there the row is just the label. The label/link widths are canonical
+              texture. */}
           {mode === 'sign-in' ? (
             <div className="flex min-h-11 items-center justify-between gap-cozy">
-              <TextLines className="text-body leading-none" widths={['w-20']} />
-              <TextLines className="shrink-0 text-meta" widths={['w-24']} />
+              <TextLines className="text-body leading-none" widths={['w-1/3']} />
+              <TextLines className="shrink-0 text-meta" widths={['w-1/3']} />
             </div>
           ) : (
-            <TextLines className="text-body leading-none" widths={['w-20']} />
+            <TextLines className="text-body leading-none" widths={['w-1/3']} />
           )}
           <Skeleton className="h-11 w-full rounded-md" />
         </div>
@@ -94,7 +98,9 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         {mode === 'sign-up' ? (
           <div className="flex min-h-11 items-center justify-center gap-2.5 text-body">
             <Skeleton className="size-5 shrink-0 rounded-sm" />
-            <Skeleton className="inline-block h-[0.9em] w-48 max-w-full align-middle" />
+            {/* The label bar is texture inside the `min-h-11` row; the `size-5` checkbox
+                keeps its reserve. */}
+            <Skeleton className="inline-block h-[0.9em] w-1/2 max-w-full align-middle" />
           </div>
         ) : null}
       </CardContent>
@@ -106,7 +112,8 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
       <CardFooter className="flex flex-col items-center gap-group">
         <Skeleton className="h-11 w-full rounded-md" />
         <div className="flex min-h-11 w-full items-center justify-center text-body">
-          <Skeleton className="inline-block h-[0.9em] w-52 max-w-full align-middle" />
+          {/* Switch-mode line: texture inside the `min-h-11` row, drawn canonical. */}
+          <Skeleton className="inline-block h-[0.9em] w-1/2 max-w-full align-middle" />
         </div>
       </CardFooter>
     </Card>
@@ -121,18 +128,19 @@ export function RequestResetFormSkeleton() {
 
       {/* A bare `CardHeader`: this form does not centre its header. */}
       <CardHeader>
-        {/* `CardTitle` is `text-subhead` — 23.8px. */}
-        <TextLines className="text-subhead" widths={['w-52']} />
-        {/* `text-body` is 22.4px a line, and both intents run
-            past 60 characters, so the description wraps. */}
-        <TextLines className="text-body" widths={['w-full', 'w-3/4']} />
+        {/* `CardTitle` is `text-subhead` — 23.8px (the reserve); the width is canonical
+            texture. */}
+        <TextLines className="text-subhead" widths={['w-1/2']} />
+        {/* `text-body` is 22.4px a line, and both intents run past 60 characters, so the
+            description wraps to two lines (the reservation); widths draw canonical. */}
+        <TextLines className="text-body" widths={['w-full', 'w-2/3']} />
       </CardHeader>
 
       {/* No `CardFooter`: the submit and both switch links sit inside `CardContent`. */}
       <CardContent className="space-y-group">
         {/* ONE field, in `space-y-tight` (4px) — not two groups in `space-y-snug`. */}
         <div className="space-y-tight">
-          <TextLines className="text-body leading-none" widths={['w-14']} />
+          <TextLines className="text-body leading-none" widths={['w-1/3']} />
           {/* `h-9 md:h-8`: this Input carries no `min-h-11`, so it sits at the
               shared field height. 28px -> 32px at `md` came with `body` at 14px. */}
           <Skeleton className="h-9 w-full rounded-md md:h-8" />
@@ -141,10 +149,11 @@ export function RequestResetFormSkeleton() {
         {/* A default `Button`, so `h-9` below `md`. */}
         <Skeleton className="h-9 w-full rounded-md" />
 
-        {/* The intent switch (50 characters, so it wraps) and the way back to sign-in.
-            Both are plain `text-body` lines with no touch-target minimum. */}
+        {/* The intent switch (50 characters, so it wraps to two lines — the reservation)
+            and the way back to sign-in. Both are plain `text-body` lines with no
+            touch-target minimum; widths draw from the canonical set. */}
         <TextLines className="text-center text-body" widths={['w-full', 'w-1/2']} />
-        <TextLines className="text-center text-body" widths={['w-32']} />
+        <TextLines className="text-center text-body" widths={['w-1/3']} />
       </CardContent>
     </Card>
   );

@@ -43,18 +43,18 @@ export type ContractActionTone = 'default' | 'success' | 'warning' | 'danger';
 // than "here is your next move", they are rare, and teal and red each appear
 // nowhere else on the surface — the edge is the signal, not decoration.
 const TONE: Record<ContractActionTone, string> = {
-  default: 'border-border bg-iris/[0.08]',
+  default: 'border-border bg-muted/60',
   success: 'border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.06)]',
-  warning: 'border-border bg-iris/[0.06]',
+  warning: 'border-border bg-muted/60',
   danger: 'border-destructive/40 bg-destructive/[0.06]',
 };
 
 // The dock is a flat strip inside the chat panel, so it tints only — the
 // panel's own border rules divide it from the header and the log.
 const STRIP_TONE: Record<ContractActionTone, string> = {
-  default: 'bg-iris/[0.08]',
+  default: 'bg-muted/60',
   success: 'bg-[hsl(var(--trust)/0.06)]',
-  warning: 'bg-iris/[0.06]',
+  warning: 'bg-muted/60',
   danger: 'bg-destructive/[0.06]',
 };
 
@@ -141,7 +141,8 @@ export function ContractOverflowMenu({ children }: { children?: ReactNode }) {
             // here: the button is somebody else's element by the time it lands.
             // The ink keeps the warning; the slab goes.
             '[&_.bg-destructive]:border-transparent [&_.bg-destructive]:bg-transparent [&_.bg-destructive]:text-destructive hover:[&_.bg-destructive]:bg-destructive/10',
-            '[&_.bg-action]:border-transparent [&_.bg-action]:bg-transparent [&_.bg-action]:text-foreground hover:[&_.bg-action]:bg-muted',
+            // `default` and `action` both fill with `bg-primary` (ink) now.
+            '[&_.bg-primary]:border-transparent [&_.bg-primary]:bg-transparent [&_.bg-primary]:text-foreground hover:[&_.bg-primary]:bg-muted',
             '[&_svg]:size-3.5',
           )}
         >

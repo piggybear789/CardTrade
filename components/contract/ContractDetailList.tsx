@@ -227,7 +227,7 @@ export function ContractDetailList({
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
                     'min-h-11 min-w-0 whitespace-nowrap touch-manipulation px-cozy py-2.5 text-meta font-medium transition-colors',
-                    'hover:text-foreground focus:outline-none focus-visible:border-iris',
+                    'hover:text-foreground focus:outline-none focus-visible:border-iris/60',
                     isDestructive
                       ? 'text-destructive'
                       : selected ? 'text-foreground' : 'text-muted-foreground',
@@ -252,7 +252,7 @@ export function ContractDetailList({
           aria-labelledby={`${tabsId}-tab-${activeIndex}`}
           className={cn(
             'flex min-h-0 flex-1 scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] flex-col transition-colors duration-300',
-            focusedId === activeRow.props.id && 'bg-iris/10',
+            focusedId === activeRow.props.id && 'bg-accent',
             activeRow.props.className,
           )}
         >

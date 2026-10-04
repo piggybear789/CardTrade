@@ -24,19 +24,22 @@ export default function SafetyLoading() {
     >
       <span className="sr-only">Loading…</span>
 
-      <TextLines className="text-subhead md:text-head" widths={['w-72 max-w-full']} />
+      {/* Heading width is canonical texture; the type-scale class reserves its height. */}
+      <TextLines className="text-subhead md:text-head" widths={['w-2/3']} />
       {/* ~95 characters, `max-w-prose`: three body lines on a phone, two lead lines
-          from `md`. */}
+          from `md`. The LINE COUNT and the `md:` responsive gates are the reservation;
+          the fraction widths draw from the canonical set. */}
       <TextLines
         className="mt-snug max-w-prose text-body md:mt-cozy md:text-lead"
-        widths={['w-full', 'w-full md:w-2/5', 'w-1/3 md:hidden']}
+        widths={['w-full', 'w-full md:w-1/2', 'w-1/3 md:hidden']}
       />
 
       {/* The one rule above the tabs: a `market-label`, a bold body line, then ~170
-          characters of body — four lines on a phone, two from `md`. */}
+          characters of body — four lines on a phone, two from `md`. Line counts and
+          `md:` gates kept; widths canonical. */}
       <div className="cardtrade-warning mt-section rounded-lg border p-group">
-        <TextLines className="market-label" widths={['w-32']} />
-        <TextLines className="mt-snug text-body" widths={['w-56 max-w-full']} />
+        <TextLines className="market-label" widths={['w-1/3']} />
+        <TextLines className="mt-snug text-body" widths={['w-1/2']} />
         <TextLines
           className="mt-tight text-body"
           widths={['w-full', 'w-full', 'w-full md:w-1/2', 'w-1/3 md:hidden']}
@@ -62,12 +65,12 @@ export default function SafetyLoading() {
               <li key={index} className="relative pb-section pl-12 last:pb-0 sm:pl-14">
                 <Skeleton className="absolute left-0 top-0 size-9 rounded-full" />
                 <div className="space-y-cozy">
-                  <TextLines className="text-subhead" widths={['w-48']} />
+                  <TextLines className="text-subhead" widths={['w-1/2']} />
                   <div className="rounded-md border border-border bg-muted px-cozy py-snug">
                     <TextLines className="text-body" widths={['w-2/3']} />
                   </div>
                   <div className="space-y-snug pl-5">
-                    <TextLines className="text-body" widths={['w-full', 'w-3/4']} />
+                    <TextLines className="text-body" widths={['w-full', 'w-2/3']} />
                     <TextLines className="text-body" widths={['w-full', 'w-1/2']} />
                   </div>
                 </div>

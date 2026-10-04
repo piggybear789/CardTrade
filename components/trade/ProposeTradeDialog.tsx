@@ -111,13 +111,14 @@ export function ProposeTradeDialog({
       <DialogContent
         className={
           needsVerification
-            ? 'min-w-0 sm:max-w-lg'
-            : // `sm:gap-0 sm:p-0` must be stated explicitly: the base DialogContent
-              // sets `sm:p-6`/`sm:gap-group`, and a bare `p-0`/`gap-0` only overrides the
-              // mobile classes — tailwind-merge keeps responsive variants separate,
-              // so without these the desktop dialog double-pads (24px shell + 24px
-              // header/body/footer).
-              'h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] min-w-0 gap-0 overflow-hidden p-0 sm:h-auto sm:max-h-[min(92dvh,calc(100dvh-3rem))] sm:max-w-lg sm:gap-0 sm:p-0'
+            ? 'min-w-0 md:max-w-lg'
+            : // The shell's padding must be cancelled AT THE BREAKPOINT IT IS SET:
+              // DialogContent pads with `md:p-6`/`md:gap-group` (and `max-md:pl/pr`
+              // for the safe area). tailwind-merge only dedupes within one variant,
+              // so a bare `p-0` or an `sm:p-0` leaves `md:p-6` standing and the
+              // desktop dialog double-pads (24px shell + 24px header/body/footer).
+              // This said `sm:` after the base moved to `md:`, which is exactly that.
+              'h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] min-w-0 gap-0 overflow-hidden p-0 max-md:px-0 md:h-auto md:max-h-[min(92dvh,calc(100dvh-3rem))] md:max-w-lg md:gap-0 md:p-0'
         }
       >
         {needsVerification ? (

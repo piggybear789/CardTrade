@@ -28,7 +28,7 @@ export default function TradesLoading() {
           placeholder used to skip. The list is always inside a labelled section, so
           35.8px of `text-subhead` plus `mb-cozy` appeared between the tabs and the first
           row on every load. */}
-      <TextLines className="mb-cozy text-subhead" widths={['w-24']} />
+      <TextLines className="mb-cozy text-subhead" widths={['w-1/3']} />
       {/* The swap label ("X ↔ Y") clamps to two lines. */}
       <ContractCardListSkeleton count={5} titleLines={2} />
     </MarketplaceShellSkeleton>

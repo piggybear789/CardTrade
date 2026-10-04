@@ -34,7 +34,9 @@ export function OnboardingSpineSkeleton() {
           <div className="min-w-0 py-tight">
             <div className="flex flex-col gap-cozy sm:flex-row sm:items-start sm:justify-between sm:gap-group">
               <div className="min-w-0 flex-1">
-                <TextLines className="text-lead" widths={['w-40']} />
+                {/* Title and body are texture at their type scales (the body's two-line
+                    wrap is the reservation); widths draw from the canonical set. */}
+                <TextLines className="text-lead" widths={['w-1/2']} />
                 {/* Both step descriptions run past 75 characters, so they wrap
                     in the content column. */}
                 <TextLines className="mt-tight text-body" widths={['w-full', 'w-2/3']} />

@@ -187,7 +187,7 @@ export function HandoverFailedDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="md:max-w-lg">
         {/* The form is DialogContent's only child, so its flex gap cannot reach
             header, body and footer. Repeating it here spaces them the same way
             every other dialog does, instead of a one-off `py-group` on the body. */}
@@ -281,7 +281,7 @@ export function HandoverFailedDialog({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending}
-                    className="flex size-16 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
+                    className="flex size-16 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
                     aria-label="Add evidence photo"
                   >
                     <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />

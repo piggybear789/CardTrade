@@ -24,8 +24,10 @@ import { cn } from '@/lib/utils';
 function StatSkeleton({ labelWidth }: { labelWidth: string }) {
   return (
     <div className="rounded-lg border border-border bg-card px-cozy py-snug">
+      {/* `labelWidth` is a caller reserve (the stat captions differ in length); the
+          figure under it is texture at `text-head` and draws from the canonical set. */}
       <TextLines className="text-meta" widths={[labelWidth]} />
-      <TextLines className="mt-0.5 text-head" widths={['w-6']} />
+      <TextLines className="mt-0.5 text-head" widths={['w-1/3']} />
     </div>
   );
 }
@@ -38,19 +40,23 @@ function RowSkeleton({ titleWidth }: { titleWidth: string }) {
       <Skeleton className="size-12 shrink-0 rounded-md" />
       <div className="min-w-0">
         {/* `border border-transparent`, as the real title link has (its focus ring):
-            1px each side makes the line 24.4px, and without it every row was 2px
-            short — about 12px over the table. */}
+            1px each side makes the line 24.4px (the reserve), and without it every row
+            was 2px short — about 12px over the table. The title width is texture in this
+            `min-w-0` cell and draws from the canonical set. */}
         <TextLines className="border border-transparent text-body" widths={[titleWidth]} />
-        <TextLines className="mt-0.5 text-meta" widths={['w-2/5']} />
+        <TextLines className="mt-0.5 text-meta" widths={['w-1/2']} />
         {/* Below `md`: price + status badge as a sub-line. A badge is a
-            `text-meta` line inside `py-0.5` and a 1px border — 23px. */}
+            `text-meta` line inside `py-0.5` and a 1px border — 23px (kept). The price
+            run is texture; the badge keeps its reserve. */}
         <div className="mt-tight flex items-center gap-x-cozy md:hidden">
-          <TextLines className="text-meta" widths={['w-14']} />
+          <TextLines className="text-meta" widths={['w-1/3']} />
           <Skeleton className="h-[1.425rem] w-12 rounded-md" />
         </div>
       </div>
-      <TextLines className="hidden text-right text-body md:block" widths={['w-16']} />
-      <TextLines className="hidden text-center text-body md:block" widths={['w-4']} />
+      {/* The price / watching columns land at the grid's x; the bar widths inside are
+          texture and draw canonical. */}
+      <TextLines className="hidden text-right text-body md:block" widths={['w-1/3']} />
+      <TextLines className="hidden text-center text-body md:block" widths={['w-1/3']} />
       <div className="hidden justify-center md:flex">
         <Skeleton className="h-[1.425rem] w-14 rounded-md" />
       </div>
@@ -62,7 +68,11 @@ function RowSkeleton({ titleWidth }: { titleWidth: string }) {
   );
 }
 
-const ROW_TITLE_WIDTHS = ['w-3/5', 'w-4/5', 'w-1/2', 'w-2/3', 'w-3/4', 'w-1/2'];
+// The per-row title widths are texture inside each row's `min-w-0` cell — nothing
+// lines up against them — so the former six-value spread collapses to a calm
+// two-width alternating set drawn from the canonical set, matching the even weight
+// of the rest of the app's loaders.
+const ROW_TITLE_WIDTHS = ['w-2/3', 'w-1/2', 'w-2/3', 'w-1/2', 'w-2/3', 'w-1/2'];
 
 export default function MyListingsLoading() {
   return (
@@ -91,11 +101,13 @@ export default function MyListingsLoading() {
               'hidden border-b border-border bg-muted px-group py-snug md:grid',
             )}
           >
+            {/* Column caption bars are texture inside the grid cells (the cells land at
+                the grid's x); they draw from the canonical set. */}
             <span />
-            <TextLines className="text-meta" widths={['w-14']} />
-            <TextLines className="text-right text-meta" widths={['w-10']} />
-            <TextLines className="text-center text-meta" widths={['w-16']} />
-            <TextLines className="text-center text-meta" widths={['w-12']} />
+            <TextLines className="text-meta" widths={['w-1/3']} />
+            <TextLines className="text-right text-meta" widths={['w-1/3']} />
+            <TextLines className="text-center text-meta" widths={['w-1/3']} />
+            <TextLines className="text-center text-meta" widths={['w-1/3']} />
             <span />
           </div>
           <ul className="divide-y divide-border">

@@ -1301,7 +1301,7 @@ function CashSaleRoom({
                             onClick={() => chooseMethod(option.value)}
                             className={cn(
                               'flex size-24 shrink-0 touch-manipulation flex-col items-center justify-center gap-snug rounded-lg border border-input bg-card p-snug text-center text-meta font-semibold transition-colors sm:size-28',
-                              'hover:border-foreground/30 hover:bg-accent focus-visible:border-iris focus-visible:outline-none',
+                              'hover:border-foreground/20 hover:bg-accent focus-visible:border-iris/60 focus-visible:outline-none',
                               'disabled:pointer-events-none disabled:bg-muted disabled:text-muted-foreground',
                             )}
                           >

@@ -168,7 +168,7 @@ function MediaTile({
     <button
       type="button"
       onClick={onOpen}
-      className="group relative aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:border-iris"
+      className="group relative aspect-square overflow-hidden rounded-lg border focus:outline-none focus-visible:border-iris/60"
     >
       {/* Unoptimised: these are signed, short-lived URLs on a private bucket, so the
           image optimiser cannot cache them and would only add a hop that expires. */}
@@ -452,7 +452,7 @@ export function DisputeEvidencePanel({
                     type="button"
                     onClick={() => setComposerOpen(false)}
                     disabled={busy}
-                    className="grid size-8 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris"
+                    className="grid size-8 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris/60"
                     aria-label="Close"
                   >
                     <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
@@ -468,7 +468,7 @@ export function DisputeEvidencePanel({
                     under it, so the control reads as one object. */}
                 {/* `bg-card`, matching `Textarea`. `bg-background` is the tinted page
                     colour and inside a white card it read as a lilac wash. */}
-                <div className="rounded-lg border border-input bg-card transition-colors focus-within:border-iris">
+                <div className="rounded-lg border border-input bg-card transition-colors focus-within:border-iris/60">
                   <textarea
                     ref={statementRef}
                     id="evidence-statement"
@@ -498,7 +498,7 @@ export function DisputeEvidencePanel({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={busy || files.length >= EVIDENCE_FILES_MAX}
-                      className="inline-flex items-center gap-tight rounded-md border border-transparent text-body font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50"
+                      className="inline-flex items-center gap-tight rounded-md border border-transparent text-body font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris/60 disabled:opacity-50"
                     >
                       <HugeiconsIcon icon={PaperclipIcon} className="size-4" aria-hidden />
                       Photos or video
@@ -533,7 +533,7 @@ export function DisputeEvidencePanel({
                           type="button"
                           onClick={() => removeFile(index)}
                           disabled={busy}
-                          className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-transparent text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:border-iris"
+                          className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-transparent text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:border-iris/60"
                           aria-label={`Remove ${file.name}`}
                         >
                           <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />

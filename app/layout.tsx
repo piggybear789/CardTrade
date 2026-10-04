@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import { cookies } from 'next/headers';
-import { Instrument_Sans } from 'next/font/google';
+import { Inter, JetBrains_Mono, Merriweather } from 'next/font/google';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
@@ -15,59 +15,33 @@ import './globals.css';
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
-// ONE TYPEFACE. Instrument Sans for everything: body, labels, controls,
-// titles and figures. It replaced Plus Jakarta Sans, whose round geometric shapes
-// read as a landing page rather than somewhere that holds money. Medium and semibold
-// carried every level, so nav, buttons, labels and prices all spoke in the same
-// upbeat voice, and its wide bold figures were the most repeated shapes on the
-// busiest pages.
+// TYPEFACES COME FROM THE THEME: Inter (sans), Merriweather (serif) and
+// JetBrains Mono (mono), matching `--font-sans` / `--font-serif` / `--font-mono` in
+// globals.css. `next/font` self-hosts each one under a hashed family name exposed as
+// a CSS variable, which `tailwind.config.ts` puts ahead of the theme's stack.
 //
-// `axes: ['wdth']` loads the WIDTH axis, which is what lets titles, figures and the
-// wordmark take a narrower cut of this same family instead of a second one. Those
-// cuts are `font-display` and `font-wordmark` in `tailwind.config.ts`, which says what
-// wears each. The axis is not free: the file is ~56 KB where Plus Jakarta's was
-// ~27 KB, both measured on the catalog.
-//
-// Geist Mono was once loaded for labels and money, which put two families on any
-// surface pairing a label with a sentence. Money lines up through `tabular-nums`, a
-// font FEATURE, so it needs no second family. `font-mono` survives only on the error
-// pages' digest line and resolves to this same face.
-//
-// `swap`, AND STATED EXPLICITLY even though it is `next/font/google`'s default, because
-// this line has been changed in both directions and the next person deserves the reason
-// rather than an absent option.
-//
-// IT WAS `optional`, AND `optional` IS WHY THE BRAND FACE DID NOT RENDER. That value
-// gives the font a ~100ms block window and then COMMITS for the rest of the page load:
-// if the file did not arrive inside the window, the fallback is kept and nothing swaps,
-// however early the font lands afterwards. The bet was that a root-layout preload wins
-// 100ms often enough that most visits still get the brand face.
-//
-// It does not. A dev server compiling on demand loses that window nearly every time, so
-// the app renders in the system face on every cold load and the design is only ever seen
-// by accident — which is the bug this reverses, reported as "the fonts don't load on
-// desktop". Production is better but not reliable, and a typeface that appears at random
-// is worse than one that appears late.
-//
-// WHAT `optional` WAS BUYING, and why losing it is affordable. `swap` paints the
-// fallback and replaces it whenever the webfont arrives, so the replacement can land
-// after first paint. `adjustFontFallback` stays on (the default): Next synthesises a
-// metric-matched local fallback with `size-adjust` and matching metric overrides, so the
-// fallback occupies the same space the webfont will. The swap therefore changes glyph
-// SHAPES and not line boxes, which is a repaint rather than the reflow the previous
-// comment was avoiding.
-//
-// ONE EXCEPTION: the fallback is matched at NORMAL width. Text in the narrower display
-// cut gets narrower when the webfont lands, so a title that only just wraps in the
-// fallback can lose a line on swap.
-//
-// If the swap ever needs to be tighter than that, the lever is `preload` and the subset,
-// not `display` — starving the page of its typeface is not a performance win.
-const instrumentSans = Instrument_Sans({
+// `display: 'swap'` stays explicit: `optional` once meant the brand face rarely
+// rendered on a cold load. Serif and mono are not preloaded because nothing on the
+// critical path uses them.
+const inter = Inter({
   subsets: ['latin'],
-  axes: ['wdth'],
-  variable: '--font-instrument-sans',
+  variable: '--font-inter',
   display: 'swap',
+});
+
+const merriweather = Merriweather({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-merriweather',
+  display: 'swap',
+  preload: false,
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -119,8 +93,8 @@ export const viewport: Viewport = {
   // Phone chrome is the page surface; desktop keeps the obsidian header.
   // Both are the literal `--obsidian` / `--background` values.
   themeColor: [
-    { media: '(min-width: 768px)', color: '#120f15' },
-    { media: '(max-width: 767px)', color: '#fbf8fc' },
+    { media: '(min-width: 768px)', color: '#111118' },
+    { media: '(max-width: 767px)', color: '#fbfbff' },
   ],
   colorScheme: 'light',
   // Draw under notches/home indicators so the sticky header can pad itself
@@ -152,7 +126,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={instrumentSans.variable}
+      className={`${inter.variable} ${merriweather.variable} ${jetbrainsMono.variable}`}
     >
       <head>
         <link rel="preconnect" href="https://images.pokemontcg.io" />

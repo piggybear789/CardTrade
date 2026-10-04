@@ -164,19 +164,23 @@ function ContractRowSkeleton({
     <li className={cn(CONTRACT_ROW_GRID, 'px-group py-cozy', className)}>
       <Skeleton className="size-12 shrink-0 rounded-md md:size-14" />
       <div className="min-w-0">
+        {/* Title/meta/next-step runs are texture inside this `min-w-0` cell, so they
+            draw from the canonical set. The two-line-vs-one-line distinction is kept
+            (it is what makes a trade row taller than a sale row), and the first line
+            of a two-line title stays `w-full` with a `w-1/3` taper. */}
         <TextLines
           className="text-body"
-          widths={titleLines === 2 ? ['w-full', 'w-2/5'] : ['w-3/5']}
+          widths={titleLines === 2 ? ['w-full', 'w-1/3'] : ['w-2/3']}
         />
         {/* The meta line. Below `md` it also carries the status badge, which has no
             column of its own at that width — `rounded-md` because that is the shape
-            `Badge` draws. */}
+            `Badge` draws, and `h-6 w-20` is its honest reserve. */}
         <div className="mt-0.5 flex items-center gap-cozy">
-          <TextLines className="min-w-0 flex-1 text-meta" widths={['w-2/5']} />
+          <TextLines className="min-w-0 flex-1 text-meta" widths={['w-1/3']} />
           <Skeleton className="h-6 w-20 shrink-0 rounded-md md:hidden" />
         </div>
         {/* The next-step line, which below `md` sits inside this cell. */}
-        <TextLines className="mt-tight text-meta md:hidden" widths={['w-4/5']} />
+        <TextLines className="mt-tight text-meta md:hidden" widths={['w-2/3']} />
       </div>
       {/* Its own column from `md`. Two lines, because the step sentences are clamped
           at two and most of them use both. */}
@@ -281,12 +285,14 @@ function OfferRowSkeleton() {
       {/* The header strip: 40px thumb, title, no badge. */}
       <div className="flex items-center gap-cozy border-b border-border bg-muted/50 px-cozy py-snug">
         <Skeleton className="size-10 shrink-0 rounded-md" />
-        <TextLines className="min-w-0 flex-1 text-body" widths={['w-3/5']} />
+        <TextLines className="min-w-0 flex-1 text-body" widths={['w-2/3']} />
       </div>
-      {/* One negotiation: amount + badge, role line, then the chain. */}
+      {/* One negotiation: amount + badge, role line, then the chain. The text runs are
+          texture (the badge below carries the row height); they draw from the canonical
+          set while the thumb and the baseline-bearing badge box keep their geometry. */}
       <div className="px-cozy py-group">
         <div className="flex items-baseline justify-between gap-snug">
-          <TextLines className="min-w-0 text-lead" widths={['w-20']} />
+          <TextLines className="min-w-0 text-lead" widths={['w-1/3']} />
           {/* A TEXT-BEARING badge box, not an empty `h-6` slab. This row is
               `items-baseline`, and an empty block's baseline is its bottom edge, so the
               slab sat with its foot on the amount's baseline and stood the row ~3px
@@ -296,8 +302,8 @@ function OfferRowSkeleton() {
             <span className="invisible">Pending</span>
           </Skeleton>
         </div>
-        <TextLines className="mt-0.5 text-body" widths={['w-4/5']} />
-        <TextLines className="mt-snug text-meta" widths={['w-2/5']} />
+        <TextLines className="mt-0.5 text-body" widths={['w-2/3']} />
+        <TextLines className="mt-snug text-meta" widths={['w-1/3']} />
       </div>
     </Card>
   );
@@ -324,11 +330,16 @@ export function OfferCardListSkeleton({ count = 4 }: { count?: number }) {
  * pill and a clock on one line and none of that survives 21rem.
  *
  * THE MISSING VARIANT WAS A VISIBLE TEAR ON EVERY CLICK BETWEEN TWO CONVERSATIONS.
- * `messages/[id]/loading.tsx` had no rail shape to ask for, so at `lg` the pane got the
+ * The thread route's loader had no rail shape to ask for, so at `lg` the pane got the
  * `md:flex` WIDE row: a leading 48px square with two text lines beside it, 80px tall,
  * standing in for a compact row that is a leading round avatar, THREE stacked lines and a
  * trailing square, 97px tall. Seventeen pixels and a different arrangement, eight rows
  * deep — the list did not shift so much as get replaced by a different list.
+ *
+ * NO LOADER DRAWS `rail` NOW. The pane moved into `messages/(thread)/layout.tsx`, which
+ * a thread switch does not re-render, so the real list stays on screen and there is no
+ * placeholder to keep in step with it. Kept, with its geometry, for a pane that ever
+ * needs one again.
  */
 export function InboxRowSkeleton({
   variant = 'page',
@@ -352,11 +363,16 @@ export function InboxRowSkeleton({
       {/* Three lines of real type — `text-lead`, `text-body`, `text-meta` — not
           `h-4` + `h-3` + `h-3`. The old bars came to 56px against the row's
           65.6px, so a six-thread inbox stood ~60px short and slid down on swap. */}
+      {/* The `size-12 rounded-full` avatar sets no height — the three-line text column
+          beside it is taller — so by the texture test it is decorative. It is KEPT as a
+          same-size neutral reserve anyway, because the comments above record this box as
+          part of the row's measured 65.6px height contribution and the safe move is to
+          touch only the text widths. Those three runs draw from the canonical set. */}
       <Skeleton className="size-12 shrink-0 rounded-full" />
       <div className="min-w-0 flex-1">
         <TextLines className="text-lead" widths={['w-1/3']} />
-        <TextLines className="mt-0.5 text-body" widths={['w-3/4']} />
-        <TextLines className="mt-0.5 text-meta" widths={['w-12']} />
+        <TextLines className="mt-0.5 text-body" widths={['w-2/3']} />
+        <TextLines className="mt-0.5 text-meta" widths={['w-1/3']} />
       </div>
       {/* NO TRAILING SQUARE, and it stays out: the real row draws one only for a thread
           that carries a listing or a trade. It is `shrink-0` beside a text column taller
@@ -378,6 +394,9 @@ export function InboxRowSkeleton({
           `h-4`/`h-3` for a 24px and a 22.4px line. That is ~18px short PER ROW, so a
           seven-thread inbox stood about 125px short and the whole list slid up on
           swap. */}
+      {/* The wide row's `size-6 rounded-full` avatar and `h-5 w-16 rounded-full` pill
+          are kept as same-size neutral reserves (the thumb and pill carry the line's
+          height); only the text runs are normalized to the canonical set. */}
       <div className="hidden items-center gap-cozy p-group md:flex">
         <Skeleton className="size-12 shrink-0 rounded-md" />
         <div className="min-w-0 flex-1">
@@ -385,9 +404,9 @@ export function InboxRowSkeleton({
             <Skeleton className="size-6 shrink-0 rounded-full" />
             <TextLines className="min-w-0 flex-1 text-lead" widths={['w-1/3']} />
             <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
-            <TextLines className="ml-auto shrink-0 text-meta" widths={['w-12']} />
+            <TextLines className="ml-auto shrink-0 text-meta" widths={['w-1/3']} />
           </div>
-          <TextLines className="mt-0.5 text-body" widths={['w-3/4']} />
+          <TextLines className="mt-0.5 text-body" widths={['w-2/3']} />
         </div>
       </div>
     </>
@@ -410,10 +429,10 @@ export function NotificationRowSkeleton({
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-snug">
-          <TextLines className="min-w-0 flex-1 text-body" widths={['w-2/5']} />
-          <TextLines className="shrink-0 text-meta" widths={['w-12']} />
+          <TextLines className="min-w-0 flex-1 text-body" widths={['w-1/3']} />
+          <TextLines className="shrink-0 text-meta" widths={['w-1/3']} />
         </div>
-        <TextLines className="mt-0.5 text-body" widths={['w-4/5']} />
+        <TextLines className="mt-0.5 text-body" widths={['w-2/3']} />
       </div>
     </div>
   );
@@ -456,17 +475,21 @@ export function ChatThreadSkeleton() {
             adding `mt-0.5`. Carrying the old form here left the block 7px shorter than the
             real one and, in an `items-center` bar, sitting ~3.5px high. */}
         <div className="min-w-0 flex-1">
-          <TextLines className="text-lead leading-tight" widths={['w-2/5']} />
-          <TextLines className="mt-0.5 text-body" widths={['w-28']} />
+          <TextLines className="text-lead leading-tight" widths={['w-1/3']} />
+          <TextLines className="mt-0.5 text-body" widths={['w-1/3']} />
         </div>
         {/* The thread CTA is `Button size="sm"`: 32px on phones, 28px from `md`. */}
         <Skeleton className="h-8 w-24 shrink-0 rounded-md md:h-7" />
       </header>
+      {/* The log bubbles are texture inside this `flex-1` region: one uniform `h-12`
+          height and a two-width alternating set (incoming `w-2/3`, outgoing `w-1/2
+          ml-auto`), with the four-bubble count, `rounded-2xl` and `space-y-cozy`
+          unchanged. Same calm treatment as `ContractRoomSkeleton`'s logs. */}
       <div className={cn('min-h-0 flex-1 space-y-cozy pt-5', MESSAGE_GUTTER)}>
-        <Skeleton className="h-12 w-3/5 rounded-2xl" />
+        <Skeleton className="h-12 w-2/3 rounded-2xl" />
         <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
-        <Skeleton className="h-10 w-2/5 rounded-2xl" />
-        <Skeleton className="ml-auto h-16 w-3/5 rounded-2xl" />
+        <Skeleton className="h-12 w-2/3 rounded-2xl" />
+        <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
       </div>
       {/* NO STANDING NOTE. A bordered band used to sit here for the "nothing is
           held while you are only talking" line, drawn unconditionally. The real

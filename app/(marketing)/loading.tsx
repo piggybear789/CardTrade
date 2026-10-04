@@ -38,17 +38,19 @@ export default function MarketingLoading() {
           `p.mb-group` — and leaving it would recreate the jump it was added to fix,
           just in the other direction: the article would slide UP by that much on swap. */}
 
-      {/* `text-subhead` (23.8px) below `md`, `md:text-head`. An `h-8` bar was 32. */}
-      <TextLines className="text-subhead md:text-head" widths={['w-40']} />
+      {/* `text-subhead` (23.8px) below `md`, `md:text-head`. An `h-8` bar was 32. Width
+          is canonical texture. */}
+      <TextLines className="text-subhead md:text-head" widths={['w-1/2']} />
 
       {/* `mt-snug` (8px) and `text-body` below `md`, not `mt-cozy h-5`. Terms' and
           Privacy's ledes run ~130 characters: three `text-body` lines in a phone's
           343px column, and TWO `md:text-lead` lines in the ~704px desktop one — this
           reserved one there, so both pages grew a line on swap. Help's shorter lede
-          now over-reserves instead; two of the three pages are the long shape. */}
+          now over-reserves instead; two of the three pages are the long shape. The LINE
+          COUNT and the `md:` gates are the reservation; widths draw canonical. */}
       <TextLines
         className="mt-snug text-body md:mt-cozy md:text-lead"
-        widths={['w-full', 'w-full md:w-1/3', 'w-2/5 md:hidden']}
+        widths={['w-full', 'w-full md:w-1/2', 'w-1/2 md:hidden']}
       />
 
       {/* `mt-section space-y-group md:space-y-6`: 32px above, then 16px between every
@@ -60,13 +62,14 @@ export default function MarketingLoading() {
           <Fragment key={index}>
             {/* `[&_h2]:text-subhead` — 23.8px, and its own line-height beats the
                 container's inherited body line-height. */}
-            <TextLines className="text-subhead" widths={['w-32']} />
-            {/* Body copy inherits `text-body`, so 22.4px a line. */}
+            <TextLines className="text-subhead" widths={['w-1/2']} />
+            {/* Body copy inherits `text-body`, so 22.4px a line. The line count is the
+                reservation; the final-line taper draws from the canonical set. */}
             <TextLines
               className="text-body"
               widths={[
                 ...Array.from({ length: lines - 1 }, () => 'w-full'),
-                'w-4/5',
+                'w-2/3',
               ]}
             />
           </Fragment>

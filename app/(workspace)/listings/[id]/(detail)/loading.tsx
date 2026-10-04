@@ -95,47 +95,58 @@ function PhoneStackSkeleton() {
           make this 44px rather than the 28px of the avatar inside it. */}
       <div className="flex min-h-11 items-center gap-snug py-tight">
         <Skeleton className="size-7 shrink-0 rounded-full" />
-        <Skeleton className="h-4 w-28" />
+        {/* The seller-name bar is texture inside the `min-h-11` row — the avatar and the
+            row's own minimum set the height, not this width — so it draws from the
+            canonical set. */}
+        <Skeleton className="h-4 w-1/3" />
       </div>
 
       {/* THE TWO SELLER SUB-LINES. The stack draws a real/stated-name line under the
           seller whenever that seller has an identity disclosure, and a rating link
           whenever they have a rating — ~43px together. Both are conditional and this
           route cannot know which way they will fall; a listing being read by a buyer
-          normally carries both, so reserving them is the side that is right more often. */}
-      <TextLines className="mt-tight text-meta" widths={['w-3/5']} />
+          normally carries both, so reserving them is the side that is right more often.
+          The two widths are texture in their own `text-meta` line boxes, so they draw
+          from the canonical set. */}
+      <TextLines className="mt-tight text-meta" widths={['w-2/3']} />
       {/* `border border-transparent` is the rating link's own focus reserve — without
           it the row is 2px short. */}
       <div className="mt-tight w-fit border border-transparent">
-        <TextLines className="text-meta" widths={['w-24']} />
+        <TextLines className="text-meta" widths={['w-1/3']} />
       </div>
 
       <div className="mt-cozy flex items-center gap-cozy md:mt-group">
-        {/* The price line is `text-display` (28px on a 1.1 line), and the condition pill
-            beside it is `py-0.5` around a `text-meta` line. */}
-        <TextLines className="text-display" widths={['w-32']} />
+        {/* The price line is `text-display` (28px on a 1.1 line) — its height is the
+            type scale, so the bar width is texture and draws canonical. The condition
+            pill beside it keeps its honest `h-5 w-16` reserve. */}
+        <TextLines className="text-display" widths={['w-1/3']} />
         <Skeleton className="ml-auto h-5 w-16 rounded-full" />
       </div>
 
       {/* Meta line. Bars sit in a real `text-meta` line box so the height comes from the
           type scale rather than a guess. */}
       {/* Two lines below `md`: the stack now always reserves two for this line
-          (`line-clamp-2 min-h-[2lh]`), so the title cannot move with the location. */}
+          (`line-clamp-2 min-h-[2lh]`), so the title cannot move with the location. The
+          `md:hidden` on the second line is the load-bearing part (it is what drops the
+          second reserved line from `md` up); the widths themselves are canonical. */}
       <TextLines className="mt-snug text-meta" widths={['w-2/3', 'w-1/3 md:hidden']} />
 
       {/* The title only renders from `md` up — on a phone the stack's `h2` is `sr-only`,
           and the visible title lives in the description. */}
-      <TextLines className="mt-group hidden text-subhead md:block" widths={['w-4/5']} />
+      <TextLines className="mt-group hidden text-subhead md:block" widths={['w-2/3']} />
 
       {/* `ExpandableDescription` is `text-body line-clamp-4`. The clamp ceiling is the
           right thing to reserve: `line-clamp-4` and the "Read more" control both switch
           on at 200 characters, which at this column width IS about four lines. */}
+      {/* The 4-line clamp reservation is geometry (`line-clamp-4` is what this must
+          stand for); the final-line taper is texture and draws from the canonical set. */}
       <TextLines
         className="mt-cozy text-body md:mt-snug"
-        widths={['w-full', 'w-full', 'w-full', 'w-4/5']}
+        widths={['w-full', 'w-full', 'w-full', 'w-1/2']}
       />
-      {/* The "Read more" control is `min-h-10` — a touch target, not a text row. */}
-      <Skeleton className="mt-tight h-10 w-24" />
+      {/* The "Read more" control is `min-h-10` — a touch target, not a text row. The
+          height is the reserve; the width is texture. */}
+      <Skeleton className="mt-tight h-10 w-1/3" />
 
       {/* THE CAROUSEL, AT ITS OWN ASPECT. Every slide of `SwipeCarousel` is
           `aspect-[4/5]` whatever the photo's shape — that fixed frame is what stops the
@@ -158,10 +169,13 @@ function DesktopPaneSkeleton() {
           meta line at `mt-1.5`, and the Save / Report icon pair (`md:size-8` each)
           centred on the right. The icons are signed-in-non-owner only; a buyer is the
           reader this page is mostly for, and their width moves nothing vertically. */}
+      {/* Title/price/meta are texture inside this `flex-1` column; their type-scale
+          classes reserve the heights, so the widths draw from the canonical set. The
+          `size-8` icon pair keeps its own reserve. */}
       <div className="flex items-center justify-between gap-cozy">
         <div className="min-w-0 flex-1">
-          <TextLines className="text-head" widths={['w-4/5']} />
-          <TextLines className="mt-tight text-display" widths={['w-36']} />
+          <TextLines className="text-head" widths={['w-2/3']} />
+          <TextLines className="mt-tight text-display" widths={['w-1/3']} />
           <TextLines className="mt-1.5 text-meta" widths={['w-1/2']} />
         </div>
         <div className="flex shrink-0 items-center">
@@ -178,8 +192,8 @@ function DesktopPaneSkeleton() {
         <div className="flex min-w-0 items-center gap-cozy">
           <Skeleton className="size-10 shrink-0 rounded-full" />
           <div className="min-w-0 flex-1 space-y-tight">
-            <TextLines className="text-lead" widths={['w-32']} />
-            <TextLines className="text-meta" widths={['w-24']} />
+            <TextLines className="text-lead" widths={['w-1/3']} />
+            <TextLines className="text-meta" widths={['w-1/3']} />
             <TextLines className="text-meta leading-snug" widths={['w-1/2']} />
           </div>
         </div>
@@ -189,10 +203,12 @@ function DesktopPaneSkeleton() {
           the pane prints the whole text and the column scrolls. Four lines is the same
           reservation the phone stack makes. */}
       <div>
-        <TextLines className="mb-tight text-meta" widths={['w-20']} />
+        <TextLines className="mb-tight text-meta" widths={['w-1/3']} />
+        {/* Four lines mirrors the phone stack's reservation; the final-line taper is
+            texture and draws from the canonical set. */}
         <TextLines
           className="text-body"
-          widths={['w-full', 'w-full', 'w-full', 'w-3/5']}
+          widths={['w-full', 'w-full', 'w-full', 'w-1/2']}
         />
       </div>
 
@@ -206,13 +222,16 @@ function DesktopPaneSkeleton() {
         <div className="flex items-start gap-snug">
           {Array.from({ length: 3 }, (_, index) => (
             <div key={index} className="flex min-w-0 flex-1 flex-col items-center gap-tight">
+              {/* The `size-12` chip is geometry (its own reserved box); the label under
+                  it is texture in the centred `flex-1` column and draws canonical. */}
               <Skeleton className="size-12 rounded-full" />
-              <TextLines className="text-body leading-tight" widths={['w-16']} />
+              <TextLines className="text-body leading-tight" widths={['w-1/2']} />
             </div>
           ))}
         </div>
         <div className="rounded-lg border bg-card p-cozy">
-          <TextLines className="mb-snug text-body" widths={['w-40']} />
+          {/* The label is texture; the `h-8` field keeps its reserve. */}
+          <TextLines className="mb-snug text-body" widths={['w-1/2']} />
           <Skeleton className="h-8 w-full" />
         </div>
       </div>

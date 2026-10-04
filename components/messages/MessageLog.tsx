@@ -109,6 +109,12 @@ export interface MessageLogProps {
   shipment?: MessageLogShipment | null;
   /** Selected Cash_Sale context for legacy payment copy and contract boundaries. */
   saleContext?: MessageLogSaleContext | null;
+  /**
+   * `false` leaves attachments in their same-size "still signing" placeholder instead
+   * of signing them. Only for a thread drawn as a preview of itself; the real thread
+   * that replaces it signs them. Defaults to `true`.
+   */
+  signAttachments?: boolean;
 }
 
 export function MessageLog({
@@ -123,6 +129,7 @@ export function MessageLog({
   showReadReceipt = false,
   shipment = null,
   saleContext = null,
+  signAttachments = true,
 }: MessageLogProps) {
   const clusters = useMemo(
     () => groupMessages(messages, currentUserId),
@@ -136,7 +143,7 @@ export function MessageLog({
   }, [messages]);
   const firstSystemKey =
     clusters.find((cluster) => cluster.type === 'system')?.key ?? null;
-  const urls = useConversationAttachments(conversationId, messages);
+  const urls = useConversationAttachments(conversationId, messages, signAttachments);
   const [lightbox, setLightbox] = useState<number | null>(null);
 
   const gallery = useMemo(() => {
@@ -474,7 +481,7 @@ function MessageBubble({
           type="button"
           onClick={url ? onOpenImage : undefined}
           disabled={!url}
-          className="relative block aspect-[4/3] w-56 max-w-full overflow-hidden border border-transparent focus:outline-none focus-visible:border-iris disabled:cursor-default"
+          className="relative block aspect-[4/3] w-56 max-w-full overflow-hidden border border-transparent focus:outline-none focus-visible:border-iris/60 disabled:cursor-default"
         >
           {url ? (
             // Signed URLs are private and short-lived; next/image cannot cache them.

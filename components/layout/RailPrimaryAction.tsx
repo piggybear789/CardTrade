@@ -13,16 +13,10 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 
 const CREATE_GLYPH = <HugeiconsIcon icon={PlusIcon} aria-hidden="true" />;
 
-// Obsidian, not the violet primary. A section CTA sits in the rail beside a
-// column of lilac chrome — the iris rail markers, the accent current-section
-// fill, the violet category pills — and a violet fill in that company is one
-// more purple rectangle rather than the one thing to press. Black is the only
-// value in the palette nothing else in the rail is using.
-//
-// `variant`, not a `bg-` class: the fill, the border and both interaction
-// states have to move together, and `contrast` is where that set already
-// lives. See the `Button` cva.
-const ACTION_VARIANT = 'contrast' as const;
+// The theme primary. This was obsidian while the rail was full of lilac chrome
+// and a violet fill would have been one more purple rectangle; the chrome is
+// neutral now, so the violet is again the one thing on screen that says "press".
+const ACTION_VARIANT = 'default' as const;
 const ACTION_CLASS = 'w-full';
 
 type RailPrimaryActionProps = {

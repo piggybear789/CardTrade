@@ -74,7 +74,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
               <Link
                 href={`/trades/${trade.id}`}
                 transitionTypes={['nav-forward']}
-                className="block rounded-sm border border-transparent text-body font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:border-iris"
+                className="block rounded-sm border border-transparent text-body font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:border-iris/60"
               >
                 <span className="line-clamp-2 break-words">
                   {yours}

@@ -109,7 +109,7 @@ export function MarketplaceShellSkeleton({
                 // then took up on every titleless route. Restating a ratio the type
                 // scale already owns is how it goes stale; `TextLines` reads it from the
                 // cascade instead, so moving `subhead` moves this with it.
-                <TextLines className="font-display text-subhead" widths={['w-24']} />
+                <TextLines className="font-display text-subhead" widths={['w-1/3']} />
               )}
               {primaryAction ? (
                 <div className="mt-group md:[&>a]:!h-11 md:[&>a]:text-body md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-body md:[&>button>svg]:size-4">

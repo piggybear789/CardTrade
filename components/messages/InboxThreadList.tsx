@@ -75,13 +75,22 @@ function UnreadMark({ count }: { count: number }) {
 function MobileThreadRow({
   c,
   className,
-  active = false,
+  selected = false,
+  current = false,
+  onOpen,
 }: {
   c: ConversationListEntry;
   /** Inset for the rail pane, which has no padding of its own to lend. */
   className?: string;
-  /** This is the conversation currently open in the pane beside the list. */
-  active?: boolean;
+  /**
+   * Highlighted as the thread the pane beside the list is showing — or, for the moment
+   * a click is in flight, the one it is about to show.
+   */
+  selected?: boolean;
+  /** This thread IS the page: drawn as a focusable box rather than a link. */
+  current?: boolean;
+  /** Rail only. Called as a client-side navigation to this thread starts. */
+  onOpen?: (conversationId: string) => void;
 }) {
   const name = c.other.displayName?.trim() || 'NoDitto member';
   const thumb = c.item ? itemImageUrl(c.item.imagePath) : null;
@@ -107,18 +116,25 @@ function MobileThreadRow({
     // only thing saying which thread the pane on the right is showing, and a keyboard
     // user tabbing the list should not have the current row silently vanish from the
     // order. `RowShell` is `div`/`Link` and nothing else changes between the two.
+    //
+    // HIGHLIGHT AND LINK-NESS ARE SEPARATE NOW. A click in the rail highlights the row
+    // it opens immediately, before the router has committed it, and that row has to stay
+    // a LINK until then: turning it into a box mid-flight would unmount the very link
+    // whose navigation is running. The row you are leaving becomes a link again in the
+    // same render, so a second thought is one click away.
     <RowShell
       href={`/messages/${c.id}`}
-      active={active}
+      current={current}
+      onNavigate={onOpen ? () => onOpen(c.id) : undefined}
       className={cn(
-        'relative flex min-h-11 items-center gap-cozy py-3.5 border border-transparent focus:outline-none focus-visible:border-iris',
+        'relative flex min-h-11 items-center gap-cozy py-3.5 border border-transparent focus:outline-none focus-visible:border-iris/60',
         // CURRENT READS THE SAME WAY IT DOES IN THE WORKSPACE RAIL, and deliberately
         // so — this row and the rail's own current item are the same statement. That
         // means a NEUTRAL fill plus an iris bar, copied from `MarketplaceNav`, not
         // `bg-muted`: muted is violet-tinted (`283 34% 96%`), so the open thread wore a
         // lavender wash and was the one coloured thing in the list, which reads as
         // decoration rather than as position.
-        active
+        selected
           ? 'bg-foreground/[0.06] before:absolute before:left-0 before:top-1/2 before:h-4 before:w-0.5 before:-translate-y-1/2 before:rounded-full before:bg-iris before:content-[""]'
           : 'transition-colors hover:bg-muted/60',
         className,
@@ -154,7 +170,12 @@ function MobileThreadRow({
         >
           {preview}
         </p>
-        <p className="mt-0.5 text-meta text-muted-foreground">{time}</p>
+        {/* `suppressHydrationWarning`: in the rail this row is rendered on the server
+            and then hydrated, and a relative time can tick over ("4m ago" -> "5m ago")
+            in between. The rail re-renders it on its own clock (`InboxRail`). */}
+        <p className="mt-0.5 text-meta text-muted-foreground" suppressHydrationWarning>
+          {time}
+        </p>
       </div>
 
       {thumb ? (
@@ -182,23 +203,32 @@ function MobileThreadRow({
  * A row's outer element: a link to the thread, or — when that thread is the one already
  * open beside the list — a plain focusable box that goes nowhere.
  *
- * Server-renderable on purpose. Intercepting the click on the client would need this
- * module to become a client component, and the whole list is static markup; there is no
- * state here worth shipping to the browser to answer a question the server already knows
- * the answer to.
+ * This module carries no `'use client'` and stays server-renderable: the full-width
+ * `/messages` list renders it on the server as static links. The rail is the one caller
+ * that needs the click, and it renders this list from a client component (`InboxRail`),
+ * which is what lets it pass `onNavigate` at all.
+ *
+ * `onNavigate`, not `onClick`: it fires only for a client-side navigation, so a
+ * Ctrl/Cmd-click into a new tab does not mark a thread as being opened HERE.
+ *
+ * `scroll={false}` with it. A switch between threads replaces one pane, and Next's
+ * default scroll-and-focus handling has nothing useful to do — it would at best move
+ * focus off the row a keyboard user is working down the list from.
  */
 function RowShell({
   href,
-  active,
+  current,
+  onNavigate,
   className,
   children,
 }: {
   href: string;
-  active: boolean;
+  current: boolean;
+  onNavigate?: () => void;
   className?: string;
   children: ReactNode;
 }) {
-  if (active) {
+  if (current) {
     return (
       <div aria-current="page" tabIndex={0} className={className}>
         {children}
@@ -206,7 +236,13 @@ function RowShell({
     );
   }
   return (
-    <Link href={href} transitionTypes={['nav-forward']} className={className}>
+    <Link
+      href={href}
+      transitionTypes={['nav-forward']}
+      onNavigate={onNavigate}
+      scroll={onNavigate ? false : undefined}
+      className={className}
+    >
       {children}
     </Link>
   );
@@ -222,7 +258,7 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
     <Link
       href={`/messages/${c.id}`}
       transitionTypes={['nav-forward']}
-      className="flex items-center gap-cozy p-group transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-iris"
+      className="flex items-center gap-cozy p-group transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-iris/60"
     >
       {thumb ? (
         // NOT decorative any more. With the item title dropped from the row, the
@@ -291,6 +327,8 @@ export function InboxThreadList({
   conversations,
   variant = 'page',
   activeId = null,
+  pendingId = null,
+  onOpen,
 }: {
   conversations: ConversationListEntry[];
   /**
@@ -304,15 +342,27 @@ export function InboxThreadList({
    * surface, and a card inside it would be a second border a few pixels in.
    */
   variant?: 'page' | 'rail';
-  /** In the rail, which conversation the pane on the right is showing. */
+  /** In the rail, the conversation the router has committed — the one in the URL. */
   activeId?: string | null;
+  /** In the rail, a conversation a click is opening and the router has not yet committed. */
+  pendingId?: string | null;
+  /** In the rail, called as a client-side navigation to a thread starts. */
+  onOpen?: (conversationId: string) => void;
 }) {
   if (variant === 'rail') {
+    // The highlight follows the click; the "you are here" box follows the router.
+    const shown = pendingId ?? activeId;
     return (
       <ul role="list" aria-label="Conversations" className="divide-y divide-border">
         {conversations.map((c) => (
           <li key={c.id}>
-            <MobileThreadRow c={c} className="px-cozy" active={c.id === activeId} />
+            <MobileThreadRow
+              c={c}
+              className="px-cozy"
+              selected={c.id === shown}
+              current={c.id === activeId && pendingId === null}
+              onOpen={onOpen}
+            />
           </li>
         ))}
       </ul>

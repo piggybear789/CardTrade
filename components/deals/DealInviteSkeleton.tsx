@@ -60,28 +60,31 @@ export function DealInviteSkeleton() {
 function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: boolean }) {
   return (
     <div className="mx-auto w-full max-w-lg rounded-lg border border-border bg-card shadow-market">
+      {/* Title and description are texture in their own line boxes, drawn canonical. */}
       <div className="flex flex-col space-y-snug p-group">
-        <TextLines className="text-subhead" widths={['w-32']} />
+        <TextLines className="text-subhead" widths={['w-1/3']} />
         {/* Every `CardDescription` branch is ~35 characters, one line at every width. */}
-        <TextLines className="text-body" widths={['w-56 max-w-full']} />
+        <TextLines className="text-body" widths={['w-1/2']} />
       </div>
 
+      {/* The fact list: each label over its value, both texture at their type scale.
+          The `size-16` thumbnail beside the card fact keeps its reserve. */}
       <div className="grid gap-group p-group pt-0">
-        <TextLines className="text-body" widths={['w-28']} />
+        <TextLines className="text-body" widths={['w-1/3']} />
         <div className="grid gap-group">
           <div className="grid gap-tight">
-            <TextLines className="text-body" widths={['w-12']} />
-            <TextLines className="text-lead" widths={['w-36']} />
+            <TextLines className="text-body" widths={['w-1/3']} />
+            <TextLines className="text-lead" widths={['w-1/2']} />
           </div>
           <div className="grid gap-tight">
-            <TextLines className="text-body" widths={['w-12']} />
-            <TextLines className="text-head" widths={['w-24']} />
+            <TextLines className="text-body" widths={['w-1/3']} />
+            <TextLines className="text-head" widths={['w-1/3']} />
           </div>
           <div className="grid gap-tight">
-            <TextLines className="text-body" widths={['w-24']} />
+            <TextLines className="text-body" widths={['w-1/3']} />
             <div className="flex items-center gap-group">
               <Skeleton className="size-16 shrink-0" />
-              <TextLines className="min-w-0 flex-1 text-lead" widths={['w-3/4']} />
+              <TextLines className="min-w-0 flex-1 text-lead" widths={['w-2/3']} />
             </div>
           </div>
         </div>
@@ -92,8 +95,9 @@ function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: b
           the same button row. `Button` default size: `h-9 md:h-8`. */}
       <div className="flex flex-col items-stretch gap-snug p-group pt-0 sm:flex-row sm:items-center sm:justify-between">
         {withFooterNote ? (
-          // Two lines, as the join form's footer note now always reserves.
-          <TextLines className="text-meta" widths={['w-56 max-w-full', 'w-24']} />
+          // Two lines, as the join form's footer note now always reserves; widths
+          // draw from the canonical set.
+          <TextLines className="text-meta" widths={['w-1/2', 'w-1/3']} />
         ) : null}
         <Skeleton className="h-9 w-full sm:w-32 md:h-8" />
       </div>

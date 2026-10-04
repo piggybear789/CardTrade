@@ -118,10 +118,10 @@ export function PaymentTermsDialog({
                 <label
                   key={value}
                   className={cn(
-                    'flex cursor-pointer items-center gap-snug rounded-md border p-snug text-body transition-colors',
+                    'flex cursor-pointer items-center gap-snug rounded-md border border-input bg-card p-snug text-body transition-colors',
                     // The row carries the focus edge, matching the item rows on
                     // the offer card.
-                    'has-[:focus-visible]:border-iris',
+                    'has-[:focus-visible]:border-iris/60',
                     draft.cashDirection === value &&
                       'bg-accent text-accent-foreground',
                   )}

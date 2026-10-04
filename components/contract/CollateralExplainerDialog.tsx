@@ -50,7 +50,7 @@ export function CollateralExplainerDialog({
       {/* No inner scroll container: DialogContent already scrolls, and nesting a
           second one meant the wheel stalled at the boundary. `sm:max-w-lg`,
           not 2xl — this is prose, and a 42rem measure left a wide empty band. */}
-      <DialogContent className="sm:max-w-lg" mobile="sheet">
+      <DialogContent className="md:max-w-lg" mobile="sheet">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

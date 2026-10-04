@@ -27,7 +27,23 @@ const config: Config = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
-        sidebar: "hsl(var(--sidebar))",
+        sidebar: {
+          DEFAULT: "hsl(var(--sidebar))",
+          foreground: "hsl(var(--sidebar-foreground))",
+          primary: "hsl(var(--sidebar-primary))",
+          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
+          accent: "hsl(var(--sidebar-accent))",
+          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
+          border: "hsl(var(--sidebar-border))",
+          ring: "hsl(var(--sidebar-ring))",
+        },
+        chart: {
+          "1": "hsl(var(--chart-1))",
+          "2": "hsl(var(--chart-2))",
+          "3": "hsl(var(--chart-3))",
+          "4": "hsl(var(--chart-4))",
+          "5": "hsl(var(--chart-5))",
+        },
         // The signature violet. Non-text use only — rings, borders, markers,
         // icons — because it is 3.73:1 on the page. Use `iris-ink` for text.
         iris: {
@@ -73,79 +89,25 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
-      // ONE FAMILY, THREE WIDTHS. Instrument Sans, loaded with its width axis in
-      // `app/layout.tsx`: `sans` for text, `display` for titles and figures, and
-      // `wordmark` for the name alone.
+      // FONTS COME FROM THE THEME: `--font-sans` (Inter), `--font-serif`
+      // (Merriweather), `--font-mono` (JetBrains Mono), declared in globals.css.
+      // `next/font` serves each face under a hashed family name exposed as
+      // `--font-inter` / `--font-merriweather` / `--font-jetbrains-mono`
+      // (app/layout.tsx), so that variable leads and the theme's own stack follows.
       //
-      // `sans` is the TEXT cut: body copy, labels, controls, and anything read
-      // closely. It states `wdth` 100 outright rather than leaving the axis alone,
-      // so `font-sans` is a real way back to the text width inside something that
-      // wears the display cut (the eyebrow class relies on that).
-      //
-      // `display` is the DISPLAY cut, the same family at 88% width, for what is
-      // LOOKED AT rather than read:
-      //   - every h1 and h2 (a base rule in `globals.css`), so page, section and
-      //     dialog titles need no class
-      //   - `.display-value` money and reference figures
-      //   - headline prices on listing tiles, the listing page and the sale room
-      // Listing titles on tiles are h3 and stay at text width on purpose: they are
-      // long descriptions people read, not labels.
-      //
-      // `font-variation-settings`, not `font-stretch`, because it drives the axis
-      // without depending on the @font-face declaring a stretch range. It sets that
-      // one axis; weight still comes from `font-weight`.
+      // `display` and `wordmark` are kept as NAMES so their call sites still
+      // resolve. They used Instrument Sans's width axis; Inter has none, so both
+      // are now the text face, and titles are told apart by size and weight.
       fontFamily: {
-        sans: [
-          [
-            "var(--font-instrument-sans)",
-            "ui-sans-serif",
-            "system-ui",
-            "Segoe UI",
-            "Helvetica Neue",
-            "Arial",
-            "sans-serif",
-          ],
-          { fontVariationSettings: '"wdth" 100' },
-        ],
-        display: [
-          [
-            "var(--font-instrument-sans)",
-            "ui-sans-serif",
-            "system-ui",
-            "Segoe UI",
-            "Helvetica Neue",
-            "Arial",
-            "sans-serif",
-          ],
-          { fontVariationSettings: '"wdth" 88' },
-        ],
-        // The wordmark only: narrower again, so the name reads as a mark rather
-        // than as one more title. Used by `Logo` and the phone chrome's wordmark.
-        wordmark: [
-          [
-            "var(--font-instrument-sans)",
-            "ui-sans-serif",
-            "system-ui",
-            "Segoe UI",
-            "Helvetica Neue",
-            "Arial",
-            "sans-serif",
-          ],
-          { fontVariationSettings: '"wdth" 78' },
-        ],
-        // ONE TYPEFACE. `mono` is kept as a NAME so any stray `font-mono` still
-        // resolves, but it points at the same stack — the app loads no monospace
-        // face. Reintroducing one here would put two families back on screen,
-        // which is the thing this consolidation removed.
-        mono: [
-          "var(--font-instrument-sans)",
-          "ui-sans-serif",
-          "system-ui",
-          "Segoe UI",
-          "Helvetica Neue",
-          "Arial",
-          "sans-serif",
-        ],
+        sans: ["var(--font-inter)", "var(--font-sans)"],
+        display: ["var(--font-inter)", "var(--font-sans)"],
+        wordmark: ["var(--font-inter)", "var(--font-sans)"],
+        serif: ["var(--font-merriweather)", "var(--font-serif)"],
+        mono: ["var(--font-jetbrains-mono)", "var(--font-mono)"],
+      },
+      // The theme's tracking.
+      letterSpacing: {
+        normal: "var(--tracking-normal)",
       },
       // SPACING RHYTHM, named by intent rather than by size.
       //
@@ -256,6 +218,15 @@ const config: Config = {
       // which is the "ghost card" tell — a soft wide bloom doing the job a
       // defined edge already does. Pick one; the border wins.
       boxShadow: {
+        // The theme's shadow scale (globals.css `--shadow-*`).
+        "2xs": "var(--shadow-2xs)",
+        xs: "var(--shadow-xs)",
+        sm: "var(--shadow-sm)",
+        DEFAULT: "var(--shadow)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
+        xl: "var(--shadow-xl)",
+        "2xl": "var(--shadow-2xl)",
         market: "0 1px 2px hsl(var(--obsidian) / 0.04), 0 4px 10px hsl(var(--obsidian) / 0.05)",
         auction: "0 6px 16px hsl(var(--obsidian) / 0.10)",
         // Hover elevation for a whole card that is itself a link. Deliberately
@@ -272,8 +243,9 @@ const config: Config = {
       // AvatarUploadField all did. `ringOpacity` moves with it because the 0.5 default
       // is applied to whatever DEFAULT resolves to, and iris at half strength falls
       // below the 3:1 a focus indicator owes the page.
+      // Focus is a faint violet: a 1px edge at 60%, never a heavy frame.
       ringColor: {
-        DEFAULT: "hsl(var(--iris))",
+        DEFAULT: "hsl(var(--iris) / 0.6)",
       },
       ringOpacity: {
         DEFAULT: "1",

@@ -55,7 +55,7 @@ export async function SiteHeader() {
       className="sticky top-0 z-40"
     >
       <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
+        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 md:block"
       >
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* THE WORDMARK NEEDS MORE ROOM THAN THE NAV ITEMS NEED FROM EACH OTHER.
@@ -80,7 +80,7 @@ export async function SiteHeader() {
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris/60"
             >
               <Logo />
             </Link>
@@ -147,7 +147,7 @@ export function SiteHeaderSkeleton({
       className="sticky top-0 z-40"
     >
       <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground shadow-[0_8px_30px_hsl(var(--obsidian)/0.2)] backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 after:absolute after:inset-x-0 after:bottom-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-iris/65 after:to-transparent md:block"
+        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 md:block"
       >
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* Same three columns as the real bar above, CLASS FOR CLASS, including
@@ -159,7 +159,7 @@ export function SiteHeaderSkeleton({
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris/60"
             >
               <Logo />
             </Link>

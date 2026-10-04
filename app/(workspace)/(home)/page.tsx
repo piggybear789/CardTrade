@@ -198,7 +198,7 @@ export default async function HomePage({
     // and it is the action the whole marketplace exists to collect. This route
     // passes no `mobileAction`, so the override lands on desktop only.
     primaryAction: (
-      <RailPrimaryAction href="/listings/new" size="lg">
+      <RailPrimaryAction href="/listings/new">
         Create New Listing
       </RailPrimaryAction>
     ),

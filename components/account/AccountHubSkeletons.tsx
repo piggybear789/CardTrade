@@ -29,30 +29,33 @@ import { OnboardingSpineSkeleton } from '@/components/onboarding/OnboardingSpine
 export function ProfilePanelSkeleton() {
   return (
     <div className="space-y-group md:space-y-section" aria-hidden>
+      {/* Row label/value widths are texture (the row box carries the height), drawn
+          canonical. The `description` flag and `valueClassName="hidden"` are
+          load-bearing reservations and stay. */}
       <SettingsGroup>
         {/* Name and email · Bio · Links · Addresses (which carries a description). */}
-        <SettingsRowSkeleton labelClassName="w-32" valueClassName="w-36" />
-        <SettingsRowSkeleton labelClassName="w-10" valueClassName="w-16" />
-        <SettingsRowSkeleton labelClassName="w-14" valueClassName="w-14" />
-        <SettingsRowSkeleton description labelClassName="w-24" valueClassName="w-14" />
+        <SettingsRowSkeleton labelClassName="w-1/3" valueClassName="w-1/3" />
+        <SettingsRowSkeleton labelClassName="w-1/3" valueClassName="w-1/3" />
+        <SettingsRowSkeleton labelClassName="w-1/3" valueClassName="w-1/3" />
+        <SettingsRowSkeleton description labelClassName="w-1/3" valueClassName="w-1/3" />
       </SettingsGroup>
 
       {/* Browsing region: a `Location01Icon` medallion and a fixed description. */}
       <SettingsGroup>
-        <SettingsRowSkeleton icon description labelClassName="w-32" valueClassName="w-28" />
+        <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="w-1/3" />
       </SettingsGroup>
 
       <SettingsGroup>
         {/* The payment row has a `CreditCardIcon` medallion. */}
-        <SettingsRowSkeleton icon description labelClassName="w-32" valueClassName="w-24" />
+        <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="w-1/3" />
       </SettingsGroup>
 
       {/* Support (static heading, so the real label), then Sign out, under a rule. */}
       <div className="space-y-group border-t border-border pt-section">
         <SettingsGroup label="Support">
-          <SettingsRowSkeleton icon description labelClassName="w-28" valueClassName="hidden" />
-          <SettingsRowSkeleton icon description labelClassName="w-28" valueClassName="hidden" />
-          <SettingsRowSkeleton icon description labelClassName="w-12" valueClassName="hidden" />
+          <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="hidden" />
+          <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="hidden" />
+          <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="hidden" />
         </SettingsGroup>
         <Skeleton className="h-12 w-full rounded-xl" />
       </div>
@@ -91,22 +94,24 @@ export function PayoutsPanelSkeleton() {
   return (
     <div className="space-y-group md:space-y-section" aria-hidden>
       <SettingsGroup>
+        {/* Label / figure / caption are texture at their type scales, drawn canonical. */}
         <SettingsPanelRow>
-          <TextLines className="text-body" widths={['w-24']} />
-          <TextLines className="mt-tight text-head" widths={['w-28']} />
-          <TextLines className="mt-tight text-body" widths={['w-40']} />
+          <TextLines className="text-body" widths={['w-1/3']} />
+          <TextLines className="mt-tight text-head" widths={['w-1/3']} />
+          <TextLines className="mt-tight text-body" widths={['w-1/2']} />
         </SettingsPanelRow>
-        <SettingsRowSkeleton labelClassName="w-32" valueClassName="w-16" />
-        <SettingsRowSkeleton labelClassName="w-24" valueClassName="w-16" />
-        <SettingsRowSkeleton labelClassName="w-16" valueClassName="w-16" />
+        <SettingsRowSkeleton labelClassName="w-1/3" valueClassName="w-1/3" />
+        <SettingsRowSkeleton labelClassName="w-1/3" valueClassName="w-1/3" />
+        <SettingsRowSkeleton labelClassName="w-1/3" valueClassName="w-1/3" />
         <SettingsPanelRow>
           {/* ~220 characters of `text-meta`: about four lines in the phone column,
-              two in the 672px desktop one. */}
+              two in the 672px desktop one. The LINE COUNT and the `md:` gates are the
+              reservation; widths draw from the canonical set. */}
           <TextLines
             className="text-meta md:hidden"
             widths={['w-full', 'w-full', 'w-full', 'w-1/3']}
           />
-          <TextLines className="hidden text-meta md:block" widths={['w-full', 'w-11/12']} />
+          <TextLines className="hidden text-meta md:block" widths={['w-full', 'w-full']} />
         </SettingsPanelRow>
       </SettingsGroup>
       <Skeleton className="h-36 w-full rounded-xl" />

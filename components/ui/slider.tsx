@@ -95,7 +95,7 @@ function Slider({
           // sit 1.46:1 apart, so the colour swap alone did not read as a state.
           // Inset because `overflow-x-clip` on the root would crop an outset ring
           // at either end of the track.
-          className="relative block size-5 md:size-6 rounded-full border-2 border-primary bg-background transition-colors focus-visible:border-iris focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-iris disabled:pointer-events-none disabled:opacity-65 before:absolute before:-inset-3.5 before:content-['']"
+          className="relative block size-5 md:size-6 rounded-full border-2 border-primary bg-background transition-colors focus-visible:border-iris/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris/60 disabled:pointer-events-none disabled:opacity-65 before:absolute before:-inset-3.5 before:content-['']"
         />
       ))}
     </SliderPrimitive.Root>

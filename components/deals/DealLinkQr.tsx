@@ -52,7 +52,7 @@ export function DealLinkQr({ path }: { path: string }) {
           type="button"
           aria-label="Show a larger QR code"
           title="Show a larger QR code"
-          className="size-24 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border bg-white transition-colors hover:border-foreground/30 focus:outline-none focus-visible:border-iris"
+          className="size-24 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border bg-white transition-colors hover:border-foreground/20 focus:outline-none focus-visible:border-iris/60"
         >
           <QrImage matrix={matrix} decorative />
         </button>

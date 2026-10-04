@@ -44,7 +44,7 @@ export function StageRail({ stages, idPrefix }: { stages: readonly Stage[]; idPr
         >
           <span
             aria-hidden
-            className="absolute left-0 top-0 flex h-9 w-9 items-center justify-center rounded-full border border-iris/40 bg-card text-meta font-semibold tabular-nums text-iris-ink"
+            className="absolute left-0 top-0 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-meta font-semibold tabular-nums text-foreground"
           >
             {String(index + 1).padStart(2, '0')}
           </span>

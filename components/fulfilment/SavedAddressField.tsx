@@ -221,7 +221,7 @@ export function SavedAddressField({
                     <span className="block truncate font-medium">
                       {address.label?.trim() || address.addressLabel}
                       {address.isDefault ? (
-                        <span className="ml-snug text-meta font-normal text-iris">Default</span>
+                        <span className="ml-snug text-meta font-normal text-muted-foreground">Default</span>
                       ) : null}
                     </span>
                     {address.label?.trim() ? (

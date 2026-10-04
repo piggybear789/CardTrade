@@ -344,7 +344,7 @@ function TradeCashSettlementNotice({
   const amount = formatMoney(cashAmountCents, trade.currency);
 
   return (
-    <div className="rounded-lg border border-border bg-iris/[0.07] px-group py-cozy text-body">
+    <div className="rounded-lg border border-border bg-muted px-group py-cozy text-body">
       {pendingAfterComplete ? (
         <>
           <p className="font-medium">

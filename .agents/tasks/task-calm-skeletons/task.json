@@ -1,0 +1,13 @@
+{
+  "task_id": "task-calm-skeletons",
+  "task_description": "Make the app's loading skeletons calmer: reduce inner visual detail and even out visual weight across all skeleton/loading placeholders, while strictly preserving the reserved geometry (heights, insets, aspect frames, breakpoint gates, grid/strip constants) so no layout shift is introduced on data arrival. Adopt ONE uniform skeleton treatment and apply it everywhere.",
+  "status": "completed",
+  "feature_order": ["FEAT-001", "FEAT-002"],
+  "blocked_reason": null,
+  "verification": {
+    "build": "skipped",
+    "tests": "skipped",
+    "test_quality": "n/a",
+    "summary": "Presentational-only refactor; build/typecheck/lint/test deliberately NOT run per explicit user rule and .kiro/steering/tech.md (user runs them on their own cadence). Correctness relies on editor diagnostics for these TSX edits. No tested logic was touched; the e2e skeleton-fidelity and layout-shift probes (user-run) do not assert specific bar widths. v1 semantic review (scoped to the ~30 skeleton/loading files this task edited) returned APPROVED: confirmed every edit is texture-only and no reserved footprint, breakpoint gate, aspect frame, grid constant, ch-sized label, or fixed control height changed. Two non-blocking notes, both verified safe/out-of-scope."
+  }
+}

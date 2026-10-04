@@ -50,7 +50,7 @@ export function DialogRow({
       aria-haspopup="dialog"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-snug rounded-lg border border-border px-cozy py-2.5 text-left text-body font-medium transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:border-iris focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris',
+        'flex min-h-10 w-full items-center gap-snug rounded-md border border-input bg-card px-cozy py-snug text-left text-body font-medium transition-colors hover:border-foreground/20 hover:bg-muted focus-visible:border-iris/60 focus-visible:outline-none',
         invalid && 'border-destructive',
       )}
     >

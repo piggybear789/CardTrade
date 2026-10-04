@@ -134,10 +134,12 @@ export function SavedCardRow({
     return (
       <div className={className} role="status" aria-label="Checking your card">
         <div className="flex items-center gap-cozy rounded-lg border p-cozy" aria-hidden>
+          {/* The `size-5` glyph and the `h-8` button keep their reserves; the two card
+              lines are texture at `text-body` and draw from the canonical set. */}
           <Skeleton className="size-5 shrink-0 rounded-sm" />
           <div className="min-w-0 flex-1">
-            <TextLines className="text-body" widths={['w-32']} />
-            <TextLines className="text-body" widths={['w-48 max-w-full']} />
+            <TextLines className="text-body" widths={['w-1/3']} />
+            <TextLines className="text-body" widths={['w-1/2']} />
           </div>
           {/* The ghost `size="sm"` Replace / Add card button. */}
           <Skeleton className="h-8 w-20 shrink-0 rounded-md md:h-7" />

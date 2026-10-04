@@ -229,7 +229,7 @@ function SavedAddressRow({
         </div>
         <div className="flex shrink-0 items-center gap-snug">
           {address.isDefault ? (
-            <span className="inline-flex items-center gap-tight text-meta font-medium text-iris">
+            <span className="inline-flex items-center gap-tight text-meta font-medium text-muted-foreground">
               <HugeiconsIcon icon={StarIcon} className="size-3.5" aria-hidden />
               Default
             </span>
@@ -248,7 +248,7 @@ function SavedAddressRow({
             onClick={remove}
             disabled={pending}
             aria-label="Remove address"
-            className="flex size-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-iris disabled:opacity-65"
+            className="flex size-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-iris/60 disabled:opacity-65"
           >
             <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
           </button>

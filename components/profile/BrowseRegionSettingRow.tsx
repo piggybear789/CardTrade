@@ -268,7 +268,7 @@ function RegionOption({
       onClick={onSelect}
       disabled={disabled}
       className={cn(
-        'flex w-full items-center gap-cozy rounded-md border border-transparent px-cozy py-snug text-left transition-colors focus:outline-none focus-visible:border-iris disabled:opacity-50',
+        'flex w-full items-center gap-cozy rounded-md border border-transparent px-cozy py-snug text-left transition-colors focus:outline-none focus-visible:border-iris/60 disabled:opacity-50',
         selected
           ? 'bg-accent text-accent-foreground'
           : 'hover:border-foreground/10 hover:bg-muted/40',

@@ -95,9 +95,9 @@ export function OnboardingSpineStep({
         />
         <span
           className={cn(
-            'my-tight grid size-7 shrink-0 place-items-center rounded-full border text-meta font-semibold transition-all duration-300',
+            'my-tight grid size-7 shrink-0 place-items-center rounded-full border text-meta font-semibold',
             done && 'cardtrade-success-chip',
-            active && 'border-iris bg-iris/20 text-foreground ring-2 ring-iris/25',
+            active && 'border-primary bg-primary text-primary-foreground',
             !done && !active && 'border-border bg-card text-muted-foreground',
           )}
           aria-hidden

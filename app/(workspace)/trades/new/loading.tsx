@@ -41,40 +41,42 @@ export default function NewTradeLoading() {
     >
       <Card className="mx-auto w-full max-w-lg">
         <CardHeader className="pb-group">
-          <TextLines className="text-subhead" widths={['w-36']} />
-          <TextLines className="text-body" widths={['w-64 max-w-full']} />
+          {/* Title/description are texture in their own line boxes, drawn canonical. */}
+          <TextLines className="text-subhead" widths={['w-1/2']} />
+          <TextLines className="text-body" widths={['w-2/3']} />
         </CardHeader>
         <CardContent className="space-y-group">
           {/* The requested item: 48px thumb beside an eyebrow and the title, price
-              on the right. */}
+              on the right. The thumb is geometry; the text runs are canonical texture. */}
           <div className="flex items-center gap-cozy rounded-lg border bg-muted p-cozy">
             <Skeleton className="size-12 shrink-0 rounded-md" />
             <div className="min-w-0 flex-1">
-              <TextLines className="text-meta" widths={['w-32']} />
-              <TextLines className="text-lead" widths={['w-48 max-w-full']} />
+              <TextLines className="text-meta" widths={['w-1/3']} />
+              <TextLines className="text-lead" widths={['w-2/3']} />
             </div>
-            <TextLines className="ml-auto shrink-0 text-body" widths={['w-14']} />
+            <TextLines className="ml-auto shrink-0 text-body" widths={['w-1/3']} />
           </div>
           {/* "You offer": the legend, then the "Your listings" and "Unlisted item"
-              rows. */}
+              rows. Legend and the DialogRow label/hint runs are canonical texture. */}
           <div className="min-w-0 space-y-snug">
-            <TextLines className="text-body" widths={['w-20']} />
-            <DialogRowSkeleton label="w-24" hint="w-32" />
-            <DialogRowSkeleton label="w-24" hint="w-48" />
+            <TextLines className="text-body" widths={['w-1/3']} />
+            <DialogRowSkeleton label="w-1/3" hint="w-1/3" />
+            <DialogRowSkeleton label="w-1/3" hint="w-1/2" />
           </div>
-          <DialogRowSkeleton label="w-28" hint="w-16" />
-          {/* Running total: You give / They give, then the verdict under a rule. */}
+          <DialogRowSkeleton label="w-1/3" hint="w-1/3" />
+          {/* Running total: You give / They give, then the verdict under a rule. All
+              figures are texture in their own line boxes, drawn canonical. */}
           <div className="rounded-lg border bg-muted p-cozy text-body">
             <div className="flex items-baseline justify-between gap-cozy">
-              <TextLines widths={['w-16']} />
-              <TextLines widths={['w-14']} />
+              <TextLines widths={['w-1/3']} />
+              <TextLines widths={['w-1/3']} />
             </div>
             <div className="mt-tight flex items-baseline justify-between gap-cozy">
-              <TextLines widths={['w-16']} />
-              <TextLines widths={['w-14']} />
+              <TextLines widths={['w-1/3']} />
+              <TextLines widths={['w-1/3']} />
             </div>
             <div className="mt-snug border-t pt-snug">
-              <TextLines widths={['w-40']} />
+              <TextLines widths={['w-1/2']} />
             </div>
           </div>
         </CardContent>

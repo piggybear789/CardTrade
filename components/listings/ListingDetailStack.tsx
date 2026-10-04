@@ -89,7 +89,7 @@ export function ListingDetailStack({
       <Link
         href={isOwner ? '/profile' : `/sellers/${sellerId}`}
         transitionTypes={['nav-forward']}
-        className="flex min-h-11 items-center gap-snug rounded-md border border-transparent py-tight focus:outline-none focus-visible:border-iris"
+        className="flex min-h-11 items-center gap-snug rounded-md border border-transparent py-tight focus:outline-none focus-visible:border-iris/60"
       >
         <Avatar
           avatarPath={sellerAvatarPath}
@@ -156,7 +156,7 @@ export function ListingDetailStack({
         ) : (
           <Link
             href={`/sellers/${sellerId}#reviews`}
-            className="mt-tight inline-flex w-fit rounded-sm border border-transparent focus:outline-none focus-visible:border-iris"
+            className="mt-tight inline-flex w-fit rounded-sm border border-transparent focus:outline-none focus-visible:border-iris/60"
             aria-label="Read seller reviews"
           >
             <StarRating

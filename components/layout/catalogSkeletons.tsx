@@ -58,22 +58,24 @@ export function CatalogTileSkeleton({
       />
       <div className="flex min-w-0 flex-col gap-tight px-cozy pb-2.5 pt-snug">
         {/* Title clamps to two lines and, at this column width, almost always
-            uses both. */}
+            uses both — the two-line reservation is kept; the taper draws from the
+            canonical set. */}
         <TextLines
           className="text-body"
-          widths={['w-full', 'w-3/5']}
+          widths={['w-full', 'w-2/3']}
         />
-        {/* Category · condition. */}
-        <TextLines className="text-body leading-tight" widths={['w-2/5']} />
+        {/* Category · condition. Texture at `text-body`, drawn canonical. */}
+        <TextLines className="text-body leading-tight" widths={['w-1/2']} />
         {/* Price. The major digits are `text-head`, so this line is the tallest
-            in the block. */}
+            in the block (the reserve); the width is texture. */}
         <TextLines className="text-head" widths={['w-1/2']} />
         {hasSeller ? (
           // 24px row: the card's seller link is `min-h-6` for target size, with a
-          // `size-5` avatar beside a `text-meta` name inside it.
+          // `size-5` avatar beside a `text-meta` name inside it. The avatar and the
+          // fixed row height are geometry; the name run is texture, drawn canonical.
           <div className="flex h-6 min-w-0 items-center gap-1.5">
             <Skeleton className="size-5 shrink-0 rounded-full" />
-            <TextLines className="min-w-0 flex-1 text-meta" widths={['w-3/5']} />
+            <TextLines className="min-w-0 flex-1 text-meta" widths={['w-2/3']} />
           </div>
         ) : null}
       </div>

@@ -52,26 +52,29 @@ function WelcomeStepSkeleton() {
         {/* `DialogHeader`'s `gap-1.5` and the wizard's own `space-y-snug` are
             different twMerge groups, so both apply: 14px between title and
             description, not 8. */}
+        {/* Title and description are texture inside their type-scale line boxes. */}
         <div className="flex flex-col gap-1.5 space-y-snug text-center">
           <div className="text-head">
-            <Skeleton className="mx-auto inline-block h-[0.9em] w-56 max-w-full align-middle" />
+            <Skeleton className="mx-auto inline-block h-[0.9em] w-1/2 max-w-full align-middle" />
           </div>
           <div className="text-body">
-            <Skeleton className="mx-auto inline-block h-[0.9em] w-72 max-w-full align-middle" />
+            <Skeleton className="mx-auto inline-block h-[0.9em] w-2/3 max-w-full align-middle" />
           </div>
         </div>
 
         {/* Three promises, each an icon medallion beside a `text-body font-medium`
-            title and a `text-body` body. */}
+            title and a `text-body` body. The `size-8` medallion keeps its reserve; the
+            title and body runs are texture (the body's LINE COUNT is the reservation)
+            and draw from the canonical set. */}
         <ul className="space-y-cozy text-left">
           {WELCOME_POINT_BODY_LINES.map((bodyLines, index) => (
             <li key={index} className="flex items-center gap-cozy">
               <Skeleton className="size-8 shrink-0 rounded-full" />
               <div className="min-w-0 flex-1 space-y-tight">
-                <TextLines className="text-body" widths={['w-2/5']} />
+                <TextLines className="text-body" widths={['w-1/2']} />
                 <TextLines
                   className="text-body"
-                  widths={[...Array.from({ length: bodyLines - 1 }, () => 'w-full'), 'w-3/4']}
+                  widths={[...Array.from({ length: bodyLines - 1 }, () => 'w-full'), 'w-2/3']}
                 />
               </div>
             </li>
@@ -97,8 +100,10 @@ function SellerStepSkeleton() {
   return (
     <>
       <StepBody>
+        {/* The title bar is texture (the `size-8` info button sets the row height); it
+            draws from the canonical set. */}
         <div className="flex min-h-8 items-center justify-center gap-tight text-head">
-          <Skeleton className="inline-block h-[0.9em] w-64 max-w-full align-middle" />
+          <Skeleton className="inline-block h-[0.9em] w-1/2 max-w-full align-middle" />
           <Skeleton className="size-8 shrink-0 rounded-full" />
         </div>
         <OnboardingSpineSkeleton />

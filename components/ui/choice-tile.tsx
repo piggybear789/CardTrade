@@ -66,7 +66,7 @@ export function ChoiceTile({
     <label
       htmlFor={id}
       className={cn(
-        'relative flex cursor-pointer items-center gap-snug rounded-md border border-border text-body transition-colors',
+        'relative flex cursor-pointer items-center gap-snug rounded-md border border-input bg-card text-body transition-colors',
         // Stacked tiles are composition, not padding: the icon earns its height
         // by sitting above the label, so the tile reads as intention rather
         // than as a stretched row. `min-h` pins both tiles to the same height
@@ -76,7 +76,7 @@ export function ChoiceTile({
           : 'p-snug md:p-cozy',
         // The whole tile takes the focus frame: at this size the native control's
         // own border is easy to miss. Edge plus 1px inset ring, like every field.
-        'has-[:focus-visible]:border-iris has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-iris',
+        'has-[:focus-visible]:border-iris/60',
         // Hover darkens the hairline rather than tinting it violet: a violet hover
         // edge on an unselected tile would read as a second, weaker selection.
         //
@@ -86,7 +86,7 @@ export function ChoiceTile({
         // marker globals.css already allows for a selected gallery thumbnail, and the
         // accent-plus-iris pairing is what GenrePills uses for its active pill.
         checked
-          ? 'border-iris bg-accent text-accent-foreground'
+          ? 'border-foreground bg-accent text-accent-foreground'
           : 'hover:border-foreground/20 hover:bg-muted/40',
         invalid && 'border-destructive',
         // Locked groups (a disabled <fieldset>) look and behave locked.

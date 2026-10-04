@@ -14,7 +14,7 @@
 // Steps come from the same pure derivation in `domain/contract` that feeds the action
 // card, so the two can never disagree.
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CheckIcon, XIcon } from '@hugeicons/core-free-icons';
 
@@ -68,34 +68,9 @@ export function ContractProgressRail({
   const [openId, setOpenId] = useState<string | null>(null);
   const open = steps.find((step) => step.id === openId) ?? null;
 
-  // Track which steps just completed so we can animate them.
-  const prevStepsRef = useRef<Map<string, ContractStep['status']>>(new Map());
-  const [justCompleted, setJustCompleted] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    const prev = prevStepsRef.current;
-    const newlyDone = new Set<string>();
-
-    for (const step of steps) {
-      const prevStatus = prev.get(step.id);
-      // A step that was NOT done and is now done = just completed.
-      if (step.status === 'done' && prevStatus && prevStatus !== 'done') {
-        newlyDone.add(step.id);
-      }
-    }
-
-    // Update the ref for next render.
-    const next = new Map<string, ContractStep['status']>();
-    for (const step of steps) next.set(step.id, step.status);
-    prevStepsRef.current = next;
-
-    if (newlyDone.size > 0) {
-      setJustCompleted(newlyDone);
-      // Clear the animation class after it plays.
-      const timeout = setTimeout(() => setJustCompleted(new Set()), 600);
-      return () => clearTimeout(timeout);
-    }
-  }, [steps]);
+  // NO STEP ANIMATIONS. A completed step used to bounce (scale 1.45) and the
+  // live step pinged on an infinite loop. The step's own state change is the
+  // signal; motion on top of it was decoration on the room's busiest surface.
 
   if (steps.length === 0) return null;
 
@@ -112,7 +87,6 @@ export function ContractProgressRail({
           const selected = openId === step.id;
           const first = index === 0;
           const last = index === steps.length - 1;
-          const animating = justCompleted.has(step.id);
           const annotation = annotations?.[step.id];
 
           return (
@@ -130,7 +104,7 @@ export function ContractProgressRail({
                       : done
                         ? 'bg-trust/60'
                         : live
-                          ? 'bg-iris/60'
+                          ? 'bg-foreground/25'
                           : halted
                             ? 'bg-destructive/50'
                             : 'bg-border',
@@ -160,14 +134,13 @@ export function ContractProgressRail({
                     // violet hover edge meant pointing at any step made it look like
                     // the current one.
                     'hover:border-foreground/20 hover:text-foreground',
-                    'border border-transparent focus:outline-none focus-visible:border-iris',
+                    'border border-transparent focus:outline-none focus-visible:border-iris/60',
                     done && 'cardtrade-success-chip',
-                    live && 'animate-step-active border-iris bg-iris/25 text-foreground ring-2 ring-iris/25',
+                    live && 'border-primary bg-primary text-primary-foreground',
                     halted &&
                       'border-destructive/40 bg-destructive/10 text-destructive',
                     !done && !live && !halted && 'border-border bg-card text-muted-foreground',
                     selected && 'ring-2 ring-ring ring-offset-1',
-                    animating && 'animate-step-complete',
                   )}
                 >
                   {done ? (
@@ -195,7 +168,7 @@ export function ContractProgressRail({
                       : steps[index + 1]?.status === 'done'
                         ? 'bg-trust/60'
                         : steps[index + 1]?.status === 'active'
-                          ? 'bg-iris/60'
+                          ? 'bg-foreground/25'
                           : steps[index + 1]?.status === 'halted'
                             ? 'bg-destructive/50'
                             : 'bg-border',

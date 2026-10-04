@@ -146,7 +146,7 @@ export function PlacePicker({
         <input
           id={id}
           // `text-body`, matching `Input` — see the stale-variant note there.
-          className="flex h-9 w-full rounded-md border border-input bg-background px-cozy py-tight text-body md:h-8"
+          className="flex h-9 w-full rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8"
           value={textOnly}
           disabled={disabled}
           placeholder={textFallbackPlaceholder ?? 'Suburb or meeting place'}

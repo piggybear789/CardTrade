@@ -219,7 +219,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               framed in violet made the whole stack read as urgent. The tint says
               "there is material in here" just as well and does not compete with
               the focus edge. See the border rule in globals.css. */}
-          <Card className={evidence.length > 0 ? 'bg-iris/[0.05]' : undefined}>
+          <Card className={evidence.length > 0 ? 'bg-muted/50' : undefined}>
             <CardHeader className="pb-cozy">
               <div className="flex items-center justify-between gap-snug">
                 <div className="flex items-center gap-snug">
@@ -280,7 +280,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                   </div>
                 ) : null}
                 {shipment.returnLapsedAt ? (
-                  <div className="rounded-md border border-border bg-iris/[0.07] p-cozy">
+                  <div className="rounded-md border border-border bg-muted p-cozy">
                     <p className="text-meta font-medium uppercase tracking-wide text-iris-ink">
                       Return lapsed · {formatContractDateTime(shipment.returnLapsedAt) ?? shipment.returnLapsedAt}
                     </p>
@@ -444,7 +444,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           {/* Decision. The one card on the page the arbitrator ACTS in, so it keeps
               its emphasis — as a tint, with the neutral hairline every other card
               wears. The heading and the iris-ink scales icon already name it. */}
-          <Card className="bg-iris/[0.05]">
+          <Card className="bg-muted/50">
             <CardHeader className="pb-cozy">
               <div className="flex items-center gap-snug">
                 <HugeiconsIcon icon={ScaleIcon} className="size-4 text-iris-ink" aria-hidden />

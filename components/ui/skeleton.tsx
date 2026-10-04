@@ -40,10 +40,22 @@ export function Skeleton({
  * and the bar is `0.9em` so the usual half-leading survives above and below it
  * and a stack still reads as text rather than as one solid slab.
  *
+ * CONVENTION: a width here is TEXTURE, not geometry — the bar sits inside its own
+ * line box and the type-scale class (`text-body`, `text-lead`, …) is what reserves
+ * the row's height, so the fraction only decides how far the bar runs across a
+ * column that is already as wide as it is going to be. To keep the app's many
+ * loaders reading as one calm, even surface rather than a ragged spread of bar
+ * lengths, draw texture runs from the small canonical set `{w-1/3, w-1/2, w-2/3,
+ * w-full}` and taper a final wrapped line to `w-1/3` or `w-1/2`. Reach for a
+ * literal fraction or `w-[Nch]`/`w-N` only when the width is genuinely LOAD-BEARING
+ * — i.e. it reserves space other content lines up against (a `ch`-sized tab label,
+ * a figure another column aligns to). Those stay exact; everything else collapses to
+ * the canonical set.
+ *
  * @example
  * // Two wrapped lines of body copy, then a tighter caption.
- * <TextLines className="text-body" widths={['w-full', 'w-2/5']} />
- * <TextLines className="mt-0.5 text-meta" widths={['w-12']} />
+ * <TextLines className="text-body" widths={['w-full', 'w-1/3']} />
+ * <TextLines className="mt-0.5 text-meta" widths={['w-1/3']} />
  */
 export function TextLines({
   className,

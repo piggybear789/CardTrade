@@ -120,7 +120,7 @@ export function ErrorScreen({
             <button
               type="button"
               onClick={() => setReportState('writing')}
-              className="font-medium text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-iris"
+              className="font-medium text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris focus-visible:outline-none"
             >
               Report this problem
             </button>

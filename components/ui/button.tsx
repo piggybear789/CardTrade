@@ -48,7 +48,7 @@ import { cn } from "@/lib/utils";
 //
 // FOCUS IS A RING INSIDE THE CONTROL, NOT A BORDER-COLOUR SWAP.
 //
-// It used to be `focus-visible:border-iris` alone. On a filled button that swaps a
+// It used to be `focus-visible:border-iris/60` alone. On a filled button that swaps a
 // 1px `--primary` edge for a 1px `--iris` edge — same hue, 1.46:1 apart — so a
 // keyboard user tabbing onto "Sign in" saw almost nothing change. Two rules now:
 //
@@ -73,13 +73,14 @@ const buttonVariants = cva(
   // floated in the card with nothing around it and read as a caption rather than a
   // control that was waiting on the two fields above it.
   //
-  // `--border` (281 8% 87%) is the hairline every card and field already uses, so a
-  // disabled control now holds its shape on whatever surface it sits on. The fill stays
+  // `--input` is the edge every control uses (fields, outline, secondary), so a
+  // disabled control keeps the same edge as its enabled neighbours and holds its
+  // shape on whatever surface it sits on. The fill stays
   // as it was: with an edge, it no longer has to carry the shape by itself.
   //
   // Do NOT fix this by tinting the fill per surface. The fill is one token and the
   // surfaces are many; the edge is what makes it surface-independent.
-  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:border-border disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-3.5 [&_svg]:shrink-0",
+  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:border-input disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-3.5 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
@@ -91,11 +92,14 @@ const buttonVariants = cva(
         // danger on its own.
         contrast:
           "border border-obsidian bg-obsidian text-white hover:bg-obsidian/90 active:bg-obsidian/80 focus-visible:ring-2 focus-visible:ring-white",
-        // `border-action-edge`, not `border-obsidian/10`. The fill is a pastel
-        // now and sits 1.55:1 against a white page, so a 10%-alpha edge left the
-        // control with no boundary meeting SC 1.4.11. See `--action-border`.
+        // ONE FILLED CTA COLOUR. `action` was a pastel amber fill; under the
+        // monochrome palette it renders exactly as `default` (ink), so the buy
+        // bar and the room's "your move" control read as the primary rather than
+        // as a second, louder brand. Kept as a variant name so call sites can still
+        // say what the control MEANS. Amber survives as a signal (`--action`), not
+        // a button.
         action:
-          "border border-action-edge bg-action text-action-foreground hover:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_12%)] active:bg-[color-mix(in_oklch,hsl(var(--action)),hsl(var(--obsidian))_20%)] focus-visible:ring-2 focus-visible:ring-action-foreground",
+          "border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground",
         success:
           "border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80 focus-visible:ring-2 focus-visible:ring-white",
         destructive:
@@ -107,12 +111,12 @@ const buttonVariants = cva(
         // carried by the fill (`bg-accent` / `bg-secondary/75`); the edge only has
         // to firm up.
         outline:
-          "border border-border bg-card/80 text-foreground hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+          "border border-input bg-card text-foreground hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-iris/60",
         secondary:
-          "border border-border bg-secondary text-secondary-foreground hover:border-foreground/20 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+          "border border-input bg-secondary text-secondary-foreground hover:border-foreground/20 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-iris/60",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
-        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-iris/60",
+        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-iris/60",
       },
       size: {
         // 36px on touch, 28px from `md`, with the side padding pulled in to

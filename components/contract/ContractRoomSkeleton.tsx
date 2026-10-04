@@ -64,11 +64,15 @@ function ChatBarSkeleton() {
       <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-full md:hidden" />
       <Skeleton className="size-9 shrink-0 rounded-md" />
       <div className="min-w-0 flex-1">
-        <TextLines className="text-lead leading-tight" widths={['w-2/5']} />
+        {/* Title then the price · status · person subline. The two text runs are
+            texture inside the `flex-1` column — the badge carries the subline's
+            height — so they collapse to the canonical set; the `BadgeSkeleton` keeps
+            its honest badge height. */}
+        <TextLines className="text-lead leading-tight" widths={['w-1/3']} />
         <div className="mt-0.5 flex min-w-0 items-center gap-snug text-body">
-          <TextLines className="shrink-0" widths={['w-12']} />
+          <TextLines className="shrink-0" widths={['w-1/3']} />
           <BadgeSkeleton />
-          <TextLines className="min-w-0 flex-1" widths={['w-20']} />
+          <TextLines className="min-w-0 flex-1" widths={['w-1/3']} />
         </div>
       </div>
     </div>
@@ -83,9 +87,12 @@ function ActionDockSkeleton() {
   return (
     <div className="relative z-10 shrink-0 border-t bg-card">
       <div className="flex items-center gap-x-cozy px-cozy py-snug">
+        {/* Title over an `md`-only detail line. Both are texture inside the `flex-1
+            basis-0` column, so they draw from the canonical set; the 40/32px control
+            beside them keeps its reserve. */}
         <div className="min-w-0 flex-1 basis-0">
-          <TextLines className="text-lead leading-tight" widths={['w-3/5']} />
-          <TextLines className="mt-0.5 hidden text-body md:block" widths={['w-4/5']} />
+          <TextLines className="text-lead leading-tight" widths={['w-2/3']} />
+          <TextLines className="mt-0.5 hidden text-body md:block" widths={['w-2/3']} />
         </div>
         <Skeleton className="h-10 w-28 shrink-0 rounded-md md:h-8" />
       </div>
@@ -126,21 +133,27 @@ export function ContractRoomSkeleton() {
     <div className="flex min-h-0 flex-1 flex-col gap-group md:px-group md:pt-group lg:h-[calc(100dvh-5rem-1px-env(safe-area-inset-top))] lg:flex-none">
       {/* `ContractHeader`: one line inside `px-group py-cozy`. Title at `text-subhead`,
           the party line (24px `xs` avatars), then status badge and the `text-lead`
-          money figure on the right. */}
+          money figure on the right.
+
+          CALMER PARTY LINE: the real header draws two `xs` avatars with a name beside
+          each, but inside this row their height is set by the `text-body` line beside
+          them and by the badge, not by the 24px circles — so the circles were pure
+          decorative texture. We collapse the cluster to ONE neutral `size-6 rounded-md`
+          chip (a plain box, no `rounded-full` final-shape mimicry) plus a single
+          `w-1/3` text run, and drop the second avatar+name pair. Nothing lines up
+          against the circles, so this moves no reserved geometry. */}
       <Card className="hidden border-border shadow-sm md:block">
         <div className="flex flex-wrap items-center justify-between gap-x-group gap-y-snug px-group py-cozy">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-group gap-y-tight">
-            <TextLines className="font-display text-subhead" widths={['w-40']} />
+            <TextLines className="font-display text-subhead" widths={['w-1/3']} />
             <div className="flex items-center gap-x-snug">
-              <Skeleton className="size-6 rounded-full" />
-              <TextLines className="text-body" widths={['w-10']} />
-              <Skeleton className="size-6 rounded-full" />
-              <TextLines className="text-body" widths={['w-20']} />
+              <Skeleton className="size-6 rounded-md" />
+              <TextLines className="text-body" widths={['w-1/3']} />
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-cozy">
             <BadgeSkeleton className="w-24" />
-            <TextLines className="text-lead" widths={['w-20']} />
+            <TextLines className="text-lead" widths={['w-1/3']} />
           </div>
         </div>
       </Card>
@@ -150,11 +163,15 @@ export function ContractRoomSkeleton() {
       <div className="flex min-h-0 flex-1 flex-col bg-card md:overflow-hidden md:rounded-lg md:border md:border-border md:shadow-sm lg:hidden">
         <ChatBarSkeleton />
         {/* The log is `flex-1`; its height is whatever the fixed bands leave, so the
-            bubbles are texture rather than geometry. */}
+            bubbles are texture rather than geometry. Every bubble is ONE uniform
+            height (`h-12`) and a two-width alternating set — incoming `w-2/3`,
+            outgoing `w-1/2 ml-auto` — so the log reads calm and even. The
+            `rounded-2xl`, the `gap-cozy`, the `justify-end` anchoring and the bubble
+            count are unchanged. */}
         <div className="flex min-h-0 flex-1 flex-col justify-end gap-cozy p-cozy pb-6">
           <Skeleton className="h-12 w-2/3 rounded-2xl" />
-          <Skeleton className="ml-auto h-12 w-3/5 rounded-2xl" />
-          <Skeleton className="h-10 w-1/2 rounded-2xl" />
+          <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
+          <Skeleton className="h-12 w-2/3 rounded-2xl" />
         </div>
         <ActionDockSkeleton />
         <ContractComposerPlaceholder />
@@ -168,22 +185,35 @@ export function ContractRoomSkeleton() {
               the active panel at `p-group` — its `text-meta` heading, then the content
               `mt-cozy` below it. */}
           <Card className="flex min-h-0 min-w-0 flex-col overflow-hidden border-border shadow-sm">
+            {/* The four tab labels are texture inside `min-h-11` fixed cells — the row
+                height comes from `min-h-11`, not the bar widths — so they all draw at
+                a single uniform `w-12` to read even rather than as a stair-step of
+                four lengths. The `min-h-11`, the `px-*` cell insets and the cell count
+                are geometry and unchanged. */}
             <div className="flex min-h-11 shrink-0 items-stretch border-b px-tight sm:px-snug">
-              {['w-10', 'w-12', 'w-14', 'w-16'].map((width) => (
-                <div key={width} className="flex shrink-0 items-center px-cozy text-meta">
-                  <TextLines widths={[width]} />
+              {[0, 1, 2, 3].map((index) => (
+                <div key={index} className="flex shrink-0 items-center px-cozy text-meta">
+                  <TextLines widths={['w-12']} />
                 </div>
               ))}
             </div>
             <div className="min-h-0 flex-1 bg-card p-group text-body">
               <TextLines className="text-meta" widths={['w-20']} />
+              {/* The six label/value rows. The label column was six different widths
+                  (`w-24 w-20 w-28 w-16 w-24 w-20`) — the single biggest source of
+                  visual noise in this file. Both columns are texture: the label is
+                  `shrink-0` and the value is `min-w-0`, so neither width positions the
+                  other row's content. All six labels now draw at one uniform `w-20`
+                  and the value column stays a uniform `w-24`, so the list reads as six
+                  even rows. The `space-y-group`, `items-baseline` and row count are
+                  unchanged. */}
               <div className="mt-cozy space-y-group">
-                {['w-24', 'w-20', 'w-28', 'w-16', 'w-24', 'w-20'].map((width, index) => (
+                {[0, 1, 2, 3, 4, 5].map((index) => (
                   <div
                     key={index}
                     className="flex items-baseline justify-between gap-group"
                   >
-                    <TextLines className="shrink-0 text-meta" widths={[width]} />
+                    <TextLines className="shrink-0 text-meta" widths={['w-20']} />
                     <TextLines className="min-w-0 text-body" widths={['w-24']} />
                   </div>
                 ))}
@@ -195,13 +225,17 @@ export function ContractRoomSkeleton() {
               carries internally, then the composer. */}
           <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             <ChatBarSkeleton />
-            {/* Bottom-anchored: a chat log opens scrolled to the newest message. */}
+            {/* Bottom-anchored: a chat log opens scrolled to the newest message. Same
+                calm treatment as the phone column — one uniform `h-12` height and a
+                two-width alternating set (incoming `w-2/3`, outgoing `w-1/2 ml-auto`),
+                with the five-bubble count, `rounded-2xl`, `gap-cozy` and `justify-end`
+                anchoring all unchanged. */}
             <div className="flex min-h-0 flex-1 flex-col justify-end gap-cozy p-cozy pb-6">
               <Skeleton className="h-12 w-2/3 rounded-2xl" />
-              <Skeleton className="ml-auto h-10 w-1/2 rounded-2xl" />
-              <Skeleton className="h-16 w-3/5 rounded-2xl" />
-              <Skeleton className="ml-auto h-12 w-2/5 rounded-2xl" />
-              <Skeleton className="h-10 w-1/2 rounded-2xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
+              <Skeleton className="h-12 w-2/3 rounded-2xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
+              <Skeleton className="h-12 w-2/3 rounded-2xl" />
             </div>
             <ActionDockSkeleton />
             <ContractComposerPlaceholder />

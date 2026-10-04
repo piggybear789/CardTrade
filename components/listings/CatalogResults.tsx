@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, ViewTransition } from 'react';
+import { useEffect } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -142,26 +142,21 @@ export function CatalogResults() {
           // cannot push the pager below it: a pager needs `totalPages > 1`, which needs
           // a full page of results, which means there is no leftover height to take.
           'flex min-h-0 flex-1 flex-col',
-          'motion-safe:transition-opacity motion-safe:duration-300 motion-safe:ease-out',
+          'motion-safe:transition-opacity motion-safe:duration-150',
           isPending && 'opacity-70 pointer-events-none',
         )}
       >
+        {/* No cross-fade between filter results: the grid swaps instantly. */}
         {isDesktop ? (
-          <ViewTransition
+          <CatalogGridBody
             key={revision}
-            name="catalog-grid"
-            share="auto"
-            default="none"
-          >
-            <CatalogGridBody
-              result={result}
-              revision={revision}
-              current={current}
-              currentUserId={currentUserId}
-              regionCode={regionCode}
-              hasAnyFilter={hasAnyFilter}
-            />
-          </ViewTransition>
+            result={result}
+            revision={revision}
+            current={current}
+            currentUserId={currentUserId}
+            regionCode={regionCode}
+            hasAnyFilter={hasAnyFilter}
+          />
         ) : (
           <CatalogGridBody
             result={result}

@@ -9,7 +9,6 @@ import {
   useMemo,
   useRef,
   useState,
-  ViewTransition,
 } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
@@ -20,7 +19,6 @@ import {
   type CatalogSort,
   type SearchCatalogParams,
 } from '@/lib/actions/listings';
-import { useIsDesktop } from '@/components/layout/Breakpoint';
 import {
   CatalogMosaic,
   catalogCoverDim,
@@ -114,7 +112,6 @@ export function CatalogInfiniteGrid({
     setWatchingIds(new Set(initialWatchingIds));
     setError(null);
   }
-  const isDesktop = useIsDesktop();
   // A set of ids rather than an index, because `CatalogMosaic`'s render prop
   // hands back the item and not its position.
   const eagerCoverIds = useMemo(
@@ -229,23 +226,18 @@ export function CatalogInfiniteGrid({
   return (
     <>
       <CatalogMosaic items={items} keyOf={itemKey} dimOf={itemCoverDim}>
+        {/* No per-tile fade on filter changes: the grid swaps instantly. */}
         {(item, coverDim) => (
-          <ViewTransition
-            enter={isDesktop ? 'fade-in' : undefined}
-            exit={isDesktop ? 'fade-out' : undefined}
-            default="none"
-          >
-            <CatalogItemCard
-              item={item}
-              coverDim={coverDim}
-              eager={eagerCoverIds.has(item.id)}
-              initialWatching={
-                currentUserId && item.owner_id !== currentUserId
-                  ? watchingIds.has(item.id)
-                  : undefined
-              }
-            />
-          </ViewTransition>
+          <CatalogItemCard
+            item={item}
+            coverDim={coverDim}
+            eager={eagerCoverIds.has(item.id)}
+            initialWatching={
+              currentUserId && item.owner_id !== currentUserId
+                ? watchingIds.has(item.id)
+                : undefined
+            }
+          />
         )}
       </CatalogMosaic>
 
@@ -256,7 +248,7 @@ export function CatalogInfiniteGrid({
           <button
             type="button"
             onClick={() => void loadMoreRef.current({ force: true })}
-            className="mt-snug w-full rounded-lg border border-border px-group py-cozy text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-iris"
+            className="mt-snug h-10 w-full rounded-md border border-input bg-card px-group text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-iris/60"
           >
             Load more listings
           </button>
@@ -273,7 +265,7 @@ export function CatalogInfiniteGrid({
               <button
                 type="button"
                 onClick={() => void loadMoreRef.current({ force: true })}
-                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
+                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-iris/60"
               >
                 {error}
               </button>

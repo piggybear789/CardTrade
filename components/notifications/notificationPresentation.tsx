@@ -102,7 +102,7 @@ function metaFor(type: string) {
 export function notificationRowClass(unread: boolean, layout: string) {
   return cn(
     'flex w-full items-start border border-transparent text-left transition-colors',
-    'hover:bg-accent focus:outline-none focus-visible:border-iris focus-visible:bg-accent',
+    'hover:bg-accent focus:outline-none focus-visible:border-iris/60 focus-visible:bg-accent',
     unread && 'bg-accent/40',
     layout,
   );

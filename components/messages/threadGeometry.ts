@@ -9,7 +9,7 @@
 // only way that stays true.
 //
 // And the consumers straddle the server/client boundary: `InboxTwoPane` and
-// `app/(workspace)/messages/[id]/loading.tsx` are server-rendered, `ChatThread`,
+// `ChatThreadSkeleton` (`WorkspaceSkeletons`) are server-renderable, `ChatThread`,
 // `MessageLog` and `MessageComposer` are `'use client'`. A plain module with no
 // components in it can be imported from either side without dragging a client reference
 // into a server tree — see the same trap documented in

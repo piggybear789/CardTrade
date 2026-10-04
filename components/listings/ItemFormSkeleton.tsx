@@ -42,7 +42,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             in BOTH modes, so nothing below `md` may stand in for it. Bars sit in
             real line boxes rather than the `h-6`/`h-4` they were, and
             `CardHeader`'s own `space-y-snug` sets the gap. */}
-        <TextLines className="text-subhead" widths={['w-40']} />
+        <TextLines className="text-subhead" widths={['w-1/2']} />
         <TextLines className="hidden text-body md:block" widths={['w-full']} />
       </CardHeader>
 
@@ -76,7 +76,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               N selected." paragraph under the label; that line was removed from
               `ItemForm`, so reserving 22.4px for it here would drop the whole panel
               on swap. */}
-          <TextLines className="text-body leading-none" widths={['w-16']} />
+          <TextLines className="text-body leading-none" widths={['w-1/3']} />
 
           {/* ONE LAYOUT AT EVERY WIDTH, as `ItemForm` now draws it: the cover in the
               left two thirds and the other photos stacked down the right third, two to
@@ -131,7 +131,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
                 outside the fieldset's content box, so its margin does NOT collapse
                 with the tile grid's `space-y` margin — the gap is 16px, not 8. Padding
                 here, not margin, because between two plain divs it WOULD collapse. */}
-            <TextLines className="pb-snug text-body leading-none" widths={['w-40']} />
+            <TextLines className="pb-snug text-body leading-none" widths={['w-1/2']} />
             <div className="grid grid-cols-2 gap-snug">
               {Array.from({ length: 2 }, (_, index) => (
                 <div
@@ -144,12 +144,12 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             </div>
             {/* "This can't be changed after a listing is created." — inside the
                 fieldset, so it sits at the block's own `space-y-snug` rather than the
-                rail's `space-y-5`. Edit mode only. */}
-            {isCreate ? null : <TextLines className="text-body" widths={['w-4/5']} />}
+                rail's `space-y-5`. Edit mode only. Width is canonical texture. */}
+            {isCreate ? null : <TextLines className="text-body" widths={['w-2/3']} />}
           </div>
 
           <div className="space-y-snug">
-            <TextLines className="text-body leading-none" widths={['w-24']} />
+            <TextLines className="text-body leading-none" widths={['w-1/3']} />
             {/* `Textarea rows={4}`: four lines of `text-body` (22.4px) plus `py-snug`
                 and the border is 108px, at every width and on every pointer.
                 RECOMPUTE THIS WHEN `body` MOVES — it was 101px at 13px, and before
@@ -160,8 +160,8 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             {/* The character counter's row. This was two `text-body` lines standing
                 for "The first line is used as the listing title in the catalog.",
                 which has been removed from `ItemForm` — all that is left under the
-                textarea is `0/2000`, one `text-meta` line. */}
-            <TextLines className="text-meta" widths={['w-12']} />
+                textarea is `0/2000`, one `text-meta` line. Width is canonical texture. */}
+            <TextLines className="text-meta" widths={['w-1/3']} />
           </div>
 
           {/* `gap-cozy`, matching `ItemForm`. `gap-5` here added 8px between
@@ -169,7 +169,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               `sm` matches the form's taxonomy row. */}
           <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
             <div className="space-y-snug">
-              <TextLines className="text-body leading-none" widths={['w-20']} />
+              <TextLines className="text-body leading-none" widths={['w-1/3']} />
               {/* `h-9 md:h-8`, matching `SelectTrigger` — which matches `Button` and
                   `Input`, since fields and controls share one height scale. The `md`
                   height moved 28px -> 32px when `body` became 14px; a stale `md:h-7`
@@ -177,22 +177,22 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               <Skeleton className="h-9 w-full md:h-8" />
             </div>
             <div className="space-y-snug">
-              <TextLines className="text-body leading-none" widths={['w-20']} />
+              <TextLines className="text-body leading-none" widths={['w-1/3']} />
               <Skeleton className="h-9 w-full md:h-8" />
             </div>
           </div>
 
           <div className="space-y-snug">
-            <TextLines className="text-body leading-none" widths={['w-12']} />
+            <TextLines className="text-body leading-none" widths={['w-1/3']} />
             {/* `MoneyInput` is an `Input` behind a currency prefix: `h-9 md:h-8`. */}
             <Skeleton className="h-9 w-full md:h-8" />
           </div>
 
           {/* `Based near` — a `PlacePicker`, which is a `Label` over a
               `PlaceSearch` input. The rail used to stop at the price, so it ran
-              61px short of the form on every load. */}
+              61px short of the form on every load. Label width is canonical texture. */}
           <div className="space-y-snug">
-            <TextLines className="text-body leading-none" widths={['w-24']} />
+            <TextLines className="text-body leading-none" widths={['w-1/3']} />
             <Skeleton className="h-9 w-full md:h-8" />
           </div>
         </div>

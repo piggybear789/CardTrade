@@ -30,22 +30,23 @@ export default function HelpLoading() {
     >
       <span className="sr-only">Loading…</span>
 
-      <TextLines className="text-subhead md:text-head" widths={['w-24']} />
-      {/* ~75 characters: two body lines on a phone, one lead line from `md`. */}
+      <TextLines className="text-subhead md:text-head" widths={['w-1/2']} />
+      {/* ~75 characters: two body lines on a phone, one lead line from `md`. The line
+          count and `md:` gates are the reservation; widths draw canonical. */}
       <TextLines
         className="mt-snug text-body md:mt-cozy md:text-lead"
-        widths={['w-full md:w-4/5', 'w-1/3 md:hidden']}
+        widths={['w-full md:w-2/3', 'w-1/3 md:hidden']}
       />
 
       <div className="mt-section space-y-group text-body md:space-y-6">
         {SECTIONS.map((paragraphs, index) => (
           <div key={index} className="space-y-cozy">
-            <TextLines className="text-subhead" widths={['w-40']} />
+            <TextLines className="text-subhead" widths={['w-1/2']} />
             {paragraphs.map((lines, pIndex) => (
               <TextLines
                 key={pIndex}
                 className="text-body"
-                widths={[...Array.from({ length: lines - 1 }, () => 'w-full'), 'w-3/5']}
+                widths={[...Array.from({ length: lines - 1 }, () => 'w-full'), 'w-1/2']}
               />
             ))}
           </div>

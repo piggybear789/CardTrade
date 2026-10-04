@@ -57,8 +57,9 @@ export default function ProfileLoading() {
               in a line box of the same type token as the text it replaces, so the
               header's height is computed from the scale rather than guessed. */}
           <div className="min-w-0 flex-1 space-y-0.5">
-            <TextLines className="text-subhead md:text-head" widths={['w-40']} />
-            <TextLines className="text-body" widths={['w-56']} />
+            {/* Name and trust line are texture at their type scales, drawn canonical. */}
+            <TextLines className="text-subhead md:text-head" widths={['w-1/2']} />
+            <TextLines className="text-body" widths={['w-2/3']} />
           </div>
         </header>
 

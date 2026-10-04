@@ -360,7 +360,7 @@ export function ImageGallery({
               }}
               className={cn(
                 'absolute inset-0 z-[1] cursor-zoom-in touch-pan-y',
-                'border border-transparent focus:outline-none focus-visible:border-iris',
+                'border border-transparent focus:outline-none focus-visible:border-iris/60',
               )}
               aria-label={`Enlarge photo ${activeIndex + 1} of ${images.length} for ${title}`}
             >
@@ -415,7 +415,7 @@ export function ImageGallery({
             <button
               type="button"
               onClick={prev}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-iris"
+              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-iris/60"
               aria-label="Previous image"
             >
               <HugeiconsIcon icon={ChevronLeftIcon} className="size-4" aria-hidden />
@@ -430,7 +430,7 @@ export function ImageGallery({
             <button
               type="button"
               onClick={next}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-iris"
+              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-iris/60"
               aria-label="Next image"
             >
               <HugeiconsIcon icon={ChevronRightIcon} className="size-4" aria-hidden />
@@ -487,12 +487,12 @@ export function ImageGallery({
                     // StorageImage, which is always `fill` and resolves against the
                     // nearest positioned ancestor.
                     'relative size-14 overflow-hidden rounded-md border bg-muted transition-colors',
-                    'focus:outline-none focus-visible:border-iris',
+                    'focus:outline-none focus-visible:border-iris/60',
                     // The selected thumbnail carries a 2px iris edge. Not a scale or an
                     // opacity change: the strip scrolls, and a transform would make the
                     // selected tile clip against its neighbours mid-scroll.
                     selected
-                      ? 'border-2 border-iris'
+                      ? 'border-2 border-foreground'
                       : 'border-border opacity-70 hover:opacity-100',
                   )}
                 >
@@ -661,7 +661,7 @@ function SwipeCarousel({
                     <button
                       type="button"
                       onClick={() => onLightboxChange(index)}
-                      className="absolute inset-0 z-[1] cursor-zoom-in border border-transparent focus:outline-none focus-visible:border-iris"
+                      className="absolute inset-0 z-[1] cursor-zoom-in border border-transparent focus:outline-none focus-visible:border-iris/60"
                       aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${title}`}
                     >
                       {/* EVERY SLIDE USED TO LOAD ON PAGE LOAD. This track is a

@@ -286,7 +286,7 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
           // The input lives inside its label so the button is the control: clicking
           // anywhere on it opens the picker, and `has-` puts the focus edge on the
           // button rather than the hidden input.
-          <label className="inline-flex h-9 cursor-pointer items-center gap-tight rounded-md border border-border bg-card/80 px-cozy text-body font-medium text-foreground transition-colors hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:border-iris md:h-8 md:px-2.5">
+          <label className="inline-flex h-9 cursor-pointer items-center gap-tight rounded-md border border-input bg-card px-cozy text-body font-medium text-foreground transition-colors hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:border-iris/60 md:h-8 md:px-2.5">
             <HugeiconsIcon icon={ImagePlusIcon} aria-hidden="true" className="size-3.5" />
             {count === 0 ? 'Add photos' : 'Add more'}
             <input
@@ -323,7 +323,7 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
               <button
                 type="button"
                 onClick={photo.remove}
-                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full border border-transparent bg-obsidian/75 text-mist transition-colors hover:bg-obsidian focus-visible:border-iris focus-visible:outline-none"
+                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full border border-transparent bg-obsidian/75 text-mist transition-colors hover:bg-obsidian focus-visible:border-iris/60 focus-visible:outline-none"
               >
                 <HugeiconsIcon icon={XIcon} aria-hidden="true" className="size-3" />
                 <span className="sr-only">Remove photo {index + 1}</span>

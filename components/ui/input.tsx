@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
  * red rather than going iris: tabbing back into a field must not hide its error.
  */
 export const fieldStateClasses =
-  "focus-visible:border-iris focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:border-destructive aria-[invalid=true]:focus-visible:ring-destructive";
+  "focus-visible:border-iris/60 focus-visible:outline-none aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:border-destructive aria-[invalid=true]:focus-visible:ring-destructive";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {

@@ -70,7 +70,7 @@ export function SegmentedControl<Value extends string>({
               // there is nothing else for the ring to land on. The edge is transparent
               // at REST so focus recolours it — adding the border only on focus
               // widened the segment by 2px and nudged its label sideways.
-              'has-[:focus-visible]:border-iris has-[:focus-visible]:ring-1 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-iris',
+              'has-[:focus-visible]:border-iris/60',
               selected
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',

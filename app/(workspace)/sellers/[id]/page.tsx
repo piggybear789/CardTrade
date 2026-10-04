@@ -357,7 +357,7 @@ export default async function SellerProfilePage({
                 // `space-y-1.5` and sat on an anonymous line box sized by the
                 // inherited font rather than by the stars — a different height
                 // and offset from the row the loading skeleton reserves.
-                className="flex w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
+                className="flex w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris/60"
                 aria-label={`Read ${seller.ratingCount} reviews`}
               >
                 <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
@@ -539,15 +539,17 @@ function SellerReviewsFallback() {
     <ul className="divide-y rounded-lg border bg-card" aria-busy="true">
       {[0, 1].map((row) => (
         <li key={row} className="space-y-tight p-group">
+          {/* Name / transaction line / comment / timestamp are texture in their own
+              line boxes, drawn from the canonical set. */}
           <div className="flex flex-wrap items-start justify-between gap-snug">
             <div className="min-w-0">
-              <TextLines className="text-body" widths={['w-24']} />
-              <TextLines className="text-body" widths={['w-40']} />
+              <TextLines className="text-body" widths={['w-1/3']} />
+              <TextLines className="text-body" widths={['w-1/2']} />
             </div>
-            <Skeleton className="h-4 w-20 shrink-0" />
+            <Skeleton className="h-4 w-1/3 shrink-0" />
           </div>
           <TextLines className="text-body" widths={['w-full']} />
-          <TextLines className="text-meta" widths={['w-16']} />
+          <TextLines className="text-meta" widths={['w-1/3']} />
         </li>
       ))}
     </ul>

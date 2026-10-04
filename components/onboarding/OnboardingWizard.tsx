@@ -556,7 +556,7 @@ export function OnboardingWizard({
                       }}
                       aria-pressed={selected}
                       className={cn(
-                        'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
+                        'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                         // The accent pair, which is what `ChoiceTile` uses and what
                         // globals.css names as THE selected look. What was here —
                         // `border-primary bg-primary/5 ring-1 ring-primary` — is the exact
@@ -566,7 +566,7 @@ export function OnboardingWizard({
                         // 1px outside it. Two violet lines around a tile, for a choice
                         // the accent surface states on its own.
                         selected
-                          ? 'border-border bg-accent text-accent-foreground'
+                          ? 'border-foreground bg-accent text-accent-foreground'
                           : 'hover:border-foreground/20 hover:bg-muted/50',
                       )}
                     >
@@ -592,9 +592,9 @@ export function OnboardingWizard({
                     the common case is a confirmation. */}
                 <div
                   className={cn(
-                    'rounded-lg border transition-colors',
+                    'rounded-md border border-input bg-card transition-colors',
                     regionChoice === 'waitlist'
-                      ? 'border-border bg-accent text-accent-foreground'
+                      ? 'border-foreground bg-accent text-accent-foreground'
                       : 'hover:border-foreground/20 hover:bg-muted/50',
                   )}
                 >
@@ -605,7 +605,7 @@ export function OnboardingWizard({
                       setError(null);
                     }}
                     aria-pressed={regionChoice === 'waitlist'}
-                    className="flex w-full items-center gap-group rounded-lg p-group text-left focus:outline-none focus-visible:border-iris"
+                    className="flex w-full items-center gap-group rounded-lg p-group text-left focus:outline-none focus-visible:border-iris/60"
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
                       <HugeiconsIcon icon={Globe02Icon} className="size-5" aria-hidden />
@@ -704,9 +704,9 @@ export function OnboardingWizard({
                   type="button"
                   onClick={() => setIntent('buyer')}
                   className={cn(
-                    'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
+                    'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                     intent === 'buyer'
-                      ? 'border-border bg-accent text-accent-foreground'
+                      ? 'border-foreground bg-accent text-accent-foreground'
                       : 'hover:border-foreground/20 hover:bg-muted/50',
                   )}
                 >
@@ -725,9 +725,9 @@ export function OnboardingWizard({
                   type="button"
                   onClick={() => setIntent('seller')}
                   className={cn(
-                    'flex items-center gap-group rounded-lg border p-group text-left transition-colors',
+                    'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                     intent === 'seller'
-                      ? 'border-border bg-accent text-accent-foreground'
+                      ? 'border-foreground bg-accent text-accent-foreground'
                       : 'hover:border-foreground/20 hover:bg-muted/50',
                   )}
                 >
@@ -765,7 +765,7 @@ export function OnboardingWizard({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris"
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris/60"
                         aria-label="Why we need these details"
                       >
                         <HugeiconsIcon icon={InfoIcon} className="size-3.5" aria-hidden />

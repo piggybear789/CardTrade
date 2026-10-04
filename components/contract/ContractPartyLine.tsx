@@ -234,7 +234,7 @@ export function ContractPartyLine({
             type="button"
             onClick={() => setExpanded((current) => !current)}
             aria-expanded={expanded}
-            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-tight py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris"
+            className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-tight py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-iris/60"
           >
             Details
             <HugeiconsIcon icon={ChevronDownIcon}

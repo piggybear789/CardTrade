@@ -159,7 +159,7 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
                   <Link
                     href={`/listings/${item.id}`}
                     transitionTypes={['nav-forward']}
-                    className="block truncate rounded-sm border border-transparent text-body font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:border-iris"
+                    className="block truncate rounded-sm border border-transparent text-body font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:border-iris/60"
                   >
                     {item.title}
                   </Link>

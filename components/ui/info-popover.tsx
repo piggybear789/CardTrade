@@ -29,7 +29,7 @@ export function InfoPopover({
         type="button"
         aria-label={label}
         // 24px target with the 16px icon centred, clear of WCAG 2.5.8's minimum.
-        className="inline-flex size-6 shrink-0 items-center justify-center self-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex size-6 shrink-0 items-center justify-center self-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-iris/60"
       >
         <HugeiconsIcon icon={InformationCircleIcon} className="size-4" aria-hidden />
       </PopoverTrigger>

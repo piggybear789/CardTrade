@@ -38,7 +38,7 @@ export function ExpandableDescription({
         <button
           type="button"
           onClick={() => setExpanded((current) => !current)}
-          className="mt-tight inline-flex min-h-10 items-center gap-0.5 rounded-sm border border-transparent text-body font-medium text-iris-ink focus:outline-none focus-visible:border-iris"
+          className="mt-tight inline-flex min-h-10 items-center gap-0.5 rounded-sm border border-transparent text-body font-medium text-iris-ink focus:outline-none focus-visible:border-iris/60"
         >
           {expanded ? (
             <HugeiconsIcon icon={ChevronUpIcon} className="size-3.5" aria-hidden />

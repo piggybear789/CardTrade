@@ -162,11 +162,18 @@ export interface ConversationItemSummary {
   id: string;
   title: string;
   imagePath: string | null;
-  /** Asking price in the listing's own smallest currency unit. */
+  /**
+   * Asking price in the listing's own smallest currency unit.
+   *
+   * This and the two below are loaded by BOTH `getConversation` and
+   * `listMyConversations`: the inbox pane draws a clicked thread's header from its list
+   * entry before the thread has loaded (`ThreadPane`), and a header missing its price
+   * would gain one a moment later.
+   */
   priceCents?: number | null;
-  /** ISO 4217 currency for priceCents. Loaded for the thread view. */
+  /** ISO 4217 currency for priceCents. */
   currency?: string | null;
-  /** Listing lifecycle status (e.g. AVAILABLE / SOLD). Loaded for the thread view. */
+  /** Listing lifecycle status (e.g. AVAILABLE / SOLD). */
   status?: string | null;
 }
 
@@ -330,8 +337,20 @@ export const listMyConversations = withActionLog('messages.listMyConversations',
         .select('id, display_name, avatar_path')
         .in('id', otherIds),
       itemIds.length > 0
-        ? supabase.from('items').select('id, title, image_paths').in('id', itemIds)
-        : Promise.resolve({ data: [] as { id: string; title: string; image_paths: string[] }[] }),
+        ? supabase
+            .from('items')
+            .select('id, title, image_paths, fmv_cents, currency, status')
+            .in('id', itemIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              title: string;
+              image_paths: string[];
+              fmv_cents: number | null;
+              currency: string | null;
+              status: string | null;
+            }[],
+          }),
       // WHICH THREADS ARE CONTRACTS. Looked up from the sale's own
       // `conversation_id` rather than from the conversation row, because a sale thread
       // is not marked on the conversation at all — see `ConversationListEntry.sale`.
@@ -372,6 +391,11 @@ export const listMyConversations = withActionLog('messages.listMyConversations',
         id: it.id as string,
         title: it.title as string,
         imagePath: ((it.image_paths as string[] | null) ?? [])[0] ?? null,
+        // Same three fields, same mapping, as `getConversation` — see the note on
+        // `ConversationItemSummary.priceCents`.
+        priceCents: (it.fmv_cents as number | null) ?? null,
+        currency: (it.currency as string | null) ?? null,
+        status: (it.status as string | null) ?? null,
       },
     ]),
   );

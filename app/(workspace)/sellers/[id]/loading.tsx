@@ -21,8 +21,10 @@ import { TabbedPanelsSkeleton } from '@/components/ui/tabbed-panels';
 function FactSkeleton({ labelWidth }: { labelWidth: string }) {
   return (
     <div className="min-w-0">
+      {/* `labelWidth` is a caller reserve (fact labels differ in length); the value is
+          texture and draws from the canonical set. */}
       <TextLines className="text-meta" widths={[labelWidth]} />
-      <TextLines className="text-body" widths={['w-3/4']} />
+      <TextLines className="text-body" widths={['w-2/3']} />
     </div>
   );
 }
@@ -40,7 +42,7 @@ export default function SellerProfileLoading() {
           Spacing below is copied from it term for term — `mb-cozy` here, `mb-5 space-y-snug
           pb-group` on the header, and a 40px avatar (`Avatar size="md"`). */}
       <nav className="mb-cozy">
-        <TextLines className="text-body" widths={['w-36']} />
+        <TextLines className="text-body" widths={['w-1/3']} />
       </nav>
 
       <header className="mb-5 space-y-snug border-b pb-group">
@@ -52,8 +54,9 @@ export default function SellerProfileLoading() {
             {/* `space-y-1.5`, the column's real rhythm. */}
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex flex-wrap items-center gap-snug">
-                {/* `text-subhead` below `md`, not the 32px an `h-8` reserved. */}
-                <TextLines className="text-subhead md:text-head" widths={['w-44']} />
+                {/* `text-subhead` below `md`, not the 32px an `h-8` reserved. The name
+                    width is canonical texture; the `h-5 w-20` pill keeps its reserve. */}
+                <TextLines className="text-subhead md:text-head" widths={['w-1/2']} />
                 <Skeleton className="h-5 w-20 rounded-full" />
               </div>
               {/* StarRating, then the social links row. Both are conditional on the
@@ -65,11 +68,13 @@ export default function SellerProfileLoading() {
                   line. The page now lays that link out as a block (`flex w-fit`) so
                   it takes the column's `space-y-1.5` like every other row here. */}
               <div className="flex h-[1.175rem] items-center">
-                <Skeleton className="h-4 w-32" />
+                {/* The row height is the reserve (`h-[1.175rem]`); the bar is texture. */}
+                <Skeleton className="h-4 w-1/3" />
               </div>
-              {/* The social links row: a fixed `min-h-6` on the page now, links or not. */}
+              {/* The social links row: a fixed `min-h-6` on the page now, links or not.
+                  The row's min-height is the reserve; the bar width is texture. */}
               <div className="flex min-h-6 items-center">
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-1/3" />
               </div>
               {/* The bio: always two lines on the page (clamped and reserved). */}
               <TextLines className="max-w-prose text-body" widths={['w-full', 'w-1/2']} />
@@ -100,7 +105,7 @@ export default function SellerProfileLoading() {
                 glyph beside one line of body copy. */}
             <div className="mb-cozy flex items-center gap-tight">
               <Skeleton className="size-4 shrink-0 rounded-sm" />
-              <TextLines className="min-w-0 text-body" widths={['w-56']} />
+              <TextLines className="min-w-0 text-body" widths={['w-1/2']} />
             </div>
             {/* Two facts: "Verified name" and "ID checked". "Store" appears only
                 for a seller with a provider-registered trading name, which an

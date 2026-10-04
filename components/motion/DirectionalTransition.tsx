@@ -1,24 +1,18 @@
-import { ViewTransition } from 'react';
 import type { ReactNode } from 'react';
 
-const DIRECTIONAL = {
-  'nav-forward': 'nav-forward',
-  'nav-back': 'nav-back',
-  default: 'none',
-} as const;
-
 /**
- * Hierarchical page enter/exit. Place on page content, not in a persistent layout.
- * Lateral navigations that omit transition types stay instant (`default: none`).
+ * Page content wrapper, deliberately WITHOUT a page transition.
+ *
+ * This used to be a `<ViewTransition>` that slid the whole page 60px sideways
+ * and cross-faded it on every forward/back navigation (~150ms exit + 240–400ms
+ * move). That made the app feel animated rather than fast: SaaS navigation is
+ * an instant swap. The listing-cover morph (`listing-image-*`) is the one
+ * navigation motion kept, because it carries information — the card you
+ * clicked becomes the page.
+ *
+ * Kept as a component so the call sites in `MarketplaceShell` stay put, and so
+ * a transition can be reintroduced in one place if it is ever wanted.
  */
 export function DirectionalTransition({ children }: { children: ReactNode }) {
-  return (
-    <ViewTransition
-      enter={DIRECTIONAL}
-      exit={DIRECTIONAL}
-      default="none"
-    >
-      {children}
-    </ViewTransition>
-  );
+  return <>{children}</>;
 }

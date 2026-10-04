@@ -35,14 +35,16 @@ function FilterRailSkeleton() {
     // live rail renders. Each is a 40px row with an icon slot, a label, and the
     // value the filter currently carries at the right.
     <div className="hidden min-w-0 flex-col gap-0.5 md:flex">
+      {/* Each row is a fixed `h-10` cell with the `size-4` icon reserve; the label and
+          value bars inside it are texture and draw from the canonical set. */}
       {[
-        { label: 'Condition', value: 'w-14' },
-        { label: 'Price', value: 'w-20' },
-        { label: 'Showing', value: 'w-16' },
+        { label: 'Condition', value: 'w-1/3' },
+        { label: 'Price', value: 'w-1/3' },
+        { label: 'Showing', value: 'w-1/3' },
       ].map((row) => (
         <div key={row.label} className="flex h-10 items-center gap-snug px-cozy">
           <Skeleton className="size-4 shrink-0 rounded-sm" />
-          <Skeleton className="h-3.5 w-16 shrink-0" />
+          <Skeleton className="h-3.5 w-1/3 shrink-0" />
           <div className="flex min-w-0 flex-1 justify-end">
             <Skeleton className={`h-3.5 ${row.value}`} />
           </div>
@@ -90,7 +92,7 @@ export default function HomeLoading() {
     <MarketplaceShellSkeleton
       title="Marketplace"
       primaryAction={
-        <RailPrimaryAction href="/listings/new" size="lg">
+        <RailPrimaryAction href="/listings/new">
           Create New Listing
         </RailPrimaryAction>
       }
@@ -112,14 +114,17 @@ export default function HomeLoading() {
                   from `sm` the header stood 22px taller than the page it was
                   standing in for. Below `sm` the count is `sr-only` and takes no
                   space, which `hidden sm:block` reproduces. */}
+              {/* Title and count share one baseline row; both are texture in their type
+                  scale (the `hidden sm:block` on the count is the load-bearing part) and
+                  draw from the canonical set. */}
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-cozy gap-y-0.5">
                 <TextLines
                   className="text-subhead md:text-head"
-                  widths={['w-32']}
+                  widths={['w-1/3']}
                 />
                 <TextLines
                   className="hidden text-body sm:block"
-                  widths={['w-20']}
+                  widths={['w-1/3']}
                 />
               </div>
               {/* `CatalogSortControl` is a `SelectTrigger`: `h-9 md:h-8`, and this

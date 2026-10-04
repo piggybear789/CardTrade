@@ -4,322 +4,154 @@
 
 @layer base {
   :root {
-    /* NoDitto: violet-native, adapted from the "Violate eye" shadcn theme by
-       Dhiraj Arya (tweakcn.com/themes/cmm3earjf000004lbbthuasae).
-       
-       WHY VIOLET AND NOT THE OLD GOLD. Gold was a generic premium-fintech
-       signal that any marketplace could wear, and at `41 56% 30%` it was so
-       dark it never read as an accent at all — the "current section" wash
-       measured 1.14:1. Ditto is a purple shapeshifter; violet is the one hue
-       this product can own outright.
-       
-       FOUR VALUES DIVERGE FROM THE PUBLISHED THEME, each for a measured
-       contrast reason. They are marked WCAG below. Everything else is the
-       theme verbatim. */
+    /* NoDitto theme. Adopted verbatim from the tweakcn theme the product owner
+       supplied (HSL triplets, which `tailwind.config.ts` wraps in `hsl(var(--x))`).
+       The tokens after the theme block (`--obsidian`, `--iris`, `--trust`,
+       `--action*`, `--mist`, durations) are app-specific and have no theme
+       equivalent; `--iris` / `--iris-ink` are aliases of the theme's ring and
+       accent-foreground so the violet stays one value.
 
-    /* WHITE PAGE, WHITE CARD. The page and the card are the same pure white and
-       the top of the ramp together; everything else steps down from them.
-       
-       The page was briefly tinted to 98% so a card would step off it. It works,
-       and it costs the product its one genuinely white surface — every screen
-       reads faintly grey, which is the look the tint was never meant to buy.
-       So the step is gone and the SEPARATION IS CARRIED THREE OTHER WAYS, in
-       this order of preference:
-       
-         1. The hairline, which is now darker (88 → 85) because it is doing the
-            work the surface step used to do. This is the default: a card is an
-            object because it has an edge.
-         2. `--muted` as a grouping tint INSIDE a card — a summary row, a
-            read-only note, a footnote block. A tint on the page is what got us
-            here; a tint on paper is legitimate depth.
-         3. Ink weight. A heading in `--foreground` semibold against body copy in
-            `--muted-foreground` separates two blocks more decisively than two
-            2-point surfaces ever did, and it survives being printed, screenshotted
-            or read at 200% zoom.
-       
-       Where a region genuinely must sit BELOW the page — the sidebar rail —
-       `--sidebar` still steps down to 96%. That is a different claim from "this
-       is a card" and it keeps its surface.
-       
-       THE RAMP, top to bottom:
-         card / popover                100   an object ON the page
-         background                     98   paper, faintly tinted
-         sidebar                      95.5   the rail, below the page
-         muted/secondary                95   grouping tint ON card
-         accent                         92   selected tint
-         border                         87   the hairline
-       
-       THE NEUTRAL RAMP IS TINTED TOWARD THE ACCENT, NOT AWAY FROM IT. Muted,
-       sidebar, accent, secondary and mist all carry a few points of chroma at 275° —
-       the lilac's own hue — so the greys read as part of the palette instead of
-       as a second, unrelated cool family.
-       
-       BORDER AND INPUT ARE NO LONGER PART OF THAT, and the split is deliberate: the
-       tint belongs on SURFACES and not on LINES, because a line that every container
-       and every field draws is repeated often enough to stop reading as a tint. See
-       the `--border` comment for the measurement.
-       
-       THE PAGE IS NOW TINTED, AND THAT REVERSES WHAT THIS COMMENT USED TO SAY.
-       It read "the page is the deliberate exception: paper is white", and the three
-       numbered notes above still describe why that was safe — the hairline, the
-       muted tint and ink weight took over the separating work. That argument was
-       about a page tint being a SUBSTITUTE for those things. It is not one here:
-       the hairline stays at its darker value and the ink weight is unchanged, so
-       nothing has been given up. What the tint buys is the pastel character the
-       palette is now built around, and it restores the one thing white paper could
-       never give — a card at 100% has a surface to sit above, rather than being an
-       object identified solely by a 1.5:1 edge.
-       
-       Two points of lightness is the whole change (100 → 98). Anything deeper and
-       `--muted` at 95 stops reading as a tint on paper and starts reading as the
-       same colour as the page.
-       
-       `--background` mirrors into `app/manifest.ts` (`background_color`) and
-       `app/layout.tsx` (`viewport.themeColor`) as the literal `#fbf8fc`. Measured
-       ratios throughout this file come from `scripts/palette-contrast.mjs`; run it
-       after changing any value here. */
-    --background: 280 44% 98%;
-    --card: 0 0% 100%;
+       `--background` and `--obsidian` mirror into `app/manifest.ts`,
+       `app/layout.tsx` (`viewport.themeColor`), `app/global-error.tsx` and
+       `app/og/route.tsx` as literal hex.
+
+       NON-COLOUR THEME VALUES (fonts, shadows, tracking) live in the SECOND
+       `:root` block below. `scripts/lib/mobileContract.ts` parses THIS block for
+       the Flutter token generator and refuses any declaration it cannot read as a
+       colour, length or duration, so strings such as a shadow list must not sit
+       here. */
+    --background: 240 100% 99.2157%;
+    --foreground: 234.5455 17.4603% 12.3529%;
+    --card: 240 100% 99.2157%;
+    --card-foreground: 234.5455 17.4603% 12.3529%;
     --popover: 0 0% 100%;
-    --sidebar: 280 34% 95.5%;
-
-    /* ONE DARK PLUM. Header, body ink, and inverse surfaces all read this.
-       Do not invent a second one — opacity is how it lightens.
-       
-       BACK TO NEAR-BLACK, AND THE ARGUMENT FOR LIFTING IT IS RECORDED BECAUSE IT
-       LOST ON LOOK RATHER THAN ON MEASUREMENT. The pastel retune took this to
-       `276 26% 16%`, reasoning that at 7% it was effectively black with a hint of
-       violet and read as a separate, harder design language bolted onto the top of a
-       pastel page. That is a fair description of what 7% is. It just turns out to be
-       what this product wants: the dark bar is chrome, not content, and a near-black
-       bar over a pastel page reads as a frame around the interface rather than as a
-       competing surface. 16% read washed out — a dark grey-violet that neither
-       committed to being black nor belonged to the tints below it.
-       
-       So this is the committed value again, restored deliberately. If it is ever
-       lifted a second time, the thing to check is not contrast — it has enormous
-       headroom either way — but whether the bar still reads as a frame.
-       
-       `--foreground` DOES NOT FOLLOW IT BACK. The retune moved body ink 12% → 17%
-       alongside the header, on the grounds that pastel surfaces under
-       12%-lightness ink look like two different products, and that reasoning is
-       untouched by the header going dark again: ink sits ON the pastel page, the
-       header sits above it, and they are answering different questions. 17% keeps
-       body copy at 14.30:1 on the page. The one dark plum rule still holds for
-       everything that IS chrome — header, overlays, letterboxing, the `contrast`
-       button — and opacity is still how it lightens. */
-    --obsidian: 275 16% 7%;
-    --foreground: 276 22% 17%;
-    --card-foreground: var(--foreground);
-    --popover-foreground: var(--foreground);
-
-    /* THREE LILACS, ONE PER JOB, EACH EARNED BY A CONTRAST FLOOR.
-       
-       Hue 275 is the muted lilac from the naturals direction — softer and far
-       less saturated than the electric blue-violet this replaces, which is what
-       makes the whole interface read as calm rather than wired. One hue, three
-       depths, because no single value can do all three jobs:
-
-       Ratios are against WHITE, which the page and the card now share. The
-       tinted page was the worst case for all three and it is gone, so each of
-       these has slightly more headroom than the figures below claim:
-
-         --primary   fills that carry white text   white 5.91:1
-         --iris-ink  lilac AS text                 on page 6.14:1
-         --iris      rings, borders, markers       on page 3.85:1 (non-text)
-       
-       SOFTENED, NOT PASTELLED. `--primary` went 38%/44% → 34%/47%, which is as light
-       as it can be while white label text still clears 4.5:1. It is NOT a pastel
-       fill, and that is a constraint rather than a preference:
-       `--primary-foreground` is used as a stand-in for white on the obsidian header
-       (`SiteHeader`), on the near-black selected chips (`GenrePills`,
-       `CatalogControls`) and on the iris count badge (`mobile-chrome/variants`), so
-       inverting it to ink would turn all of those dark-on-dark. The pastel character
-       comes from the neutrals and from `--accent`, which IS the pastel violet
-       surface. If a pastel primary is ever wanted, those five call sites have to move
-       to `text-white` first. */
-    --primary: 276 34% 47%;
+    --popover-foreground: 234.5455 17.4603% 12.3529%;
+    --primary: 250.1613 75.6098% 67.8431%;
     --primary-foreground: 0 0% 100%;
-    /* NOT lightened into the pastel range, and this is where the retune holds its
-       nerve. `border-iris` at full opacity IS the focus indicator (see `--border`
-       below), so it owes 3:1 against both the page and a card. A 70% lilac — which is
-       what "pastel" would want — measures 2.46:1 and fails. `--accent` is the pastel
-       violet SURFACE; this is the marker. */
-    --iris: 277 42% 58%;
-    /* 51% → 45%, and slightly more chroma. The binding constraint is this used as
-       text on `--muted`, which is the worst case of the four surfaces it lands on;
-       at 45% that measures 5.84:1, with 6.14 on the page and 6.48 on a card. The
-       extra depth also keeps it clearly distinct from `--iris` now that the two are
-       only 13 points apart in lightness. */
-    --iris-ink: 277 40% 45%;
-
-    --secondary: 281 32% 95%;
-    --secondary-foreground: 277 26% 32%;
-    /* Grouping tint — a whisper, not a slab. Do not wash with /20 or /30.
-       Kept ONE point above the page (96 vs 98) so it still reads as a tint on paper.
-       Any deeper and the two surfaces merge. */
-    --muted: 283 34% 96%;
-    --muted-foreground: 277 12% 44%;
-    /* The selected-state pair. Use `bg-accent text-accent-foreground` for
-       "current" — NOT a low-alpha primary wash, which measures ~1.1:1 and is
-       invisible. The tint alone is only 1.14:1 against the page; the TEXT is
-       what carries the state, at 5.49:1. */
-    --accent: 280 48% 92%;
-    --accent-foreground: 277 40% 40%;
-
-    /* 0° → 352°, AND THIS IS THE ONE HUE THAT MOVED.
-       
-       `--action` sits at 40°, so pure red was only 40° from it — the tightest gap in
-       the entire palette, between the two tokens carrying the most opposed meanings
-       in the product: "this is your move" and "this went wrong". Every other pair sits
-       76–130° apart. 352° opens that gap to 50° and pulls red into the 275°-tinted
-       family the neutrals already live in, so it reads as this palette's red rather
-       than as the browser's.
-       
-       Lightness went 40% → 45%, which is as light as white label text allows: 5.98:1
-       on the button, 5.66:1 as text on the page, 5.39:1 as text on `--muted`. Hue
-       rotation at constant S/L barely moves luminance, so the ratios the old comment
-       recorded still hold in kind. */
-    --destructive: 352 62% 45%;
+    --secondary: 244.2857 77.7778% 96.4706%;
+    --secondary-foreground: 248.75 31.5789% 29.8039%;
+    --muted: 240 33.3333% 95.8824%;
+    --muted-foreground: 240 12% 44.1176%;
+    --accent: 244.2857 77.7778% 96.4706%;
+    --accent-foreground: 248.4 59.5238% 50.5882%;
+    --destructive: 0 79.5918% 61.5686%;
     --destructive-foreground: 0 0% 100%;
+    /* `--border` is the hairline for dividers and containers. `--input` is the
+       edge of EVERY control — fields, selects, textareas and the quiet button
+       variants — so a field and the button beside it read as one family. */
+    --border: 240 38.0952% 91.7647%;
+    --input: 240 40.2985% 86.8627%;
+    --ring: 250.1613 75.6098% 67.8431%;
+    --chart-1: 250.1613 75.6098% 67.8431%;
+    --chart-2: 249.863 73.7374% 80.5882%;
+    --chart-3: 248.75 31.5789% 29.8039%;
+    --chart-4: 247.6923 70.9091% 89.2157%;
+    --chart-5: 249.3443 57.0093% 58.0392%;
+    --sidebar: 240 100% 98.6275%;
+    --sidebar-foreground: 240 13.1034% 28.4314%;
+    --sidebar-primary: 250.1613 75.6098% 67.8431%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 244.2857 77.7778% 96.4706%;
+    --sidebar-accent-foreground: 248.4 59.5238% 50.5882%;
+    --sidebar-border: 240 33.3333% 94.1176%;
+    --sidebar-ring: 250.1613 75.6098% 67.8431%;
+    --radius: 0.5rem;
+    --spacing: 0.25rem;
 
-    /* ONE hairline for dividers and card edges. --input is the semantic alias
-       for "this is a field", and it is NOT the same value: a field's border is
-       the only thing identifying it as a control, so SC 1.4.11 wants 3:1 from
-       it where a decorative divider needs nothing.
-       
-       A field's border is the only thing identifying it as a control, so it has
-       to carry the full 3:1 on its own — and against the PAGE, not the card,
-       because the page is now the darker of the two and is the worst case.
-       
-       Focus is the control's own edge at FULL opacity (`border-iris`), never an
-       alpha: any alpha under 100% drops it below 3:1. */
-    /* 88% → 85%. The hairline is now the PRIMARY separator rather than a
-       supporting one: with the page and the card both white, a card's edge is the
-       only thing saying it is an object. Three points darker takes it from 1.36:1
-       to 1.51:1 on white — still a hairline rather than a rule, but it holds a
-       container together instead of dissolving into it. */
-    /* 85 → 88, and more chroma. The surface step is back, so the hairline no longer
-       has to be the ONLY thing making a card an object — it can go back to being a
-       hairline rather than a rule. */
-    /* CHROMA OUT OF BOTH BORDER TOKENS: 26% → 8%, AND THIS IS A PARTIAL RETREAT FROM
-       "THE NEUTRAL RAMP IS TINTED TOWARD THE ACCENT" ABOVE.
-       
-       That principle is right about SURFACES and it stays: `--muted`, `--secondary`,
-       `--accent`, `--sidebar` and `--mist` keep their chroma, because a tint reads as
-       a family resemblance. It is wrong about LINES, for a reason that only shows up
-       at scale: `* { @apply border-border }` means every card edge, every divider,
-       every table rule and every disabled control draws in this one value, and
-       `--input` draws around every field on every form. At 26% chroma those are not
-       a family resemblance — they are the most REPEATED colour in the interface, and
-       repetition is what turns a tint into the dominant hue. It is the same mistake
-       the `.iris-ink` note on prices records, arrived at from the other direction.
-       
-       So chroma comes out of the two tokens that draw LINES and stays in the ones
-       that draw SURFACES. 8% is not zero: at a hairline's weight it is enough to keep
-       the line off pure grey against a tinted page, without the lilac being legible
-       as a colour.
-       
-       LIGHTNESS CARRIES THE CONTRAST, so it moved to hold it. Desaturating at a fixed
-       L raises luminance here (at 281° the green channel is the minimum, and green
-       carries 71% of the luminance weight), which would have quietly faded both
-       lines. 88 → 87 holds the hairline at 1.37:1 on a card, the exact ratio it had
-       at 26%. */
-    --border: 281 8% 87%;
-    /* 60% → 59%. A field's border is the only thing identifying it as a control, so it
-       owes the full 3:1 against the PAGE — and the page is tinted again, which is the
-       worse of the two surfaces. 3.36:1 on the page, 3.55:1 on a card. This is the
-       exact trap the previous comment describes falling into at 62%. */
-    /* 59 → 56 alongside the chroma cut, and the trap named above is why: at 8% chroma
-       and 59% the field edge measured 2.96:1 on the page and FAILED SC 1.4.11. Three
-       points of lightness buy it back with headroom to spare — 3.28:1 on the page,
-       3.47:1 on a card, 3.12:1 on `--muted`, 3.08:1 on the sidebar, which are the four
-       surfaces a field actually sits on. A neutral field border is not allowed to be a
-       fainter one. */
-    --input: 277 8% 56%;
-    --ring: var(--iris);
-
-    /* Teal for verified identity and provenance only, never decoration.
-       
-       RETUNED AGAINST THE VIOLET AND LEFT WHERE IT WAS. Six alternatives were
-       measured; every lighter teal drops below 4.5:1 as text (174 72% 30% is
-       4.41:1, 172 68% 32% is 4.15:1) and the only lighter one that passes,
-       186 78% 30%, closes the hue gap to the violet from 77° to 64°. This
-       value wins on both axes at 5.26:1 and 77°. Changing it would have been
-       cosmetic.
-       
-       LIFTED FOR THE PASTEL RETUNE: 173/80/26 → 172/54/30. The hue argument above is
-       untouched — 172° is within a degree and the gap to the violet is now 104°. What
-       changed is that 26% lightness at 80% saturation is a near-black teal, which is
-       the same problem `--obsidian` had: it was the darkest, hardest colour on a page
-       otherwise made of tints. The binding constraint is `text-trust` on `--muted`,
-       not the button: at 30% that measures 4.89:1, and white on the trust button
-       clears at 5.43:1. Going lighter fails the muted case first.
-
-       172° → 156°: ONTO THE TRIAD. The three semantic hues were each chosen on their
-       own merits — this one by "teal reads as trust" and a contrast sweep — and never
-       checked against one another. Run through a colour-wheel scheme generator seeded
-       on `--primary` (276°), the triad nodes land at 36° and 156°. `--action` was
-       already within 6° of the first; this teal was 16° off the second, drifting
-       toward cyan, and it was the one colour in the palette on no harmonic node at
-       all. 156° is jade: still unmistakably the green family, still reads as
-       verified/settled, and now sits exactly a third of the wheel from the violet.
-       The gap to the violet grows 104° → 120°, and the gap to `--destructive` at
-       352° is 164°, so it moves AWAY from the red rather than toward it.
-
-       Saturation came down with it (54 → 44) so its chroma sits nearer the primary's
-       34% than the old teal's; matched chroma is as much of harmony as matched hue.
-       Lightness 30 → 31. Measured: 5.19:1 as text on `--muted` (was 4.89), 5.46 on
-       the page, 5.77 white-on-fill — more headroom on every pairing than before. */
+    /* APP-SPECIFIC. */
+    /* Dark chrome: the header bar, overlays, letterboxing, the `contrast` button. */
+    --obsidian: 240 19% 8%;
+    /* The focus indicator and violet markers — the theme's ring. */
+    --iris: var(--ring);
+    /* Violet as text — the theme's accent-foreground. */
+    --iris-ink: var(--accent-foreground);
+    /* jade: verified identity, settled, completed. */
     --trust: 156 44% 31%;
-    /* "This is your move" — the buy bar, the cash-sale room, accept-with-photo.
-       
-       PASTEL AMBER, NOT SAFETY ORANGE. This was `32 96% 52%`, a saturated
-       traffic-cone orange that was the loudest thing on any page it appeared on
-       — and it appears on the one control the room most wants to feel
-       approachable. The hue now sits at 40°, between the Pokopia lettering
-       orange (36°) and amber (45°), lightened to 68% so it reads as a warm
-       pastel rather than an alert.
-       
-       IT GOT MORE READABLE, NOT LESS. The label is obsidian, so lightening the
-       fill RAISES label contrast: 8.27:1 before, 12.28:1 now.
-       
-       WHAT IT COST is the fill's own edge. At 52% lightness the fill was 2.31:1
-       against the page and could pass as its own boundary; a pastel is 1.55:1
-       and cannot. That is what `--action-border` is for — see below. A pastel
-       fill with no defined edge is a tag, not a button.
-
-       THE RETUNE BARELY TOUCHED THIS, because it was already the one pastel in the
-       old palette — which was itself the disharmony: a single soft amber among four
-       dark saturated accents. Now that the rest of the palette has come up to meet
-       it, it only needed 40° → 42° and 68% → 78%, the latter because the page is no
-       longer white and a 68% fill against a 98% page had less separation than it did
-       against 100%. The label is now a warm dark brown rather than `--obsidian`: on a
-       pastel amber, plum-black ink read as a borrowed colour. 9.32:1.
-
-       42° → 38°: onto the triad node (36°, see `--trust`) and onto the same hue as
-       `--action-border`, so the fill and its edge are one colour at two depths
-       rather than two hues four degrees apart. Label contrast 8.90:1. */
+    /* amber: "this is your move" as a signal, never a button fill. */
     --action: 38 92% 78%;
     --action-foreground: 30 60% 18%;
-    /* The action control's EDGE, and the reason the pastel is allowed to be
-       pastel. Same hue, dark enough to clear the 3:1 in SC 1.4.11 against the
-       page (3.09:1), which is the floor for the boundary of a control when the
-       fill itself does not meet it.
-
-       Darkened 42% → 40% with slightly less chroma. The fill went lighter and the page
-       went off white, so both ends of this ratio moved the wrong way: at 42% it
-       measured 2.86:1 and failed. 3.32:1 now. */
     --action-border: 38 82% 40%;
-    /* Light tint for text and fills on the dark header, in the same 275° family
-       as everything else. 13:1 on the header — the header itself lightened, so this
-       lost headroom it did not need. */
-    --mist: 280 34% 93%;
+    /* Light tint for text and fills on the dark header. */
+    --mist: 240 27% 94%;
 
-    --radius: 0.5rem;
     --duration-exit: 150ms;
     --duration-enter: 210ms;
-    --duration-move: 400ms;
+    --duration-move: 240ms;
+  }
+
+  /* Theme values the mobile token parser cannot read (see the note above). */
+  :root {
+    --font-sans: Inter, sans-serif;
+    --font-serif: Merriweather, serif;
+    --font-mono: JetBrains Mono, monospace;
+    --shadow-x: 0px;
+    --shadow-y: 4px;
+    --shadow-blur: 10px;
+    --shadow-spread: 0px;
+    --shadow-opacity: 0.05;
+    --shadow-color: #000000;
+    --shadow-2xs: 0px 4px 10px 0px hsl(0 0% 0% / 0.03);
+    --shadow-xs: 0px 4px 10px 0px hsl(0 0% 0% / 0.03);
+    --shadow-sm: 0px 4px 10px 0px hsl(0 0% 0% / 0.05), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+    --shadow: 0px 4px 10px 0px hsl(0 0% 0% / 0.05), 0px 1px 2px -1px hsl(0 0% 0% / 0.05);
+    --shadow-md: 0px 4px 10px 0px hsl(0 0% 0% / 0.05), 0px 2px 4px -1px hsl(0 0% 0% / 0.05);
+    --shadow-lg: 0px 4px 10px 0px hsl(0 0% 0% / 0.05), 0px 4px 6px -1px hsl(0 0% 0% / 0.05);
+    --shadow-xl: 0px 4px 10px 0px hsl(0 0% 0% / 0.05), 0px 8px 10px -1px hsl(0 0% 0% / 0.05);
+    --shadow-2xl: 0px 4px 10px 0px hsl(0 0% 0% / 0.13);
+    --tracking-normal: -0.01em;
+  }
+
+  .dark {
+    --background: 247.5 28.5714% 5.4902%;
+    --foreground: 240 31.5789% 92.549%;
+    --card: 247.5 28.5714% 5.4902%;
+    --card-foreground: 240 31.5789% 92.549%;
+    --popover: 245 24% 9.8039%;
+    --popover-foreground: 240 31.5789% 92.549%;
+    --primary: 250.1613 75.6098% 67.8431%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 245.7143 28% 14.7059%;
+    --secondary-foreground: 240 31.5789% 92.549%;
+    --muted: 244 26.3158% 11.1765%;
+    --muted-foreground: 240 18.3908% 65.8824%;
+    --accent: 245.2941 33.3333% 20%;
+    --accent-foreground: 249.863 73.7374% 80.5882%;
+    --destructive: 0 63.2911% 30.9804%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 243 23.2558% 16.8627%;
+    --input: 244.1379 25.6637% 22.1569%;
+    --ring: 250.1613 75.6098% 67.8431%;
+    --chart-1: 250.1613 75.6098% 67.8431%;
+    --chart-2: 249.3443 57.0093% 58.0392%;
+    --chart-3: 249.863 73.7374% 80.5882%;
+    --chart-4: 248.75 31.5789% 29.8039%;
+    --chart-5: 248.8421 41.1255% 45.2941%;
+    --sidebar: 245.4545 31.4286% 6.8627%;
+    --sidebar-foreground: 240 21.1538% 79.6078%;
+    --sidebar-primary: 250.1613 75.6098% 67.8431%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 245.7143 28% 14.7059%;
+    --sidebar-accent-foreground: 240 31.5789% 92.549%;
+    --sidebar-border: 243 23.2558% 16.8627%;
+    --sidebar-ring: 250.1613 75.6098% 67.8431%;
+    --font-sans: Inter, sans-serif;
+    --font-serif: Merriweather, serif;
+    --font-mono: JetBrains Mono, monospace;
+    --radius: 0.5rem;
+    --shadow-x: 0px;
+    --shadow-y: 8px;
+    --shadow-blur: 20px;
+    --shadow-spread: 0px;
+    --shadow-opacity: 0.4;
+    --shadow-color: #000000;
+    --shadow-2xs: 0px 8px 20px 0px hsl(0 0% 0% / 0.20);
+    --shadow-xs: 0px 8px 20px 0px hsl(0 0% 0% / 0.20);
+    --shadow-sm: 0px 8px 20px 0px hsl(0 0% 0% / 0.40), 0px 1px 2px -1px hsl(0 0% 0% / 0.40);
+    --shadow: 0px 8px 20px 0px hsl(0 0% 0% / 0.40), 0px 1px 2px -1px hsl(0 0% 0% / 0.40);
+    --shadow-md: 0px 8px 20px 0px hsl(0 0% 0% / 0.40), 0px 2px 4px -1px hsl(0 0% 0% / 0.40);
+    --shadow-lg: 0px 8px 20px 0px hsl(0 0% 0% / 0.40), 0px 4px 6px -1px hsl(0 0% 0% / 0.40);
+    --shadow-xl: 0px 8px 20px 0px hsl(0 0% 0% / 0.40), 0px 8px 10px -1px hsl(0 0% 0% / 0.40);
+    --shadow-2xl: 0px 8px 20px 0px hsl(0 0% 0% / 1.00);
   }
 
   /* The app ships a single light theme (see `colorScheme: 'light'` in the
@@ -332,43 +164,17 @@
 
   /* WHERE THE VIOLET IS ALLOWED, AND WHERE IT IS NOT.
      
-     The palette above defines three lilacs and says what each is for. It does not
-     say how often to reach for them, and the answer drifted: by the time this note
-     was written, twenty-odd containers drew their EDGE in `--iris` — action cards,
-     arbitration cards, shopfront notices, countdowns, fulfilment tiles — and
-     fifteen more turned purple on hover. None of those was a state; each was one
-     component deciding it was important. The cumulative effect is that nothing
-     reads as important, and the one place the violet edge genuinely means something
-     (focus) has to compete with decoration wearing the same colour.
+     ALLOWED, and only these:
+       - the primary fill (`bg-primary`), including a filled control's own edge.
+       - small solid markers that say "you are here": the tab underline, a
+         gallery position dot, an unread dot, the current progress step's fill.
+       - links and inline brand text in `--iris-ink`.
+       - the focus indicator (`focus-visible:border-iris/60` / `ring-iris`). This is
+         the one violet LINE, and it stays because a keyboard user needs it.
      
-     So, the rule:
-     
-       Violet FILLS, TINTS, and MARKS. It does not draw a container's edge.
-     
-     ALLOWED as a border, and only these:
-       - `focus-visible:border-iris` — the focus indicator. This is why `--iris` is
-         not lightened into the pastel range (see the token comment): it owes 3:1
-         against both the page and a card. It is the reason the rule exists rather
-         than an exception to it.
-       - the CURRENT step of a progress rail or spine, and the SELECTED thumbnail in
-         a gallery strip — a marker for "you are here", which is a state.
-       - a slider THUMB, where the ring is the only thing locating the handle on its
-         track. Neutralising it would hide the one part of the control you drag.
-       - the edge of a filled control, where the border is the same colour as the
-         fill it wraps (`border-primary bg-primary`). That is not a violet border;
-         it is a violet button with a defined boundary.
-       - tone chips and pills, where the 1px edge IS the shape of the object rather
-         than the frame around a region. `--trust` does the same on its own chips.
-     
-     NEUTRAL otherwise: containers take `--border`, hover takes `--foreground` at a
-     low alpha. Keep the violet TINT where a panel needs to read as informational —
-     a wash carries that perfectly well without the frame.
-     
-     AND `--border` IS NOW ACTUALLY NEUTRAL. This rule held the line on components
-     while the token every one of them falls back to was itself a 26%-chroma lilac, so
-     "take the neutral border" still drew a faintly purple one — roughly the same
-     amount of violet the rule had just finished removing, arrived at from underneath.
-     Both border tokens are down to 8% chroma; the allowances above are unchanged.
+     NOT ALLOWED: a violet border on a container, tile, chip, thumbnail or step;
+     a violet wash on a panel; violet on hover. A selected tile or thumbnail is
+     `border-foreground`. Containers take `--border`, hover takes `--accent`.
      
      NO DASHED BORDERS. Dashed was carrying four unrelated jobs — empty state, file
      dropzone, unavailable image, simulated-provider quarantine — which means it
@@ -455,25 +261,14 @@
        Instrument Sans is spaced for text at its own default, so copy that sets
        no tracking of its own takes none. Headings, buttons and labels declare
        their own tracking and are unaffected. */
+    /* NO BACKGROUND BLOOM. A flat page is the SaaS baseline; the violet radial
+       wash that sat here was decoration on every screen. */
     @apply min-h-dvh overflow-x-clip bg-background font-sans text-body text-foreground antialiased;
-    /* One violet bloom off the top-left corner. The 4rem ledger rules that
-       used to sit under this were drawn at 1.8% ink — below the perceptual
-       floor on any display, so they cost a paint and delivered nothing. They
-       belonged to the warm auction-ledger identity this palette replaces. */
-    /* Halved from /0.09 to /0.045 now that the page carries its own tint. Against
-       white the bloom was the only colour on an empty page and had to work for it;
-       against a tinted page the two stack, and at the old strength the top-left
-       corner read as a different surface from the bottom-right. */
-    background-image: radial-gradient(
-      circle at 8% 0%,
-      hsl(var(--iris) / 0.045),
-      transparent 26rem
-    );
   }
 
   ::selection {
     color: hsl(var(--foreground));
-    background: hsl(var(--iris) / 0.3);
+    background: hsl(var(--iris) / 0.22);
   }
 
   /* EVERY TITLE WEARS THE DISPLAY CUT, so a page, section or dialog title needs
@@ -498,12 +293,12 @@
     @apply font-sans text-meta font-semibold uppercase tracking-[0.08em];
   }
 
+  /* Neutral chip: an eyebrow is a label, not a brand moment. */
   .cardtrade-eyebrow {
     @apply inline-flex w-fit items-center rounded-sm border px-2 py-1;
-    /* Text takes the deeper tone; the edge and the wash take the bright one. */
-    color: hsl(var(--iris-ink));
-    border-color: hsl(var(--iris) / 0.4);
-    background-color: hsl(var(--iris) / 0.08);
+    color: hsl(var(--muted-foreground));
+    border-color: hsl(var(--border));
+    background-color: hsl(var(--muted));
   }
 
   /* Mist-on-obsidian field styles for the search that sits directly in
@@ -561,13 +356,12 @@
     color: hsl(var(--trust));
   }
 
-  /* Ditto-purple character moments used to be a separate hue against a neutral
-     foundation. The foundation IS the hue now, so this reads as the accent pair
-     rather than inventing a second violet. */
+  /* The Ditto character moment: the one place a soft violet tint is allowed on
+     product chrome. Text in `--iris-ink`, a whisper of `--iris` behind it. */
   .noditto-character {
-    color: hsl(var(--accent-foreground));
-    border-color: hsl(var(--iris) / 0.3);
-    background-color: hsl(var(--accent));
+    color: hsl(var(--iris-ink));
+    border-color: hsl(var(--iris) / 0.25);
+    background-color: hsl(var(--iris) / 0.06);
   }
 
   /* Hackathon / simulated-provider controls — violet quarantine, never product
@@ -631,39 +425,6 @@
   }
 }
 
-/* Step-complete celebration: a quick scale pulse when a progress step transitions
-   to done. Respects prefers-reduced-motion via the block below. */
-@keyframes step-complete {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.45); }
-  70% { transform: scale(0.95); }
-  100% { transform: scale(1); }
-}
-
-.animate-step-complete {
-  animation: step-complete 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-
-/* Gentle pulse on the active progress rail step — draws the eye without being
-   distracting. The ring expands and fades, like a radar ping. */
-@keyframes step-active-ping {
-  0% { transform: scale(1); opacity: 0.6; }
-  100% { transform: scale(2.2); opacity: 0; }
-}
-
-.animate-step-active {
-  position: relative;
-}
-
-.animate-step-active::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 9999px;
-  border: 2px solid hsl(var(--iris));
-  animation: step-active-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
 /* Skeleton shimmer, and deliberately shallower than Tailwind's `animate-pulse`.
    
    `animate-pulse` troughs at 50% opacity. On a phone that is one card breathing
@@ -684,8 +445,21 @@
   50% { opacity: 0.6; }
 }
 
+/* DELAYED REVEAL. Most navigations resolve in well under a quarter of a second,
+   and a skeleton that paints for 80ms and is then replaced reads as a flicker,
+   not as loading. The bars stay invisible (their space still reserved, so
+   nothing moves) for the first 250ms and only appear when the wait is real.
+   Visibility, not opacity, so it cannot fight the pulse. The reduced-motion
+   block zeroes the delay, which shows the bars at once — the safe direction. */
+@keyframes skeleton-reveal {
+  from { visibility: hidden; }
+  to { visibility: visible; }
+}
+
 .animate-skeleton {
-  animation: skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  animation:
+    skeleton-reveal 0s linear 250ms both,
+    skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) 250ms infinite;
 }
 
 /* Opacity only. This also animated `filter: blur(3px)`, and `fade` runs on page-sized
@@ -706,10 +480,6 @@
 @keyframes slide-y {
   from { transform: translateY(var(--slide-y-offset, 10px)); }
   to { transform: translateY(0); }
-}
-
-@keyframes via-blur {
-  30% { filter: blur(3px); }
 }
 
 @keyframes scale-down {
@@ -775,9 +545,7 @@
 ::view-transition-group(.morph) {
   animation-duration: var(--duration-move);
 }
-::view-transition-image-pair(.morph) {
-  animation-name: via-blur;
-}
+/* No blur mid-morph: a plain move-and-scale reads as faster and crisper. */
 
 ::view-transition-group(.text-morph) {
   animation-duration: var(--duration-move);

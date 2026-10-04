@@ -23,13 +23,16 @@ export function CheckoutSummarySkeleton() {
     <div className="space-y-group" role="status" aria-busy="true">
       <span className="sr-only">Checking your payment details…</span>
       {/* No `bg-muted` fill: the bars are `bg-muted/70` and would vanish into it. */}
+      {/* Both boxes' text runs are texture at `text-body` (two lines each is the
+          reservation); widths draw from the canonical set. The `size-5` glyph and the
+          `h-8` Change button keep their reserves. */}
       <div className="rounded-md border p-cozy">
-        <TextLines className="text-body" widths={['w-28', 'w-2/3']} />
+        <TextLines className="text-body" widths={['w-1/3', 'w-2/3']} />
       </div>
       <div className="flex items-center gap-cozy rounded-lg border p-cozy">
         <Skeleton className="size-5 shrink-0 rounded-sm" />
         <div className="min-w-0 flex-1">
-          <TextLines className="text-body" widths={['w-32', 'w-24']} />
+          <TextLines className="text-body" widths={['w-1/2', 'w-1/3']} />
         </div>
         <Skeleton className="h-8 w-16 shrink-0 rounded-md md:h-7" />
       </div>

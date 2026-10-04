@@ -380,7 +380,7 @@ export function ContractThumbnails({
             onClick={() => setOpenIndex(0)}
             aria-label={`Enlarge photo 1 of ${images.length} for ${label}`}
             // `relative` so the photo can fill it — StorageImage is always `fill`.
-            className="relative aspect-[3/4] w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-iris"
+            className="relative aspect-[3/4] w-full overflow-hidden rounded-lg border border-transparent transition hover:opacity-90 focus:outline-none focus-visible:border-iris/60"
           >
             <ContractThumbnailImage
               src={primary}
@@ -399,7 +399,7 @@ export function ContractThumbnails({
                     aria-label={`Enlarge photo ${index + 2} of ${images.length} for ${label}`}
                     className={cn(
                       'relative overflow-hidden rounded-md border bg-muted transition',
-                      'hover:opacity-90 border border-transparent focus:outline-none focus-visible:border-iris',
+                      'hover:opacity-90 border border-transparent focus:outline-none focus-visible:border-iris/60',
                       'size-11',
                     )}
                   >
@@ -418,7 +418,7 @@ export function ContractThumbnails({
                     type="button"
                     onClick={() => setOpenIndex(restShown.length + 1)}
                     aria-label={`See all ${images.length} photos for ${label}`}
-                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:border-iris"
+                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:border-iris/60"
                   >
                     +{restOverflow}
                   </button>
@@ -452,7 +452,7 @@ export function ContractThumbnails({
               aria-label={`Enlarge photo ${index + 1} of ${images.length} for ${label}`}
               className={cn(
                 'relative overflow-hidden rounded-md border bg-muted transition',
-                'border border-transparent hover:opacity-90 focus:outline-none focus-visible:border-iris',
+                'border border-transparent hover:opacity-90 focus:outline-none focus-visible:border-iris/60',
                 tile,
               )}
             >
@@ -473,7 +473,7 @@ export function ContractThumbnails({
               aria-label={`See all ${images.length} photos for ${label}`}
               className={cn(
                 'rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition',
-                'hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris',
+                'hover:bg-accent border border-transparent focus:outline-none focus-visible:border-iris/60',
                 tile,
               )}
             >

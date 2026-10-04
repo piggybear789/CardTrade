@@ -146,7 +146,7 @@ export function AcceptWithPhotoDialog({
           {triggerLabel}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="md:max-w-md">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>
@@ -190,7 +190,7 @@ export function AcceptWithPhotoDialog({
               // A row, not a tall dashed panel. `p-section` on an OPTIONAL step
               // made the thing you are allowed to skip the largest object in the
               // dialog — a void the eye has to cross to reach Accept.
-              className="flex w-full items-center gap-cozy rounded-lg border border-input p-cozy text-left text-muted-foreground transition-colors hover:border-foreground/30 hover:bg-muted"
+              className="flex w-full items-center gap-cozy rounded-lg border border-input p-cozy text-left text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-muted"
             >
               <HugeiconsIcon icon={Camera01Icon} className="size-5 shrink-0" aria-hidden />
               <span className="min-w-0 space-y-tight">

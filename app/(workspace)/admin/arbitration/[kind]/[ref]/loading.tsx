@@ -23,7 +23,9 @@ function CasePanelSkeleton({ bodyClassName }: { bodyClassName: string }) {
   return (
     <Card>
       <CardHeader className="pb-cozy">
-        <TextLines className="text-lead" widths={['w-40']} />
+        {/* The CardTitle bar is texture at `text-lead`; it draws from the canonical set.
+            The body slab below keeps its honest content reserve. */}
+        <TextLines className="text-lead" widths={['w-1/2']} />
       </CardHeader>
       <CardContent>
         <Skeleton className={cn('w-full', bodyClassName)} />
@@ -52,19 +54,21 @@ export default function ArbitrationCaseLoading() {
         <div className="space-y-section">
           {/* `inline-flex min-h-11 items-center`, so 44px. */}
           <div className="flex min-h-11 items-center gap-tight text-body">
+            {/* The row's min-height is the reserve; the back-link bar is texture. */}
             <Skeleton className="size-4 shrink-0 rounded-sm" />
-            <Skeleton className="inline-block h-[0.9em] w-28 align-middle" />
+            <Skeleton className="inline-block h-[0.9em] w-1/3 align-middle" />
           </div>
 
           {/* The status strip: priority, situation, age, deadline and the amount at
               stake in one `flex flex-wrap` band, which is two or three rows on a
-              phone. */}
+              phone. The two badges keep their honest `h-6` reserves; the meta/body runs
+              are texture and draw from the canonical set. */}
           <div className="flex flex-wrap items-center gap-snug rounded-lg border bg-muted px-group py-cozy">
             <Skeleton className="h-6 w-20 shrink-0 rounded-md" />
             <Skeleton className="h-6 w-28 shrink-0 rounded-md" />
-            <TextLines className="text-meta" widths={['w-32']} />
-            <TextLines className="text-meta" widths={['w-36']} />
-            <TextLines className="ml-auto text-body" widths={['w-24']} />
+            <TextLines className="text-meta" widths={['w-1/3']} />
+            <TextLines className="text-meta" widths={['w-1/3']} />
+            <TextLines className="ml-auto text-body" widths={['w-1/3']} />
           </div>
 
           {/* `gap-section` and `space-y-section` (32px), not `gap-6` / `space-y-group`. */}

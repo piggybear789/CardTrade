@@ -99,7 +99,7 @@ export function InspectionCountdown({
         // violet frame put it at the same weight as the alarm.
         alarming
           ? 'border-destructive/40 bg-destructive/5'
-          : 'border-border bg-iris/[0.07]',
+          : 'border-border bg-muted',
         className,
       )}
       role={alarming ? 'alert' : undefined}

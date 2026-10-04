@@ -16,6 +16,11 @@
 // per breakpoint down to the phone. Bolting a second pane onto it would have meant making
 // that route flush — losing its padding and its SectionHeader — to buy nothing.
 //
+// MOUNTED BY THE THREAD ROUTE'S LAYOUT (`messages/(thread)/layout.tsx`), not by its page.
+// A thread-to-thread click re-renders only what sits below the layout the two URLs share,
+// so the pane, its scroll position and the shell around it stay put and only `detail`
+// changes. `InboxProvider` is how the list stays current without being re-rendered.
+//
 // The two panes are DIFFERENT WIDTHS and therefore want different rows. `InboxThreadList`
 // takes a `rail` variant for this pane, which draws the compact row at every width rather
 // than the wide desktop row; the wide row puts a 48px thumbnail, an avatar, a name, a
@@ -38,7 +43,11 @@ const PANE_BAR = 'flex shrink-0 items-center border-b bg-card px-cozy py-2.5';
 export function InboxTwoPane({
   list,
   detail,
-  /** Conversation count for the list pane's bar, so the pane says what it holds. */
+  /**
+   * Trailing content for the list pane's bar, rendered as given — `InboxUnreadLabel`,
+   * which styles itself and renders nothing at zero. It is a node rather than a string
+   * because the count is live client state now, not a figure the server computed once.
+   */
   countLabel,
 }: {
   list: ReactNode;
@@ -61,9 +70,7 @@ export function InboxTwoPane({
           <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
             Inbox
           </h2>
-          {countLabel ? (
-            <p className="shrink-0 text-meta text-muted-foreground">{countLabel}</p>
-          ) : null}
+          {countLabel}
         </div>
         {/* Scrolls on its own. The shell caps a flush route's height and clips it, so
             this pane and the message log are two independent scroll areas inside one

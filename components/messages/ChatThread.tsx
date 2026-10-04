@@ -6,6 +6,17 @@
 // contract context; Realtime appends messages and refreshes that context whenever
 // a new contract event arrives. Contract threads read as an ordered ledger above
 // the human chat, while listing enquiries keep the familiar bottom-anchored flow.
+//
+// TWO WAYS TO RENDER, ONE COMPONENT. Live (the default) is the thread above. `preview`
+// is the same thread as a still picture, for the moment between a click in the inbox
+// pane and the server's answer (`ThreadPane`): no channel, no read receipt, no
+// attachment signing, and `inert` so nothing in it can be used. It is this component
+// rather than a lookalike on purpose — the pane bars line up across a shared seam
+// (`threadGeometry`), and a second drawing of the bar is a second chance to miss.
+//
+// A live thread also hands its history to the inbox when it leaves the screen
+// (`InboxProvider.rememberThread`), which is what lets the next preview of it show
+// real messages instead of placeholders.
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
@@ -15,7 +26,12 @@ import { ChevronLeftIcon, InformationCircleIcon } from '@hugeicons/core-free-ico
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { useConversationRealtime } from '@/lib/realtime/useConversationRealtime';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useInboxActions } from '@/components/messages/InboxProvider';
+import {
+  isOptimisticMessage,
+  useConversationRealtime,
+} from '@/lib/realtime/useConversationRealtime';
 import {
   markConversationRead,
   type ConversationItemSummary,
@@ -48,9 +64,24 @@ export interface ChatThreadProps {
   trade?: { id: string } | null;
   sale?: ConversationSaleSummary | null;
   shipment?: ConversationShipment | null;
-  /** Server-rendered history used for the first paint and live-log baseline. */
-  initialMessages: MessageRow[];
+  /**
+   * Server-rendered history used for the first paint and live-log baseline.
+   *
+   * `null` only with `preview`, when this thread has not been open in this tab and its
+   * history is simply not known yet: the log draws placeholder bubbles rather than the
+   * "No messages yet" line, which would be a false statement about a thread that has
+   * messages.
+   */
+  initialMessages: MessageRow[] | null;
+  /**
+   * Draw the thread as a still picture of itself. See the module note. The real thread
+   * replaces it within a round trip, so it must have no side effects to undo.
+   */
+  preview?: boolean;
 }
+
+/** Stable empty history: the realtime hook re-merges whenever this identity changes. */
+const NO_MESSAGES: MessageRow[] = [];
 
 export function ChatThread({
   conversationId,
@@ -62,6 +93,7 @@ export function ChatThread({
   sale = null,
   shipment = null,
   initialMessages,
+  preview = false,
 }: ChatThreadProps) {
   const router = useRouter();
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,9 +126,35 @@ export function ChatThread({
     addOptimistic,
     settleOptimistic,
   } = useConversationRealtime(conversationId, {
-    initialMessages,
+    initialMessages: initialMessages ?? NO_MESSAGES,
     onSystemMessage: refreshContractContext,
+    enabled: !preview,
   });
+  const historyKnown = initialMessages !== null;
+
+  // HAND THE HISTORY TO THE INBOX ON THE WAY OUT, so the next time this thread is
+  // clicked its preview shows these messages rather than placeholders. On unmount, not
+  // on every change: nothing reads the copy while this thread is on screen, and the
+  // inbox keeps it current with Realtime once it is off it. Placeholders for sends still
+  // in flight stay behind — the copy is a record of what the server has.
+  // The callbacks-only context, so a message in some OTHER conversation does not
+  // re-render this one.
+  const rememberThread = useInboxActions()?.rememberThread;
+  const latestRef = useRef({ messages, shipment });
+  useEffect(() => {
+    latestRef.current = { messages, shipment };
+  });
+  useEffect(() => {
+    if (preview || !rememberThread) return;
+    return () => {
+      rememberThread(conversationId, {
+        messages: latestRef.current.messages.filter(
+          (message) => !isOptimisticMessage(message),
+        ),
+        shipment: latestRef.current.shipment,
+      });
+    };
+  }, [conversationId, preview, rememberThread]);
 
   const logRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
@@ -224,8 +282,11 @@ export function ChatThread({
     [messages, currentUserId],
   );
   useEffect(() => {
+    // A preview is not the member reading the thread yet; the real one that replaces
+    // it writes the receipt.
+    if (preview) return;
     void markConversationRead(conversationId);
-  }, [conversationId, inboundCount]);
+  }, [conversationId, inboundCount, preview]);
 
   return (
     <section
@@ -240,6 +301,10 @@ export function ChatThread({
       // they can punch a hole in the rail behind them, which only lands on a card
       // surface. The phone was already correct; this is the desktop catching up.
       className="flex min-h-0 w-full flex-1 flex-col bg-card"
+      // A preview is a picture: nothing in it can be focused, clicked or typed into,
+      // with no visual change, so the swap to the live thread changes nothing you see.
+      inert={preview || undefined}
+      aria-busy={preview || undefined}
     >
       <header
         className={cn(
@@ -260,7 +325,7 @@ export function ChatThread({
           // glyph 20px wide. 36px is the phone control height everywhere else in the
           // app and the negative margin pulls the hit area into the gutter, so the
           // title gains 14px and the chevron stays a comfortable target.
-          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
+          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris/60 md:hidden"
           aria-label="Back to messages"
         >
           <HugeiconsIcon
@@ -344,8 +409,8 @@ export function ChatThread({
         )}
         role="log"
         aria-label={`Conversation with ${displayName}`}
-        aria-live={historyReady ? 'polite' : 'off'}
-        aria-busy={!historyReady}
+        aria-live={historyReady && !preview ? 'polite' : 'off'}
+        aria-busy={!historyReady || preview}
         onScroll={(event) => {
           const log = event.currentTarget;
           isNearBottomRef.current =
@@ -357,34 +422,49 @@ export function ChatThread({
           className={cn(
             MESSAGE_COLUMN,
             'flex min-h-full flex-col',
-            messages.length === 0
+            // "Empty" is a fact about a KNOWN history. An unknown one is laid out the
+            // way its messages will be, so the placeholders sit where the bubbles land.
+            historyKnown && messages.length === 0
               ? 'justify-center'
               : underContract
                 ? 'justify-start'
                 : 'justify-end',
           )}
         >
-          <MessageLog
-            conversationId={conversationId}
-            messages={messages}
-            currentUserId={currentUserId}
-            counterpartyName={displayName}
-            counterpartyAvatarPath={otherAvatarPath}
-            emptyHint="No messages yet. Say hello to start the conversation."
-            shipment={shipment}
-            saleContext={
-              sale
-                ? {
-                    id: sale.id,
-                    allowUnscopedLegacy: sale.contractCount === 1,
-                    fromShopfront: sale.fromShopfront,
-                    fulfillmentMethod: sale.fulfillmentMethod,
-                  }
-                : null
-            }
-            showAvatars
-            showReadReceipt
-          />
+          {historyKnown ? (
+            <MessageLog
+              conversationId={conversationId}
+              messages={messages}
+              currentUserId={currentUserId}
+              counterpartyName={displayName}
+              counterpartyAvatarPath={otherAvatarPath}
+              emptyHint="No messages yet. Say hello to start the conversation."
+              shipment={shipment}
+              saleContext={
+                sale
+                  ? {
+                      id: sale.id,
+                      allowUnscopedLegacy: sale.contractCount === 1,
+                      fromShopfront: sale.fromShopfront,
+                      fulfillmentMethod: sale.fulfillmentMethod,
+                    }
+                  : null
+              }
+              showAvatars
+              showReadReceipt
+              signAttachments={!preview}
+            />
+          ) : (
+            // The same four bubbles `ChatThreadSkeleton` draws. `Skeleton` holds them
+            // invisible for its first 250ms, so a fast answer replaces an empty log
+            // rather than flashing bars at the member.
+            <div className="space-y-cozy" aria-hidden>
+              <Skeleton className="h-12 w-2/3 rounded-2xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
+              <Skeleton className="h-12 w-2/3 rounded-2xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -438,7 +518,9 @@ export function ChatThread({
 
       <MessageComposer
         conversationId={conversationId}
-        inputId="message-composer"
+        // A preview can share the DOM with the thread it is replacing, which is hidden
+        // but still mounted (`ThreadPane`), so the two field ids must differ.
+        inputId={preview ? 'message-composer-preview' : 'message-composer'}
         contentClassName={MESSAGE_COLUMN}
         optimistic={{
           currentUserId,

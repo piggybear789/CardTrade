@@ -6,6 +6,9 @@
 // APIs used (all require the same NEXT_PUBLIC_GOOGLE_MAPS_API_KEY):
 //   - Places API (New): POST https://places.googleapis.com/v1/places:autocomplete
 //   - Maps Embed API:   iframe src https://www.google.com/maps/embed/v1/place
+//   - Geocoding API:    GET https://maps.googleapis.com/maps/api/geocode/json
+//                       (reverse only — "Use my current location", see
+//                       `reverseGeocodeSuburb`)
 //
 // The Embed API is free with unlimited usage. Places Autocomplete is billed
 // per-request (no session tokens needed when we only need coordinates — we
@@ -276,4 +279,88 @@ export function embedMapUrl(
 export function mapsExternalUrl(lat: number, lng: number, label?: string): string {
   const q = label ? encodeURIComponent(label) : `${lat},${lng}`;
   return `https://www.google.com/maps/search/?api=1&query=${q}`;
+}
+
+// ---------------------------------------------------------------------------
+// Geocoding API — reverse geocode a device position to its SUBURB
+// ---------------------------------------------------------------------------
+
+interface GeocodeResponse {
+  status: string;
+  results?: Array<{
+    place_id: string;
+    types: string[];
+    geometry: { location: { lat: number; lng: number } };
+    address_components: Array<{
+      long_name: string;
+      short_name: string;
+      types: string[];
+    }>;
+  }>;
+}
+
+/**
+ * The suburb (locality) containing a point, as a suburb-precision `PlaceValue`.
+ *
+ * THE RETURNED COORDINATES ARE THE SUBURB'S, NOT THE DEVICE'S. A listing's "Based
+ * near" pin is public, and the position the browser hands over can be accurate to a
+ * front door. Only the locality's own centroid and place id leave this function, so
+ * the result is exactly what picking the suburb from the autocomplete would have
+ * stored — the device position is used for the lookup and then dropped.
+ *
+ * The label is built as `Suburb, STATE, Country`, the same shape the autocomplete
+ * produces ("Croydon, NSW, Australia"), so a located place and a searched one read
+ * identically on the listing.
+ *
+ * Requires the Geocoding API enabled on the key. Returns null on any failure
+ * (disabled API, no locality at that point, network) so the caller can fall back
+ * to search.
+ */
+export async function reverseGeocodeSuburb(
+  lat: number,
+  lng: number,
+  signal?: AbortSignal,
+): Promise<PlaceValue | null> {
+  const apiKey = readGoogleMapsKey();
+  if (!apiKey) return null;
+
+  const params = new URLSearchParams({
+    latlng: `${lat},${lng}`,
+    // `postal_town` is the UK's equivalent of a locality; elsewhere it is unused.
+    result_type: 'locality|postal_town',
+    key: apiKey,
+  });
+
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?${params.toString()}`,
+      { signal },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as GeocodeResponse;
+    if (data.status !== 'OK' || !data.results?.length) return null;
+
+    const result =
+      data.results.find((r) => r.types.includes('locality')) ?? data.results[0];
+    const component = (type: string) =>
+      result.address_components.find((c) => c.types.includes(type));
+
+    const suburb = component('locality') ?? component('postal_town');
+    if (!suburb) return null;
+    const state = component('administrative_area_level_1');
+    const country = component('country');
+
+    return {
+      label: [suburb.long_name, state?.short_name, country?.long_name]
+        .filter(Boolean)
+        .join(', '),
+      placeId: result.place_id,
+      lat: result.geometry.location.lat,
+      lng: result.geometry.location.lng,
+      countryCode: country?.short_name?.toUpperCase() ?? null,
+      precision: 'suburb',
+    };
+  } catch {
+    return null;
+  }
 }

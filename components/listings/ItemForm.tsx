@@ -125,6 +125,12 @@ export interface ItemFormProps {
   mode: "create" | "edit";
   /** The existing item to edit; required when `mode === "edit"`. */
   item?: ItemRow;
+  /**
+   * Create mode: where this seller's most recent listing is based, read server-side.
+   * Prefills "Based near" so a seller who always trades from the same suburb does not
+   * search for it on every listing. Lowest priority — a restored draft's place wins.
+   */
+  defaultLocation?: PlaceValue | null;
 }
 
 /**
@@ -214,6 +220,7 @@ export function ItemForm(props: ItemFormProps) {
 function ItemFormInner({
   mode,
   item,
+  defaultLocation = null,
   restoreDraft,
   draftDecided,
 }: ItemFormProps & { restoreDraft: boolean; draftDecided: boolean }) {
@@ -254,8 +261,16 @@ function ItemFormInner({
     item ? centsToDollars(item.fmv_cents) : (restored?.fmvDollars ?? ""),
   );
   const [location, setLocation] = React.useState<PlaceValue | null>(() =>
-    item ? placeFromItem(item) : ((restored?.location as PlaceValue | null) ?? null),
+    item
+      ? placeFromItem(item)
+      : ((restored?.location as PlaceValue | null) ?? defaultLocation),
   );
+  // Still showing the prefilled place, untouched. Drives the "from your last listing"
+  // hint, and keeps the prefill out of the session draft (below).
+  const locationIsDefault =
+    mode === "create" &&
+    defaultLocation != null &&
+    location?.placeId === defaultLocation.placeId;
 
   // Whether anything was actually brought back, so the form can SAY so. A restored form
   // that silently differs from the empty one it looks like is its own small confusion —
@@ -328,7 +343,10 @@ function ItemFormInner({
       condition,
       listingKind,
       fmvDollars,
-      location,
+      // THE PREFILL IS NOT INPUT. Counted as a draft, a seller who opened the form and
+      // left would come back to "We kept what you had typed" over a form they never
+      // typed in. It comes back from the server on the next visit anyway.
+      location: locationIsDefault ? null : location,
     },
     // `draftDecided`: never write before the restore decision is made, or the empty
     // hydration render would CLEAR the stored draft before it could be restored.
@@ -1176,6 +1194,8 @@ function ItemFormInner({
                 disabled={isSubmitting}
                 required
                 error={locationError}
+                hint={locationIsDefault ? "Same as your last listing." : undefined}
+                locate
               />
             </div>
 

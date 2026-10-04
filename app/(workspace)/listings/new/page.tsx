@@ -25,6 +25,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
+import type { PlaceValue } from '@/lib/location/types';
 import { readListingGate } from '@/lib/sellerListingGate';
 import { ItemForm } from '@/components/listings/ItemForm';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -49,7 +50,12 @@ export default async function NewListingPage() {
     redirect('/sign-in?redirectTo=/listings/new');
   }
 
-  const gate = await readListingGate(user.id);
+  // In parallel: the default place is wanted only if the gate passes, but it is one
+  // indexed row and costs nothing to fetch alongside rather than after.
+  const [gate, defaultLocation] = await Promise.all([
+    readListingGate(user.id),
+    lastListingLocation(supabase, user.id),
+  ]);
   if (!gate.satisfied) {
     return (
       <MarketplaceShell title="New Listing" center>
@@ -77,7 +83,51 @@ export default async function NewListingPage() {
 
   return (
     <MarketplaceShell title="New Listing">
-      <ItemForm mode="create" />
+      <ItemForm mode="create" defaultLocation={defaultLocation} />
     </MarketplaceShell>
   );
+}
+
+/**
+ * Where this seller's most recent listing is based, to prefill "Based near".
+ *
+ * STORED ON THE LISTINGS THEMSELVES, so there is nothing new to keep in sync: the
+ * default is simply the last place they chose, on any device. Any status — a sold or
+ * closed listing still says where the seller trades from.
+ *
+ * SUBURB PRECISION ONLY. An `exact` place would be a street or landmark, and carrying
+ * it into a new listing would publish a precise point the seller chose for a different
+ * context. A row with no precision predates the column and was always a suburb.
+ *
+ * Never throws: a failed read is just an empty field, which is what the form had before.
+ */
+async function lastListingLocation(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<PlaceValue | null> {
+  const { data } = await supabase
+    .from('items')
+    .select(
+      'location_label, location_place_id, location_lat, location_lng, location_country_code',
+    )
+    .eq('owner_id', userId)
+    .not('location_label', 'is', null)
+    .not('location_lat', 'is', null)
+    .not('location_lng', 'is', null)
+    .or('location_precision.is.null,location_precision.eq.suburb')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!data?.location_label || data.location_lat == null || data.location_lng == null) {
+    return null;
+  }
+  return {
+    label: data.location_label,
+    placeId: data.location_place_id ?? `text:${data.location_label}`,
+    lat: data.location_lat,
+    lng: data.location_lng,
+    countryCode: data.location_country_code,
+    precision: 'suburb',
+  };
 }

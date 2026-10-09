@@ -16,6 +16,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createPrivateTradeItem } from '@/lib/actions/listings';
 import { fail, ok, type ActionResult } from '@/lib/actions/result';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { listingContext, tradeContext } from '@/lib/notifications/notificationContext';
 import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 import { loadSellerIdentityDisclosure, readSellerPayReadiness } from '@/lib/sellerIdentity';
 import { readIdentityGate } from '@/lib/identityGate';
@@ -991,6 +992,7 @@ async function openClaimedInvite(
       title: 'Someone joined your deal',
       body: 'A trader accepted your private trade invite.',
       link: `/trades/${row.id}`,
+      context: tradeContext(row.id, joinerId),
     });
     return ok({ path: `/trades/${row.id}`, contractId: row.id as string });
   }
@@ -1035,6 +1037,13 @@ async function openClaimedInvite(
     title: 'Someone joined your deal',
     body: 'A member claimed your private deal invite.',
     link: `/sales/${result.sale.id}`,
+    context: listingContext({
+      itemId: result.sale.itemId,
+      itemTitle: result.sale.itemTitle,
+      actorId: joinerId,
+      amountCents: result.sale.agreedPriceCents,
+      currency: result.sale.currency,
+    }),
   });
   return ok({ path: `/sales/${result.sale.id}`, contractId: result.sale.id });
 }

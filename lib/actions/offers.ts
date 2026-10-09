@@ -15,8 +15,8 @@
 // single item. Counters link back to the offer they replace via
 // `parent_offer_id`; the newest PENDING offer in a chain is the "live" offer.
 //
-// Money is integer AUD cents end-to-end (`amount_cents`); the UI formats via
-// `formatAud`. Every export is an async Server Action; shared shapes are
+// Money is integer minor units of the listing's currency (`amount_cents`); the UI
+// formats it per currency. Every export is an async Server Action; shared shapes are
 // `export type` only (type exports are erased and permitted in a 'use server'
 // module).
 
@@ -27,7 +27,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
-import { formatAud } from '@/lib/format';
+import { listingContext } from '@/lib/notifications/notificationContext';
 import { OFFER_AMOUNT_MIN, OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import type { Tables, Enums } from '@/lib/supabase/database.types';
@@ -194,8 +194,9 @@ export const makeOffer = withActionLog('offers.makeOffer', async function makeOf
     userId: item.owner_id,
     type: 'OFFER',
     title: 'New offer received',
-    body: `You received an offer of ${formatAud(amountCents)}.`,
+    body: 'Open Offers to accept, counter or decline it.',
     link: '/offers',
+    context: listingContext({ itemId, actorId: me, amountCents }),
   });
 
   return { ok: true, offer: inserted as OfferRow };
@@ -320,8 +321,9 @@ export const counterOffer = withActionLog('offers.counterOffer', async function 
     userId: counterRecipient,
     type: 'OFFER',
     title: 'Counter offer received',
-    body: `You received a counter offer of ${formatAud(amountCents)}.`,
+    body: 'Open Offers to accept, counter or decline it.',
     link: '/offers',
+    context: listingContext({ itemId: offer.item_id, actorId: me, amountCents }),
   });
 
   return { ok: true, offer: inserted as OfferRow };
@@ -407,7 +409,7 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
       .maybeSingle();
     if (error) return { ok: false, error: 'persistence-error', detail: error.message };
     if (!updated) return { ok: false, error: 'invalid-status' };
-    await notifyOfferOutcome(otherParty, 'WITHDRAWN', offer.amount_cents);
+    await notifyOfferOutcome(otherParty, 'WITHDRAWN', offer.amount_cents, offer.item_id, me);
     return { ok: true, offer: updated as OfferRow };
   }
 
@@ -424,7 +426,7 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
       .maybeSingle();
     if (error) return { ok: false, error: 'persistence-error', detail: error.message };
     if (!updated) return { ok: false, error: 'invalid-status' };
-    await notifyOfferOutcome(otherParty, 'DECLINED', offer.amount_cents);
+    await notifyOfferOutcome(otherParty, 'DECLINED', offer.amount_cents, offer.item_id, me);
     return { ok: true, offer: updated as OfferRow };
   }
 
@@ -487,8 +489,9 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
     userId: offer.buyer_id,
     type: 'SALE',
     title: 'Offer accepted',
-    body: `Your offer of ${formatAud(offer.amount_cents)} was accepted. Agree the fulfillment terms to continue.`,
+    body: 'Agree the fulfilment terms to continue.',
     link: `/sales/${saleId}`,
+    context: listingContext({ itemId: offer.item_id, actorId: offer.seller_id, amountCents: offer.amount_cents }),
   });
 
   // Notify the seller so they can navigate to the contract room directly.
@@ -496,8 +499,9 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
     userId: offer.seller_id,
     type: 'SALE',
     title: 'Sale started',
-    body: `You accepted an offer of ${formatAud(offer.amount_cents)}. Open the contract to set fulfillment terms.`,
+    body: 'Open the contract to set fulfilment terms.',
     link: `/sales/${saleId}`,
+    context: listingContext({ itemId: offer.item_id, actorId: offer.buyer_id, amountCents: offer.amount_cents }),
   });
 
   return { ok: true, offer: (updated as OfferRow) ?? offer, saleId };
@@ -508,6 +512,8 @@ async function notifyOfferOutcome(
   recipientId: string,
   status: OfferStatus,
   amountCents: number,
+  itemId: string,
+  actorId: string,
 ): Promise<void> {
   const TITLE: Record<OfferStatus, string> = {
     ACCEPTED: 'Offer accepted',
@@ -520,8 +526,9 @@ async function notifyOfferOutcome(
     userId: recipientId,
     type: 'OFFER',
     title: TITLE[status] ?? 'Offer updated',
-    body: `An offer of ${formatAud(amountCents)} was ${status.toLowerCase()}.`,
+    body: `The offer was ${status.toLowerCase()}.`,
     link: '/offers',
+    context: listingContext({ itemId, actorId, amountCents }),
   });
 }
 

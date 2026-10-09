@@ -20,6 +20,7 @@ import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { listingContext } from '@/lib/notifications/notificationContext';
 import { MESSAGE_BODY_MIN, MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
 import type { Enums, Tables } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -700,7 +701,7 @@ export const sendMessage = withActionLog('messages.sendMessage', async function 
   // Confirm participation before writing (RLS also enforces this).
   const { data: conversation } = await supabase
     .from('conversations')
-    .select('id, participant_a, participant_b')
+    .select('id, item_id, participant_a, participant_b')
     .eq('id', conversationId)
     .maybeSingle();
 
@@ -781,6 +782,7 @@ export const sendMessage = withActionLog('messages.sendMessage', async function 
       return preview.length > 120 ? `${preview.slice(0, 117)}…` : preview;
     })(),
     link: `/messages/${conversationId}`,
+    context: listingContext({ itemId: conversation.item_id, actorId: me }),
   });
 
   return { ok: true, message: message as MessageRow };

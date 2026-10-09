@@ -25,8 +25,12 @@ import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
 
-/** A notification row, strongly typed from the generated database types. */
-export type NotificationRow = Tables<'notifications'>;
+/**
+ * A notification row, strongly typed from the generated database types, plus the
+ * read-time `target_missing` flag `listMyNotifications` adds. Rows arriving over
+ * Realtime are new, so their target exists and the flag is simply absent.
+ */
+export type NotificationRow = Tables<'notifications'> & { target_missing?: boolean };
 
 /**
  * Connection state of the underlying Realtime channel, surfaced so the bell UI
@@ -240,10 +244,16 @@ export function useNotifications(
             const incoming = map.get(n.id);
             if (!incoming) {
               map.set(n.id, n);
-            } else if (n.read_at !== null && incoming.read_at === null) {
-              // Preserve local optimistic read state
-              map.set(n.id, { ...incoming, read_at: n.read_at });
+              continue;
             }
+            map.set(n.id, {
+              ...incoming,
+              // Preserve local optimistic read state.
+              read_at: n.read_at !== null && incoming.read_at === null ? n.read_at : incoming.read_at,
+              // A table read cannot know whether the linked contract still exists;
+              // that verdict comes from the server list (`listMyNotifications`).
+              target_missing: n.target_missing,
+            });
           }
           return Array.from(map.values()).sort(byCreatedAtDesc);
         });

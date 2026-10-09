@@ -321,8 +321,11 @@ function EmptyRegion({ regionCode }: { regionCode: string }) {
   );
 }
 
+/** The games offered as a way out of a zero-result search: the most listed first. */
+const ESCAPE_GAMES = CARD_GAMES.slice(0, 4);
+
 function NoMatches({ regionCode }: { regionCode: string | null }) {
-  const { apply, reset, settled, isPending } = useCatalogView();
+  const { apply, reset, settled, isPending, selectGame } = useCatalogView();
   const scope = regionCode ? ` in ${regionLabel(regionCode)}` : '';
   const isSearch = settled.q !== '';
   const onlySearch =
@@ -339,12 +342,33 @@ function NoMatches({ regionCode }: { regionCode: string | null }) {
       icon={<HugeiconsIcon icon={Search01Icon} className="size-6" aria-hidden />}
       title={isSearch ? 'No listings match this search' : 'No collectibles match these filters'}
       description={
-        isSearch
-          ? `Nothing${scope} uses those words. Try the player or card name, or pick a game above.`
-          : `Nothing${scope} matches. Broaden the price range or clear the filters to see more listings.`
+        <>
+          {isSearch
+            ? `Nothing${scope} uses those words. Try the player or card name, or browse a game.`
+            : `Nothing${scope} matches. Broaden the price range or clear the filters to see more listings.`}
+          {/* A WAY FORWARD, NOT ONLY A WAY BACK. Clear undoes; a game chip goes
+              somewhere. Picking one from a failed search drops the words, the same
+              escape hatch the game pills above already behave as. */}
+          {isSearch ? (
+            <span className="mt-cozy flex flex-wrap justify-center gap-snug" role="group" aria-label="Browse a game">
+              {ESCAPE_GAMES.map((game) => (
+                <Button
+                  key={game.slug}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isPending}
+                  onClick={() => selectGame(game.name)}
+                >
+                  {game.name}
+                </Button>
+              ))}
+            </span>
+          ) : null}
+        </>
       }
       action={{
-        label: onlySearch ? 'Clear Search' : 'Clear Filters',
+        label: onlySearch ? 'Clear search' : 'Clear filters',
         onClick: onlySearch ? () => apply({ q: null }) : reset,
         disabled: isPending,
         variant: 'outline',

@@ -68,6 +68,7 @@ import {
 import type { TablesUpdate } from '@/lib/supabase/database.types';
 import { revalidatePath } from 'next/cache';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { tradeContext } from '@/lib/notifications/notificationContext';
 import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 
@@ -529,7 +530,7 @@ async function recordLifecycle(
       : trade.initiator_id as string;
     const note = lifecycleNotification(action, tradeId);
     if (note) {
-      await createNotification({ userId: recipientId, type: 'TRADE', ...note });
+      await createNotification({ userId: recipientId, type: 'TRADE', ...note, context: tradeContext(tradeId, userId) });
     }
     if (action === 'shipment') {
       void emailNotify.itemShipped({
@@ -564,7 +565,7 @@ async function recordLifecycle(
     : trade.initiator_id as string;
   const note = lifecycleNotification(action, tradeId);
   if (note) {
-    await createNotification({ userId: recipientId, type: 'TRADE', ...note });
+    await createNotification({ userId: recipientId, type: 'TRADE', ...note, context: tradeContext(tradeId, userId) });
   }
   if (action === 'shipment') {
     void emailNotify.itemShipped({
@@ -756,6 +757,7 @@ export const raiseDispute = withActionLog('trades.raiseDispute', async function 
     title: 'Dispute raised',
     body: 'A dispute has been filed on your trade. Please respond with your account.',
     link: `/trades/${tradeId}`,
+    context: tradeContext(tradeId, guard.ctx.userId),
   });
   void emailNotify.disputeRaised({
     userId: recipientId,
@@ -1119,6 +1121,7 @@ export const reportTradeHandoverFailed = withActionLog('trades.reportTradeHandov
     title: 'Problem reported',
     body: 'The other trader reported a problem with the exchange.',
     link: `/trades/${tradeId}`,
+    context: tradeContext(tradeId, userId),
   });
 
   return { ok: true, state: result.trade.state };

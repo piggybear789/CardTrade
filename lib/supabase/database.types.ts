@@ -1877,6 +1877,15 @@ export type Database = {
           link: string | null;
           read_at: string | null;
           created_at: string;
+          /** 0126: the listing's title when the notification was raised. */
+          subject_title: string | null;
+          /** 0126: the listing's cover, an object path in the item-images bucket. */
+          image_path: string | null;
+          /** 0126: the other member's PUBLIC display name. */
+          actor_name: string | null;
+          /** 0126: the money involved, in `currency`'s minor units. */
+          amount_cents: number | null;
+          currency: string | null;
         };
         Insert: {
           id?: string;
@@ -1887,6 +1896,11 @@ export type Database = {
           link?: string | null;
           read_at?: string | null;
           created_at?: string;
+          subject_title?: string | null;
+          image_path?: string | null;
+          actor_name?: string | null;
+          amount_cents?: number | null;
+          currency?: string | null;
         };
         Update: {
           id?: string;
@@ -1897,6 +1911,11 @@ export type Database = {
           link?: string | null;
           read_at?: string | null;
           created_at?: string;
+          subject_title?: string | null;
+          image_path?: string | null;
+          actor_name?: string | null;
+          amount_cents?: number | null;
+          currency?: string | null;
         };
         Relationships: [];
       };

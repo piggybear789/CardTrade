@@ -200,7 +200,8 @@ export function NotificationBell({
                 return (
                   <li key={n.id}>
                     <Link
-                      href={n.link || '/notifications'}
+                      // A removed contract would 404; the centre says so in place.
+                      href={n.link && !n.target_missing ? n.link : '/notifications'}
                       onClick={() => handleSelect(n)}
                       className={notificationRowClass(
                         unread,

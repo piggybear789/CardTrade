@@ -13,6 +13,7 @@ import { getPaymentService } from '@/domain/services';
 
 import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { listingContext } from '@/lib/notifications/notificationContext';
 import { notifyCashSaleSettled } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 
@@ -106,6 +107,24 @@ async function getUserId(): Promise<string | null> {
  */
 function orchestrator() {
   return createDefaultCashSaleOrchestrator({ payments: getPaymentService() });
+}
+
+/**
+ * What a sale notification is about (0126): the card, the other party, and the agreed
+ * price. The actor is whoever is NOT the recipient — in a two-party contract that is
+ * the member whose action raised it.
+ */
+function saleContext(
+  sale: Pick<CashSaleRecord, 'itemId' | 'itemTitle' | 'buyerId' | 'sellerId' | 'agreedPriceCents' | 'currency'>,
+  recipientId: string,
+) {
+  return listingContext({
+    itemId: sale.itemId,
+    itemTitle: sale.itemTitle,
+    actorId: recipientId === sale.buyerId ? sale.sellerId : sale.buyerId,
+    amountCents: sale.agreedPriceCents,
+    currency: sale.currency,
+  });
 }
 function mapError(error: CashSaleError): CashSaleActionError {
   const errors: Record<CashSaleError, CashSaleActionError> = {
@@ -206,6 +225,7 @@ export const initiateCashSale = withActionLog('cashSale.initiateCashSale', async
       title: 'New purchase request',
       body: 'A buyer wants to purchase from your listing.',
       link: `/sales/${actionRes.sale.id}`,
+      context: saleContext(actionRes.sale, actionRes.sale.sellerId),
     });
     void emailNotify.newPurchaseRequest({
       userId: actionRes.sale.sellerId,
@@ -258,6 +278,7 @@ export const updateCashSaleItems = withActionLog('cashSale.updateCashSaleItems',
       title: 'Contract items changed',
       body: 'The items in this contract were updated. Review them before you pay.',
       link: `/sales/${result.sale.id}`,
+      context: saleContext(result.sale, recipientId),
     });
   }
   return result;
@@ -319,6 +340,7 @@ export const updateCashSaleTerms = withActionLog('cashSale.updateCashSaleTerms',
       title: 'Handover updated',
       body: 'The meeting or postage details on this purchase were updated.',
       link: `/sales/${result.sale.id}`,
+      context: saleContext(result.sale, recipientId),
     });
   }
   return result;
@@ -354,13 +376,12 @@ export const proposeCashSalePrice = withActionLog('cashSale.proposeCashSalePrice
       userId: result.sale.buyerId,
       type: 'SALE',
       title: 'The seller changed the price',
-      // NO FIGURE HERE, deliberately. `CashSaleRecord` carries no currency field, and
-      // the only way to print an amount from here would be `formatAud`, which is a
-      // deprecated alias — hardcoding AUD into a money string is precisely the
-      // "charged in one currency, displayed in another" bug the region work exists to
-      // prevent. The contract room formats it correctly, so send them there.
+      // NO FIGURE IN THE BODY. The new price travels as `context` (amount plus the
+      // contract's currency), which the notification row formats per currency; a
+      // figure baked into this string would be a second, unformatted copy of it.
       body: 'The item price on your contract has changed. Review it in the room before you pay.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, result.sale.buyerId),
     });
   }
   return result;
@@ -421,6 +442,7 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
         title: 'Payment started',
         body: 'The buyer is paying. You will be told when the funds are held.',
         link: `/sales/${cashSaleId}`,
+        context: saleContext(result.sale, result.sale.sellerId),
       });
     }
   }
@@ -458,6 +480,7 @@ export const recordCashSaleShipment = withActionLog('cashSale.recordCashSaleShip
       title: 'Item shipped',
       body: 'The seller has shipped your item.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, result.sale.buyerId),
     });
     void emailNotify.itemShipped({
       userId: result.sale.buyerId,
@@ -483,6 +506,7 @@ export const recordCashSaleReceipt = withActionLog('cashSale.recordCashSaleRecei
       title: 'Item received',
       body: 'The buyer confirmed receipt of your item.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, result.sale.sellerId),
     });
   }
   return result;
@@ -517,6 +541,7 @@ export const acceptCashSaleInspection = withActionLog('cashSale.acceptCashSaleIn
       title: 'Inspection approved',
       body: 'The buyer approved the item. Your payout is being processed.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, result.sale.sellerId),
     });
   }
   return result;
@@ -540,6 +565,7 @@ export const confirmCashSaleHandover = withActionLog('cashSale.confirmCashSaleHa
       title: 'Handover confirmed',
       body: 'The other party confirmed the in-person exchange.',
       link: `/sales/${result.sale.id}`,
+      context: saleContext(result.sale, recipientId),
     });
   }
   return result;
@@ -564,6 +590,7 @@ export const cancelCashSaleAgreement = withActionLog('cashSale.cancelCashSaleAgr
       title: 'Contract cancelled',
       body: 'The other party cancelled the contract.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, recipientId),
     });
   }
   return result;
@@ -588,6 +615,7 @@ export const disputeCashSale = withActionLog('cashSale.disputeCashSale', async f
       title: 'Dispute raised',
       body: 'A dispute has been raised on your contract. Please respond.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, recipientId),
     });
     void emailNotify.disputeRaised({
       userId: recipientId,
@@ -685,7 +713,7 @@ export const saveCashSaleReturnAddress = withActionLog('cashSale.saveCashSaleRet
   const supabase = await createClient();
   const { data: sale } = await supabase
     .from('cash_sales')
-    .select('id, buyer_id, seller_id, status')
+    .select('id, buyer_id, seller_id, status, item_id, item_title')
     .eq('id', cashSaleId)
     .maybeSingle();
   if (!sale) return { ok: false, error: 'cash-sale-not-found' };
@@ -720,6 +748,7 @@ export const saveCashSaleReturnAddress = withActionLog('cashSale.saveCashSaleRet
     title: 'Return address provided',
     body: 'The seller added a return address. You can now post the item back.',
     link: `/sales/${cashSaleId}`,
+    context: listingContext({ itemId: sale.item_id, itemTitle: sale.item_title, actorId: sale.seller_id }),
   });
 
   // Return the sale record via the orchestrator for result shape consistency.
@@ -765,6 +794,7 @@ export const recordCashSaleReturnShipment = withActionLog('cashSale.recordCashSa
       title: 'Return shipped',
       body: 'The buyer has posted the item back to you.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, result.sale.sellerId),
     });
     void emailNotify.itemShipped({
       userId: result.sale.sellerId,
@@ -803,6 +833,7 @@ export const disputeCashSaleReturn = withActionLog('cashSale.disputeCashSaleRetu
       title: 'Return disputed',
       body: 'The seller has contested the return. The case is back with support.',
       link: `/sales/${cashSaleId}`,
+      context: saleContext(result.sale, result.sale.buyerId),
     });
     void emailNotify.disputeRaised({
       userId: result.sale.buyerId,

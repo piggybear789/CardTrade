@@ -130,7 +130,7 @@ function useCatalogNav() {
 
 /** Marketplace filter rail. Phone: bottom sheet. Desktop: in-page rows. */
 export function CatalogFilters() {
-  const { current, facets } = useCatalogView();
+  const { current, facets, result } = useCatalogView();
   const { isPending, pushWith, reset } = useCatalogNav();
   // Closed until mount so a `?filters=1` deep link cannot open a portaled
   // sheet on desktop during SSR (MobileOnly assumes the phone snapshot).
@@ -225,23 +225,13 @@ export function CatalogFilters() {
         <Sheet open={filtersOpen} onOpenChange={setFiltersOpenAndUrl}>
           <SheetContent side="bottom" className="gap-0 p-0">
             <SheetHeader className="border-b border-border px-5 py-cozy">
-              <div className="flex items-start justify-between gap-cozy pr-10">
-                <div className="min-w-0">
-                  <SheetTitle>Filters</SheetTitle>
-                  <SheetDescription>
-                    Sort, condition, price, and sold items. Changes apply immediately.
-                  </SheetDescription>
-                </div>
-                {hasActiveFilters ? (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    disabled={isPending}
-                    className="shrink-0 rounded-sm pt-0.5 text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50"
-                  >
-                    Clear all
-                  </button>
-                ) : null}
+              <div className="min-w-0 pr-10">
+                <SheetTitle>Filters</SheetTitle>
+                {/* Visually hidden: the footer's live count now says what the filters
+                    do, which is what this sentence used to explain. */}
+                <SheetDescription className="sr-only">
+                  Sort, condition, price and sold items. Changes apply as you make them.
+                </SheetDescription>
               </div>
             </SheetHeader>
             <div className="space-y-group overflow-y-auto overscroll-contain px-5 py-group">
@@ -270,10 +260,21 @@ export function CatalogFilters() {
                 histogram={facets.priceHistogram}
               />
             </div>
-            <SheetFooter className="border-t border-border p-group">
+            {/* THE BUTTON SAYS WHAT IT WILL SHOW. "Done" closed the sheet without saying
+                whether the filters had left anything to see; the live count answers
+                that before the sheet closes, and Clear all sits beside it rather than
+                as a link in the header. */}
+            <SheetFooter className="flex-row gap-snug border-t border-border p-group">
+              {hasActiveFilters ? (
+                <Button type="button" variant="ghost" onClick={clearFilters} disabled={isPending}>
+                  Clear all
+                </Button>
+              ) : null}
               <SheetClose asChild>
-                <Button type="button" size="sm">
-                  Done
+                <Button type="button" className="flex-1" aria-busy={isPending}>
+                  {result.total === 0
+                    ? 'No listings match'
+                    : `Show ${result.total} ${result.total === 1 ? 'listing' : 'listings'}`}
                 </Button>
               </SheetClose>
             </SheetFooter>

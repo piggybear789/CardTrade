@@ -23,6 +23,7 @@ import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { tradeContext } from '@/lib/notifications/notificationContext';
 import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
@@ -300,6 +301,7 @@ export const proposeTradeTerms = withActionLog('tradeNegotiation.proposeTradeTer
     title: 'Cash updated',
     body: 'The listing owner changed the cash on this trade. Accept the new amount to continue.',
     link: `/trades/${tradeId}`,
+    context: tradeContext(tradeId, userId),
   });
 
   revalidatePath(`/trades/${tradeId}`);
@@ -393,6 +395,7 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
     title: 'Trade terms agreed',
     body: 'Both of you accepted the terms. The card holds go on the day before you meet.',
     link: `/trades/${tradeId}`,
+    context: tradeContext(tradeId, userId),
   });
 
   revalidatePath('/trades');
@@ -494,6 +497,7 @@ export const retryTradeCollateral = withActionLog('tradeNegotiation.retryTradeCo
     title: 'Trade collateral retried',
     body: 'The other trader retried the card hold. Collateral is being arranged.',
     link: `/trades/${tradeId}`,
+    context: tradeContext(tradeId, userId),
   });
 
   revalidatePath('/trades');
@@ -532,6 +536,7 @@ export const declineTradeOffer = withActionLog('tradeNegotiation.declineTradeOff
     title: 'Trade offer closed',
     body: 'The other trader ended this offer. Nothing was charged.',
     link: `/trades/${tradeId}`,
+    context: tradeContext(tradeId, userId),
   });
 
   revalidatePath('/trades');
@@ -774,6 +779,7 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
     title: 'Trade offer received',
     body: 'Someone opened a trade offer on one of your listings.',
     link: `/trades/${trade.id}`,
+    context: tradeContext(trade.id, userId),
   });
 
   void emailNotify.tradeOfferReceived({

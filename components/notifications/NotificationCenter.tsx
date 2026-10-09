@@ -16,7 +16,7 @@
 // under the cursor on every click and rearranges itself wholesale on "Mark all read".
 // Unread is carried by weight and the row tint instead, which is stable.
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BellOffIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
@@ -35,9 +35,37 @@ import {
 } from '@/lib/realtime/useNotifications';
 import {
   groupNotificationsByAge,
+  NOTIFICATION_TYPE_META,
   NotificationRowBody,
   notificationRowClass,
 } from '@/components/notifications/notificationPresentation';
+
+/**
+ * Collapse consecutive notifications about the same thing into one row.
+ *
+ * Fifteen "New purchase request" rows on one card read as fifteen identical lines.
+ * Rows of the same kind and title about the same listing (`subject_title`, 0126) that
+ * sit next to each other become one row, the newest leading, with "+N more". Rows
+ * without a subject are never merged: there is nothing to say they are the same.
+ */
+function collapseRuns(rows: readonly NotificationRow[]): { head: NotificationRow; rest: NotificationRow[] }[] {
+  const runs: { head: NotificationRow; rest: NotificationRow[] }[] = [];
+  for (const row of rows) {
+    const last = runs[runs.length - 1];
+    if (
+      last &&
+      row.subject_title &&
+      last.head.subject_title === row.subject_title &&
+      last.head.type === row.type &&
+      last.head.title === row.title
+    ) {
+      last.rest.push(row);
+      continue;
+    }
+    runs.push({ head: row, rest: [] });
+  }
+  return runs;
+}
 
 export function NotificationCenter({
   userId,
@@ -60,15 +88,20 @@ export function NotificationCenter({
   const { notifications, unreadCount, markReadLocal, markAllReadLocal } =
     useNotifications(userId, initialNotifications);
 
-  function handleSelect(notification: NotificationRow) {
-    if (notification.read_at === null) {
-      markReadLocal(notification.id);
+  const [typeFilter, setTypeFilter] = useState<NotificationRow['type'] | 'ALL'>('ALL');
+
+  /** Open a row (or a collapsed run): every notification in it is read by opening it. */
+  function handleSelect(head: NotificationRow, rest: NotificationRow[] = []) {
+    const unread = [head, ...rest].filter((row) => row.read_at === null);
+    if (unread.length > 0) {
+      for (const row of unread) markReadLocal(row.id);
       startTransition(async () => {
-        await markNotificationRead(notification.id);
+        await Promise.all(unread.map((row) => markNotificationRead(row.id)));
       });
     }
-    if (notification.link) {
-      navigateWithType(router, notification.link, 'nav-forward');
+    // A removed contract is reported in the row; following it would land on a 404.
+    if (head.link && !head.target_missing) {
+      navigateWithType(router, head.link, 'nav-forward');
     }
   }
 
@@ -95,10 +128,37 @@ export function NotificationCenter({
     );
   }
 
-  const groups = groupNotificationsByAge(notifications, now);
+  // FILTER BY KIND, only when there is more than one kind to choose between. The rows
+  // do not record which side of a deal the member was on, so the honest split is the
+  // kind of thing that happened.
+  const kinds = Array.from(new Set(notifications.map((row) => row.type)));
+  const visible = typeFilter === 'ALL' ? notifications : notifications.filter((row) => row.type === typeFilter);
+  const groups = groupNotificationsByAge(visible, now);
 
   return (
     <div className="space-y-group">
+      {kinds.length > 1 ? (
+        <div className="flex flex-wrap gap-snug" role="group" aria-label="Show notifications">
+          {(['ALL', ...kinds] as const).map((kind) => {
+            const selected = typeFilter === kind;
+            const count = kind === 'ALL' ? notifications.length : notifications.filter((row) => row.type === kind).length;
+            return (
+              <Button
+                key={kind}
+                type="button"
+                size="sm"
+                variant="outline"
+                aria-pressed={selected}
+                className="aria-[pressed=true]:border-foreground aria-[pressed=true]:bg-accent aria-[pressed=true]:text-accent-foreground"
+                onClick={() => setTypeFilter(kind)}
+              >
+                {kind === 'ALL' ? 'All' : `${NOTIFICATION_TYPE_META[kind].label}s`}
+                <span className="tabular-nums text-muted-foreground">{count}</span>
+              </Button>
+            );
+          })}
+        </div>
+      ) : null}
       {/* THE COUNT IS STATED, not left to be inferred from a disabled button. This row
           held nothing but "Mark all read", so the one figure a member opens this page
           for — how much is new — was reachable only by counting tinted rows. */}
@@ -137,19 +197,28 @@ export function NotificationCenter({
             {group.label}
           </h2>
           <ul role="list" className="divide-y rounded-lg border">
-            {group.rows.map((n) => {
-              const unread = n.read_at === null;
+            {collapseRuns(group.rows).map(({ head, rest }) => {
+              const unread = [head, ...rest].some((row) => row.read_at === null);
               return (
-                <li key={n.id}>
+                <li key={head.id}>
                   <button
                     type="button"
-                    onClick={() => handleSelect(n)}
+                    onClick={() => handleSelect(head, rest)}
                     className={notificationRowClass(
                       unread,
                       'gap-cozy px-group py-3.5',
                     )}
                   >
-                    <NotificationRowBody notification={n} />
+                    <NotificationRowBody
+                      notification={unread ? { ...head, read_at: null } : head}
+                      extra={
+                        rest.length > 0 ? (
+                          <span className="mt-0.5 block text-meta text-muted-foreground">
+                            +{rest.length} more on this listing
+                          </span>
+                        ) : null
+                      }
+                    />
                   </button>
                 </li>
               );

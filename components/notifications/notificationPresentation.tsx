@@ -17,17 +17,19 @@
 //
 // THERE IS NO "NEEDS ACTION" BLOCK, AND THAT IS A DELIBERATE REFUSAL. The design board
 // asked for one, with copy naming the consequence of not acting. A notification row
-// carries `{type, title, body, link}` and nothing else — no actionable flag, no
-// deadline — so the only way to build that block would be to guess from the title text,
-// or to add a column and revisit every producer that inserts one. Guessing is worse
-// than not answering: a row filed under "needs action" that does not, or a deadline
-// missing from the block that has one, is a promise this surface cannot keep.
+// carries what happened (`type`, `title`, `body`, `link`) and, since 0126, what it was
+// about (the card, its photo, the other member, the amount) — but no actionable flag
+// and no deadline, so that block could only be built by guessing from the title text.
+// Guessing is worse than not answering: a row filed under "needs action" that does not,
+// or a deadline missing from the block that has one, is a promise this surface cannot
+// keep.
 //
 // The question the board was really asking — what do I have to do, and by when — is
 // answered where the answer is derived rather than guessed: the contract rooms' action
 // card, the inspection countdown, and the next-step column now on every contract list.
 // A notification is a pointer at those, so it says what happened and when, and links.
 
+import type * as React from 'react';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
   BellIcon,
@@ -39,7 +41,7 @@ import {
 
 import type { NotificationRow } from '@/lib/realtime/useNotifications';
 import type { Enums } from '@/lib/supabase/database.types';
-import { formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 type NotificationType = Enums<'notification_type'>;
@@ -118,16 +120,43 @@ export function notificationRowClass(unread: boolean, layout: string) {
 export function NotificationRowBody({
   notification,
   clampBody = false,
+  extra,
 }: {
   notification: NotificationRow;
   /** The bell's panel clamps to two lines; the full-page centre does not. */
   clampBody?: boolean;
+  /** A trailing line, e.g. "+3 more on this listing" for a collapsed run. */
+  extra?: React.ReactNode;
 }) {
   const unread = notification.read_at === null;
   const meta = metaFor(notification.type);
+  const thumb = itemImageUrl(notification.image_path);
+  // WHO, WHAT, HOW MUCH (0126). A generic body ("A buyer wants to purchase from your
+  // listing") said the same thing on every row; with the context columns the row names
+  // the other member, the card and the amount instead. Older rows have none of these
+  // and keep their body.
+  const context = [
+    notification.actor_name,
+    notification.subject_title,
+    notification.amount_cents != null && notification.currency
+      ? formatMoney(notification.amount_cents, notification.currency)
+      : null,
+  ].filter(Boolean);
+  const line = context.length > 0 ? context.join(' · ') : notification.body;
 
   return (
     <>
+      {thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a 40px Supabase thumbnail; next/image adds nothing here.
+        <img
+          src={thumb}
+          alt=""
+          width={40}
+          height={40}
+          loading="lazy"
+          className="mt-0.5 size-10 shrink-0 rounded-md border border-border object-cover"
+        />
+      ) : null}
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-snug">
           <span
@@ -156,14 +185,22 @@ export function NotificationRowBody({
             {formatRelativeTime(notification.created_at)}
           </span>
         </span>
-        {notification.body ? (
+        {line ? (
           <span
             className={cn(
               'mt-0.5 block break-words text-body text-muted-foreground',
               clampBody && 'line-clamp-2',
             )}
           >
-            {notification.body}
+            {line}
+          </span>
+        ) : null}
+        {extra}
+        {notification.target_missing ? (
+          // Said in place, because following the link would land on a 404: the sale
+          // or trade it pointed at has been removed or is no longer yours to open.
+          <span className="mt-0.5 block text-meta font-medium text-muted-foreground">
+            No longer available
           </span>
         ) : null}
       </span>

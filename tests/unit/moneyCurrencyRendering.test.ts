@@ -146,7 +146,6 @@ describe('the formatAud ratchet', () => {
     // the item, so its `currency` column is one prop away.
     'app/(workspace)/listings/[id]/(detail)/page.tsx',
     'components/account/CashSalesSection.tsx',
-    'components/account/ListingsSection.tsx',
     'components/account/TradesSection.tsx',
     'components/contract/DittoBondExplainer.tsx',
     'components/deals/DealInviteList.tsx',
@@ -155,7 +154,6 @@ describe('the formatAud ratchet', () => {
     'components/trade/ItemPeekDialog.tsx',
     'components/trade/OwnItemsPickerDialog.tsx',
     'components/trade/TradeOfferForm.tsx',
-    'lib/actions/offers.ts',
     // The declaration itself. Last one out.
     'lib/format.ts',
     'lib/handover/terms.ts',

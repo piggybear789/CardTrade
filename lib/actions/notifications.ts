@@ -18,8 +18,54 @@ import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { NOTIFICATIONS_DEFAULT_LIMIT } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
 
-/** A persisted notification row. */
-export type NotificationRow = Tables<'notifications'>;
+/**
+ * A notification as the list renders it: the persisted row, plus whether the contract
+ * it links to can still be opened. See {@link flagMissingTargets}.
+ */
+export type NotificationRow = Tables<'notifications'> & { target_missing?: boolean };
+
+const CONTRACT_LINK = /^\/(sales|trades)\/([0-9a-f-]{36})(?:[/?#]|$)/i;
+
+/**
+ * Mark rows whose linked sale or trade the caller can no longer open.
+ *
+ * A notification outlives what it points at: a contract can be removed, and RLS hides
+ * one the caller is no longer party to. Following such a row landed on a 404 — the
+ * first thing a seller tried with fifteen "New purchase request" rows was a dead page.
+ * Two batched reads (one per contract table) decide it for the whole list, so the row
+ * can say "no longer available" in place instead of navigating.
+ */
+async function flagMissingTargets(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  rows: NotificationRow[],
+): Promise<NotificationRow[]> {
+  const saleIds = new Set<string>();
+  const tradeIds = new Set<string>();
+  for (const row of rows) {
+    const match = row.link ? CONTRACT_LINK.exec(row.link) : null;
+    if (!match) continue;
+    (match[1].toLowerCase() === 'sales' ? saleIds : tradeIds).add(match[2].toLowerCase());
+  }
+  if (saleIds.size === 0 && tradeIds.size === 0) return rows;
+
+  const [sales, trades] = await Promise.all([
+    saleIds.size > 0
+      ? supabase.from('cash_sales').select('id').in('id', [...saleIds])
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+    tradeIds.size > 0
+      ? supabase.from('trades').select('id').in('id', [...tradeIds])
+      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+  ]);
+  // A failed read decides nothing: better a link that might 404 than a live contract
+  // reported as gone.
+  if (sales.error || trades.error) return rows;
+  const live = new Set([...(sales.data ?? []), ...(trades.data ?? [])].map((row) => row.id.toLowerCase()));
+
+  return rows.map((row) => {
+    const match = row.link ? CONTRACT_LINK.exec(row.link) : null;
+    return match ? { ...row, target_missing: !live.has(match[2].toLowerCase()) } : row;
+  });
+}
 
 /** A failed action result carrying a typed error code and optional detail. */
 export interface ActionFailure<E extends string> {
@@ -79,7 +125,10 @@ export const listMyNotifications = withActionLog('notifications.listMyNotificati
     return { ok: false, error: 'persistence-error', detail: error.message };
   }
 
-  return { ok: true, notifications: (data ?? []) as NotificationRow[] };
+  return {
+    ok: true,
+    notifications: await flagMissingTargets(supabase, (data ?? []) as NotificationRow[]),
+  };
 });
 
 // ---------------------------------------------------------------------------

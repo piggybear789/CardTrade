@@ -37,6 +37,26 @@ export interface CreateNotificationInput {
   body?: string | null;
   /** Optional in-app link the notification navigates to when clicked. */
   link?: string | null;
+  /**
+   * What it is about (0126). Each field is optional and the row renders with whatever
+   * is present; a notification without them reads exactly as before. A function is
+   * resolved inside the deferred insert — see `listingContext` — so any reads it needs
+   * stay off the request that raised the notification.
+   */
+  context?: NotificationContext | (() => Promise<NotificationContext>);
+}
+
+/** What a notification is about. See {@link CreateNotificationInput.context}. */
+export interface NotificationContext {
+  /** The listing's title. */
+  subjectTitle?: string | null;
+  /** The listing's cover photo, an item-images object path. */
+  imagePath?: string | null;
+  /** The other member's PUBLIC display name — never a legal name. */
+  actorName?: string | null;
+  /** The money involved, in `currency`'s minor units. */
+  amountCents?: number | null;
+  currency?: string | null;
 }
 
 /**
@@ -52,6 +72,12 @@ export async function createNotification(
     try {
       if (!input.userId || !input.title) return false;
 
+      // Context is decoration: if resolving it fails, the notification still goes out.
+      const context =
+        typeof input.context === 'function'
+          ? await input.context().catch(() => undefined)
+          : input.context;
+
       const admin = createAdminClient();
       const { error } = await admin.from('notifications').insert({
         user_id: input.userId,
@@ -59,6 +85,11 @@ export async function createNotification(
         title: input.title,
         body: input.body ?? null,
         link: input.link ?? null,
+        subject_title: context?.subjectTitle ?? null,
+        image_path: context?.imagePath ?? null,
+        actor_name: context?.actorName ?? null,
+        amount_cents: context?.amountCents ?? null,
+        currency: context?.currency ?? null,
       });
 
       if (error) {

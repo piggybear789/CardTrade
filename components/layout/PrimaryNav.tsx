@@ -39,6 +39,8 @@ interface NavLink {
   alsoPrefix?: string[];
   /** Sub-paths that belong to a different link and must not match this one. */
   except?: string[];
+  /** Visibility, for a secondary link the bar sheds at narrower widths. */
+  className?: string;
 }
 
 function isActive(pathname: string, link: NavLink): boolean {
@@ -74,8 +76,19 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
     { href: '/listings/new', label: 'Sell', match: 'exact', alsoPrefix: ['/listings/mine'] },
     // Private-deal compose is a dialog. Trades still lists open rooms
     // and unused trade invites.
+    //
+    // THE BAR SHEDS ITS SECONDARY LINKS AS IT NARROWS — Trades below `lg`, Private
+    // Deal below `xl` for a member — so the search beside it keeps a usable width.
+    // Both stay one tap away in the workspace rail and the account menu.
     ...(isAuthenticated
-      ? [{ href: '/trades', label: 'Trades', match: 'prefix' as const }]
+      ? [
+          {
+            href: '/trades',
+            label: 'Trades',
+            match: 'prefix' as const,
+            className: 'hidden lg:inline-flex',
+          },
+        ]
       : []),
   ];
 
@@ -93,6 +106,7 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
               // The iris underline matches the header's own bottom-border accent,
               // so "current" is spoken in a language the bar already uses.
               'relative',
+              link.className,
               active &&
                 'text-mist after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-iris',
             )}
@@ -106,7 +120,9 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
       <StartDealButton
         variant="ghost"
         size="sm"
-        className="relative"
+        // A guest's side of the bar is two short links rather than the member's
+        // icon rail, so there is room for this link a breakpoint earlier.
+        className={cn('relative hidden', isAuthenticated ? 'xl:inline-flex' : 'lg:inline-flex')}
       />
     </nav>
   );

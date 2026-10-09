@@ -68,18 +68,16 @@ export async function SiteHeader() {
               read as one string, "NoDittoMarketplace", in every desktop capture. The
               brand is a different kind of thing from a section link and the space is
               what says so. */}
-          {/* THE SEARCH GIVES WAY, NOT THE CONTROLS. The three columns are equal
-              thirds so the search sits on the viewport's centre line, and both side
-              columns are `min-w-0`, so a side whose content outgrew its third used to
-              squeeze its own children. For a member that happened at every width
-              under ~1440px: the rail's 40px icon targets narrowed (to 22px at worst)
-              and the name beside the avatar was cut short or vanished.
+          {/* THE SEARCH GIVES WAY, NOT THE CONTROLS. Each side column keeps its
+              content width and the search takes what is left. Equal thirds put the
+              search on the viewport's centre line, but a side whose content outgrew
+              its third then overflowed into the search: under 1280px the nav ran over
+              the wordmark on one side and under the search field on the other.
 
-              From `xl` each side keeps its content width (`min-w-max`) and the search
-              takes what is left, which is only ever less than a third when a side
-              needs more. Below `xl` there is not enough room for both sides at full
-              width, so the old behaviour stands. */}
-          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6 xl:min-w-max">
+              From `xl` there is room for thirds again (`flex-1` with a `min-w-max`
+              floor), so the search re-centres. Below it, the nav sheds its secondary
+              links (see `PrimaryNav`) so the search keeps a usable width. */}
+          <div className="flex shrink-0 items-center gap-cozy md:gap-6 xl:min-w-max xl:flex-1">
             <Link
               href="/"
               aria-label="NoDitto home"
@@ -94,7 +92,7 @@ export async function SiteHeader() {
             <HeaderSearch className="market-search" />
           </div>
 
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug xl:min-w-max">
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-mist md:gap-snug xl:min-w-max xl:flex-1">
             <HeaderAccountSlot
               isAuthenticated={isAuthenticated && user != null}
               email={user?.email ?? null}
@@ -153,12 +151,11 @@ export function SiteHeaderSkeleton({
         className="market-header relative hidden border-b border-white/15 bg-obsidian pt-[env(safe-area-inset-top)] text-primary-foreground md:block"
       >
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
-          {/* Same three columns as the real bar above, CLASS FOR CLASS, including
-              `xl:min-w-max` on both sides. From `xl` the side columns are sized by
-              their content and the search takes the rest, so a side column that
-              drew different content here moved the search when the header
-              resolved. That is why what can be real below is real. */}
-          <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6 xl:min-w-max">
+          {/* Same three columns as the real bar above, CLASS FOR CLASS. The side
+              columns are sized by their content and the search takes the rest, so a
+              side column that drew different content here moved the search when the
+              header resolved. That is why what can be real below is real. */}
+          <div className="flex shrink-0 items-center gap-cozy md:gap-6 xl:min-w-max xl:flex-1">
             <Link
               href="/"
               aria-label="NoDitto home"
@@ -179,7 +176,7 @@ export function SiteHeaderSkeleton({
                 obsidian header rather than on paper. */}
             <Skeleton className="h-9 w-full bg-white/10" />
           </div>
-          <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug xl:min-w-max">
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-mist md:gap-snug xl:min-w-max xl:flex-1">
             {/* A guest's links need no session, so they render for real. A member's
                 tools wait on the session; the placeholder is their footprint. */}
             {isAuthenticated ? <SignedInHeaderToolsPlaceholder /> : <GuestHeaderCtas />}

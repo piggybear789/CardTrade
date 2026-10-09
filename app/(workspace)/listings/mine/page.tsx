@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { getMyListings } from '@/lib/actions/account';
-import { ListingsSection } from '@/components/account/ListingsSection';
+import { ListingsSection, resolveListingScope } from '@/components/account/ListingsSection';
 import {
   MarketplaceShell,
   RailPrimaryAction,
@@ -22,7 +22,13 @@ export const metadata = {
   description: 'Items you have listed for sale or trade.',
 };
 
-export default async function MyListingsPage() {
+export default async function MyListingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ show?: string | string[] }>;
+}) {
+  const { show } = await searchParams;
+  const scope = resolveListingScope(show);
   const supabase = await createClient();
   const {
     data: { user },
@@ -31,7 +37,23 @@ export default async function MyListingsPage() {
     redirect('/sign-in?redirectTo=/listings/mine');
   }
 
-  const result = await getMyListings();
+  // The best live offer per listing, for the table's "Top offer" column. RLS scopes
+  // `offers` to the caller's own negotiations; `seller_id` narrows it to offers on
+  // the caller's listings.
+  const [result, offersResult] = await Promise.all([
+    getMyListings(),
+    supabase
+      .from('offers')
+      .select('item_id, amount_cents')
+      .eq('seller_id', user.id)
+      .eq('status', 'PENDING'),
+  ]);
+  const topOfferByItem: Record<string, number> = {};
+  for (const offer of offersResult.data ?? []) {
+    const itemId = offer.item_id as string;
+    const amount = offer.amount_cents as number;
+    if ((topOfferByItem[itemId] ?? 0) < amount) topOfferByItem[itemId] = amount;
+  }
   const hasItems = result.ok && result.data.length > 0;
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
@@ -47,7 +69,7 @@ export default async function MyListingsPage() {
         mobileAction={hasItems ? createListing() : undefined}
       />
       {result.ok ? (
-        <ListingsSection items={result.data} />
+        <ListingsSection items={result.data} scope={scope} topOfferByItem={topOfferByItem} />
       ) : (
         <SectionLoadError label="listings" />
       )}

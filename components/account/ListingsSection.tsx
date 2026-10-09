@@ -5,26 +5,34 @@
 // A MANAGEMENT TABLE, NOT A SHOPPER'S GRID. This used to render the same
 // `CatalogItemCard` tiles as the marketplace, which is the wrong instrument for the
 // job. A tile spends most of its area on a photo its own owner already recognises, and
-// has nowhere to put the four facts a seller actually comes here for — is it live, is
-// anyone watching it, is it under contract, and what do I do about it. Rows carry all
-// four, and the row that needs attention can be tinted and given its action inline.
+// has nowhere to put the facts a seller actually comes here for — is it live, is
+// anyone watching it, what is the best offer, and what do I do about it.
 //
 // COLUMNS ARE DECLARED ONCE, ON `ROW_GRID`, and every row plus the header reads that
 // same constant. This is the whole reason the table lines up: with a per-row flex
 // layout each row sizes its own cells from its own content, so the price in row 1 lands
 // at a different x than the price in row 2 and the eye has nothing to run down.
+//
+// A FILTER, NOT A SCOREBOARD. The top of this page was four stat cards ("Live 0,
+// Under contract 0, People watching 0, Sold 0") that counted the list without letting
+// you act on the count — and read 0 across the board above three hidden rows. The
+// counts now live on URL tabs that filter the table, the same strip every other hub
+// uses, so "Hidden 3" is a place you can go.
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { PackagePlusIcon } from '@hugeicons/core-free-icons';
 
 import { EmptyState } from '@/components/account/EmptyState';
+import { ListingRowMenu } from '@/components/account/ListingRowMenu';
+import { SectionTabs } from '@/components/layout/SectionFilter';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
 import type { Enums } from '@/lib/supabase/database.types';
 import type { ItemRow } from '@/lib/actions/account';
 import { StorageImage } from '@/components/ui/storage-image';
-import { formatAud, formatRelativeTime, itemImageUrl } from '@/lib/format';
+import { formatMoney, formatRelativeTime, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /** Sort order so live listings surface first, contracted/sold items sink down. */
@@ -37,26 +45,38 @@ const STATUS_ORDER: Record<Enums<'item_status'>, number> = {
 /**
  * THE ONE COLUMN DEFINITION. Header and rows both apply it, so they cannot drift.
  *
- * Three columns on a phone — thumbnail, everything, actions — because six will not fit
- * in 390px without truncating the title to uselessness. The middle cell absorbs price,
- * status and watch count as a sub-line at that width, and the three desktop-only cells
- * are `hidden`, which removes them from grid flow entirely so the template still
- * matches the number of visible cells.
+ * Three columns on a phone — thumbnail, everything, actions — because seven will not
+ * fit in 390px without truncating the title to uselessness. The middle cell absorbs
+ * price, status and watch count as a sub-line at that width, and the desktop-only
+ * cells are `hidden`, which removes them from grid flow so the template still matches
+ * the number of visible cells.
  *
- * THE ACTIONS COLUMN IS A FIXED 4.5rem AND WAS `auto`, WHICH DEFEATED THE WHOLE POINT.
- * Each `li` is its own grid container, so an `auto` track sizes to THAT ROW's content —
- * and the last cell holds "Edit" on a live listing and "View" on a sold one. The two
- * words are different widths, so `auto` resolved differently per row, the `1fr` title
- * column absorbed the difference, and every column between them landed at a different
- * x depending on which button the row happened to carry. The header row, whose actions
- * cell is empty and therefore zero-wide, lined up with neither.
- *
- * A fixed track is the only thing that makes columns align across separate grids. It
- * fits both labels at `size="sm"`; anything wider belongs in a menu, not a third verb.
+ * THE ACTIONS COLUMN IS FIXED, because each `li` is its own grid container: an `auto`
+ * track sizes to THAT ROW's content, so rows carrying "Edit" and "View" put every
+ * column between at a different x. It holds one `sm` button and the 32px "⋯".
  */
 export const ROW_GRID =
-  'grid grid-cols-[3rem_minmax(0,1fr)_4.5rem] items-center gap-cozy ' +
-  'md:grid-cols-[3rem_minmax(0,1fr)_7rem_5rem_9rem_4.5rem]';
+  'grid grid-cols-[3rem_minmax(0,1fr)_5.75rem] items-center gap-cozy ' +
+  'md:grid-cols-[3rem_minmax(0,1fr)_7rem_7rem_5rem_9rem_5.75rem]';
+
+/** The tab a row belongs to. `all` is every row. */
+export type ListingScope = 'all' | 'live' | 'contract' | 'sold' | 'hidden' | 'closed';
+
+const SCOPES: readonly ListingScope[] = ['all', 'live', 'contract', 'sold', 'hidden', 'closed'];
+
+/** Read `?show=` into a scope, falling back to every listing. */
+export function resolveListingScope(value: string | string[] | undefined): ListingScope {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return SCOPES.includes(raw as ListingScope) ? (raw as ListingScope) : 'all';
+}
+
+function scopeOf(item: ItemRow): Exclude<ListingScope, 'all'> {
+  if (item.hidden) return 'hidden';
+  if (item.closed_at) return 'closed';
+  if (item.status === 'SOLD') return 'sold';
+  if (item.status === 'RESERVED') return 'contract';
+  return 'live';
+}
 
 /** How a listing's state reads to its owner, and which tone carries it. */
 function statusOf(item: ItemRow): { label: string; tone: BadgeProps['variant']; live: boolean } {
@@ -77,7 +97,16 @@ function statusOf(item: ItemRow): { label: string; tone: BadgeProps['variant']; 
   };
 }
 
-export function ListingsSection({ items }: { items: ItemRow[] }) {
+export function ListingsSection({
+  items,
+  scope = 'all',
+  topOfferByItem = {},
+}: {
+  items: ItemRow[];
+  scope?: ListingScope;
+  /** The best pending offer per listing, in the listing's own minor units. */
+  topOfferByItem?: Record<string, number>;
+}) {
   if (items.length === 0) {
     return (
       <EmptyState
@@ -90,167 +119,184 @@ export function ListingsSection({ items }: { items: ItemRow[] }) {
     );
   }
 
+  const counts: Record<ListingScope, number> = {
+    all: items.length,
+    live: 0,
+    contract: 0,
+    sold: 0,
+    hidden: 0,
+    closed: 0,
+  };
+  for (const item of items) counts[scopeOf(item)] += 1;
+
   // Under-contract/sold items sink below still-available ones (Req 3.8 UX);
   // `items` arrives newest-first, and the sort is stable, so recency ordering
   // is preserved within each status group.
-  const sorted = [...items].sort(
-    (a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status],
-  );
+  const visible = [...items]
+    .filter((item) => scope === 'all' || scopeOf(item) === scope)
+    .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status]);
 
-  // DERIVED FROM `items` ALONE, deliberately. Offer counts and "waiting on you" would
-  // both be more useful and both need another query per listing; these four are free.
-  const live = items.filter(
-    (i) => i.status === 'AVAILABLE' && !i.closed_at && !i.hidden,
-  ).length;
-  const underContract = items.filter((i) => i.status === 'RESERVED').length;
-  const watching = items.reduce((sum, i) => sum + (i.watch_count ?? 0), 0);
-  const sold = items.filter((i) => i.status === 'SOLD').length;
+  const href = (key: ListingScope) => (key === 'all' ? '/listings/mine' : `/listings/mine?show=${key}`);
+  // Hidden and Closed are exceptions, so their tabs appear only when there is
+  // something in them; the everyday four are always there.
+  const tabs = (
+    [
+      { key: 'all', label: 'All' },
+      { key: 'live', label: 'Live' },
+      { key: 'contract', label: 'Under contract', shortLabel: 'Contract' },
+      { key: 'sold', label: 'Sold' },
+      { key: 'hidden', label: 'Hidden' },
+      { key: 'closed', label: 'Closed' },
+    ] as const
+  )
+    .filter((tab) => (tab.key === 'hidden' || tab.key === 'closed' ? counts[tab.key] > 0 : true))
+    .map((tab) => ({ ...tab, count: counts[tab.key], href: href(tab.key) }));
 
   return (
-    <div className="space-y-group">
-      <dl className="grid grid-cols-2 gap-snug sm:grid-cols-4 sm:gap-cozy">
-        <Stat label="Live" value={live} />
-        <Stat label="Under contract" value={underContract} />
-        <Stat label="People watching" value={watching} />
-        <Stat label="Sold" value={sold} />
-      </dl>
+    <div>
+      <SectionTabs label="Filter listings" currentKey={scope} tabs={tabs} />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        {/* Column headings, desktop only. On a phone the cells they label are folded
-            into the middle cell's sub-line, so a header row would name columns that are
-            not there. */}
-        <div
-          className={cn(
-            ROW_GRID,
-            'hidden border-b border-border bg-muted px-group py-snug md:grid',
-          )}
-          aria-hidden="true"
-        >
-          <span />
-          <span className="market-label text-muted-foreground">Listing</span>
-          <span className="market-label text-right text-muted-foreground">Price</span>
-          <span className="market-label text-center text-muted-foreground">Watching</span>
-          <span className="market-label text-center text-muted-foreground">Status</span>
-          <span />
-        </div>
+      {visible.length === 0 ? (
+        <SharedEmptyState
+          icon={<HugeiconsIcon icon={PackagePlusIcon} className="size-6" aria-hidden />}
+          title="Nothing here"
+          description="No listings are in this state right now."
+          action={{ label: 'Show all listings', href: '/listings/mine', variant: 'outline' }}
+          compact
+          fill
+        />
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
+          {/* Column headings, desktop only. On a phone the cells they label are folded
+              into the middle cell's sub-line, so a header row would name columns that
+              are not there. */}
+          <div
+            className={cn(ROW_GRID, 'hidden border-b border-border bg-muted px-group py-snug md:grid')}
+            aria-hidden="true"
+          >
+            <span />
+            <span className="market-label text-muted-foreground">Listing</span>
+            <span className="market-label text-right text-muted-foreground">Price</span>
+            <span className="market-label text-right text-muted-foreground">Top offer</span>
+            <span className="market-label text-center text-muted-foreground">Watching</span>
+            <span className="market-label text-center text-muted-foreground">Status</span>
+            <span />
+          </div>
 
-        <ul role="list" className="divide-y divide-border">
-          {sorted.map((item) => {
-            const status = statusOf(item);
-            const isShopfront = item.listing_kind === 'SHOPFRONT';
-            const listedAgo = formatRelativeTime(item.created_at);
+          <ul role="list" className="divide-y divide-border">
+            {visible.map((item) => {
+              const status = statusOf(item);
+              const isShopfront = item.listing_kind === 'SHOPFRONT';
+              const listedAgo = formatRelativeTime(item.created_at);
+              const money = (cents: number) => formatMoney(cents, item.currency);
+              const topOffer = topOfferByItem[item.id];
+              const editable = !(item.status === 'SOLD' || item.closed_at);
 
-            return (
-              <li
-                key={item.id}
-                className={cn(
-                  ROW_GRID,
-                  'px-group py-cozy',
-                  // A hidden listing is the one row the owner has to deal with, so it is
-                  // the one row that gets a tint. Everything else stays quiet — tinting
-                  // several states turns the table into a colour chart.
-                  item.hidden && 'bg-destructive/[0.04]',
-                  !item.hidden && item.status === 'SOLD' && 'opacity-75',
-                )}
-              >
-                <RowThumb item={item} />
+              return (
+                <li
+                  key={item.id}
+                  className={cn(
+                    ROW_GRID,
+                    'px-group py-cozy',
+                    // ONE SIGNAL FOR A HIDDEN ROW: its badge. It also carried a pink
+                    // tint and red helper text, so three hidden rows turned the table
+                    // into an alarm; the reason now reads as plain muted text.
+                    !item.hidden && item.status === 'SOLD' && 'opacity-75',
+                  )}
+                >
+                  <RowThumb item={item} />
 
-                <div className="min-w-0">
-                  <Link
-                    href={`/listings/${item.id}`}
-                    transitionTypes={['nav-forward']}
-                    className="block truncate rounded-sm border border-transparent text-body font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:border-iris"
-                  >
-                    {item.title}
-                  </Link>
-                  {/* A staff-hidden listing says so IN this line, not in an extra one
-                      below it: the extra line made that row 21px (on a phone, 38px)
-                      taller than every other, so the table's height depended on
-                      moderation. */}
-                  <p
-                    className={cn(
-                      'mt-0.5 truncate text-meta',
-                      item.hidden ? 'text-destructive' : 'text-muted-foreground',
+                  <div className="min-w-0">
+                    <Link
+                      href={`/listings/${item.id}`}
+                      transitionTypes={['nav-forward']}
+                      className="block truncate rounded-sm border border-transparent text-body font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:border-iris"
+                    >
+                      {item.title}
+                    </Link>
+                    <p className="mt-0.5 truncate text-meta text-muted-foreground" suppressHydrationWarning>
+                      {item.hidden
+                        ? 'Hidden by NoDitto staff, so buyers cannot see it.'
+                        : [
+                            item.category,
+                            isShopfront ? 'Multiple items' : item.condition,
+                            listedAgo ? `listed ${listedAgo}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                    </p>
+                    {/* The desktop columns, folded in below `md`. A `div`, NOT a `p`:
+                        `Badge` renders a `<div>`, which is invalid inside a `<p>`. One
+                        line, never wrapped, so rows are one height. */}
+                    <div className="mt-tight flex flex-nowrap items-center gap-x-cozy overflow-hidden text-meta md:hidden">
+                      <span className="shrink-0 font-semibold tabular-nums">
+                        {isShopfront ? 'from ' : ''}
+                        {money(item.fmv_cents)}
+                      </span>
+                      <Badge variant={status.tone} className="shrink-0">
+                        {status.live ? <LiveDot /> : null}
+                        {status.label}
+                      </Badge>
+                      {topOffer != null ? (
+                        <span className="min-w-0 truncate tabular-nums text-foreground">
+                          Offer {money(topOffer)}
+                        </span>
+                      ) : item.watch_count > 0 ? (
+                        <span className="min-w-0 truncate tabular-nums text-muted-foreground">
+                          {item.watch_count} watching
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <span className="hidden text-right text-body font-semibold tabular-nums md:block">
+                    {isShopfront ? (
+                      <span className="mr-0.5 text-meta font-medium text-muted-foreground">from</span>
+                    ) : null}
+                    {money(item.fmv_cents)}
+                  </span>
+
+                  <span className="hidden text-right text-body tabular-nums md:block">
+                    {topOffer != null ? (
+                      <Link href="/offers" className="font-medium underline-offset-4 hover:underline">
+                        {money(topOffer)}
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
                     )}
-                    suppressHydrationWarning
-                  >
-                    {item.hidden
-                      ? 'Hidden by NoDitto staff, so buyers cannot see it.'
-                      : [
-                          item.category,
-                          isShopfront ? 'Multiple items' : item.condition,
-                          listedAgo ? `listed ${listedAgo}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                  </p>
-                  {/* The three desktop columns, folded in below `md`.
-                      A `div`, NOT a `p`. `Badge` renders a `<div>`, and a `<div>`
-                      inside a `<p>` is invalid HTML: the parser closes the paragraph
-                      early, so the server's tree and the client's disagree and React
-                      throws "Hydration failed because the server rendered HTML didn't
-                      match the client" and re-renders this whole subtree on the
-                      client. It was invisible in a screenshot — the row looked right
-                      — and only the console said so. */}
-                  {/* ONE LINE, never wrapped: price and badge hold their width and the
-                      watching count truncates. With "N watching" this wrapped to two
-                      lines in a phone's middle cell, so rows differed by ~21px by how
-                      many people had saved the card. */}
-                  <div className="mt-tight flex flex-nowrap items-center gap-x-cozy overflow-hidden text-meta md:hidden">
-                    <span className="shrink-0 font-semibold tabular-nums">
-                      {isShopfront ? 'from ' : ''}
-                      {formatAud(item.fmv_cents)}
-                    </span>
-                    <Badge variant={status.tone} className="shrink-0">
+                  </span>
+
+                  <span className="hidden text-center text-body tabular-nums text-muted-foreground md:block">
+                    {item.watch_count > 0 ? item.watch_count : '—'}
+                  </span>
+
+                  <span className="hidden justify-center md:flex">
+                    <Badge variant={status.tone}>
                       {status.live ? <LiveDot /> : null}
                       {status.label}
                     </Badge>
-                    {item.watch_count > 0 ? (
-                      <span className="min-w-0 truncate tabular-nums text-muted-foreground">
-                        {item.watch_count} watching
-                      </span>
-                    ) : null}
+                  </span>
+
+                  <div className="flex shrink-0 items-center justify-end gap-tight">
+                    {/* One visible verb, chosen by what the row can do; the rest are in
+                        the "⋯". A sold or closed listing is a record, not a thing to edit. */}
+                    {editable ? (
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/listings/${item.id}/edit`}>Edit</Link>
+                      </Button>
+                    ) : (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/listings/${item.id}`}>View</Link>
+                      </Button>
+                    )}
+                    <ListingRowMenu itemId={item.id} itemTitle={item.title} editable={editable} />
                   </div>
-                </div>
-
-                <span className="hidden text-right text-body font-semibold tabular-nums md:block">
-                  {isShopfront ? (
-                    <span className="mr-0.5 text-meta font-medium text-muted-foreground">
-                      from
-                    </span>
-                  ) : null}
-                  {formatAud(item.fmv_cents)}
-                </span>
-
-                <span className="hidden text-center text-body tabular-nums text-muted-foreground md:block">
-                  {item.watch_count > 0 ? item.watch_count : '—'}
-                </span>
-
-                <span className="hidden justify-center md:flex">
-                  <Badge variant={status.tone}>
-                    {status.live ? <LiveDot /> : null}
-                    {status.label}
-                  </Badge>
-                </span>
-
-                <div className="flex shrink-0 items-center justify-end">
-                  {/* One action per row, chosen by what the row can do. A sold or closed
-                      listing is a record, not a thing to edit. */}
-                  {item.status === 'SOLD' || item.closed_at ? (
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href={`/listings/${item.id}`}>View</Link>
-                    </Button>
-                  ) : (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={`/listings/${item.id}/edit`}>Edit</Link>
-                    </Button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -293,14 +339,5 @@ function LiveDot() {
       className="mr-tight inline-block size-1.5 shrink-0 rounded-full bg-iris"
       aria-hidden="true"
     />
-  );
-}
-
-function Stat({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border border-border bg-card px-cozy py-snug">
-      <dt className="text-meta text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 text-head font-semibold tabular-nums">{value}</dd>
-    </div>
   );
 }

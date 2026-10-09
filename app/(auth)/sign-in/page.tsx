@@ -4,6 +4,7 @@ import type { Metadata } from 'next';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { AuthFormSkeleton } from '@/components/auth/AuthFormSkeleton';
 import { AuthScreen } from '@/components/auth/AuthScreen';
+import { AuthTrustPanel } from '@/components/auth/AuthTrustPanel';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
 // Suspense boundary because it reads the `redirectTo` search param.
 export default function SignInPage() {
   return (
-    <AuthScreen>
+    <AuthScreen aside={<AuthTrustPanel />}>
       <Suspense fallback={<AuthFormSkeleton mode="sign-in" />}>
         <AuthForm mode="sign-in" />
       </Suspense>

@@ -7,7 +7,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ChevronLeftIcon, ChevronRightIcon, PackageOpenIcon, Search01Icon } from '@hugeicons/core-free-icons';
 
 import { useIsDesktop } from '@/components/layout/Breakpoint';
-import { CatalogSortControl } from '@/components/listings/CatalogControls';
+import { CatalogFilterChips, CatalogSortControl } from '@/components/listings/CatalogControls';
 import { CatalogInfiniteGrid } from '@/components/listings/CatalogInfiniteGrid';
 import { GenrePills } from '@/components/listings/GenrePills';
 import {
@@ -130,6 +130,7 @@ export function CatalogResults() {
             onSelect={selectGame}
             games={PILL_GAMES}
           />
+          <CatalogFilterChips />
         </div>
       </header>
 

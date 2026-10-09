@@ -1572,6 +1572,12 @@ export interface CatalogFacets {
    * assume it matches the stop count.
    */
   priceHistogram: number[];
+  /**
+   * AVAILABLE listings per condition, keyed by the stored condition, for the counts
+   * beside the rail's condition checkboxes. Same read, same AVAILABLE-only rule as
+   * the histogram: it counts stock a buyer can act on, in the active region.
+   */
+  conditionCounts: Record<string, number>;
 }
 
 /**
@@ -1592,7 +1598,7 @@ async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
 
   let query = supabase
     .from('items')
-    .select('fmv_cents, currency, listing_kind, status')
+    .select('fmv_cents, currency, listing_kind, status, condition')
     // Every status the grid can reach, so the ceiling is a property of the
     // catalog rather than of the current toggles. Ticking "Include reserved"
     // must not make the slider's top end jump, which is the same reason SOLD
@@ -1616,7 +1622,7 @@ async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
   const { data, error } = await query;
 
   if (error || !data) {
-    return { maxPriceCents: 0, priceHistogram: [] };
+    return { maxPriceCents: 0, priceHistogram: [], conditionCounts: {} };
   }
 
   // TWO DIFFERENT SETS FROM ONE READ. The CEILING counts every reachable status so
@@ -1631,7 +1637,11 @@ async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
   // out 5% under the dearest tile it was meant to reach.
   let maxPriceCents = 0;
   const pricesCents: number[] = [];
+  const conditionCounts: Record<string, number> = {};
   for (const row of data) {
+    if (row.status === 'AVAILABLE' && row.condition) {
+      conditionCounts[row.condition] = (conditionCounts[row.condition] ?? 0) + 1;
+    }
     const asking = row.fmv_cents as number | null;
     if (asking == null) continue;
     const cents = listedPriceCents(
@@ -1651,13 +1661,14 @@ async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
   return {
     maxPriceCents,
     priceHistogram: buildPriceHistogram(ladder, pricesCents),
+    conditionCounts,
   };
 }
 
 const readCatalogFacetsCached = unstable_cache(
   async (regionCode: string) => readCatalogFacets(regionCode),
-  // v2: the figures moved from asking to listed price, so a v1 entry is a different unit.
-  ['catalog-facets-v2'],
+  // v3: adds `conditionCounts`; a v2 entry lacks the field.
+  ['catalog-facets-v3'],
   { revalidate: 60, tags: [CATALOG_CACHE_TAG] },
 );
 

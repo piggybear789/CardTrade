@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 
 import { AuthForm } from '@/components/auth/AuthForm';
 import { AuthFormSkeleton } from '@/components/auth/AuthFormSkeleton';
+import { AuthScreen } from '@/components/auth/AuthScreen';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -15,20 +16,10 @@ export const metadata: Metadata = {
 // Suspense boundary because it reads search params via next/navigation.
 export default function SignUpPage() {
   return (
-    <main className="relative flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-group py-section sm:px-6">
-      <div
-        className="pointer-events-none absolute inset-0 bg-obsidian"
-        aria-hidden="true"
-      />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(227,192,106,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(227,192,106,0.08)_1px,transparent_1px)] [background-size:4rem_4rem] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_75%)]"
-        aria-hidden="true"
-      />
-      <div className="relative w-full max-w-md">
-        <Suspense fallback={<AuthFormSkeleton mode="sign-up" />}>
-          <AuthForm mode="sign-up" />
-        </Suspense>
-      </div>
-    </main>
+    <AuthScreen>
+      <Suspense fallback={<AuthFormSkeleton mode="sign-up" />}>
+        <AuthForm mode="sign-up" />
+      </Suspense>
+    </AuthScreen>
   );
 }

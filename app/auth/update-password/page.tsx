@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 
+import { AuthScreen } from '@/components/auth/AuthScreen';
 import { UpdatePasswordForm } from '@/components/auth/UpdatePasswordForm';
 
 export const metadata: Metadata = {
@@ -16,15 +17,8 @@ export const metadata: Metadata = {
 // and reports NO_SESSION when the link has expired, so nothing is gated on middleware.
 export default function UpdatePasswordPage() {
   return (
-    <main className="relative flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-group py-section sm:px-6">
-      <div className="pointer-events-none absolute inset-0 bg-obsidian" aria-hidden="true" />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(227,192,106,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(227,192,106,0.08)_1px,transparent_1px)] [background-size:4rem_4rem] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_75%)]"
-        aria-hidden="true"
-      />
-      <div className="relative w-full max-w-md">
-        <UpdatePasswordForm />
-      </div>
-    </main>
+    <AuthScreen>
+      <UpdatePasswordForm />
+    </AuthScreen>
   );
 }

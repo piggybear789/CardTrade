@@ -212,7 +212,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
 
   return (
     <Card className="w-full max-w-md border-border bg-card shadow-market">
-      <CardHeader className="items-center text-center">
+      <CardHeader className="items-center text-center sm:px-6 sm:pt-6">
         {/* The auth pages have no shell-provided heading, so the card title is
             the page's single h1. CardTitle renders a div, so use a semantic
             heading carrying the same styling. */}
@@ -239,7 +239,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         the window itself.
       */}
       <form onSubmit={handleSubmit} method="post" noValidate>
-        <CardContent className="space-y-group">
+        <CardContent className="space-y-group sm:px-6">
           {bannerError ? (
             <p
               id={formErrorId}
@@ -347,7 +347,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           ) : null}
         </CardContent>
 
-        <CardFooter className="flex flex-col items-center gap-group">
+        <CardFooter className="flex flex-col items-center gap-group sm:px-6 sm:pb-6">
           <Button type="submit" className="min-h-11 w-full" disabled={isPending || !isReady} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>

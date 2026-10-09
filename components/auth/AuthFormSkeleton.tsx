@@ -40,7 +40,7 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
 
       {/* `items-center text-center` and the header's own `space-y-snug` — not the
           `space-y-cozy` that was here. */}
-      <CardHeader className="items-center text-center">
+      <CardHeader className="items-center text-center sm:px-6 sm:pt-6">
         {/* The h1 is `text-head leading-none`, a 21px line box (the reserve). An `h-8`
             bar was 32. The width is texture and draws from the canonical set. */}
         <TextLines className="w-full text-head leading-none" widths={['w-1/2']} />
@@ -58,7 +58,7 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
         />
       </CardHeader>
 
-      <CardContent className="space-y-group">
+      <CardContent className="space-y-group sm:px-6">
         {/* `min-h-11` on `GoogleSignInButton`, so 44px rather than a Button's 36. The
             two inputs and the submit below carry it too. */}
         <Skeleton className="h-11 w-full rounded-md" />
@@ -109,7 +109,7 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
           the footer got a single 16px line — 32px of placeholder against 120px of real
           footer: a `min-h-11` submit, a 16px gap, and a switch-mode line whose link is
           also `inline-flex min-h-11 items-center`. */}
-      <CardFooter className="flex flex-col items-center gap-group">
+      <CardFooter className="flex flex-col items-center gap-group sm:px-6 sm:pb-6">
         <Skeleton className="h-11 w-full rounded-md" />
         <div className="flex min-h-11 w-full items-center justify-center text-body">
           {/* Switch-mode line: texture inside the `min-h-11` row, drawn canonical. */}

@@ -2,6 +2,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
 import { RequestResetFormSkeleton } from '@/components/auth/AuthFormSkeleton';
+import { AuthScreen } from '@/components/auth/AuthScreen';
 import { RequestResetForm } from '@/components/auth/RequestResetForm';
 
 export const metadata: Metadata = {
@@ -16,19 +17,12 @@ export const metadata: Metadata = {
 // the failing link or sign-in attempt passes along.
 export default function ForgotPasswordPage() {
   return (
-    <main className="relative flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-group py-section sm:px-6">
-      <div className="pointer-events-none absolute inset-0 bg-obsidian" aria-hidden="true" />
-      <div
-        className="pointer-events-none absolute inset-0 opacity-40 [background-image:linear-gradient(rgba(227,192,106,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(227,192,106,0.08)_1px,transparent_1px)] [background-size:4rem_4rem] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_75%)]"
-        aria-hidden="true"
-      />
-      <div className="relative w-full max-w-md">
-        {/* The credentials skeleton describes `AuthForm` — two `min-h-11` fields, a
-            Google button and a CardFooter — none of which this form has. */}
-        <Suspense fallback={<RequestResetFormSkeleton />}>
-          <RequestResetForm />
-        </Suspense>
-      </div>
-    </main>
+    <AuthScreen>
+      {/* The credentials skeleton describes `AuthForm` — two `min-h-11` fields, a
+          Google button and a CardFooter — none of which this form has. */}
+      <Suspense fallback={<RequestResetFormSkeleton />}>
+        <RequestResetForm />
+      </Suspense>
+    </AuthScreen>
   );
 }

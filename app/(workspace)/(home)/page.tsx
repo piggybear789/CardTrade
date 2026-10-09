@@ -7,6 +7,7 @@
 // joined. `/listings` permanently redirects here — see `next.config.ts`.
 
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 import {
   getCatalogFacets,
@@ -20,6 +21,8 @@ import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { CatalogFilters } from '@/components/listings/CatalogControls';
 import { CatalogResults } from '@/components/listings/CatalogResults';
 import { CatalogViewProvider } from '@/components/listings/CatalogView';
+import { GuestTrustBand } from '@/components/listings/GuestTrustBand';
+import { Button } from '@/components/ui/button';
 import {
   MarketplaceShell,
   RailPrimaryAction,
@@ -197,10 +200,17 @@ export default async function HomePage({
     // CTA is outgunned by the content beside it — a full grid of card imagery —
     // and it is the action the whole marketplace exists to collect. This route
     // passes no `mobileAction`, so the override lands on desktop only.
-    primaryAction: (
+    // A GUEST IS INVITED, NOT SENT. "Sell an item" in violet led a guest to a
+    // sign-in wall, and was the loudest thing on a page whose job for them is to
+    // earn trust. An outline "Sign up to sell" says what the step is.
+    primaryAction: user ? (
       <RailPrimaryAction href="/listings/new">
         Sell an item
       </RailPrimaryAction>
+    ) : (
+      <Button asChild variant="outline" className="w-full">
+        <Link href="/sign-up?redirectTo=%2Flistings%2Fnew">Sign up to sell</Link>
+      </Button>
     ),
   };
 
@@ -253,6 +263,7 @@ export default async function HomePage({
             an Organization block on a contract room is markup for a page no
             crawler may read. The SearchAction targets the real `?q=` param. */}
         <JsonLd data={siteStructuredData()} />
+        {user ? null : <GuestTrustBand />}
         <CatalogResults />
       </MarketplaceShell>
     </CatalogViewProvider>

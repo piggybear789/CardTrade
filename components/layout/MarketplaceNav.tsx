@@ -36,7 +36,7 @@ export function MarketplaceNav({
   // Read from the workspace provider rather than a prop, so the loading
   // skeleton can draw this same nav without a profile read of its own. See
   // `components/layout/WorkspaceChrome.tsx`.
-  const { staff } = useWorkspaceChrome();
+  const { staff, signedIn } = useWorkspaceChrome();
   // The rows whose sections hold something waiting on the member.
   const unread = useWorkspaceUnread();
   const waiting: Record<string, number> = {
@@ -81,6 +81,8 @@ export function MarketplaceNav({
               </p>
               <ul className="flex flex-col gap-0.5">
                 {group.links.map((link) => {
+                  // Saving needs an account; for a guest the row was a link to sign-in.
+                  if (!signedIn && link.href === '/saved') return null;
                   const active = isMarketplaceSectionActive(
                     pathname,
                     link.href,

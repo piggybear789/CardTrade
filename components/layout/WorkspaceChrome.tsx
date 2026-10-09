@@ -58,6 +58,8 @@ export interface WorkspaceChromeValue {
    * rather than by each, so a navigation costs one set of counts, not two.
    */
   unread?: UnreadCounts;
+  /** Whether a member is signed in. Guests get a shorter rail (no Saved). */
+  signedIn?: boolean;
 }
 
 /**
@@ -71,14 +73,14 @@ export function WorkspaceChromeProvider({
   viewport,
   userId,
   children,
-}: Omit<WorkspaceChromeValue, 'unread'> & {
+}: Omit<WorkspaceChromeValue, 'unread' | 'signedIn'> & {
   /** The signed-in member, or null for a guest (no counts). */
   userId: string | null;
   children: ReactNode;
 }) {
   const unread = useUnreadCounts(userId);
   return (
-    <WorkspaceChromeContext value={{ staff, viewport, unread }}>
+    <WorkspaceChromeContext value={{ staff, viewport, unread, signedIn: Boolean(userId) }}>
       {children}
       <ViewportHintWriter />
     </WorkspaceChromeContext>

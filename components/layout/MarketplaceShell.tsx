@@ -166,17 +166,11 @@ export async function MarketplaceShell({
                   dozen sections, so raising the component's own size would grow
                   a phone header button nobody asked to grow. Scoping it to the
                   rail slot keeps every other button in the app untouched. */}
-              {/* THE SLOT IS RESERVED WHEN EMPTY. Messages and Account have no
-                  section action, and without the reserve the whole nav below jumped
-                  44px up as you moved between hubs. `h-11` is the slot's button
-                  height above. */}
               {primaryAction ? (
                 <div className="mt-group md:[&>a]:!h-11 md:[&>a]:text-body md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-body md:[&>button>svg]:size-4">
                   {primaryAction}
                 </div>
-              ) : (
-                <div aria-hidden className="mt-group h-11" />
-              )}
+              ) : null}
             </div>
 
             {/* Filters sit under Marketplace on desktop; below `lg` they render

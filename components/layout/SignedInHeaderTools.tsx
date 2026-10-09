@@ -1,14 +1,13 @@
 'use client';
 
 // Signed-in header tools. Loaded with the session, not with the catalog: a
-// guest document that imported this file also imported the feedback dialog,
-// the notification popover, and the account menu.
+// guest document that imported this file also imported the notification
+// popover and the account menu.
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { HeartIcon, MessageCircleIcon } from '@hugeicons/core-free-icons';
 
-import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
 import { HeaderTooltip } from '@/components/layout/HeaderTooltip';
 import { SiteMenu } from '@/components/layout/SiteMenu';
 import {
@@ -61,19 +60,10 @@ export function SignedInHeaderTools({
         </Link>
       </HeaderTooltip>
       <NotificationBell initialNotifications={initialNotifications} />
-      {/* WORDS, NOT AN ICON. This was a speech bubble beside the Messages bubble,
-          so two neighbouring icons both said "conversation" and only one of them
-          opened one. No glyph says "tell the team" on its own.
-
-          From `xl` only. The label is ~53px wider than the icon was, and below
-          `xl` the header has no room for it: measured, it narrowed the other
-          icons to 22px and hid the member's name. Under `xl` the menu's Support
-          section is the way in, and the Account tab has a row too.
-
-          The rail runs from "things waiting for you" to "you". Feedback talks
-          to us rather than about the marketplace, so it sits after the bell
-          and before the account. */}
-      <FeedbackDialog appearance="header-text" className="hidden xl:inline-flex" />
+      {/* NO FEEDBACK CONTROL IN THE RAIL. A filled "Feedback" button in the
+          primary chrome competed with the page's own primary action and read as
+          a beta label on every screen. The account menu's Support section and the
+          Account tab both carry it. */}
       {/* The avatar chip. It opens the menu, whose first row is Account. */}
       <SiteMenu
         isAuthenticated

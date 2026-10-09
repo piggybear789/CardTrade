@@ -74,8 +74,7 @@ export async function SiteHeader() {
               From `xl` each side keeps its content width (`min-w-max`) and the search
               takes what is left, which is only ever less than a third when a side
               needs more. Below `xl` there is not enough room for both sides at full
-              width, so the old behaviour stands, and the rail drops its Feedback
-              label there rather than squeezing further (see `SignedInHeaderTools`). */}
+              width, so the old behaviour stands. */}
           <div className="flex min-w-0 shrink-0 items-center gap-cozy md:min-w-0 md:flex-1 md:gap-6 xl:min-w-max">
             <Link
               href="/"
@@ -171,11 +170,10 @@ export function SiteHeaderSkeleton({
             <PrimaryNav isAuthenticated={isAuthenticated} />
           </div>
           <div className="hidden min-w-0 flex-1 justify-center px-snug md:flex">
-            {/* `h-8 w-full`: the real field is `md:h-8` and spans this column. This
-                was `h-9 max-w-sm`, a narrower, taller box than the one it became.
+            {/* `h-9 w-full`: the real field is `md:h-9` and spans this column.
                 `Skeleton` with the tint overridden, because the bar sits on the
                 obsidian header rather than on paper. */}
-            <Skeleton className="h-8 w-full bg-white/10" />
+            <Skeleton className="h-9 w-full bg-white/10" />
           </div>
           <div className="ml-auto flex min-w-0 shrink-0 items-center justify-end gap-1.5 text-mist md:flex-1 md:gap-snug xl:min-w-max">
             {/* A guest's links need no session, so they render for real. A member's

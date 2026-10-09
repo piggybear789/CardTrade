@@ -67,9 +67,11 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
       label: 'Marketplace',
       match: 'exact',
       alsoPrefix: ['/listings'],
-      except: ['/listings/new'],
+      except: ['/listings/new', '/listings/mine'],
     },
-    { href: '/listings/new', label: 'Sell', match: 'exact' },
+    // My Listings is the seller's inventory, filed under Selling in the rail, so
+    // the bar agrees with the rail about where the member is.
+    { href: '/listings/new', label: 'Sell', match: 'exact', alsoPrefix: ['/listings/mine'] },
     // Private-deal compose is a dialog. Trades still lists open rooms
     // and unused trade invites.
     ...(isAuthenticated

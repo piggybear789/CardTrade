@@ -71,13 +71,7 @@ const ERROR_MESSAGES: Partial<Record<SubmitFeedbackError, string>> = {
 
 /** How the trigger should look. The dialog it opens is the same in every case. */
 export type FeedbackTriggerAppearance =
-  /**
-   * Labelled text button for the dark desktop header rail. Deliberately not an icon:
-   * the rail's speech bubble is Messages, and a second bubble beside it read as the
-   * same thing.
-   */
-  | 'header-text'
-  /** Full-width ghost row for the burger dropdown. */
+  /** Full-width ghost row for the account menu. */
   | 'menu-row'
   /** Ordinary labelled button. */
   | 'button';
@@ -189,19 +183,9 @@ export function FeedbackDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger ?? (
-          appearance === 'header-text' ? (
-            // THE ONE FILLED CONTROL IN THE RAIL. Everything else up there is a
-            // ghost icon or the avatar chip, so the lilac fill is what makes asking
-            // the team stand out, and what keeps "Feedback" from reading as part of
-            // the member's name beside it. The default variant's white ring is the
-            // focus indicator that shows on the obsidian header. 32px, the desktop
-            // Button height, rather than the icons' 40.
-            <Button type="button" className={className}>
-              Feedback
-            </Button>
-          ) : appearance === 'menu-row' ? (
-            // `!h-9`, like every other row in that panel: the `sm` size collapses to
-            // 24px from `md` inside a media query, which a plain `h-9` cannot override.
+          appearance === 'menu-row' ? (
+            // `!h-9`, like every other row in that panel: the `sm` size steps down
+            // from `md` inside a media query, which a plain `h-9` cannot override.
             <Button
               type="button"
               variant="ghost"

@@ -199,13 +199,15 @@ export function SiteMenu({
       )}
     >
       {isAuthenticated ? (
-        // THE AVATAR CHIP IS THE TRIGGER. Its accessible name starts with the name
-        // it shows (SC 2.5.3), and `aria-expanded` carries open and closed.
+        // THE AVATAR CHIP IS THE TRIGGER, and `aria-expanded` carries open and
+        // closed. Its accessible name leads with the member's name, which the
+        // chip itself no longer prints.
         //
-        // 40px tall, matching the icon targets beside it. `xl:max-w-[10rem]` until
-        // `2xl`: from `xl` the header keeps this rail at full width and takes the
-        // room from the search (see `SiteHeader`), and a display name may run to
-        // 255 characters. At 14rem a long one left a ~110px search box at 1280px.
+        // AVATAR AND CHEVRON ONLY. A display name may run to 255 characters, so
+        // beside the avatar it was cut to "Alice Nguy…" at most widths and took
+        // its room from the search. The panel this opens states the account in
+        // full on its first row, which is where the answer to "which account am
+        // I in?" belongs. 40px tall, matching the icon targets beside it.
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -214,17 +216,16 @@ export function SiteMenu({
           aria-label={`${displayName ?? 'Your account'}, account menu`}
           title={displayName ?? undefined}
           className={cn(
-            'flex h-10 min-w-0 max-w-[14rem] touch-manipulation items-center gap-snug rounded-md border border-transparent px-snug text-body font-medium text-mist transition-colors hover:bg-white/10 focus:outline-none focus-visible:border-iris/60 xl:max-w-[10rem] 2xl:max-w-[14rem]',
+            'flex h-10 shrink-0 touch-manipulation items-center gap-tight rounded-md border border-transparent pl-tight pr-snug text-mist transition-colors hover:bg-white/10 focus:outline-none focus-visible:border-iris/60',
             open && 'bg-white/10',
           )}
         >
           <Avatar
             avatarPath={avatarPath}
             displayName={displayName}
-            size="xs"
+            size="sm"
             className="border-white/25"
           />
-          <span className="min-w-0 truncate">{displayName ?? 'Account'}</span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             className={cn(

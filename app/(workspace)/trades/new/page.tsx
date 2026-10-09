@@ -210,7 +210,7 @@ export default async function NewTradePage({
           imagePath: (requested.image_paths ?? [])[0] ?? null,
           ownerName:
             (ownerRow?.display_name as string | undefined)?.trim() ||
-            'The other trader',
+            'the other trader',
           isShopfront: requestedIsShopfront,
         }}
         ownItems={(ownItemsData ?? []) as TradeOfferOwnItem[]}

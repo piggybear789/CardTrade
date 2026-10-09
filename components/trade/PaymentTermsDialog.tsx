@@ -112,7 +112,7 @@ export function PaymentTermsDialog({
               {(
                 [
                   ['PROPOSER_PAYS', 'I add cash', `You pay ${counterpartName}.`],
-                  ['COUNTERPART_PAYS', 'I request cash', `${counterpartName} pays you.`],
+                  ['COUNTERPART_PAYS', 'I request cash', `You are paid by ${counterpartName}.`],
                 ] as const
               ).map(([value, label, hint]) => (
                 <label

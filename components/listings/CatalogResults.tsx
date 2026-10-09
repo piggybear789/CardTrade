@@ -337,7 +337,7 @@ function NoMatches({ regionCode }: { regionCode: string | null }) {
   return (
     <EmptyState
       icon={<HugeiconsIcon icon={Search01Icon} className="size-6" aria-hidden />}
-      title={isSearch ? 'No Listings Match This Search' : 'No Collectibles Match These Filters'}
+      title={isSearch ? 'No listings match this search' : 'No collectibles match these filters'}
       description={
         isSearch
           ? `Nothing${scope} uses those words. Try the player or card name, or pick a game above.`

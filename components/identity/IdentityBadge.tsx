@@ -31,6 +31,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
+import { displayLegalName } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export interface IdentityBadgeProps {
@@ -77,7 +78,7 @@ export function IdentityBadge({
 }: IdentityBadgeProps) {
   if (!verified) return null;
 
-  const name = firstName?.trim();
+  const name = displayLegalName(firstName) ?? undefined;
   const redundant =
     Boolean(name) &&
     Boolean(hideNameWhen?.trim()) &&

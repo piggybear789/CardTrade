@@ -234,7 +234,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 1. Somebody proposes how the item changes hands. Either party may.
   drafts.push({
     id: 'terms',
-    short: 'Discuss Terms',
+    short: 'Discuss terms',
     label: 'Set handover terms',
     detail: termsSet
       ? isDelivery
@@ -263,7 +263,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     // hidden, so the only copy shown was the one in the wrong voice.
     label:
       viewerRole === 'BUYER'
-        ? 'Pay to start the escrow'
+        ? 'Pay to lock in the deal'
         : `Waiting for ${counterpartyName} to pay`,
     detail: !termsSet
       ? 'Available once handover terms have been proposed.'

@@ -193,8 +193,10 @@ const DAY_MS = 24 * HOUR_MS;
  */
 const BUCKETS: readonly { key: string; label: string; maxAgeMs: number }[] = [
   { key: 'day', label: 'Last 24 hours', maxAgeMs: DAY_MS },
-  { key: 'week', label: 'Earlier this week', maxAgeMs: 7 * DAY_MS },
-  { key: 'month', label: 'Earlier this month', maxAgeMs: 30 * DAY_MS },
+  // "Last 7 days", not "Earlier this week": an age bucket named after a calendar span
+  // headed September items on 9 October as "this month".
+  { key: 'week', label: 'Last 7 days', maxAgeMs: 7 * DAY_MS },
+  { key: 'month', label: 'Last 30 days', maxAgeMs: 30 * DAY_MS },
   { key: 'older', label: 'Older', maxAgeMs: Number.POSITIVE_INFINITY },
 ];
 

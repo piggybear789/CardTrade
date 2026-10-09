@@ -150,7 +150,7 @@ export function ProposeTradeDialog({
                   would promise the opposite of what happens. */}
               <DialogDescription>
                 {requested.isShopfront
-                  ? `Nothing in this listing is held for you. ${requested.ownerName} can still sell the same cards to someone else.`
+                  ? `Nothing in this listing is held for you, and ${requested.ownerName} can still sell the same cards to someone else.`
                   : `Nothing is reserved until ${requested.ownerName} accepts.`}
               </DialogDescription>
             </DialogHeader>

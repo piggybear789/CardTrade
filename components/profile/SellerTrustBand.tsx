@@ -33,7 +33,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { regionLabel } from '@/domain/region/regions';
-import { formatShortDate } from '@/lib/format';
+import { displayLegalName, formatShortDate } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /** What a fact cell shows when there is no value. */
@@ -146,7 +146,7 @@ export function SellerTrustBand({
           {verified ? 'Verified with photo ID by Stripe' : 'No photo ID check on file'}
         </h3>
         <dl className={FACT_GRID}>
-          <Fact label="Verified name" value={legalName ?? EMPTY} />
+          <Fact label="Verified name" value={displayLegalName(legalName) ?? EMPTY} />
           <Fact label="Store" value={tradingName ?? EMPTY} />
           <Fact label="ID checked" value={checkedOn ?? EMPTY} />
         </dl>

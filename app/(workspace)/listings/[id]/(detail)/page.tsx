@@ -268,8 +268,10 @@ export default async function ItemDetailPage({
   // `null` means "nothing to resolve".
   const viewerVerification =
     viewerTradeGate && !viewerTradeGate.satisfied ? viewerTradeGate.state : null;
+  // Lower case: the trade dialogs set this mid-sentence ("until the other trader
+  // accepts"), and their copy never opens a sentence with it.
   const sellerDisplayName =
-    (sellerRow?.display_name as string | null)?.trim() || "The other trader";
+    (sellerRow?.display_name as string | null)?.trim() || "the other trader";
 
   // Region compatibility, evaluated for DISPLAY only (0065).
   //

@@ -233,6 +233,26 @@ export function initialsFor(displayName: string | null | undefined): string {
 }
 
 /**
+ * A name read off an identity document, set in normal case for display.
+ *
+ * Identity checks return the document's own capitals ("PHIL WILLIAM YANG"), and set
+ * in a sentence that reads as shouting, or as a form field rather than a person.
+ * Only an ALL-CAPS name is changed: a name already in mixed case is the member's own
+ * casing ("McDonald", "van der Berg") and is left exactly as given. Hyphens and
+ * apostrophes start a new capital ("Smith-Jones", "O'Brien").
+ */
+export function displayLegalName(name: string): string;
+export function displayLegalName(name: string | null | undefined): string | null;
+export function displayLegalName(name: string | null | undefined): string | null {
+  const trimmed = name?.trim();
+  if (!trimmed) return null;
+  if (trimmed !== trimmed.toLocaleUpperCase() || !/\p{L}/u.test(trimmed)) return trimmed;
+  return trimmed
+    .toLocaleLowerCase()
+    .replace(/(^|[\s'\u2019-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toLocaleUpperCase());
+}
+
+/**
  * Format an ISO timestamp as a short, human-readable relative time such as
  * `"just now"`, `"5m ago"`, `"3h ago"`, `"2d ago"`, or an absolute date for
  * anything older than a week. Used by the messaging UI for message and

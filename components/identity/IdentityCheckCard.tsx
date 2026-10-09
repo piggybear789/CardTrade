@@ -22,6 +22,7 @@ import { BadgeCheckIcon, LoaderCircleIcon, ShieldAlertIcon, ShieldCheckIcon } fr
 import { toast } from 'sonner';
 
 import { beginIdentityCheck } from '@/lib/actions/identity';
+import { displayLegalName } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -96,7 +97,7 @@ export function IdentityCheckCard({
       // container; its content does not need a second one.
       <div className="space-y-tight text-body leading-snug">
         <p className="font-medium text-foreground">
-          {verifiedName ? `Verified as ${verifiedName}` : 'Your identity is verified'}
+          {verifiedName ? `Verified as ${displayLegalName(verifiedName)}` : 'Your identity is verified'}
         </p>
         <p className="text-muted-foreground">
           {/* Says exactly what a buyer sees and nothing more. Address and document

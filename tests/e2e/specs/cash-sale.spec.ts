@@ -269,7 +269,7 @@ test.describe.serial('Cash sale lifecycle', () => {
 
     // Terms proposed, so the buyer can pay.
     await expect(
-      currentStep(page, /(Pay to start the escrow|Waiting for .+ to pay)/i),
+      currentStep(page, /(Pay to lock in the deal|Waiting for .+ to pay)/i),
     ).toBeAttached({
       timeout: 25_000,
     });

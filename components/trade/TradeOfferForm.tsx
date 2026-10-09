@@ -511,7 +511,7 @@ export function TradeOfferForm({
             ? 'Even on the stated terms.'
             : differenceCents > 0
               ? `You give ${formatAud(differenceCents)} more.`
-              : `You give ${formatAud(Math.abs(differenceCents))} less. ${requested.ownerName} may still accept.`}
+              : `Their side is worth ${formatAud(Math.abs(differenceCents))} more. Add cards or cash, or send it as it is.`}
         </p>
       </div>
 

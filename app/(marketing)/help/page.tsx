@@ -52,11 +52,16 @@ export default function HelpPage() {
           payments are collected by Stripe when the buyer pays.
         </p>
         <p>
-          Neither mechanism is licensed escrow, a trust account, or a custodial
-          deposit that NoDitto holds as trustee. Stripe is the payment provider.
-          If a contract is disputed, support can freeze movement and review the
-          case. That is an operational hold and review, not a promise that every
-          loss will be covered.
+          If a contract is disputed, support freezes the money and reviews the
+          case. Stripe is the payment provider and holds the funds; what that hold
+          legally is, and is not, is set out in the{' '}
+          <Link
+            href="/terms"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Terms
+          </Link>
+          .
         </p>
         <p>
           What decides a disputed case is the records the two of you made before
@@ -96,8 +101,9 @@ export default function HelpPage() {
         <h2>Private deals</h2>
         <p>
           A private deal is two people who already know each other using NoDitto
-          as escrow. It is not only a card-for-card swap. Send a link: they join,
-          and you finish in the same rooms as a public listing.
+          to hold the payment and run the handover. It is not only a card-for-card
+          swap. Send a link: they join, and you finish in the same rooms as a public
+          listing.
         </p>
         <p>
           Cash for a card is paid, held, and arbitrated as a sale. A trade

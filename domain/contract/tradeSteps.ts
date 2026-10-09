@@ -257,7 +257,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   drafts.push(
     {
       id: 'accept',
-      short: 'Accept Terms',
+      short: 'Accept items',
       label: 'Both traders accept what they got',
       detail: symmetricDetail(
         accepted,

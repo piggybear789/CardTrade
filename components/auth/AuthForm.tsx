@@ -65,7 +65,7 @@ const COPY: Record<
   },
   "sign-up": {
     title: "Create your account",
-    description: "A few details to get you on the floor.",
+    description: "Buy, sell and trade cards safely.",
     submitLabel: "Create account",
     pendingLabel: "Creating account…",
     switchPrompt: "Already have an account?",

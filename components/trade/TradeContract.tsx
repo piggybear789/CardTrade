@@ -84,7 +84,9 @@ import {
   type ContractEvent,
   type ContractExchangeItem,
   type ContractParty,
+  FundsHeldMark,
 } from '@/components/contract';
+import { isTradeHoldsPlaced } from '@/lib/lifecycle';
 import { PendingLabel } from '@/components/ui/pending-label';
 import {
   TRADE_SECTIONS,
@@ -979,6 +981,7 @@ function TradeContractRoom({
             // beside the goods those figures are meant to qualify.
             title={them ? `Trade with ${them.name}` : 'Trade'}
             status={trade ? <StateBadge state={trade.state} /> : null}
+            assurance={trade && isTradeHoldsPlaced(trade.state) ? <FundsHeldMark kind="holds" /> : null}
             connectionStatus={connectionStatus}
           />
         </DesktopOnly>
@@ -1050,6 +1053,9 @@ function TradeContractRoom({
                   counterpartyAvatarPath={them?.avatarPath}
                   backHref="/trades"
                   status={<StateBadge state={trade.state} />}
+                  assurance={
+                    isTradeHoldsPlaced(trade.state) ? <FundsHeldMark kind="holds" compact /> : null
+                  }
                   subject={{
                     title: (goods?.yours[0] ?? goods?.theirs[0])?.title ?? 'Trade',
                     thumb: itemImageUrl(

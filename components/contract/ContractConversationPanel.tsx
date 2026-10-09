@@ -48,6 +48,8 @@ export interface ContractConversationPanelProps {
   backHref?: string;
   /** The flow's status as its badge. See ContractChatProps.status. */
   status?: ReactNode;
+  /** `FundsHeldMark compact` while money is held. */
+  assurance?: ReactNode;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
   /** Cash_Sale provenance for event wording and shipment-link ownership. */
@@ -71,6 +73,7 @@ export function ContractConversationPanel({
   menu,
   backHref,
   status,
+  assurance,
   shipment = null,
   saleContext = null,
   failed = false,
@@ -90,6 +93,7 @@ export function ContractConversationPanel({
         menu={menu}
         backHref={backHref}
         status={status}
+        assurance={assurance}
         shipment={shipment}
         saleContext={saleContext}
       />
@@ -104,6 +108,7 @@ export function ContractConversationPanel({
         subject={subject}
         backHref={backHref}
         status={status}
+        assurance={assurance}
         menu={menu}
       />
       <div className="grid min-h-0 flex-1 place-items-center p-cozy text-center text-body text-muted-foreground">

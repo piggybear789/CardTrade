@@ -30,6 +30,39 @@ export function isCashSalePast(status: Enums<'cash_sale_status'>): boolean {
 }
 
 /**
+ * Whether the buyer's payment is captured and held, not yet released to the seller.
+ *
+ * From payment through inspection, and on through a dispute or a return-conditional
+ * refund, since both are decided while the money is still held. Drives the room's
+ * "Payment held by Stripe" label, which must never show before payment or after
+ * release.
+ */
+export function isCashSaleFundsHeld(status: Enums<'cash_sale_status'>): boolean {
+  return (
+    status === 'ESCROW_HELD' ||
+    status === 'IN_TRANSIT' ||
+    status === 'HANDOVER' ||
+    status === 'INSPECTION' ||
+    status === 'DISPUTED' ||
+    status === 'RETURN_PENDING' ||
+    status === 'RETURN_IN_TRANSIT'
+  );
+}
+
+/**
+ * Whether both traders' collateral holds are placed and live: from lock-in through
+ * inspection, and through a dispute, which is decided against those holds.
+ */
+export function isTradeHoldsPlaced(state: Enums<'trade_state'>): boolean {
+  return (
+    state === 'COLLATERAL_LOCKED' ||
+    state === 'IN_TRANSIT' ||
+    state === 'INSPECTION' ||
+    state === 'DISPUTED'
+  );
+}
+
+/**
  * An Offer negotiation is done once it has been decided one way or another.
  * Only PENDING (awaiting a decision from either side) is active; COUNTERED
  * closes the countered offer itself even though the negotiation continues under

@@ -36,7 +36,6 @@ import { ImageGallery, PORTRAIT_STAGE_FRAME } from '@/components/listings/ImageG
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { FadeSwap } from '@/components/motion/FadeSwap';
@@ -59,7 +58,9 @@ import {
   type ContractActionTone,
   type ContractParty,
   type ContractPartyStat,
+  FundsHeldMark,
 } from '@/components/contract';
+import { isCashSaleFundsHeld } from '@/lib/lifecycle';
 import {
   CASH_SALE_SECTIONS,
   currentStep,
@@ -91,9 +92,8 @@ import {
 } from '@/lib/realtime/useCashSaleRealtime';
 import type { Tables } from '@/lib/supabase/database.types';
 import {
-  CarrierField,
   InspectionCountdown,
-  resolveCarrier,
+  RecordShipmentDialog,
   ShipmentSummary,
 } from '@/components/fulfilment';
 import { asFulfilmentTrackingState } from '@/domain/fulfilment';
@@ -470,12 +470,9 @@ function CashSaleRoom({
 
   const [isPending, startTransition] = useTransition();
   const [action, setAction] = useState<string | null>(null);
-  // `carrier` holds the PICKED option, which may be `Other`; `customCarrier` holds the
-  // typed name in that case. `resolveCarrier` turns the pair into the one string that
-  // gets stored — see `CarrierField`.
-  const [carrier, setCarrier] = useState('');
-  const [customCarrier, setCustomCarrier] = useState('');
-  const [trackingNumber, setTrackingNumber] = useState('');
+  // The record-shipment dialog, shared with the trade room. Opened from the dock and
+  // from the Status panel; it owns its own carrier and tracking fields.
+  const [shipOpen, setShipOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   // Which irreversible action (if any) is awaiting explicit confirmation.
   const [confirming, setConfirming] = useState<
@@ -559,12 +556,17 @@ function CashSaleRoom({
   // recorded.", "Dispute raised." — and the room re-renders into the new state
   // anyway, so the toast said what the screen had already changed to. Failure is
   // the case that still needs words, because nothing visible changes.
-  function run(key: string, operation: () => Promise<CashSaleActionResult>) {
+  function run(
+    key: string,
+    operation: () => Promise<CashSaleActionResult>,
+    onSuccess?: () => void,
+  ) {
     setAction(key);
     startTransition(async () => {
       const result = await operation();
       setAction(null);
       if (result.ok) {
+        onSuccess?.();
         router.refresh();
       } else {
         toast.error(messageFor(result));
@@ -638,9 +640,6 @@ function CashSaleRoom({
   const theirHandoverConfirmed = Boolean(
     iAmBuyer ? sale.seller_handover_confirmed_at : sale.buyer_handover_confirmed_at,
   );
-
-  /** What would actually be persisted as the carrier, `Other` branch included. */
-  const shipmentCarrier = resolveCarrier(carrier, customCarrier);
 
   const steps = deriveCashSaleSteps({
     status: sale.status,
@@ -729,6 +728,7 @@ function CashSaleRoom({
           // `CashSaleStatusBadge`, so a sale cannot read one way in the room and
           // another in the list that links to it.
           status={<CashSaleStatusBadge status={sale.status} />}
+          assurance={isCashSaleFundsHeld(sale.status) ? <FundsHeldMark kind="payment" /> : null}
           connectionStatus={connectionStatus}
         />
       </DesktopOnly>
@@ -790,6 +790,9 @@ function CashSaleRoom({
             counterpartyAvatarPath={them.avatarPath}
             backHref={iAmBuyer ? '/purchases' : '/sales'}
             status={<CashSaleStatusBadge status={sale.status} />}
+            assurance={
+              isCashSaleFundsHeld(sale.status) ? <FundsHeldMark kind="payment" compact /> : null
+            }
             saleContext={{
               id: sale.id,
               allowUnscopedLegacy: false,
@@ -957,23 +960,16 @@ function CashSaleRoom({
                   ) : null}
 
                   {/* A BUTTON, NOT THE FORM. The dock is a strip pinned over the
-                      conversation, and this used to hold two text inputs and a submit
-                      beside the title — three controls squeezed into a chat-width column,
-                      where "Tracking number" clipped to "Tracking numbe" and the whole
-                      thing read as a form fragment rather than as the contract's next
-                      move.
-
-                      THE RULE THIS ESTABLISHES: the dock offers buttons, and anything
-                      that needs typing lives in the tab that owns the subject. Same
-                      mechanism the plan already declares — the `ship` step's action is
-                      `{ label: 'Add tracking', kind: 'focus', target: actions }` — and the
-                      same thing "Set delivery details" above does for Terms. */}
+                      conversation; fields squeezed into it clipped and read as a form
+                      fragment. It opens the record-shipment dialog — the same one the
+                      trade room uses — so recording a parcel is one control and one
+                      form in both rooms. */}
                   {sale.status === 'ESCROW_HELD' && isDelivery && iAmSeller ? (
                     <Button
                       type="button"
                       variant="action"
                       size="sm"
-                      onClick={() => focusSection(CASH_SALE_SECTIONS.actions)}
+                      onClick={() => setShipOpen(true)}
                     >
                       Add tracking
                     </Button>
@@ -1154,60 +1150,31 @@ function CashSaleRoom({
                 ) : undefined
               }
             >
-              {/* THE ONLY CONTROL THAT LIVES HERE, and the rule is in the panel's own
-                  docs: fields here, single-tap moves in the chat dock. Two 9rem
-                  placeholders wedged into the dock beside a submit was what prompted
-                  this whole change. */}
+              {/* The step's control on phones, where the sheet covers the dock. It opens
+                  the same dialog as the dock's "Add tracking". */}
               {sale.status === 'ESCROW_HELD' && isDelivery && iAmSeller ? (
-                <div className="flex w-full max-w-xl flex-col gap-group">
-                  {/* THE SAME PICKER THE DIALOG USES, not a text input. A typed
-                      carrier costs the buyer their Track link and costs us the Ship24
-                      registration whose carrier-confirmed delivery is the only thing
-                      that starts the inspection clock — silently, in both cases. See
-                      the note in `CarrierField`. */}
-                  <CarrierField
-                    idPrefix="cash-sale"
-                    carrier={carrier}
-                    onCarrierChange={setCarrier}
-                    customCarrier={customCarrier}
-                    onCustomCarrierChange={setCustomCarrier}
-                    disabled={isPending}
-                  />
-                  <div className="space-y-snug">
-                    {/* LABELLED, not placeholder-only — a field whose only label is its
-                        placeholder loses that label the moment anything is typed. */}
-                    <Label htmlFor="cash-sale-tracking">Tracking number</Label>
-                    <Input
-                      id="cash-sale-tracking"
-                      value={trackingNumber}
-                      onChange={(event) => setTrackingNumber(event.target.value)}
-                      placeholder="As printed on the receipt"
-                      autoComplete="off"
-                      disabled={isPending}
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="action"
-                    className="w-full sm:w-auto sm:self-start"
-                    disabled={
-                      !shipmentCarrier || trackingNumber.trim().length < 2 || isPending
-                    }
-                    aria-busy={busy('ship')}
-                    onClick={() =>
-                      run('ship', () =>
-                        recordCashSaleShipment(
-                          sale.id,
-                          shipmentCarrier,
-                          trackingNumber,
-                        ),
-                      )
-                    }
-                  >
-                    <PendingLabel pending={busy('ship')}>Record shipment</PendingLabel>
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="action"
+                  className="w-full sm:w-auto sm:self-start"
+                  onClick={() => setShipOpen(true)}
+                >
+                  Add tracking
+                </Button>
               ) : null}
+              <RecordShipmentDialog
+                open={shipOpen}
+                onOpenChange={setShipOpen}
+                pending={busy('ship')}
+                recipientName={them.name}
+                onSubmit={({ carrier, trackingNumber }) =>
+                  run(
+                    'ship',
+                    () => recordCashSaleShipment(sale.id, carrier, trackingNumber),
+                    () => setShipOpen(false),
+                  )
+                }
+              />
             </ContractStatusPanel>
           </ContractDetailRow>
 

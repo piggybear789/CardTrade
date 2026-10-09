@@ -31,6 +31,8 @@ export interface ContractHeaderProps {
   parties?: ReactNode;
   /** The flow's status badge. */
   status?: ReactNode;
+  /** `FundsHeldMark` while money is held; beside the status it qualifies. */
+  assurance?: ReactNode;
   /** Realtime connection state. Rendered only while degraded. */
   connectionStatus?: Status;
   className?: string;
@@ -42,6 +44,7 @@ export function ContractHeader({
   money,
   parties,
   status,
+  assurance,
   connectionStatus,
   className,
 }: ContractHeaderProps) {
@@ -77,6 +80,7 @@ export function ContractHeader({
             {degraded && connectionStatus ? (
               <ContractConnectionStatus status={connectionStatus} />
             ) : null}
+            {assurance}
             {status}
             {money ? (
               <p className="display-value shrink-0 text-lead">{money}</p>

@@ -164,7 +164,7 @@ export function RecordShipmentDialog({
             }
           >
             <PendingLabel pending={pending} pendingLabel="Saving…">
-              {submitLabel ?? 'Record'}
+              {submitLabel ?? 'Record shipment'}
             </PendingLabel>
           </Button>
         </DialogFooter>

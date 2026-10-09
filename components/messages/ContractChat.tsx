@@ -88,6 +88,8 @@ export interface ContractChatProps {
    * sentence here was the same status at a third of the visibility.
    */
   status?: ReactNode;
+  /** Passed to the bar; see ContractChatBar. */
+  assurance?: ReactNode;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
   /** Cash_Sale provenance for event wording and shipment-link ownership. */
@@ -102,6 +104,7 @@ export function ContractChatBar({
   connectionStatus,
   backHref,
   status,
+  assurance,
   menu,
 }: {
   counterpartyName: string;
@@ -110,6 +113,8 @@ export function ContractChatBar({
   connectionStatus?: 'ok' | 'error' | string;
   backHref?: string;
   status?: ReactNode;
+  /** `FundsHeldMark compact` while money is held. */
+  assurance?: ReactNode;
   /** Secondary actions about the PERSON, e.g. reporting them. */
   menu?: ReactNode;
 }) {
@@ -122,7 +127,8 @@ export function ContractChatBar({
   const opensDetails = !split;
 
   const person = subject ? counterpartyName : null;
-  const showSubline = Boolean(subject?.price) || Boolean(status) || Boolean(person) || offline;
+  const showSubline =
+    Boolean(subject?.price) || Boolean(status) || Boolean(assurance) || Boolean(person) || offline;
 
   return (
     // Identity and subject only. The controls used to ride this row and wrap to
@@ -179,6 +185,7 @@ export function ContractChatBar({
                 </span>
               ) : null}
               {status ? <span className="flex shrink-0">{status}</span> : null}
+              {assurance}
               {person ? <span className="min-w-0 truncate">{person}</span> : null}
               {offline ? <span className="shrink-0 text-destructive">Offline</span> : null}
             </div>
@@ -235,6 +242,7 @@ export function ContractChat({
   menu,
   backHref,
   status,
+  assurance,
   shipment = null,
   saleContext = null,
   className,
@@ -339,6 +347,7 @@ export function ContractChat({
         connectionStatus={connectionStatus}
         backHref={backHref}
         status={status}
+        assurance={assurance}
         menu={menu}
       />
       <div className="relative flex min-h-0 flex-1 flex-col">

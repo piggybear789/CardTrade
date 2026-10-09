@@ -88,3 +88,4 @@ export type {
   ContractPartyStat,
   ContractStatusTone,
 } from './types';
+export { FundsHeldMark } from './FundsHeldMark';

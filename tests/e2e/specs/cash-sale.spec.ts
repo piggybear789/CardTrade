@@ -350,12 +350,9 @@ test.describe.serial('Cash sale lifecycle', () => {
     await sellerPage.goto(saleUrl);
     await sellerPage.waitForLoadState('domcontentloaded');
 
-    // IN THE STATUS TAB, not in the chat dock, and not in a dialog either.
-    //
-    // The dock used to hold the carrier and tracking inputs inline; it now holds an
-    // `Add tracking` button that focuses the room's Status tab, where the fields live.
-    // The dock's step heading is still the thing that proves shipping is unlocked, so
-    // that assertion is unchanged — only where the form is has moved.
+    // IN THE RECORD-SHIPMENT DIALOG, the one the trade room uses. `Add tracking` (in
+    // the dock, and in the Status tab on phones) opens it. The dock's step heading is
+    // still the thing that proves shipping is unlocked.
     //
     // `Record shipment` is DISABLED until both fields hold something. Clicking it first
     // therefore waits forever on a control that will never become enabled — which reads
@@ -376,23 +373,24 @@ test.describe.serial('Cash sale lifecycle', () => {
     // free text was silently costing the tracking URL and the Ship24 registration
     // whenever it did not match a known carrier. Radix renders the trigger and a hidden
     // native select against one label, so the trigger is addressed by its id.
-    await sellerPage.locator('#cash-sale-carrier').click();
+    const shipDialog = sellerPage.getByRole('dialog');
+    await shipDialog.locator('#ship-carrier').click();
     await sellerPage.getByRole('option', { name: 'Australia Post' }).click();
 
     // FILLED VIA `fillAndConfirm`, which verifies the value reached React state. This is
     // a controlled input, and on the mobile project the fill landed in the DOM before
     // hydration attached — so state stayed empty, `Record shipment` never enabled, and
     // the failure read as the button being broken.
-    await fillAndConfirm(sellerPage.locator('#cash-sale-tracking'), 'AP123456789AU');
+    await fillAndConfirm(shipDialog.locator('#ship-tracking'), 'AP123456789AU');
 
-    const record = sellerPage.getByRole('button', { name: 'Record shipment' });
+    const record = shipDialog.getByRole('button', { name: 'Record shipment' });
     await expect(record).toBeEnabled({ timeout: RENDERED });
     await record.click();
 
     // Wait for the write to land before closing this context — a context closed
     // mid-flight aborts the server action, and the next step then blames the buyer's
-    // view. Tracking is recorded, so the seller's own input retires.
-    await expect(record).toHaveCount(0, { timeout: 30_000 });
+    // view. Tracking is recorded, so the dialog closes and the step retires.
+    await expect(shipDialog).toHaveCount(0, { timeout: 30_000 });
     await sellerCtx.close();
 
     const buyerCtx = await browser.newContext({ storageState: storageStatePath(BOB) });

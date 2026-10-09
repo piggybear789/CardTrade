@@ -86,6 +86,25 @@ function symmetricDetail(
   return pending;
 }
 
+/**
+ * Label for a two-sided step, worded for the viewer.
+ *
+ * "Both traders post with tracking" read the same to the trader who still had to post
+ * and to the one who already had, so the dock looked identical whether the trade was
+ * waiting on you or on them. Once either side has acted the label says whose move it
+ * is: the viewer's own half as an imperative, or who it is waiting for. Before either
+ * has, it names both, because both are outstanding.
+ */
+function symmetricLabel(
+  pair: { mine: boolean; theirs: boolean },
+  counterpartyName: string,
+  labels: { both: string; yours: string; waiting: string },
+): string {
+  if (pair.mine && !pair.theirs) return `Waiting for ${counterpartyName} to ${labels.waiting}`;
+  if (!pair.mine && pair.theirs) return labels.yours;
+  return labels.both;
+}
+
 /** States at or beyond INSPECTION, i.e. the goods have changed hands. */
 const EXCHANGED: ReadonlySet<TradeState> = new Set<TradeState>([
   'INSPECTION',
@@ -129,7 +148,11 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       // Rail shorts must fit a five-tick rail on a 320px screen (~6
       // characters). 'Holds' matches the release step's "Both holds released".
       short: 'Holds',
-      label: 'Both traders post collateral',
+      label: symmetricLabel(holds, counterpartyName, {
+        both: 'Both traders post collateral',
+        yours: 'Post your collateral',
+        waiting: 'post collateral',
+      }),
       detail: facts.collateralSeekFailed
         ? 'A card declined. Replace it, then retry the hold from the actions on this trade.'
         : symmetricDetail(
@@ -175,7 +198,11 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       // Rail shorts must survive a five-tick rail on a 320px screen (~6
       // characters); 'Handover' truncates to 'Handov…'.
       short: 'Delivery',
-      label: 'Meet and swap',
+      label: symmetricLabel(handover, counterpartyName, {
+        both: 'Meet and swap',
+        yours: 'Confirm the handover',
+        waiting: 'confirm the handover',
+      }),
       detail: symmetricDetail(
         handover,
         counterpartyName,
@@ -197,7 +224,11 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       drafts.push({
         id: 'addresses',
         short: 'Address',
-        label: 'Both traders add a delivery address',
+        label: symmetricLabel(addresses, counterpartyName, {
+          both: 'Both traders add a delivery address',
+          yours: 'Add your delivery address',
+          waiting: 'add an address',
+        }),
         detail: symmetricDetail(
           { mine: addresses.mine, theirs: addresses.theirs },
           counterpartyName,
@@ -218,7 +249,11 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       {
         id: 'ship',
         short: 'Delivery',
-        label: 'Both traders post with tracking',
+        label: symmetricLabel(shipped, counterpartyName, {
+          both: 'Both traders post with tracking',
+          yours: 'Post your item with tracking',
+          waiting: 'post their item',
+        }),
         detail: symmetricDetail(
           shipped,
           counterpartyName,
@@ -236,7 +271,11 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       {
         id: 'receive',
         short: 'Received',
-        label: 'Both parcels arrive',
+        label: symmetricLabel(received, counterpartyName, {
+          both: 'Both parcels arrive',
+          yours: 'Confirm their item arrived',
+          waiting: 'confirm receipt',
+        }),
         detail: symmetricDetail(
           received,
           counterpartyName,
@@ -258,7 +297,11 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     {
       id: 'accept',
       short: 'Accept items',
-      label: 'Both traders accept what they got',
+      label: symmetricLabel(accepted, counterpartyName, {
+        both: 'Both traders accept what they got',
+        yours: 'Accept what you received',
+        waiting: 'accept',
+      }),
       detail: symmetricDetail(
         accepted,
         counterpartyName,

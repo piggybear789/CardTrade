@@ -16,15 +16,14 @@ import { withActionLog } from '@/lib/errors/withActionLog';
 import {
   currentStep,
   deriveCashSaleSteps,
-  deriveTradeSteps,
   isCashSaleStatus,
-  isTradeState,
   type ContractStep,
   type ContractStepOwner,
 } from '@/domain/contract';
-import { deriveHoldLegs, type HoldRowLike } from '@/domain/state-machine/holdLegs';
-import { factsFromTrade, type TradeRow } from '@/lib/actions/tradeLifecycleStore';
+import type { HoldRowLike } from '@/domain/state-machine/holdLegs';
+import type { TradeRow } from '@/lib/actions/tradeLifecycleStore';
 import { createClient } from '@/lib/supabase/server';
+import { tradeStepsForRow } from '@/lib/trades/tradeStepsForRow';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { Tables, Enums } from '@/lib/supabase/database.types';
 
@@ -457,39 +456,12 @@ export const getMyTrades = withActionLog('account.getMyTrades', async function g
       names.get(isInitiator ? (r.counterpart_id as string) : (r.initiator_id as string)) ??
       UNKNOWN_COUNTERPARTY;
 
-    // The mapping `tradeStepPlan` performs, verbatim: the row's own facts with the two
-    // hold-derived legs overlaid, because `factsFromTrade` defaults those to false and
-    // the release step depends on them. Addresses come from the row's
-    // `*_delivery_address_configured` flags rather than the address rows — whether one
-    // EXISTS is what gates posting, and a trader may not read the other's until
-    // collateral locks.
-    const state: unknown = r.state;
-    const steps: ContractStep[] = isTradeState(state)
-      ? deriveTradeSteps({
-          state,
-          viewerRole: isInitiator ? 'INITIATOR' : 'COUNTERPART',
-          facts: {
-            ...factsFromTrade(r as unknown as TradeRow),
-            ...deriveHoldLegs(
-              holdsByTrade.get(r.id as string) ?? [],
-              r.initiator_id as string,
-              r.counterpart_id as string,
-            ),
-          },
-          counterpartyName,
-          addresses:
-            r.handover_method === 'DELIVERY'
-              ? {
-                  mine: isInitiator
-                    ? r.initiator_delivery_address_configured
-                    : r.counterpart_delivery_address_configured,
-                  theirs: isInitiator
-                    ? r.counterpart_delivery_address_configured
-                    : r.initiator_delivery_address_configured,
-                }
-              : undefined,
-        })
-      : [];
+    const steps = tradeStepsForRow(
+      r as unknown as TradeRow,
+      holdsByTrade.get(r.id as string) ?? [],
+      userId,
+      counterpartyName,
+    );
 
     return {
       id: r.id,

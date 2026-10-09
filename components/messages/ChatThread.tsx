@@ -35,6 +35,7 @@ import {
 import {
   markConversationRead,
   type ConversationItemSummary,
+  type ConversationTradeSummary,
   type ConversationSaleSummary,
   type ConversationShipment,
   type MessageRow,
@@ -43,6 +44,7 @@ import { StorageImage } from '@/components/ui/storage-image';
 import { CURRENCY_CODE, formatMoney, itemImageUrl } from '@/lib/format';
 import { Avatar } from '@/components/ui/avatar';
 import { CashSaleStatusBadge } from '@/components/sales/CashSaleStatusBadge';
+import { StateBadge } from '@/components/trade/StateBadge';
 import { MessageComposer } from '@/components/messages/MessageComposer';
 import {
   MESSAGE_COLUMN,
@@ -61,7 +63,7 @@ export interface ChatThreadProps {
   otherName: string | null;
   otherAvatarPath?: string | null;
   item: ConversationItemSummary | null;
-  trade?: { id: string } | null;
+  trade?: ConversationTradeSummary | null;
   sale?: ConversationSaleSummary | null;
   shipment?: ConversationShipment | null;
   /**
@@ -164,7 +166,12 @@ export function ChatThread({
   const itemThumb = item ? itemImageUrl(item.imagePath) : null;
   const underContract = Boolean(trade || sale);
   const subject = Boolean(item || underContract);
-  const title = item ? item.title : trade ? 'Trade' : displayName;
+  const title = item ? item.title : trade ? `Trade with ${displayName}` : displayName;
+  // A trade thread states the step it is waiting on, in the plan's own words: the
+  // imperative when it is the viewer's ("Your move · Post your card"), the waiting
+  // sentence otherwise. Read by `getConversationDetail`; absent on a preview.
+  const tradeMove = trade?.nextMove ?? null;
+  const tradeYourMove = tradeMove?.owner === 'you' || tradeMove?.owner === 'both';
 
   // Contract money always wins over listing FMV. A trade has no honest price to
   // show here without its Trade_Side_Value, and several simultaneous binder
@@ -205,7 +212,13 @@ export function ChatThread({
   // The filled tones mean "a contract is at this stage" and there is no contract, so
   // a chip with a fill would misreport the situation in the other direction.
   const showNoContract = Boolean(item) && !underContract;
-  const statusText = sale
+  const statusText = trade
+    ? tradeMove
+      ? tradeYourMove
+        ? `Your move · ${tradeMove.label}`
+        : tradeMove.label
+      : null
+    : sale
     ? sale.activeContractCount > 1
       ? `${sale.activeContractCount} active contracts`
       : null
@@ -213,7 +226,8 @@ export function ChatThread({
       ? item.status.toLowerCase().replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
       : null;
   const offline = connectionStatus === 'error';
-  const meta = [statusText, subject ? displayName : null].filter(Boolean).join(' · ');
+  // A trade's title already names the other trader, so the meta line does not repeat it.
+  const meta = [statusText, subject && !trade ? displayName : null].filter(Boolean).join(' · ');
 
   const dock: {
     href: string;
@@ -369,6 +383,7 @@ export function ChatThread({
               <span className="display-value shrink-0 font-semibold text-foreground">{price}</span>
             ) : null}
             {saleBadge ? <CashSaleStatusBadge status={saleBadge} className="shrink-0" /> : null}
+            {trade?.state ? <StateBadge state={trade.state} className="shrink-0" /> : null}
             {/* Same weight as `CashSaleStatusBadge` above, deliberately. The two are
                 mutually exclusive, so they never sit side by side — but they occupy
                 one slot, and a member moving between threads sees them in the same
@@ -390,9 +405,10 @@ export function ChatThread({
         </div>
 
         {/* Outline: the bar names where the deal lives, and the room it opens is
-            where the next action is. A filled button here outranked that action. */}
+            where the next action is. FILLED ONLY ON YOUR MOVE: then opening the room
+            IS the next action, and the button is the way to it. */}
         {dock ? (
-          <Button asChild variant="outline" size="sm" className="shrink-0">
+          <Button asChild variant={tradeYourMove ? 'default' : 'outline'} size="sm" className="shrink-0">
             <Link href={dock.href} transitionTypes={['nav-forward']}>
               {dock.label}
             </Link>

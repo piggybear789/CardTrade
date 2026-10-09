@@ -28,6 +28,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { attachmentPreviewLabel } from '@/lib/storage/messageAttachmentsShared';
 import { verifyMessageAttachmentPath } from '@/lib/storage/messageAttachments';
 import { isTerminalCashSaleStatus } from '@/domain/contract/cashSaleStatus';
+import { currentStep } from '@/domain/contract';
+import type { HoldRowLike } from '@/domain/state-machine/holdLegs';
+import type { TradeRow } from '@/lib/actions/tradeLifecycleStore';
+import type { ContractNextMove } from '@/lib/actions/account';
+import { tradeStepsForRow } from '@/lib/trades/tradeStepsForRow';
 
 /** A persisted conversation row. */
 export type ConversationRow = Tables<'conversations'>;
@@ -181,6 +186,14 @@ export interface ConversationItemSummary {
 /** A compact summary of the trade a conversation belongs to (if any). */
 export interface ConversationTradeSummary {
   id: string;
+  /**
+   * The trade's state and the step it is waiting on, as the viewer sees it. Read only
+   * for an open thread (`getConversationDetail`), not for the inbox list, so a trade
+   * thread opened from the inbox can say where the trade stands without opening the
+   * room.
+   */
+  state?: Enums<'trade_state'>;
+  nextMove?: ContractNextMove | null;
 }
 
 /** A conversation enriched for the inbox list. */
@@ -579,7 +592,7 @@ export const getConversation = withActionLog('messages.getConversation', async f
   // between them, the later sale read is newer; the reverse order can render a
   // new SYSTEM event with a stale amount, status, shipment, and CTA while also
   // seeding that event as already seen by Realtime.
-  const [profileRes, itemRes, messagesRes] = await Promise.all([
+  const [profileRes, itemRes, messagesRes, tradeRes, tradeHoldsRes] = await Promise.all([
     supabase
       .from('public_profiles')
       .select('id, display_name, avatar_path')
@@ -597,8 +610,27 @@ export const getConversation = withActionLog('messages.getConversation', async f
       .select('*')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true }),
+    // A trade thread's state and holds, for its status and next step. `*` because
+    // `tradeStepsForRow` maps the whole row onto the step facts.
+    conv.trade_id
+      ? supabase.from('trades').select('*').eq('id', conv.trade_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    conv.trade_id
+      ? supabase
+          .from('pre_auth_holds')
+          .select('trader_id, status, created_at')
+          .eq('trade_id', conv.trade_id)
+      : Promise.resolve({ data: [] as HoldRowLike[] }),
   ]);
   const saleRes = await salePromise;
+
+  const otherName = (profileRes.data?.display_name as string | null)?.trim() || 'the other party';
+  const tradeRow = (tradeRes.data ?? null) as TradeRow | null;
+  const tradeStep = tradeRow
+    ? currentStep(
+        tradeStepsForRow(tradeRow, (tradeHoldsRes.data ?? []) as HoldRowLike[], me, otherName),
+      )
+    : null;
 
   const item = itemRes.data
     ? {
@@ -638,7 +670,13 @@ export const getConversation = withActionLog('messages.getConversation', async f
         avatarPath: (profileRes.data?.avatar_path as string | null) ?? null,
       },
       item,
-      trade: conv.trade_id ? { id: conv.trade_id } : null,
+      trade: conv.trade_id
+        ? {
+            id: conv.trade_id,
+            state: tradeRow?.state,
+            nextMove: tradeStep ? { owner: tradeStep.owner, label: tradeStep.label } : null,
+          }
+        : null,
       sale,
       shipment,
       messages: (messagesRes.data ?? []) as MessageRow[],

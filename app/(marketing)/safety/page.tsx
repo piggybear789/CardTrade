@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { HugeiconsIcon } from '@hugeicons/react';
+import { Clock01Icon, LockIcon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+
 import { TabbedPanels, type TabDescriptor } from '@/components/ui/tabbed-panels';
+import { TRADE_INSPECTION_FLOOR_HOURS, TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 import { platformFeePhrase } from '@/lib/fees/feeLabels';
 
 import { RolePanel, SafetyList, SafetySection, type Stage } from './stage-rail';
@@ -37,6 +41,46 @@ export const metadata: Metadata = {
 
 type RoleId = 'buying' | 'selling' | 'trading';
 
+/** The trade inspection window in days, from the constant the sweep enforces. */
+const TRADE_INSPECTION_DAYS = TRADE_INSPECTION_HOURS / 24;
+
+/**
+ * What protects a member, before anything they have to do. Every line is a mechanism
+ * the product enforces — see the copy rules above — and the windows come from the
+ * same figures the sweeps use.
+ */
+const COVERAGE = [
+  {
+    icon: LockIcon,
+    title: 'Payment held by Stripe until you accept',
+    body: 'On a purchase the seller is paid only after you accept the card, or your inspection window ends without a dispute.',
+  },
+  {
+    icon: Clock01Icon,
+    title: 'Time to check what you got',
+    body: `7 days from carrier-confirmed delivery on a posted purchase. ${TRADE_INSPECTION_DAYS} days after a trade's handover.`,
+  },
+  {
+    icon: ScaleIcon,
+    title: 'Disputes freeze the money',
+    body: 'Raise a problem inside your window and nothing moves while our case team reviews it.',
+  },
+  {
+    icon: ShieldCheckIcon,
+    title: 'Sellers and traders are ID-checked',
+    body: 'Stripe checks a photo ID before anyone can list or trade.',
+  },
+] as const;
+
+/** Phone-only jump links to the sections under the role tabs. */
+const JUMPS = [
+  { href: '#sealed', label: 'Sealed product' },
+  { href: '#in-person', label: 'Meeting in person' },
+  { href: '#red-flags', label: 'Red flags' },
+  { href: '#wrong', label: 'If it goes wrong' },
+  { href: '#limits', label: 'Limits' },
+] as const;
+
 const BUYING: Stage[] = [
   {
     title: 'Before you commit to buying',
@@ -58,7 +102,7 @@ const BUYING: Stage[] = [
     title: 'When you pay',
     window: 'Until you pay. After that you are committed',
     moves: [
-      <>Your money goes to NoDitto, not the seller, and stays there until you accept.</>,
+      <>Your payment is held by Stripe, not paid to the seller, until you accept.</>,
       <>Check the delivery address and postage before paying.</>,
       <>The buyer pays a NoDitto fee of {platformFeePhrase('aud')}, included in the price you see before paying. Postage is passed through at cost.</>,
     ],
@@ -87,8 +131,8 @@ const BUYING: Stage[] = [
       <>Accept or dispute inside it. The contract completes automatically afterwards.</>,
       <>Raise a dispute early even if you are still gathering evidence.</>,
       <>
-        For an in-person deal there is a 72 hour inspection window after handover. Check
-        the item first before accepting.
+        Meeting in person? There is no window afterwards: confirming the handover
+        completes the sale, so check the card before you confirm.
       </>,
     ],
   },
@@ -186,32 +230,30 @@ const TRADING: Stage[] = [
     ],
   },
   {
-    title: 'Before you ship',
-    window: 'While you pack, both directions',
+    title: 'Before you meet',
+    window: 'Trades are face to face',
     moves: [
-      <>Same photos as a sale. A swap posts both ways, so both of you need them.</>,
-      <>Ship promptly and record it. If one side stalls, both holds lapse.</>,
+      <>Agree the place and time in the contract, so the record shows where you met.</>,
+      <>Photograph your card before you go. It shows the condition you handed over.</>,
     ],
   },
   {
-    title: 'Handover or delivery',
-    window: 'Your 72 hours starts here',
+    title: 'The handover',
+    window: `Your ${TRADE_INSPECTION_DAYS} days starts here`,
     moves: [
       <>
-        In person: confirming records that you met and swapped. It is
+        Confirming records that you met and swapped. It is
         <strong className="font-semibold text-foreground"> not </strong>
         acceptance.
       </>,
-      <>Posted: the window starts at the later of the two carrier confirmations.</>,
       <>
-        No-show or lost parcel? Use handover failed. It freezes the trade and charges
-        nothing.
+        No-show? Use handover failed. It freezes the trade and charges nothing.
       </>,
     ],
   },
   {
     title: 'Your inspection window',
-    window: '72 hours, and never less than 24',
+    window: `${TRADE_INSPECTION_DAYS} days, and never less than ${TRADE_INSPECTION_FLOOR_HOURS} hours`,
     moves: [
       <>Shorter than a purchase, because the card hold expires in about a week.</>,
       <>
@@ -257,10 +299,44 @@ export default async function SafetyPage({
         {/* `mt-snug` / `md:mt-cozy` are `PolicyArticle`'s lede offsets, not a guess —
             the header no longer has a `space-y` wrapper to supply them. */}
         <p className="mt-snug max-w-prose text-pretty text-body text-muted-foreground md:mt-cozy md:text-lead">
-          We will try our best to protect you, but there&rsquo;s a limit to what we can
-          do without your help.
+          What protects you on every deal, and the habits that keep it working.
         </p>
+        {/* JUMP LINKS, PHONE ONLY. The sections under the role tabs sit several screens
+            down on a phone. Kept apart from the tab strip by the coverage and the
+            warning below, so the two never read as competing navigations. */}
+        <nav aria-label="On this page" className="mt-cozy flex gap-snug overflow-x-auto pb-tight md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {JUMPS.map((jump) => (
+            <a
+              key={jump.href}
+              href={jump.href}
+              className="inline-flex h-8 shrink-0 items-center rounded-full border border-border bg-card px-cozy text-meta font-medium text-foreground"
+            >
+              {jump.label}
+            </a>
+          ))}
+        </nav>
       </header>
+
+      {/* HOW YOU'RE COVERED COMES FIRST. The page used to open on what NoDitto could
+          not do, then a warning, and reach the protections several screens later —
+          so a member checking whether a deal was safe met the caveats before the
+          cover. The cover leads; the warning and the limits still follow. */}
+      <section aria-labelledby="covered-heading" className="mt-section">
+        <h2 id="covered-heading" className="text-lead font-semibold tracking-tight text-foreground">
+          How you&rsquo;re covered
+        </h2>
+        <ul className="mt-cozy grid gap-cozy sm:grid-cols-2">
+          {COVERAGE.map((point) => (
+            <li key={point.title} className="flex gap-cozy rounded-lg border border-border bg-card p-group">
+              <HugeiconsIcon icon={point.icon} className="mt-0.5 size-5 shrink-0 text-trust" aria-hidden />
+              <div>
+                <p className="text-body font-semibold text-foreground">{point.title}</p>
+                <p className="mt-0.5 text-pretty text-body text-muted-foreground">{point.body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       {/* THE ONE RULE, ABOVE THE TABS: it is the only guidance here that does not
           depend on role or stage, and off-platform payment is the scam that makes
@@ -294,7 +370,7 @@ export default async function SafetyPage({
                 headingId="buying-heading"
                 heading="If you are buying"
                 idPrefix="buying"
-                lede="Your money sits with NoDitto until you accept what arrived. You have a limited time to check it and say something."
+                lede="Your payment is held by Stripe until you accept what arrived. You have a limited time to check it and say something."
                 stages={BUYING}
               />
             ),
@@ -423,8 +499,8 @@ export default async function SafetyPage({
                 There is no window afterwards, so check before you confirm.
               </>,
               <>
-                On a trade, confirming only records the swap. Your 72 hours starts from
-                there.
+                On a trade, confirming only records the swap. Your {TRADE_INSPECTION_DAYS}{' '}
+                days starts from there.
               </>,
               <>Keep the meeting place and time in the contract.</>,
             ]}

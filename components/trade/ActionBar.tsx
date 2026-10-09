@@ -41,6 +41,7 @@ import type {
   TradeViewerContext,
 } from '@/domain/state-machine/types';
 import type { FulfilmentMethod } from '@/domain/fulfilment';
+import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 import {
   confirmTradeHandover,
   raiseDispute,
@@ -118,7 +119,7 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
     confirm: {
       title: 'Confirm the handover happened?',
       description:
-        'Only confirm if you met and the goods actually changed hands. This does not release either deposit — you still get 72 hours from the meeting time to check what you received and accept it or raise a dispute.',
+        'Only confirm if you met and the goods actually changed hands. This does not release either deposit — you still get ' + TRADE_INSPECTION_HOURS / 24 + ' days from the meeting time to check what you received and accept it or raise a dispute.',
       confirmLabel: 'We met and swapped',
       helpHref: '/help#holds',
     },

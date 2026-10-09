@@ -17,6 +17,7 @@
 // Step actions are all `focus` rather than `act`: `ActionBar` remains the single
 // place trade actions are wired, and the plan points at it.
 
+import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 import { TRANSITIONS } from '@/domain/state-machine/machine';
 import type { TradeFacts, TradeState, TradeViewerRole } from '@/domain/state-machine/types';
 import { sequenceSteps, type ContractStep, type ContractStepDraft } from './steps';
@@ -306,7 +307,7 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
         accepted,
         counterpartyName,
         'accepted',
-        'Accept to release both holds, or dispute. Completes on its own in 72 hours.',
+        `Accept to release both holds, or dispute. Completes on its own after ${TRADE_INSPECTION_HOURS / 24} days.`,
       ),
       owner: accepted.mine ? 'them' : 'you',
       done: state === 'COMPLETED',

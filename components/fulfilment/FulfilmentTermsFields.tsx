@@ -32,6 +32,12 @@ export interface FulfilmentTermsFieldsProps {
   method: FulfilmentMethod | null;
 
   // --- IN_PERSON ---
+  /**
+   * What happens after the meeting, under the date field. Per flow, because the two
+   * differ: a trade's inspection window runs from this instant, while an in-person
+   * sale completes on the second confirmation with no window after it.
+   */
+  meetingNote: string;
   meetingPlace: PlaceValue | null;
   onMeetingPlaceChange: (place: PlaceValue | null) => void;
   /** Local `YYYY-MM-DDTHH:mm` value from {@link DateTimePicker}. */
@@ -99,6 +105,7 @@ export const FULFILMENT_FIELD_ERRORS = {
 export function FulfilmentTermsFields({
   idPrefix,
   method,
+  meetingNote,
   meetingPlace,
   onMeetingPlaceChange,
   meetingAt,
@@ -152,10 +159,7 @@ export function FulfilmentTermsFields({
             disabled={disabled}
             required
           />
-          <p className="text-body text-muted-foreground">
-            Both of you get 72 hours after this time to check what you received before
-            the contract settles on its own.
-          </p>
+          <p className="text-body text-muted-foreground">{meetingNote}</p>
         </div>
       </>
     );

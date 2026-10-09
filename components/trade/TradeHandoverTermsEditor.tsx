@@ -19,6 +19,8 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
+
 
 import { Button } from '@/components/ui/button';
 import { useErrorToast } from '@/lib/hooks/useErrorToast';
@@ -235,6 +237,7 @@ export function TradeHandoverTermsEditor({
           <FulfilmentTermsFields
             idPrefix="trade"
             method={method}
+            meetingNote={`Both of you get ${TRADE_INSPECTION_HOURS / 24} days after this time to check what you received before the trade settles on its own.`}
             meetingPlace={meetingPlace}
             onMeetingPlaceChange={setMeetingPlace}
             meetingAt={meetingAt}

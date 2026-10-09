@@ -51,7 +51,7 @@ const ROWS = [
   {
     icon: ViewIcon,
     title: 'Inspect before it completes',
-    detail: 'Days to check it after delivery, 72 hours after a meet-up.',
+    detail: '7 days to check it after delivery. Meeting up? Check it before you confirm.',
   },
   {
     icon: JusticeScale01Icon,

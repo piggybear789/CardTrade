@@ -273,6 +273,7 @@ export function CashSaleTermsDialog({
             <FulfilmentTermsFields
               idPrefix="sale"
               method={method}
+              meetingNote="Confirming the handover completes the sale, so the buyer checks the card at the meeting."
               meetingPlace={meetingPlace}
               onMeetingPlaceChange={setMeetingPlace}
               meetingAt={meetingAt}

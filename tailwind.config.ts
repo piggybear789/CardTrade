@@ -20,6 +20,24 @@ const config: Config = {
         "2xl": "1400px",
       },
     },
+    // TAILWIND'S STOCK SHADOW SCALE, RETUNED to the supplied theme (globals.css
+    // `--shadow-*`). Set here rather than under `extend` because it REPLACES the
+    // stock scale rather than adding to it, so `inner` and `none` are restated —
+    // a replacement drops them. The app's named elevations stay under
+    // `extend.boxShadow`; this scale has no Flutter counterpart, as the stock one
+    // it replaces never did.
+    boxShadow: {
+      "2xs": "var(--shadow-2xs)",
+      xs: "var(--shadow-xs)",
+      sm: "var(--shadow-sm)",
+      DEFAULT: "var(--shadow)",
+      md: "var(--shadow-md)",
+      lg: "var(--shadow-lg)",
+      xl: "var(--shadow-xl)",
+      "2xl": "var(--shadow-2xl)",
+      inner: "inset 0 2px 4px 0 rgb(0 0 0 / 0.05)",
+      none: "none",
+    },
     extend: {
       colors: {
         border: "hsl(var(--border))",
@@ -213,20 +231,15 @@ const config: Config = {
         head: ["1.3125rem", { lineHeight: "1.25" }],
         display: ["1.75rem", { lineHeight: "1.1" }],
       },
-      // Tightened to the theme's shadow spec (0 4px 10px at 5%). The previous
-      // 30px and 44px blurs paired with a 1px border on the same element,
-      // which is the "ghost card" tell — a soft wide bloom doing the job a
-      // defined edge already does. Pick one; the border wins.
+      // The app's NAMED elevations. Tightened to the theme's shadow spec (0 4px
+      // 10px at 5%). The previous 30px and 44px blurs paired with a 1px border on
+      // the same element, which is the "ghost card" tell — a soft wide bloom doing
+      // the job a defined edge already does. Pick one; the border wins.
+      //
+      // Flutter's `AppElevation` mirrors exactly this block, layer for layer
+      // (tests/unit/mobileThemeAgreement.test.ts). The stock scale it sits beside
+      // is set in `theme.boxShadow` above, not here.
       boxShadow: {
-        // The theme's shadow scale (globals.css `--shadow-*`).
-        "2xs": "var(--shadow-2xs)",
-        xs: "var(--shadow-xs)",
-        sm: "var(--shadow-sm)",
-        DEFAULT: "var(--shadow)",
-        md: "var(--shadow-md)",
-        lg: "var(--shadow-lg)",
-        xl: "var(--shadow-xl)",
-        "2xl": "var(--shadow-2xl)",
         market: "0 1px 2px hsl(var(--obsidian) / 0.04), 0 4px 10px hsl(var(--obsidian) / 0.05)",
         auction: "0 6px 16px hsl(var(--obsidian) / 0.10)",
         // Hover elevation for a whole card that is itself a link. Deliberately

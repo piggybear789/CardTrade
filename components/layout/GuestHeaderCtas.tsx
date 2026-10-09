@@ -6,6 +6,7 @@
 import { usePathname } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
+import { HelpMenu } from '@/components/layout/HelpMenu';
 import { SignInLink } from '@/components/layout/SignInLink';
 
 function isAuthRoute(pathname: string): boolean {
@@ -23,6 +24,7 @@ export function GuestHeaderCtas() {
 
   return (
     <nav aria-label="Account" className="flex items-center gap-tight">
+      <HelpMenu />
       <Button asChild variant="ghost" size="sm">
         <SignInLink>Sign in</SignInLink>
       </Button>

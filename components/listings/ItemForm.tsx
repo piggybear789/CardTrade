@@ -709,7 +709,7 @@ function ItemFormInner({
     <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr]">
       <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
-          {mode === "create" ? "List an item" : "Edit listing"}
+          {mode === "create" ? "Sell an item" : "Edit listing"}
         </CardTitle>
         <CardDescription className="hidden md:block">
           {isShopfront

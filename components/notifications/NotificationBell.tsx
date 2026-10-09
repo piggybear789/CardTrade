@@ -34,6 +34,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { CountBadge } from '@/components/ui/count-badge';
 import {
   listMyNotifications,
   markAllNotificationsRead,
@@ -114,7 +115,6 @@ export function NotificationBell({
     });
   }
 
-  const badgeLabel = unreadCount > 99 ? '99+' : String(unreadCount);
   const visible = notifications.slice(0, PANEL_LIMIT);
 
   return (
@@ -133,14 +133,7 @@ export function NotificationBell({
           className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-mist/75 transition-colors hover:bg-white/10 hover:text-mist border border-transparent focus:outline-none focus-visible:border-iris"
         >
           <HugeiconsIcon icon={BellIcon} className="size-5" aria-hidden />
-          {unreadCount > 0 ? (
-            <span
-              className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-tight text-meta font-semibold leading-none text-destructive-foreground"
-              aria-hidden
-            >
-              {badgeLabel}
-            </span>
-          ) : null}
+          <CountBadge count={unreadCount} className="absolute -right-0.5 -top-0.5" />
         </PopoverTrigger>
       </HeaderTooltip>
 

@@ -14,7 +14,7 @@
 //   /sellers/[id]— h1 "Seller" (shell), h2 = display name, h2 "Available listings"
 //   /messages/[id]— h1 "Messages" (shell), h2 = item title (counterparty in the
 //                   subline), link "View listing", textarea placeholder "Write a message…"
-//   /sales       — h1 "Sales" (×2), h2/h3 "No sales yet", link "List an item"
+//   /sales       — h1 "Sales" (×2), h2/h3 "No sales yet", link "Sell an item"
 //   /account-suspended — h1 "Account permanently suspended", link "Return to home"
 
 import { test, expect } from '../support/fixtures';
@@ -179,7 +179,7 @@ test.describe('/sales', () => {
 
     // Primary action in the rail / section header.
     await expect(
-      page.getByRole('link', { name: 'List an item' }).first(),
+      page.getByRole('link', { name: 'Sell an item' }).first(),
     ).toBeVisible();
   });
 });

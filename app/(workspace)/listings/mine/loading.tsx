@@ -54,7 +54,7 @@ export default function MyListingsLoading() {
   return (
     <MarketplaceShellSkeleton
       title="My listings"
-      primaryAction={<RailPrimaryAction href="/listings/new">List an item</RailPrimaryAction>}
+      primaryAction={<RailPrimaryAction href="/listings/new">Sell an item</RailPrimaryAction>}
     >
       {/* No wrapper div — see the note in `saved/loading.tsx`. */}
       <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-[8.5rem]" />

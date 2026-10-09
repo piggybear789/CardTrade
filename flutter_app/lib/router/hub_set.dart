@@ -101,8 +101,9 @@ class MobileHub {
       ownedSections.any((section) => isHubSectionActive(location, section));
 }
 
-/// The Hub_Set, in order. `Contracts` and `Sell` open sheets; the other three
-/// navigate to one screen each (Req 4.5).
+/// The Hub_Set, in order. `Contracts` opens a sheet; the other four navigate to
+/// one screen each (Req 4.5). `Sell` is the listing form itself, and the seller's
+/// own pages (My listings, Offers) belong to `Account`, matching the web.
 ///
 /// The web's `Contracts` sheet carries a private-invite entry above its three
 /// rows. It is omitted rather than shown inert, because that capability belongs
@@ -159,33 +160,17 @@ const List<MobileHub> kMobileHubs = <MobileHub>[
   MobileHub(
     id: MobileHubId.sell,
     label: 'Sell',
-    icon: Icons.inventory_2_outlined,
-    kind: MobileHubKind.sheet,
+    icon: Icons.add_box_outlined,
+    kind: MobileHubKind.link,
     requiresAuth: true,
-    sheetTitle: 'Selling',
-    sheetDescription: 'Your listings and incoming offers.',
     destinations: <HubDestination>[
       HubDestination(
         path: AppRoutes.sell,
         label: 'Sell an item',
         icon: Icons.add_box_outlined,
       ),
-      HubDestination(
-        path: AppRoutes.myListings,
-        label: 'My listings',
-        icon: Icons.local_offer_outlined,
-      ),
-      HubDestination(
-        path: AppRoutes.offers,
-        label: 'Offers',
-        icon: Icons.payments_outlined,
-      ),
     ],
-    ownedSections: <String>[
-      AppRoutes.sell,
-      AppRoutes.myListings,
-      AppRoutes.offers,
-    ],
+    ownedSections: <String>[AppRoutes.sell],
   ),
   MobileHub(
     id: MobileHubId.inbox,
@@ -219,6 +204,8 @@ const List<MobileHub> kMobileHubs = <MobileHub>[
       AppRoutes.profile,
       AppRoutes.notifications,
       AppRoutes.saved,
+      AppRoutes.myListings,
+      AppRoutes.offers,
       AppRoutes.staff,
     ],
   ),

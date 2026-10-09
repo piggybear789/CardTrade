@@ -42,6 +42,7 @@ import {
   VerificationPanelSkeleton,
 } from '@/components/account/AccountHubSkeletons';
 import { AccountTabSkeletonSwitch } from '@/components/account/AccountTabSkeletonSwitch';
+import { SettingsGroup, SettingsRowSkeleton } from '@/components/account/SettingsPrimitives';
 
 export default function ProfileLoading() {
   return (
@@ -62,6 +63,15 @@ export default function ProfileLoading() {
             <TextLines className="text-body" widths={['w-2/3']} />
           </div>
         </header>
+
+        {/* The phone Activity group: four icon rows (Notifications, Saved, Offers,
+            My listings), phone only like the real one. */}
+        <SettingsGroup className="mb-group md:hidden">
+          <SettingsRowSkeleton icon labelClassName="w-1/3" valueClassName="hidden" />
+          <SettingsRowSkeleton icon labelClassName="w-1/4" valueClassName="hidden" />
+          <SettingsRowSkeleton icon labelClassName="w-1/4" valueClassName="hidden" />
+          <SettingsRowSkeleton icon labelClassName="w-1/3" valueClassName="hidden" />
+        </SettingsGroup>
 
         {/* The strip is inside the switch too, so its chip sits on the tab the URL
             names. It used to stay on Profile while the Verification or Payouts panel

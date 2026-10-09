@@ -35,7 +35,7 @@ export function SectionHeaderSkeleton({
 }: {
   /**
    * Width of the phone-only action. The real one is a content-sized `Button`, and the
-   * labels differ ("List an item" with its glyph against "Browse marketplace"), so a
+   * labels differ ("Sell an item" with its glyph against "Browse marketplace"), so a
    * single `w-36` moved the left edge of every one on swap.
    */
   mobileActionClassName?: string;

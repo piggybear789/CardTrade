@@ -2,7 +2,7 @@
 // Keep labels/hrefs in one place so active-state logic cannot drift.
 
 import type { IconSvgElement } from '@hugeicons/react';
-import { BellIcon, HandCoinsIcon, HandshakeIcon, HeartIcon, LayoutGridIcon, MessageCircleIcon, PackageIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
+import { BellIcon, HandCoinsIcon, HandshakeIcon, HeartIcon, LayoutGridIcon, Login03Icon, MessageCircleIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, Search01Icon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
 
 export type MarketplaceNavLink = {
   href: string;
@@ -141,7 +141,9 @@ export type MobileHubId =
   | 'contracts'
   | 'sell'
   | 'messages'
-  | 'account';
+  | 'account'
+  | 'search'
+  | 'sign-in';
 
 /**
  * Whether a hub is reachable without a session.
@@ -186,22 +188,44 @@ export function mobileHubDestination(hub: MobileHub): string {
 }
 
 const CONTRACT_LINKS = MARKETPLACE_NAV_GROUPS[1].links;
-const SELL_LINKS = MARKETPLACE_NAV_GROUPS[2].links;
 
-/** Five thumb-reach hubs; Contracts and Sell expand into short sheets. */
+/**
+ * The seller's own pages, which the phone files under Account rather than under a
+ * Sell sheet. The Sell tab is the form itself; what a seller already has — listings,
+ * offers — is activity, and activity lives on the Account hub with the rest of it.
+ */
+const SELLER_ACTIVITY_PATHS = ['/listings/mine', '/offers'] as const;
+
+const BROWSE_HUB: MobileHub = {
+  id: 'browse',
+  kind: 'link',
+  href: '/',
+  label: 'Browse',
+  // The catalog is public, so this is the one hub a guest can use as-is.
+  requiresAuth: false,
+  icon: LayoutGridIcon,
+  isActive: (pathname) =>
+    isMarketplaceSectionActive(pathname, '/') ||
+    pathname.startsWith('/sellers/'),
+};
+
+/**
+ * STRAIGHT TO THE FORM. Sell opened a sheet whose first row was "Sell an item", so
+ * selling took two taps and the tab named an action it did not perform.
+ */
+const SELL_HUB: MobileHub = {
+  id: 'sell',
+  kind: 'link',
+  href: '/listings/new',
+  label: 'Sell',
+  requiresAuth: true,
+  icon: PackagePlusIcon,
+  isActive: (pathname) => pathname === '/listings/new',
+};
+
+/** Five thumb-reach hubs for a member; Contracts expands into a short sheet. */
 export const MOBILE_HUBS: readonly MobileHub[] = [
-  {
-    id: 'browse',
-    kind: 'link',
-    href: '/',
-    label: 'Browse',
-    // The catalog is public, so this is the one hub a guest can use as-is.
-    requiresAuth: false,
-    icon: LayoutGridIcon,
-    isActive: (pathname) =>
-      isMarketplaceSectionActive(pathname, '/') ||
-      pathname.startsWith('/sellers/'),
-  },
+  BROWSE_HUB,
   {
     id: 'contracts',
     kind: 'sheet',
@@ -216,20 +240,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
         isMarketplaceSectionActive(pathname, link.href),
       ),
   },
-  {
-    id: 'sell',
-    kind: 'sheet',
-    label: 'Sell',
-    requiresAuth: true,
-    icon: PackageIcon,
-    title: 'Selling',
-    description: 'Your listings and incoming offers.',
-    links: SELL_LINKS,
-    isActive: (pathname) =>
-      SELL_LINKS.some((link) =>
-        isMarketplaceSectionActive(pathname, link.href),
-      ),
-  },
+  SELL_HUB,
   {
     id: 'messages',
     kind: 'link',
@@ -251,6 +262,38 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
       isMarketplaceSectionActive(pathname, '/profile') ||
       isMarketplaceSectionActive(pathname, '/notifications') ||
       isMarketplaceSectionActive(pathname, '/saved') ||
+      SELLER_ACTIVITY_PATHS.some((path) => isMarketplaceSectionActive(pathname, path)) ||
       pathname.startsWith('/admin'),
+  },
+];
+
+/**
+ * A guest's hubs. Contracts, Inbox and Account only ever led a guest to sign-in, so
+ * three of five tabs were the same door with different labels. A guest gets what
+ * they can use — browse and search — plus Sell (which still asks them to sign in,
+ * because wanting to sell is the reason many sign up) and one honest Sign in.
+ */
+export const GUEST_MOBILE_HUBS: readonly MobileHub[] = [
+  BROWSE_HUB,
+  {
+    id: 'search',
+    kind: 'link',
+    // `?search=1` focuses the catalog's search field on arrival; on a page that
+    // already shows one, the bar focuses it in place instead.
+    href: '/?search=1',
+    label: 'Search',
+    requiresAuth: false,
+    icon: Search01Icon,
+    isActive: () => false,
+  },
+  SELL_HUB,
+  {
+    id: 'sign-in',
+    kind: 'link',
+    href: '/sign-in',
+    label: 'Sign in',
+    requiresAuth: false,
+    icon: Login03Icon,
+    isActive: (pathname) => pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up'),
   },
 ];

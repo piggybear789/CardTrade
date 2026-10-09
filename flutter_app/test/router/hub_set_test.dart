@@ -44,9 +44,9 @@ void main() {
       '/trades/new': MobileHubId.contracts,
       '/trades/abc123': MobileHubId.contracts,
       AppRoutes.sell: MobileHubId.sell,
-      AppRoutes.myListings: MobileHubId.sell,
-      '/listings/edit/abc123': MobileHubId.sell,
-      AppRoutes.offers: MobileHubId.sell,
+      AppRoutes.myListings: MobileHubId.account,
+      '/listings/edit/abc123': MobileHubId.account,
+      AppRoutes.offers: MobileHubId.account,
       AppRoutes.messages: MobileHubId.inbox,
       '/messages/abc123': MobileHubId.inbox,
       AppRoutes.profile: MobileHubId.account,
@@ -76,18 +76,26 @@ void main() {
       }
     });
 
-    test('creating, editing and owning a listing are Sell, not Browse', () {
+    test('creating, editing and owning a listing are never Browse', () {
       // The defect this pins: `/listings/` is shared between the public detail
       // pages and three selling screens, so a prefix match lights up Browse on a
       // member's own inventory. The web helper carries the same three exceptions.
+      // Creating is the Sell tab; the inventory and its edit screens are Account.
+      expect(currentHub(AppRoutes.sell)?.id, MobileHubId.sell);
       for (final String route in <String>[
         AppRoutes.sell,
         AppRoutes.myListings,
         '/listings/mine/drafts',
         '/listings/edit/abc123',
       ]) {
-        expect(currentHub(route)?.id, MobileHubId.sell, reason: route);
         expect(isHubSectionActive(route, AppRoutes.home), isFalse, reason: route);
+      }
+      for (final String route in <String>[
+        AppRoutes.myListings,
+        '/listings/mine/drafts',
+        '/listings/edit/abc123',
+      ]) {
+        expect(currentHub(route)?.id, MobileHubId.account, reason: route);
       }
     });
 
@@ -200,7 +208,7 @@ void main() {
       );
     });
 
-    test('each sheet lists exactly its three supported rows', () {
+    test('the one sheet lists exactly its three supported rows', () {
       final Map<MobileHubId, List<String>> rows = <MobileHubId, List<String>>{
         for (final MobileHub hub
             in kMobileHubs.where((MobileHub hub) => hub.kind == MobileHubKind.sheet))
@@ -209,8 +217,8 @@ void main() {
               .toList(),
       };
 
+      expect(rows.keys, <MobileHubId>[MobileHubId.contracts]);
       expect(rows[MobileHubId.contracts], <String>['Purchases', 'Sales', 'Trades']);
-      expect(rows[MobileHubId.sell], <String>['Sell an item', 'My listings', 'Offers']);
 
       // Req 4.6: the web's private-deal row is omitted rather than shown inert,
       // and the supporting copy must not promise it either.

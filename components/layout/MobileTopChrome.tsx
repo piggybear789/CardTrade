@@ -57,7 +57,7 @@ export function MobileTopChrome({
 
   switch (kind) {
     case 'catalog':
-      return <CatalogChrome isAuthenticated={isAuthenticated} />;
+      return <CatalogChrome />;
     case 'listing-detail':
       return <ListingDetailChrome isAuthenticated={isAuthenticated} />;
     case 'hierarchical':

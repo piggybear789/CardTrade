@@ -62,8 +62,8 @@ export function CashSalesSection({
       <EmptyState
         icon={<HugeiconsIcon icon={Tag01Icon} className="size-6" aria-hidden />}
         title="No sales yet"
-        description="List an item so buyers can purchase it outright."
-        ctaLabel="List an item"
+        description="Put a card up so buyers can purchase it outright."
+        ctaLabel="Sell an item"
         ctaHref="/listings/new"
       />
     );

@@ -16,7 +16,7 @@ export default function SalesLoading() {
     <MarketplaceShellSkeleton
       title="Sales"
       primaryAction={
-        <RailPrimaryAction href="/listings/new">List an item</RailPrimaryAction>
+        <RailPrimaryAction href="/listings/new">Sell an item</RailPrimaryAction>
       }
     >
       {/* No wrapper div: `sales/page.tsx` hangs these straight off `MarketplaceShell`,

@@ -1,18 +1,17 @@
 'use client';
 
 // Thumb-reach workspace chrome for marketplace routes below `lg`. Five hubs replace
-// the wrapping chip rail; Contracts and Sell open short sheets so the full section
-// glossary stays one tap away without eating the first screenful of content.
+// the wrapping chip rail; Contracts opens a short sheet so the contract sections stay
+// one tap away without eating the first screenful of content. Sell is the form itself.
 //
-// GUESTS GET THE BAR TOO. It used to be mounted only for a signed-in member, which
-// meant the two routes a signed-out visitor can actually reach — the catalog and a
-// listing page — were the only two screens in the app with no bottom navigation at
-// all. Having arrived on a listing from a search result, they had nothing to tap.
+// GUESTS GET THE BAR TOO, with their own hubs (`GUEST_MOBILE_HUBS`): Browse, Search,
+// Sell, Sign in. A gated hub (Sell) becomes a link into sign-in carrying that hub's own
+// target, so the tap still means what it looked like it meant. Nothing here decides
+// access — `proxy.ts` still guards every protected path.
 //
-// What changes for them is the DESTINATION, not the chrome: an auth-gated hub becomes
-// a link into sign-in carrying that hub's own target, so the tap still means what it
-// looked like it meant. Nothing here decides access — `proxy.ts` still guards every
-// protected path, and this only spares the guest a bounce.
+// UNREAD IS ON THE BAR. Inbox carries unread messages and Account unread
+// notifications, the same red count the desktop bell shows; without them a phone
+// gave no sign that anything was waiting.
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -22,6 +21,7 @@ import { HandshakeIcon } from '@hugeicons/core-free-icons';
 
 import { useStartDeal } from '@/components/deals/StartDealProvider';
 import {
+  GUEST_MOBILE_HUBS,
   MOBILE_HUBS,
   isMarketplaceSectionActive,
   mobileHubDestination,
@@ -35,7 +35,24 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { CountBadge } from '@/components/ui/count-badge';
+import { useUnreadCounts } from '@/lib/realtime/useUnreadCounts';
 import { cn } from '@/lib/utils';
+
+/**
+ * Focus the search field already on screen, if there is one. Returns whether it did.
+ * `data-market-search` is the marker `HeaderSearch` puts on its input.
+ */
+function focusVisibleSearch(): boolean {
+  const fields = document.querySelectorAll<HTMLInputElement>('input[data-market-search]');
+  for (const field of fields) {
+    if (field.disabled || field.getClientRects().length === 0) continue;
+    field.focus();
+    field.select();
+    return true;
+  }
+  return false;
+}
 
 function HubSheetLinks({
   hub,
@@ -103,11 +120,18 @@ function HubSheetLinks({
 export interface MobileBottomNavProps {
   /** Resolved by the workspace layout; decides where a gated hub points. */
   isAuthenticated: boolean;
+  /** The member's id, for the unread counts. Null for a guest. */
+  userId: string | null;
 }
 
-export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
+export function MobileBottomNav({ isAuthenticated, userId }: MobileBottomNavProps) {
   const pathname = usePathname();
   const [openHub, setOpenHub] = useState<MobileHubId | null>(null);
+  const unread = useUnreadCounts(isAuthenticated ? userId : null);
+  const hubs = isAuthenticated ? MOBILE_HUBS : GUEST_MOBILE_HUBS;
+  const unreadFor = (id: MobileHubId) =>
+    id === 'messages' ? unread.messages : id === 'account' ? unread.notifications : 0;
+  const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
 
   useEffect(() => {
     setOpenHub(null);
@@ -124,8 +148,8 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
           openHub && 'z-[60]',
         )}
       >
-        <ul className="mx-auto grid h-14 max-w-lg grid-cols-5">
-          {MOBILE_HUBS.map((hub) => {
+        <ul className={cn('mx-auto grid h-14 max-w-lg', hubs.length === 5 ? 'grid-cols-5' : 'grid-cols-4')}>
+          {hubs.map((hub) => {
             const active = hub.isActive(pathname);
             const Icon = hub.icon;
             const className = cn(
@@ -158,21 +182,38 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
             }
 
             if (hub.kind === 'link') {
+              const count = unreadFor(hub.id);
+              // Sign in returns to the page the guest was on, as every sign-in link does.
+              const href =
+                hub.id === 'sign-in' && !isAuthPage
+                  ? `/sign-in?redirectTo=${encodeURIComponent(pathname)}`
+                  : hub.href;
               return (
                 <li key={hub.id} className="min-w-0">
                   <Link
-                    href={hub.href}
+                    href={href}
                     aria-current={active ? 'page' : undefined}
+                    onClick={
+                      hub.id === 'search'
+                        ? (event) => {
+                            if (focusVisibleSearch()) event.preventDefault();
+                          }
+                        : undefined
+                    }
                     className={className}
                   >
-                    <HugeiconsIcon icon={Icon}
-                      className={cn(
-                        'size-5',
-                        active ? 'text-iris-ink' : 'text-muted-foreground',
-                      )}
-                      aria-hidden="true"
-                    />
+                    <span className="relative">
+                      <HugeiconsIcon icon={Icon}
+                        className={cn(
+                          'size-5',
+                          active ? 'text-iris-ink' : 'text-muted-foreground',
+                        )}
+                        aria-hidden="true"
+                      />
+                      <CountBadge count={count} className="absolute -right-2.5 -top-1.5" />
+                    </span>
                     <span className="truncate">{hub.label}</span>
+                    {count > 0 ? <span className="sr-only">, {count} unread</span> : null}
                   </Link>
                 </li>
               );
@@ -208,7 +249,7 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
       {/* Guests never reach a sheet — their gated hubs are sign-in links — so the
           sheets are not mounted for them. `HubSheetLinks` reads `StartDealProvider`,
           which is a signed-in concern. */}
-      {MOBILE_HUBS.filter(
+      {hubs.filter(
         (hub): hub is Extract<MobileHub, { kind: 'sheet' }> =>
           isAuthenticated && hub.kind === 'sheet',
       ).map((hub) => (

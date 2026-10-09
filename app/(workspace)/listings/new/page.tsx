@@ -36,7 +36,7 @@ import { GateBlockedTracker } from '@/components/analytics/GateBlockedTracker';
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
 export const metadata = {
-  title: 'List an item · NoDitto',
+  title: 'Sell an item · NoDitto',
   description: 'Create a new collectible listing for sale or trade.',
 };
 

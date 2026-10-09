@@ -25,7 +25,7 @@
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { HelpCircleIcon, ShieldCheckIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
+import { BellIcon, HandCoinsIcon, HeartIcon, HelpCircleIcon, ShieldCheckIcon, TagsIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -84,6 +84,7 @@ import {
   staffNavLinksFor,
 } from '@/components/layout/marketplace-nav-config';
 import { Badge } from '@/components/ui/badge';
+import { CountBadge } from '@/components/ui/count-badge';
 // The Payouts tab's Suspense fallback is the SAME placeholder the route loader draws,
 // imported rather than restated, so the two cannot drift apart.
 import { PayoutsPanelSkeleton } from '@/components/account/AccountHubSkeletons';
@@ -143,6 +144,8 @@ export default async function ProfilePage({
     browseChoice,
     automaticRegion,
     tradingRegion,
+    unreadNotifications,
+    offersWaiting,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -163,6 +166,18 @@ export default async function ProfilePage({
     readBrowseRegionChoice(),
     automaticBrowseRegion(),
     viewerTradingRegion(),
+    // The phone Activity group's two counts. Head reads, so neither returns rows.
+    supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .is('read_at', null),
+    // Offers whose next move is the member's: pending, and made by the other side.
+    supabase
+      .from('offers')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'PENDING')
+      .neq('offered_by', user.id)
+      .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`),
   ]);
 
   const profile = profileResult.data;
@@ -246,6 +261,27 @@ export default async function ProfilePage({
             />
           </div>
         </header>
+
+        {/* ACTIVITY, ON A PHONE ONLY. The Account tab was settings and nothing else,
+            so notifications, saves, offers and listings had no home on a phone — the
+            bell lives in the desktop header, and My listings and Offers left the Sell
+            tab when it became the form. Desktop has all four in the rail. */}
+        <SettingsGroup className="mb-group md:hidden">
+          <SettingsListRow
+            href="/notifications"
+            icon={BellIcon}
+            label="Notifications"
+            trailing={<CountBadge count={unreadNotifications.count ?? 0} />}
+          />
+          <SettingsListRow href="/saved" icon={HeartIcon} label="Saved" />
+          <SettingsListRow
+            href="/offers"
+            icon={HandCoinsIcon}
+            label="Offers"
+            trailing={<CountBadge count={offersWaiting.count ?? 0} />}
+          />
+          <SettingsListRow href="/listings/mine" icon={TagsIcon} label="My listings" />
+        </SettingsGroup>
 
         {/* All three panels are built here, once, and handed over as content. The
             strip owns which one is showing, so a tab change is local state rather than

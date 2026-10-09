@@ -93,7 +93,7 @@ export default function HomeLoading() {
       title="Marketplace"
       primaryAction={
         <RailPrimaryAction href="/listings/new">
-          List an item
+          Sell an item
         </RailPrimaryAction>
       }
       filters={<FilterRailSkeleton />}

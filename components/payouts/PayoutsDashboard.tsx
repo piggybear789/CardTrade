@@ -235,7 +235,7 @@ export function PayoutsDashboard({
           description="Purchases, sales, trade fees and collateral will appear here as they happen."
           // A seller's money page: the action that leads to money arriving is listing
           // something, not browsing as a buyer.
-          action={{ label: 'List an item', href: '/listings/new', variant: 'outline' }}
+          action={{ label: 'Sell an item', href: '/listings/new', variant: 'outline' }}
           // Matches the other section empty states here. `EmptyState` deliberately
           // drops its card chrome below `md` so a section state sits where the first
           // row would; only the desktop dashed border is overridden to solid.

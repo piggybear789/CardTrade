@@ -238,6 +238,8 @@ function HeaderSearchInner({
       if (trimmed) params.set('q', trimmed);
       else params.delete('q');
       params.delete('page');
+      // The one-shot "arrive focused" flag from the phone Search tab, not a filter.
+      params.delete('search');
       const qs = params.toString();
       return qs ? `/?${qs}` : '/';
     }

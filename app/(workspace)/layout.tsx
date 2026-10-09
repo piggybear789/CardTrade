@@ -69,7 +69,7 @@ export default async function WorkspaceLayout({
           Mounted for guests too: the catalog and listing detail are public, and
           they were the only screens in the app with no bottom navigation. The bar
           points a signed-out visitor's gated taps at sign-in rather than hiding. */}
-      <MobileBottomNav isAuthenticated={Boolean(user)} />
+      <MobileBottomNav isAuthenticated={Boolean(user)} userId={user?.id ?? null} />
     </WorkspaceChromeProvider>
   );
 }

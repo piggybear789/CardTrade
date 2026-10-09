@@ -222,12 +222,12 @@ void main() {
         (tester) async {
       await setViewport(tester, kPhoneViewport);
 
-      final MobileHub sell =
-          kMobileHubs.firstWhere((MobileHub hub) => hub.id == MobileHubId.sell);
+      final MobileHub contracts = kMobileHubs
+          .firstWhere((MobileHub hub) => hub.id == MobileHubId.contracts);
 
       await tester.pumpWidget(
         pumpFixture(
-          HubSheet(hub: sell, location: AppRoutes.sell, onDestination: (_) {}),
+          HubSheet(hub: contracts, location: AppRoutes.purchases, onDestination: (_) {}),
         ),
       );
 
@@ -240,7 +240,7 @@ void main() {
         (int index) => tester.getRect(rows.at(index)),
       );
 
-      expect(rects, hasLength(sell.destinations.length));
+      expect(rects, hasLength(contracts.destinations.length));
       for (final Rect rect in rects) {
         expect(rect.height, greaterThanOrEqualTo(48));
       }
@@ -254,25 +254,25 @@ void main() {
     testWidgets('a row reports the destination it names', (tester) async {
       await setViewport(tester, kPhoneViewport);
 
-      final MobileHub sell =
-          kMobileHubs.firstWhere((MobileHub hub) => hub.id == MobileHubId.sell);
+      final MobileHub contracts = kMobileHubs
+          .firstWhere((MobileHub hub) => hub.id == MobileHubId.contracts);
       final List<String> chosen = <String>[];
 
       await tester.pumpWidget(
         pumpFixture(
           HubSheet(
-            hub: sell,
-            location: AppRoutes.sell,
+            hub: contracts,
+            location: AppRoutes.purchases,
             onDestination: (HubDestination destination) =>
                 chosen.add(destination.path),
           ),
         ),
       );
 
-      await tester.tap(find.text('Offers'));
+      await tester.tap(find.text('Trades'));
       await tester.pump();
 
-      expect(chosen, <String>[AppRoutes.offers]);
+      expect(chosen, <String>[AppRoutes.trades]);
     });
   });
 

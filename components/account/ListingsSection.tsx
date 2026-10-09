@@ -113,7 +113,7 @@ export function ListingsSection({
         icon={<HugeiconsIcon icon={PackagePlusIcon} className="size-6" aria-hidden />}
         title="You haven't listed anything yet"
         description="List a collectible to start selling or trading on NoDitto."
-        ctaLabel="List an item"
+        ctaLabel="Sell an item"
         ctaHref="/listings/new"
       />
     );

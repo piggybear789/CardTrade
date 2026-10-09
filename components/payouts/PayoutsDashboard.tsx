@@ -127,11 +127,13 @@ const ARBITRATION_LABEL: Record<ArbitrationRecord['kind'], string> = {
 /** Presentation for each verification state (Req 4.2, 4.8, 10.3-10.5). */
 const DESTINATION_COPY: Record<
   DestinationAccount['state'],
-  { badge: string; variant: 'default' | 'secondary' | 'outline' | 'destructive'; detail: string }
+  { badge: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' | 'trust'; detail: string }
 > = {
+  // GREEN, NOT VIOLET. Violet is the colour of "press this"; a ready payout account
+  // is a fact about money being safe to send, which is what `trust` is for.
   VERIFIED: {
     badge: 'Ready',
-    variant: 'default',
+    variant: 'trust',
     detail: 'Your payout account is active, so releases can be sent.',
   },
   IN_PROGRESS: {
@@ -231,7 +233,9 @@ export function PayoutsDashboard({
           title="Nothing has moved yet"
           titleAs="h3"
           description="Purchases, sales, trade fees and collateral will appear here as they happen."
-          action={{ label: 'Browse listings', href: '/' }}
+          // A seller's money page: the action that leads to money arriving is listing
+          // something, not browsing as a buyer.
+          action={{ label: 'List an item', href: '/listings/new', variant: 'outline' }}
           // Matches the other section empty states here. `EmptyState` deliberately
           // drops its card chrome below `md` so a section state sits where the first
           // row would; only the desktop dashed border is overridden to solid.
@@ -399,8 +403,10 @@ function DestinationAccountSummary({
                 this already says "Released automatically" under the figure it
                 describes. */}
             <p className="mt-0.5 text-body text-muted-foreground">
+              {/* WHEN, NOT JUST WHERE. "On file" answered which account; the question a
+                  seller opens this page with is when the money arrives. */}
               {destination.state === 'VERIFIED'
-                ? 'Bank account on file with Stripe'
+                ? 'Bank account on file with Stripe. Sent once the buyer accepts the card, and can take up to four business days to arrive.'
                 : copy.detail}
             </p>
           </div>

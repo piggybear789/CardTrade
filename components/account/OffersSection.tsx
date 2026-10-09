@@ -49,7 +49,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { EmptyState } from '@/components/account/EmptyState';
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
 import { StorageImage } from '@/components/ui/storage-image';
-import { formatAud, itemImageUrl } from '@/lib/format';
+import { SegmentedControl } from '@/components/ui/segmented-control';
+import { formatMoney, itemImageUrl } from '@/lib/format';
+import { buyerPaysCents } from '@/lib/listings/buyerPrice';
 import {
   counterOffer,
   respondToOffer,
@@ -151,14 +153,48 @@ export function OffersSection({
     );
   }
 
+  return <OffersByRole offers={offers} />;
+}
+
+type RoleFilter = 'all' | 'received' | 'sent';
+
+/**
+ * RECEIVED AND SENT, SPLIT. Offers on your own listings and offers you made on other
+ * people's are different jobs — one is choosing a buyer, the other is waiting on a
+ * seller — and the list used to interleave them with only a "You are selling" line on
+ * each row to tell them apart. The switch appears only when both kinds exist.
+ */
+function OffersByRole({ offers }: { offers: MyOfferEntry[] }) {
+  const [filter, setFilter] = useState<RoleFilter>('all');
+  const received = offers.filter((offer) => offer.role === 'seller');
+  const sent = offers.filter((offer) => offer.role === 'buyer');
+  const showSwitch = received.length > 0 && sent.length > 0;
+  const shown = !showSwitch || filter === 'all' ? offers : filter === 'received' ? received : sent;
+
   return (
-    <ul role="list" className="space-y-cozy">
-      {groupByItem(offers).map((group) => (
-        <li key={group.itemId}>
-          <ListingOfferGroup group={group} />
-        </li>
-      ))}
-    </ul>
+    <div className="space-y-cozy">
+      {showSwitch ? (
+        <SegmentedControl
+          name="offer-role"
+          label="Show offers"
+          className="max-w-md"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'all', label: `All ${offers.length}` },
+            { value: 'received', label: `Received ${received.length}` },
+            { value: 'sent', label: `Sent ${sent.length}` },
+          ]}
+        />
+      ) : null}
+      <ul role="list" className="space-y-cozy">
+        {groupByItem(shown).map((group) => (
+          <li key={group.itemId}>
+            <ListingOfferGroup group={group} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -240,7 +276,7 @@ function ListingOfferGroup({ group }: { group: OfferGroup }) {
  * PAST, and reading them at equal weight makes a three-round haggle look like three
  * live offers.
  */
-function OfferChain({ chain }: { chain: OfferChainEntry[] }) {
+function OfferChain({ chain, currency }: { chain: OfferChainEntry[]; currency: string }) {
   if (chain.length < 2) return null;
 
   return (
@@ -267,7 +303,7 @@ function OfferChain({ chain }: { chain: OfferChainEntry[] }) {
                 live ? 'font-semibold text-foreground' : 'text-muted-foreground line-through',
               )}
             >
-              {formatAud(link.amountCents)}
+              {formatMoney(link.amountCents, currency)}
             </span>
           </li>
         );
@@ -296,11 +332,21 @@ function OfferNegotiation({
   const counterparty = offer.counterpartyName ?? 'Unknown user';
   const roleLabel = offer.role === 'buyer' ? 'You are buying' : 'You are selling';
   const latestNote = offer.chain[offer.chain.length - 1]?.message ?? null;
+  const money = (cents: number) => formatMoney(cents, offer.currency);
+  // WHAT THIS NUMBER MEANS TO YOU. An offer is a seller-side price: the seller
+  // receives it, and the buyer pays it plus the fee. A bare amount told neither side
+  // what they would actually get or pay.
+  const outcome =
+    offer.role === 'seller'
+      ? `You'd get ${money(offer.amountCents)}`
+      : `You'd pay ${money(buyerPaysCents(offer.amountCents, offer.currency))} incl. fee`;
+  const showAsking =
+    offer.itemAskingCents != null && offer.itemAskingCents !== offer.amountCents;
 
   // BOTH CONSEQUENCES, IN ONE SENTENCE EACH. The rival count is only ever non-zero for
   // a seller (RLS), which is also the only side for whom it means anything.
   const acceptConsequences = [
-    `Accepting opens a purchase contract for "${itemTitle}" with ${counterparty} at ${formatAud(offer.amountCents)}.`,
+    `Accepting opens a purchase contract for "${itemTitle}" with ${counterparty} at ${money(offer.amountCents)}.`,
     offer.role === 'seller'
       ? 'The card is reserved and leaves the catalog until the contract settles.'
       : 'You pay once handover details are set; NoDitto holds the money until you accept the card.',
@@ -346,20 +392,32 @@ function OfferNegotiation({
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-baseline justify-between gap-snug">
-        <p className="text-lead font-bold tabular-nums tracking-tight">
-          {formatAud(offer.amountCents)}
+        <p className="flex flex-wrap items-baseline gap-x-snug">
+          <span className="text-lead font-bold tabular-nums tracking-tight">
+            {money(offer.amountCents)}
+          </span>
+          {showAsking ? (
+            <span className="text-body tabular-nums text-muted-foreground line-through">
+              <span className="sr-only">Asking price </span>
+              {money(offer.itemAskingCents!)}
+            </span>
+          ) : null}
         </p>
         <Badge variant={status.variant} className="shrink-0">
           {status.label}
         </Badge>
       </div>
 
+      {offer.status === 'PENDING' ? (
+        <p className="mt-0.5 text-body font-medium">{outcome}</p>
+      ) : null}
+
       <p className="mt-0.5 truncate text-body text-muted-foreground">
         {roleLabel} · with {counterparty}
         {offer.offeredByMe ? ' · your offer' : ''}
       </p>
 
-      <OfferChain chain={offer.chain} />
+      <OfferChain chain={offer.chain} currency={offer.currency} />
 
       {latestNote ? (
         // The note belongs to the LIVE offer, so it is attributed rather than floating:
@@ -407,9 +465,20 @@ function OfferNegotiation({
                   if (ok) setConfirming(null);
                 }}
               />
+              {/* ACCEPT, COUNTER, DECLINE: strongest to weakest, so the order reads as
+                  the ladder of answers. Counter was the lavender `secondary` fill — the
+                  selected-state colour — and sat after Decline. */}
               <Button
                 size="sm"
                 variant="outline"
+                onClick={() => setCounterOpen(true)}
+                disabled={isPending}
+              >
+                Counter
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
                 onClick={() => setConfirming('decline')}
                 disabled={isPending}
                 aria-haspopup="dialog"
@@ -423,7 +492,7 @@ function OfferNegotiation({
                   setConfirming(open ? 'decline' : null);
                 }}
                 title="Decline this offer?"
-                description={`This offer of ${formatAud(offer.amountCents)} for "${itemTitle}" will be declined. They can send a new one.`}
+                description={`This offer of ${money(offer.amountCents)} for "${itemTitle}" will be declined. They can send a new one.`}
                 confirmLabel="Decline offer"
                 confirmVariant="destructive"
                 pending={isPending}
@@ -432,14 +501,6 @@ function OfferNegotiation({
                   if (ok) setConfirming(null);
                 }}
               />
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setCounterOpen(true)}
-                disabled={isPending}
-              >
-                Counter
-              </Button>
             </>
           )}
           {offer.canWithdraw && (
@@ -461,7 +522,7 @@ function OfferNegotiation({
                   setConfirming(open ? 'withdraw' : null);
                 }}
                 title="Withdraw this offer?"
-                description={`Your offer of ${formatAud(offer.amountCents)} for "${itemTitle}" will be withdrawn. You can make a new one later.`}
+                description={`Your offer of ${money(offer.amountCents)} for "${itemTitle}" will be withdrawn. You can make a new one later.`}
                 confirmLabel="Withdraw offer"
                 pending={isPending}
                 onConfirm={async () => {
@@ -480,6 +541,7 @@ function OfferNegotiation({
           onOpenChange={setCounterOpen}
           offerId={offer.offerId}
           currentAmountCents={offer.amountCents}
+          currency={offer.currency}
         />
       )}
     </div>
@@ -492,11 +554,13 @@ function CounterOfferDialog({
   onOpenChange,
   offerId,
   currentAmountCents,
+  currency,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   offerId: string;
   currentAmountCents: number;
+  currency: string;
 }) {
   const router = useRouter();
   const [amount, setAmount] = useState('');
@@ -544,7 +608,7 @@ function CounterOfferDialog({
             <DialogTitle>Counter offer</DialogTitle>
             <DialogDescription>
               Propose a different price. This replaces the current offer of{' '}
-              {formatAud(currentAmountCents)}.
+              {formatMoney(currentAmountCents, currency)}.
             </DialogDescription>
           </DialogHeader>
 

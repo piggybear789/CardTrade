@@ -147,7 +147,6 @@ describe('the formatAud ratchet', () => {
     'app/(workspace)/listings/[id]/(detail)/page.tsx',
     'components/account/CashSalesSection.tsx',
     'components/account/ListingsSection.tsx',
-    'components/account/OffersSection.tsx',
     'components/account/TradesSection.tsx',
     'components/contract/DittoBondExplainer.tsx',
     'components/deals/DealInviteList.tsx',

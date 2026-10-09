@@ -599,6 +599,10 @@ export interface MyOfferEntry {
   itemTitle: string | null;
   /** First image object path when readable; otherwise null. */
   itemImagePath: string | null;
+  /** The listing's asking price, when readable: what an offer is measured against. */
+  itemAskingCents: number | null;
+  /** The listing's currency; every amount on this negotiation is in it. */
+  currency: string;
   /** The counterparty's user id. */
   counterpartyId: string;
   /** The counterparty's public display name (from public_profiles) or null. */
@@ -756,19 +760,24 @@ export const listMyOffers = withActionLog('offers.listMyOffers', async function 
   );
 
   const [itemsRes, profilesRes] = await Promise.all([
-    supabase.from('items').select('id, title, image_paths').in('id', itemIds),
+    supabase.from('items').select('id, title, image_paths, fmv_cents, currency').in('id', itemIds),
     supabase
       .from('public_profiles')
       .select('id, display_name')
       .in('id', counterpartyIds),
   ]);
 
-  const itemById = new Map<string, { title: string; imagePath: string | null }>(
+  const itemById = new Map<
+    string,
+    { title: string; imagePath: string | null; askingCents: number | null; currency: string }
+  >(
     (itemsRes.data ?? []).map((it) => [
       it.id as string,
       {
         title: it.title as string,
         imagePath: ((it.image_paths as string[] | null) ?? [])[0] ?? null,
+        askingCents: (it.fmv_cents as number | null) ?? null,
+        currency: (it.currency as string | null) ?? 'aud',
       },
     ]),
   );
@@ -792,6 +801,10 @@ export const listMyOffers = withActionLog('offers.listMyOffers', async function 
       itemId: offer.item_id,
       itemTitle: item?.title ?? null,
       itemImagePath: item?.imagePath ?? null,
+      itemAskingCents: item?.askingCents ?? null,
+      // An unreadable item (sold or hidden, under RLS) falls back to the home
+      // currency; offers only ever exist in the listing's own currency.
+      currency: item?.currency ?? 'aud',
       counterpartyId,
       counterpartyName: nameById.get(counterpartyId) ?? null,
       amountCents: offer.amount_cents,

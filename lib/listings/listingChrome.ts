@@ -4,8 +4,8 @@
 // props and context cannot reach it — the same direction-of-travel problem
 // `lib/catalog/browseEvents.ts` solves for the catalog refine sheet. Share got
 // away without this because it only ever reads `window.location.href`. Report
-// cannot: whether it may be offered depends on the viewer being signed in and
-// NOT being the owner, and only the page has done that work.
+// and Save cannot: both depend on the viewer being signed in and NOT being the
+// owner, and only the page has done that work.
 //
 // A store rather than a bare event, because the header may mount or re-render
 // after the page has already published, and an event fired once would be lost.
@@ -15,6 +15,10 @@ export type ListingChromeContext = {
   /** Signed in, and not this listing's owner. Never a substitute for the
    *  server-side self-report guard in `reportItem`. */
   canReport: boolean;
+  /** Signed in and not the owner: the heart rides in the header on a phone. */
+  canSave: boolean;
+  /** Whether the viewer already saves this listing, for the heart's first paint. */
+  initialWatching: boolean;
 };
 
 let current: ListingChromeContext | null = null;
@@ -23,7 +27,12 @@ const listeners = new Set<() => void>();
 function same(a: ListingChromeContext | null, b: ListingChromeContext | null) {
   if (a === b) return true;
   if (!a || !b) return false;
-  return a.itemId === b.itemId && a.canReport === b.canReport;
+  return (
+    a.itemId === b.itemId &&
+    a.canReport === b.canReport &&
+    a.canSave === b.canSave &&
+    a.initialWatching === b.initialWatching
+  );
 }
 
 export function publishListingChrome(next: ListingChromeContext | null) {
@@ -45,7 +54,8 @@ export function getListingChrome(): ListingChromeContext | null {
 
 /**
  * The header renders before any page has published, so the server snapshot is
- * always empty. Report fades in on hydration rather than being server-rendered.
+ * always empty. Save and the menu fade in on hydration rather than being
+ * server-rendered.
  */
 export function getListingChromeServerSnapshot(): ListingChromeContext | null {
   return null;

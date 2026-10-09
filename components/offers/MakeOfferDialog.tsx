@@ -17,7 +17,7 @@ import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { HandCoinsIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { HandCoinsIcon, LoaderCircleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
@@ -34,7 +34,9 @@ import {
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
-import { formatAud } from '@/lib/format';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { displayLegalName, formatMoney } from '@/lib/format';
+import { buyerPaysCents } from '@/lib/listings/buyerPrice';
 import { makeOffer, type MakeOfferResult } from '@/lib/actions/offers';
 import { OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -60,13 +62,18 @@ function messageForError(result: Extract<MakeOfferResult, { ok: false }>): strin
 export interface MakeOfferDialogProps {
   /** The item being negotiated on. */
   itemId: string;
-  /** The item's Fair Market Value in cents, used for a sensible placeholder. */
+  /** The seller's asking price in minor units: what offers are measured against. */
   fmvCents?: number;
+  /** `items.currency`, which decides the fee folded into what the buyer pays. */
+  currency?: string;
   /** Current provider-approved seller identity the buyer must acknowledge. */
   sellerIdentity: SellerIdentityDisclosure;
   /** Replaces the default listing-action chip — used by the mobile buyer bar. */
   trigger?: ReactNode;
 }
+
+/** Quick amounts, as a discount off the asking price. */
+const QUICK_DISCOUNTS = [5, 10, 15] as const;
 
 /**
  * A "Make an offer" button that opens a dialog to submit a PENDING offer for
@@ -75,19 +82,26 @@ export interface MakeOfferDialogProps {
 export function MakeOfferDialog({
   itemId,
   fmvCents,
+  currency = 'aud',
   sellerIdentity,
   trigger,
 }: MakeOfferDialogProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  // EMPTY, NOT PRE-FILLED. Seeding the field with the asking price ("400000.00")
+  // asked the buyer to edit a raw number rather than to name their own.
   const [amount, setAmount] = useState('');
   const [message, setMessage] = useState('');
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Placeholder suggests the FMV in dollars (e.g. "123.45").
-  const placeholder =
-    fmvCents && fmvCents > 0 ? (fmvCents / 100).toFixed(2) : '0.00';
+  const asking = fmvCents && fmvCents > 0 ? fmvCents : null;
+  const money = (cents: number) => formatMoney(cents, currency);
+  const typedCents = Math.round(Number.parseFloat(amount) * 100);
+  const offerCents = Number.isFinite(typedCents) && typedCents > 0 ? typedCents : null;
+  // Whole dollars, rounded down: "5% off" should land on a number a person would say.
+  const quickAmount = (discount: number) =>
+    asking ? Math.floor((asking * (100 - discount)) / 100 / 100) * 100 : 0;
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -142,39 +156,83 @@ export function MakeOfferDialog({
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Make an offer</DialogTitle>
+            {/* What happens next, stated once. Offers do not expire on a timer: one
+                stays open until the seller answers or the item sells. */}
             <DialogDescription>
-              Propose a price for this item. The seller can accept, decline, or
-              counter your offer. Accepted offers are paid through Stripe.
+              The seller can accept, counter or decline. Your offer stays open until
+              they answer or the item sells, and nothing is charged until you pay in
+              the contract.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-group py-group">
-            <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
-              <p className="font-medium">Verified seller</p>
-              {sellerIdentity.tradingName ? (
-                <p className="break-words">{sellerIdentity.tradingName}</p>
-              ) : null}
-              <p className="break-words text-muted-foreground">
-                {sellerIdentity.legalEntityName}
-              </p>
-            </div>
+            {/* THE PAGE'S NUMBER FIRST. The page leads with what a buyer pays; this
+                used to say "Listed at" the seller's pre-fee price, a different figure
+                for the same card. Both now appear, and the sum is labelled. */}
+            {asking ? (
+              <div className="rounded-md border p-cozy text-body">
+                <p className="flex items-baseline justify-between gap-cozy">
+                  <span className="text-muted-foreground">Listed at</span>
+                  <span className="font-semibold tabular-nums">{money(buyerPaysCents(asking, currency))}</span>
+                </p>
+                <p className="mt-tight text-meta text-muted-foreground">
+                  Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} NoDitto fee
+                </p>
+              </div>
+            ) : null}
 
             <div className="space-y-snug">
-              <Label htmlFor="offer-amount">Your offer</Label>
+              <Label htmlFor="offer-amount">Your offer to the seller</Label>
               <MoneyInput
                 id="offer-amount"
                 min="0.01"
-                placeholder={placeholder}
+                placeholder={asking ? String(quickAmount(10) / 100) : '0.00'}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
               />
-              {fmvCents && fmvCents > 0 ? (
-                <p className="text-body text-muted-foreground">
-                  Listed at {formatAud(fmvCents)}.
-                </p>
+              {asking ? (
+                <div className="flex flex-wrap gap-snug" role="group" aria-label="Quick offer amounts">
+                  {QUICK_DISCOUNTS.map((discount) => {
+                    const cents = quickAmount(discount);
+                    return (
+                      <Button
+                        key={discount}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        aria-pressed={offerCents === cents}
+                        className="aria-[pressed=true]:border-foreground aria-[pressed=true]:bg-accent aria-[pressed=true]:text-accent-foreground"
+                        onClick={() => setAmount(String(cents / 100))}
+                      >
+                        {discount}% off
+                      </Button>
+                    );
+                  })}
+                </div>
               ) : null}
+              {/* LIVE, so the buyer sees the figure they would actually be charged
+                  while they type, not after the seller accepts. */}
+              <p className="min-h-[1lh] text-body text-muted-foreground" aria-live="polite">
+                {offerCents ? (
+                  <>
+                    You&apos;d pay{' '}
+                    <span className="font-semibold text-foreground tabular-nums">
+                      {money(buyerPaysCents(offerCents, currency))}
+                    </span>{' '}
+                    including the {money(platformFeeCentsFor(offerCents, currency))} fee.
+                  </>
+                ) : null}
+              </p>
             </div>
+
+            <p className="flex items-start gap-tight text-meta text-muted-foreground">
+              <HugeiconsIcon icon={ShieldCheckIcon} className="mt-px size-3.5 shrink-0 text-trust" aria-hidden />
+              <span className="min-w-0 break-words">
+                Seller verified as {displayLegalName(sellerIdentity.legalEntityName)}
+                {sellerIdentity.tradingName ? `, trading as ${sellerIdentity.tradingName}` : ''}
+              </span>
+            </p>
 
             <div className="space-y-snug">
               <Label htmlFor="offer-message">Message (optional)</Label>

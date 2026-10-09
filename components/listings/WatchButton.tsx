@@ -43,6 +43,8 @@ export interface WatchButtonProps {
    */
   variant?: 'labeled' | 'icon' | 'action';
   className?: string;
+  /** Glyph size for the `icon` variant; `size-3.5` suits dense cards, page chrome wants more. */
+  glyphClassName?: string;
 }
 
 /**
@@ -54,6 +56,7 @@ export function WatchButton({
   initialWatching,
   variant = 'labeled',
   className,
+  glyphClassName = 'size-3.5',
 }: WatchButtonProps) {
   const [watching, setWatching] = useState(initialWatching);
   const [isPending, startTransition] = useTransition();
@@ -129,7 +132,7 @@ export function WatchButton({
             listing bar, red only where nobody passed a colour. A class on the svg
             is outside that merge, so a saved heart is red on every surface. */}
         <HugeiconsIcon icon={HeartIcon}
-          className={cn('size-3.5', watching && 'fill-destructive text-destructive')}
+          className={cn(glyphClassName, watching && 'fill-destructive text-destructive')}
           strokeWidth={1.75}
           aria-hidden
         />

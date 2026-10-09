@@ -19,7 +19,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
+import {
+  ArrowLeft01Icon,
+  ArrowLeftRightIcon,
+  FileTextIcon,
+  HandCoinsIcon,
+  LogInIcon,
+  PencilIcon,
+  ShoppingCart01Icon,
+} from '@hugeicons/core-free-icons';
 
 import { getItem } from "@/lib/actions/listings";
 import type { TradeOfferOwnItem } from "@/components/trade/TradeOfferForm";
@@ -38,8 +46,10 @@ import {
 import { viewerTradingRegion } from "@/lib/location/resolveRegion";
 import {
   formatAud,
+  formatMoney,
   itemImageUrl,
 } from "@/lib/format";
+import { buyerPaysCents } from "@/lib/listings/buyerPrice";
 import { BuyButton, ShopfrontBuyButton } from "@/components/listings/BuyButton";
 import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
 import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
@@ -219,6 +229,7 @@ export default async function ItemDetailPage({
     viewerTradeGate,
     viewerRegion,
     mySaleRow,
+    openOffersResult,
   ] = await Promise.all([
     user && !isOwner ? isWatching(item.id) : Promise.resolve(false),
     getWatchCount(item.id),
@@ -259,9 +270,18 @@ export default async function ItemDetailPage({
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
+    // The owner's open offers on this listing, for the stats line in their tools.
+    isOwner && !isShopfront
+      ? supabase
+          .from("offers")
+          .select("id", { count: "exact", head: true })
+          .eq("item_id", item.id)
+          .eq("status", "PENDING")
+      : Promise.resolve({ count: 0 }),
   ]);
 
   const sellerRow = sellerRowResult.data;
+  const openOffers = openOffersResult.count ?? 0;
   const ownItems = (ownItemsResult.data ?? []) as TradeOfferOwnItem[];
   // The viewer's own gate no longer disables Propose Trade: an unverified viewer
   // gets a pressable button that opens verification (see ProposeTradeDialog).
@@ -446,6 +466,28 @@ export default async function ItemDetailPage({
     ]),
   ];
 
+  // The badges ride above the title in the desktop pane. They floated at the far end
+  // of the back-button row, where they read as page chrome rather than as facts about
+  // the card under the title.
+  const listingChips = (
+    <>
+      <Badge variant={statusBadge.variant} aria-label={`Availability: ${statusBadge.label}`}>
+        {statusBadge.label}
+      </Badge>
+      {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
+      <Badge variant="outline">{item.condition}</Badge>
+      {watchCount > 0 ? (
+        <span className="text-meta tabular-nums text-muted-foreground">
+          {watchCount} {watchCount === 1 ? "person saved this" : "people saved this"}
+        </span>
+      ) : null}
+    </>
+  );
+  // A buyer looking at something they can still buy: the fee line and the protection
+  // rows. Guests included — they need the reassurance most.
+  const showTrust = !isOwner && isAvailable && !myContractId;
+  const canMessage = Boolean(user) && !isOwner && isAvailable && !myContractId;
+
   function renderListingActions(headingId: string) {
     return (
       <>
@@ -456,6 +498,7 @@ export default async function ItemDetailPage({
           sellerId={item.owner_id}
           sellerDisplayName={sellerDisplayName}
           fmvCents={item.fmv_cents}
+          currency={item.currency}
           isOwner={isOwner}
           isAuthenticated={Boolean(user)}
           isAvailable={isAvailable}
@@ -469,7 +512,11 @@ export default async function ItemDetailPage({
           openContracts={openContracts}
           ownItems={ownItems}
           myContractId={myContractId}
+          ownerStats={{ saves: watchCount, openOffers }}
         />
+        {/* A BUTTON, NOT A COMPOSER. The inline "Send seller a message" field sat
+            under Buy / Offer / Trade at the same visual weight as opening a contract;
+            asking a question now opens the conversation from one outline button. */}
         {user && !isOwner && isAvailable && !myContractId ? (
           <section aria-labelledby={headingId}>
             <h2 id={headingId} className="sr-only">
@@ -478,7 +525,9 @@ export default async function ItemDetailPage({
             <MessageSellerButton
               itemId={item.id}
               sellerId={item.owner_id}
-              variant="inline"
+              variant="button"
+              size="lg"
+              className="w-full"
             />
           </section>
         ) : null}
@@ -537,21 +586,6 @@ export default async function ItemDetailPage({
             </Link>
           </Button>
 
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-snug">
-            <Badge
-              variant={statusBadge.variant}
-              aria-label={`Availability: ${statusBadge.label}`}
-            >
-              {statusBadge.label}
-            </Badge>
-            {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
-            <Badge variant="outline">{item.condition}</Badge>
-            {watchCount > 0 ? (
-              <span className="text-meta tabular-nums text-muted-foreground">
-                {watchCount} {watchCount === 1 ? "save" : "saves"}
-              </span>
-            ) : null}
-          </div>
         </nav>
 
         <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
@@ -634,6 +668,21 @@ export default async function ItemDetailPage({
                 sellerRating={sellerRow?.rating ?? null}
                 sellerRatingCount={sellerRow?.rating_count ?? undefined}
                 sellerIdentity={sellerIdentity}
+                showTrust={showTrust}
+                sellerAction={
+                  // Phones only: from `md` the action stack below carries Message.
+                  canMessage ? (
+                    <div className="md:hidden">
+                      <MessageSellerButton
+                        itemId={item.id}
+                        sellerId={item.owner_id}
+                        variant="button"
+                        size="default"
+                        className="w-full"
+                      />
+                    </div>
+                  ) : null
+                }
                 media={
                   images.length > 0 ? (
                     <ImageGallery
@@ -701,6 +750,9 @@ export default async function ItemDetailPage({
               itemId={item.id}
               isOwner={isOwner}
               showWatch={Boolean(user && !isOwner)}
+              canReport={Boolean(user && !isOwner)}
+              showTrust={showTrust}
+              chips={listingChips}
               initialWatching={initialWatching}
               sellerId={item.owner_id}
               sellerDisplayName={
@@ -728,6 +780,8 @@ export default async function ItemDetailPage({
       <ListingChromePublisher
         itemId={item.id}
         canReport={Boolean(user && !isOwner)}
+        canSave={Boolean(user && !isOwner)}
+        initialWatching={initialWatching}
       />
 
       {showBuyerBar ? (
@@ -738,9 +792,9 @@ export default async function ItemDetailPage({
           sellerId={item.owner_id}
           sellerDisplayName={sellerDisplayName}
           fmvCents={item.fmv_cents}
+          currency={item.currency}
           isAuthenticated={Boolean(user)}
           isShopfront={isShopfront}
-          initialWatching={initialWatching}
           sellerIdentity={sellerIdentity}
           viewerVerification={viewerVerification}
           ownItems={ownItems}
@@ -771,6 +825,7 @@ function ItemActions({
   sellerId: _sellerId,
   sellerDisplayName,
   fmvCents,
+  currency,
   isOwner,
   isAuthenticated,
   isAvailable,
@@ -784,6 +839,7 @@ function ItemActions({
   openContracts,
   ownItems,
   myContractId,
+  ownerStats,
 }: {
   itemId: string;
   itemTitle: string;
@@ -791,6 +847,8 @@ function ItemActions({
   sellerId: string;
   sellerDisplayName: string;
   fmvCents: number;
+  /** `items.currency`, for fee-inclusive figures in the buy and offer dialogs. */
+  currency: string;
   isOwner: boolean;
   isAuthenticated: boolean;
   isAvailable: boolean;
@@ -814,6 +872,8 @@ function ItemActions({
   ownItems: TradeOfferOwnItem[];
   /** The viewer's own live contract on this item, if any. */
   myContractId: string | null;
+  /** Saves and open offers, for the owner's tools. */
+  ownerStats: { saves: number; openOffers: number };
 }) {
   // Only the SELLER's missing setup disables the trigger — the viewer cannot
   // complete somebody else's onboarding by pressing a button, so there is nothing
@@ -839,6 +899,12 @@ function ItemActions({
         ownItems={ownItems}
         viewerVerification={viewerVerification}
         returnPath={`/listings/${itemId}`}
+        trigger={
+          <Button type="button" variant="outline" size="lg" className="w-full min-w-0">
+            <HugeiconsIcon icon={ArrowLeftRightIcon} aria-hidden />
+            Propose trade
+          </Button>
+        }
       />
     ) : null;
 
@@ -938,21 +1004,48 @@ function ItemActions({
       //
       // EDIT IS THE PRIMARY. It is the owner's next step on their own listing; Copy
       // stays neutral and Delete stays quiet until its confirmation.
-      <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
-        <Button asChild size="lg" className="min-w-0 w-full px-snug">
-          <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
-            <HugeiconsIcon icon={PencilIcon} aria-hidden />
-            <span className="truncate">Edit</span>
-          </Link>
-        </Button>
-        <CopyTradeLink itemId={itemId} size="lg" className="min-w-0 w-full px-snug" />
-        <DeleteListingDialog
-          itemId={itemId}
-          itemTitle={itemTitle}
-          size="lg"
-          className="min-w-0 px-cozy"
-          compact
-        />
+      <div className="space-y-snug">
+        {/* WHAT THE PRICE MEANS TO EACH SIDE. The page shows the owner the buyer's
+            figure, which is not what they get; this is the one place both are said.
+            The fee comes out of what the buyer pays, so the seller receives their
+            asking price (before card-processing costs, which the statement shows). */}
+        <dl className="rounded-md border bg-card p-cozy text-body">
+          <div className="flex items-baseline justify-between gap-cozy">
+            <dt className="text-muted-foreground">Buyers pay</dt>
+            <dd className="font-medium tabular-nums">{formatMoney(buyerPaysCents(fmvCents, currency), currency)}</dd>
+          </div>
+          <div className="mt-tight flex items-baseline justify-between gap-cozy">
+            <dt className="text-muted-foreground">You receive</dt>
+            <dd className="font-semibold tabular-nums">{formatMoney(fmvCents, currency)}</dd>
+          </div>
+          <div className="mt-snug border-t pt-snug text-meta text-muted-foreground">
+            {ownerStats.saves === 1 ? '1 save' : `${ownerStats.saves} saves`}
+            {' · '}
+            {ownerStats.openOffers > 0 ? (
+              <Link href="/offers" className="font-medium text-foreground underline-offset-4 hover:underline">
+                {ownerStats.openOffers === 1 ? '1 open offer' : `${ownerStats.openOffers} open offers`}
+              </Link>
+            ) : (
+              'No open offers'
+            )}
+          </div>
+        </dl>
+        <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
+          <Button asChild size="lg" className="min-w-0 w-full px-snug">
+            <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
+              <HugeiconsIcon icon={PencilIcon} aria-hidden />
+              <span className="truncate">Edit listing</span>
+            </Link>
+          </Button>
+          <CopyTradeLink itemId={itemId} size="lg" className="min-w-0 w-full px-snug" />
+          <DeleteListingDialog
+            itemId={itemId}
+            itemTitle={itemTitle}
+            size="lg"
+            className="min-w-0 px-cozy"
+            compact
+          />
+        </div>
       </div>
     );
   }
@@ -1017,8 +1110,11 @@ function ItemActions({
   // could receive fraud restitution, so both must pass the Identity_Gate before
   // a proposal can become a trade.
   //
-  // Buy / trade / offer sit as one circular row. Message is a compose bar
-  // underneath so it does not compete with opening a contract.
+  // ONE FILLED ACTION, THEN TWO OUTLINES. Buy now, Propose trade and Make an offer
+  // were three equal round icons with captions — a toolbar, not a decision. Buying is
+  // the step most buyers take, so it is the full-width primary; offering and trading
+  // are the alternatives beside each other under it. Message follows as its own
+  // outline row (see `renderListingActions`).
   const showOffer = Boolean(sellerIdentity) && !isShopfront;
 
   return (
@@ -1029,34 +1125,48 @@ function ItemActions({
           description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
         />
       ) : (
-        <div
-          className="flex flex-col items-stretch gap-snug md:flex-row md:items-start"
-          role="group"
-          aria-label="Start a contract"
-        >
-          <div className="min-w-0 flex-1">
-            {isShopfront ? (
-              <ShopfrontBuyButton
-                itemId={itemId}
-                sellerIdentity={sellerIdentity}
-              />
-            ) : (
-              <BuyButton
-                itemId={itemId}
-                sellerIdentity={sellerIdentity}
-              />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">{proposeTrade}</div>
-          {showOffer ? (
-            <div className="min-w-0 flex-1">
+        <div className="space-y-snug" role="group" aria-label="Start a contract">
+          {isShopfront ? (
+            <ShopfrontBuyButton
+              itemId={itemId}
+              sellerIdentity={sellerIdentity}
+              trigger={
+                <Button type="button" variant="action" size="lg" className="w-full">
+                  <HugeiconsIcon icon={ShoppingCart01Icon} aria-hidden />
+                  Request cards
+                </Button>
+              }
+            />
+          ) : (
+            <BuyButton
+              itemId={itemId}
+              sellerIdentity={sellerIdentity}
+              summary={{ title: itemTitle, imagePath: itemImagePath, priceCents: fmvCents, currency }}
+              trigger={
+                <Button type="button" variant="action" size="lg" className="w-full">
+                  <HugeiconsIcon icon={ShoppingCart01Icon} aria-hidden />
+                  Buy now
+                </Button>
+              }
+            />
+          )}
+          <div className={showOffer ? 'grid grid-cols-2 gap-snug' : 'grid grid-cols-1'}>
+            {showOffer ? (
               <MakeOfferDialog
                 itemId={itemId}
                 fmvCents={fmvCents}
+                currency={currency}
                 sellerIdentity={sellerIdentity}
+                trigger={
+                  <Button type="button" variant="outline" size="lg" className="w-full min-w-0">
+                    <HugeiconsIcon icon={HandCoinsIcon} aria-hidden />
+                    Make an offer
+                  </Button>
+                }
               />
-            </div>
-          ) : null}
+            ) : null}
+            {proposeTrade}
+          </div>
         </div>
       )}
       {regionGateNotice}

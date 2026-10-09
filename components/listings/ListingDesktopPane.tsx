@@ -1,9 +1,10 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
+import { ListingOverflowMenu } from '@/components/listings/ListingOverflowMenu';
+import { ListingFeeLine, ListingTrustRows } from '@/components/listings/ListingTrust';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { StarRating } from '@/components/listings/StarRating';
-import { ReportDialog } from '@/components/reports/ReportDialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -11,15 +12,22 @@ import { buyerPaysCents, listedPriceCents, splitMoney } from '@/lib/listings/buy
 import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
-import { formatMoney, formatRelativeTime } from '@/lib/format';
+import { displayLegalName, formatMoney, formatRelativeTime } from '@/lib/format';
 
 /* The fee label is `platformFeeRateLabel` in `lib/fees/feeLabels.ts`, shared with
    `ListingDetailStack`; the fee-inclusive figure and `splitMoney` are in
    `lib/listings/buyerPrice.ts`. */
 
 /**
- * The pre-mobile desktop listing column: title and price first, seller in a
- * card, then description and location. Phone layout stays in ListingDetailStack.
+ * The desktop listing column, in the order a buyer decides in: what it is, what it
+ * costs and what protects them, then the actions, then who is selling and the
+ * description. Phone layout stays in ListingDetailStack.
+ *
+ * THE ACTIONS FOLLOW THE PRICE. They used to be pinned to the bottom of the column
+ * so they lined up with the photo's bottom edge, which put roughly 180px of empty
+ * column between the price and Buy now and let the seller card and description sit
+ * between the two things a buyer reads together. Alignment with the photo was the
+ * weaker reason; every reference (Depop, Etsy, Shop) keeps the buttons under the price.
  */
 export function ListingDesktopPane({
   title,
@@ -30,6 +38,9 @@ export function ListingDesktopPane({
   itemId,
   isOwner,
   showWatch,
+  canReport,
+  showTrust,
+  chips,
   initialWatching,
   sellerId,
   sellerDisplayName,
@@ -52,6 +63,12 @@ export function ListingDesktopPane({
   itemId: string;
   isOwner: boolean;
   showWatch: boolean;
+  /** Signed in and not the owner: Report joins Share in the "⋯" menu. */
+  canReport: boolean;
+  /** Show how a purchase is protected under the actions (a buyer who can buy). */
+  showTrust: boolean;
+  /** Status, game and condition badges, left-aligned above the title. */
+  chips?: ReactNode;
   initialWatching: boolean;
   sellerId: string;
   sellerDisplayName: string | null;
@@ -69,8 +86,7 @@ export function ListingDesktopPane({
   const name = isOwner ? 'You' : (sellerDisplayName ?? 'Unknown seller');
   // Relative, so it reads as freshness rather than as a date to decode. Rendered under
   // `suppressHydrationWarning` because the server and the browser compute it a moment
-  // apart — the same reason `InspectionCountdown` does. An absolute date is the wrong
-  // answer here: "4h ago" is the whole point, and "12 Sep" is not.
+  // apart — the same reason `InspectionCountdown` does.
   const listedAgo = formatRelativeTime(createdAt);
   // A binder shows its own indicative "from" figure; a single listing shows what the
   // buyer is actually charged — the same figure as its catalog tile.
@@ -79,35 +95,36 @@ export function ListingDesktopPane({
   );
 
   return (
-    <div className="hidden h-full flex-col gap-group lg:flex">
-      <header className="flex items-center justify-between gap-cozy">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-balance text-head font-semibold tracking-tight">
+    <div className="hidden flex-col gap-group lg:flex">
+      <header className="space-y-snug">
+        {chips ? <div className="flex flex-wrap items-center gap-snug">{chips}</div> : null}
+
+        <div className="flex items-start justify-between gap-cozy">
+          <h2 className="min-w-0 text-balance text-head font-semibold tracking-tight">
             {title}
           </h2>
-          {/* THE PRICE LEADS THE PAGE, AND IT IS WHAT THE BUYER PAYS.
-              
-              Two problems, one fix. It was set at `text-lead` under a `text-head` title,
-              so the single most important figure on a buy page was SMALLER than the
-              heading above it — and it showed the seller's asking price while the real
-              charge sat in muted 12px underneath. The prominent number was the one that
-              would never be charged.
-              
-              Now the fee-inclusive figure at `text-display`, in the same three-part
-              treatment the catalog tiles use — symbol and cents recede, the dollars that
-              decide the purchase carry the weight. See `buyerPaysCents` for why
-              inclusive, and for why this is not called a total.
-              
-              A SHOPFRONT KEEPS ITS ASKING PRICE. `priceCents` there is a whole binder's
-              indicative "from" figure, so adding a precise fee to an imprecise number
-              would be worse than saying nothing. */}
-          {/* THE FEE NOTE RIDES THE PRICE'S BASELINE, rather than sitting on its own
-              line beneath it. `items-baseline` is what makes that read as an annotation
-              on the figure instead of a second statement about it — the note's text
-              baseline lines up with the dollars, so the eye takes the two as one thing.
-              `flex-wrap` so a narrow column drops it below instead of squeezing the
-              price. */}
-          <div className="mt-tight flex flex-wrap items-baseline gap-x-snug">
+          {/* Save and "⋯" at 20px, beside the title they act on. They were 14px flags
+              floating at the column's edge; Report now lives in the menu, which is
+              the weight a rare action deserves. */}
+          <div className="-mr-snug -mt-tight flex shrink-0 items-center" role="group" aria-label="Listing actions">
+            {showWatch ? (
+              <WatchButton
+                itemId={itemId}
+                initialWatching={initialWatching}
+                variant="icon"
+                className="size-9 md:size-9"
+                glyphClassName="size-5"
+              />
+            ) : null}
+            <ListingOverflowMenu itemId={itemId} canReport={canReport} triggerClassName="size-9 md:size-9" />
+          </div>
+        </div>
+
+        <div>
+          {/* THE PRICE IS WHAT THE BUYER PAYS, at `text-display` with symbol and cents
+              receding. A shopfront keeps its indicative "from" figure: adding a precise
+              fee to an imprecise number would be worse than saying nothing. */}
+          <div className="flex flex-wrap items-baseline gap-x-snug">
             <p className="font-display font-semibold tabular-nums tracking-tight">
               {isShopfront ? (
                 <span className="mr-tight text-body font-medium text-muted-foreground">
@@ -124,14 +141,6 @@ export function ListingDesktopPane({
                 </span>
               ) : null}
             </p>
-            {/* FOUR WORDS. This was a two-sentence paragraph that also promised escrow
-                ("held until you accept the card") and hedged about postage. Both are
-                true and neither belongs on a price: the escrow promise is made again at
-                the buy button where it is the actual reassurance, and postage cannot be
-                stated before terms anyway. What has to be here is the one fact that
-                makes the figure above it honest — that it already contains the fee. */}
-            {/* Now an (i) with the breakdown in a popover. The headline is already
-                fee-inclusive, so hiding the note does not hide the charge. */}
             {!isShopfront ? (
               <FeeInfoPopover
                 priceText={formatMoney(priceCents, currency)}
@@ -141,25 +150,10 @@ export function ListingDesktopPane({
               />
             ) : null}
           </div>
-
-          {/* The fee note is on the price's own line above — see the comment there for
-              why it is four words and why disclosure has to happen here at all: the 5%
-              otherwise first appears in the contract room's Payment tab, which is the
-              third tab of an inspector that sits behind a bottom sheet on a phone, so a
-              buyer could reach the pay confirmation having only ever seen a figure that
-              was 5% under what they are charged. */}
-
-          {/* WHAT THE MAP USED TO SAY, IN ONE LINE.
-              
-              A 224px static map of a suburb answers "where is this, roughly" and costs a
-              third of the column plus a Maps request. The line answers the same question
-              and adds listing age, which the map never showed and which every resale
-              reference puts on the page — a card listed four hours ago and one listed
-              four months ago are different propositions at the same price. */}
-          <p
-            className="mt-1.5 text-meta text-muted-foreground"
-            suppressHydrationWarning
-          >
+          {!isShopfront && !isOwner ? (
+            <ListingFeeLine priceCents={priceCents} currency={currency} className="mt-tight" />
+          ) : null}
+          <p className="mt-1.5 text-meta text-muted-foreground" suppressHydrationWarning>
             {[
               isShopfront ? 'Multiple items' : 'Single item',
               listedAgo ? `Listed ${listedAgo}` : null,
@@ -169,26 +163,11 @@ export function ListingDesktopPane({
               .join(' · ')}
           </p>
         </div>
-        {showWatch ? (
-          <div
-            className="flex shrink-0 items-center"
-            role="group"
-            aria-label="Listing actions"
-          >
-            <WatchButton
-              itemId={itemId}
-              initialWatching={initialWatching}
-              variant="icon"
-            />
-            <ReportDialog
-              targetType="item"
-              targetId={itemId}
-              triggerLabel="Report listing"
-              appearance="icon-only"
-            />
-          </div>
-        ) : null}
       </header>
+
+      <div className="space-y-group">{children}</div>
+
+      {showTrust ? <ListingTrustRows /> : null}
 
       <section aria-labelledby="seller-heading">
         <h2 id="seller-heading" className="sr-only">
@@ -196,11 +175,7 @@ export function ListingDesktopPane({
         </h2>
         <Card className="p-group">
           <div className="flex min-w-0 items-center gap-cozy">
-            <Avatar
-              avatarPath={sellerAvatarPath}
-              displayName={name}
-              size="md"
-            />
+            <Avatar avatarPath={sellerAvatarPath} displayName={name} size="md" />
             <div className="min-w-0 space-y-tight">
               <div className="flex min-w-0 items-center gap-tight">
                 {isOwner ? (
@@ -224,29 +199,18 @@ export function ListingDesktopPane({
               </div>
               {sellerRating != null ? (
                 isOwner ? (
-                  <StarRating
-                    rating={sellerRating}
-                    count={sellerRatingCount}
-                    size={12}
-                    className="text-meta"
-                  />
+                  <StarRating rating={sellerRating} count={sellerRatingCount} size={12} className="text-meta" />
                 ) : (
                   <Link
                     href={`/sellers/${sellerId}#reviews`}
                     className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
                     aria-label="Read seller reviews"
                   >
-                    <StarRating
-                      rating={sellerRating}
-                      count={sellerRatingCount}
-                      size={12}
-                      className="text-meta"
-                    />
+                    <StarRating rating={sellerRating} count={sellerRatingCount} size={12} className="text-meta" />
                   </Link>
                 )
               ) : (
-                // Unrated: the same one-line box, so the seller card and the
-                // description below it are one height for every seller.
+                // Unrated: the same one-line box, so the card is one height for every seller.
                 <p className="inline-flex border border-transparent text-meta text-muted-foreground">
                   No ratings yet
                 </p>
@@ -256,27 +220,20 @@ export function ListingDesktopPane({
                 <dl className="flex min-w-0 flex-nowrap gap-x-cozy gap-y-0 overflow-hidden whitespace-nowrap text-meta leading-snug">
                   <div className="flex min-w-0 gap-tight">
                     <dt className="shrink-0 text-muted-foreground">
-                      {sellerIdentity.nameIsDocumentVerified
-                        ? 'Real name'
-                        : 'Stated name'}
+                      {sellerIdentity.nameIsDocumentVerified ? 'Real name' : 'Stated name'}
                     </dt>
                     <dd className="min-w-0 truncate font-medium">
-                      {sellerIdentity.legalEntityName}
+                      {displayLegalName(sellerIdentity.legalEntityName)}
                     </dd>
                   </div>
                   {sellerIdentity.tradingName ? (
                     <div className="flex min-w-0 gap-tight">
-                      <dt className="shrink-0 text-muted-foreground">
-                        Trading as
-                      </dt>
-                      <dd className="min-w-0 truncate font-medium">
-                        {sellerIdentity.tradingName}
-                      </dd>
+                      <dt className="shrink-0 text-muted-foreground">Trading as</dt>
+                      <dd className="min-w-0 truncate font-medium">{sellerIdentity.tradingName}</dd>
                     </div>
                   ) : null}
                 </dl>
               ) : (
-                // No disclosure, or the owner's own listing: the line stays, neutral.
                 <p className="truncate text-meta leading-snug text-muted-foreground">
                   {isOwner ? 'Buyers see your verified name here' : 'Name not verified yet'}
                 </p>
@@ -286,46 +243,17 @@ export function ListingDesktopPane({
         </Card>
       </section>
 
-      {/* No multi-item notice between the seller card and the description — see the
-          matching note in `ListingDetailStack`. The kind is in the meta line, and the
-          action stack says what a request does at the point of doing it. */}
-
       {description.trim() ? (
-        <section aria-labelledby="description-heading">
+        <section aria-labelledby="description-heading" className="pb-group">
           <h2
             id="description-heading"
             className="mb-tight text-meta font-semibold uppercase tracking-wide text-muted-foreground"
           >
             Description
           </h2>
-          <p className="whitespace-pre-line break-words text-body text-foreground">
-            {description}
-          </p>
+          <p className="whitespace-pre-line break-words text-body text-foreground">{description}</p>
         </section>
       ) : null}
-
-      {/* The "Based near" map section was here. It is now the location clause of the
-          meta line under the price — same fact, one line instead of a 224px image, and
-          the space goes to the description and the action stack. The suburb is all the
-          precision a listing ever had (`precision="suburb"` on the form), so nothing was
-          lost by not plotting it. */}
-
-      {/* `mt-auto` pins the action stack to the bottom of the pane, which is what puts
-          it inline with the bottom of the photo beside it — the two columns are
-          equal-height siblings of one flex row.
-          
-          NO BOTTOM PADDING, and that is the point rather than an oversight. The column
-          holding this pane used to carry `lg:pb-7`, which lifted the stack 28px above
-          the image's bottom edge on every listing to protect the one case where a long
-          description makes the column scroll. A `pb-group` here would be the same mistake at
-          16px: padding inside this box still sits between the buttons and the edge they
-          are supposed to line up with.
-          
-          So the overflow case is accepted instead: when a description is long enough to
-          scroll, the buttons end flush with the cut. That is cosmetic and rare, and it
-          only shows once someone has scrolled to the very bottom — whereas the
-          misalignment it was guarding against was visible on every listing at rest. */}
-      <div className="mt-auto space-y-group pt-group">{children}</div>
     </div>
   );
 }

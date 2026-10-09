@@ -61,7 +61,7 @@ export function CopyTradeLink({ itemId, className, size }: CopyTradeLinkProps) {
         }
       >
         <HugeiconsIcon icon={LinkIcon} aria-hidden />
-        Copy
+        Copy trade link
       </PendingLabel>
     </Button>
   );

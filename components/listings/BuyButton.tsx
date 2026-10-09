@@ -14,10 +14,13 @@ import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
+import { CreditCardIcon, ShieldCheckIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { displayLegalName, formatMoney, itemImageUrl } from '@/lib/format';
+import { buyerPaysCents } from '@/lib/listings/buyerPrice';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -61,16 +64,28 @@ type SalePrep =
   | { ok: true; lineItems?: ReturnType<typeof toRequestLineItems> }
   | { ok: false; error: string };
 
+/** What the buyer is about to reserve, for the summary at the top of the dialog. */
+export interface PurchaseSummary {
+  title: string;
+  imagePath: string | null;
+  /** The seller's asking price; the fee and the total are derived from it. */
+  priceCents: number;
+  currency: string;
+}
+
 /**
  * Single-item listing: opening the contract reserves the object.
  */
 export function BuyButton({
   itemId,
   sellerIdentity,
+  summary,
   trigger,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
+  /** The item and its price, shown above the card details. */
+  summary?: PurchaseSummary;
   /** Replaces the default listing-action chip — used by the mobile buyer bar. */
   trigger?: ReactNode;
 }) {
@@ -78,11 +93,53 @@ export function BuyButton({
     <PurchaseDialog
       itemId={itemId}
       sellerIdentity={sellerIdentity}
-      description="This reserves the item and opens a contract with the seller. You do not pay yet."
+      description="Reserving holds it for you and opens a contract with the seller. You do not pay yet."
       confirmLabel="Reserve item and agree terms"
       prepareSale={() => ({ ok: true })}
+      header={summary ? <OrderSummary summary={summary} /> : null}
       trigger={trigger}
     />
+  );
+}
+
+/**
+ * The item, what it costs, and the three steps — above the card form and the saved
+ * card alike. "Buy now" used to open on a bare "Add a payment method" with no item
+ * and no total, so the first thing a buyer saw after committing was a form.
+ */
+function OrderSummary({ summary }: { summary: PurchaseSummary }) {
+  const money = (cents: number) => formatMoney(cents, summary.currency);
+  const fee = platformFeeCentsFor(summary.priceCents, summary.currency);
+  const thumb = itemImageUrl(summary.imagePath);
+  return (
+    <div className="space-y-cozy">
+      <div className="flex items-center gap-cozy rounded-md border p-cozy">
+        {thumb ? (
+          // Supabase public URL at thumbnail size; next/image would add nothing here.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={thumb} alt="" width={48} height={48} className="size-12 shrink-0 rounded-sm object-cover" />
+        ) : null}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-body font-medium">{summary.title}</p>
+          <p className="text-meta text-muted-foreground">
+            {money(summary.priceCents)} + {money(fee)} fee
+          </p>
+        </div>
+        <p className="shrink-0 text-lead font-semibold tabular-nums">
+          {money(buyerPaysCents(summary.priceCents, summary.currency))}
+        </p>
+      </div>
+      <ol className="grid grid-cols-3 gap-snug text-meta text-muted-foreground" aria-label="How buying works">
+        {['Reserve now, no charge', 'Agree shipping or a meet-up', 'Pay, inspect, done'].map((step, index) => (
+          <li key={step} className="flex items-start gap-tight">
+            <span className="grid size-4 shrink-0 place-items-center rounded-full bg-muted text-[0.625rem] font-semibold text-foreground">
+              {index + 1}
+            </span>
+            <span className="min-w-0">{step}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -131,6 +188,7 @@ function PurchaseDialog({
   confirmLabel,
   prepareSale,
   onReset,
+  header,
   trigger,
   children,
 }: {
@@ -140,6 +198,8 @@ function PurchaseDialog({
   confirmLabel: string;
   prepareSale: () => SalePrep;
   onReset?: () => void;
+  /** Shown first in every state of the dialog: the order summary for a single item. */
+  header?: ReactNode;
   trigger?: ReactNode;
   children?: ReactNode;
 }) {
@@ -245,6 +305,7 @@ function PurchaseDialog({
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <div className="space-y-group">
+              {header}
               {children}
               <CheckoutSummarySkeleton />
             </div>
@@ -263,6 +324,7 @@ function PurchaseDialog({
                 with the seller.
               </DialogDescription>
             </DialogHeader>
+            {header}
             <AddPaymentMethodForm
               onAttached={() => {
                 setLoadingStatus(true);
@@ -286,17 +348,16 @@ function PurchaseDialog({
             </DialogHeader>
 
             <div className="space-y-group">
+              {header}
               {children}
 
-              <div className="min-w-0 rounded-md border bg-muted p-cozy text-body">
-                <p className="font-medium">Verified seller</p>
-                {sellerIdentity.tradingName ? (
-                  <p className="break-words">{sellerIdentity.tradingName}</p>
-                ) : null}
-                <p className="break-words text-muted-foreground">
-                  {sellerIdentity.legalEntityName}
-                </p>
-              </div>
+              <p className="flex items-start gap-tight text-meta text-muted-foreground">
+                <HugeiconsIcon icon={ShieldCheckIcon} className="mt-px size-3.5 shrink-0 text-trust" aria-hidden />
+                <span className="min-w-0 break-words">
+                  Seller verified as {displayLegalName(sellerIdentity.legalEntityName)}
+                  {sellerIdentity.tradingName ? `, trading as ${sellerIdentity.tradingName}` : ''}
+                </span>
+              </p>
 
               <div className="flex items-center gap-cozy rounded-lg border p-cozy">
                 <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />

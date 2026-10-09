@@ -11,8 +11,8 @@ import {
   MobileChromeFrame,
 } from '@/components/layout/mobile-chrome/primitives';
 import { hierarchicalBackHref } from '@/components/layout/mobile-chrome/routes';
-import { ShareListingButton } from '@/components/listings/ShareListingButton';
-import { ReportDialog } from '@/components/reports/ReportDialog';
+import { ListingOverflowMenu } from '@/components/listings/ListingOverflowMenu';
+import { WatchButton } from '@/components/listings/WatchButton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -28,9 +28,9 @@ import {
 } from '@/lib/listings/itemFormChrome';
 
 /**
- * Report and Share ride in the header so the bottom bar can spend all of its
- * width on Buy and Trade. Three trailing controls plus Back leaves the pill
- * near 198px at a 360px viewport, hence the shorter prompt.
+ * Save and a "⋯" (Share, Report) ride in the header so the bottom bar can spend
+ * all of its width on labelled Offer, Trade and Buy. Two trailing controls plus
+ * Back keeps the search pill usable at a 360px viewport.
  */
 export function ListingDetailChrome({
   isAuthenticated,
@@ -42,8 +42,6 @@ export function ListingDetailChrome({
     getListingChrome,
     getListingChromeServerSnapshot,
   );
-  const reportTargetId =
-    isAuthenticated && listing?.canReport ? listing.itemId : null;
 
   return (
     <MobileChromeFrame>
@@ -58,23 +56,36 @@ export function ListingDetailChrome({
         placeholder="Search cards"
         appearance="pill"
       />
-      {reportTargetId ? (
-        <ReportDialog
-          targetType="item"
-          targetId={reportTargetId}
-          triggerLabel="Report listing"
-          appearance="icon-only"
-          triggerClassName="size-10 rounded-full text-foreground hover:bg-foreground/5 md:size-10 [&_svg]:size-4"
-        />
-      ) : isAuthenticated && listing == null ? (
-        // RESERVE THE REPORT SLOT until the page publishes. The server snapshot is
-        // null, so without this the icon arrived after hydration and squeezed the
-        // search pill sideways for every signed-in viewer. Most of them are not the
-        // owner, so holding the slot is the likelier outcome; an owner sees it
-        // collapse once, which is the rarer shift.
-        <span aria-hidden className="size-10 shrink-0" />
-      ) : null}
-      <ShareListingButton className="size-10 [&_svg]:size-4" />
+      {listing ? (
+        <>
+          {isAuthenticated && listing.canSave ? (
+            <WatchButton
+              // Keyed on the item so a client navigation to another listing does
+              // not carry the previous listing's heart state.
+              key={listing.itemId}
+              itemId={listing.itemId}
+              initialWatching={listing.initialWatching}
+              variant="icon"
+              className="size-10 rounded-full text-foreground hover:bg-foreground/5 md:size-10"
+              glyphClassName="size-5"
+            />
+          ) : null}
+          <ListingOverflowMenu
+            itemId={listing.itemId}
+            canReport={isAuthenticated && listing.canReport}
+            triggerClassName="size-10 rounded-full text-foreground hover:bg-foreground/5 md:size-10"
+          />
+        </>
+      ) : (
+        // RESERVE THE SLOTS until the page publishes. The server snapshot is null,
+        // so without this the controls arrived after hydration and squeezed the
+        // search pill sideways. Most signed-in viewers are not the owner, so holding
+        // the heart's slot is the likelier outcome; an owner sees it collapse once.
+        <>
+          {isAuthenticated ? <span aria-hidden className="size-10 shrink-0" /> : null}
+          <span aria-hidden className="size-10 shrink-0" />
+        </>
+      )}
     </MobileChromeFrame>
   );
 }

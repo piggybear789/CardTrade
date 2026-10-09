@@ -95,10 +95,17 @@ export interface ReportDialogProps {
    * `icon` — round chip + label below (item detail action row);
    * `icon-only` — flag only, for compact toolbars.
    */
-  appearance?: 'button' | 'icon' | 'icon-only';
+  appearance?: 'button' | 'icon' | 'icon-only' | 'none';
   /** Extra classes for the `icon-only` trigger, so chrome can size it to match
    *  the buttons beside it. */
   triggerClassName?: string;
+  /**
+   * Controlled open state, for `appearance="none"`: an overflow menu item opens the
+   * dialog, because a menu item cannot itself be a dialog trigger without the menu
+   * closing over it.
+   */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -113,8 +120,12 @@ export function ReportDialog({
   triggerVariant = 'ghost',
   appearance = 'button',
   triggerClassName,
+  open: openProp,
+  onOpenChange,
 }: ReportDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = openProp ?? internalOpen;
+  const setOpen = onOpenChange ?? setInternalOpen;
   const [reason, setReason] = useState('');
   const [details, setDetails] = useState('');
   const [inlineError, setInlineError] = useState<string | null>(null);
@@ -154,29 +165,31 @@ export function ReportDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {appearance === 'icon' ? (
-          <ListingActionIcon icon={Flag01Icon} label="Report" />
-        ) : appearance === 'icon-only' ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={cn(
-              'size-10 text-muted-foreground hover:text-foreground md:size-8',
-              triggerClassName,
-            )}
-            aria-label={triggerLabel}
-          >
-            <HugeiconsIcon icon={Flag01Icon} aria-hidden />
-          </Button>
-        ) : (
-          <Button type="button" variant={triggerVariant} size="sm" className="w-full sm:w-auto">
-            <HugeiconsIcon icon={Flag01Icon} aria-hidden />
-            {triggerLabel}
-          </Button>
-        )}
-      </DialogTrigger>
+      {appearance === 'none' ? null : (
+        <DialogTrigger asChild>
+          {appearance === 'icon' ? (
+            <ListingActionIcon icon={Flag01Icon} label="Report" />
+          ) : appearance === 'icon-only' ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'size-10 text-muted-foreground hover:text-foreground md:size-8',
+                triggerClassName,
+              )}
+              aria-label={triggerLabel}
+            >
+              <HugeiconsIcon icon={Flag01Icon} aria-hidden />
+            </Button>
+          ) : (
+            <Button type="button" variant={triggerVariant} size="sm" className="w-full sm:w-auto">
+              <HugeiconsIcon icon={Flag01Icon} aria-hidden />
+              {triggerLabel}
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         {/* The form is DialogContent's only child, so its flex gap cannot reach
             header, body and footer. Repeating the gap here spaces them the same

@@ -74,7 +74,10 @@ const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
           // `tabular-nums` on the large variant only: at display size the digits are
           // wide enough that proportional figures make the number jump sideways as it
           // is typed.
+          // NO SPINNER. `type="number"` draws up/down steppers on desktop, and a 1-cent
+          // stepper on a price is never what anyone wants; the keyboard still works.
           className={cn(
+            "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none",
             large
               ? "h-14 pl-11 text-head font-semibold tabular-nums md:h-14"
               : "pl-7",

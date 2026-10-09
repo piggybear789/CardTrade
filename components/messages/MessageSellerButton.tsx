@@ -53,11 +53,14 @@ export function MessageSellerButton({
   sellerId,
   size = 'lg',
   variant = 'button',
+  className,
 }: {
   itemId: string;
   sellerId: string;
   /** Trigger button size (button variant only). */
   size?: 'default' | 'sm' | 'lg';
+  /** Width override for the `button` variant, e.g. `w-full` in an action stack. */
+  className?: string;
   /**
    * `button` — labeled control.
    * `inline` — compose row on the listing.
@@ -229,11 +232,13 @@ export function MessageSellerButton({
 
   return (
     <div className="space-y-snug">
+      {/* Outline, not `secondary`: the lavender fill is this app's selected state,
+          and a message is a way to ask, not a choice already made. */}
       <Button
         type="button"
-        variant="secondary"
+        variant="outline"
         size={size}
-        className="w-full sm:w-auto"
+        className={className ?? 'w-full sm:w-auto'}
         onClick={handleClick}
         disabled={isPending}
         aria-busy={isPending}

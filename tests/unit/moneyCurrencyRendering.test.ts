@@ -151,7 +151,6 @@ describe('the formatAud ratchet', () => {
     'components/account/TradesSection.tsx',
     'components/contract/DittoBondExplainer.tsx',
     'components/deals/DealInviteList.tsx',
-    'components/offers/MakeOfferDialog.tsx',
     'components/reviews/ReviewList.tsx',
     'components/sales/CashSaleDisputeResolution.tsx',
     'components/trade/ItemPeekDialog.tsx',

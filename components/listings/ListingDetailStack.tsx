@@ -6,12 +6,13 @@ import { ExpandableDescription } from '@/components/listings/ExpandableDescripti
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
-import { formatMoney, formatRelativeTime } from '@/lib/format';
+import { displayLegalName, formatMoney, formatRelativeTime } from '@/lib/format';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
 import { buyerPaysCents, listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
 import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
+import { ListingFeeLine, ListingTrustRows } from '@/components/listings/ListingTrust';
 import { cn } from '@/lib/utils';
 
 /**
@@ -44,6 +45,8 @@ export function ListingDetailStack({
   sellerRatingCount,
   sellerIdentity,
   media,
+  showTrust = false,
+  sellerAction,
 }: {
   title: string;
   description: string;
@@ -68,6 +71,10 @@ export function ListingDetailStack({
   sellerIdentity: SellerIdentityDisclosure | null;
   /** The photo carousel, which heads the stack. */
   media?: ReactNode;
+  /** A buyer who can buy: show the fee line and how the purchase is protected. */
+  showTrust?: boolean;
+  /** Under the seller card: "Message seller" for a buyer. */
+  sellerAction?: ReactNode;
 }) {
   // "Multiple items", matching the listing form's own choice. It was "Binder listing",
   // a hobby word for a ring binder of trade stock that described stationery to
@@ -150,6 +157,10 @@ export function ListingDetailStack({
         </span>
       </div>
 
+      {showTrust && !isShopfront ? (
+        <ListingFeeLine priceCents={priceCents} currency={currency} className="mt-snug" />
+      ) : null}
+
       {meta ? (
         <p
           // Always two lines tall, at most two: with a location it wraps on a phone
@@ -200,7 +211,7 @@ export function ListingDetailStack({
               <>
                 {sellerIdentity.nameIsDocumentVerified ? 'Real name' : 'Stated name'}{' '}
                 <span className="font-medium text-foreground">
-                  {sellerIdentity.legalEntityName}
+                  {displayLegalName(sellerIdentity.legalEntityName)}
                 </span>
                 {sellerIdentity.tradingName ? (
                   <>
@@ -223,7 +234,13 @@ export function ListingDetailStack({
         />
       </Link>
 
+      {/* Message lives with the seller it goes to. It was a fourth unlabelled glyph in
+          the bottom bar, competing with Offer, Trade and Buy. */}
+      {sellerAction ? <div className="mt-snug">{sellerAction}</div> : null}
+
       <ExpandableDescription text={descriptionBody} className="mt-group" />
+
+      {showTrust ? <ListingTrustRows className="mt-group" /> : null}
     </div>
   );
 }

@@ -171,7 +171,7 @@ const SELLING: Stage[] = [
   },
   {
     title: 'Before it ships',
-    window: 'While you pack, and not after',
+    window: 'Within 3 business days of payment',
     moves: [
       <>
         Photograph the item, the packed parcel, then the sealed parcel with the label in

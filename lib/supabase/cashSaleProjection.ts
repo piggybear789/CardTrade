@@ -38,6 +38,8 @@ export const CASH_SALE_PUBLIC_SELECT = [
   'return_tracking_url', 'return_carrier_delivered_at', 'return_shipped_at',
   'return_deadline_at', 'return_warned_at', 'return_disputed_at',
   'return_dispute_reason', 'return_lapsed_at',
+  // 0132. The seller's ship-by date, shown on the posting step, and whether it lapsed.
+  'ship_by_at', 'ship_lapsed_at',
   // 0064. Drives the contract room's whole reading of itself: a shopfront
   // contract shows its line items instead of the listing snapshot, and prices
   // from those lines rather than from a directly proposed figure.

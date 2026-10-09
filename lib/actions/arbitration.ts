@@ -310,10 +310,12 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
     admin
       .from('cash_sales')
       .select(
-        'id, currency, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
+        'id, status, currency, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, ship_lapsed_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
       )
-      .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT'])
-      .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null'),
+      // 0132: an ESCROW_HELD sale past its ship-by date joins them. It leaves the queue
+      // by itself once tracking is recorded, because the sale leaves ESCROW_HELD.
+      .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT', 'ESCROW_HELD'])
+      .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null,ship_lapsed_at.not.is.null'),
     admin.from('arbitration_assignments').select('case_kind, case_ref, assignee_id'),
     admin.from('arbitration_notes').select('case_kind, case_ref'),
   ]);
@@ -432,12 +434,16 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
     const id = rc.id as string;
     const returnDisputedAt = (rc.return_disputed_at as string | null) ?? null;
     const returnLapsedAt = (rc.return_lapsed_at as string | null) ?? null;
+    const shipLapsedAt = (rc.ship_lapsed_at as string | null) ?? null;
     // A sale can be BOTH contested and lapsed (seller contests after the buyer also
     // fails to post). Contested takes precedence: a human already said "something is
-    // wrong", so it is the claim that matters.
+    // wrong", so it is the claim that matters. A missed ship-by only applies while the
+    // sale is still waiting to be posted.
     const situation: ArbitrationCaseSituation = returnDisputedAt
       ? 'RETURN_CONTESTED'
-      : 'RETURN_LAPSED';
+      : returnLapsedAt
+        ? 'RETURN_LAPSED'
+        : 'SHIP_LAPSED';
     const net = sellerNetCentsFor({
       amountCents: Number(rc.amount_cents ?? 0),
       platformFeeCents: Number(rc.platform_fee_cents ?? 0),
@@ -455,12 +461,19 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
       // case started waiting. For a lapsed return, `return_lapsed_at` is the moment the
       // sweep flagged it. Both are ISO-8601, both drive priority exactly like
       // `disputed_at` does for a condition dispute.
-      openedAt: situation === 'RETURN_CONTESTED' ? returnDisputedAt : returnLapsedAt,
+      openedAt:
+        situation === 'RETURN_CONTESTED'
+          ? returnDisputedAt
+          : situation === 'RETURN_LAPSED'
+            ? returnLapsedAt
+            : shipLapsedAt,
       raisedById: situation === 'RETURN_CONTESTED' ? (rc.seller_id as string) : null,
       claim:
         situation === 'RETURN_CONTESTED'
           ? ((rc.return_dispute_reason as string | null) ?? null)
-          : 'The buyer did not post the return within the deadline.',
+          : situation === 'RETURN_LAPSED'
+            ? 'The buyer did not post the return within the deadline.'
+            : 'The seller has not posted the item by the ship-by date. The buyer\'s payment is still held.',
       parties: [
         {
           id: rc.buyer_id as string,

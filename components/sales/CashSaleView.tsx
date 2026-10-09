@@ -85,7 +85,7 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
 
 import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
-import { formatMoney, formatContractDateTime, itemImageUrl } from '@/lib/format';
+import { formatMoney, formatContractDateTime, formatShortDate, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
   useCashSaleRealtime,
@@ -641,6 +641,18 @@ function CashSaleRoom({
     iAmBuyer ? sale.seller_handover_confirmed_at : sale.buyer_handover_confirmed_at,
   );
 
+  // 0132: the seller's ship-by date, on the posting step, for both sides. A lapsed date
+  // says so rather than counting into the past; staff have been flagged by then.
+  const shipByDate = formatShortDate(sale.ship_by_at);
+  const shipByNote =
+    sale.status === 'ESCROW_HELD' && isDelivery && shipByDate
+      ? sale.ship_lapsed_at
+        ? `Ship-by date passed (${shipByDate}) · our team is checking in`
+        : iAmSeller
+          ? `Post by ${shipByDate}`
+          : `The seller posts by ${shipByDate}`
+      : null;
+
   const steps = deriveCashSaleSteps({
     status: sale.status,
     viewerRole: iAmBuyer ? 'BUYER' : 'SELLER',
@@ -840,6 +852,7 @@ function CashSaleRoom({
                   // child in the button column.
                   note={
                     verificationNote ??
+                    shipByNote ??
                     (sale.tracking_number && sale.status === 'IN_TRANSIT' ? (
                       <>
                         {sale.tracking_carrier} · {sale.tracking_number}

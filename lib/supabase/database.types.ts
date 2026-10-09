@@ -905,6 +905,10 @@ export type Database = {
           return_shipped_at: string | null;
           return_deadline_at: string | null;
           return_lapsed_at: string | null;
+          /** Ship-by date for a posted sale, and its warning and lapse stamps (0132). */
+          ship_by_at: string | null;
+          ship_warned_at: string | null;
+          ship_lapsed_at: string | null;
       return_warned_at: string | null;
           return_disputed_at: string | null;
           return_dispute_reason: string | null;          inspection_deadline_at: string | null;
@@ -1016,6 +1020,9 @@ export type Database = {
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
           return_lapsed_at?: string | null;
+          ship_by_at?: string | null;
+          ship_warned_at?: string | null;
+          ship_lapsed_at?: string | null;
       return_warned_at?: string | null;
           return_disputed_at?: string | null;
           return_dispute_reason?: string | null;          inspection_deadline_at?: string | null;
@@ -1109,6 +1116,9 @@ export type Database = {
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
           return_lapsed_at?: string | null;
+          ship_by_at?: string | null;
+          ship_warned_at?: string | null;
+          ship_lapsed_at?: string | null;
       return_warned_at?: string | null;
           return_disputed_at?: string | null;
           return_dispute_reason?: string | null;          inspection_deadline_at?: string | null;

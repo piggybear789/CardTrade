@@ -8,6 +8,8 @@ import 'server-only';
 // schedule and handles:
 //   1. Notifying both parties when a sale auto-completed since the last pass
 //   2. Warning the buyer 24h before their inspection window closes
+//   3. Warning the seller 24h before the ship-by date, then flagging a sale that
+//      passed it unshipped (0132)
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -27,6 +29,10 @@ export interface CashSaleInspectionSweepResult {
   returnWarned: number;
   /** Returns whose deadline passed unposted, now flagged for staff (0089). */
   returnLapsed: number;
+  /** Sellers warned their ship-by date is a day away (0132). */
+  shipWarned: number;
+  /** Sales whose ship-by date passed unshipped, now flagged for staff (0132). */
+  shipLapsed: number;
 }
 
 /**
@@ -48,6 +54,8 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
     warned: 0,
     returnWarned: 0,
     returnLapsed: 0,
+    shipWarned: 0,
+    shipLapsed: 0,
   };
 
   // 1. Notify on recently auto-completed sales.
@@ -259,6 +267,109 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
       console.warn(`[cash-sale-sweep] lapse flag failed for ${sale.id}:`, err);
       await logBackgroundFailure({
         name: 'cash-sale.return-lapse',
+        errorCode: 'THREW',
+        error: err,
+        context: { cashSaleId: sale.id as string },
+      });
+    }
+  }
+
+  // 5. Ship-by (0132): warn the seller a day ahead, once.
+  const { data: shipSoon } = await admin
+    .from('cash_sales')
+    .select('id, seller_id')
+    .eq('status', 'ESCROW_HELD')
+    .is('ship_warned_at', null)
+    .not('ship_by_at', 'is', null)
+    .gt('ship_by_at', nowIso)
+    .lte('ship_by_at', warnBefore)
+    .limit(50);
+
+  for (const sale of shipSoon ?? []) {
+    try {
+      await createNotification({
+        userId: sale.seller_id as string,
+        type: 'SALE',
+        title: 'Post it within 24 hours',
+        body: 'The buyer has paid and is waiting. Post the item and add the tracking number before your ship-by date.',
+        link: `/sales/${sale.id}`,
+      });
+      // Stamped AFTER the send, so a failed send is retried on the next pass.
+      await admin
+        .from('cash_sales')
+        .update({ ship_warned_at: nowIso })
+        .eq('id', sale.id)
+        .is('ship_warned_at', null);
+      result.shipWarned += 1;
+    } catch (err) {
+      console.warn(`[cash-sale-sweep] ship warning failed for ${sale.id}:`, err);
+      await logBackgroundFailure({
+        name: 'cash-sale.ship-warning',
+        errorCode: 'THREW',
+        error: err,
+        context: { cashSaleId: sale.id as string },
+      });
+    }
+  }
+
+  // 6. Ship-by passed with nothing posted: flag for staff, tell both sides.
+  //
+  // NOTHING IS CANCELLED OR REFUNDED HERE — see 0132. The parcel may be in the post
+  // with tracking not yet recorded; a person looks before money moves. Recording the
+  // shipment moves the sale out of ESCROW_HELD and out of the staff queue on its own.
+  const { data: shipLapsed } = await admin
+    .from('cash_sales')
+    .select('id, buyer_id, seller_id')
+    .eq('status', 'ESCROW_HELD')
+    .is('ship_lapsed_at', null)
+    .not('ship_by_at', 'is', null)
+    .lt('ship_by_at', nowIso)
+    .limit(50);
+
+  for (const sale of shipLapsed ?? []) {
+    try {
+      const { data: won, error } = await admin
+        .from('cash_sales')
+        .update({ ship_lapsed_at: nowIso })
+        .eq('id', sale.id)
+        .is('ship_lapsed_at', null)
+        .select('id')
+        .maybeSingle();
+      if (error) {
+        await logBackgroundFailure({
+          name: 'cash-sale.ship-lapse',
+          errorCode: error.code || 'UPDATE_ERROR',
+          message: `ship_lapsed_at: ${error.message}`,
+          context: { cashSaleId: sale.id as string },
+        });
+        continue;
+      }
+      // Only the pass that won the stamp notifies, so a concurrent run cannot double-send.
+      if (!won) continue;
+
+      await createNotification({
+        userId: sale.seller_id as string,
+        type: 'SALE',
+        title: 'Ship-by date passed',
+        body:
+          'The item has not been marked as posted. Post it and add the tracking number '
+          + 'now — our team has been asked to check in on this sale.',
+        link: `/sales/${sale.id}`,
+      });
+      await createNotification({
+        userId: sale.buyer_id as string,
+        type: 'SALE',
+        title: 'Your seller has not posted yet',
+        body:
+          'The ship-by date has passed without tracking. Your payment is still held, '
+          + 'and our team is checking in with the seller.',
+        link: `/sales/${sale.id}`,
+      });
+      result.shipLapsed += 1;
+    } catch (err) {
+      console.warn(`[cash-sale-sweep] ship lapse failed for ${sale.id}:`, err);
+      await logBackgroundFailure({
+        name: 'cash-sale.ship-lapse',
         errorCode: 'THREW',
         error: err,
         context: { cashSaleId: sale.id as string },

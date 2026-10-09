@@ -149,7 +149,7 @@ function answers(tradeInspectionDays: number): Answer[] {
       keywords: 'ship shipping tracking post carrier parcel',
       body: (
         <p>
-          Post it tracked, then add the carrier and tracking number in the contract room.
+          Post it tracked within 3 business days of payment, then add the carrier and tracking number in the contract room.
           The buyer&rsquo;s window starts when the carrier confirms delivery.
         </p>
       ),

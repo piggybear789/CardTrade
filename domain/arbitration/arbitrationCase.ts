@@ -32,6 +32,8 @@ export type ArbitrationCaseKind = 'CASH_SALE' | 'TRADE' | 'CHARGEBACK';
  *   - A CASH_SALE in status DISPUTED is a condition or fraud dispute.
  *   - A CASH_SALE with `return_disputed_at` set is a Seller contesting a return.
  *   - A CASH_SALE with `return_lapsed_at` set is a Buyer who never posted it back.
+ *   - A CASH_SALE with `ship_lapsed_at` set, still unshipped, is a Seller who missed
+ *     the ship-by date (0132).
  *
  * Situation affects priority, queue labelling and which panel the detail page shows.
  * It does NOT affect the `kind` or `ref`, which still identify the underlying row.
@@ -41,7 +43,8 @@ export type ArbitrationCaseSituation =
   | 'FRAUD_DISPUTE'
   | 'CHARGEBACK'
   | 'RETURN_CONTESTED'
-  | 'RETURN_LAPSED';
+  | 'RETURN_LAPSED'
+  | 'SHIP_LAPSED';
 
 /**
  * How urgent a case is.
@@ -321,6 +324,7 @@ export const SITUATION_LABEL: Record<ArbitrationCaseSituation, string> = {
   CHARGEBACK: 'Chargeback',
   RETURN_CONTESTED: 'Return contested',
   RETURN_LAPSED: 'Return lapsed',
+  SHIP_LAPSED: 'Not shipped',
 };
 
 /**

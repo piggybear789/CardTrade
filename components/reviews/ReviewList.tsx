@@ -35,7 +35,7 @@ export function ReviewList({
     return (
       <EmptyState
         icon={<HugeiconsIcon icon={MessageSquareIcon} className="size-6" aria-hidden />}
-        title="No Reviews Yet"
+        title="No reviews yet"
         description={`Reviews appear here once ${revieweeName} completes a sale, purchase, or trade.`}
         titleAs="h4"
         compact

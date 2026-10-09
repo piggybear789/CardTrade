@@ -135,7 +135,7 @@ export function OffersSection({
     return scope === 'past' ? (
       <SharedEmptyState
         icon={<HugeiconsIcon icon={HandCoinsIcon} className="size-6" aria-hidden />}
-        title="No Past Offers"
+        title="No past offers"
         description="Decided or withdrawn offers will be kept here."
         compact
         fill
@@ -143,7 +143,7 @@ export function OffersSection({
     ) : (
       <EmptyState
         icon={<HugeiconsIcon icon={HandCoinsIcon} className="size-6" aria-hidden />}
-        title="No Offers Yet"
+        title="No offers yet"
         description="Make an offer on a listing, or wait for buyers to send you one."
         ctaLabel="Browse the marketplace"
         ctaHref="/"

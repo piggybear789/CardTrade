@@ -84,7 +84,7 @@ const EDIT_LISTING = /^\/listings\/[^/]+\/edit$/;
 
 export function HierarchicalChrome({ pathname }: { pathname: string }) {
   if (pathname === '/listings/new') {
-    return <ItemFormChrome title="New Listing" backHref="/" backLabel="Back to marketplace" />;
+    return <ItemFormChrome title="New listing" backHref="/" backLabel="Back to marketplace" />;
   }
 
   // EDIT GETS THE SAME TREATMENT AS CREATE. It used to fall through to the bare

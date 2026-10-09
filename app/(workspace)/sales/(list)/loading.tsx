@@ -16,13 +16,13 @@ export default function SalesLoading() {
     <MarketplaceShellSkeleton
       title="Sales"
       primaryAction={
-        <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
+        <RailPrimaryAction href="/listings/new">List an item</RailPrimaryAction>
       }
     >
       {/* No wrapper div: `sales/page.tsx` hangs these straight off `MarketplaceShell`,
           and an extra node here breaks the `flex-1` chain that `ContractScopeEmptyState`
           (`EmptyState … compact fill`) needs to claim the column's height. */}
-      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-44" />
+      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-[8.5rem]" />
       <SectionFilterSkeleton labels={['Active', 'Needs you', 'Waiting', 'Past']} />
       <ContractCardListSkeleton count={4} />
     </MarketplaceShellSkeleton>

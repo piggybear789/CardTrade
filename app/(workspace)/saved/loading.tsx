@@ -15,7 +15,7 @@ export default function SavedLoading() {
       title="Saved"
       primaryAction={
         <RailPrimaryAction href="/" glyph={null}>
-          Browse Marketplace
+          Browse marketplace
         </RailPrimaryAction>
       }
     >

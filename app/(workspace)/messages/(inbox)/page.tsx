@@ -69,9 +69,9 @@ export default async function MessagesPage() {
           </p>
           <EmptyState
             icon={<HugeiconsIcon icon={MessageSquareIcon} className="size-6" aria-hidden="true" />}
-            title="No Conversations Yet"
+            title="No conversations yet"
             description="Messages with buyers and sellers will appear here. Browse the marketplace to start a conversation."
-            action={{ label: 'Browse Marketplace', href: '/' }}
+            action={{ label: 'Browse marketplace', href: '/' }}
             help={{ label: 'How holds and disputes work', href: '/help#holds' }}
             compact
             hideActionOnMobile

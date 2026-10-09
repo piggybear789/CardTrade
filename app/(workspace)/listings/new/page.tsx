@@ -58,7 +58,7 @@ export default async function NewListingPage() {
   ]);
   if (!gate.satisfied) {
     return (
-      <MarketplaceShell title="New Listing" center>
+      <MarketplaceShell title="New listing" center>
         {/* SENDS THEM WHERE THE REQUIREMENT IS ACTUALLY RESOLVED, and says which of the
             two steps is outstanding. This used to read "Set Up Payouts First" and link to
             payout setup for an IDENTITY failure, which after 0069 does not open that gate
@@ -82,7 +82,7 @@ export default async function NewListingPage() {
   }
 
   return (
-    <MarketplaceShell title="New Listing">
+    <MarketplaceShell title="New listing">
       <ItemForm mode="create" defaultLocation={defaultLocation} />
     </MarketplaceShell>
   );

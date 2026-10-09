@@ -86,7 +86,7 @@ const STATUS_BADGE: Record<
   { variant: NonNullable<BadgeProps["variant"]>; label: string }
 > = {
   AVAILABLE: { variant: "default", label: "Available" },
-  RESERVED: { variant: "secondary", label: "Under Contract" },
+  RESERVED: { variant: "secondary", label: "Under contract" },
   SOLD: { variant: "outline", label: "Sold" },
 };
 
@@ -907,10 +907,10 @@ function ItemActions({
       const contractHref = activeSaleId
         ? `/sales/${activeSaleId}`
         : `/trades/${activeTradeId}`;
-      const contractLabel = activeSaleId ? "Open Sale" : "Open Trade";
+      const contractLabel = activeSaleId ? "Open sale" : "Open trade";
       return (
         <StatusNotice
-          title="Under Contract"
+          title="Under contract"
           description={`This item is in an active ${activeSaleId ? "sale" : "trade"}. Manage it from the contract room.`}
         >
           <Button asChild className="w-full sm:w-auto">
@@ -956,7 +956,7 @@ function ItemActions({
 
   // THE VIEWER ALREADY HAS A CONTRACT ON THIS ITEM. Checked BEFORE the availability
   // branch, because that is exactly the case where a SINGLE listing is RESERVED — and
-  // showing this buyer "Not Available" about goods they are currently buying would be the
+  // showing this buyer "Not available" about goods they are currently buying would be the
   // least useful thing on the page. It also comes before the buy and trade affordances,
   // since both would fail on a uniqueness constraint they cannot see or fix.
   if (myContractId) {
@@ -982,7 +982,7 @@ function ItemActions({
   if (!isAvailable) {
     return (
       <StatusNotice
-        title={isShopfront ? "Closed" : "Not Available"}
+        title={isShopfront ? "Closed" : "Not available"}
         description={
           isShopfront
             ? "This seller has closed the listing, so it is not taking new requests."
@@ -996,13 +996,13 @@ function ItemActions({
   if (!isAuthenticated) {
     return (
       <StatusNotice
-        title="Sign In to Continue"
+        title="Sign in to continue"
         description="Sign in to buy this item or propose a trade."
       >
         <Button asChild className="w-full sm:w-auto">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
             <HugeiconsIcon icon={LogInIcon} aria-hidden />
-            Sign In
+            Sign in
           </Link>
         </Button>
       </StatusNotice>

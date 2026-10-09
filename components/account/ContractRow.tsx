@@ -177,15 +177,15 @@ export function ContractScopeEmptyState({
 
   const copy = {
     'needs-you': {
-      title: 'Nothing Waiting On You',
+      title: 'Nothing waiting on you',
       description: `Every one of your open ${noun} is with the other party right now.`,
     },
     waiting: {
-      title: 'Nothing Waiting On Anyone Else',
+      title: 'Nothing waiting on anyone else',
       description: `None of your open ${noun} are sitting with the other party.`,
     },
     past: {
-      title: 'Nothing Finished Yet',
+      title: 'Nothing finished yet',
       description: `Completed and cancelled ${noun} are kept here.`,
     },
   }[scope];

@@ -18,7 +18,7 @@ import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHead
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
 export const metadata = {
-  title: 'My Listings · NoDitto',
+  title: 'My listings · NoDitto',
   description: 'Items you have listed for sale or trade.',
 };
 
@@ -36,13 +36,13 @@ export default async function MyListingsPage() {
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   const createListing = () => (
-    <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
+    <RailPrimaryAction href="/listings/new">List an item</RailPrimaryAction>
   );
 
   return (
-    <MarketplaceShell title="My Listings" primaryAction={createListing()}>
+    <MarketplaceShell title="My listings" primaryAction={createListing()}>
       <SectionHeader
-        title="My Listings"
+        title="My listings"
         description="Everything you have listed, including reserved and sold items."
         mobileAction={hasItems ? createListing() : undefined}
       />

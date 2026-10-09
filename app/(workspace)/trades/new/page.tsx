@@ -60,7 +60,7 @@ function Shell({
       primaryAction={
         // No plus: browsing the marketplace creates nothing.
         <RailPrimaryAction href="/" glyph={null}>
-          Browse Marketplace
+          Browse marketplace
         </RailPrimaryAction>
       }
     >
@@ -121,9 +121,9 @@ export default async function NewTradePage({
       <Shell center>
         <EmptyState
           variant="page"
-          title="Pick Something to Trade For"
+          title="Pick something to trade for"
           description="Find a listing you want, then choose Propose Trade on it. You decide what to put up, and they decide whether it is fair."
-          action={{ label: 'Browse Marketplace', href: '/' }}
+          action={{ label: 'Browse marketplace', href: '/' }}
         />
       </Shell>
     );
@@ -164,9 +164,9 @@ export default async function NewTradePage({
       <Shell center>
         <EmptyState
           variant="page"
-          title="This Item Is Not Open to Offers"
+          title="This item is not open to offers"
           description="It may have sold, been reserved, or belong to you. Browse the marketplace for something else to trade for."
-          action={{ label: 'Browse Marketplace', href: '/' }}
+          action={{ label: 'Browse marketplace', href: '/' }}
         />
       </Shell>
     );

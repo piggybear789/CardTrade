@@ -66,7 +66,7 @@ export default async function SalesPage({
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   const createListing = () => (
-    <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
+    <RailPrimaryAction href="/listings/new">List an item</RailPrimaryAction>
   );
 
   return (

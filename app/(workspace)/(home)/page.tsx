@@ -199,7 +199,7 @@ export default async function HomePage({
     // passes no `mobileAction`, so the override lands on desktop only.
     primaryAction: (
       <RailPrimaryAction href="/listings/new">
-        Create New Listing
+        List an item
       </RailPrimaryAction>
     ),
   };

@@ -33,7 +33,7 @@ class MyListingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Listings'),
+        title: const Text('My listings'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add_rounded),

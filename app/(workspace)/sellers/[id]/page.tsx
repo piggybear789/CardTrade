@@ -455,7 +455,7 @@ export default async function SellerProfilePage({
                 <SectionLoadError label="listings" />
               ) : catalogItems.length === 0 ? (
                 <EmptyState
-                  title="No Available Listings"
+                  title="No available listings"
                   titleAs="h4"
                   description="This seller has no available listings right now."
                   compact

@@ -63,7 +63,7 @@ export const MARKETPLACE_NAV_GROUPS = [
       // The catalog is the homepage. Listing detail pages stayed under
       // `/listings/[id]`, which is why the active-state helper below cannot
       // simply prefix-match this href.
-      { href: '/', label: 'Browse All', icon: LayoutGridIcon },
+      { href: '/', label: 'Browse all', icon: LayoutGridIcon },
       // The heart, the same glyph `WatchButton` saves with. It was a bookmark, so
       // members saved with one symbol and found their saves under another.
       { href: '/saved', label: 'Saved', icon: HeartIcon },
@@ -83,7 +83,7 @@ export const MARKETPLACE_NAV_GROUPS = [
     label: 'Selling',
     links: [
       { href: '/listings/new', label: 'Sell an item', icon: PackagePlusIcon },
-      { href: '/listings/mine', label: 'My Listings', icon: TagsIcon },
+      { href: '/listings/mine', label: 'My listings', icon: TagsIcon },
       { href: '/offers', label: 'Offers', icon: HandCoinsIcon },
     ],
   },

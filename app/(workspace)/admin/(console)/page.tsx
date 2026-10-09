@@ -275,7 +275,7 @@ function NotAuthorized() {
       <EmptyState
         variant="page"
         icon={<HugeiconsIcon icon={ShieldAlertIcon} className="size-6" aria-hidden />}
-        title="Not Authorized"
+        title="Not authorized"
         titleAs="h1"
         description="You don't have permission to view the operations console."
         action={{ label: 'Return home', href: '/', variant: 'outline' }}
@@ -516,7 +516,7 @@ export default async function AdminPage({
 
           {owedPayouts.length === 0 ? (
             <EmptyState
-              title="Nothing Owed"
+              title="Nothing owed"
               titleAs="h4"
               description="Every completed sale has been released to its seller."
               compact
@@ -604,7 +604,7 @@ export default async function AdminPage({
 
           {reports.length === 0 ? (
             <EmptyState
-              title="No Reports"
+              title="No reports"
               titleAs="h4"
               description="No reports have been submitted."
               compact
@@ -702,7 +702,7 @@ export default async function AdminPage({
 
           {feedback.length === 0 ? (
             <EmptyState
-              title="No Feedback"
+              title="No feedback"
               titleAs="h4"
               description="No feedback has been submitted."
               compact
@@ -787,7 +787,7 @@ export default async function AdminPage({
 
           {trades.length === 0 ? (
             <EmptyState
-              title="No Flagged Trades"
+              title="No flagged trades"
               titleAs="h4"
               description="No trades need manual reconciliation."
               compact

@@ -34,7 +34,7 @@ export default function NewTradeLoading() {
       title="Offer a Trade"
       primaryAction={
         <RailPrimaryAction href="/" glyph={null}>
-          Browse Marketplace
+          Browse marketplace
         </RailPrimaryAction>
       }
       center

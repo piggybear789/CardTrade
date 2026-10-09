@@ -23,7 +23,7 @@ export function WatchlistSection({ items }: { items: WatchlistEntry[] }) {
     return (
       <EmptyState
         icon={<HugeiconsIcon icon={HeartIcon} className="size-6" aria-hidden />}
-        title="No Saved Listings Yet"
+        title="No saved listings yet"
         description="Tap the heart on any listing to save it here for later."
         ctaLabel="Browse the marketplace"
         ctaHref="/"

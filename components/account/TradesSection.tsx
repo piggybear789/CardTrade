@@ -51,7 +51,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
     return (
       <EmptyState
         icon={<HugeiconsIcon icon={ArrowLeftRightIcon} className="size-6" aria-hidden />}
-        title="No Trades Yet"
+        title="No trades yet"
         description="Find an item you'd like to swap for and propose a trade."
         ctaLabel="Browse the marketplace"
         ctaHref="/"

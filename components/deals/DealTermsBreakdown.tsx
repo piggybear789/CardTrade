@@ -71,7 +71,7 @@ export function TradeTermsBreakdown({
 }) {
   return (
     <Breakdown>
-      <BreakdownRow label="Transaction Details" value="Held collateral" strong />
+      <BreakdownRow label="Transaction details" value="Held collateral" strong />
       <BreakdownRule />
       <BreakdownRow
         label="Held on your payment card"

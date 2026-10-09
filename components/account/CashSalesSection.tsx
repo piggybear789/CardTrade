@@ -53,7 +53,7 @@ export function CashSalesSection({
     return variant === 'purchases' ? (
       <EmptyState
         icon={<HugeiconsIcon icon={ShoppingBag01Icon} className="size-6" aria-hidden />}
-        title="No Purchases Yet"
+        title="No purchases yet"
         description="Browse the marketplace and buy your first collectible."
         ctaLabel="Browse the marketplace"
         ctaHref="/"
@@ -61,7 +61,7 @@ export function CashSalesSection({
     ) : (
       <EmptyState
         icon={<HugeiconsIcon icon={Tag01Icon} className="size-6" aria-hidden />}
-        title="No Sales Yet"
+        title="No sales yet"
         description="List an item so buyers can purchase it outright."
         ctaLabel="List an item"
         ctaHref="/listings/new"

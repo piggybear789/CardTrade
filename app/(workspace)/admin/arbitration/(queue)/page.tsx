@@ -95,7 +95,7 @@ export default async function ArbitrationQueuePage({
         <EmptyState
           variant="page"
           icon={<HugeiconsIcon icon={ShieldAlertIcon} className="size-6" aria-hidden />}
-          title="Not Authorized"
+          title="Not authorized"
           titleAs="h3"
           description="Cases are limited to NoDitto support staff."
           action={{ label: 'Return home', href: '/', variant: 'outline' }}

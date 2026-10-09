@@ -65,7 +65,7 @@ export interface ItemCardProps {
 
 /** Human-readable label for a non-AVAILABLE item, shown as an overlay badge. */
 const UNAVAILABLE_LABEL: Record<string, string> = {
-  RESERVED: 'Under Contract',
+  RESERVED: 'Under contract',
   SOLD: 'Sold',
 };
 

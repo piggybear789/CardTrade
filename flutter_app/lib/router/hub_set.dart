@@ -119,7 +119,7 @@ const List<MobileHub> kMobileHubs = <MobileHub>[
     destinations: <HubDestination>[
       HubDestination(
         path: AppRoutes.home,
-        label: 'Browse All',
+        label: 'Browse all',
         icon: Icons.grid_view_outlined,
       ),
     ],
@@ -172,7 +172,7 @@ const List<MobileHub> kMobileHubs = <MobileHub>[
       ),
       HubDestination(
         path: AppRoutes.myListings,
-        label: 'My Listings',
+        label: 'My listings',
         icon: Icons.local_offer_outlined,
       ),
       HubDestination(

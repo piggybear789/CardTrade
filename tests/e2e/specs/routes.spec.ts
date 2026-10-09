@@ -9,12 +9,12 @@
 // time for little confidence).
 //
 // SELECTORS PROBED FROM THE RUNNING APP (2024-08-08), not guessed from source:
-//   /purchases   — h1 "Purchases" (×2, shell), h2/h3 "No Purchases Yet"
-//   /saved       — h1 "Saved" (×2), h2/h3 "No Saved Listings Yet"
+//   /purchases   — h1 "Purchases" (×2, shell), h2/h3 "No purchases yet"
+//   /saved       — h1 "Saved" (×2), h2/h3 "No saved listings yet"
 //   /sellers/[id]— h1 "Seller" (shell), h2 = display name, h2 "Available listings"
 //   /messages/[id]— h1 "Messages" (shell), h2 = item title (counterparty in the
 //                   subline), link "View listing", textarea placeholder "Write a message…"
-//   /sales       — h1 "Sales" (×2), h2/h3 "No Sales Yet", link "Create New Listing"
+//   /sales       — h1 "Sales" (×2), h2/h3 "No sales yet", link "List an item"
 //   /account-suspended — h1 "Account permanently suspended", link "Return to home"
 
 import { test, expect } from '../support/fixtures';
@@ -92,7 +92,7 @@ test.describe('/sellers/[id]', () => {
 
     // Section headings for the two content blocks.
     await expect(
-      // `exact`, because the empty state's "No Available Listings" heading
+      // `exact`, because the empty state's "No available listings" heading
       // contains this name as a substring and the two are a strict-mode
       // violation whenever the seller has nothing available.
       page.getByRole('heading', { name: 'Available listings', exact: true }),
@@ -179,7 +179,7 @@ test.describe('/sales', () => {
 
     // Primary action in the rail / section header.
     await expect(
-      page.getByRole('link', { name: 'Create New Listing' }).first(),
+      page.getByRole('link', { name: 'List an item' }).first(),
     ).toBeVisible();
   });
 });

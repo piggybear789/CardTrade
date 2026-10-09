@@ -136,7 +136,7 @@ export default async function TradesPage({
       ) : scope === 'active' ? (
         <StartDealEmptyState
           icon={<HugeiconsIcon icon={HourglassIcon} className="size-6" aria-hidden="true" />}
-          title="No Trades Yet"
+          title="No trades yet"
           description="Find an item you would like, then offer whatever you think is fair for it. Or send a private deal link."
           help={{ label: 'How holds and disputes work', href: '/help#holds' }}
           compact

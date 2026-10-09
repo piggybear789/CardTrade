@@ -68,7 +68,7 @@ export default async function PurchasesPage({
   // No plus: browsing the marketplace creates nothing.
   const browseMarketplace = () => (
     <RailPrimaryAction href="/" glyph={null}>
-      Browse Marketplace
+      Browse marketplace
     </RailPrimaryAction>
   );
 

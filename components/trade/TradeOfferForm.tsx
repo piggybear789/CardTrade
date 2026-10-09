@@ -543,8 +543,8 @@ export function TradeOfferForm({
         aria-busy={isPending}
         className="w-full sm:w-auto"
       >
-        <PendingLabel pending={isPending} pendingLabel="Sending Offer…" spinner={false}>
-          Send Offer
+        <PendingLabel pending={isPending} pendingLabel="Sending offer…" spinner={false}>
+          Send offer
         </PendingLabel>
       </Button>
     </>

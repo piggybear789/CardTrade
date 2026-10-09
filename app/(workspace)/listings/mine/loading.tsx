@@ -77,13 +77,13 @@ const ROW_TITLE_WIDTHS = ['w-2/3', 'w-1/2', 'w-2/3', 'w-1/2', 'w-2/3', 'w-1/2'];
 export default function MyListingsLoading() {
   return (
     <MarketplaceShellSkeleton
-      title="My Listings"
+      title="My listings"
       primaryAction={
-        <RailPrimaryAction href="/listings/new">Create New Listing</RailPrimaryAction>
+        <RailPrimaryAction href="/listings/new">List an item</RailPrimaryAction>
       }
     >
       {/* No wrapper div — see the note in `saved/loading.tsx`. */}
-      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-44" />
+      <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-[8.5rem]" />
       <div className="space-y-group" aria-hidden="true">
         <div className="grid grid-cols-2 gap-snug sm:grid-cols-4 sm:gap-cozy">
           <StatSkeleton labelWidth="w-8" />

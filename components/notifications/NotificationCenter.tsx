@@ -88,7 +88,7 @@ export function NotificationCenter({
     return (
       <EmptyState
         icon={<HugeiconsIcon icon={BellOffIcon} className="size-6" aria-hidden />}
-        title="No Notifications Yet"
+        title="No notifications yet"
         description="Offers, messages, trades, and sales updates will show up here."
         fill
       />

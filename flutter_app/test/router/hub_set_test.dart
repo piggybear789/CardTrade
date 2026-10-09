@@ -210,7 +210,7 @@ void main() {
       };
 
       expect(rows[MobileHubId.contracts], <String>['Purchases', 'Sales', 'Trades']);
-      expect(rows[MobileHubId.sell], <String>['Sell an item', 'My Listings', 'Offers']);
+      expect(rows[MobileHubId.sell], <String>['Sell an item', 'My listings', 'Offers']);
 
       // Req 4.6: the web's private-deal row is omitted rather than shown inert,
       // and the supporting copy must not promise it either.

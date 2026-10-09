@@ -22,7 +22,7 @@ export default function OffersLoading() {
       title="Offers"
       primaryAction={
         <RailPrimaryAction href="/" glyph={null}>
-          Browse Marketplace
+          Browse marketplace
         </RailPrimaryAction>
       }
     >

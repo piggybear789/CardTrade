@@ -16,7 +16,7 @@ export default function PurchasesLoading() {
       title="Purchases"
       primaryAction={
         <RailPrimaryAction href="/" glyph={null}>
-          Browse Marketplace
+          Browse marketplace
         </RailPrimaryAction>
       }
     >

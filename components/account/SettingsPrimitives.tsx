@@ -203,22 +203,36 @@ export function SettingsListRow({
     <>
       {Glyph ? <IconMedallion icon={Glyph} tone={tone} /> : null}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-body font-medium text-foreground">{label}</span>
+        {/* LABEL AND VALUE SHARE THE FIRST LINE; THE DESCRIPTION GETS THE WHOLE SECOND.
+            The label is the row's name, so it keeps its width and the value truncates
+            instead. With the value in its own column beside a two-line block, a phone
+            cut the label to "Browsing re…", and the description beside a value was
+            squeezed to a dozen characters. */}
+        <span className="flex min-w-0 items-baseline gap-cozy">
+          <span
+            className={cn(
+              'text-body font-medium text-foreground',
+              // Alone on its line it may wrap; beside a value it holds its width.
+              value ? 'shrink-0' : 'min-w-0',
+            )}
+          >
+            {label}
+          </span>
+          {value ? (
+            <span className="min-w-0 flex-1 truncate text-right text-body text-muted-foreground">
+              {value}
+            </span>
+          ) : null}
+        </span>
         {description ? (
           // ONE LINE, and it gets the row's full width — which is the point of using
-          // it over `value` for something long. A bio in the value slot was capped at
-          // 45% of a phone screen and truncated at about nineteen characters, so the
-          // preview showed nothing worth reading.
+          // it over `value` for something long. One line is also what
+          // `SettingsRowSkeleton` reserves.
           <span className="mt-0.5 line-clamp-1 text-body leading-snug text-muted-foreground">
             {description}
           </span>
         ) : null}
       </span>
-      {value ? (
-        <span className="min-w-0 max-w-[45%] truncate text-right text-body text-muted-foreground">
-          {value}
-        </span>
-      ) : null}
       {trailing ?? null}
       {interactive && !trailing ? (
         <HugeiconsIcon icon={ChevronRightIcon} className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
@@ -374,11 +388,15 @@ export function SettingsRowSkeleton({
 }) {
   // The label and value bars are texture inside the row's `min-h-12` box (the icon
   // medallion and the row floor carry the height), so they draw from the canonical set.
+  // The value sits on the label's line, as it does in `SettingsListRow`.
   return (
     <div className={ROW_SHAPE} aria-hidden>
       {icon ? <Skeleton className="size-9 shrink-0 rounded-full" /> : null}
       <span className="min-w-0 flex-1">
-        <TextLines className="text-body" widths={[labelClassName]} />
+        <span className="flex min-w-0 items-center justify-between gap-cozy">
+          <TextLines className="min-w-0 flex-1 text-body" widths={[labelClassName]} />
+          <Skeleton className={cn('h-4 shrink-0', valueClassName)} />
+        </span>
         {description ? (
           <TextLines
             className="mt-0.5 text-body leading-snug"
@@ -386,7 +404,6 @@ export function SettingsRowSkeleton({
           />
         ) : null}
       </span>
-      <Skeleton className={cn('h-4', valueClassName)} />
       <span className="size-4 shrink-0" />
     </div>
   );

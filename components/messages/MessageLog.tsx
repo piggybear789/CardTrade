@@ -13,7 +13,7 @@ import { ExternalLinkIcon, FileTextIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
-import { classifyContractEvent } from '@/components/contract/contractEventTone';
+import { ContractEventIcon, classifyContractEvent } from '@/components/contract/contractEventTone';
 import { cn } from '@/lib/utils';
 import {
   formatAttachmentBytes,
@@ -67,6 +67,33 @@ export const MESSAGE_PROSE = 'max-w-[44rem]';
  * code still present in seeded and pre-0012 rooms.
  */
 const SHIPMENT_EVENTS = new Set(['SHIPMENT_RECORDED', 'SHIPPED']);
+
+/**
+ * The milestones that get a card rather than a one-line notice: the handful a member
+ * scrolls back to find — money held, goods sent, goods arrived, a problem raised, the
+ * end. Everything else (terms edits, confirmations) stays a centred line. Keyed by
+ * event code; an unknown code is never a milestone.
+ */
+const MILESTONE_TITLE: Record<string, string> = {
+  PAYMENT_CLEARED: 'Payment held',
+  ESCROW_LOCKED: 'Payment held',
+  HOLDS_CONFIRMED: 'Holds placed',
+  SHIPMENT_RECORDED: 'Shipped',
+  SHIPPED: 'Shipped',
+  BOTH_SHIPPED: 'Both items shipped',
+  CARRIER_DELIVERED: 'Delivered',
+  RECEIPT_RECORDED: 'Received',
+  BOTH_RECEIVED: 'Both items received',
+  DISPUTE_RAISED: 'Dispute raised',
+  CONDITION_DISPUTE: 'Dispute raised',
+  INSPECTION_ACCEPTED: 'Completed',
+  AUTO_COMPLETED: 'Completed',
+  BOTH_ACCEPTED: 'Completed',
+  COMPLETED: 'Completed',
+  DEAL_COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+  DEAL_CANCELLED: 'Cancelled',
+};
 
 /** Carrier details for the shipped milestone, when the thread has a shipment. */
 export interface MessageLogShipment {
@@ -344,7 +371,9 @@ function contractEventBody(
  *
  * SO: centred, `text-meta`, muted, one line per event, no icon, no heading. The same
  * treatment the day divider above it already uses, which is the point — both are the
- * transcript talking rather than a person.
+ * transcript talking rather than a person. THE EXCEPTION is the handful of milestones
+ * in `MILESTONE_TITLE` — money held, goods sent and arrived, a dispute, the end — which
+ * render as small cards, because those are what a member scrolls back to find.
  *
  * WHAT IS KEPT AND WHY. The timestamp stays, inline as a prefix: these lines are the
  * audit trail an arbitrator reads, and "when" is half of what they are for. Destructive
@@ -379,6 +408,51 @@ function ContractMilestones({
           (!saleContext || belongsToSelectedSale(message, saleContext))
             ? shipment
             : null;
+
+        const milestone = message.system_event ? MILESTONE_TITLE[message.system_event] : undefined;
+        if (milestone) {
+          // A MILESTONE IS A CARD: a title that names it, the event's own sentence as
+          // the one fact, the time, and the one link it has (Track). As a faint centred
+          // line, "payment held" and "shipped" were the same weight as a terms edit,
+          // and they are what a member scrolls back to find.
+          return (
+            <li key={message.id} className="flex justify-center">
+              <div
+                className={cn(
+                  'w-full max-w-sm rounded-lg border bg-card px-cozy py-snug',
+                  alarming && 'border-destructive/40 bg-destructive/[0.04]',
+                )}
+              >
+                <div className="flex items-center gap-snug">
+                  <ContractEventIcon tone={tone} />
+                  <p className="min-w-0 flex-1 truncate text-body font-semibold">{milestone}</p>
+                  <time
+                    dateTime={message.created_at}
+                    suppressHydrationWarning
+                    className="shrink-0 text-meta text-muted-foreground"
+                  >
+                    {messageTimeLabel(message.created_at)}
+                  </time>
+                </div>
+                <p className="mt-0.5 text-pretty text-meta text-muted-foreground">
+                  {contractEventBody(message, saleContext)}
+                </p>
+                {tracked ? (
+                  <a
+                    href={tracked.trackingUrl as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Track parcel${tracked.carrier ? ` with ${tracked.carrier}` : ''} (opens in a new tab)`}
+                    className="mt-tight inline-flex items-center gap-0.5 text-meta font-medium text-foreground underline decoration-iris/55 underline-offset-4 transition-colors hover:decoration-iris focus:outline-none focus-visible:decoration-iris"
+                  >
+                    Track parcel
+                    <HugeiconsIcon icon={ExternalLinkIcon} className="size-3 shrink-0" aria-hidden />
+                  </a>
+                ) : null}
+              </div>
+            </li>
+          );
+        }
 
         return (
           <li key={message.id} className="flex flex-col items-center gap-0.5">

@@ -45,10 +45,9 @@ export function CatalogTileSkeleton({
       <Skeleton
         className={cn(
           'w-full rounded-none',
-          // Square at every width, like the real cover. The `md:aspect-[3/4]`
-          // that used to be here was left over from a desktop cover that is no
-          // longer 3:4.
-          inMosaic ? 'catalog-cover' : 'aspect-square',
+          // 3:4 like the real cover: the photo's own shape in the phone mosaic,
+          // portrait everywhere else.
+          inMosaic ? 'catalog-cover' : 'aspect-[3/4]',
         )}
         style={
           inMosaic

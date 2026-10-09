@@ -3,7 +3,7 @@ import { memo, ViewTransition } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { BadgeXIcon, ImageOffIcon, LibraryIcon, LockIcon, StarIcon } from '@hugeicons/core-free-icons';
+import { BadgeXIcon, HeartIcon, ImageOffIcon, LibraryIcon, LockIcon, StarIcon } from '@hugeicons/core-free-icons';
 import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
 
 import { Card } from '@/components/ui/card';
@@ -153,15 +153,14 @@ export const CatalogItemCard = memo(function CatalogItemCard({
       className={cn(
         // `contain-intrinsic-size` is the height a tile skipped by
         // `content-visibility: auto` is assumed to have until it first renders.
-        // 22rem, not 15rem: a square cover plus the ~142px text block measures
-        // ~19.5rem in a two-column phone grid and ~24rem at desktop widths, so
-        // 240px under-reserved every off-screen row by more than a third and the
-        // page grew — and the scrollbar jumped — each time a row came into range.
+        // 26rem: a 3:4 cover plus the ~142px text block measures ~23rem in a
+        // two-column phone grid and ~29rem at desktop widths. Under-reserving made
+        // the page grow — and the scrollbar jump — each time a row came into range.
         // The mosaic replaces this per tile below md (`.catalog-tile`).
         //
         // A border, not `border-0`: the card and the page are both white now,
         // so the edge is the only thing separating them.
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_22rem]',
+        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_26rem]',
         // `cursor-pointer` ON THE CARD, not left to the anchor. The hit area is
         // `absolute inset-0 z-0` and the cover paints above it without
         // `pointer-events-none`, so hovering the photo — most of the tile —
@@ -215,17 +214,13 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           // `WatchButton` below restores `pointer-events-auto` on itself, which is the
           // same arrangement the text block uses for the seller link.
           'pointer-events-none',
-          // Square at every width. The desktop cover used to be 3:4, which made
-          // the tile tall enough that a row of them dominated the grid.
-          //
-          // `md:!aspect-square` ON THE MOSAIC BRANCH, because `.catalog-cover` in
-          // `globals.css` still carries that old 3:4 as its base rule and, as a
-          // plain rule after `@tailwind utilities`, beats any unprefixed utility.
-          // The server renders the mosaic whenever it has no viewport hint, so on
-          // a desktop first visit every tile painted 3:4 and then shrank to square
-          // when hydration swapped in the flat grid — a whole-page shift on the
-          // one load that is most likely to be measured.
-          inMosaic ? 'catalog-cover md:!aspect-square' : 'aspect-square',
+          // PORTRAIT 3:4, because the goods are. A square crop cut the grade label
+          // off the top of every slab — the one part of a graded card's photo a
+          // buyer reads first. In the phone mosaic the cover takes the photo's own
+          // shape; `.catalog-cover` (globals.css) is 3:4 from md, and the flat grid
+          // matches it, so the server's mosaic and the hydrated grid agree on a
+          // desktop first visit and nothing shifts.
+          inMosaic ? 'catalog-cover' : 'aspect-[3/4]',
         )}
       >
         {imageUrl ? (
@@ -240,7 +235,9 @@ export const CatalogItemCard = memo(function CatalogItemCard({
                 alt={item.title}
                 fill
                 sizes={COVER_SIZES}
-                className={cn('object-cover', unavailableLabel && 'grayscale-[35%]')}
+                // Anchored to the TOP: a slab's grade label is at the top of the photo,
+                // and a centred crop of anything taller than 3:4 cut it off.
+                className={cn('object-cover object-top', unavailableLabel && 'grayscale-[35%]')}
                 loading={eager ? 'eager' : 'lazy'}
                 fetchPriority={eager ? 'high' : undefined}
               />
@@ -270,7 +267,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             Multiple items
           </span>
         ) : null}
-        {showWatch ? (
+        {showWatch || item.watch_count > 0 ? (
           // ONE CHIP AT EVERY WIDTH: 32px around an 18px heart. From `md` it was
           // 40px around 16px, and since the heart only spans 20 of its 24 viewBox
           // units the glyph filled about a third of the disc — a white blob with a
@@ -291,12 +288,30 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           // over the tile's full-bleed link — a near miss opened the listing
           // instead of saving it (F28). The 6px inset, shared with the flag, puts
           // that box flush with the photo's edge.
-          <WatchButton
-            itemId={item.id}
-            initialWatching={initialWatching}
-            variant="icon"
-            className="pointer-events-auto absolute right-1.5 top-1.5 z-10 size-8 rounded-full border-foreground/10 bg-card text-foreground after:-inset-1.5 hover:bg-card hover:text-foreground [&_svg]:size-[18px] [&_svg]:translate-y-px"
-          />
+          //
+          // THE SAVE COUNT RIDES IN THE PILL. It sat beside the price, where "3 saved"
+          // competed with the figure that decides the purchase and was dropped on
+          // phones for lack of room. Beside the heart it says what it counts without
+          // a word, at every width. A viewer who cannot save (a guest, the owner)
+          // still sees the count, as the same pill without the button.
+          showWatch ? (
+            <WatchButton
+              itemId={item.id}
+              initialWatching={initialWatching ?? false}
+              variant="icon"
+              count={item.watch_count}
+              className={cn(
+                'pointer-events-auto absolute right-1.5 top-1.5 z-10 h-8 min-w-8 gap-0.5 rounded-full border-foreground/10 bg-card text-foreground after:-inset-1.5 hover:bg-card hover:text-foreground md:size-auto md:h-8 [&_svg]:size-[18px] [&_svg]:translate-y-px',
+                item.watch_count > 0 ? 'w-auto px-2' : 'size-8 md:size-8',
+              )}
+            />
+          ) : (
+            <span className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 items-center gap-0.5 rounded-full border border-foreground/10 bg-card px-2 text-meta font-medium tabular-nums text-foreground">
+              <HugeiconsIcon icon={HeartIcon} className="size-[18px] translate-y-px" strokeWidth={1.75} aria-hidden />
+              {item.watch_count}
+              <span className="sr-only"> saves</span>
+            </span>
+          )
         ) : null}
       </div>
       {/* `gap` on the column, not a margin per row. The rows used to be spaced
@@ -327,16 +342,17 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             
             The filter-confirmation argument is real but belongs to a surface with
             room — the listing page states condition in full. */}
+        {/* GAME · CONDITION. Condition came back because the cover alone does not
+            say it: a raw card's wear is invisible at tile size, and filtering to Near
+            Mint showed nothing that confirmed it. A graded card's grade stays in its
+            title, where sellers already write it. */}
         <p className="min-w-0 truncate text-body leading-tight text-muted-foreground">
           {item.category}
+          {item.condition && !isShopfront ? ` · ${item.condition}` : null}
         </p>
-        {/* THE PRICE STANDS ALONE; THE SAVE COUNT GOES TO THE RIGHT EDGE.
-            
-            It used to sit straight after the price at `body` size, in the same muted
-            grey as the cents, so "$4,000.00 1 saved" read as one figure with a word
-            stuck on the end. At the right edge, at `meta`, it sits directly above
-            the seller's star rating and matches it: a small
-            column of social proof, kept apart from what the card costs. */}
+        {/* THE PRICE, AND WHAT IT INCLUDES. A single listing's figure is what the
+            buyer pays — the asking price plus the buyer fee — so it says so in a word;
+            a binder's "from" price is the seller's own and carries no note. */}
         <div className="flex min-w-0 items-center justify-between gap-snug">
           {/* INK, NOT VIOLET, and this is the change the pastel retune specified and
               never delivered here.
@@ -361,21 +377,19 @@ export const CatalogItemCard = memo(function CatalogItemCard({
               {price.symbol}
             </span>
             <span className="text-head">{price.major}</span>
-            {price.minor ? (
+            {/* WHOLE DOLLARS STAY WHOLE. ".00" on every tile was two muted digits of
+                noise in a grid of prices; real cents still show. */}
+            {price.minor && /[1-9]/.test(price.minor) ? (
               <span className="text-body font-semibold text-muted-foreground">
                 {price.minor}
               </span>
             ) : null}
           </p>
-          {item.watch_count > 0 ? (
-            // Words, not a heart glyph: "3 saved" says what the number counts on its
-            // own. `meta` and tabular digits to match `SellerRating` below it.
-            //
-            // From `sm` only. A two-column phone tile has ~150px for this row, and a
-            // six-figure price alone takes most of it: both are `shrink-0`, so the
-            // count ran off the card's edge and was clipped mid-word.
-            <span className="hidden shrink-0 text-meta tabular-nums text-muted-foreground sm:inline">
-              {item.watch_count} saved
+          {!isShopfront ? (
+            // From `sm` only: a two-column phone tile has ~150px for this row and a
+            // six-figure price takes most of it. The listing page states the fee.
+            <span className="hidden shrink-0 text-meta text-muted-foreground sm:inline">
+              incl. fees
             </span>
           ) : null}
         </div>

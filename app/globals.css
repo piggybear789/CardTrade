@@ -623,12 +623,12 @@
    photo neither reader could decode — falls back through the custom property to
    square on phone, rather than collapsing to nothing. */
 .catalog-cover {
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 3 / 4;
 }
 
 @media (max-width: 767px) {
   .catalog-cover {
-    aspect-ratio: var(--catalog-cover-aspect, 1 / 1);
+    aspect-ratio: var(--catalog-cover-aspect, 3 / 4);
   }
 
   /* `content-visibility: auto` needs a height for tiles it has skipped, and in a
@@ -636,7 +636,7 @@
      carries as a Tailwind utility; wins on source order, since this file's
      plain rules come after `@tailwind utilities`. */
   .catalog-tile {
-    contain-intrinsic-size: auto var(--catalog-tile-height, 22rem);
+    contain-intrinsic-size: auto var(--catalog-tile-height, 26rem);
   }
 }
 

@@ -45,6 +45,12 @@ export interface WatchButtonProps {
   className?: string;
   /** Glyph size for the `icon` variant; `size-3.5` suits dense cards, page chrome wants more. */
   glyphClassName?: string;
+  /**
+   * How many members have saved the item, drawn beside the heart (`icon` variant).
+   * The server's figure; the member's own toggle is applied on top so the number
+   * moves with the heart rather than waiting for a reload.
+   */
+  count?: number;
 }
 
 /**
@@ -57,6 +63,7 @@ export function WatchButton({
   variant = 'labeled',
   className,
   glyphClassName = 'size-3.5',
+  count,
 }: WatchButtonProps) {
   const [watching, setWatching] = useState(initialWatching);
   const [isPending, startTransition] = useTransition();
@@ -103,6 +110,8 @@ export function WatchButton({
   }
 
   if (variant === 'icon') {
+    const shown =
+      count === undefined ? 0 : Math.max(0, count + Number(watching) - Number(initialWatching));
     return (
       <button
         type="button"
@@ -113,7 +122,9 @@ export function WatchButton({
         }}
         disabled={isPending}
         aria-pressed={watching}
-        aria-label={watching ? 'Remove from saved items' : 'Save item'}
+        aria-label={`${watching ? 'Remove from saved items' : 'Save item'}${
+          shown > 0 ? `, saved by ${shown}` : ''
+        }`}
         aria-busy={isPending}
         className={cn(
           // Same weight as the watching count: a glyph in the chrome, not a
@@ -136,6 +147,11 @@ export function WatchButton({
           strokeWidth={1.75}
           aria-hidden
         />
+        {shown > 0 ? (
+          <span className="text-meta font-medium tabular-nums" aria-hidden>
+            {shown}
+          </span>
+        ) : null}
       </button>
     );
   }

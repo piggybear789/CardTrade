@@ -138,8 +138,12 @@ export function readImageDims(
 export const COVER_ASPECT_MIN = 0.7;
 export const COVER_ASPECT_MAX = 1.4;
 
-/** The shape used when nothing is known about an image. */
-export const COVER_ASPECT_FALLBACK = 1;
+/**
+ * The shape used when nothing is known about an image: 3:4 portrait, the catalog's
+ * cover everywhere a photo's own shape is not drawn. The goods are cards and slabs,
+ * both portrait; a square guess cropped the grade label off every slab.
+ */
+export const COVER_ASPECT_FALLBACK = 0.75;
 
 /**
  * Cover aspect ratio (width / height) for a tile, clamped to the mosaic range.

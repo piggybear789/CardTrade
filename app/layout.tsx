@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import { cookies } from 'next/headers';
 import { Inter, JetBrains_Mono, Merriweather } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
@@ -158,6 +160,11 @@ export default async function RootLayout({
             rather than per route group so a funnel cannot have a hole where someone
             forgot to add it. */}
         <PageViewTracker />
+        {/* Vercel Web Analytics + Speed Insights. Cookieless and anonymous, so unlike
+            PageViewTracker they count GUESTS too — the catalog is open to them and
+            that is where acquisition happens. Both are no-ops off Vercel. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

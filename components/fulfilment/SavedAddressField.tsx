@@ -181,7 +181,7 @@ export function SavedAddressField({
             {label}
             <span className="text-destructive"> *</span>
           </span>
-          <Skeleton className="h-9 w-full md:h-8" />
+          <Skeleton className="h-10 w-full md:h-9" />
           {hint && !error ? (
             <p className="text-body text-muted-foreground">{hint}</p>
           ) : null}

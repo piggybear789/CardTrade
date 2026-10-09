@@ -98,11 +98,11 @@ function HeaderSearchFallback({
         autoComplete="off"
         spellCheck={false}
         className={cn(
-          'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground',
+            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground md:h-8',
         )}
         disabled
       />
@@ -407,11 +407,11 @@ function HeaderSearchInner({
           // tailwind-merge. That resolves to the same size today, but while Input still
           // floored touch at 16px it pinned the public catalog search, the first thing a
           // phone visitor taps, at a size iOS Safari zooms in on and does not undo.
-          'h-10 w-full pl-9 md:h-8 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
+          'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground',
+            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground md:h-8',
           trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-cozy',
         )}
       />

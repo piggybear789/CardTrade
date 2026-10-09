@@ -34,7 +34,7 @@ export function CheckoutSummarySkeleton() {
         <div className="min-w-0 flex-1">
           <TextLines className="text-body" widths={['w-1/2', 'w-1/3']} />
         </div>
-        <Skeleton className="h-8 w-16 shrink-0 rounded-md md:h-7" />
+        <Skeleton className="h-9 w-16 shrink-0 rounded-md md:h-8" />
       </div>
     </div>
   );

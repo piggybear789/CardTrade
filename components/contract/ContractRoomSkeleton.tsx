@@ -81,20 +81,20 @@ function ChatBarSkeleton() {
 
 /**
  * `ContractActionCard appearance="dock"`: `px-cozy py-snug` around a title, a detail
- * line from `md`, and the control (40px on touch, 32px from `md`) on the right.
+ * line from `md`, and the control (40px on touch, 36px from `md`) on the right.
  */
 function ActionDockSkeleton() {
   return (
     <div className="relative z-10 shrink-0 border-t bg-card">
       <div className="flex items-center gap-x-cozy px-cozy py-snug">
         {/* Title over an `md`-only detail line. Both are texture inside the `flex-1
-            basis-0` column, so they draw from the canonical set; the 40/32px control
+            basis-0` column, so they draw from the canonical set; the 40/36px control
             beside them keeps its reserve. */}
         <div className="min-w-0 flex-1 basis-0">
           <TextLines className="text-lead leading-tight" widths={['w-2/3']} />
           <TextLines className="mt-0.5 hidden text-body md:block" widths={['w-2/3']} />
         </div>
-        <Skeleton className="h-10 w-28 shrink-0 rounded-md md:h-8" />
+        <Skeleton className="h-10 w-28 shrink-0 rounded-md md:h-9" />
       </div>
     </div>
   );

@@ -34,12 +34,20 @@ import { extendTailwindMerge } from "tailwind-merge";
  * silent by construction — the class is not invalid, it is discarded — so it can
  * only be caught here. Keep this list in step with `theme.extend.fontSize`.
  * (`text` is tailwind-merge v3's name for the font-size namespace.)
+ *
+ * The motion tokens (`theme.extend.transitionDuration` / `transitionTimingFunction`)
+ * are registered for the same reason: `duration-*` only accepts numbers by default,
+ * so `duration-move` would never override a numeric duration passed alongside it.
  */
 const twMerge = extendTailwindMerge({
   extend: {
     theme: {
       spacing: ["tight", "snug", "cozy", "group", "section", "region"],
       text: ["meta", "body", "nav", "lead", "subhead", "head", "display"],
+      ease: ["enter", "exit"],
+    },
+    classGroups: {
+      duration: [{ duration: ["enter", "exit", "move"] }],
     },
   },
 });

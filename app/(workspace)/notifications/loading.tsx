@@ -73,10 +73,10 @@ export default function NotificationsLoading() {
               on the left — the one figure this page is opened for — so an end-aligned
               button alone left that line to appear from nothing. */}
           <div className="flex items-center justify-between gap-cozy">
-            {/* The unread-count line is texture; the `h-8` button keeps its reserve. */}
+            {/* The unread-count line is texture; the button keeps its reserve. */}
             <TextLines className="text-body" widths={['w-1/3']} />
-            {/* `size="sm"`: h-8 on touch, h-7 from md. */}
-            <Skeleton className="h-8 w-32 shrink-0 rounded-md md:h-7" />
+            {/* `size="sm"`: h-9 on touch, h-8 from md. */}
+            <Skeleton className="h-9 w-32 shrink-0 rounded-md md:h-8" />
           </div>
           {/* Bucket-heading widths are texture (each heading is in its own line box);
               they draw from the canonical set. The row counts are the reservation. */}

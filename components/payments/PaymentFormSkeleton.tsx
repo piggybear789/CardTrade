@@ -26,7 +26,7 @@ export function PaymentFormSkeleton() {
       {/* Save card — a default `Button`: 36px on touch, 32px from `md`. The `md`
           height moved 28px -> 32px when `body` became 14px, so a flat `h-9` here now
           stands 4px proud of the control it replaces on a pointer. */}
-      <Skeleton className="h-9 w-full rounded-md md:h-8" />
+      <Skeleton className="h-10 w-full rounded-md md:h-9" />
       {/* `ProcessorNote`, which wraps to two lines at phone width. */}
       <TextLines
         className="text-center text-body"

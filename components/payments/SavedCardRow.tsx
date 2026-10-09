@@ -142,7 +142,7 @@ export function SavedCardRow({
             <TextLines className="text-body" widths={['w-1/2']} />
           </div>
           {/* The ghost `size="sm"` Replace / Add card button. */}
-          <Skeleton className="h-8 w-20 shrink-0 rounded-md md:h-7" />
+          <Skeleton className="h-9 w-20 shrink-0 rounded-md md:h-8" />
         </div>
       </div>
     );

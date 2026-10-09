@@ -154,7 +154,7 @@ export default function AdminLoading() {
               <QueueIntroSkeleton
                 headingWidth="w-1/2"
                 // `DrainPayoutsButton` is `size="sm"`.
-                trailing={<Skeleton className="h-8 w-36 shrink-0 rounded-md md:h-7" />}
+                trailing={<Skeleton className="h-9 w-36 shrink-0 rounded-md md:h-8" />}
                 lines={['w-full', 'w-full', 'w-full', 'w-1/2']}
                 desktopLines={2}
               />
@@ -185,13 +185,13 @@ export default function AdminLoading() {
             <>
               <QueueIntroSkeleton
                 headingWidth="w-1/3"
-                // The Open / All / Show refusals filter links: `size="sm"`, so `h-8 md:h-7`.
+                // The Open / All / Show refusals filter links: `size="sm"`, so `h-9 md:h-8`.
                 trailing={
                   // Own row on a phone, as `ErrorsQueue` now always lays it out.
                   <div className="flex w-full flex-wrap gap-tight md:w-auto">
-                    <Skeleton className="h-8 w-14 rounded-md md:h-7" />
-                    <Skeleton className="h-8 w-10 rounded-md md:h-7" />
-                    <Skeleton className="h-8 w-28 rounded-md md:h-7" />
+                    <Skeleton className="h-9 w-14 rounded-md md:h-8" />
+                    <Skeleton className="h-9 w-10 rounded-md md:h-8" />
+                    <Skeleton className="h-9 w-28 rounded-md md:h-8" />
                   </div>
                 }
                 lines={['w-full', 'w-full', 'w-full', 'w-full', 'w-1/3']}

@@ -80,10 +80,10 @@ export default function NewTradeLoading() {
             </div>
           </div>
         </CardContent>
-        {/* Default `Button`s: 36px on touch, 32px from `md`. */}
+        {/* Default `Button`s: 40px on touch, 36px from `md`. */}
         <CardFooter className="flex-col-reverse items-stretch gap-snug border-t bg-muted px-6 pb-group pt-group sm:flex-row sm:justify-end">
-          <Skeleton className="h-9 w-full sm:w-20 md:h-8" />
-          <Skeleton className="h-9 w-full sm:w-28 md:h-8" />
+          <Skeleton className="h-10 w-full sm:w-20 md:h-9" />
+          <Skeleton className="h-10 w-full sm:w-28 md:h-9" />
         </CardFooter>
       </Card>
     </MarketplaceShellSkeleton>

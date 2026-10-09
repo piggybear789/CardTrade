@@ -42,7 +42,7 @@ export function OnboardingSpineSkeleton() {
                 <TextLines className="mt-tight text-body" widths={['w-full', 'w-2/3']} />
               </div>
               {row === 0 ? (
-                <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-44" />
+                <Skeleton className="h-10 w-full shrink-0 rounded-md sm:w-44 md:h-9" />
               ) : null}
             </div>
           </div>

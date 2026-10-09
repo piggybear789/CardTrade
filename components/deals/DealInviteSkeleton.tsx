@@ -92,14 +92,14 @@ function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: b
 
       {/* The join form's footer: the "Nothing is paid or held" note and the Join
           button, stacked on a phone and side by side from `sm`. A guest's preview has
-          the same button row. `Button` default size: `h-9 md:h-8`. */}
+          the same button row. `Button` default size: `h-10 md:h-9`. */}
       <div className="flex flex-col items-stretch gap-snug p-group pt-0 sm:flex-row sm:items-center sm:justify-between">
         {withFooterNote ? (
           // Two lines, as the join form's footer note now always reserves; widths
           // draw from the canonical set.
           <TextLines className="text-meta" widths={['w-1/2', 'w-1/3']} />
         ) : null}
-        <Skeleton className="h-9 w-full sm:w-32 md:h-8" />
+        <Skeleton className="h-10 w-full sm:w-32 md:h-9" />
       </div>
     </div>
   );

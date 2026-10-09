@@ -277,6 +277,28 @@ const config: Config = {
         xl: "calc(var(--radius) + 4px)",
         "2xl": "calc(var(--radius) + 8px)",
       },
+      // MOTION, named by intent like the spacing scale, and read from the same CSS
+      // variables the view-transition recipes in globals.css use, so a page slide
+      // and a sheet entrance keep one clock. `tailwindcss-animate` derives its
+      // keyframe durations and curves from these scales too, so `duration-move`
+      // sets `animation-duration` on `animate-in` as well as `transition-duration`.
+      //
+      // DO NOT REACH FOR `duration-[240ms]` OR `ease-[cubic-bezier(…)]` HERE. Both
+      // plugins claim the `duration` and `ease` prefixes, so an arbitrary value is
+      // ambiguous and Tailwind drops it with a warning rather than emitting it —
+      // which is how the side sheet and the phone dialog shipped without their
+      // entrance curve.
+      transitionDuration: {
+        exit: "var(--duration-exit)",
+        enter: "var(--duration-enter)",
+        move: "var(--duration-move)",
+      },
+      transitionTimingFunction: {
+        // Decelerate into place: an entrance arrives and settles.
+        enter: "cubic-bezier(0.22, 1, 0.36, 1)",
+        // Accelerate away: an exit leaves without lingering.
+        exit: "cubic-bezier(0.4, 0, 1, 1)",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },

@@ -127,11 +127,11 @@ export default function HomeLoading() {
                   widths={['w-1/3']}
                 />
               </div>
-              {/* `CatalogSortControl` is a `SelectTrigger`: `h-9 md:h-8`, and this
-                  block only exists from `md`, so 32px. It was `h-9`, which stood the
-                  title row 4px tall and dropped the pills and the whole grid 4px on
-                  swap — measured by `skeleton-fidelity.spec.ts`. */}
-              <Skeleton className="hidden h-8 w-[190px] shrink-0 rounded-md md:block" />
+              {/* `CatalogSortControl` is a `SelectTrigger`: `h-10 md:h-9`, and this
+                  block only exists from `md`, so 36px. A bar of any other height
+                  moves the title row and drops the pills and the whole grid on swap —
+                  measured by `skeleton-fidelity.spec.ts`. */}
+              <Skeleton className="hidden h-9 w-[190px] shrink-0 rounded-md md:block" />
             </div>
             <GenreStripSkeleton />
             {/* `DesktopGenrePills`: `md:h-11` pills (44px), not the 28px these

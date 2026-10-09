@@ -60,9 +60,9 @@ function RowSkeleton({ titleWidth }: { titleWidth: string }) {
       <div className="hidden justify-center md:flex">
         <Skeleton className="h-[1.425rem] w-14 rounded-md" />
       </div>
-      {/* One `size="sm"` action: h-8 on touch, h-7 from `md`. */}
+      {/* One `size="sm"` action: h-9 on touch, h-8 from `md`. */}
       <div className="flex shrink-0 items-center justify-end">
-        <Skeleton className="h-8 w-12 rounded-md md:h-7" />
+        <Skeleton className="h-9 w-12 rounded-md md:h-8" />
       </div>
     </li>
   );

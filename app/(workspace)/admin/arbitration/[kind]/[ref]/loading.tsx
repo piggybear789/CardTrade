@@ -39,11 +39,11 @@ export default function ArbitrationCaseLoading() {
     <MarketplaceShellSkeleton title="Cases">
       <div className="min-w-0">
         {/* Shared, not redrawn — see the note in the queue's loading state.
-            `CaseAssignButton` is `size="sm"`, so the action is `h-8` and not the `h-9`
-            the shared header defaults to. */}
+            `CaseAssignButton` is `size="sm"`, so the action is `h-9 md:h-8` and not
+            the default height the shared header reserves. */}
         <SectionHeaderSkeleton
           hasActions
-          actionsClassName="h-8 w-28"
+          actionsClassName="h-9 w-28 md:h-8"
           titleClassName="w-64"
           descriptionClassName="w-80"
         />

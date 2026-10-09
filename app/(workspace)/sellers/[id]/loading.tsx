@@ -80,12 +80,12 @@ export default function SellerProfileLoading() {
               <TextLines className="max-w-prose text-body" widths={['w-full', 'w-1/2']} />
             </div>
           </div>
-          {/* Report (or Edit profile / Sign in to report — one control for every viewer). `size="sm"` — h-8 on touch, h-7 from `md` — and full-width below
+          {/* Report (or Edit profile / Sign in to report — one control for every viewer). `size="sm"` — h-9 on touch, h-8 from `md` — and full-width below
               `sm`, so it also carries the 12px column gap. Drawn unconditionally even
               though the real trigger needs a signed-in viewer on someone else's
               profile: that is how this page is normally reached, and the alternative is
               to under-reserve for the common case. */}
-          <Skeleton className="h-8 w-full shrink-0 rounded-md sm:w-24 md:h-7" />
+          <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-24 md:h-8" />
         </div>
 
         {/* THE TRUST BAND, which this file reserved nothing for. It is inside the

@@ -66,8 +66,8 @@ export function SectionHeaderSkeleton({
           is 23.8/26.25px, so the title bar SHRANK by 5.75px on desktop, while `h-4`
           reserved 16px for a `text-body` paragraph measuring 22.4px, so the description
           bar GREW by 6.4px underneath it. */}
-      {/* `min-h-9` below `md`, as `SectionHeader` reserves for its phone action. */}
-      <div className="flex min-h-9 min-w-0 flex-col justify-center md:block md:min-h-0">
+      {/* `min-h-10` below `md`, as `SectionHeader` reserves for its phone action. */}
+      <div className="flex min-h-10 min-w-0 flex-col justify-center md:block md:min-h-0">
         <TextLines className="text-subhead md:text-head" widths={[titleClassName]} />
         <TextLines
           className="mt-tight hidden text-body md:mt-1.5 md:block"
@@ -77,20 +77,18 @@ export function SectionHeaderSkeleton({
           ]}
         />
       </div>
-      {/* `h-9 md:h-8`, `Button`'s default size at BOTH widths. These were `h-10`,
-          4px taller than any button this header holds, so the header rule and
-          everything under it sat low for the whole load. Then the `md` height moved
-          28px -> 32px with `body` at 14px, which is the `md:h-8` — a flat `h-9` was
-          right on touch and 4px proud on a pointer. Callers that render a `size="sm"`
-          action override the height through `actionsClassName`. */}
+      {/* `h-10 md:h-9`, `Button`'s default size at BOTH widths; a bar taller or
+          shorter than the button it stands in for moves the header rule and
+          everything under it on swap. Callers that render a `size="sm"` action
+          override the height through `actionsClassName`. */}
       {hasActions ? (
         <div className="flex shrink-0 gap-snug">
-          <Skeleton className={cn('h-9 shrink-0 rounded-md md:h-8', actionsClassName)} />
+          <Skeleton className={cn('h-10 shrink-0 rounded-md md:h-9', actionsClassName)} />
         </div>
       ) : null}
       {hasMobileAction ? (
         <Skeleton
-          className={cn('h-9 shrink-0 rounded-md md:hidden', mobileActionClassName)}
+          className={cn('h-10 shrink-0 rounded-md md:hidden', mobileActionClassName)}
         />
       ) : null}
     </header>
@@ -478,8 +476,8 @@ export function ChatThreadSkeleton() {
           <TextLines className="text-lead leading-tight" widths={['w-1/3']} />
           <TextLines className="mt-0.5 text-body" widths={['w-1/3']} />
         </div>
-        {/* The thread CTA is `Button size="sm"`: 32px on phones, 28px from `md`. */}
-        <Skeleton className="h-8 w-24 shrink-0 rounded-md md:h-7" />
+        {/* The thread CTA is `Button size="sm"`: 36px on phones, 32px from `md`. */}
+        <Skeleton className="h-9 w-24 shrink-0 rounded-md md:h-8" />
       </header>
       {/* The log bubbles are texture inside this `flex-1` region: one uniform `h-12`
           height and a two-width alternating set (incoming `w-2/3`, outgoing `w-1/2

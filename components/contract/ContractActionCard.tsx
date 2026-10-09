@@ -220,8 +220,8 @@ export function ContractActionCard({
               'flex min-w-0 flex-1 flex-wrap items-center justify-stretch gap-tight md:flex-none md:justify-end',
               '[&>*]:w-auto [&>a]:min-h-10 [&>button]:min-h-10 [&>button]:px-cozy',
               '[&_a]:min-h-10 [&_a]:px-cozy [&_a]:text-body [&_button]:min-h-10 [&_button]:w-auto [&_button]:px-cozy [&_button]:text-body',
-              'lg:[&>a]:h-7 lg:[&>a]:min-h-7 lg:[&>button]:h-7 lg:[&>button]:min-h-7 lg:[&>button]:px-2.5',
-              'lg:[&_a]:h-7 lg:[&_a]:min-h-7 lg:[&_a]:px-2.5 lg:[&_button]:h-7 lg:[&_button]:min-h-7 lg:[&_button]:px-2.5',
+              'lg:[&>a]:h-8 lg:[&>a]:min-h-8 lg:[&>button]:h-8 lg:[&>button]:min-h-8 lg:[&>button]:px-cozy',
+              'lg:[&_a]:h-8 lg:[&_a]:min-h-8 lg:[&_a]:px-cozy lg:[&_button]:h-8 lg:[&_button]:min-h-8 lg:[&_button]:px-cozy',
               '[&_svg]:size-3.5',
             )}
           >
@@ -260,11 +260,11 @@ export function ContractActionCard({
             desktop column, so it alone wrapped to a second line and sat orphaned
             at the far left under the title. Grouped, the pair wraps together and
             `ml-auto` keeps it on the right when it does. */}
-        {/* `min-h-10 md:min-h-8`: the controls' height, reserved whether or not this
+        {/* `min-h-10 md:min-h-9`: the controls' height, reserved whether or not this
             step gives the viewer a control. "Your move" and "their move" were 56px and
             36px docks on a phone, so the conversation above resized every time the
             contract's state arrived over Realtime. */}
-        <div className="flex min-h-10 flex-wrap items-center gap-x-cozy gap-y-snug md:min-h-8 md:flex-nowrap">
+        <div className="flex min-h-10 flex-wrap items-center gap-x-cozy gap-y-snug md:min-h-9 md:flex-nowrap">
           {/* ONE ROW FROM `md`, ALWAYS. The text is `basis-0` so it takes whatever
               the controls leave and truncates (the title is already `line-clamp-1`
               there); `md:flex-nowrap` on the row means the controls can never drop
@@ -324,7 +324,7 @@ export function ContractActionCard({
               // both widths. These are the room's primary actions ("Record
               // shipment", "Item never arrived") and must not drop to the desktop
               // size on touch, which is what this override is guarding against.
-              <ActionControls className="[&_a]:h-10 [&_button]:h-10 [&_button]:px-cozy md:[&_a]:h-8 md:[&_button]:h-8">
+              <ActionControls className="[&_a]:h-10 [&_button]:h-10 [&_button]:px-cozy md:[&_a]:h-9 md:[&_button]:h-9">
                 {children}
               </ActionControls>
             ) : null}

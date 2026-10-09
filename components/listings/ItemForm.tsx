@@ -797,7 +797,7 @@ function ItemFormInner({
               // this form wears, at the 3:1 SC 1.4.11 wants. The dashes were carrying
               // "drop a file here" on a button that says "Add photos" in words directly
               // beneath the icon, and at 2px they were the heaviest line on the page.
-              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-accent focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
+              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-accent focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
               // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
               //
               // With no photo the button's own words ("Add photos", below) are its
@@ -954,7 +954,7 @@ function ItemFormInner({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-muted focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground"
+                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-muted focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground"
                       aria-label="Add another photo"
                     >
                       <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
@@ -1084,7 +1084,7 @@ function ItemFormInner({
                     aria-invalid={gameError ? true : undefined}
                     aria-describedby={gameError ? "game-error" : undefined}
                   >
-                    <SelectValue placeholder="Select a category" />
+                    <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
                     {CARD_GAMES.map((option) => (
@@ -1115,7 +1115,7 @@ function ItemFormInner({
                       conditionError ? "condition-error" : undefined
                     }
                   >
-                    <SelectValue placeholder="Select a condition" />
+                    <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
                     {ITEM_CONDITIONS.map((c) => (

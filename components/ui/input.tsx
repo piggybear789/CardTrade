@@ -24,22 +24,10 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
       <input
         type={type}
         className={cn(
-          // `h-9 md:h-8`, matching Button's default size so a control and the field
-          // it sits beside are the same height at every width. This used to be
-          // `h-10 md:h-8` while the comment claimed the two tracked each other —
-          // Button was taken down 4px in a later pass and the fields were not, so
-          // every field sat 4px proud of the button next to it.
-          //
-          // `py-tight` follows from the height: at 28px, `py-snug` left a 12px content box
-          // and clipped descenders.
-          //
-          // `md:h-8` (32px), RAISED FROM 28px, and the note that used to sit here
-          // predicted exactly why. At 28px the content box was 18px — the border and
-          // `py-tight` taking 10px — against a 22.4px line box once `body` became 14px.
-          // The text was bigger than the box around it, so the field looked cramped
-          // however the type was set. 32px leaves 22px and the line fits.
-          //
-          // Button moved with it, because these two must stay equal.
+          // `h-10 md:h-9`, matching Button's default size so a control and the field
+          // it sits beside are the same height at every width. The two must move
+          // together: a field left behind when Button changed once sat 4px proud of
+          // every button beside it.
           //
           // `text-body` (14px), FULL STOP — the same token as the label above the
           // field and the copy beside it.
@@ -62,7 +50,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           // `meta`/`body`-sized and inherited fields to 16px. This list stays
           // `text-body`; an iPhone renders the value 2px larger than its label, which
           // is the price of not zooming.
-          "flex h-9 w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8 file:border-0 file:bg-transparent file:text-body file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:text-muted-foreground",
+          "flex h-10 w-full scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation rounded-md border border-input bg-card px-cozy py-tight text-body md:h-9 file:border-0 file:bg-transparent file:text-body file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:text-muted-foreground",
           fieldStateClasses,
           className
         )}

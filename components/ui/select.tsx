@@ -36,10 +36,8 @@ const SelectTrigger = React.forwardRef<
       // switches the span to `display:-webkit-box`, and the ellipsis it produces is
       // sized against the span's own content rather than the space actually
       // available. `min-w-0` is required for either to shrink inside a flex row.
-      // `h-9 md:h-8` tracks Button and Input, and `text-body` matches them too:
-      // 28px was raised to 32px when `body` went to 14px — see the note in Input for
-      // the arithmetic. A trigger that stayed at 28px would sit 4px shy of the field
-      // beside it.
+      // `h-10 md:h-9` tracks Button and Input, and `text-body` matches them too. A
+      // trigger that does not move with them sits shy of the field beside it.
       // the trigger text is the same size on touch as on desktop so it lines up
       // with the surrounding UI. The old `text-lead pointer-fine:text-body` floored touch
       // at 16px to avoid iOS focus-zoom; that floor has been removed and the zoom is
@@ -49,7 +47,7 @@ const SelectTrigger = React.forwardRef<
       // trigger is a <button>, not a text field, so the iOS 16px floor in
       // globals.css deliberately does not reach it: iOS only focus-zooms fields
       // that raise the keyboard.
-      "flex h-9 w-full touch-manipulation items-center justify-between gap-snug rounded-md border border-input bg-card px-cozy py-tight text-body md:h-8 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
+      "flex h-10 w-full touch-manipulation items-center justify-between gap-snug rounded-md border border-input bg-card px-cozy py-tight text-body md:h-9 placeholder:text-muted-foreground focus:outline-none disabled:cursor-not-allowed disabled:text-muted-foreground [&>span]:min-w-0 [&>span]:flex-1 [&>span]:truncate [&>span]:text-left",
       fieldStateClasses,
       className
     )}

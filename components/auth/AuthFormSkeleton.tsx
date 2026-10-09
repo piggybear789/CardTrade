@@ -141,13 +141,13 @@ export function RequestResetFormSkeleton() {
         {/* ONE field, in `space-y-tight` (4px) — not two groups in `space-y-snug`. */}
         <div className="space-y-tight">
           <TextLines className="text-body leading-none" widths={['w-1/3']} />
-          {/* `h-9 md:h-8`: this Input carries no `min-h-11`, so it sits at the
-              shared field height. 28px -> 32px at `md` came with `body` at 14px. */}
-          <Skeleton className="h-9 w-full rounded-md md:h-8" />
+          {/* `h-10 md:h-9`: this Input carries no `min-h-11`, so it sits at the
+              shared field height. */}
+          <Skeleton className="h-10 w-full rounded-md md:h-9" />
         </div>
 
-        {/* A default `Button`, so `h-9` below `md`. */}
-        <Skeleton className="h-9 w-full rounded-md" />
+        {/* A default `Button`: `h-10 md:h-9`. */}
+        <Skeleton className="h-10 w-full rounded-md md:h-9" />
 
         {/* The intent switch (50 characters, so it wraps to two lines — the reservation)
             and the way back to sign-in. Both are plain `text-body` lines with no

@@ -100,10 +100,10 @@ export default function ArbitrationLoading() {
                 <TextLines className="hidden text-meta md:block" widths={['w-2/3']} />
                 <div className="flex flex-wrap items-center justify-between gap-cozy">
                   <TextLines className="min-w-0 text-body" widths={['w-1/2']} />
-                  {/* "Open case" and `CaseAssignButton` are both `size="sm"` — `h-8`. */}
+                  {/* "Open case" and `CaseAssignButton` are both `size="sm"` — `h-9 md:h-8`. */}
                   <div className="flex items-center gap-snug">
-                    <Skeleton className="h-8 w-24 shrink-0 rounded-md" />
-                    <Skeleton className="h-8 w-20 shrink-0 rounded-md" />
+                    <Skeleton className="h-9 w-24 shrink-0 rounded-md md:h-8" />
+                    <Skeleton className="h-9 w-20 shrink-0 rounded-md md:h-8" />
                   </div>
                 </div>
               </CardContent>

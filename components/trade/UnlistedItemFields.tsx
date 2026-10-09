@@ -286,7 +286,7 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
           // The input lives inside its label so the button is the control: clicking
           // anywhere on it opens the picker, and `has-` puts the focus edge on the
           // button rather than the hidden input.
-          <label className="inline-flex h-9 cursor-pointer items-center gap-tight rounded-md border border-input bg-card px-cozy text-body font-medium text-foreground transition-colors hover:border-foreground/20 hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:border-iris/60 md:h-8 md:px-2.5">
+          <label className="inline-flex h-10 cursor-pointer items-center gap-tight rounded-md border border-input bg-card px-group text-body font-medium text-foreground transition-colors hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:border-iris/60 md:h-9">
             <HugeiconsIcon icon={ImagePlusIcon} aria-hidden="true" className="size-3.5" />
             {count === 0 ? 'Add photos' : 'Add more'}
             <input

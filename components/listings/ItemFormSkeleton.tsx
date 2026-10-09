@@ -170,22 +170,21 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
             <div className="space-y-snug">
               <TextLines className="text-body leading-none" widths={['w-1/3']} />
-              {/* `h-9 md:h-8`, matching `SelectTrigger` — which matches `Button` and
-                  `Input`, since fields and controls share one height scale. The `md`
-                  height moved 28px -> 32px when `body` became 14px; a stale `md:h-7`
-                  here leaves every field placeholder 4px short of the control. */}
-              <Skeleton className="h-9 w-full md:h-8" />
+              {/* `h-10 md:h-9`, matching `SelectTrigger` — which matches `Button` and
+                  `Input`, since fields and controls share one height scale. A stale
+                  height here leaves every field placeholder short of the control. */}
+              <Skeleton className="h-10 w-full md:h-9" />
             </div>
             <div className="space-y-snug">
               <TextLines className="text-body leading-none" widths={['w-1/3']} />
-              <Skeleton className="h-9 w-full md:h-8" />
+              <Skeleton className="h-10 w-full md:h-9" />
             </div>
           </div>
 
           <div className="space-y-snug">
             <TextLines className="text-body leading-none" widths={['w-1/3']} />
-            {/* `MoneyInput` is an `Input` behind a currency prefix: `h-9 md:h-8`. */}
-            <Skeleton className="h-9 w-full md:h-8" />
+            {/* `MoneyInput` is an `Input` behind a currency prefix: `h-10 md:h-9`. */}
+            <Skeleton className="h-10 w-full md:h-9" />
           </div>
 
           {/* `Based near` — a `PlacePicker`, which is a `Label` over a
@@ -193,7 +192,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               61px short of the form on every load. Label width is canonical texture. */}
           <div className="space-y-snug">
             <TextLines className="text-body leading-none" widths={['w-1/3']} />
-            <Skeleton className="h-9 w-full md:h-8" />
+            <Skeleton className="h-10 w-full md:h-9" />
           </div>
         </div>
       </CardContent>
@@ -208,8 +207,8 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           tinted band to white on swap, and `flex-col-reverse` stacked the submit above
           Cancel, the reverse of where they settled. */}
       <CardFooter className="max-md:hidden flex-col items-stretch gap-snug border-t bg-card px-6 pb-group pt-group sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
-        {/* `h-9 md:h-8`, `Button`'s default size. */}
-        <Skeleton className="h-9 w-full sm:w-32 md:h-8" />
+        {/* `h-10 md:h-9`, `Button`'s default size. */}
+        <Skeleton className="h-10 w-full sm:w-32 md:h-9" />
       </CardFooter>
     </Card>
   );

@@ -27,12 +27,13 @@ export function SectionHeader({
 }) {
   return (
     <header className="mb-snug flex flex-row items-center justify-between gap-cozy border-b border-border pb-snug md:mb-5 md:items-end md:gap-cozy md:pb-5">
-      {/* `min-h-9` ON A PHONE, ALWAYS. The phone action (`mobileAction`) is a 36px
-          button that callers pass only once their list has rows, so the header was
-          36px tall with data and 23.8px without — and the tab strip and list under it
-          moved by 12px depending on what came back. Reserving the button's height
-          whether or not it renders makes the header one height on every page. */}
-      <div className="flex min-h-9 min-w-0 flex-col justify-center md:block md:min-h-0">
+      {/* `min-h-10` ON A PHONE, ALWAYS. The phone action (`mobileAction`) is a 40px
+          button that callers pass only once their list has rows, so without the
+          reserve the header was taller with data than without — and the tab strip
+          and list under it moved depending on what came back. Reserving the
+          button's height whether or not it renders makes the header one height on
+          every page. */}
+      <div className="flex min-h-10 min-w-0 flex-col justify-center md:block md:min-h-0">
         <h2 className="text-balance text-subhead font-semibold tracking-tight md:text-head">
           {title}
         </h2>

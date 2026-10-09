@@ -82,9 +82,9 @@ function WelcomeStepSkeleton() {
         </ul>
       </StepBody>
 
-      {/* `h-9` because "Get started" is a default `Button`. */}
+      {/* `h-10 md:h-9` because "Get started" is a default `Button`. */}
       <StepFooter>
-        <Skeleton className="h-9 w-full rounded-md md:w-32" />
+        <Skeleton className="h-10 w-full rounded-md md:h-9 md:w-32" />
       </StepFooter>
     </>
   );

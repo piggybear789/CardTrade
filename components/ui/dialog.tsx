@@ -76,7 +76,7 @@ const FADE_MD =
  * Scoped to `max-md` so none of it reaches the centred card above that.
  */
 const SHEET_SLIDE =
-  "max-md:data-[state=open]:animate-in max-md:data-[state=open]:fade-in-0 max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=open]:duration-[240ms] max-md:data-[state=open]:ease-[cubic-bezier(0.22,1,0.36,1)] max-md:data-[state=closed]:animate-out max-md:data-[state=closed]:fade-out-0 max-md:data-[state=closed]:slide-out-to-bottom max-md:data-[state=closed]:duration-150 max-md:data-[state=closed]:ease-in";
+  "max-md:data-[state=open]:animate-in max-md:data-[state=open]:fade-in-0 max-md:data-[state=open]:slide-in-from-bottom max-md:data-[state=open]:duration-move max-md:data-[state=open]:ease-enter max-md:data-[state=closed]:animate-out max-md:data-[state=closed]:fade-out-0 max-md:data-[state=closed]:slide-out-to-bottom max-md:data-[state=closed]:duration-exit max-md:data-[state=closed]:ease-exit";
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,

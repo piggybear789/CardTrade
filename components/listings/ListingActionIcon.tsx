@@ -31,7 +31,7 @@ function chipClass(variant: 'default' | 'outline') {
     'flex size-9 shrink-0 items-center justify-center rounded-md border transition-[colors,transform] group-active:scale-95 group-focus-visible:border-iris/60 md:size-12 md:rounded-full',
     variant === 'default'
       ? 'border-primary bg-primary text-primary-foreground group-hover:bg-primary/90'
-      : 'border-input bg-card text-foreground group-hover:border-foreground/20 group-hover:bg-accent group-hover:text-accent-foreground',
+      : 'border-input bg-card text-foreground group-hover:border-foreground/60 group-hover:bg-accent group-hover:text-accent-foreground',
   );
 }
 

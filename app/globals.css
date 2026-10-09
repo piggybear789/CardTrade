@@ -4,12 +4,27 @@
 
 @layer base {
   :root {
-    /* NoDitto theme. Adopted verbatim from the tweakcn theme the product owner
-       supplied (HSL triplets, which `tailwind.config.ts` wraps in `hsl(var(--x))`).
-       The tokens after the theme block (`--obsidian`, `--iris`, `--trust`,
-       `--action*`, `--mist`, durations) are app-specific and have no theme
-       equivalent; `--iris` / `--iris-ink` are aliases of the theme's ring and
+    /* NoDitto theme, from the tweakcn theme the product owner supplied (HSL
+       triplets, which `tailwind.config.ts` wraps in `hsl(var(--x))`). The tokens
+       after the theme block (`--obsidian`, `--iris`, `--trust`, `--action*`,
+       `--mist`, durations) are app-specific and have no theme equivalent;
+       `--iris` / `--iris-ink` are aliases of the theme's ring and
        accent-foreground so the violet stays one value.
+
+       FOUR VALUES DEPART FROM THE SUPPLIED THEME, each to clear a WCAG 2.2 AA
+       floor that `node scripts/palette-contrast.mjs` checks:
+         --primary      deepened 67.8% -> 60% lightness so its white label
+                        clears 4.5:1 (it measured 3.85). The bright violet lives
+                        on as `--ring` / `--iris`, the marker and focus colour.
+         --destructive  deepened so a red label and red error text clear 4.5:1
+                        (both measured ~3.5).
+         --input        the field edge owes 3:1 against the page and a card
+                        (it measured 1.46), because it is the only thing that
+                        marks a field as a field.
+         neutrals       page, muted, border and subtext are desaturated from
+                        lavender to a cool grey, and cards are white on an
+                        off-white page, so surfaces separate by value and the
+                        violet is left to mean something.
 
        `--background` and `--obsidian` mirror into `app/manifest.ts`,
        `app/layout.tsx` (`viewport.themeColor`), `app/global-error.tsx` and
@@ -20,40 +35,40 @@
        the Flutter token generator and refuses any declaration it cannot read as a
        colour, length or duration, so strings such as a shadow list must not sit
        here. */
-    --background: 240 100% 99.2157%;
+    --background: 240 14% 98.2%;
     --foreground: 234.5455 17.4603% 12.3529%;
-    --card: 240 100% 99.2157%;
+    --card: 0 0% 100%;
     --card-foreground: 234.5455 17.4603% 12.3529%;
     --popover: 0 0% 100%;
     --popover-foreground: 234.5455 17.4603% 12.3529%;
-    --primary: 250.1613 75.6098% 67.8431%;
+    --primary: 250 68% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 244.2857 77.7778% 96.4706%;
+    --secondary: 246 60% 96.6%;
     --secondary-foreground: 248.75 31.5789% 29.8039%;
-    --muted: 240 33.3333% 95.8824%;
-    --muted-foreground: 240 12% 44.1176%;
-    --accent: 244.2857 77.7778% 96.4706%;
+    --muted: 240 11% 95.3%;
+    --muted-foreground: 240 6% 41%;
+    --accent: 246 60% 96.6%;
     --accent-foreground: 248.4 59.5238% 50.5882%;
-    --destructive: 0 79.5918% 61.5686%;
+    --destructive: 358 70% 47%;
     --destructive-foreground: 0 0% 100%;
     /* `--border` is the hairline for dividers and containers. `--input` is the
        edge of EVERY control — fields, selects, textareas and the quiet button
        variants — so a field and the button beside it read as one family. */
-    --border: 240 38.0952% 91.7647%;
-    --input: 240 40.2985% 86.8627%;
+    --border: 240 9% 90.5%;
+    --input: 240 6% 58%;
     --ring: 250.1613 75.6098% 67.8431%;
     --chart-1: 250.1613 75.6098% 67.8431%;
     --chart-2: 249.863 73.7374% 80.5882%;
     --chart-3: 248.75 31.5789% 29.8039%;
     --chart-4: 247.6923 70.9091% 89.2157%;
     --chart-5: 249.3443 57.0093% 58.0392%;
-    --sidebar: 240 100% 98.6275%;
+    --sidebar: 240 12% 96.6%;
     --sidebar-foreground: 240 13.1034% 28.4314%;
-    --sidebar-primary: 250.1613 75.6098% 67.8431%;
+    --sidebar-primary: 250 68% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 244.2857 77.7778% 96.4706%;
+    --sidebar-accent: 246 60% 96.6%;
     --sidebar-accent-foreground: 248.4 59.5238% 50.5882%;
-    --sidebar-border: 240 33.3333% 94.1176%;
+    --sidebar-border: 240 9% 90.5%;
     --sidebar-ring: 250.1613 75.6098% 67.8431%;
     --radius: 0.5rem;
     --spacing: 0.25rem;
@@ -396,9 +411,9 @@
   }
 
   /* Danger callout — the red sibling of `.cardtrade-warning`, and the distinction is
-     the point. Amber is "this is your move"; this is "do not do the thing". They sit
-     164° apart deliberately (see the `--destructive` note above), so a page carrying
-     both reads as two different instructions rather than two intensities of one.
+     the point. Amber is "this is your move"; this is "do not do the thing". The amber
+     is a pale, warm fill and the red a saturated edge, so a page carrying both reads
+     as two different instructions rather than two intensities of one.
 
      TEXT STAYS `--foreground`, exactly as the amber callout does. The established
      destructive recipe elsewhere in the app pairs the tint with `text-destructive`

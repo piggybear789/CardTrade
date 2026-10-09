@@ -776,7 +776,7 @@ function FilterSquare({
         // uses of the hue on one 9px-tall control.
         pressed
           ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-input bg-card text-muted-foreground hover:border-foreground/20 hover:text-foreground',
+          : 'border-input bg-card text-muted-foreground hover:border-foreground/60 hover:text-foreground',
       )}
     >
       {label}

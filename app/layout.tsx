@@ -25,10 +25,16 @@ import './globals.css';
 // `display: 'swap'` stays explicit: `optional` once meant the brand face rarely
 // rendered on a cold load. Serif and mono are not preloaded because nothing on the
 // critical path uses them.
+//
+// The `opsz` axis is what makes Inter read as designed rather than default: with
+// `font-optical-sizing: auto` (the browser default) every heading from 21px up is
+// drawn in Inter's display cut — tighter spacing, finer joins — while body copy
+// keeps the text cut it was drawn for. No class has to opt in.
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
+  axes: ['opsz'],
 });
 
 const merriweather = Merriweather({
@@ -96,7 +102,7 @@ export const viewport: Viewport = {
   // Both are the literal `--obsidian` / `--background` values.
   themeColor: [
     { media: '(min-width: 768px)', color: '#111118' },
-    { media: '(max-width: 767px)', color: '#fbfbff' },
+    { media: '(max-width: 767px)', color: '#fafafb' },
   ],
   colorScheme: 'light',
   // Draw under notches/home indicators so the sticky header can pad itself

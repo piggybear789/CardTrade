@@ -446,7 +446,7 @@ function DesktopGenrePills({
             <button
               type="button"
               aria-label="More categories"
-              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-input bg-card text-foreground shadow-sm transition-colors hover:border-foreground/20 hover:bg-accent focus:outline-none focus-visible:border-iris/60"
+              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-input bg-card text-foreground shadow-sm transition-colors hover:border-foreground/60 hover:bg-accent focus:outline-none focus-visible:border-iris/60"
             >
               {open ? (
                 <HugeiconsIcon icon={ChevronUpIcon} className="size-4" strokeWidth={1.75} aria-hidden />
@@ -545,7 +545,7 @@ function GenrePill({
         stretched ? 'min-w-0 w-full' : 'shrink-0',
         active
           ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-input bg-card text-foreground hover:border-foreground/20 hover:bg-accent',
+          : 'border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent',
       )}
     >
       {/* THE SAME ICON AS THE PHONE GRID — the real mark via `GameIcon`. This used to

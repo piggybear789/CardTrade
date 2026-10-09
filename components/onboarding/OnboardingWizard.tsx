@@ -567,7 +567,7 @@ export function OnboardingWizard({
                         // the accent surface states on its own.
                         selected
                           ? 'border-foreground bg-accent text-accent-foreground'
-                          : 'hover:border-foreground/20 hover:bg-muted/50',
+                          : 'hover:border-foreground/60 hover:bg-muted/50',
                       )}
                     >
                       <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
@@ -595,7 +595,7 @@ export function OnboardingWizard({
                     'rounded-md border border-input bg-card transition-colors',
                     regionChoice === 'waitlist'
                       ? 'border-foreground bg-accent text-accent-foreground'
-                      : 'hover:border-foreground/20 hover:bg-muted/50',
+                      : 'hover:border-foreground/60 hover:bg-muted/50',
                   )}
                 >
                   <button
@@ -707,7 +707,7 @@ export function OnboardingWizard({
                     'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                     intent === 'buyer'
                       ? 'border-foreground bg-accent text-accent-foreground'
-                      : 'hover:border-foreground/20 hover:bg-muted/50',
+                      : 'hover:border-foreground/60 hover:bg-muted/50',
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
@@ -728,7 +728,7 @@ export function OnboardingWizard({
                     'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                     intent === 'seller'
                       ? 'border-foreground bg-accent text-accent-foreground'
-                      : 'hover:border-foreground/20 hover:bg-muted/50',
+                      : 'hover:border-foreground/60 hover:bg-muted/50',
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">

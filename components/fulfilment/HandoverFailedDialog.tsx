@@ -281,7 +281,7 @@ export function HandoverFailedDialog({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending}
-                    className="flex size-16 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/20 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
+                    className="flex size-16 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
                     aria-label="Add evidence photo"
                   >
                     <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />

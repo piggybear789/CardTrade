@@ -87,7 +87,7 @@ export function ChoiceTile({
         // accent-plus-iris pairing is what GenrePills uses for its active pill.
         checked
           ? 'border-foreground bg-accent text-accent-foreground'
-          : 'hover:border-foreground/20 hover:bg-muted/40',
+          : 'hover:border-foreground/60 hover:bg-muted/40',
         invalid && 'border-destructive',
         // Locked groups (a disabled <fieldset>) look and behave locked.
         'has-[:disabled]:pointer-events-none has-[:disabled]:opacity-70',

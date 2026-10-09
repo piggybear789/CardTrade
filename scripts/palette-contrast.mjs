@@ -232,40 +232,35 @@ async function readFromCss() {
     process.exit(2);
   }
 
+  // Every declaration in the light theme's colour block (the first `:root`), keyed by
+  // name, so an alias such as `--iris: var(--ring)` can resolve through a token this
+  // script does not itself check.
+  const rootBlock = css.match(/:root\s*\{([\s\S]*?)\n\s*\}/);
+  const declared = {};
+  for (const m of (rootBlock ? rootBlock[1] : css).matchAll(/--([a-z0-9-]+):\s*([^;]+);/g)) {
+    declared[m[1]] ??= m[2].trim();
+  }
+
+  const resolve = (token, seen = new Set()) => {
+    const raw = declared[token];
+    if (raw === undefined) return { error: `${token} (not declared)` };
+    const alias = raw.match(/^var\(--([a-z0-9-]+)\)$/);
+    if (alias) {
+      if (seen.has(alias[1])) return { error: `${token} (alias cycle)` };
+      seen.add(alias[1]);
+      return resolve(alias[1], seen);
+    }
+    const nums = raw.match(/(-?[\d.]+)\s+(-?[\d.]+)%\s+(-?[\d.]+)%/);
+    if (!nums) return { error: `${token} (unparsed: ${raw})` };
+    return { hsl: [Number(nums[1]), Number(nums[2]), Number(nums[3])] };
+  };
+
   const out = {};
   const missing = [];
   for (const [key, token] of Object.entries(TOKEN_MAP)) {
-    // `--action-foreground: var(--obsidian)` style aliases resolve below.
-    const re = new RegExp(`--${token}:\\s*([^;]+);`);
-    const m = css.match(re);
-    if (!m) {
-      missing.push(token);
-      continue;
-    }
-    const raw = m[1].trim();
-    const alias = raw.match(/var\(--([a-z-]+)\)/);
-    if (alias) {
-      out[key] = { alias: alias[1] };
-      continue;
-    }
-    const nums = raw.match(/(-?[\d.]+)\s+(-?[\d.]+)%\s+(-?[\d.]+)%/);
-    if (!nums) {
-      missing.push(`${token} (unparsed: ${raw})`);
-      continue;
-    }
-    out[key] = [Number(nums[1]), Number(nums[2]), Number(nums[3])];
-  }
-
-  // resolve one level of aliasing
-  const byToken = Object.fromEntries(
-    Object.entries(TOKEN_MAP).map(([k, t]) => [t, k]),
-  );
-  for (const [key, val] of Object.entries(out)) {
-    if (val && val.alias) {
-      const target = out[byToken[val.alias]];
-      if (Array.isArray(target)) out[key] = target;
-      else missing.push(`${key} -> var(--${val.alias}) unresolved`);
-    }
+    const { hsl, error } = resolve(token);
+    if (error) missing.push(error);
+    else out[key] = hsl;
   }
 
   if (missing.length) {

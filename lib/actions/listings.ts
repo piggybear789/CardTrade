@@ -1756,8 +1756,8 @@ export const suggestCatalogItems = withActionLog('listings.suggestCatalogItems',
 const loadSuggestionsCached = unstable_cache(
   async (q: string, gamesKey: string, regionCode: string) =>
     loadSuggestions(q, gamesKey ? gamesKey.split('\n') : [], regionCode || null),
-  // v2: hits carry the listed price rather than the asking price.
-  ['catalog-suggest-v2'],
+  // v3: falls back to trigram matching when the exact attempts find nothing.
+  ['catalog-suggest-v3'],
   { revalidate: 30, tags: [CATALOG_CACHE_TAG] },
 );
 
@@ -1788,25 +1788,82 @@ async function loadSuggestions(
     if (error) {
       return { ok: false, error: 'persistence-error', message: error.message };
     }
-    if ((data ?? []).length > 0 || attempt === attempts[attempts.length - 1]) {
-      return {
-        ok: true,
-        data: (data ?? []).map((row) => {
-          const currency = (row.currency as string) || 'aud';
-          const isShopfront = row.listing_kind === 'SHOPFRONT';
-          return {
-            id: row.id as string,
-            title: row.title as string,
-            category: row.category as string,
-            imagePath: Array.isArray(row.image_paths) ? (row.image_paths[0] as string | undefined) ?? null : null,
-            listedCents: listedPriceCents((row.fmv_cents as number) ?? 0, currency, isShopfront),
-            isShopfront,
-            currency,
-          };
-        }),
-      };
+    if ((data ?? []).length > 0) {
+      return { ok: true, data: (data ?? []).map(toSuggestion) };
     }
   }
 
-  return { ok: true, data: [] };
+  // TYPO TOLERANCE, LAST. Every exact attempt came back empty, which is where the
+  // dropdown used to say "No matching titles" for a card that was listed under a
+  // spelling one letter away. Trigram word similarity (0130), best first.
+  const { data: fuzzy, error: fuzzyError } = await supabase.rpc('suggest_items_fuzzy', {
+    p_q: q,
+    p_games: requestedGames.length > 0 ? requestedGames : [...CARD_GAME_NAMES],
+    p_region: regionCode,
+    p_limit: SUGGEST_LIMIT,
+  });
+  if (fuzzyError) return { ok: true, data: [] };
+  return { ok: true, data: (fuzzy ?? []).map(toSuggestion) };
 }
+
+/** A suggest row, from either the ILIKE query or the trigram RPC, as a hit. */
+function toSuggestion(row: {
+  id: string;
+  title: string;
+  category: string;
+  image_paths: string[] | null;
+  fmv_cents: number | null;
+  currency: string | null;
+  listing_kind: string | null;
+}): CatalogSuggestion {
+  const currency = row.currency || 'aud';
+  const isShopfront = row.listing_kind === 'SHOPFRONT';
+  return {
+    id: row.id,
+    title: row.title,
+    category: row.category,
+    imagePath: Array.isArray(row.image_paths) ? (row.image_paths[0] ?? null) : null,
+    listedCents: listedPriceCents(row.fmv_cents ?? 0, currency, isShopfront),
+    isShopfront,
+    currency,
+  };
+}
+
+/** A seller hit for the header search: who, and whether Stripe checked their ID. */
+export type SellerSuggestion = {
+  id: string;
+  displayName: string;
+  avatarPath: string | null;
+  isVerified: boolean;
+};
+
+/**
+ * Sellers whose name matches, for the header search's Sellers group.
+ *
+ * From `discoverable_profiles`, which leaves closed accounts out — a search is
+ * discovery, not a contract read. Members with at least one live listing only would be
+ * the tighter set, but a buyer typing a name they were given wants that person's page
+ * whatever is on it today.
+ */
+export const suggestSellers = withActionLog('listings.suggestSellers', async function suggestSellers(
+  q: string,
+): Promise<ListingActionResult<SellerSuggestion[]>> {
+  const trimmed = q.trim().slice(0, SUGGEST_MAX_CHARS);
+  if (trimmed.length < SUGGEST_MIN_CHARS) return { ok: true, data: [] };
+  const supabase = publicCatalogClient();
+  const { data, error } = await supabase
+    .from('discoverable_profiles')
+    .select('id, display_name, avatar_path, is_verified')
+    .ilike('display_name', ilikeContains(trimmed))
+    .limit(3);
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  return {
+    ok: true,
+    data: (data ?? []).map((row) => ({
+      id: row.id as string,
+      displayName: (row.display_name as string) ?? 'Seller',
+      avatarPath: (row.avatar_path as string | null) ?? null,
+      isVerified: Boolean(row.is_verified),
+    })),
+  };
+});

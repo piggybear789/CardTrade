@@ -19,9 +19,16 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Search01Icon, XIcon } from '@hugeicons/core-free-icons';
+import { Clock01Icon, LayoutGridIcon, Search01Icon, XIcon } from '@hugeicons/core-free-icons';
 
-import { suggestCatalogItems, type CatalogSuggestion } from '@/lib/actions/listings';
+import {
+  suggestCatalogItems,
+  suggestSellers,
+  type CatalogSuggestion,
+  type SellerSuggestion,
+} from '@/lib/actions/listings';
+import { CARD_GAMES } from '@/lib/catalog/cardGames';
+import { Avatar } from '@/components/ui/avatar';
 import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/browseEvents';
 import { Input } from '@/components/ui/input';
 import { StorageImage } from '@/components/ui/storage-image';
@@ -29,6 +36,41 @@ import { formatMoney, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const PLACEHOLDER = 'Search a card, set, or player…';
+
+/** Recent searches, newest first. Versioned key; see `readRecent`. */
+const RECENT_KEY = 'noditto:recent-searches:v1';
+const RECENT_MAX = 5;
+
+/** Games offered on an empty, focused field: the first few of the catalog's list. */
+const GAME_SHORTCUTS = CARD_GAMES.slice(0, 4);
+
+function readRecent(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(RECENT_KEY) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string').slice(0, RECENT_MAX) : [];
+  } catch {
+    // Storage is unavailable in private modes and when full; recents are a nicety.
+    return [];
+  }
+}
+
+function rememberSearch(query: string) {
+  const trimmed = query.trim();
+  if (!trimmed) return;
+  try {
+    const next = [trimmed, ...readRecent().filter((v) => v.toLowerCase() !== trimmed.toLowerCase())].slice(0, RECENT_MAX);
+    window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    // See readRecent.
+  }
+}
+
+/** One selectable row in the dropdown, whatever group it is in. */
+interface SearchOption {
+  id: string;
+  group: 'Recent searches' | 'Games' | 'Listings' | 'Sellers' | 'search';
+  select: () => void;
+}
 const SUGGEST_MIN = 2;
 const DEBOUNCE_MS = 280;
 
@@ -208,6 +250,8 @@ function HeaderSearchInner({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [hits, setHits] = useState<CatalogSuggestion[]>([]);
+  const [sellerHits, setSellerHits] = useState<SellerSuggestion[]>([]);
+  const [recent, setRecent] = useState<string[]>([]);
   const [highlight, setHighlight] = useState(0);
 
   useEffect(() => retainSlashListener(), []);
@@ -253,19 +297,22 @@ function HeaderSearchInner({
 
     if (trimmed.length < SUGGEST_MIN) {
       setHits([]);
+      setSellerHits([]);
       setLoading(false);
+      setHighlight(0);
       return;
     }
 
     setLoading(true);
     debounceRef.current = window.setTimeout(() => {
-      void suggestCatalogItems({
-        q: trimmed,
-        region: searchParamsRef.current.get('region'),
-      }).then((result) => {
+      void Promise.all([
+        suggestCatalogItems({ q: trimmed, region: searchParamsRef.current.get('region') }),
+        suggestSellers(trimmed),
+      ]).then(([listings, sellers]) => {
         if (gen !== suggestGenRef.current) return;
         setLoading(false);
-        setHits(result.ok ? result.data : []);
+        setHits(listings.ok ? listings.data : []);
+        setSellerHits(sellers.ok ? sellers.data : []);
         setHighlight(0);
       });
     }, DEBOUNCE_MS);
@@ -276,6 +323,7 @@ function HeaderSearchInner({
     setOpen(false);
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
     const trimmed = query.trim();
+    rememberSearch(trimmed);
     if (onCatalog && requestCatalogBrowse({ q: trimmed || null })) {
       onNavigate?.();
       return;
@@ -307,9 +355,56 @@ function HeaderSearchInner({
     startTransition(() => router.push(`/listings/${id}`));
   }
 
-  const showList = open && query.trim().length >= SUGGEST_MIN;
-  const showAllIndex = hits.length;
-  const optionCount = hits.length + 1;
+  function runSearch(nextQuery: string) {
+    setQuery(nextQuery);
+    setOpen(false);
+    rememberSearch(nextQuery);
+    if (onCatalog && requestCatalogBrowse({ q: nextQuery || null })) {
+      onNavigate?.();
+      return;
+    }
+    onNavigate?.();
+    startTransition(() => router.push(listingsHref(nextQuery)));
+  }
+
+  function openGame(name: string) {
+    setOpen(false);
+    setQuery('');
+    if (onCatalog && requestCatalogBrowse({ category: name, q: null })) {
+      onNavigate?.();
+      return;
+    }
+    onNavigate?.();
+    startTransition(() => router.push(`/?category=${encodeURIComponent(name)}`));
+  }
+
+  function openSeller(id: string) {
+    setOpen(false);
+    onNavigate?.();
+    startTransition(() => router.push(`/sellers/${id}`));
+  }
+
+  const trimmedQuery = query.trim();
+  const typing = trimmedQuery.length >= SUGGEST_MIN;
+  // ON FOCUS, BEFORE TYPING: recent searches and a few games, so the field offers a
+  // next step instead of waiting for two characters. While typing: matching games,
+  // listings, sellers, then "search for" — grouped, so a name finds a person and a
+  // game finds the game, not only titles that happen to contain it.
+  const gameMatches = typing
+    ? CARD_GAMES.filter((game) => game.name.toLowerCase().includes(trimmedQuery.toLowerCase())).slice(0, 2)
+    : GAME_SHORTCUTS;
+  const options: SearchOption[] = typing
+    ? [
+        ...gameMatches.map((game) => ({ id: `${listId}-game-${game.slug}`, group: 'Games' as const, select: () => openGame(game.name) })),
+        ...hits.map((hit) => ({ id: `${listId}-hit-${hit.id}`, group: 'Listings' as const, select: () => openListing(hit.id) })),
+        ...sellerHits.map((seller) => ({ id: `${listId}-seller-${seller.id}`, group: 'Sellers' as const, select: () => openSeller(seller.id) })),
+        { id: `${listId}-all`, group: 'search' as const, select: () => runSearch(trimmedQuery) },
+      ]
+    : [
+        ...recent.map((term, index) => ({ id: `${listId}-recent-${index}`, group: 'Recent searches' as const, select: () => runSearch(term) })),
+        ...gameMatches.map((game) => ({ id: `${listId}-game-${game.slug}`, group: 'Games' as const, select: () => openGame(game.name) })),
+      ];
+  const showList = open && (typing || (trimmedQuery === '' && options.length > 0));
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Escape') {
@@ -323,29 +418,45 @@ function HeaderSearchInner({
       return;
     }
 
-    if (!showList) return;
+    if (!showList || options.length === 0) return;
 
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setHighlight((current) => (current + 1) % optionCount);
+      setHighlight((current) => (current + 1) % options.length);
       return;
     }
     if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setHighlight((current) => (current - 1 + optionCount) % optionCount);
+      setHighlight((current) => (current - 1 + options.length) % options.length);
       return;
     }
-    if (event.key === 'Enter' && highlight < hits.length) {
+    // The last typed option is the form's own submit; Enter there submits as usual.
+    if (event.key === 'Enter' && options[highlight] && options[highlight].group !== 'search') {
       event.preventDefault();
-      openListing(hits[highlight].id);
+      options[highlight].select();
     }
   }
 
-  const activeOptionId = showList
-    ? highlight < hits.length
-      ? `${listId}-hit-${highlight}`
-      : `${listId}-all`
-    : undefined;
+  const activeOptionId = showList ? options[highlight]?.id : undefined;
+
+  /** Shared row styling for every option, highlighted or not. */
+  const optionClass = (active: boolean) =>
+    cn(
+      'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-snug py-snug text-left focus:outline-none focus-visible:border-iris',
+      appearance === 'default'
+        ? active
+          ? 'bg-accent'
+          : 'hover:bg-muted/70 focus-visible:bg-accent'
+        : active
+          ? 'bg-muted'
+          : 'bg-card hover:bg-muted/70',
+    );
+  const groupHeading = (label: string) => (
+    <li role="presentation" className="px-snug pb-0.5 pt-snug text-meta font-medium text-muted-foreground">
+      {label}
+    </li>
+  );
+  const indexOf = (id: string) => options.findIndex((option) => option.id === id);
 
   return (
     <form
@@ -385,7 +496,8 @@ function HeaderSearchInner({
             window.clearTimeout(blurTimerRef.current);
             blurTimerRef.current = null;
           }
-          if (query.trim().length >= SUGGEST_MIN) setOpen(true);
+          setRecent(readRecent());
+          setOpen(true);
         }}
         onBlur={() => {
           if (blurTimerRef.current != null) window.clearTimeout(blurTimerRef.current);
@@ -441,96 +553,154 @@ function HeaderSearchInner({
         <ul
           id={listId}
           role="listbox"
-          aria-label="Matching listings"
+          aria-label="Search suggestions"
           className={cn(
-            'absolute inset-x-0 top-full z-50 mt-tight max-h-80 overflow-auto rounded-md border border-border py-tight shadow-md',
+            'absolute inset-x-0 top-full z-50 mt-tight max-h-96 overflow-auto rounded-md border border-border px-tight py-tight shadow-md',
             appearance === 'default'
               ? 'bg-popover text-popover-foreground'
               : 'bg-card text-foreground',
           )}
         >
-          {loading && hits.length === 0 ? (
+          {!typing && recent.length > 0 ? groupHeading('Recent searches') : null}
+          {!typing
+            ? recent.map((term, index) => {
+                const id = `${listId}-recent-${index}`;
+                const optionIndex = indexOf(id);
+                return (
+                  <li key={id} role="presentation">
+                    <button
+                      type="button"
+                      id={id}
+                      role="option"
+                      aria-selected={highlight === optionIndex}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setHighlight(optionIndex)}
+                      onClick={() => runSearch(term)}
+                      className={optionClass(highlight === optionIndex)}
+                    >
+                      <HugeiconsIcon icon={Clock01Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate text-body">{term}</span>
+                    </button>
+                  </li>
+                );
+              })
+            : null}
+
+          {gameMatches.length > 0 ? groupHeading(typing ? 'Games' : 'Browse a game') : null}
+          {gameMatches.map((game) => {
+            const id = `${listId}-game-${game.slug}`;
+            const optionIndex = indexOf(id);
+            return (
+              <li key={id} role="presentation">
+                <button
+                  type="button"
+                  id={id}
+                  role="option"
+                  aria-selected={highlight === optionIndex}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onMouseEnter={() => setHighlight(optionIndex)}
+                  onClick={() => openGame(game.name)}
+                  className={optionClass(highlight === optionIndex)}
+                >
+                  <HugeiconsIcon icon={LayoutGridIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate text-body">{game.name}</span>
+                </button>
+              </li>
+            );
+          })}
+
+          {typing && loading && hits.length === 0 && sellerHits.length === 0 ? (
             <li className="px-cozy py-snug text-meta text-muted-foreground" aria-live="polite">
               Searching…
             </li>
           ) : null}
-          {hits.map((hit, index) => {
-            const thumb = itemImageUrl(hit.imagePath);
-            const active = highlight === index;
-            return (
-              <li key={hit.id} role="presentation">
-                <Link
-                  href={`/listings/${hit.id}`}
-                  id={`${listId}-hit-${index}`}
-                  role="option"
-                  aria-selected={active}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setHighlight(index)}
-                  onClick={() => setOpen(false)}
-                  className={cn(
-                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-snug py-snug text-left focus:outline-none focus-visible:border-iris',
-                    appearance === 'default'
-                      ? active
-                        ? 'bg-accent'
-                        : 'hover:bg-muted/70 focus-visible:bg-accent'
-                      : active
-                        ? 'bg-muted'
-                        : 'bg-card hover:bg-muted/70',
-                  )}
-                >
-                  <span className="relative size-9 shrink-0 overflow-hidden rounded-sm border border-border bg-muted">
-                    {thumb ? (
-                      <StorageImage
-                        src={thumb}
-                        alt=""
-                        sizes="36px"
-                        className="object-cover"
-                        loading="lazy"
-                      />
-                    ) : null}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-body font-medium">{hit.title}</span>
-                    <span className="block truncate text-meta text-muted-foreground">
-                      {hit.category}
-                      {' · '}
-                      {hit.isShopfront ? 'from ' : null}
-                      {formatMoney(hit.listedCents, hit.currency)}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-          {!loading && hits.length === 0 ? (
-            <li className="px-cozy py-snug text-meta text-muted-foreground">No matching titles</li>
+          {typing && hits.length > 0 ? groupHeading('Listings') : null}
+          {typing
+            ? hits.map((hit) => {
+                const id = `${listId}-hit-${hit.id}`;
+                const optionIndex = indexOf(id);
+                const thumb = itemImageUrl(hit.imagePath);
+                return (
+                  <li key={id} role="presentation">
+                    <Link
+                      href={`/listings/${hit.id}`}
+                      id={id}
+                      role="option"
+                      aria-selected={highlight === optionIndex}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setHighlight(optionIndex)}
+                      onClick={() => setOpen(false)}
+                      className={optionClass(highlight === optionIndex)}
+                    >
+                      <span className="relative size-9 shrink-0 overflow-hidden rounded-sm border border-border bg-muted">
+                        {thumb ? (
+                          <StorageImage src={thumb} alt="" sizes="36px" className="object-cover" loading="lazy" />
+                        ) : null}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-body font-medium">{hit.title}</span>
+                        <span className="block truncate text-meta text-muted-foreground">
+                          {hit.category}
+                          {' · '}
+                          {hit.isShopfront ? 'from ' : null}
+                          {formatMoney(hit.listedCents, hit.currency)}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })
+            : null}
+
+          {typing && sellerHits.length > 0 ? groupHeading('Sellers') : null}
+          {typing
+            ? sellerHits.map((seller) => {
+                const id = `${listId}-seller-${seller.id}`;
+                const optionIndex = indexOf(id);
+                return (
+                  <li key={id} role="presentation">
+                    <Link
+                      href={`/sellers/${seller.id}`}
+                      id={id}
+                      role="option"
+                      aria-selected={highlight === optionIndex}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setHighlight(optionIndex)}
+                      onClick={() => setOpen(false)}
+                      className={optionClass(highlight === optionIndex)}
+                    >
+                      <Avatar avatarPath={seller.avatarPath} displayName={seller.displayName} size="xs" />
+                      <span className="min-w-0 flex-1 truncate text-body">{seller.displayName}</span>
+                      {seller.isVerified ? (
+                        <span className="shrink-0 text-meta text-trust">ID verified</span>
+                      ) : null}
+                    </Link>
+                  </li>
+                );
+              })
+            : null}
+
+          {typing && !loading && hits.length === 0 && sellerHits.length === 0 && gameMatches.length === 0 ? (
+            <li className="px-cozy py-snug text-meta text-muted-foreground">
+              No close matches. Search anyway, or try fewer words.
+            </li>
           ) : null}
-          <li role="presentation">
-            <button
-              type="submit"
-              id={`${listId}-all`}
-              role="option"
-              aria-selected={highlight === showAllIndex}
-              onMouseDown={(event) => event.preventDefault()}
-              onMouseEnter={() => setHighlight(showAllIndex)}
-              className={cn(
-                'flex min-h-11 w-full items-center gap-snug px-cozy py-snug text-left text-body',
-                appearance === 'default'
-                  ? highlight === showAllIndex
-                    ? 'bg-accent'
-                    : 'hover:bg-muted/70'
-                  : highlight === showAllIndex
-                    ? 'bg-muted'
-                    : 'bg-card',
-                hits.length > 0 && 'mt-tight border-t border-border',
-              )}
-            >
-              <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
-              <span className="min-w-0 truncate">
-                Search listings for “{query.trim()}”
-              </span>
-            </button>
-          </li>
+          {typing ? (
+            <li role="presentation">
+              <button
+                type="submit"
+                id={`${listId}-all`}
+                role="option"
+                aria-selected={options[highlight]?.group === 'search'}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setHighlight(options.length - 1)}
+                className={cn(optionClass(options[highlight]?.group === 'search'), 'mt-tight border-t border-border')}
+              >
+                <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <span className="min-w-0 truncate text-body">Search listings for “{trimmedQuery}”</span>
+              </button>
+            </li>
+          ) : null}
         </ul>
       ) : null}
     </form>

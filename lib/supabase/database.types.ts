@@ -3041,6 +3041,19 @@ export type Database = {
           completed_purchases: number;
         }[];
       };
+      /** Typo-tolerant title suggestions (0130). SECURITY INVOKER. */
+      suggest_items_fuzzy: {
+        Args: { p_q: string; p_games: string[]; p_region?: string | null; p_limit?: number };
+        Returns: {
+          id: string;
+          title: string;
+          category: string;
+          image_paths: string[];
+          fmv_cents: number;
+          currency: string;
+          listing_kind: Database['cardtrade']['Enums']['listing_kind'];
+        }[];
+      };
     };
     Enums: {
       merchant_status: 'NONE' | 'PENDING' | 'APPROVED' | 'REJECTED';

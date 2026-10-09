@@ -53,10 +53,10 @@ import { cn } from '@/lib/utils';
 import type { CatalogSort } from '@/lib/actions/listings';
 
 const SORT_LABELS: Record<CatalogSort, string> = {
-  newest: 'Recently Listed',
-  'price-asc': 'Price: Low to High',
-  'price-desc': 'Price: High to Low',
-  rating: 'Seller Rating: High to Low',
+  newest: 'Recently listed',
+  'price-asc': 'Price: low to high',
+  'price-desc': 'Price: high to low',
+  rating: 'Seller rating: high to low',
 };
 
 const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
@@ -567,31 +567,39 @@ function CatalogPhoneRefineFields({
 }) {
   return (
     <>
-      <fieldset className="border-t border-border pt-group">
-        <legend className="market-label mb-snug text-muted-foreground">Condition</legend>
-        <div className="flex flex-wrap gap-1.5">
-          {ITEM_CONDITIONS.map((condition) => (
-            <FilterSquare
-              key={condition}
-              label={condition}
-              pressed={current.conditions.includes(condition)}
-              onClick={() => onToggleCondition(condition)}
-              disabled={isPending}
-            />
-          ))}
-        </div>
-      </fieldset>
+      {/* The rule sits on a wrapper, not the fieldset: a fieldset's top border runs
+          through its legend, which drew this one heading as "CONDITION ——" beside
+          siblings whose rule sits above the label. */}
+      <div className="border-t border-border pt-group">
+        <fieldset>
+          <legend className="market-label mb-snug text-muted-foreground">Condition</legend>
+          <div className="flex flex-wrap gap-1.5">
+            {ITEM_CONDITIONS.map((condition) => (
+              <FilterSquare
+                key={condition}
+                label={condition}
+                pressed={current.conditions.includes(condition)}
+                onClick={() => onToggleCondition(condition)}
+                disabled={isPending}
+              />
+            ))}
+          </div>
+        </fieldset>
+      </div>
 
-      <PriceRefineBlock
-        priceStops={priceStops}
-        onPriceStopsChange={onPriceStopsChange}
-        onPriceCommit={onPriceCommit}
-        priceLadder={priceLadder}
-        topStop={topStop}
-        ceilingCents={ceilingCents}
-        histogram={histogram}
-        disabled={isPending}
-      />
+      <div className="border-t border-border pt-group">
+        <p className="market-label mb-snug text-muted-foreground">Price</p>
+        <PriceRefineBlock
+          priceStops={priceStops}
+          onPriceStopsChange={onPriceStopsChange}
+          onPriceCommit={onPriceCommit}
+          priceLadder={priceLadder}
+          topStop={topStop}
+          ceilingCents={ceilingCents}
+          histogram={histogram}
+          disabled={isPending}
+        />
+      </div>
 
       {/* TWO INDEPENDENT TOGGLES, not one "show unavailable". They answer
           different questions and a buyer wants them separately.

@@ -76,7 +76,7 @@ export function CatalogResults() {
     ? settled.q
     : settled.categories.length === 1
       ? settled.categories[0]
-      : 'All Listings';
+      : 'All listings';
 
   const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
   const closerNote = result.matchedQuery

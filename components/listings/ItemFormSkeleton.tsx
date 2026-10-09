@@ -136,9 +136,11 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
               {Array.from({ length: 2 }, (_, index) => (
                 <div
                   key={index}
-                  className="rounded-md border border-border p-snug md:p-cozy"
+                  className="space-y-tight rounded-md border border-border p-snug md:p-cozy"
                 >
-                  <TextLines className="text-center text-body" widths={['w-2/3']} />
+                  {/* Label, then the hint, which wraps to two lines in a half-width tile. */}
+                  <TextLines className="text-body font-medium" widths={['w-1/2']} />
+                  <TextLines className="text-body" widths={['w-full', 'w-2/3']} />
                 </div>
               ))}
             </div>

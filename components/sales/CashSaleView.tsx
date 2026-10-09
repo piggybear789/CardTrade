@@ -858,7 +858,7 @@ function CashSaleRoom({
                       {editable && !isLegacy ? (
                         <Button
                           type="button"
-                          variant="destructive"
+                          variant="destructive-quiet"
                           size="sm"
                           aria-haspopup="dialog"
                           disabled={isPending}
@@ -878,14 +878,12 @@ function CashSaleRoom({
                         <HandoverFailedDialog
                           cashSaleId={sale.id}
                           triggerLabel="Not received"
-                          triggerVariant="destructive"
                         />
                       ) : null}
                       {sale.status === 'HANDOVER' ? (
                         <HandoverFailedDialog
                           cashSaleId={sale.id}
                           triggerLabel="Handover failed"
-                          triggerVariant="destructive"
                         />
                       ) : null}
                       {/* Opens the dialog rather than scrolling to the Protection tab.
@@ -895,7 +893,7 @@ function CashSaleRoom({
                       {sale.status === 'INSPECTION' && iAmBuyer ? (
                         <Button
                           type="button"
-                          variant="destructive"
+                          variant="destructive-quiet"
                           size="sm"
                           onClick={() => setConfirming('dispute')}
                         >
@@ -1144,7 +1142,7 @@ function CashSaleRoom({
                     />
                     <Button
                       type="button"
-                      variant="destructive"
+                      variant="destructive-quiet"
                       size="sm"
                       disabled={isPending}
                       onClick={() => setConfirming('dispute')}
@@ -1484,7 +1482,7 @@ function CashSaleRoom({
                     <div className="flex flex-wrap items-center gap-x-cozy gap-y-snug">
                       <Button
                         type="button"
-                        variant="destructive"
+                        variant="destructive-quiet"
                         size="sm"
                         disabled={isPending}
                         onClick={() => setConfirming('dispute')}

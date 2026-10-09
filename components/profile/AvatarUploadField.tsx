@@ -140,9 +140,11 @@ export function AvatarUploadField({
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-full bg-transparent transition-colors group-hover:bg-foreground/10 group-disabled:bg-transparent"
         />
+        {/* Outside the circle's lower-right edge and 20px: at 24px, tucked in by 2px,
+            it sat over the second initial ("AN" read as "A"). */}
         <span
           aria-hidden
-          className="absolute -bottom-0.5 -right-0.5 grid size-6 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors group-hover:bg-primary/85"
+          className="absolute -bottom-1 -right-1.5 grid size-5 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors group-hover:bg-primary/85"
         >
           {isBusy ? (
             <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" />

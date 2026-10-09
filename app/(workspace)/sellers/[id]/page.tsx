@@ -408,7 +408,7 @@ export default async function SellerProfilePage({
               targetType="user"
               targetId={id}
               triggerLabel="Report user"
-              triggerVariant="destructive"
+              triggerVariant="destructive-quiet"
             />
           ) : user ? (
             <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">

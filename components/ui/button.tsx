@@ -101,8 +101,15 @@ const buttonVariants = cva(
           "border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground",
         success:
           "border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80 focus-visible:ring-2 focus-visible:ring-white",
+        // FILLED RED IS FOR THE CONFIRMATION, NOT THE TRIGGER. A button that only opens
+        // "Delete listing?" or "Report this user" was the loudest control on its
+        // screen, louder than the action the member came to take. Triggers use
+        // `destructive-quiet`: the outline shape with a red label (5.45:1), so danger
+        // still reads, and the red fill waits for the dialog's confirm button.
         destructive:
           "border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground",
+        "destructive-quiet":
+          "border border-input bg-card text-destructive hover:border-destructive/60 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
         // `hover:border-foreground/60`, not a violet edge. These two are the
         // QUIET variants — the ones used where `default` would be too loud — and
         // turning their border violet on hover put them back in the primary's

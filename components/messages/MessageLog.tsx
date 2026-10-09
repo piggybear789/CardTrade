@@ -455,7 +455,11 @@ function MessageBubble({
     <div
       className={cn(
         'min-w-0 overflow-hidden text-body',
-        mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
+        // INK, NOT VIOLET, FOR YOUR OWN MESSAGES. A violet bubble per message made the
+        // brand colour the most repeated thing in a thread, so the one control that
+        // should pull (the contract's next action) had to compete with every line you
+        // had typed. Ink keeps sides distinct (16:1) and leaves violet to mean "press".
+        mine ? 'bg-foreground text-background' : 'bg-muted text-foreground',
         mine
           ? last
             ? 'rounded-2xl rounded-br-md'
@@ -499,7 +503,7 @@ function MessageBubble({
             rel="noopener noreferrer"
             className={cn(
               'flex items-center gap-snug px-cozy py-snug',
-              mine ? 'text-primary-foreground' : 'text-foreground',
+              mine ? 'text-background' : 'text-foreground',
             )}
           >
             <FileAttachmentLabel message={message} mine={mine} />
@@ -512,7 +516,7 @@ function MessageBubble({
           <div
             className={cn(
               'flex items-center gap-snug px-cozy py-snug opacity-70',
-              mine ? 'text-primary-foreground' : 'text-foreground',
+              mine ? 'text-background' : 'text-foreground',
             )}
           >
             <FileAttachmentLabel message={message} mine={mine} />

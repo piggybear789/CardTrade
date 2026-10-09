@@ -14,6 +14,7 @@
 // three possible outcomes rather than a promise.
 
 import { HandoverFailedDialog as SharedHandoverFailedDialog } from '@/components/fulfilment';
+import type { ButtonProps } from '@/components/ui/button';
 import { disputeCashSale } from '@/lib/actions/cashSale';
 
 /** Messages for the typed errors `disputeCashSale` can return. */
@@ -28,7 +29,7 @@ export interface HandoverFailedDialogProps {
   cashSaleId: string;
   /** Contextual label for the trigger button. */
   triggerLabel?: string;
-  triggerVariant?: 'outline' | 'destructive' | 'default' | 'secondary' | 'ghost';
+  triggerVariant?: ButtonProps['variant'];
 }
 
 export function HandoverFailedDialog({

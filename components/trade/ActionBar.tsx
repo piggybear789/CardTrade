@@ -105,11 +105,11 @@ function isBarAction(action: TradeAction): action is BarAction {
 const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   RECORD_SHIPMENT: {
     label: 'Record shipment',
-    variant: 'contrast',
+    variant: 'action',
   },
   CONFIRM_HANDOVER: {
     label: 'Confirm handover',
-    variant: 'contrast',
+    variant: 'action',
     // Worth a confirmation step, but note what it does and does not say. Confirming
     // means "we met and swapped", and the trade moves to INSPECTION — it does NOT
     // release the collateral, which is what accepting the item does afterwards.
@@ -125,7 +125,7 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   },
   RECORD_RECEIPT: {
     label: 'Record receipt',
-    variant: 'contrast',
+    variant: 'action',
     confirm: {
       title: 'Confirm you received the item?',
       description: 'This starts your inspection window.',
@@ -135,7 +135,7 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   },
   RECORD_ACCEPTANCE: {
     label: 'Accept item',
-    variant: 'contrast',
+    variant: 'action',
   },
   // Both of these describe what RAISING does, not what resolving does. Neither
   // moves money any more: a participant freezes the trade and states their case, and
@@ -151,15 +151,15 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   // trade case got three ids and a timestamp.
   RAISE_DISPUTE: {
     label: 'Raise dispute',
-    variant: 'destructive',
+    variant: 'outline',
   },
   REPORT_FRAUD: {
     label: 'Report fraud',
-    variant: 'destructive',
+    variant: 'destructive-quiet',
   },
   RETRY_COLLATERAL: {
     label: 'Retry hold',
-    variant: 'contrast',
+    variant: 'action',
   },
 };
 
@@ -316,7 +316,7 @@ export function ActionBar({
                   className="w-full sm:max-w-sm"
                 />
                 <Button
-                  variant="contrast"
+                  variant="action"
                   className="w-full sm:w-auto"
                   onClick={() => invoke(action)}
                   disabled={isPending}
@@ -357,7 +357,6 @@ export function ActionBar({
               <HandoverFailedDialog
                 key={action}
                 triggerLabel="Report fraud"
-                triggerVariant="destructive"
                 title="Report fraud"
                 outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to NoDitto support, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
                 reasonPlaceholder="e.g. the sleeve was sealed but empty; the card fails a light test and the print pattern is wrong…"

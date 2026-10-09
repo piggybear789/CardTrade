@@ -104,17 +104,22 @@ export function ChoiceTile({
         aria-describedby={hint ? `${id}-hint` : undefined}
         className={type === 'radio' ? 'sr-only' : 'size-4 shrink-0'}
       />
+      {/* VIOLET GLYPH, NEUTRAL TILE. The tiles are the way forward on their step, and
+          with a grey glyph they read exactly like the neutral Cancel beside them. The
+          glyph carries the brand colour (5.3:1 on white) so the paths read as paths;
+          the edge and fill stay neutral, because a violet edge or wash is the
+          selected state. */}
       {Icon ? (
         <HugeiconsIcon
           icon={Icon}
-          className={cn(stacked ? 'size-6' : 'size-4', 'shrink-0 text-muted-foreground')}
+          className={cn(stacked ? 'size-6' : 'size-4', 'shrink-0 text-primary')}
           aria-hidden
         />
       ) : null}
       <span className="min-w-0 space-y-tight">
         <span className={cn('block truncate', stacked ? 'font-semibold' : 'font-medium')}>{label}</span>
         {hint ? (
-          <span id={`${id}-hint`} className="block text-body text-muted-foreground">
+          <span id={`${id}-hint`} className="block text-balance text-body text-muted-foreground">
             {hint}
           </span>
         ) : null}

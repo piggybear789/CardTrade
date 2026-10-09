@@ -42,7 +42,6 @@ import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { ChoiceTile } from '@/components/ui/choice-tile';
 import {
-  DialogClose,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -311,6 +310,7 @@ export function DealComposeForm({
             onChange={() => chooseKind('CASH_SALE')}
             icon={BanknoteIcon}
             label="Sell a card"
+            hint="Set a price, send a link"
             align="center"
             layout="stacked"
           />
@@ -322,18 +322,13 @@ export function DealComposeForm({
             onChange={() => chooseKind('TRADE')}
             icon={RepeatIcon}
             label="Trade cards"
+            hint="Swap, with cash if needed"
             align="center"
             layout="stacked"
           />
         </div>
-
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="outline">
-              Cancel
-            </Button>
-          </DialogClose>
-        </DialogFooter>
+        {/* NO CANCEL. The dialog's own close button already dismisses it, and a
+            second exit beside two equal paths was a third choice to read. */}
       </>
     );
   }

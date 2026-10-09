@@ -389,8 +389,10 @@ export function ChatThread({
           </div>
         </div>
 
+        {/* Outline: the bar names where the deal lives, and the room it opens is
+            where the next action is. A filled button here outranked that action. */}
         {dock ? (
-          <Button asChild size="sm" className="shrink-0">
+          <Button asChild variant="outline" size="sm" className="shrink-0">
             <Link href={dock.href} transitionTypes={['nav-forward']}>
               {dock.label}
             </Link>

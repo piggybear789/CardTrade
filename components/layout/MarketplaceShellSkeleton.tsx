@@ -111,11 +111,14 @@ export function MarketplaceShellSkeleton({
                 // cascade instead, so moving `subhead` moves this with it.
                 <TextLines className="font-display text-subhead" widths={['w-1/3']} />
               )}
+              {/* Reserved when empty, exactly as `MarketplaceShell` does. */}
               {primaryAction ? (
                 <div className="mt-group md:[&>a]:!h-11 md:[&>a]:text-body md:[&>a>svg]:size-4 md:[&>button]:!h-11 md:[&>button]:text-body md:[&>button>svg]:size-4">
                   {primaryAction}
                 </div>
-              ) : null}
+              ) : (
+                <div aria-hidden className="mt-group h-11" />
+              )}
             </div>
 
             <MarketplaceNav primaryExtras={<DesktopOnly>{filters}</DesktopOnly>} />

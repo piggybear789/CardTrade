@@ -80,7 +80,7 @@ export function DeleteListingDialog({
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="destructive"
+          variant="destructive-quiet"
           size={size}
           className={className ?? 'w-full sm:w-auto'}
           aria-label="Delete listing"

@@ -145,11 +145,13 @@ const LISTING_KINDS = [
     value: "SINGLE" as const,
     icon: PackageIcon,
     label: "One item",
+    hint: "Held for one buyer",
   },
   {
     value: "SHOPFRONT" as const,
     icon: LibraryIcon,
     label: "Multiple items",
+    hint: "A binder to pick from",
   },
 ];
 
@@ -992,7 +994,7 @@ function ItemFormInner({
                     type="radio"
                     icon={kind.icon}
                     label={kind.label}
-                    align="center"
+                    hint={kind.hint}
                     checked={listingKind === kind.value}
                     onChange={() => setListingKind(kind.value)}
                   />

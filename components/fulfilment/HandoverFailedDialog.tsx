@@ -22,7 +22,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ImagePlusIcon, TriangleAlertIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { PendingLabel } from '@/components/ui/pending-label';
-import { Button } from '@/components/ui/button';
+import { Button, type ButtonProps } from '@/components/ui/button';
 import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import {
   Dialog,
@@ -69,11 +69,11 @@ export interface HandoverFailedDialogProps {
   /**
    * Trigger button variant.
    *
-   * Defaults to `destructive`, which suits the never-arrived and fraud reports. A
-   * condition dispute passes `outline` — the three claims carry very different
-   * consequences and the buttons should not look identical.
+   * Defaults to `destructive-quiet`: the trigger only opens this dialog, and the
+   * filled red belongs to its submit button. A condition dispute passes `outline` —
+   * the claims carry different consequences and should not look identical.
    */
-  triggerVariant?: 'outline' | 'destructive' | 'default' | 'secondary' | 'ghost';
+  triggerVariant?: ButtonProps['variant'];
   /**
    * When provided, evidence files are uploaded to Supabase Storage and formally
    * attached to the dispute case via `submitDisputeEvidence` after `onSubmit`
@@ -91,7 +91,7 @@ export function HandoverFailedDialog({
   title = 'Report a problem with the handover',
   outcomeDescription,
   reasonPlaceholder = 'e.g. they did not show up, the item was not what was agreed, the parcel never arrived…',
-  triggerVariant = 'destructive',
+  triggerVariant = 'destructive-quiet',
   evidenceContext,
 }: HandoverFailedDialogProps) {
   const [open, setOpen] = useState(false);

@@ -888,7 +888,7 @@ function ItemActions({
             />
           )}
           <div className="grid grid-cols-2 gap-snug">
-            <Button asChild variant="outline" className="min-w-0 w-full px-snug">
+            <Button asChild className="min-w-0 w-full px-snug">
               <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
                 <HugeiconsIcon icon={PencilIcon} aria-hidden />
                 <span className="truncate">Edit</span>
@@ -928,15 +928,16 @@ function ItemActions({
       // are the whole of what an owner came to this page to do, and at the default
       // `md:h-7` they were 28px of height stretched across a third of the column
       // each — the aspect ratio is what read as too thin, not the height alone.
-      // `lg` is also exactly what `ListingOwnerBar` already draws on a phone, so
-      // the two owner surfaces now agree instead of being 40px and 28px.
+      // The same row serves phones, in flow under the description.
       //
       // `[1fr_1fr_auto]`, NOT `grid-cols-3`. Delete is `compact` — icon only, no
-      // label — so an equal third made it a wide red slab with one small glyph in
-      // the middle. An `auto` track sizes it to its content, which is the same
-      // shape `ListingOwnerBar` uses and for the same reason.
+      // label — so an equal third made it a wide slab with one small glyph in the
+      // middle. An `auto` track sizes it to its content.
+      //
+      // EDIT IS THE PRIMARY. It is the owner's next step on their own listing; Copy
+      // stays neutral and Delete stays quiet until its confirmation.
       <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
-        <Button asChild variant="outline" size="lg" className="min-w-0 w-full px-snug">
+        <Button asChild size="lg" className="min-w-0 w-full px-snug">
           <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
             <HugeiconsIcon icon={PencilIcon} aria-hidden />
             <span className="truncate">Edit</span>

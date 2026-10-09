@@ -52,7 +52,7 @@ import {
   type ImageDim,
 } from '@/lib/images/dimensions';
 import { readListingGate } from '@/lib/sellerListingGate';
-import { normalizeRegionCode } from '@/domain/region';
+import { normalizeRegionCode, regionCurrency } from '@/domain/region';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { CARD_GAME_NAMES, isCardGameName } from '@/lib/catalog/cardGames';
 import { normalizeConditionFilter } from '@/lib/catalog/conditions';
@@ -64,6 +64,7 @@ import {
   // `priceHistogram: priceHistogram(...)` is legal but reads like a mistake.
   priceHistogram as buildPriceHistogram,
 } from '@/lib/catalog/priceLadder';
+import { askingPriceRange, listedPriceCents } from '@/lib/listings/buyerPrice';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { ListingKind } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -1135,7 +1136,7 @@ export type CatalogSort = 'newest' | 'price-asc' | 'price-desc' | 'rating';
  * column is a handful of integers per row.
  */
 const CATALOG_TILE_COLUMNS =
-  'id, owner_id, title, category, condition, image_paths, image_dims, fmv_cents, watch_count, listing_kind, status';
+  'id, owner_id, title, category, condition, image_paths, image_dims, fmv_cents, currency, watch_count, listing_kind, status';
 
 /** Parameters accepted by {@link searchCatalog} (all optional). */
 export interface SearchCatalogParams {
@@ -1149,9 +1150,12 @@ export interface SearchCatalogParams {
    * else off the scale is ignored.
    */
   conditions?: string[];
-  /** Minimum fair market value, in integer AUD cents (inclusive). */
+  /**
+   * Minimum LISTED price (inclusive), in the region currency's minor units — the
+   * figure the tile shows, fee included for a single listing. See `listedPriceCents`.
+   */
   minCents?: number;
-  /** Maximum fair market value, in integer AUD cents (inclusive). */
+  /** Maximum LISTED price (inclusive). See {@link SearchCatalogParams.minCents}. */
   maxCents?: number;
   /**
    * Restrict to listings in this region (ISO 3166-1 alpha-2), plus listings with
@@ -1269,6 +1273,42 @@ async function enrichWithSellers(
   }));
 }
 
+function finiteOrUndefined(value: number | undefined): number | undefined {
+  return value != null && Number.isFinite(value) ? Math.trunc(value) : undefined;
+}
+
+/**
+ * The PostgREST `or` filter selecting listings whose LISTED price is in `range`, or
+ * null when neither bound is set.
+ *
+ * The bounds are what a buyer typed against the prices on the tiles, and the tiles
+ * show two kinds of figure (`listedPriceCents`): a single listing's fee-inclusive
+ * charge, and a binder's fee-free "from" price. So each kind gets its own branch — a
+ * single's bounds are inverted to asking prices (`askingPriceRange`), a binder's apply
+ * to `fmv_cents` directly. Filtering every row on the asking price was 5% off for the
+ * common case: "up to $100" showed a $99 single that the tile priced at $103.95.
+ *
+ * Every value interpolated here is an integer, so the filter string cannot be steered.
+ */
+function catalogPriceFilter(
+  range: { minCents?: number; maxCents?: number },
+  currency: string | null,
+): string | null {
+  if (range.minCents == null && range.maxCents == null) return null;
+  const bounds = (kind: ListingKind, { minCents, maxCents }: typeof range) =>
+    [
+      `listing_kind.eq.${kind}`,
+      minCents != null ? `fmv_cents.gte.${minCents}` : null,
+      maxCents != null ? `fmv_cents.lte.${maxCents}` : null,
+    ]
+      .filter(Boolean)
+      .join(',');
+  return [
+    `and(${bounds('SINGLE', askingPriceRange(range, currency))})`,
+    `and(${bounds('SHOPFRONT', range)})`,
+  ].join(',');
+}
+
 /**
  * Server-side catalog search, filtering, sorting, and pagination (Phase 7).
  *
@@ -1288,10 +1328,13 @@ async function enrichWithSellers(
  *   * `categories` → `category IN (...)`, always restricted to card games.
  *     Collectible-type leftovers (Comics, Stamps, …) never appear in browse.
  *   * `condition`  → `condition = ...`.
- *   * `minCents` / `maxCents` → `fmv_cents >= / <=` (integer AUD cents).
+ *   * `minCents` / `maxCents` → bounds on the LISTED price, the figure the tiles show
+ *     (see `catalogPriceFilter`).
  *
  * Sorting: `newest` orders by `created_at desc`; `price-asc`/`price-desc` order
- * by `fmv_cents`; `rating` orders by the denormalized `items.seller_rating`
+ * by `fmv_cents` — the listed price of every single listing rises with it, so
+ * singles sort exactly; a binder's fee-free "from" figure can sit a few percent
+ * out of place beside a single of near-equal price. `rating` orders by the denormalized `items.seller_rating`
  * column (kept in sync with each seller's profile rating by DB triggers), so it
  * is a GLOBAL ordering that paginates correctly.
  *
@@ -1357,12 +1400,17 @@ export const searchCatalog = withActionLog('listings.searchCatalog', async funct
       query = query.in('condition', conditions);
     }
 
-    // Price range (integer AUD cents).
-    if (params.minCents != null && Number.isFinite(params.minCents)) {
-      query = query.gte('fmv_cents', Math.trunc(params.minCents));
-    }
-    if (params.maxCents != null && Number.isFinite(params.maxCents)) {
-      query = query.lte('fmv_cents', Math.trunc(params.maxCents));
+    // Price range, in LISTED price — what the tiles show — applied to the asking
+    // price column. See `catalogPriceFilter`.
+    const priceFilter = catalogPriceFilter(
+      {
+        minCents: finiteOrUndefined(params.minCents),
+        maxCents: finiteOrUndefined(params.maxCents),
+      },
+      regionCurrency(params.regionCode),
+    );
+    if (priceFilter) {
+      query = query.or(priceFilter);
     }
 
     // Region scope (0065). Normalized first, so an unknown code falls through to the
@@ -1505,8 +1553,9 @@ export const fetchCatalogPage = withActionLog('listings.fetchCatalogPage', async
 /** Bounds for the catalog filter UI. */
 export interface CatalogFacets {
   /**
-   * Highest `fmv_cents` in the listable catalog — the ceiling for the price
-   * range control, so its span always covers the inventory it filters. 0 when
+   * Highest LISTED price in the listable catalog (`listedPriceCents`, the figure
+   * the tiles show) — the ceiling for the price range control, so its span always
+   * covers the inventory it filters, in the same terms the filter applies. 0 when
    * nothing is listed.
    */
   maxPriceCents: number;
@@ -1543,7 +1592,7 @@ async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
 
   let query = supabase
     .from('items')
-    .select('fmv_cents, status')
+    .select('fmv_cents, currency, listing_kind, status')
     // Every status the grid can reach, so the ceiling is a property of the
     // catalog rather than of the current toggles. Ticking "Include reserved"
     // must not make the slider's top end jump, which is the same reason SOLD
@@ -1576,11 +1625,20 @@ async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
   // "where the stock is", and a sold card is not stock — with SOLD in it the chart
   // lit a segment the default grid showed nothing in, which is exactly the "the
   // filter is broken" reading the chart exists to prevent.
+  //
+  // Both in LISTED price, the figure on the tiles, because that is what the slider's
+  // bounds are applied as (`catalogPriceFilter`). In asking price the slider topped
+  // out 5% under the dearest tile it was meant to reach.
   let maxPriceCents = 0;
   const pricesCents: number[] = [];
   for (const row of data) {
-    const cents = row.fmv_cents as number | null;
-    if (cents == null) continue;
+    const asking = row.fmv_cents as number | null;
+    if (asking == null) continue;
+    const cents = listedPriceCents(
+      asking,
+      (row.currency as string | null) ?? null,
+      row.listing_kind === 'SHOPFRONT',
+    );
     if (cents > maxPriceCents) maxPriceCents = cents;
     if (row.status === 'AVAILABLE') pricesCents.push(cents);
   }
@@ -1598,7 +1656,8 @@ async function readCatalogFacets(regionCode: string): Promise<CatalogFacets> {
 
 const readCatalogFacetsCached = unstable_cache(
   async (regionCode: string) => readCatalogFacets(regionCode),
-  ['catalog-facets-v1'],
+  // v2: the figures moved from asking to listed price, so a v1 entry is a different unit.
+  ['catalog-facets-v2'],
   { revalidate: 60, tags: [CATALOG_CACHE_TAG] },
 );
 
@@ -1618,7 +1677,10 @@ export type CatalogSuggestion = {
   title: string;
   category: string;
   imagePath: string | null;
-  fmvCents: number;
+  /** The listing's tile price, `listedPriceCents` — the figure the listing page leads with. */
+  listedCents: number;
+  /** A binder, whose listed figure is an indicative "from" price. */
+  isShopfront: boolean;
   currency: string;
 };
 
@@ -1663,7 +1725,8 @@ export const suggestCatalogItems = withActionLog('listings.suggestCatalogItems',
 const loadSuggestionsCached = unstable_cache(
   async (q: string, gamesKey: string, regionCode: string) =>
     loadSuggestions(q, gamesKey ? gamesKey.split('\n') : [], regionCode || null),
-  ['catalog-suggest-v1'],
+  // v2: hits carry the listed price rather than the asking price.
+  ['catalog-suggest-v2'],
   { revalidate: 30, tags: [CATALOG_CACHE_TAG] },
 );
 
@@ -1677,7 +1740,7 @@ async function loadSuggestions(
   for (const attempt of attempts) {
     let query = supabase
       .from('items')
-      .select('id, title, category, image_paths, fmv_cents, currency')
+      .select('id, title, category, image_paths, fmv_cents, currency, listing_kind')
       .eq('hidden', false)
       .is('closed_at', null)
       .eq('status', 'AVAILABLE')
@@ -1697,14 +1760,19 @@ async function loadSuggestions(
     if ((data ?? []).length > 0 || attempt === attempts[attempts.length - 1]) {
       return {
         ok: true,
-        data: (data ?? []).map((row) => ({
-          id: row.id as string,
-          title: row.title as string,
-          category: row.category as string,
-          imagePath: Array.isArray(row.image_paths) ? (row.image_paths[0] as string | undefined) ?? null : null,
-          fmvCents: (row.fmv_cents as number) ?? 0,
-          currency: (row.currency as string) || 'aud',
-        })),
+        data: (data ?? []).map((row) => {
+          const currency = (row.currency as string) || 'aud';
+          const isShopfront = row.listing_kind === 'SHOPFRONT';
+          return {
+            id: row.id as string,
+            title: row.title as string,
+            category: row.category as string,
+            imagePath: Array.isArray(row.image_paths) ? (row.image_paths[0] as string | undefined) ?? null : null,
+            listedCents: listedPriceCents((row.fmv_cents as number) ?? 0, currency, isShopfront),
+            isShopfront,
+            currency,
+          };
+        }),
       };
     }
   }

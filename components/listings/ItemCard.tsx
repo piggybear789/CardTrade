@@ -12,8 +12,8 @@ import { StorageImage } from '@/components/ui/storage-image';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
-import { formatAud, itemImageUrl } from '@/lib/format';
-import { splitMoney } from '@/lib/listings/buyerPrice';
+import { formatMoney, itemImageUrl } from '@/lib/format';
+import { listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
 import { cn } from '@/lib/utils';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
 import { tileIntrinsicHeight } from '@/components/listings/catalogGrid';
@@ -101,6 +101,19 @@ const BACKDROP_SIZES = '128px';
    `splitMoney` uses" — a cross-client rule hidden inside one component — and the listing
    detail panes wanted it too. */
 
+/**
+ * The tile's price: the same figure the listing page leads with, so opening a card
+ * never shows a different number from the one that was clicked. Fee-inclusive for a
+ * single listing, the indicative "from" price for a binder — see `listedPriceCents`.
+ */
+function tilePrice(item: CatalogItem): string {
+  const isShopfront = item.listing_kind === 'SHOPFRONT';
+  return formatMoney(
+    listedPriceCents(item.fmv_cents, item.currency, isShopfront),
+    item.currency,
+  );
+}
+
 function unavailableLabelFor(item: CatalogItem): string | undefined {
   // A shopfront is never RESERVED or SOLD (0064), so the overlay can never
   // apply — and its price is an indicative "from", not an asking price.
@@ -133,7 +146,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
   // `undefined` means "not in a mosaic" and leaves every class untouched; see
   // the prop doc. `null` is an opted-in tile with an unknown photo.
   const inMosaic = coverDim !== undefined;
-  const price = splitMoney(formatAud(item.fmv_cents));
+  const price = splitMoney(tilePrice(item));
 
   return (
     <Card
@@ -567,7 +580,7 @@ function ItemCardPriceRow({
             from
           </span>
         ) : null}
-        {formatAud(item.fmv_cents)}
+        {tilePrice(item)}
       </p>
       {/* Hidden at zero rather than shown as "0 watching", which reads as a
           verdict on the listing. `watch_count` is denormalised by 0097 because

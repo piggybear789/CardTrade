@@ -492,7 +492,8 @@ function HeaderSearchInner({
                     <span className="block truncate text-meta text-muted-foreground">
                       {hit.category}
                       {' · '}
-                      {formatMoney(hit.fmvCents, hit.currency)}
+                      {hit.isShopfront ? 'from ' : null}
+                      {formatMoney(hit.listedCents, hit.currency)}
                     </span>
                   </span>
                 </Link>

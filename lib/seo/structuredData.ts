@@ -16,6 +16,7 @@
 
 import { minorToMajor, minorUnitDigits } from '@/domain/region';
 import { avatarUrl, itemImageUrl } from '@/lib/format';
+import { listedPriceCents } from '@/lib/listings/buyerPrice';
 import { absoluteUrl, SITE_URL } from '@/lib/seo/site';
 
 /**
@@ -198,7 +199,10 @@ export function listingStructuredData(listing: ListingSeoInput): StructuredData 
       : {
           '@type': 'Offer',
           ...offerBase,
-          price: priceString(listing.fmvCents, currency),
+          // What a buyer pays, fee included: the figure the page headline shows.
+          // A rich result quoting the seller's pre-fee price would undercut the
+          // page it links to.
+          price: priceString(listedPriceCents(listing.fmvCents, currency, false), currency),
         },
   };
 }

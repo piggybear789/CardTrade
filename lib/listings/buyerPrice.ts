@@ -40,6 +40,76 @@ export function buyerPaysCents(priceCents: number, currency: string | null): num
 }
 
 /**
+ * The price a buyer-facing surface shows for a listing — the catalog tile, the listing
+ * page, search suggestions, structured data — and the figure the catalog's price
+ * filter and slider work in.
+ *
+ * A single listing shows what the buyer is charged ({@link buyerPaysCents}). A binder
+ * shows its asking "from" figure as is, because no contract amount exists until line
+ * items are agreed (see the note on `buyerPaysCents`).
+ *
+ * ONE FUNCTION FOR EVERY SURFACE, because the tile and the listing page used to
+ * disagree: the catalog showed the asking price and the page it opened showed 5% more.
+ */
+export function listedPriceCents(
+  priceCents: number,
+  currency: string | null,
+  isShopfront: boolean,
+): number {
+  return isShopfront ? priceCents : buyerPaysCents(priceCents, currency);
+}
+
+/**
+ * The ASKING-price range of single listings whose listed price falls inside
+ * `[minCents, maxCents]` — how a filter set in what buyers see is applied to the
+ * `fmv_cents` column, which stores what sellers ask.
+ *
+ * Exact, not approximate: {@link buyerPaysCents} is strictly increasing in the asking
+ * price (the price rises a whole cent per step and the fee never falls), so each bound
+ * has one inverse — the smallest asking price charging at least `minCents`, and the
+ * largest charging at most `maxCents`. An omitted bound stays omitted.
+ */
+export function askingPriceRange(
+  range: { minCents?: number; maxCents?: number },
+  currency: string | null,
+): { minCents?: number; maxCents?: number } {
+  const charges = (asking: number) => buyerPaysCents(asking, currency);
+  const out: { minCents?: number; maxCents?: number } = {};
+
+  if (range.minCents != null) {
+    const target = Math.trunc(range.minCents);
+    // The asking price never exceeds what it charges, so the answer is in [0, target].
+    let lo = 0;
+    let hi = Math.max(target, 0);
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (charges(mid) >= target) hi = mid;
+      else lo = mid + 1;
+    }
+    out.minCents = lo;
+  }
+
+  if (range.maxCents != null) {
+    const target = Math.trunc(range.maxCents);
+    if (target < 0) {
+      out.maxCents = -1;
+    } else {
+      // Zero charges zero, so the answer is in [0, target].
+      let lo = 0;
+      let hi = target;
+      while (lo < hi) {
+        const mid = Math.ceil((lo + hi) / 2);
+        if (charges(mid) <= target) lo = mid;
+        else hi = mid - 1;
+      }
+      out.maxCents = lo;
+    }
+  }
+
+  return out;
+}
+
+/**
  * Split a formatted money string into currency symbol, major units, and minor
  * units, so each can be sized independently — the digits that decide the
  * purchase get the weight, and the symbol and cents recede.

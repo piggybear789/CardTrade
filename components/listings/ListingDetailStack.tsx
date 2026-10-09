@@ -6,9 +6,9 @@ import { ExpandableDescription } from '@/components/listings/ExpandableDescripti
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
-import { formatAud, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { buyerPaysCents, splitMoney } from '@/lib/listings/buyerPrice';
+import { buyerPaysCents, listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
 import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
@@ -80,9 +80,9 @@ export function ListingDetailStack({
   // the same price.
   const listedAgo = formatRelativeTime(createdAt);
   // A binder shows its own indicative "from" figure; a single listing shows what the
-  // buyer is actually charged. See `buyerPaysCents`.
+  // buyer is actually charged — the same figure as its catalog tile.
   const headline = splitMoney(
-    formatAud(isShopfront ? priceCents : buyerPaysCents(priceCents, currency)),
+    formatMoney(listedPriceCents(priceCents, currency, isShopfront), currency),
   );
   const meta = [
     watchCount > 0 ? savesLabel : null,
@@ -138,9 +138,9 @@ export function ListingDetailStack({
               indicative "from". */}
           {!isShopfront ? (
             <FeeInfoPopover
-              priceText={formatAud(priceCents)}
-              feeText={formatAud(platformFeeCentsFor(priceCents, currency))}
-              totalText={formatAud(buyerPaysCents(priceCents, currency))}
+              priceText={formatMoney(priceCents, currency)}
+              feeText={formatMoney(platformFeeCentsFor(priceCents, currency), currency)}
+              totalText={formatMoney(buyerPaysCents(priceCents, currency), currency)}
               rateLabel={platformFeeRateLabel(currency)}
             />
           ) : null}

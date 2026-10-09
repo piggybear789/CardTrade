@@ -7,11 +7,11 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { buyerPaysCents, splitMoney } from '@/lib/listings/buyerPrice';
+import { buyerPaysCents, listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
 import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
-import { formatAud, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 
 /* The fee label is `platformFeeRateLabel` in `lib/fees/feeLabels.ts`, shared with
    `ListingDetailStack`; the fee-inclusive figure and `splitMoney` are in
@@ -73,9 +73,9 @@ export function ListingDesktopPane({
   // answer here: "4h ago" is the whole point, and "12 Sep" is not.
   const listedAgo = formatRelativeTime(createdAt);
   // A binder shows its own indicative "from" figure; a single listing shows what the
-  // buyer is actually charged. See `buyerPaysCents`.
+  // buyer is actually charged — the same figure as its catalog tile.
   const headline = splitMoney(
-    formatAud(isShopfront ? priceCents : buyerPaysCents(priceCents, currency)),
+    formatMoney(listedPriceCents(priceCents, currency, isShopfront), currency),
   );
 
   return (
@@ -134,9 +134,9 @@ export function ListingDesktopPane({
                 fee-inclusive, so hiding the note does not hide the charge. */}
             {!isShopfront ? (
               <FeeInfoPopover
-                priceText={formatAud(priceCents)}
-                feeText={formatAud(platformFeeCentsFor(priceCents, currency))}
-                totalText={formatAud(buyerPaysCents(priceCents, currency))}
+                priceText={formatMoney(priceCents, currency)}
+                feeText={formatMoney(platformFeeCentsFor(priceCents, currency), currency)}
+                totalText={formatMoney(buyerPaysCents(priceCents, currency), currency)}
                 rateLabel={platformFeeRateLabel(currency)}
               />
             ) : null}

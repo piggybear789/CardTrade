@@ -36,7 +36,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { CountBadge } from '@/components/ui/count-badge';
-import { useUnreadCounts } from '@/lib/realtime/useUnreadCounts';
+import { useWorkspaceUnread } from '@/components/layout/WorkspaceChrome';
 import { cn } from '@/lib/utils';
 
 /**
@@ -120,14 +120,12 @@ function HubSheetLinks({
 export interface MobileBottomNavProps {
   /** Resolved by the workspace layout; decides where a gated hub points. */
   isAuthenticated: boolean;
-  /** The member's id, for the unread counts. Null for a guest. */
-  userId: string | null;
 }
 
-export function MobileBottomNav({ isAuthenticated, userId }: MobileBottomNavProps) {
+export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
   const pathname = usePathname();
   const [openHub, setOpenHub] = useState<MobileHubId | null>(null);
-  const unread = useUnreadCounts(isAuthenticated ? userId : null);
+  const unread = useWorkspaceUnread();
   const hubs = isAuthenticated ? MOBILE_HUBS : GUEST_MOBILE_HUBS;
   const unreadFor = (id: MobileHubId) =>
     id === 'messages' ? unread.messages : id === 'account' ? unread.notifications : 0;

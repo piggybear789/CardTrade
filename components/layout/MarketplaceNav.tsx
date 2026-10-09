@@ -18,7 +18,8 @@ import {
   staffNavLinksFor,
   type MarketplaceNavGroup,
 } from '@/components/layout/marketplace-nav-config';
-import { useWorkspaceChrome } from '@/components/layout/WorkspaceChrome';
+import { useWorkspaceChrome, useWorkspaceUnread } from '@/components/layout/WorkspaceChrome';
+import { CountBadge } from '@/components/ui/count-badge';
 import { cn } from '@/lib/utils';
 
 export function MarketplaceNav({
@@ -36,6 +37,13 @@ export function MarketplaceNav({
   // skeleton can draw this same nav without a profile read of its own. See
   // `components/layout/WorkspaceChrome.tsx`.
   const { staff } = useWorkspaceChrome();
+  // The rows whose sections hold something waiting on the member.
+  const unread = useWorkspaceUnread();
+  const waiting: Record<string, number> = {
+    '/offers': unread.offers,
+    '/messages': unread.messages,
+    '/notifications': unread.notifications,
+  };
 
   const staffLinks = staff ? staffNavLinksFor(staff) : [];
   const groups: readonly MarketplaceNavGroup[] =
@@ -78,6 +86,7 @@ export function MarketplaceNav({
                     link.href,
                   );
                   const Icon = link.icon;
+                  const count = waiting[link.href] ?? 0;
                   return (
                     <li key={link.href} className="w-full">
                       <Link
@@ -123,6 +132,8 @@ export function MarketplaceNav({
                           aria-hidden="true"
                         />
                         {link.label}
+                        <CountBadge count={count} className="ml-auto" />
+                        {count > 0 ? <span className="sr-only">, {count} waiting</span> : null}
                       </Link>
                     </li>
                   );

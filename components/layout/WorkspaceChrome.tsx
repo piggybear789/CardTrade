@@ -24,6 +24,8 @@
 
 import { createContext, use, useEffect, type ReactNode } from 'react';
 
+import { NO_UNREAD, useUnreadCounts, type UnreadCounts } from '@/lib/realtime/useUnreadCounts';
+
 /**
  * What the server should assume about the viewport before hydration.
  *
@@ -51,6 +53,11 @@ export interface WorkspaceChromeValue {
   staff?: { isStaff: boolean; isAdmin: boolean };
   /** Last known viewport, for a first paint that matches the screen. */
   viewport?: ViewportHint;
+  /**
+   * What is waiting on the member, for the rail and the phone bar. Read once here
+   * rather than by each, so a navigation costs one set of counts, not two.
+   */
+  unread?: UnreadCounts;
 }
 
 /**
@@ -62,10 +69,16 @@ const WorkspaceChromeContext = createContext<WorkspaceChromeValue>({});
 export function WorkspaceChromeProvider({
   staff,
   viewport,
+  userId,
   children,
-}: WorkspaceChromeValue & { children: ReactNode }) {
+}: Omit<WorkspaceChromeValue, 'unread'> & {
+  /** The signed-in member, or null for a guest (no counts). */
+  userId: string | null;
+  children: ReactNode;
+}) {
+  const unread = useUnreadCounts(userId);
   return (
-    <WorkspaceChromeContext value={{ staff, viewport }}>
+    <WorkspaceChromeContext value={{ staff, viewport, unread }}>
       {children}
       <ViewportHintWriter />
     </WorkspaceChromeContext>
@@ -74,6 +87,11 @@ export function WorkspaceChromeProvider({
 
 export function useWorkspaceChrome(): WorkspaceChromeValue {
   return use(WorkspaceChromeContext);
+}
+
+/** The member's waiting counts; zeros outside the workspace or for a guest. */
+export function useWorkspaceUnread(): UnreadCounts {
+  return use(WorkspaceChromeContext).unread ?? NO_UNREAD;
 }
 
 /** Name of the cookie carrying {@link ViewportHint}. Read by the workspace layout. */

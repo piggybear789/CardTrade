@@ -2,13 +2,15 @@
 
 // lib/realtime/useUnreadCounts.ts
 //
-// Unread notifications and unread messages for the phone tab bar's badges.
+// What is waiting on the member, as three numbers: unread notifications, unread
+// messages, and offers whose next move is theirs. Drawn on the phone tab bar and the
+// desktop rail, from ONE instance mounted in `WorkspaceChromeProvider`.
 //
-// TWO HEAD COUNTS, NOT A SUBSCRIPTION. The desktop bell holds a live notification
-// list because it renders one; the phone bar only needs two numbers, so it reads them
-// with `count: 'exact', head: true` (no rows cross the wire) from the browser client,
-// under the same RLS that scopes the bell. They refresh on every navigation and when
-// the tab comes back into view, which is when a member looks at the bar.
+// HEAD COUNTS, NOT A SUBSCRIPTION. The desktop bell holds a live notification list
+// because it renders one; the chrome only needs numbers, so it reads them with
+// `count: 'exact', head: true` (no rows cross the wire) from the browser client, under
+// the same RLS that scopes the bell. They refresh on every navigation and when the tab
+// comes back into view, which is when a member looks at the chrome.
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
@@ -18,21 +20,24 @@ import { createClient } from '@/lib/supabase/browser';
 export interface UnreadCounts {
   notifications: number;
   messages: number;
+  /** Pending offers made by the other side — the member's move. */
+  offers: number;
 }
 
-const NONE: UnreadCounts = { notifications: 0, messages: 0 };
+export const NO_UNREAD: UnreadCounts = { notifications: 0, messages: 0, offers: 0 };
 
 export function useUnreadCounts(userId: string | null): UnreadCounts {
   const pathname = usePathname();
-  const [counts, setCounts] = useState<UnreadCounts>(NONE);
+  const [counts, setCounts] = useState<UnreadCounts>(NO_UNREAD);
 
   useEffect(() => {
     if (!userId) return;
+    const me = userId;
     const supabase = createClient();
     let cancelled = false;
 
     async function load() {
-      const [notifications, messages] = await Promise.all([
+      const [notifications, messages, offers] = await Promise.all([
         supabase
           .from('notifications')
           .select('id', { count: 'exact', head: true })
@@ -43,14 +48,21 @@ export function useUnreadCounts(userId: string | null): UnreadCounts {
           .from('messages')
           .select('id', { count: 'exact', head: true })
           .eq('kind', 'USER')
-          .neq('sender_id', userId as string)
+          .neq('sender_id', me)
           .is('read_at', null),
+        supabase
+          .from('offers')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'PENDING')
+          .neq('offered_by', me)
+          .or(`seller_id.eq.${me},buyer_id.eq.${me}`),
       ]);
       if (cancelled) return;
       // A failed read keeps the last good figure rather than flashing zero.
       setCounts((prev) => ({
         notifications: notifications.error ? prev.notifications : (notifications.count ?? 0),
         messages: messages.error ? prev.messages : (messages.count ?? 0),
+        offers: offers.error ? prev.offers : (offers.count ?? 0),
       }));
     }
 
@@ -66,5 +78,5 @@ export function useUnreadCounts(userId: string | null): UnreadCounts {
     };
   }, [userId, pathname]);
 
-  return userId ? counts : NONE;
+  return userId ? counts : NO_UNREAD;
 }

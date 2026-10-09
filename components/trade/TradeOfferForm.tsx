@@ -5,9 +5,10 @@
 // Offer a 2-Way Trade against one specific listing.
 //
 // The Item being requested is fixed context supplied by the listing you came
-// from, so the only decision here is what you put up. Kept deliberately small:
-// selected goods on the card, inventory browse/search in OwnItemsPickerDialog,
-// and optional terms folded into Offer Terms / Payment Terms dialogs.
+// from, so the only decision here is what you put up. Two sides, "You get" and
+// "You give": your first few listings are tickable in place, a longer inventory is
+// searched in OwnItemsPickerDialog, and cash, valuation and a note sit behind "Add
+// cash".
 //
 // Selection order carries meaning: the first listed Item confirmed in the
 // picker is the primary one on the proposal; the rest ride along as the bundle.
@@ -39,6 +40,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { DialogFooter } from '@/components/ui/dialog';
 import { DialogRow } from '@/components/ui/dialog-row';
+import { cn } from '@/lib/utils';
 import { OwnItemsPickerDialog } from '@/components/trade/OwnItemsPickerDialog';
 import {
   EMPTY_PAYMENT_TERMS,
@@ -110,6 +112,9 @@ export type TradeOfferRequested = {
    */
   isShopfront?: boolean;
 };
+
+/** How many of your listings are tickable in place before the searchable picker. */
+const INLINE_LISTINGS = 5;
 
 export interface TradeOfferFormProps {
   /** The listing being requested, as fixed context. */
@@ -200,6 +205,16 @@ export function TradeOfferForm({
 
   /** Everything on your side of the table, for the count on the legend. */
   const offeredCount = selectedItemIds.length + (unlisted ? 1 : 0);
+  /**
+   * The listings shown tickable in place: whatever is already selected, then the
+   * newest, up to `INLINE_LISTINGS`. Selected rows stay visible so nothing chosen in
+   * the picker is out of sight.
+   */
+  const inlineItems = useMemo(() => {
+    const selected = ownItems.filter((item) => selectedItemIds.includes(item.id));
+    const rest = ownItems.filter((item) => !selectedItemIds.includes(item.id));
+    return [...selected, ...rest].slice(0, Math.max(INLINE_LISTINGS, selected.length));
+  }, [ownItems, selectedItemIds]);
   const canSubmit =
     !isPending &&
     offeredCount > 0 &&
@@ -232,7 +247,7 @@ export function TradeOfferForm({
     // figure, stated here, rather than inherited from a "from" price.
     if (isShopfront && unlisted && declaredValueCents <= 0) {
       setError(
-        'Set what your side is worth in Payment Terms. A multi-item listing has no single price to match against.',
+        'Set what your side is worth under Add cash. A multi-item listing has no single price to match against.',
       );
       return;
     }
@@ -309,39 +324,50 @@ export function TradeOfferForm({
 
   const body = (
     <>
-      {/* What is on the table. */}
-      <section
-        aria-label="Item you are requesting"
-        className="flex items-center gap-cozy rounded-lg border bg-muted p-cozy"
-      >
-        {thumb ? (
-          <StorageImage
-            src={thumb}
-            alt=""
-            width={48}
-            height={48}
-            className="size-12 shrink-0 rounded-md object-cover"
-            loading="lazy"
-          />
-        ) : null}
-        <div className="min-w-0">
-          <p className="text-meta uppercase tracking-wide text-muted-foreground">
-            {requested.ownerName} is offering up
-          </p>
-          <p className="truncate font-semibold text-lead">{requested.title}</p>
+      {/* YOU GET, THEN YOU GIVE. The two sides of a swap, named the way a trader thinks
+          about them (the give/get model Uniswap and every swap UI uses). The requested
+          card used to sit under "is offering up" in muted capitals, and your side was a
+          stack of collapsed rows, so the form read as settings rather than an exchange. */}
+      <section aria-labelledby="trade-get-heading" className="space-y-snug">
+        <h3 id="trade-get-heading" className="text-body font-medium">
+          You get
+        </h3>
+        <div className="flex items-center gap-cozy rounded-lg border bg-card p-cozy">
+          {thumb ? (
+            <StorageImage
+              src={thumb}
+              alt=""
+              width={48}
+              height={48}
+              className="size-12 shrink-0 rounded-md object-cover"
+              loading="lazy"
+            />
+          ) : null}
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-lead">{requested.title}</p>
+            <p className="truncate text-meta text-muted-foreground">from {requested.ownerName}</p>
+          </div>
+          {/* A binder's price is an indicative "from" for the whole lot, so showing it
+              here as what this trader gives would overstate their side by an order of
+              magnitude. The running total below states the real figure. */}
+          {isShopfront ? (
+            <span className="ml-auto shrink-0 text-meta text-muted-foreground">multiple items</span>
+          ) : (
+            <span className="ml-auto shrink-0 text-body font-semibold tabular-nums">
+              {formatAud(requested.fmvCents)}
+            </span>
+          )}
         </div>
-        {/* A binder's price is an indicative "from" for the whole lot, so showing it
-            here as what this trader gives would overstate their side by an order of
-            magnitude. The running total below states the real figure. */}
-        {isShopfront ? (
-          <span className="ml-auto shrink-0 text-meta text-muted-foreground">
-            multiple items
-          </span>
-        ) : (
-          <span className="ml-auto shrink-0 text-body font-semibold tabular-nums">
-            {formatAud(requested.fmvCents)}
-          </span>
-        )}
+        {/* WHY THIS IS NOT THE LISTING'S FIGURE. The listing leads with what a cash
+            buyer pays, fee included; a trade values the card at the seller's asking
+            price and charges its own fee once you both accept. Said here, the two
+            numbers stop looking like a mistake. */}
+        {!isShopfront ? (
+          <p className="text-meta text-muted-foreground">
+            Valued at the seller&apos;s asking price. The listing&apos;s price includes the
+            cash buyer fee; trades carry their own fee, charged when you both accept.
+          </p>
+        ) : null}
       </section>
 
       {/* What is coming out of the binder. The trade has to say, because the listing
@@ -374,7 +400,7 @@ export function TradeOfferForm({
           shrink inside the sheet and lets prices get clipped by the scrollbar. */}
       <fieldset className="min-w-0 space-y-snug">
         <legend className="text-body font-medium">
-          You offer
+          You give
           {offeredCount > 0 ? (
             <span className="ml-tight font-normal text-muted-foreground">
               ({offeredCount} selected)
@@ -415,51 +441,53 @@ export function TradeOfferForm({
           </div>
         ) : null}
 
-        {/* Selected listings only — full inventory is searched in the picker. */}
-        {selectedItemIds.length > 0 ? (
-          <ul className="min-w-0 space-y-tight">
-            {selectedItemIds.map((id) => {
-              const item = ownItems.find((row) => row.id === id);
-              if (!item) return null;
+        {/* YOUR LISTINGS, INLINE. They were behind a "Your listings" row that opened
+            a picker, so the most likely way to answer a trade — with a card you already
+            listed — took a dialog to even see. The first few are tickable right here;
+            a longer inventory keeps the searchable picker for the rest. */}
+        {ownItems.length > 0 ? (
+          <ul className="min-w-0 space-y-tight" aria-label="Your listings">
+            {inlineItems.map((item) => {
+              const selected = selectedItemIds.includes(item.id);
               return (
-                <li
-                  key={item.id}
-                  className="flex items-center gap-cozy rounded-md border border-border bg-muted p-snug text-body"
-                >
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {item.title}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {formatAud(item.fmv_cents)}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="size-11 shrink-0 p-0 md:size-8"
-                    onClick={() => removeSelectedItem(item.id)}
+                <li key={item.id}>
+                  <label
+                    className={cn(
+                      'flex cursor-pointer items-center gap-cozy rounded-md border p-snug text-body transition-colors',
+                      selected
+                        ? 'border-foreground bg-accent text-accent-foreground'
+                        : 'border-input bg-card hover:border-foreground/60',
+                    )}
                   >
-                    <HugeiconsIcon icon={XIcon} aria-hidden="true" />
-                    <span className="sr-only">Remove {item.title}</span>
-                  </Button>
+                    <input
+                      type="checkbox"
+                      className="size-4 shrink-0"
+                      checked={selected}
+                      onChange={() =>
+                        selected
+                          ? removeSelectedItem(item.id)
+                          : setSelectedItemIds((current) => [...current, item.id])
+                      }
+                    />
+                    <span className="min-w-0 flex-1 truncate font-medium">{item.title}</span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      {formatAud(item.fmv_cents)}
+                    </span>
+                  </label>
                 </li>
               );
             })}
           </ul>
         ) : null}
 
-        {ownItems.length === 0 ? null : (
+        {ownItems.length > INLINE_LISTINGS ? (
           <DialogRow
-            label="Your listings"
-            hint={
-              selectedItemIds.length > 0
-                ? `${selectedItemIds.length} selected`
-                : 'Add from your listings'
-            }
-            filled={selectedItemIds.length > 0}
+            label="All your listings"
+            hint={`${ownItems.length} to search${selectedItemIds.length > 0 ? ` · ${selectedItemIds.length} selected` : ''}`}
+            filled={selectedItemIds.some((id) => !inlineItems.some((item) => item.id === id))}
             onClick={() => setListingsPickerOpen(true)}
           />
-        )}
+        ) : null}
 
         {counterOfProposalId || unlisted ? null : (
           // Named for what it opens. Sitting directly above "Payment Terms",
@@ -473,10 +501,11 @@ export function TradeOfferForm({
         )}
       </fieldset>
 
-      {/* Payment terms: one row summarising whatever the dialog holds. */}
+      {/* Named for what it does. "Payment terms" did not say it meant putting cash on
+          either side; the dialog still holds your valuation and a note too. */}
       <DialogRow
-        label="Payment terms"
-        hint={termsSummary || 'Optional'}
+        label="Add cash"
+        hint={termsSummary || 'Optional · even it up'}
         filled={termsSummary !== ''}
         onClick={() => setTermsDialogOpen(true)}
       />
@@ -516,6 +545,16 @@ export function TradeOfferForm({
       </div>
 
       {error ? <FieldError message={error} /> : null}
+
+      {/* WHY SEND IS UNAVAILABLE, said beside it. A disabled button alone reads as
+          broken; this names the one thing missing. */}
+      {!canSubmit && !isPending ? (
+        <p className="text-meta text-muted-foreground">
+          {offeredCount === 0
+            ? 'Pick at least one card to give to send this offer.'
+            : 'Say which cards you want from this listing to send this offer.'}
+        </p>
+      ) : null}
     </>
   );
 

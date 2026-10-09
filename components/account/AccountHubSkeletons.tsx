@@ -50,6 +50,21 @@ export function ProfilePanelSkeleton() {
         <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="w-1/3" />
       </SettingsGroup>
 
+      {/* Email: three switch rows with descriptions, then the always-sent note (icon). */}
+      <SettingsGroup label="Email">
+        <SettingsRowSkeleton description labelClassName="w-1/2" valueClassName="hidden" />
+        <SettingsRowSkeleton description labelClassName="w-1/3" valueClassName="hidden" />
+        <SettingsRowSkeleton description labelClassName="w-1/4" valueClassName="hidden" />
+        <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="hidden" />
+      </SettingsGroup>
+
+      {/* Security: sign-in email (a value), then password and sign-out-everywhere rows. */}
+      <SettingsGroup label="Security">
+        <SettingsRowSkeleton labelClassName="w-1/4" valueClassName="w-1/3" />
+        <SettingsRowSkeleton icon description labelClassName="w-1/4" valueClassName="hidden" />
+        <SettingsRowSkeleton icon description labelClassName="w-1/3" valueClassName="hidden" />
+      </SettingsGroup>
+
       {/* Support (static heading, so the real label), then Sign out, under a rule. */}
       <div className="space-y-group border-t border-border pt-section">
         <SettingsGroup label="Support">

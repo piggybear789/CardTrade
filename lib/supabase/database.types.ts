@@ -121,6 +121,10 @@ export type Database = {
            * member-writable closure flag is a way to fake a closed account.
            */
           closed_at: string | null;
+          /** Per-kind email opt-outs (0128). Default true; deadlines and disputes always send. */
+          email_deal_requests: boolean;
+          email_shipping_updates: boolean;
+          email_payouts: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -171,6 +175,9 @@ export type Database = {
           social_links?: Record<string, string> | null;
           bio?: string | null;
           closed_at?: string | null;
+          email_deal_requests?: boolean;
+          email_shipping_updates?: boolean;
+          email_payouts?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -221,6 +228,9 @@ export type Database = {
           social_links?: Record<string, string> | null;
           bio?: string | null;
           closed_at?: string | null;
+          email_deal_requests?: boolean;
+          email_shipping_updates?: boolean;
+          email_payouts?: boolean;
           created_at?: string;
           updated_at?: string;
         };

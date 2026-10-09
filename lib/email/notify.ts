@@ -18,17 +18,30 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { sendEmail } from './sendEmail';
 import * as templates from './templates';
 
-/** Resolve a user's contact email and display name. */
+/**
+ * The optional kinds of email, each with the member's opt-out column (0128).
+ *
+ * Deadline warnings and dispute notices are not here on purpose: missing one can cost
+ * a member their protection or their money, so they always send.
+ */
+type OptionalEmail = 'email_deal_requests' | 'email_shipping_updates' | 'email_payouts';
+
+/**
+ * Resolve a user's contact email and display name, or null when there is no address
+ * — or when `optional` names a kind of email the member has turned off.
+ */
 async function resolveRecipient(
   userId: string,
+  optional?: OptionalEmail,
 ): Promise<{ email: string; name: string } | null> {
   const admin = createAdminClient();
   const { data } = await admin
     .from('profiles')
-    .select('contact_email, display_name')
+    .select('contact_email, display_name, email_deal_requests, email_shipping_updates, email_payouts')
     .eq('id', userId)
     .maybeSingle();
   if (!data?.contact_email) return null;
+  if (optional && data[optional] === false) return null;
   return {
     email: data.contact_email as string,
     name: (data.display_name as string) ?? 'there',
@@ -120,7 +133,7 @@ export const emailNotify = {
     contractId: string;
   }) {
     try {
-      const recipient = await resolveRecipient(params.userId);
+      const recipient = await resolveRecipient(params.userId, 'email_payouts');
       if (!recipient) return;
       const template = templates.payoutSettled({
         recipientName: recipient.name,
@@ -143,7 +156,7 @@ export const emailNotify = {
     contractId: string;
   }) {
     try {
-      const recipient = await resolveRecipient(params.userId);
+      const recipient = await resolveRecipient(params.userId, 'email_deal_requests');
       if (!recipient) return;
       const template = templates.newPurchaseRequest({
         recipientName: recipient.name,
@@ -162,7 +175,7 @@ export const emailNotify = {
 
   async tradeOfferReceived(params: { userId: string; contractId: string }) {
     try {
-      const recipient = await resolveRecipient(params.userId);
+      const recipient = await resolveRecipient(params.userId, 'email_deal_requests');
       if (!recipient) return;
       const template = templates.tradeOfferReceived({
         recipientName: recipient.name,
@@ -184,7 +197,7 @@ export const emailNotify = {
     contractId: string;
   }) {
     try {
-      const recipient = await resolveRecipient(params.userId);
+      const recipient = await resolveRecipient(params.userId, 'email_shipping_updates');
       if (!recipient) return;
       const template = templates.itemShipped({
         recipientName: recipient.name,

@@ -64,6 +64,8 @@ import {
   LinksSettingRow,
 } from '@/components/profile/ProfileSettingRows';
 import { AccountTabs } from '@/components/account/AccountTabs';
+import { AccountSecuritySettings } from '@/components/account/AccountSecuritySettings';
+import type { EmailPreference } from '@/lib/actions/profile';
 // From the plain config module, NOT from `AccountTabs`. That file is `'use client'`,
 // so its `resolveAccountTab` export is a client reference and calling it here threw
 // on every request — before the auth check below, so even the guest redirect never
@@ -149,7 +151,7 @@ export default async function ProfilePage({
   ] = await Promise.all([
     supabase
       .from('profiles')
-      .select('display_name, contact_email, avatar_path, social_links, bio, is_admin, is_support')
+      .select('display_name, contact_email, avatar_path, social_links, bio, is_admin, is_support, email_deal_requests, email_shipping_updates, email_payouts')
       .eq('id', user.id)
       .single(),
     getIdentityCheckState(),
@@ -299,6 +301,12 @@ export default async function ProfilePage({
                 socialLinks={socialLinks}
                 savedAddressCount={savedAddressCount.count ?? 0}
                 staffLinks={staffLinks}
+                signInEmail={user.email ?? null}
+                emailPreferences={{
+                  email_deal_requests: profile.email_deal_requests,
+                  email_shipping_updates: profile.email_shipping_updates,
+                  email_payouts: profile.email_payouts,
+                }}
                 browseRegion={{
                   choice: browseChoice,
                   automatic: automaticRegion,
@@ -350,6 +358,8 @@ function ProfilePanel({
   socialLinks,
   savedAddressCount,
   staffLinks,
+  signInEmail,
+  emailPreferences,
   browseRegion,
 }: {
   avatarPath: string | null;
@@ -359,6 +369,8 @@ function ProfilePanel({
   socialLinks: Record<string, string> | null;
   savedAddressCount: number;
   staffLinks: ReturnType<typeof staffNavLinksFor>;
+  signInEmail: string | null;
+  emailPreferences: Record<EmailPreference, boolean>;
   browseRegion: BrowseRegionSettingRowProps;
 }) {
   return (
@@ -407,6 +419,8 @@ function ProfilePanel({
           <PaymentMethodRow />
         </Suspense>
       </SettingsGroup>
+
+      <AccountSecuritySettings signInEmail={signInEmail} emailPreferences={emailPreferences} />
 
       {/* ACCOUNT-LEVEL ACTIONS, AND ONLY ON THIS TAB. Signed-in phones no longer
           have the header burger, so sign-out and staff destinations live on the

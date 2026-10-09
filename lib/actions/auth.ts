@@ -386,6 +386,22 @@ export const signOut = withActionLog('auth.signOut', async function signOut(): P
   return ok(null);
 });
 
+/**
+ * Sign out of every device and browser, this one included.
+ *
+ * Supabase's `global` scope revokes every refresh token for the user, so another
+ * session stops working at its next token refresh rather than living on until it
+ * expires. For a member who signed in somewhere they no longer control.
+ */
+export const signOutEverywhere = withActionLog('auth.signOutEverywhere', async function signOutEverywhere(): Promise<ActionResult<null, SignOutError>> {
+  const supabase = await createClient();
+  const { error } = await supabase.auth.signOut({ scope: 'global' });
+  if (error) {
+    return fail('SIGN_OUT_FAILED', 'Could not sign out of other devices. Please try again.');
+  }
+  return ok(null);
+});
+
 /** Typed failure codes for {@link signInWithGoogle}. */
 export type OAuthStartError = 'OAUTH_START_FAILED';
 

@@ -61,6 +61,45 @@ export const updateBio = withActionLog('profile.updateBio', async function updat
   return ok(null);
 });
 
+/** The optional kinds of email a member can turn off (0128). */
+export type EmailPreference = 'email_deal_requests' | 'email_shipping_updates' | 'email_payouts';
+
+const EMAIL_PREFERENCES: readonly EmailPreference[] = [
+  'email_deal_requests',
+  'email_shipping_updates',
+  'email_payouts',
+];
+
+/**
+ * Turn one kind of optional email on or off for the caller.
+ *
+ * The key is checked against the allowlist because it arrives from the client and
+ * becomes a column name; column grants (0128) and `profiles_owner_update` would refuse
+ * anything else, but an unknown key should be a validation error, not a DB error.
+ */
+export const setEmailPreference = withActionLog('profile.setEmailPreference', async function setEmailPreference(
+  preference: EmailPreference,
+  enabled: boolean,
+): Promise<ActionResult<null, UpdateProfileError>> {
+  if (!EMAIL_PREFERENCES.includes(preference) || typeof enabled !== 'boolean') {
+    return fail('VALIDATION', 'Unknown email setting.');
+  }
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to change your email settings.');
+
+  // A computed key widens to `string`; `preference` is checked against the allowlist above.
+  const patch = { [preference]: enabled } as Partial<Record<EmailPreference, boolean>>;
+  const { error } = await supabase
+    .from('profiles')
+    .update(patch)
+    .eq('id', user.id);
+
+  if (error) return fail('UPDATE_FAILED', 'Could not save your email settings.');
+  revalidatePath('/profile');
+  return ok(null);
+});
+
 /** The persisted profile shape returned on success. */
 export interface ProfileData {
   id: string;

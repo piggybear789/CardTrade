@@ -40,6 +40,11 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   '/onboarding', // post-signup / proxy entry; AuthForm uses withRedirect()
   // Join-by-token invite link shared externally (SMS, chat, email)
   '/t/[token]',
+  // The trade-offer page for one listing, reached from the "Copy trade link" a seller
+  // shares (built from `window.location.origin`, which the scanner cannot follow). In
+  // the app the listing opens the same form as a dialog, and the bare route only says
+  // "pick something to trade for".
+  '/trades/new',
   // The deal composer. Opened through `DEAL_OPEN_PATH`, a constant the link scanner
   // cannot follow, and from bookmarks.
   '/deals',

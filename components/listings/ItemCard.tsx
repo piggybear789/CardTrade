@@ -357,7 +357,11 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           {item.watch_count > 0 ? (
             // Words, not a heart glyph: "3 saved" says what the number counts on its
             // own. `meta` and tabular digits to match `SellerRating` below it.
-            <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
+            //
+            // From `sm` only. A two-column phone tile has ~150px for this row, and a
+            // six-figure price alone takes most of it: both are `shrink-0`, so the
+            // count ran off the card's edge and was clipped mid-word.
+            <span className="hidden shrink-0 text-meta tabular-nums text-muted-foreground sm:inline">
               {item.watch_count} saved
             </span>
           ) : null}

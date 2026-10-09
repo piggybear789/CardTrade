@@ -17,8 +17,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeftRightIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import {

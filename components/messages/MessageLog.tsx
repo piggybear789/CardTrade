@@ -13,10 +13,7 @@ import { ExternalLinkIcon, FileTextIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
-import {
-  classifyContractEvent,
-  ContractEventIcon,
-} from '@/components/contract/contractEventTone';
+import { classifyContractEvent } from '@/components/contract/contractEventTone';
 import { cn } from '@/lib/utils';
 import {
   formatAttachmentBytes,
@@ -135,14 +132,6 @@ export function MessageLog({
     () => groupMessages(messages, currentUserId),
     [messages, currentUserId],
   );
-  const latestSystemId = useMemo(() => {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      if (messages[index].kind === 'SYSTEM') return messages[index].id;
-    }
-    return null;
-  }, [messages]);
-  const firstSystemKey =
-    clusters.find((cluster) => cluster.type === 'system')?.key ?? null;
   const urls = useConversationAttachments(conversationId, messages, signAttachments);
   const [lightbox, setLightbox] = useState<number | null>(null);
 

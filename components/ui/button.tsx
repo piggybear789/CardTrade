@@ -43,9 +43,9 @@ import { cn } from "@/lib/utils";
 //
 // FOCUS IS A RING INSIDE THE CONTROL, NOT A BORDER-COLOUR SWAP.
 //
-// It used to be `focus-visible:border-iris` alone. On a filled button that swaps a
-// 1px `--primary` edge for a 1px `--iris` edge — same hue, 1.46:1 apart — so a
-// keyboard user tabbing onto "Sign in" saw almost nothing change. Two rules now:
+// It used to be a border-colour swap alone. On a filled button that swaps a 1px
+// `--primary` edge for a 1px `--iris` edge — the same hue — so a keyboard user
+// tabbing onto "Sign in" saw almost nothing change. Two rules now:
 //
 //   - QUIET variants (outline, secondary, ghost, link) turn their edge iris and add
 //     a 1px inset iris ring: a 2px iris frame, 3.9:1 against the page and firmer

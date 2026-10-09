@@ -5,7 +5,7 @@
 
 import { Fragment } from 'react';
 
-import { Skeleton, TextLines } from '@/components/ui/skeleton';
+import { TextLines } from '@/components/ui/skeleton';
 
 
 /**

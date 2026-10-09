@@ -201,8 +201,6 @@ export function PayoutsDashboard({
   scope,
   currency,
 }: PayoutsDashboardProps) {
-  /** Every figure on this tab, formatted in the member's own currency. */
-  const money = (minorUnits: number) => formatMoney(minorUnits, currency);
   // NOTHING HAS EVER HAPPENED HERE, so say it once.
   //
   // Each section owned its own empty state, so a seller who had not sold anything yet

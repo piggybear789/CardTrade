@@ -1,7 +1,7 @@
 // app/listings/[id]/loading.tsx
 //
-// Phone: seller row and its two sub-lines, price, meta, description, then the photo
-// carousel.
+// Phone: the photo carousel, then title, price, meta, the seller card and the
+// description.
 // Desktop: back-nav row, gallery (rail + frame) on the left, `ListingDesktopPane` on the
 // right.
 //
@@ -14,11 +14,9 @@
 // swap and the whole column re-laid out under the reader. Each half below mirrors the
 // component it stands in for, under the same breakpoint gate.
 //
-// MIRRORS `ListingDetailStack`, WHICH IS ITSELF BREAKPOINT-DEPENDENT. Several blocks in
-// that component only exist at one size — the title is `sr-only` on a phone, the meta
-// line differs at `md` — so each bar below carries the visibility of the element it
-// stands for. The seller row's `min-h-11`, the column's `pt-cozy` and the stack's
-// `mt-cozy` are all the real component's.
+// MIRRORS `ListingDetailStack` block for block, including the title's step from
+// `text-subhead` to `text-head` at `md`; the column's `pt-cozy` and each block's
+// margin are the real component's.
 
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 
@@ -39,7 +37,7 @@ export default function ItemDetailLoading() {
         <span className="sr-only">Loading…</span>
 
         {/* Desktop-only back-nav and badge row. The back button is `size="sm"`, which is
-            `md:h-7` — the `h-8` here made the row 4px taller than the page's at every
+            `md:h-8`; any other height makes the row differ from the page's at every
             desktop width. Badges are `py-0.5` around a `text-meta` line plus a 1px
             border (≈22.8px) and `rounded-md`, not 20px pills.
 
@@ -47,7 +45,7 @@ export default function ItemDetailLoading() {
             whenever there is more than one photo — see the gallery note below for why
             that is the case this reserves. */}
         <div className="mb-snug hidden flex-wrap items-center justify-between gap-snug lg:flex">
-          <Skeleton className="ml-region h-7 w-40" />
+          <Skeleton className="ml-region h-8 w-40" />
           <div className="flex items-center gap-snug">
             <Skeleton className="h-[1.425rem] w-[4.5rem]" />
             <Skeleton className="h-[1.425rem] w-20" />
@@ -87,35 +85,24 @@ export default function ItemDetailLoading() {
   );
 }
 
-/** `ListingDetailStack` and the photo carousel under it. Below `lg` only. */
+/** `ListingDetailStack`, photo carousel first. Below `lg` only. */
 function PhoneStackSkeleton() {
   return (
     <div className="flex flex-col lg:hidden">
-      {/* Seller row — `min-h-11` and `py-tight` are the real link's, and they are what
-          make this 44px rather than the 28px of the avatar inside it. */}
-      <div className="flex min-h-11 items-center gap-snug py-tight">
-        <Skeleton className="size-7 shrink-0 rounded-full" />
-        {/* The seller-name bar is texture inside the `min-h-11` row — the avatar and the
-            row's own minimum set the height, not this width — so it draws from the
-            canonical set. */}
-        <Skeleton className="h-4 w-1/3" />
-      </div>
+      {/* THE CAROUSEL, AT ITS OWN ASPECT. Every slide of `SwipeCarousel` is
+          `aspect-[4/5]` whatever the photo's shape — that fixed frame is what stops the
+          page moving as you swipe — so this is not a guess about the crop. A listing
+          without a photo resolves shorter, which moves nothing above it. */}
+      <Skeleton className="aspect-[4/5] w-full rounded-lg" />
 
-      {/* THE TWO SELLER SUB-LINES. The stack draws a real/stated-name line under the
-          seller whenever that seller has an identity disclosure, and a rating link
-          whenever they have a rating — ~43px together. Both are conditional and this
-          route cannot know which way they will fall; a listing being read by a buyer
-          normally carries both, so reserving them is the side that is right more often.
-          The two widths are texture in their own `text-meta` line boxes, so they draw
-          from the canonical set. */}
-      <TextLines className="mt-tight text-meta" widths={['w-2/3']} />
-      {/* `border border-transparent` is the rating link's own focus reserve — without
-          it the row is 2px short. */}
-      <div className="mt-tight w-fit border border-transparent">
-        <TextLines className="text-meta" widths={['w-1/3']} />
-      </div>
+      {/* Title: `text-subhead md:text-head`. Two lines is the common case for a
+          card title ("PSA 10 … 13/75"); the widths are texture. */}
+      <TextLines
+        className="mt-group text-subhead md:text-head"
+        widths={['w-full', 'w-1/2']}
+      />
 
-      <div className="mt-cozy flex items-center gap-cozy md:mt-group">
+      <div className="mt-snug flex items-center gap-cozy">
         {/* The price line is `text-display` (28px on a 1.1 line) — its height is the
             type scale, so the bar width is texture and draws canonical. The condition
             pill beside it keeps its honest `h-5 w-16` reserve. */}
@@ -123,40 +110,33 @@ function PhoneStackSkeleton() {
         <Skeleton className="ml-auto h-5 w-16 rounded-full" />
       </div>
 
-      {/* Meta line. Bars sit in a real `text-meta` line box so the height comes from the
-          type scale rather than a guess. */}
-      {/* Two lines below `md`: the stack now always reserves two for this line
-          (`line-clamp-2 min-h-[2lh]`), so the title cannot move with the location. The
-          `md:hidden` on the second line is the load-bearing part (it is what drops the
-          second reserved line from `md` up); the widths themselves are canonical. */}
-      <TextLines className="mt-snug text-meta" widths={['w-2/3', 'w-1/3 md:hidden']} />
+      {/* Meta line: the stack always reserves two lines for it (`line-clamp-2
+          min-h-[2lh]`), so nothing below moves with the location. */}
+      <TextLines className="mt-snug text-meta" widths={['w-2/3', 'w-1/3']} />
 
-      {/* The title only renders from `md` up — on a phone the stack's `h2` is `sr-only`,
-          and the visible title lives in the description. */}
-      <TextLines className="mt-group hidden text-subhead md:block" widths={['w-2/3']} />
+      {/* The seller card: `p-cozy` around a 40px avatar beside three lines — the name
+          (`text-body`), the rating and the verified name (`text-meta`), `gap-tight`
+          apart. Every line always renders, so this is the card's real height. */}
+      <div className="mt-group flex items-center gap-cozy rounded-lg border border-border bg-card p-cozy">
+        <Skeleton className="size-10 shrink-0 rounded-full" />
+        <div className="flex min-w-0 flex-1 flex-col gap-tight">
+          <TextLines className="text-body" widths={['w-1/3']} />
+          <TextLines className="text-meta" widths={['w-1/3']} />
+          <TextLines className="text-meta" widths={['w-2/3']} />
+        </div>
+      </div>
 
       {/* `ExpandableDescription` is `text-body line-clamp-4`. The clamp ceiling is the
           right thing to reserve: `line-clamp-4` and the "Read more" control both switch
-          on at 200 characters, which at this column width IS about four lines. */}
-      {/* The 4-line clamp reservation is geometry (`line-clamp-4` is what this must
-          stand for); the final-line taper is texture and draws from the canonical set. */}
+          on at 200 characters, which at this column width IS about four lines. The
+          final-line taper is texture. */}
       <TextLines
-        className="mt-cozy text-body md:mt-snug"
+        className="mt-group text-body"
         widths={['w-full', 'w-full', 'w-full', 'w-1/2']}
       />
       {/* The "Read more" control is `min-h-10` — a touch target, not a text row. The
           height is the reserve; the width is texture. */}
       <Skeleton className="mt-tight h-10 w-1/3" />
-
-      {/* THE CAROUSEL, AT ITS OWN ASPECT. Every slide of `SwipeCarousel` is
-          `aspect-[4/5]` whatever the photo's shape — that fixed frame is what stops the
-          page moving as you swipe — so this is not a guess about the crop and should
-          not be the `aspect-square` it was, which ran 25% short of the frame it stood
-          for and lifted everything below it. `mt-group` is the page's wrapper.
-
-          The `Based near` row that used to follow is gone: the page dropped the inline
-          map for a clause of the meta line, and the placeholder kept drawing it. */}
-      <Skeleton className="mt-group aspect-[4/5] w-full rounded-lg" />
     </div>
   );
 }
@@ -230,9 +210,9 @@ function DesktopPaneSkeleton() {
           ))}
         </div>
         <div className="rounded-lg border bg-card p-cozy">
-          {/* The label is texture; the `h-8` field keeps its reserve. */}
+          {/* The label is texture; the field (`min-h-10`) keeps its reserve. */}
           <TextLines className="mb-snug text-body" widths={['w-1/2']} />
-          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-10 w-full" />
         </div>
       </div>
     </div>

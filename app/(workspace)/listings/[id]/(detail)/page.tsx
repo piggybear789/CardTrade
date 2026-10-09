@@ -3,8 +3,8 @@
 // Item detail page (Req 3.8, 4.1, 5.1). A Server Component that loads a single
 // Item via `getItem` (RLS returns it only when AVAILABLE or owned by the
 // caller). Desktop is a split view: photos in the left pane, title / seller
-// card / description / Buy in the right. On phones the same facts stack, then
-// original-aspect photos, with Buy / Trade in the sticky buyer bar.
+// card / description / Buy in the right. On phones the photo carousel leads and
+// the same facts stack under it, with Buy / Trade in the sticky buyer bar.
 //
 // Transaction entry points are gated by the viewer's context:
 //   * Owner            -> Edit / Delete links (to /listings/[id]/edit).
@@ -500,8 +500,8 @@ export default async function ItemDetailPage({
         <PayoutReturnRefresh />
       </Suspense>
 
-      {/* Phone: seller, price, description, then stacked original-aspect photos.
-          Desktop: stage gallery left, the older title / seller-card column right. */}
+      {/* Phone: the photo carousel, then title, price, seller and description.
+          Desktop: stage gallery left, the title / seller-card column right. */}
       <div
         className={
           showBuyerBar
@@ -632,16 +632,14 @@ export default async function ItemDetailPage({
                 sellerRating={sellerRow?.rating ?? null}
                 sellerRatingCount={sellerRow?.rating_count ?? undefined}
                 sellerIdentity={sellerIdentity}
-                afterDescription={
+                media={
                   images.length > 0 ? (
-                    <div className="mt-group">
-                      <ImageGallery
-                        images={images}
-                        title={listingTitle}
-                        appearance="carousel"
-                        hero
-                      />
-                    </div>
+                    <ImageGallery
+                      images={images}
+                      title={listingTitle}
+                      appearance="carousel"
+                      hero
+                    />
                   ) : null
                 }
               />

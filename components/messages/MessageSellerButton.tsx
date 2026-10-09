@@ -55,7 +55,8 @@ export function MessageSellerButton({
   variant = 'button',
   className,
 }: {
-  itemId: string;
+  /** The listing the thread is about, or null for the two members' general thread. */
+  itemId: string | null;
   sellerId: string;
   /** Trigger button size (button variant only). */
   size?: 'default' | 'sm' | 'lg';

@@ -37,7 +37,6 @@ import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { ReviewList } from '@/components/reviews/ReviewList';
-import { ReportDialog } from '@/components/reports/ReportDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionLoadError } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -47,6 +46,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import { SellerTrustBand } from '@/components/profile/SellerTrustBand';
+import { SellerProfileActions } from '@/components/profile/SellerProfileActions';
 import { TabbedPanels, type TabDescriptor } from '@/components/ui/tabbed-panels';
 import type {
   CatalogItem,
@@ -128,7 +128,7 @@ export default async function SellerProfilePage({
   const { data: sellerRow } = await supabase
     .from('public_profiles')
     .select(
-      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links, bio, region_code',
+      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links, bio, region_code, member_since',
     )
     .eq('id', id)
     .maybeSingle();
@@ -192,7 +192,7 @@ export default async function SellerProfilePage({
     supabase.rpc('member_sale_stats', { p_profile_id: id }),
   ]);
 
-  const canReport = Boolean(user) && user!.id !== id;
+  const isOwner = user?.id === id;
 
   const seller: CatalogSeller = {
     id: sellerRow.id as string,
@@ -384,40 +384,41 @@ export default async function SellerProfilePage({
                 would borrow that band's credibility for text anyone can type.
                 `whitespace-pre-line` keeps intentional line breaks; `break-words`
                 stops an unbroken 280-character string widening the layout. */}
-            {/* TWO LINES, ALWAYS: clamped at two and reserved at two, with a neutral
-                line when the seller wrote none. A bio was 0–N lines of member text in
-                the middle of the header, so the trust band, the tab strip and every
-                listing below sat at a different height on every profile. The full
-                text stays in the DOM, so a screen reader still hears all of it. */}
-            <p
-              className="line-clamp-2 min-h-[2lh] max-w-prose whitespace-pre-line break-words text-pretty text-body text-muted-foreground"
-              title={(sellerRow.bio as string | null) ?? undefined}
-            >
-              {(sellerRow.bio as string | null) || 'No bio yet.'}
-            </p>
+            {/* CLAMPED AT TWO LINES; the full text stays in the DOM for a screen
+                reader. NO PLACEHOLDER FOR VISITORS: "No bio yet." told a buyer nothing
+                and read as a gap in the seller's profile. Only the owner, who can fix
+                it, is offered a prompt. */}
+            {sellerRow.bio ? (
+              <p
+                className="line-clamp-2 max-w-prose whitespace-pre-line break-words text-pretty text-body text-muted-foreground"
+                title={sellerRow.bio as string}
+              >
+                {sellerRow.bio as string}
+              </p>
+            ) : isOwner ? (
+              <Link
+                href="/profile"
+                className="w-fit text-body font-medium text-iris-ink underline-offset-4 hover:underline"
+              >
+                Add a bio
+              </Link>
+            ) : null}
           </div>
           </div>
 
-          {/* ONE CONTROL IN THIS SLOT FOR EVERY VIEWER. Only a signed-in member on
-              someone else's profile could report, so a guest's and the owner's header
-              was a whole row (on a phone) shorter than a member's. The owner gets the
-              way to their own profile settings instead, and a guest is sent to sign in
-              to report — the same footprint, each doing something real. */}
-          {canReport ? (
-            <ReportDialog
-              targetType="user"
-              targetId={id}
-              triggerLabel="Report user"
-              triggerVariant="destructive-quiet"
-            />
-          ) : user ? (
+          {/* ONE CONTROL ROW FOR EVERY VIEWER, each doing something real: a member
+              messages the seller (Report is in the ⋯ menu), the owner edits their
+              profile, and a guest is asked to sign in to get in touch. */}
+          {user && !isOwner ? (
+            <SellerProfileActions sellerId={id} />
+          ) : isOwner ? (
             <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
               <Link href="/profile">Edit profile</Link>
             </Button>
           ) : (
             <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
               <Link href={`/sign-in?redirectTo=${encodeURIComponent(`/sellers/${id}`)}`}>
-                Sign in to report
+                Sign in to message
               </Link>
             </Button>
           )}
@@ -429,6 +430,7 @@ export default async function SellerProfilePage({
           verifiedAt={sellerIdentity?.verifiedAt ?? null}
           regionCode={(sellerRow.region_code as string | null) ?? null}
           completedSales={completedSales}
+          memberSince={(sellerRow.member_since as string | null) ?? null}
         />
       </header>
 

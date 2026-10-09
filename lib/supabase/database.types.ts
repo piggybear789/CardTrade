@@ -2637,6 +2637,11 @@ export type Database = {
            * `discoverable_profiles` instead, which omits closed accounts.
            */
           closed_at: string | null;
+          /**
+           * The month the account was created (0127), truncated so the view
+           * publishes tenure rather than a sign-up timestamp.
+           */
+          member_since: string | null;
         };
         Relationships: [];
       };

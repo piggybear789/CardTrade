@@ -17,22 +17,6 @@ import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSk
 import { CatalogTileGridSkeleton } from '@/components/layout/catalogSkeletons';
 import { TabbedPanelsSkeleton } from '@/components/ui/tabbed-panels';
 
-/** One fact in `SellerTrustBand` — a `text-meta` label over a `text-body` value. */
-function FactSkeleton({ labelWidth }: { labelWidth: string }) {
-  return (
-    <div className="min-w-0">
-      {/* `labelWidth` is a caller reserve (fact labels differ in length); the value is
-          texture and draws from the canonical set. */}
-      <TextLines className="text-meta" widths={[labelWidth]} />
-      <TextLines className="text-body" widths={['w-2/3']} />
-    </div>
-  );
-}
-
-// `SellerTrustBand`'s own `FACT_GRID`: two columns on a phone so five facts are three
-// rows, three from `sm` with the vertical gap dropped.
-const FACT_GRID = 'grid grid-cols-2 gap-x-group gap-y-cozy sm:grid-cols-3 sm:gap-y-0';
-
 export default function SellerProfileLoading() {
   return (
     <MarketplaceShellSkeleton title="Seller">
@@ -76,53 +60,22 @@ export default function SellerProfileLoading() {
               <div className="flex min-h-6 items-center">
                 <Skeleton className="h-4 w-1/3" />
               </div>
-              {/* The bio: always two lines on the page (clamped and reserved). */}
-              <TextLines className="max-w-prose text-body" widths={['w-full', 'w-1/2']} />
+              {/* The bio: one line, the common case. The page shows it only when the
+                  seller wrote one (or, for the owner, an "Add a bio" link). */}
+              <TextLines className="max-w-prose text-body" widths={['w-2/3']} />
             </div>
           </div>
-          {/* Report (or Edit profile / Sign in to report — one control for every viewer). `size="sm"` — h-9 on touch, h-8 from `md` — and full-width below
-              `sm`, so it also carries the 12px column gap. Drawn unconditionally even
-              though the real trigger needs a signed-in viewer on someone else's
-              profile: that is how this page is normally reached, and the alternative is
-              to under-reserve for the common case. */}
+          {/* Message and the ⋯ menu (or Edit profile / Sign in to message — one control
+              row for every viewer). `size="sm"`, full-width below `sm`. */}
           <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-24 md:h-8" />
         </div>
 
-        {/* THE TRUST BAND, which this file reserved nothing for. It is inside the
-            header, above the strip, and on a verified seller it is the tallest single
-            object on the page above the fold — an icon heading plus a row of facts,
-            which is what pushed the grid down when it arrived.
-
-            The verified group, AND the record group beneath it. The record group was
-            left out on the belief that it appears on a narrower set of profiles, but
-            it renders whenever the seller has a trading region (`Trades in`), which
-            every onboarded member states — so on a normal seller profile the band
-            arrived ~73px taller than reserved and pushed the strip and grid down. A
-            signed-in viewer also gets "Completed sales" in the same row. */}
-        <section className="mt-cozy rounded-lg border bg-muted/60">
-          <div className="p-group">
-            {/* `mb-cozy flex items-center gap-tight text-body font-medium` — a 16px
-                glyph beside one line of body copy. */}
-            <div className="mb-cozy flex items-center gap-tight">
-              <Skeleton className="size-4 shrink-0 rounded-sm" />
-              <TextLines className="min-w-0 text-body" widths={['w-1/2']} />
-            </div>
-            {/* Two facts: "Verified name" and "ID checked". "Store" appears only
-                for a seller with a provider-registered trading name, which an
-                individual seller does not have — and on a phone a third fact
-                wraps the two-column grid onto a second 39px row. */}
-            {/* All three facts, as the band now always renders them (a dash where a
-                seller has no value): two rows on a phone, one from `sm`. */}
-            <div className={FACT_GRID}>
-              <FactSkeleton labelWidth="w-24" />
-              <FactSkeleton labelWidth="w-12" />
-              <FactSkeleton labelWidth="w-20" />
-            </div>
-          </div>
-          <div className={`${FACT_GRID} border-t p-group`}>
-            <FactSkeleton labelWidth="w-28" />
-            <FactSkeleton labelWidth="w-16" />
-          </div>
+        {/* THE TRUST BAND: one row of facts in a bordered band — a 16px shield beside
+            a line of body copy. It wraps to a second line on a phone for a verified
+            seller with several facts; one line is the reserve. */}
+        <section className="mt-cozy flex items-center gap-tight rounded-lg border bg-muted/60 px-group py-cozy">
+          <Skeleton className="size-4 shrink-0 rounded-sm" />
+          <TextLines className="min-w-0 flex-1 text-body" widths={['w-3/4']} />
         </section>
       </header>
 

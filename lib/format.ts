@@ -365,3 +365,21 @@ export function formatShortDate(iso: string | null | undefined): string | null {
         year: 'numeric',
       });
 }
+
+/**
+ * Format an ISO timestamp as a month and year — e.g. `"Mar 2026"`.
+ *
+ * For facts stored at month precision, such as `public_profiles.member_since`,
+ * where printing a day would claim more than the data holds.
+ */
+export function formatMonthYear(iso: string | null | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? null
+    : date.toLocaleDateString('en-AU', {
+        timeZone: DISPLAY_TIME_ZONE,
+        month: 'short',
+        year: 'numeric',
+      });
+}

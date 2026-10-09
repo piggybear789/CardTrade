@@ -96,6 +96,7 @@ export async function SiteHeader() {
             <HeaderAccountSlot
               isAuthenticated={isAuthenticated && user != null}
               email={user?.email ?? null}
+              userId={user?.id ?? null}
               isAdmin={isAdmin}
               isStaff={isStaff}
               displayName={displayName}

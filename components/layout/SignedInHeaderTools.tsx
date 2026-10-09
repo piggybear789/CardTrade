@@ -18,6 +18,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 export function SignedInHeaderTools({
   email,
+  userId,
   isAdmin,
   isStaff,
   displayName,
@@ -25,6 +26,7 @@ export function SignedInHeaderTools({
   initialNotifications,
 }: {
   email: string | null;
+  userId: string | null;
   isAdmin: boolean;
   isStaff: boolean;
   displayName: string | null;
@@ -72,6 +74,7 @@ export function SignedInHeaderTools({
         displayName={displayName}
         avatarPath={avatarPath}
         email={email}
+        userId={userId}
       />
     </TooltipProvider>
   );

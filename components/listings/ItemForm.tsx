@@ -70,7 +70,6 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -643,8 +642,7 @@ function ItemFormInner({
     // three scroll-into-view calls.
     //
     // `clip` is not a scroll container at all, so there is no scroll offset to
-    // acquire. The clipping the rounded corners and the footer border rely on is
-    // unchanged.
+    // acquire. The clipping the rounded corners rely on is unchanged.
     //
     // AND BELOW `lg` IT CLIPS THE X-AXIS ONLY (`max-lg:overflow-x-clip`), because clipping
     // the y-axis here broke the last field in the form. This card is the nearest clipping
@@ -671,11 +669,11 @@ function ItemFormInner({
     // use the height and the rail's scrollbar goes away on a tall display.
     //
     // The height is still PINNED to the viewport, deliberately. That is what keeps
-    // the header and footer in place and makes the rail the single scrolling region,
-    // and it is what gives both columns a definite height to fill. Unpinning it was
-    // tried and reverted: with a content-sized row the two columns compete to set the
-    // height and the photo panel wins as soon as the filmstrip has a few rows in it.
-    <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    // the header in place and makes the rail the single scrolling region, and it is
+    // what gives both columns a definite height to fill. Unpinning it was tried and
+    // reverted: with a content-sized row the two columns compete to set the height
+    // and the photo panel wins as soon as the filmstrip has a few rows in it.
+    <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr]">
       <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
         <CardTitle className="text-subhead">
           {mode === "create" ? "List an item" : "Edit listing"}
@@ -733,7 +731,7 @@ function ItemFormInner({
               on the cover and the filmstrip almost on that, so three separate things
               read as one crowded block. `group` is the scale's "between related
               components" step, which the form's own field blocks already use. */}
-          <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
+          <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
             {/* NO COUNT LINE UNDER THE LABEL. "Add 1–10 photos. N selected." spent a
                 whole row restating what the panel already shows: the tiles are the
                 count, and the add target disappearing at ten is the ceiling. The
@@ -973,7 +971,7 @@ function ItemFormInner({
           {/* Details form — a dedicated right-hand rail. */}
           {/* THE ONLY SCROLLING REGION. This is the grid's `1fr` row, so now that the
               card's height is definite this is where the overflow belongs — the
-              header and footer stay pinned and the photo column stays put.
+              header stays pinned and the photo column stays put.
               `lg:min-h-0` is required, not cosmetic: a grid item defaults to
               `min-height:auto`, which grows the row to fit its content and would
               silently defeat `overflow-y-auto`. */}
@@ -1171,39 +1169,45 @@ function ItemFormInner({
             {generalError ? (
               <FieldError message={generalError} />
             ) : null}
+
+            {/* THE SUBMIT ENDS THE FORM, after the last field and any error above it,
+                and scrolls with the fields. It used to be a footer row pinned under
+                the scrolling rail, so it sat frozen at the bottom of the card while
+                the fields moved behind it — a button that reads as chrome rather than
+                as the step that finishes what you just filled in. Full width in the
+                narrow desktop rail, right-aligned in the wide stacked layout.
+
+                `max-md:hidden`, because below `md` the phone header carries the submit
+                and a second one here would be a duplicate — two controls with the same
+                accessible name break the strict locator in
+                `tests/e2e/support/listings.ts`.
+
+                NO CANCEL. Dismissal is the back chevron in the header on a phone and
+                browser-back elsewhere, and a "Cancel" beside "Save changes" invited the
+                misread that it discards rather than navigates. */}
+            <div className="border-t border-border pt-5 max-md:hidden sm:flex sm:justify-end lg:block">
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                aria-busy={isSubmitting}
+                className="w-full sm:w-auto lg:w-full"
+              >
+                {/* WIDTH PINNED TO THE RESTING LABEL. Where the button is `w-auto`,
+                    swapping "Create listing" for the shorter "Saving…" shrank it under
+                    the pointer on every submit. The resting label stays in the box,
+                    `invisible` (so it is out of the accessibility tree and the name
+                    stays single), and the live label is laid over it in the same grid
+                    cell. */}
+                <span className="grid">
+                  <span className="invisible col-start-1 row-start-1">{submitLabel}</span>
+                  <span className="col-start-1 row-start-1">
+                    {isSubmitting ? "Saving…" : submitLabel}
+                  </span>
+                </span>
+              </Button>
+            </div>
           </div>
         </CardContent>
-
-        {/* `max-md:hidden`, because below `md` the phone header carries the submit and
-            a second one down here would be a duplicate — and two controls with the
-            same accessible name break the strict locator in
-            `tests/e2e/support/listings.ts`. From `md` the mobile chrome is
-            `md:hidden`, so this footer is the only submit there is.
-            
-            NO CANCEL. It was an outline button paired with the submit; dismissal is
-            the back chevron in the header on a phone and browser-back elsewhere, and
-            a destructive-adjacent "Cancel" next to "Save changes" invited the misread
-            that it discards rather than navigates. */}
-        <CardFooter className="max-md:hidden flex-col items-stretch gap-snug border-t bg-card px-6 pb-group pt-group sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
-          <Button
-            type="submit"
-            disabled={isSubmitting}
-            aria-busy={isSubmitting}
-            className="w-full sm:w-auto"
-          >
-            {/* WIDTH PINNED TO THE RESTING LABEL. From `sm` the button is `w-auto`, so
-                swapping "Create listing" for the shorter "Saving…" shrank it under the
-                pointer on every submit. The resting label stays in the box,
-                `invisible` (so it is out of the accessibility tree and the name stays
-                single), and the live label is laid over it in the same grid cell. */}
-            <span className="grid">
-              <span className="invisible col-start-1 row-start-1">{submitLabel}</span>
-              <span className="col-start-1 row-start-1">
-                {isSubmitting ? "Saving…" : submitLabel}
-              </span>
-            </span>
-          </Button>
-        </CardFooter>
       </form>
     </Card>
   );

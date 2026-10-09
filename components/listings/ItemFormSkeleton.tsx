@@ -1,8 +1,8 @@
 // components/listings/ItemFormSkeleton.tsx
 //
 // Static placeholder for `ItemForm`'s two-pane card (photo panel + details
-// rail + footer actions), shared by the create and edit loading states so
-// swapping in the real form causes no layout shift.
+// rail, which ends in the submit), shared by the create and edit loading states
+// so swapping in the real form causes no layout shift.
 //
 // IT TAKES `mode` FOR THE SAME REASON `ItemForm` DOES. Three parts of that form
 // exist in one mode and not the other — the card header, the photo filmstrip and
@@ -13,7 +13,7 @@
 
 
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
@@ -28,7 +28,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
     // means the placeholder stops at 832px and the real card then jumps taller.
     // `clip` rather than `hidden` for the same reason the form gives: `hidden` makes
     // this a scroll container on both axes.
-    <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr_auto]">
+    <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr]">
       {/* `max-md:hidden` in create mode, matching `ItemForm`: on `/listings/new`
           the title lives in the phone chrome, so a header drawn here is ~80px of
           card that never resolves to anything. */}
@@ -68,7 +68,7 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             16px one there shifts every element below the label on swap.
             `lg:min-h-0 lg:overflow-hidden` are the form's too: they are what let the
             photo row below take the panel's remainder rather than its content height. */}
-        <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-3 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
+        <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
           {/* The `Photos` label, a 14px `leading-none` `Label`. It was `h-4`, which
               is 16px against a 14px line.
               
@@ -194,22 +194,16 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             <TextLines className="text-body leading-none" widths={['w-1/3']} />
             <Skeleton className="h-10 w-full md:h-9" />
           </div>
+
+          {/* The submit, last in the rail behind a hairline, as `ItemForm` draws it:
+              `max-md:hidden` because the phone chrome carries it below `md`, full
+              width in the desktop rail and right-aligned between. `h-10 md:h-9`,
+              `Button`'s default size. */}
+          <div className="border-t border-border pt-5 max-md:hidden sm:flex sm:justify-end lg:block">
+            <Skeleton className="h-10 w-full sm:w-32 md:h-9 lg:w-full" />
+          </div>
         </div>
       </CardContent>
-
-      {/* ONE BAR, AND THE WHOLE FOOTER IS `max-md:hidden` — both tracking `ItemForm`.
-          The footer used to hold a Cancel/submit pair; Cancel is gone, and below `md`
-          the submit moved into the phone chrome, so there is nothing here at all at
-          that width. Two bars where the form has one is the loading state promising a
-          control that never arrives.
-          
-          `bg-card` and `flex-col` are `ItemForm`'s too: `bg-muted` here flashed a
-          tinted band to white on swap, and `flex-col-reverse` stacked the submit above
-          Cancel, the reverse of where they settled. */}
-      <CardFooter className="max-md:hidden flex-col items-stretch gap-snug border-t bg-card px-6 pb-group pt-group sm:flex-row sm:justify-end lg:col-start-2 lg:row-start-3 lg:border-l lg:border-border lg:px-7">
-        {/* `h-10 md:h-9`, `Button`'s default size. */}
-        <Skeleton className="h-10 w-full sm:w-32 md:h-9" />
-      </CardFooter>
     </Card>
   );
 }

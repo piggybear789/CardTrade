@@ -18,12 +18,17 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckmarkCircle02Icon, CircleIcon } from "@hugeicons/core-free-icons";
 
 import { signIn, signUp } from "@/lib/actions/auth";
 import { finishesOwnOnboarding } from "@/lib/deals/paths";
+import { PASSWORD_MIN_LENGTH } from "@/domain/validation/registration";
+import { cn } from "@/lib/utils";
 import { GoogleSignInButton } from "@/components/auth/GoogleSignInButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -119,6 +124,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const passwordId = useId();
   const emailErrorId = `${emailId}-error`;
   const passwordErrorId = `${passwordId}-error`;
+  const passwordRuleId = `${passwordId}-rule`;
+  const [passwordLength, setPasswordLength] = useState(0);
+  const passwordMeetsRule = passwordLength >= PASSWORD_MIN_LENGTH;
   const formErrorId = `${emailId}-form-error`;
 
   /**
@@ -296,18 +304,40 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 </Link>
               ) : null}
             </div>
-            <Input
+            <PasswordInput
               id={passwordId}
               name="password"
-              type="password"
               autoComplete={copy.autoComplete}
-              placeholder="At least 8 characters"
               required
               disabled={isPending}
               className="min-h-11"
+              onChange={mode === "sign-up" ? (event) => setPasswordLength(event.target.value.length) : undefined}
               aria-invalid={fieldErrors.password ? true : undefined}
-              aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
+              aria-describedby={
+                [fieldErrors.password ? passwordErrorId : null, mode === "sign-up" ? passwordRuleId : null]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
             />
+            {/* THE RULE STAYS ON SCREEN. As a placeholder it vanished at the first
+                keystroke, and sign-in showed sign-up's rule to someone whose password
+                already exists. */}
+            {mode === "sign-up" ? (
+              <p
+                id={passwordRuleId}
+                className={cn(
+                  "flex items-center gap-tight text-meta",
+                  passwordMeetsRule ? "text-trust" : "text-muted-foreground",
+                )}
+              >
+                <HugeiconsIcon
+                  icon={passwordMeetsRule ? CheckmarkCircle02Icon : CircleIcon}
+                  className="size-3.5"
+                  aria-hidden
+                />
+                At least {PASSWORD_MIN_LENGTH} characters
+              </p>
+            ) : null}
             {fieldErrors.password ? (
               <p id={passwordErrorId} role="alert" className="text-body text-destructive">
                 {fieldErrors.password}

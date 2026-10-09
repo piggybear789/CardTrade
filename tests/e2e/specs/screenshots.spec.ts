@@ -605,7 +605,7 @@ test.describe('onboarding wizard (new member)', () => {
     await page.goto('/sign-up');
     await page.waitForLoadState('domcontentloaded');
     await page.getByLabel('Email').fill(markedEmail(`visual-${testInfo.project.name}`));
-    await page.getByLabel('Password').fill('TestPassword123!');
+    await page.getByLabel('Password', { exact: true }).fill('TestPassword123!');
     await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
     await page.getByRole('button', { name: 'Create account' }).click();
     await expect(page).toHaveURL(/\/onboarding/, { timeout: COLD_ROUTE });

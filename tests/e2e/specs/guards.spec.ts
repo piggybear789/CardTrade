@@ -108,7 +108,7 @@ async function signUpAndPrepare(
   const emailField = page.getByLabel('Email');
   await expect(emailField).toBeEditable({ timeout: RENDERED });
   await emailField.fill(email);
-  await page.getByLabel('Password').fill('TestPassword123!');
+  await page.getByLabel('Password', { exact: true }).fill('TestPassword123!');
   // Sign-up refuses without consent — see `acceptedTerms` in AuthForm. Ticking
   // it is part of creating an account, not incidental setup.
   await page.getByRole('checkbox', { name: /accept the Terms/i }).check();

@@ -30,7 +30,7 @@ test.beforeEach(async ({ page }) => {
   await page.goto('/sign-in');
   await page.waitForLoadState('load');
   await page.getByLabel('Email').fill(PROBE_EMAIL);
-  await page.getByLabel('Password').fill(PROBE_PASSWORD);
+  await page.getByLabel('Password', { exact: true }).fill(PROBE_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await page.waitForURL((url) => !url.pathname.startsWith('/sign-in'), { timeout: 30_000 });
 });

@@ -54,7 +54,7 @@ for (const user of SEED_USERS) {
     await expect(emailInput).toBeEditable({ timeout: 15_000 });
 
     await emailInput.fill(user.email);
-    await page.getByLabel('Password').fill(user.password);
+    await page.getByLabel('Password', { exact: true }).fill(user.password);
 
     // Two attempts is enough: a cooldown outlasts the limiter's whole window, so a
     // second refusal means something other than throttling.

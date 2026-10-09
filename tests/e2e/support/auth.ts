@@ -78,7 +78,7 @@ export async function ensureFreshSession(browser: Browser, user: SeedUser): Prom
     const emailField = page.getByLabel('Email');
     await expect(emailField).toBeEditable({ timeout: 15_000 });
     await emailField.fill(user.email);
-    await page.getByLabel('Password').fill(user.password);
+    await page.getByLabel('Password', { exact: true }).fill(user.password);
 
     // THE REPAIR PATH IS RATE LIMITED TOO, and it is the one place that hurts most.
     //

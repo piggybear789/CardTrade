@@ -91,6 +91,8 @@ export function AuthFormSkeleton({ mode }: { mode: 'sign-in' | 'sign-up' }) {
             <TextLines className="text-body leading-none" widths={['w-1/3']} />
           )}
           <Skeleton className="h-11 w-full rounded-md" />
+          {/* Sign-up only: the persistent "At least 8 characters" rule, one `text-meta` line. */}
+          {mode === 'sign-up' ? <TextLines className="text-meta" widths={['w-2/5']} /> : null}
         </div>
 
         {/* Sign-up only: the terms checkbox, a `min-h-11` centred label whose copy

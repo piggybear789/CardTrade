@@ -25,7 +25,7 @@ test('does a fresh sign-in revoke the stored session?', async ({ browser }) => {
   await freshPage.goto('/sign-in');
   await freshPage.waitForLoadState('load');
   await freshPage.getByLabel('Email').fill(ALICE.email);
-  await freshPage.getByLabel('Password').fill(ALICE.password);
+  await freshPage.getByLabel('Password', { exact: true }).fill(ALICE.password);
   await freshPage.getByRole('button', { name: 'Sign in' }).click();
   await freshPage.waitForURL(isSignedInDestination, { timeout: 30_000 });
   console.log('--- second sign-in completed');

@@ -26,7 +26,7 @@ async function signInAs(
   const emailField = page.getByLabel('Email');
   await expect(emailField).toBeEditable({ timeout: RENDERED });
   await emailField.fill(email);
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password', { exact: true }).fill(password);
   await page.getByRole('button', { name: 'Sign in' }).click();
 }
 
@@ -134,7 +134,7 @@ test.describe('sign-up flow', () => {
     const emailField = page.getByLabel('Email');
     await expect(emailField).toBeEditable({ timeout: RENDERED });
     await emailField.fill(email);
-    await page.getByLabel('Password').fill('TestPassword123!');
+    await page.getByLabel('Password', { exact: true }).fill('TestPassword123!');
     // Sign-up refuses without consent — see `acceptedTerms` in AuthForm.
     await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
     await page.getByRole('button', { name: 'Create account' }).click();

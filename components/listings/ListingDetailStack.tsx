@@ -174,7 +174,7 @@ export function ListingDetailStack({
       <Link
         href={isOwner ? '/profile' : `/sellers/${sellerId}`}
         transitionTypes={['nav-forward']}
-        className="mt-group flex min-w-0 items-center gap-cozy rounded-lg border border-border bg-card p-cozy transition-colors hover:bg-muted/60 focus:outline-none focus-visible:border-iris/60"
+        className="mt-group flex min-w-0 items-center gap-cozy rounded-lg border border-border bg-card p-cozy transition-colors hover:bg-muted/60 focus:outline-none focus-visible:border-iris"
       >
         <Avatar avatarPath={sellerAvatarPath} displayName={name} size="md" />
         <span className="flex min-w-0 flex-1 flex-col gap-tight">

@@ -96,7 +96,7 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-50 flex w-full flex-col gap-group border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-iris/60 max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]",
+        "fixed z-50 flex w-full flex-col gap-group border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-iris max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]",
         mobile === "sheet" && [
           // Phone: bottom sheet. Children must not shrink — a pinned footer plus
           // flex-shrink was compressing titles/fields instead of letting this
@@ -146,7 +146,7 @@ const DialogContent = React.forwardRef<
         // handing a touch surface the pointer-sized target. `focus-visible:opacity-100`
         // because opacity applies to the ring too — at 70% the iris frame would
         // drop under the 3:1 it owes the card.
-        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-iris/60 focus-visible:opacity-100 disabled:pointer-events-none md:size-8 md:opacity-70">
+        <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-iris focus-visible:opacity-100 disabled:pointer-events-none md:size-8 md:opacity-70">
           <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden="true" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>

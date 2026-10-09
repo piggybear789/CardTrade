@@ -325,7 +325,7 @@ export function ChatThread({
           // glyph 20px wide. 36px is the phone control height everywhere else in the
           // app and the negative margin pulls the hit area into the gutter, so the
           // title gains 14px and the chevron stays a comfortable target.
-          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris/60 md:hidden"
+          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
           aria-label="Back to messages"
         >
           <HugeiconsIcon

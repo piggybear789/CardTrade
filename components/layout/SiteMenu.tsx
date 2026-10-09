@@ -216,7 +216,7 @@ export function SiteMenu({
           aria-label={`${displayName ?? 'Your account'}, account menu`}
           title={displayName ?? undefined}
           className={cn(
-            'flex h-10 shrink-0 touch-manipulation items-center gap-tight rounded-md border border-transparent pl-tight pr-snug text-mist transition-colors hover:bg-white/10 focus:outline-none focus-visible:border-iris/60',
+            'flex h-10 shrink-0 touch-manipulation items-center gap-tight rounded-md border border-transparent pl-tight pr-snug text-mist transition-colors hover:bg-white/10 focus:outline-none focus-visible:border-iris',
             open && 'bg-white/10',
           )}
         >
@@ -242,7 +242,7 @@ export function SiteMenu({
           aria-expanded={open}
           aria-controls="site-menu-panel"
           aria-label={open ? 'Close menu' : 'Open menu'}
-          className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-iris/60"
+          className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-iris"
         >
           {open ? (
             <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />

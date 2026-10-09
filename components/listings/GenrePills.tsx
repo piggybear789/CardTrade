@@ -253,7 +253,7 @@ function MobileGenreStrip({
           aria-controls={allOpen ? panelId : undefined}
           aria-label="All categories"
           className={cn(
-            'absolute right-0 top-1.5 z-10 flex size-11 items-center justify-center rounded-full text-foreground outline-none transition-colors hover:text-iris-ink focus-visible:ring-1 focus-visible:border-iris/60',
+            'absolute right-0 top-1.5 z-10 flex size-11 items-center justify-center rounded-full text-foreground outline-none transition-colors hover:text-iris-ink focus-visible:ring-1 focus-visible:border-iris',
             allOpen ? 'bg-transparent' : 'bg-background',
           )}
         >
@@ -290,7 +290,7 @@ function CategoryChip({
         // `SHORT_LABEL` — "Dragon Ball", "Star Wars" — wrap to a second line
         // under the icon. At a fixed height that second line was clipped; the
         // grid row can just grow instead, and every cell in the row grows with it.
-        'flex min-h-16 flex-col items-center justify-center gap-tight rounded-lg px-1.5 py-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:border-iris/60',
+        'flex min-h-16 flex-col items-center justify-center gap-tight rounded-lg px-1.5 py-1.5 text-center text-meta leading-tight text-balance transition-colors outline-none focus-visible:ring-1 focus-visible:border-iris',
         active
           ? 'bg-accent font-semibold text-accent-foreground ring-1 ring-foreground'
           : 'bg-card font-medium text-foreground hover:bg-accent',
@@ -322,7 +322,7 @@ function CategoryCell({
       aria-pressed={active}
       title={title}
       className={cn(
-        'border border-transparent focus:outline-none focus-visible:border-iris/60',
+        'border border-transparent focus:outline-none focus-visible:border-iris',
         STRIP_CELL,
       )}
     >
@@ -446,7 +446,7 @@ function DesktopGenrePills({
             <button
               type="button"
               aria-label="More categories"
-              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-input bg-card text-foreground shadow-sm transition-colors hover:border-foreground/60 hover:bg-accent focus:outline-none focus-visible:border-iris/60"
+              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-input bg-card text-foreground shadow-sm transition-colors hover:border-foreground/60 hover:bg-accent focus:outline-none focus-visible:border-iris"
             >
               {open ? (
                 <HugeiconsIcon icon={ChevronUpIcon} className="size-4" strokeWidth={1.75} aria-hidden />
@@ -541,7 +541,7 @@ function GenrePill({
       title={label}
       className={cn(
         'flex h-9 min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-left text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-cozy',
-        'border border-transparent focus:outline-none focus-visible:border-iris/60',
+        'border border-transparent focus:outline-none focus-visible:border-iris',
         stretched ? 'min-w-0 w-full' : 'shrink-0',
         active
           ? 'border-foreground bg-foreground text-primary-foreground'

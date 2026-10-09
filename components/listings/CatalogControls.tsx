@@ -237,7 +237,7 @@ export function CatalogFilters() {
                     type="button"
                     onClick={clearFilters}
                     disabled={isPending}
-                    className="shrink-0 rounded-sm pt-0.5 text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris/60 disabled:opacity-50"
+                    className="shrink-0 rounded-sm pt-0.5 text-body font-semibold text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-50"
                   >
                     Clear all
                   </button>
@@ -499,7 +499,7 @@ function CatalogPropertyRow({
         type="button"
         onClick={onClick}
         aria-expanded={open}
-        className="flex h-10 w-full items-center gap-snug px-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris/60 rounded-lg"
+        className="flex h-10 w-full items-center gap-snug px-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris rounded-lg"
       >
         <HugeiconsIcon icon={Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="text-body text-muted-foreground">{label}</span>
@@ -716,7 +716,7 @@ function FilterCheckRow({
       disabled={disabled}
       aria-pressed={pressed}
       className={cn(
-        'flex w-full items-center gap-cozy rounded-lg px-cozy py-snug text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris/60 disabled:opacity-60',
+        'flex w-full items-center gap-cozy rounded-lg px-cozy py-snug text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-60',
         // No violet wash behind a ticked row. The box IS the state — it is the
         // thing that changes shape when you click — and tinting the whole row
         // as well put a second, much larger violet element in the rail for the
@@ -769,7 +769,7 @@ function FilterSquare({
       disabled={disabled}
       aria-pressed={pressed}
       className={cn(
-        'inline-flex h-9 min-h-9 items-center rounded-md border px-2.5 text-meta font-semibold tracking-tight transition-colors focus:outline-none focus-visible:border-iris/60 disabled:opacity-60',
+        'inline-flex h-9 min-h-9 items-center rounded-md border px-2.5 text-meta font-semibold tracking-tight transition-colors focus:outline-none focus-visible:border-iris disabled:opacity-60',
         // Selected inverts to near-black, the same treatment the genre pills
         // above the grid already use for exactly this — a chosen filter chip.
         // It was a violet border over a violet wash with violet text, three

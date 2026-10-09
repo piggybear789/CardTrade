@@ -359,7 +359,7 @@ export default async function SellerProfilePage({
                 // `space-y-1.5` and sat on an anonymous line box sized by the
                 // inherited font rather than by the stars — a different height
                 // and offset from the row the loading skeleton reserves.
-                className="flex w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris/60"
+                className="flex w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
                 aria-label={`Read ${seller.ratingCount} reviews`}
               >
                 <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />

@@ -331,7 +331,7 @@ function LocateMeButton({
         onClick={locate}
         disabled={disabled || locating}
         aria-busy={locating || undefined}
-        className="inline-flex min-h-8 items-center gap-tight rounded-sm border border-transparent text-body font-medium text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:border-iris/60 disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
+        className="inline-flex min-h-8 items-center gap-tight rounded-sm border border-transparent text-body font-medium text-primary underline-offset-4 hover:underline focus:outline-none focus-visible:border-iris disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
       >
         <HugeiconsIcon
           icon={locating ? LoaderCircleIcon : Gps01Icon}

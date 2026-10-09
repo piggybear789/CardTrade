@@ -456,7 +456,7 @@ function ItemCardHitArea({
       href={`/listings/${item.id}`}
       transitionTypes={['nav-forward']}
       className={cn(
-        'absolute inset-0 z-0 rounded-xl border border-transparent focus:outline-none focus-visible:border-iris/60',
+        'absolute inset-0 z-0 rounded-xl border border-transparent focus:outline-none focus-visible:border-iris',
         className,
       )}
     >

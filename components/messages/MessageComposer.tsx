@@ -285,7 +285,7 @@ export function MessageComposer({
           <button
             type="button"
             onClick={() => attach(null)}
-            className="grid size-11 place-items-center rounded-full border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris/60 md:size-9"
+            className="grid size-11 place-items-center rounded-full border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris md:size-9"
             aria-label="Remove attachment"
           >
             <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />

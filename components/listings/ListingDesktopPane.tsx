@@ -233,7 +233,7 @@ export function ListingDesktopPane({
                 ) : (
                   <Link
                     href={`/sellers/${sellerId}#reviews`}
-                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris/60"
+                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
                     aria-label="Read seller reviews"
                   >
                     <StarRating

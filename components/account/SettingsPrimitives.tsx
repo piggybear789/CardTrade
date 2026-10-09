@@ -253,7 +253,7 @@ export function SettingsListRow({
     // `overflow-hidden` group, so an outset ring would be clipped on the first and
     // last row. `ring-inset` stays visible on every row.
     interactive &&
-      'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris/60',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:border-iris',
     disabled && 'pointer-events-none opacity-60',
     className,
   );

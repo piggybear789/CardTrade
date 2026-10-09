@@ -184,7 +184,7 @@
        - small solid markers that say "you are here": the tab underline, a
          gallery position dot, an unread dot, the current progress step's fill.
        - links and inline brand text in `--iris-ink`.
-       - the focus indicator (`focus-visible:border-iris/60` / `ring-iris`). This is
+       - the focus indicator (`focus-visible:border-iris` / `ring-iris`). This is
          the one violet LINE, and it stays because a keyboard user needs it.
      
      NOT ALLOWED: a violet border on a container, tile, chip, thumbnail or step;

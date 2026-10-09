@@ -43,16 +43,20 @@ import { cn } from "@/lib/utils";
 //
 // FOCUS IS A RING INSIDE THE CONTROL, NOT A BORDER-COLOUR SWAP.
 //
-// It used to be `focus-visible:border-iris/60` alone. On a filled button that swaps a
+// It used to be `focus-visible:border-iris` alone. On a filled button that swaps a
 // 1px `--primary` edge for a 1px `--iris` edge — same hue, 1.46:1 apart — so a
 // keyboard user tabbing onto "Sign in" saw almost nothing change. Two rules now:
 //
 //   - QUIET variants (outline, secondary, ghost, link) turn their edge iris and add
-//     a 1px inset iris ring: a 2px iris frame, 3.9:1 against the page.
+//     a 1px inset iris ring: a 2px iris frame, 3.9:1 against the page and firmer
+//     than the 3:1 `--input` edge they rest at.
 //   - FILLED variants keep their edge and draw a 2px inset ring in their own LABEL
 //     colour. The label colour is by construction the one that contrasts with the
-//     fill (white on violet 5.9:1, brown on amber 8.9:1), so the indicator holds on
+//     fill (white on violet 5.3:1, brown on amber 8.9:1), so the indicator holds on
 //     every fill without a per-surface tweak.
+//
+// A button matches `:focus-visible` from the keyboard only, so the frame never
+// appears on a click.
 //
 // INSET, because an outset ring is clipped by any scroll container the control sits
 // flush against — the reason `accordion.tsx` records for avoiding rings at all. An
@@ -106,12 +110,12 @@ const buttonVariants = cva(
         // carried by the fill (`bg-accent` / `bg-secondary/75`); the edge only has
         // to firm up, which means going DARKER than the 3:1 `--input` it rests at.
         outline:
-          "border border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-iris/60",
+          "border border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
         secondary:
-          "border border-input bg-secondary text-secondary-foreground hover:border-foreground/60 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-iris/60",
+          "border border-input bg-secondary text-secondary-foreground hover:border-foreground/60 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-iris/60",
-        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-iris/60",
+          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
       },
       size: {
         // 40px on touch, 36px from `md`. The content box has to hold a 14px line

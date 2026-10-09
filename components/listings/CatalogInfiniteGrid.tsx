@@ -248,7 +248,7 @@ export function CatalogInfiniteGrid({
           <button
             type="button"
             onClick={() => void loadMoreRef.current({ force: true })}
-            className="mt-snug h-10 w-full rounded-md border border-input bg-card px-group text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-iris/60"
+            className="mt-snug h-10 w-full rounded-md border border-input bg-card px-group text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-iris"
           >
             Load more listings
           </button>
@@ -265,7 +265,7 @@ export function CatalogInfiniteGrid({
               <button
                 type="button"
                 onClick={() => void loadMoreRef.current({ force: true })}
-                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-iris/60"
+                className="rounded-md text-body font-medium text-foreground underline-offset-4 hover:underline border border-transparent focus:outline-none focus-visible:border-iris"
               >
                 {error}
               </button>

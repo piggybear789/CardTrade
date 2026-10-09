@@ -227,7 +227,7 @@ export function ContractDetailList({
                   onKeyDown={(event) => handleTabKeyDown(event, index)}
                   className={cn(
                     'min-h-11 min-w-0 whitespace-nowrap touch-manipulation px-cozy py-2.5 text-meta font-medium transition-colors',
-                    'hover:text-foreground focus:outline-none focus-visible:border-iris/60',
+                    'hover:text-foreground focus:outline-none focus-visible:border-iris',
                     isDestructive
                       ? 'text-destructive'
                       : selected ? 'text-foreground' : 'text-muted-foreground',

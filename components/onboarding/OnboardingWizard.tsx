@@ -605,7 +605,7 @@ export function OnboardingWizard({
                       setError(null);
                     }}
                     aria-pressed={regionChoice === 'waitlist'}
-                    className="flex w-full items-center gap-group rounded-lg p-group text-left focus:outline-none focus-visible:border-iris/60"
+                    className="flex w-full items-center gap-group rounded-lg p-group text-left focus:outline-none focus-visible:border-iris"
                   >
                     <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
                       <HugeiconsIcon icon={Globe02Icon} className="size-5" aria-hidden />
@@ -765,7 +765,7 @@ export function OnboardingWizard({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris/60"
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris"
                         aria-label="Why we need these details"
                       >
                         <HugeiconsIcon icon={InfoIcon} className="size-3.5" aria-hidden />

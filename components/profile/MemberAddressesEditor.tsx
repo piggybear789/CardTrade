@@ -248,7 +248,7 @@ function SavedAddressRow({
             onClick={remove}
             disabled={pending}
             aria-label="Remove address"
-            className="flex size-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-iris/60 disabled:opacity-65"
+            className="flex size-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-iris disabled:opacity-65"
           >
             <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
           </button>

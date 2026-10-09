@@ -133,7 +133,7 @@ export function AvatarUploadField({
         disabled={controlsDisabled}
         aria-busy={isBusy}
         aria-label={path ? 'Picture options' : 'Add a picture'}
-        className="group relative cursor-pointer rounded-full border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:border-iris/60 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65"
+        className="group relative cursor-pointer rounded-full border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:border-iris focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65"
       >
         <Avatar avatarPath={path} displayName={displayName} size="md" />
         <span

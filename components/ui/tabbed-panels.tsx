@@ -203,7 +203,7 @@ export function TabbedPanels<Id extends string>({
                     // showed no indicator at all. The chip repeats the ring via the
                     // named group; unselected segments and desktop use the link's own.
                     // (It was also colourless, which rendered Tailwind's default blue.)
-                    'group/tab focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris/60',
+                    'group/tab focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-iris',
                     active
                       ? 'text-foreground'
                       : 'text-muted-foreground md:hover:text-foreground',

@@ -127,7 +127,7 @@ function MobileThreadRow({
       current={current}
       onNavigate={onOpen ? () => onOpen(c.id) : undefined}
       className={cn(
-        'relative flex min-h-11 items-center gap-cozy py-3.5 border border-transparent focus:outline-none focus-visible:border-iris/60',
+        'relative flex min-h-11 items-center gap-cozy py-3.5 border border-transparent focus:outline-none focus-visible:border-iris',
         // CURRENT READS THE SAME WAY IT DOES IN THE WORKSPACE RAIL, and deliberately
         // so — this row and the rail's own current item are the same statement. That
         // means a NEUTRAL fill plus an iris bar, copied from `MarketplaceNav`, not
@@ -258,7 +258,7 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
     <Link
       href={`/messages/${c.id}`}
       transitionTypes={['nav-forward']}
-      className="flex items-center gap-cozy p-group transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-iris/60"
+      className="flex items-center gap-cozy p-group transition-colors hover:bg-muted/60 border border-transparent focus:outline-none focus-visible:border-iris"
     >
       {thumb ? (
         // NOT decorative any more. With the item title dropped from the row, the

@@ -161,7 +161,7 @@ export function LeaveReviewDialog({
                   }}
                   onMouseEnter={() => setHover(value)}
                   onMouseLeave={() => setHover(0)}
-                  className="rounded p-tight touch-manipulation border border-transparent focus:outline-none focus-visible:border-iris/60"
+                  className="rounded p-tight touch-manipulation border border-transparent focus:outline-none focus-visible:border-iris"
                 >
                   <HugeiconsIcon icon={StarIcon}
                     className={cn(

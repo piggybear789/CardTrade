@@ -64,7 +64,7 @@ function AccordionTrigger({
         <AccordionPrimitive.Trigger
           ref={ref}
           className={cn(
-            'flex flex-1 items-center justify-between gap-snug rounded-md py-snug text-left text-body font-medium transition-colors border border-transparent focus:outline-none focus-visible:border-iris/60 [&[data-state=open]>svg]:rotate-180',
+            'flex flex-1 items-center justify-between gap-snug rounded-md py-snug text-left text-body font-medium transition-colors border border-transparent focus:outline-none focus-visible:border-iris [&[data-state=open]>svg]:rotate-180',
             className,
           )}
           {...props}

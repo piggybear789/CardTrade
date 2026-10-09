@@ -6,17 +6,18 @@ import { cn } from "@/lib/utils";
  * Focus and invalid states shared by every field primitive. `Textarea` and
  * `SelectTrigger` import this rather than restating it, so the three cannot drift.
  *
- * FOCUS is the edge turning iris PLUS a 1px inset iris ring: a 2px frame. The edge
- * alone was a 1px hue shift from `--input` to `--iris`, which sit 1.17:1 apart in
- * luminance — findable if you were looking for it, easy to lose on a long form. Inset
- * so a field flush against a scroll container's edge cannot have it clipped.
+ * FOCUS is the edge turning full iris plus a soft 3px halo. The edge carries the
+ * contrast (3.85:1 against a card, above the 3:1 resting `--input`, so focus always
+ * reads as firmer than rest); the halo carries the recognisability at a glance. A
+ * text field matches `:focus-visible` on a mouse click as well, so the halo is kept
+ * faint rather than a heavy frame. Where an ancestor clips it, the edge still holds.
  *
  * INVALID reads `aria-invalid`, which `FormControl` and the hand-rolled forms already
  * set and nothing styled, so only the label ever turned red. Invalid-and-focused stays
  * red rather than going iris: tabbing back into a field must not hide its error.
  */
 export const fieldStateClasses =
-  "focus-visible:border-iris/60 focus-visible:outline-none aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:border-destructive aria-[invalid=true]:focus-visible:ring-destructive";
+  "focus-visible:border-iris focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-iris/20 aria-[invalid=true]:border-destructive aria-[invalid=true]:focus-visible:border-destructive aria-[invalid=true]:focus-visible:ring-destructive/20";
 
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
   ({ className, type, ...props }, ref) => {

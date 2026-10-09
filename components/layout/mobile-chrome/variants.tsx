@@ -180,7 +180,7 @@ export function AuthChrome() {
       <Link
         href="/"
         aria-label="NoDitto home"
-        className="inline-flex min-h-10 items-center gap-snug rounded-md border border-transparent px-tight focus:outline-none focus-visible:border-iris/60"
+        className="inline-flex min-h-10 items-center gap-snug rounded-md border border-transparent px-tight focus:outline-none focus-visible:border-iris"
       >
         <LogoMark className="size-7" />
         <span
@@ -210,7 +210,7 @@ export function MarketingChrome({
       <Link
         href="/"
         aria-label="NoDitto home"
-        className="inline-flex min-h-10 min-w-0 items-center gap-snug rounded-md border border-transparent px-tight focus:outline-none focus-visible:border-iris/60"
+        className="inline-flex min-h-10 min-w-0 items-center gap-snug rounded-md border border-transparent px-tight focus:outline-none focus-visible:border-iris"
       >
         <LogoMark className="size-7" />
         <span
@@ -222,7 +222,7 @@ export function MarketingChrome({
       </Link>
       {isAuthenticated ? null : (
         <div className="ml-auto">
-          <SignInLink className="inline-flex h-10 items-center rounded-md border border-transparent px-cozy text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-iris/60">
+          <SignInLink className="inline-flex h-10 items-center rounded-md border border-transparent px-cozy text-body font-semibold text-foreground hover:bg-foreground/5 focus:outline-none focus-visible:border-iris">
             Sign in
           </SignInLink>
         </div>

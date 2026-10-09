@@ -75,7 +75,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
         aria-expanded={open}
         aria-controls="demo-panel-body"
         aria-label={open ? 'Collapse hackathon test controls' : 'Expand hackathon test controls'}
-        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris/60"
+        className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris"
       >
         <span className="flex min-w-0 items-center gap-snug">
           <HugeiconsIcon icon={FlaskConicalIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />

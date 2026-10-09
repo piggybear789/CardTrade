@@ -481,7 +481,7 @@ function MessageBubble({
           type="button"
           onClick={url ? onOpenImage : undefined}
           disabled={!url}
-          className="relative block aspect-[4/3] w-56 max-w-full overflow-hidden border border-transparent focus:outline-none focus-visible:border-iris/60 disabled:cursor-default"
+          className="relative block aspect-[4/3] w-56 max-w-full overflow-hidden border border-transparent focus:outline-none focus-visible:border-iris disabled:cursor-default"
         >
           {url ? (
             // Signed URLs are private and short-lived; next/image cannot cache them.

@@ -83,7 +83,7 @@ export async function SiteHeader() {
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris/60"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris"
             >
               <Logo />
             </Link>
@@ -162,7 +162,7 @@ export function SiteHeaderSkeleton({
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris/60"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-iris"
             >
               <Logo />
             </Link>

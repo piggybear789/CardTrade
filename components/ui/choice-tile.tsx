@@ -76,7 +76,7 @@ export function ChoiceTile({
           : 'p-snug md:p-cozy',
         // The whole tile takes the focus frame: at this size the native control's
         // own border is easy to miss. Edge plus 1px inset ring, like every field.
-        'has-[:focus-visible]:border-iris/60',
+        'has-[:focus-visible]:border-iris',
         // Hover darkens the hairline rather than tinting it violet: a violet hover
         // edge on an unselected tile would read as a second, weaker selection.
         //

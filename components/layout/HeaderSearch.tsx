@@ -422,7 +422,7 @@ function HeaderSearchInner({
           onClick={clearQuery}
           aria-label="Clear search"
           className={cn(
-            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-iris/60',
+            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-iris',
             trailing ? 'right-9' : 'right-1',
           )}
         >
@@ -466,7 +466,7 @@ function HeaderSearchInner({
                   onMouseEnter={() => setHighlight(index)}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-snug py-snug text-left focus:outline-none focus-visible:border-iris/60',
+                    'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-snug py-snug text-left focus:outline-none focus-visible:border-iris',
                     appearance === 'default'
                       ? active
                         ? 'bg-accent'

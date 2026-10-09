@@ -134,7 +134,7 @@ export function ContractProgressRail({
                     // violet hover edge meant pointing at any step made it look like
                     // the current one.
                     'hover:border-foreground/20 hover:text-foreground',
-                    'border border-transparent focus:outline-none focus-visible:border-iris/60',
+                    'border border-transparent focus:outline-none focus-visible:border-iris',
                     done && 'cardtrade-success-chip',
                     live && 'border-primary bg-primary text-primary-foreground',
                     halted &&

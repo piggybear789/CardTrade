@@ -38,7 +38,7 @@ import type { TradeOfferOwnItem } from '@/components/trade/TradeOfferForm';
 // at all, and the one control left on screen was a full-bleed Offer with its
 // label centred, which is exactly how a primary action looks.
 const BAR_SECONDARY =
-  'inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:border-iris/60 disabled:opacity-50';
+  'inline-flex size-11 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50';
 
 // Buy: PRIMARY, and the only filled control in the bar. It takes the amber
 // `action` fill and every pixel Offer and Trade did not need, so the thing the

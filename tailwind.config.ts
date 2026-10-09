@@ -243,9 +243,12 @@ const config: Config = {
       // AvatarUploadField all did. `ringOpacity` moves with it because the 0.5 default
       // is applied to whatever DEFAULT resolves to, and iris at half strength falls
       // below the 3:1 a focus indicator owes the page.
-      // Focus is a faint violet: a 1px edge at 60%, never a heavy frame.
+      // FULL STRENGTH. At 60% the iris measured ~2.2:1 against a card — under the
+      // 3:1 floor, and fainter than the 3:1 `--input` edge a focused control rests
+      // at, so focusing a field read as its edge fading. Softness comes from a thin
+      // edge and a faint halo (`ring-iris/20`), never from a weak indicator.
       ringColor: {
-        DEFAULT: "hsl(var(--iris) / 0.6)",
+        DEFAULT: "hsl(var(--iris))",
       },
       ringOpacity: {
         DEFAULT: "1",

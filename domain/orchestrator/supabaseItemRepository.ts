@@ -75,6 +75,7 @@ export function createSupabaseItemRepository(
       itemId,
       update,
       imageDims,
+      grading,
     }: UpdateItemParams): Promise<ItemRecord | null> {
       const { data } = await client
         .from('items')
@@ -91,6 +92,9 @@ export function createSupabaseItemRepository(
           // (undefined) leaves the column as it was — a caller that cannot
           // measure must not erase what an earlier one measured.
           ...(imageDims === undefined ? {} : { image_dims: imageDims }),
+          ...(grading === undefined
+            ? {}
+            : { grader: grading.grader, grade: grading.grade, cert_number: grading.certNumber }),
           updated_at: new Date().toISOString(),
         })
         .eq('id', itemId)

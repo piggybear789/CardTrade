@@ -64,6 +64,7 @@ import { ListingBuyerBar } from "@/components/listings/ListingBuyerBar";
 import { ListingChromePublisher } from "@/components/listings/ListingChromePublisher";
 import { ListingDesktopPane } from "@/components/listings/ListingDesktopPane";
 import { ListingDetailStack } from "@/components/listings/ListingDetailStack";
+import { ListingDetails } from "@/components/listings/ListingDetails";
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { CloseShopfrontDialog } from "@/components/listings/CloseShopfrontDialog";
@@ -469,6 +470,18 @@ export default async function ItemDetailPage({
   // The badges ride above the title in the desktop pane. They floated at the far end
   // of the back-button row, where they read as page chrome rather than as facts about
   // the card under the title.
+  const listingDetails = isShopfront ? null : (
+    <ListingDetails
+      condition={item.condition}
+      grader={item.grader}
+      grade={item.grade}
+      certNumber={item.cert_number}
+      game={item.category}
+      createdAt={item.created_at ?? null}
+      locationLabel={item.location_label}
+    />
+  );
+
   const listingChips = (
     <>
       <Badge variant={statusBadge.variant} aria-label={`Availability: ${statusBadge.label}`}>
@@ -643,6 +656,7 @@ export default async function ItemDetailPage({
           <div className="flex min-w-0 flex-col pt-cozy lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="lg:hidden">
               <ListingDetailStack
+                details={listingDetails}
                 title={listingTitle}
                 description={item.description ?? ''}
                 priceCents={item.fmv_cents}
@@ -742,6 +756,7 @@ export default async function ItemDetailPage({
             </div>
 
             <ListingDesktopPane
+              details={listingDetails}
               title={listingTitle}
               description={item.description ?? ''}
               priceCents={item.fmv_cents}

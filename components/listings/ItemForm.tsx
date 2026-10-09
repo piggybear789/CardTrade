@@ -60,6 +60,23 @@ import { platformFeeRateLabel } from "@/lib/fees/feeLabels";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
+import { GRADERS } from "@/lib/catalog/graders";
+import { cn } from "@/lib/utils";
+
+/**
+ * What each raw condition means, in a line. The scale is TCGplayer's (see
+ * `lib/catalog/conditions.ts`), and a seller choosing between Lightly and Moderately
+ * Played should not have to know that already.
+ */
+const RAW_CONDITION_HINTS: Record<string, string> = {
+  Unopened: "Sealed product, never opened.",
+  "Near Mint": "Looks unplayed. Minimal edge wear at most.",
+  "Lightly Played": "Light edge or corner wear, no creases.",
+  "Moderately Played": "Visible wear or scratches, still sleeve-playable.",
+  "Heavily Played": "Heavy wear. May have creases.",
+  Damaged: "Tears, water damage or major creases.",
+};
+const RAW_CONDITIONS = ITEM_CONDITIONS.filter((c) => c !== "Graded");
 import {
   ITEM_FORM_ID,
   publishItemFormChrome,
@@ -96,6 +113,9 @@ type ErrorField =
   | "description"
   | "category"
   | "condition"
+  | "grader"
+  | "grade"
+  | "certNumber"
   | "fmvCents"
   | "images"
   | "location"
@@ -282,6 +302,16 @@ function ItemFormInner({
     const stored = item?.condition ?? restored?.condition ?? "";
     return isItemCondition(stored) ? stored : "";
   });
+  // Slab details (0129), used only while the condition is Graded on a single listing.
+  const [grader, setGrader] = React.useState(() => item?.grader ?? restored?.grader ?? "");
+  const [grade, setGrade] = React.useState(() => item?.grade ?? restored?.grade ?? "");
+  const [certNumber, setCertNumber] = React.useState(
+    () => item?.cert_number ?? restored?.certNumber ?? "",
+  );
+  const graded = condition === "Graded";
+  // "Raw card" chosen but no condition picked yet: the select shows, empty, rather than
+  // the tile quietly choosing Near Mint for the seller.
+  const [rawChosen, setRawChosen] = React.useState(() => condition !== "" && condition !== "Graded");
   // Immutable after creation: contracts already open against a shopfront depend
   // on it not being reserved, and a single listing's live contract depends on the
   // opposite. Switching either way mid-flight would break one of them.
@@ -369,6 +399,9 @@ function ItemFormInner({
       condition,
       listingKind,
       fmvDollars,
+      grader,
+      grade,
+      certNumber,
       // THE PREFILL IS NOT INPUT. Counted as a draft, a seller who opened the form and
       // left would come back to "We kept what you had typed" over a form they never
       // typed in. It comes back from the server on the next visit anyway.
@@ -434,6 +467,16 @@ function ItemFormInner({
     if (!game) {
       setError({ field: "category", message: "Select the card game." });
       return;
+    }
+    if (!isShopfront && graded) {
+      if (!grader) {
+        setError({ field: "grader", message: "Choose who graded the card." });
+        return;
+      }
+      if (!grade.trim()) {
+        setError({ field: "grade", message: "Enter the grade on the label." });
+        return;
+      }
     }
 
     // Client-side FMV parse (Req 3.2): keep dollars<->cents conversion explicit.
@@ -513,6 +556,7 @@ function ItemFormInner({
           description,
           category: cardGameName(game),
           condition,
+          grading: isShopfront ? undefined : { grader, grade, certNumber },
           fmvCents,
           images: uploadedPaths,
           imageDims: uploadedDims,
@@ -539,6 +583,7 @@ function ItemFormInner({
           description,
           category: cardGameName(game),
           condition,
+          grading: isShopfront ? undefined : { grader, grade, certNumber },
           fmvCents,
           images,
           // Kept photos are left null: the action reads their stored sizes back
@@ -627,6 +672,9 @@ function ItemFormInner({
   const descriptionError = errorFor("description");
   const gameError = errorFor("category");
   const conditionError = errorFor("condition");
+  const graderError = errorFor("grader");
+  const gradeError = errorFor("grade");
+  const certError = errorFor("certNumber");
   const fmvError = errorFor("fmvCents");
   const imagesError = errorFor("images");
   const locationError = errorFor("location");
@@ -1123,9 +1171,9 @@ function ItemFormInner({
                 bare grid's implicit `auto` column sizes to the Select triggers'
                 min-content and overflows the clipped card on a phone. `minmax(0,
                 1fr)` lets the single column shrink to the row's width. */}
-            <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
+            <div className={cn("grid grid-cols-1 gap-cozy", isShopfront && "sm:grid-cols-2")}>
               <div className="space-y-snug">
-                <Label htmlFor="game">Category</Label>
+                <Label htmlFor="game">Game</Label>
                 <Select
                   value={game}
                   onValueChange={setGame}
@@ -1151,37 +1199,163 @@ function ItemFormInner({
                 ) : null}
               </div>
 
-              <div className="space-y-snug">
-                <Label htmlFor="condition">
-                  {isShopfront ? "Typical condition" : "Condition"}
-                </Label>
-                <Select
-                  value={condition}
-                  onValueChange={(v) => setCondition(v)}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger
-                    id="condition"
-                    aria-invalid={conditionError ? true : undefined}
-                    aria-describedby={
-                      conditionError ? "condition-error" : undefined
-                    }
+              {/* A binder's condition is typical of a pile, so it keeps the plain list.
+                  A single asks "Graded?" first, below. */}
+              {isShopfront ? (
+                <div className="space-y-snug">
+                  <Label htmlFor="condition">Typical condition</Label>
+                  <Select
+                    value={condition}
+                    onValueChange={(v) => setCondition(v)}
+                    disabled={isSubmitting}
                   >
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ITEM_CONDITIONS.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {conditionError ? (
+                    <SelectTrigger
+                      id="condition"
+                      aria-invalid={conditionError ? true : undefined}
+                      aria-describedby={conditionError ? "condition-error" : undefined}
+                    >
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ITEM_CONDITIONS.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {conditionError ? (
+                    <FieldError id="condition-error" message={conditionError} />
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+
+            {/* GRADED IS A QUESTION, NOT A CONDITION. It sat in the condition list
+                beside Near Mint, with nowhere to say who graded the card, what grade
+                it got or which cert it is. Answering yes asks for those; no shows the
+                raw scale with what each step means. */}
+            {!isShopfront ? (
+              <fieldset className="space-y-cozy">
+                <legend className="mb-snug text-body font-medium leading-none">Is it graded?</legend>
+                <div className="grid grid-cols-2 gap-snug">
+                  <ChoiceTile
+                    id="graded-yes"
+                    name="graded"
+                    type="radio"
+                    label="Graded slab"
+                    hint="PSA, BGS, CGC and others"
+                    checked={graded}
+                    onChange={() => {
+                      setCondition("Graded");
+                      setRawChosen(false);
+                    }}
+                  />
+                  <ChoiceTile
+                    id="graded-no"
+                    name="graded"
+                    type="radio"
+                    label="Raw card"
+                    hint="Ungraded, or sealed"
+                    checked={!graded && rawChosen}
+                    onChange={() => {
+                      if (graded) setCondition("");
+                      setRawChosen(true);
+                    }}
+                  />
+                </div>
+                {graded ? (
+                  <div className="grid grid-cols-1 gap-cozy sm:grid-cols-3">
+                    <div className="space-y-snug">
+                      <Label htmlFor="grader">Grader</Label>
+                      <Select value={grader} onValueChange={setGrader} disabled={isSubmitting}>
+                        <SelectTrigger
+                          id="grader"
+                          aria-invalid={graderError ? true : undefined}
+                          aria-describedby={graderError ? "grader-error" : undefined}
+                        >
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GRADERS.map((g) => (
+                            <SelectItem key={g} value={g}>
+                              {g}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {graderError ? <FieldError id="grader-error" message={graderError} /> : null}
+                    </div>
+                    <div className="space-y-snug">
+                      <Label htmlFor="grade">Grade</Label>
+                      <Input
+                        id="grade"
+                        value={grade}
+                        onChange={(e) => setGrade(e.target.value)}
+                        placeholder="e.g. 10"
+                        maxLength={20}
+                        disabled={isSubmitting}
+                        aria-invalid={gradeError ? true : undefined}
+                        aria-describedby={gradeError ? "grade-error" : undefined}
+                      />
+                      {gradeError ? <FieldError id="grade-error" message={gradeError} /> : null}
+                    </div>
+                    <div className="space-y-snug">
+                      <Label htmlFor="cert">
+                        Cert number <span className="font-normal text-muted-foreground">(optional)</span>
+                      </Label>
+                      <Input
+                        id="cert"
+                        value={certNumber}
+                        onChange={(e) => setCertNumber(e.target.value)}
+                        placeholder="From the label"
+                        maxLength={20}
+                        autoComplete="off"
+                        disabled={isSubmitting}
+                        aria-invalid={certError ? true : undefined}
+                        aria-describedby={certError ? "cert-error" : "cert-hint"}
+                      />
+                      {certError ? (
+                        <FieldError id="cert-error" message={certError} />
+                      ) : (
+                        <p id="cert-hint" className="text-meta text-muted-foreground">
+                          Buyers can check it with the grader.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : rawChosen ? (
+                  <div className="space-y-snug">
+                    <Label htmlFor="condition">Condition</Label>
+                    <Select value={condition} onValueChange={(v) => setCondition(v)} disabled={isSubmitting}>
+                      <SelectTrigger
+                        id="condition"
+                        aria-invalid={conditionError ? true : undefined}
+                        aria-describedby={conditionError ? "condition-error" : "condition-hint"}
+                      >
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RAW_CONDITIONS.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {conditionError ? (
+                      <FieldError id="condition-error" message={conditionError} />
+                    ) : RAW_CONDITION_HINTS[condition] ? (
+                      <p id="condition-hint" className="text-meta text-muted-foreground">
+                        {RAW_CONDITION_HINTS[condition]}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : conditionError ? (
                   <FieldError id="condition-error" message={conditionError} />
                 ) : null}
-              </div>
-            </div>
+              </fieldset>
+            ) : null}
 
             {/* Fair Market Value (dollars). For a shopfront this is INDICATIVE
                 only: each contract's real total is the sum of the cards that

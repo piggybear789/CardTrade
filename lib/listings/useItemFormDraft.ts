@@ -76,6 +76,10 @@ export interface ItemFormDraft {
   listingKind: string;
   fmvDollars: string;
   location: unknown;
+  /** Slab details for a graded single (0129). */
+  grader: string;
+  grade: string;
+  certNumber: string;
 }
 
 /** The fields a caller supplies and gets back. `version` is this module's business. */
@@ -113,6 +117,9 @@ function readDraft(): ItemFormDraftFields | null {
       listingKind: typeof parsed.listingKind === 'string' ? parsed.listingKind : 'SINGLE',
       fmvDollars: typeof parsed.fmvDollars === 'string' ? parsed.fmvDollars : '',
       location: parsed.location ?? null,
+      grader: typeof parsed.grader === 'string' ? parsed.grader : '',
+      grade: typeof parsed.grade === 'string' ? parsed.grade : '',
+      certNumber: typeof parsed.certNumber === 'string' ? parsed.certNumber : '',
     };
   } catch {
     // Malformed JSON, or storage blocked. A lost draft is a nuisance; a thrown error on

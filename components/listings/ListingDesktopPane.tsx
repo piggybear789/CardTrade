@@ -52,8 +52,11 @@ export function ListingDesktopPane({
   sellerIdentity,
   locationLabel,
   createdAt,
+  details,
   children,
 }: {
+  /** `ListingDetails`, under the description. */
+  details?: ReactNode;
   title: string;
   description: string;
   priceCents: number;
@@ -254,6 +257,7 @@ export function ListingDesktopPane({
           <p className="whitespace-pre-line break-words text-body text-foreground">{description}</p>
         </section>
       ) : null}
+      {details ? <div className="pb-group">{details}</div> : null}
     </div>
   );
 }

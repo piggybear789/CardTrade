@@ -11,7 +11,10 @@
 // schema and the `fmv_cents` column.
 
 import {
+  normalizeGrading,
   validateItemSubmission,
+  type ItemGrading,
+  type ItemGradingInput,
   type ItemSubmission,
 } from '../validation';
 // Type-only, and `lib/images/dimensions` is dependency-free and isomorphic, so
@@ -54,6 +57,8 @@ export interface UpdateItemParams {
   itemId: string;
   update: ItemSubmission;
   imageDims?: ItemImageDims;
+  /** Slab details to write (0129). Omitted leaves the stored ones untouched. */
+  grading?: ItemGrading;
 }
 
 /**
@@ -123,6 +128,8 @@ export async function updateItem(
     actorId: string;
     update: unknown;
     imageDims?: ItemImageDims;
+    /** Slab details as sent; see `normalizeGrading`. */
+    grading?: ItemGradingInput;
   },
 ): Promise<UpdateItemResult> {
   const { repository } = deps;
@@ -150,6 +157,15 @@ export async function updateItem(
     };
   }
 
+  // 3'. Slab details against the (validated) condition. A raw condition always
+  //     clears them; a graded one from a client that sends none leaves them alone,
+  //     so an older app editing a listing does not erase what the web form stored.
+  const grading = normalizeGrading(validated.value.condition, params.grading);
+  if (!grading.ok) {
+    return { ok: false, error: 'VALIDATION_ERROR', field: grading.field, detail: grading.message };
+  }
+  const writeGrading = params.grading !== undefined || validated.value.condition !== 'Graded';
+
   // 3a. A RESERVED Item's FMV is immutable (Req 3.6).
   if (item.status === 'RESERVED' && validated.value.fmvCents !== item.fmvCents) {
     return { ok: false, error: 'FMV_IMMUTABLE' };
@@ -165,6 +181,7 @@ export async function updateItem(
     itemId: item.id,
     update: validated.value,
     imageDims: params.imageDims,
+    grading: writeGrading ? grading.value : undefined,
   });
   if (!updated) {
     // The row disappeared or a concurrent write changed it out from under us.
@@ -181,6 +198,7 @@ export interface ItemOrchestrator {
     actorId: string;
     update: unknown;
     imageDims?: ItemImageDims;
+    grading?: ItemGradingInput;
   }): Promise<UpdateItemResult>;
 }
 

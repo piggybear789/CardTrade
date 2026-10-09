@@ -4,7 +4,7 @@
 // call CatalogView.apply — fetch in place, rewrite the URL, do not navigate.
 // Prices stay readable dollars in the URL and integer cents at the action.
 
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowDown01Icon, CancelIcon, CheckIcon } from '@hugeicons/core-free-icons';
 
@@ -62,6 +62,10 @@ const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
    stops — moved to `lib/catalog/priceLadder.ts` with the functions that used them, so
    the histogram buckets against the same stops the slider thumbs snap to. See the note
    there. */
+
+/** The TCGplayer wear scale for raw cards, which the filters label apart from Graded and Unopened. */
+const RAW_SCALE = new Set<string>(['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged']);
+const RAW_SCALE_START = 'Near Mint';
 
 /** Current URL-backed catalog filter values. */
 export interface CatalogFilterState {
@@ -487,14 +491,20 @@ function CatalogRailGroups({
         <legend className="mb-tight px-cozy text-body font-medium text-foreground">Condition</legend>
         <div className="flex flex-col">
           {ITEM_CONDITIONS.map((condition) => (
-            <FilterCheckRow
-              key={condition}
-              label={condition}
-              count={conditionCounts[condition] ?? 0}
-              pressed={current.conditions.includes(condition)}
-              onClick={() => onToggleCondition(condition)}
-              disabled={isPending}
-            />
+            <Fragment key={condition}>
+              {/* Graded and sealed are kinds of item; the rest is the wear scale for a
+                  raw card. Labelled apart so "Graded" does not read as a grade of wear. */}
+              {condition === RAW_SCALE_START ? (
+                <p className="mt-snug px-cozy pb-0.5 text-meta text-muted-foreground">Raw cards</p>
+              ) : null}
+              <FilterCheckRow
+                label={condition}
+                count={conditionCounts[condition] ?? 0}
+                pressed={current.conditions.includes(condition)}
+                onClick={() => onToggleCondition(condition)}
+                disabled={isPending}
+              />
+            </Fragment>
           ))}
         </div>
       </fieldset>
@@ -583,7 +593,19 @@ function CatalogPhoneRefineFields({
         <fieldset>
           <legend className="market-label mb-snug text-muted-foreground">Condition</legend>
           <div className="flex flex-wrap gap-1.5">
-            {ITEM_CONDITIONS.map((condition) => (
+            {ITEM_CONDITIONS.filter((condition) => !RAW_SCALE.has(condition)).map((condition) => (
+              <FilterSquare
+                key={condition}
+                label={condition}
+                pressed={current.conditions.includes(condition)}
+                onClick={() => onToggleCondition(condition)}
+                disabled={isPending}
+              />
+            ))}
+          </div>
+          <p className="mb-tight mt-snug text-meta text-muted-foreground">Raw cards</p>
+          <div className="flex flex-wrap gap-1.5">
+            {ITEM_CONDITIONS.filter((condition) => RAW_SCALE.has(condition)).map((condition) => (
               <FilterSquare
                 key={condition}
                 label={condition}

@@ -47,7 +47,10 @@ export function ListingDetailStack({
   media,
   showTrust = false,
   sellerAction,
+  details,
 }: {
+  /** `ListingDetails`, under the description. */
+  details?: ReactNode;
   title: string;
   description: string;
   priceCents: number;
@@ -239,6 +242,8 @@ export function ListingDetailStack({
       {sellerAction ? <div className="mt-snug">{sellerAction}</div> : null}
 
       <ExpandableDescription text={descriptionBody} className="mt-group" />
+
+      {details ? <div className="mt-group">{details}</div> : null}
 
       {showTrust ? <ListingTrustRows className="mt-group" /> : null}
     </div>

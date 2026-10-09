@@ -34,8 +34,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { publicCatalogClient } from '@/lib/supabase/public';
 import { createDefaultItemOrchestrator } from '@/domain/orchestrator/supabaseItemRepository';
 import {
+  normalizeGrading,
   validateItemSubmission,
   deriveItemTitle,
+  type ItemGradingInput,
   IMAGES_MIN,
   IMAGES_MAX,
 } from '@/domain/validation';
@@ -101,6 +103,8 @@ export interface ItemLocationInput {
 
 /** Fields accepted when creating an Item (images are uploaded, then validated). */
 export interface CreateItemInput {
+  /** Slab details for a Graded listing (0129); see `normalizeGrading`. */
+  grading?: ItemGradingInput;
   /**
    * Short listing label. Optional: when blank, derived from the description via
    * {@link deriveItemTitle} — not because deriving is wanted, but because the
@@ -144,6 +148,8 @@ export interface CreateItemInput {
 
 /** Fields accepted when updating an Item. Images may mix kept paths + new uploads. */
 export interface UpdateItemInput {
+  /** See {@link CreateItemInput.grading}. */
+  grading?: ItemGradingInput;
   /** See `CreateItemInput.title`. */
   title?: string;
   description: string;
@@ -476,6 +482,16 @@ export const createItem = withActionLog('listings.createItem', async function cr
     };
   }
 
+  // A binder's condition is typical of a pile, not one slab, so it carries no details.
+  const grading = normalizeGrading(
+    validated.value.condition,
+    input.listingKind === 'SHOPFRONT' ? undefined : input.grading,
+  );
+  if (!grading.ok) {
+    await removeImages(admin, imagePaths);
+    return { ok: false, error: 'validation-error', field: grading.field, message: grading.message };
+  }
+
   // Insert via the cookie-bound client so RLS enforces owner_id = auth.uid().
   const { data, error } = await supabase
     .from('items')
@@ -485,6 +501,9 @@ export const createItem = withActionLog('listings.createItem', async function cr
       description: validated.value.description,
       category: validated.value.category,
       condition: validated.value.condition,
+      grader: grading.value.grader,
+      grade: grading.value.grade,
+      cert_number: grading.value.certNumber,
       fmv_cents: validated.value.fmvCents,
       image_paths: validated.value.images,
       image_dims: imageDims,
@@ -750,6 +769,7 @@ export const updateItem = withActionLog('listings.updateItem', async function up
   const result = await orchestrator.updateItem({
     itemId,
     actorId: userId,
+    grading: input.grading,
     update: {
       title: listingTitle,
       description: input.description,

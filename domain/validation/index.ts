@@ -30,6 +30,14 @@ export {
 } from './registration';
 
 export {
+  NO_GRADING,
+  normalizeGrading,
+  type GradingResult,
+  type ItemGrading,
+  type ItemGradingInput,
+} from './grading';
+
+export {
   PROFILE_TEXT_MAX_LENGTH,
   profileUpdateSchema,
   type ProfileUpdate,

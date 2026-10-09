@@ -335,6 +335,10 @@ export type Database = {
           description: string;
           category: string;
           condition: string;
+          /** Slab details for a Graded listing (0129); null on a raw card. */
+          grader: string | null;
+          grade: string | null;
+          cert_number: string | null;
           fmv_cents: number;
           status: Database['cardtrade']['Enums']['item_status'];
           /**
@@ -406,6 +410,9 @@ export type Database = {
           description: string;
           category: string;
           condition: string;
+          grader?: string | null;
+          grade?: string | null;
+          cert_number?: string | null;
           fmv_cents: number;
           status?: Database['cardtrade']['Enums']['item_status'];
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
@@ -433,6 +440,9 @@ export type Database = {
           description?: string;
           category?: string;
           condition?: string;
+          grader?: string | null;
+          grade?: string | null;
+          cert_number?: string | null;
           fmv_cents?: number;
           status?: Database['cardtrade']['Enums']['item_status'];
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];

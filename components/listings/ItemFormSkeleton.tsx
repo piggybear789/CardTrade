@@ -187,6 +187,18 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             <TextLines className="text-body leading-none" widths={['w-1/3']} />
             {/* `MoneyInput` is an `Input` behind a currency prefix: `h-10 md:h-9`. */}
             <Skeleton className="h-10 w-full md:h-9" />
+            {/* `PriceReadout`: two two-line cells, then the fee line. */}
+            <div className="space-y-tight">
+              <div className="grid grid-cols-2 gap-snug">
+                {Array.from({ length: 2 }, (_, index) => (
+                  <div key={index} className="rounded-md bg-muted px-snug py-tight">
+                    <TextLines className="text-meta" widths={['w-1/2']} />
+                    <TextLines className="text-body" widths={['w-1/3']} />
+                  </div>
+                ))}
+              </div>
+              <TextLines className="text-meta" widths={['w-full', 'w-1/3']} />
+            </div>
           </div>
 
           {/* `Based near` — a `PlacePicker`, which is a `Label` over a

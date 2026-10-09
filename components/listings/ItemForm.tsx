@@ -55,7 +55,9 @@ import { trackActionFailure, trackFormAbandoned, UX_NAMES } from "@/lib/analytic
 import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
-import { itemImageUrl } from "@/lib/format";
+import { formatMoney, itemImageUrl } from "@/lib/format";
+import { platformFeeRateLabel } from "@/lib/fees/feeLabels";
+import { buyerPaysCents } from "@/lib/listings/buyerPrice";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
 import {
@@ -154,6 +156,35 @@ const LISTING_KINDS = [
     hint: "A binder to pick from",
   },
 ];
+
+/**
+ * What the price means to each side, while it is typed: what buyers will see on the
+ * listing, and what the seller receives. The fee is added on top of the seller's
+ * price, so a seller entering $100 could not tell whether buyers would see $100 or
+ * more — and nothing said they keep the full $100. Both cells always render, with a
+ * dash when empty, so typing does not move the field below.
+ */
+function PriceReadout({ cents, currency }: { cents: number | null; currency: string }) {
+  const valid = cents != null && cents > 0;
+  const cell = (label: string, value: string) => (
+    <div className="rounded-md bg-muted px-snug py-tight">
+      <span className="block text-meta text-muted-foreground">{label}</span>
+      <span className="block font-medium tabular-nums">{value}</span>
+    </div>
+  );
+  return (
+    <div className="space-y-tight">
+      <div className="grid grid-cols-2 gap-snug text-body" aria-live="polite">
+        {cell("Buyers see", valid ? formatMoney(buyerPaysCents(cents, currency), currency) : "—")}
+        {cell("You'll get", valid ? formatMoney(cents, currency) : "—")}
+      </div>
+      <p className="text-meta text-muted-foreground">
+        The {platformFeeRateLabel(currency)} buyer fee is added to your price. Card
+        processing is shown on your statement.
+      </p>
+    </div>
+  );
+}
 
 /**
  * Convert a dollars string (e.g. `"123.45"`) to integer AUD cents. Returns
@@ -822,7 +853,27 @@ function ItemFormInner({
               ) : (
                 <>
                   <HugeiconsIcon icon={ImagePlusIcon} className="size-8" aria-hidden />
-                  <span className="text-body font-medium">Add photos</span>
+                  <span className="text-body font-medium text-foreground">Add photos</span>
+                  {/* THE SHOTS A CARD BUYER LOOKS FOR, named. A blank box said nothing
+                      about what to photograph, and the slab label and the corners are
+                      what a buyer of a graded or raw card checks first. Labels only —
+                      every slot is the same picker, and the first photo is the cover. */}
+                  {/* The slot grid needs the desktop panel's height; a phone's empty
+                      cover is capped at 22svh, so it gets the same list as one line. */}
+                  <span className="text-meta lg:hidden">Front, back, slab label and corners</span>
+                  <span className="mt-snug hidden w-full max-w-xs grid-cols-2 gap-snug text-meta lg:grid" aria-hidden>
+                    {["Front (cover)", "Back", "Slab label or cert", "Corners and flaws"].map((shot) => (
+                      <span
+                        key={shot}
+                        className="rounded-md border border-dashed border-input px-snug py-cozy text-center"
+                      >
+                        {shot}
+                      </span>
+                    ))}
+                  </span>
+                  <span className="text-meta">
+                    Up to {IMAGES_MAX} photos · the first is the cover
+                  </span>
                 </>
               )}
             </button>
@@ -1047,6 +1098,7 @@ function ItemFormInner({
               <Textarea
                 id="description"
                 name="description"
+                placeholder="Set, number, print and anything a buyer should know, e.g. light whitening on the back corners"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
@@ -1152,6 +1204,14 @@ function ItemFormInner({
                 disabled={isSubmitting}
               />
               <FieldError id="fmv-error" message={fmvError} />
+              {isShopfront ? (
+                <p id="fmv-hint" className="text-body text-muted-foreground">
+                  A guide for buyers. Each contract&apos;s total is the cards that buyer
+                  asks for.
+                </p>
+              ) : (
+                <PriceReadout cents={dollarsToCents(fmvDollars)} currency={item?.currency ?? "aud"} />
+              )}
             </div>
 
             <div className="space-y-snug">

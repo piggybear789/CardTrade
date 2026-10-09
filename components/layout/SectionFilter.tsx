@@ -175,6 +175,9 @@ export function ContractFilter({
    */
   extraActive?: number;
 }) {
+  // NO STRIP UNTIL THERE IS SOMETHING TO SPLIT. Four tabs of nothing above an empty
+  // state are four ways to filter an empty list; the empty state says it alone.
+  if (groups.active.length + extraActive + groups.past.length === 0) return null;
   return (
     <SectionTabs
       label="Filter by status"
@@ -190,6 +193,7 @@ export function ContractFilter({
           key: 'needs-you',
           label: 'Needs you',
           count: groups.needsYou.length,
+          tone: 'attention',
           href: withQuery(basePath, { show: 'needs-you' }),
         },
         {
@@ -241,8 +245,16 @@ export interface SectionTab {
   label: string;
   /** Shorter label below `md` when the full word clips the last tab. */
   shortLabel?: string;
-  /** Shown beside the label. Omit for a tab with nothing to count. */
+  /**
+   * Shown beside the label. Omit for a tab with nothing to count. Zero is not shown:
+   * a row of "0"s is noise, and the list below already says it is empty.
+   */
   count?: number;
+  /**
+   * `attention` draws a non-zero count as an amber pill — for the tab that holds
+   * work waiting on the reader ("Needs you"), so it is seen without being read.
+   */
+  tone?: 'attention';
   href: string;
 }
 
@@ -294,8 +306,15 @@ export function SectionTabs({
             ) : (
               tab.label
             )}
-            {tab.count === undefined ? null : (
-              <span className="text-meta tabular-nums text-muted-foreground">
+            {!tab.count ? null : (
+              <span
+                className={cn(
+                  'text-meta tabular-nums',
+                  tab.tone === 'attention'
+                    ? 'min-w-5 rounded-full bg-action px-1.5 text-center font-semibold text-action-foreground'
+                    : 'text-muted-foreground',
+                )}
+              >
                 {tab.count}
               </span>
             )}

@@ -8,6 +8,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getMyListings } from '@/lib/actions/account';
 import { ListingsSection, resolveListingScope } from '@/components/account/ListingsSection';
+import { listMyListingDrafts } from '@/lib/actions/listingDrafts';
 import {
   MarketplaceShell,
   RailPrimaryAction,
@@ -40,13 +41,14 @@ export default async function MyListingsPage({
   // The best live offer per listing, for the table's "Top offer" column. RLS scopes
   // `offers` to the caller's own negotiations; `seller_id` narrows it to offers on
   // the caller's listings.
-  const [result, offersResult] = await Promise.all([
+  const [result, offersResult, draftsResult] = await Promise.all([
     getMyListings(),
     supabase
       .from('offers')
       .select('item_id, amount_cents')
       .eq('seller_id', user.id)
       .eq('status', 'PENDING'),
+    listMyListingDrafts(),
   ]);
   const topOfferByItem: Record<string, number> = {};
   for (const offer of offersResult.data ?? []) {
@@ -69,7 +71,12 @@ export default async function MyListingsPage({
         mobileAction={hasItems ? createListing() : undefined}
       />
       {result.ok ? (
-        <ListingsSection items={result.data} scope={scope} topOfferByItem={topOfferByItem} />
+        <ListingsSection
+        items={result.data}
+        scope={scope}
+        topOfferByItem={topOfferByItem}
+        drafts={draftsResult.ok ? draftsResult.data : []}
+      />
       ) : (
         <SectionLoadError label="listings" />
       )}

@@ -28,6 +28,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { PlaceValue } from '@/lib/location/types';
 import { readListingGate } from '@/lib/sellerListingGate';
 import { ItemForm } from '@/components/listings/ItemForm';
+import { getListingDraft } from '@/lib/actions/listingDrafts';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { EmptyState } from '@/components/ui/empty-state';
 import { GateBlockedTracker } from '@/components/analytics/GateBlockedTracker';
@@ -40,7 +41,13 @@ export const metadata = {
   description: 'Create a new collectible listing for sale or trade.',
 };
 
-export default async function NewListingPage() {
+export default async function NewListingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ draft?: string | string[] }>;
+}) {
+  const { draft: rawDraft } = await searchParams;
+  const draftId = Array.isArray(rawDraft) ? rawDraft[0] : rawDraft;
   const supabase = await createClient();
 
   const {
@@ -52,9 +59,10 @@ export default async function NewListingPage() {
 
   // In parallel: the default place is wanted only if the gate passes, but it is one
   // indexed row and costs nothing to fetch alongside rather than after.
-  const [gate, defaultLocation] = await Promise.all([
+  const [gate, defaultLocation, serverDraft] = await Promise.all([
     readListingGate(user.id),
     lastListingLocation(supabase, user.id),
+    draftId ? getListingDraft(draftId) : Promise.resolve(null),
   ]);
   if (!gate.satisfied) {
     return (
@@ -83,7 +91,7 @@ export default async function NewListingPage() {
 
   return (
     <MarketplaceShell title="New listing">
-      <ItemForm mode="create" defaultLocation={defaultLocation} />
+      <ItemForm mode="create" defaultLocation={defaultLocation} serverDraft={serverDraft} />
     </MarketplaceShell>
   );
 }

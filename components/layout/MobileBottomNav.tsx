@@ -130,10 +130,16 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
   const unreadFor = (id: MobileHubId) =>
     id === 'messages' ? unread.messages : id === 'account' ? unread.notifications : 0;
   const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
+  // NOT WHILE WRITING A LISTING. The form has its own header with the submit, and a
+  // tab bar under a long form is five ways to leave it mid-sentence, one tap from the
+  // field being typed in.
+  const onListingForm = pathname === '/listings/new' || /^\/listings\/[^/]+\/edit$/.test(pathname);
 
   useEffect(() => {
     setOpenHub(null);
   }, [pathname]);
+
+  if (onListingForm) return null;
 
   return (
     <>

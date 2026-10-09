@@ -61,6 +61,8 @@ import { buyerPaysCents } from "@/lib/listings/buyerPrice";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
 import { GRADERS } from "@/lib/catalog/graders";
+import { deleteListingDraft, saveListingDraft } from "@/lib/actions/listingDrafts";
+import type { ItemFormDraftFields } from "@/lib/listings/useItemFormDraft";
 import { cn } from "@/lib/utils";
 
 /**
@@ -152,6 +154,11 @@ export interface ItemFormProps {
    * search for it on every listing. Lowest priority — a restored draft's place wins.
    */
   defaultLocation?: PlaceValue | null;
+  /**
+   * Create mode: a saved draft (0131) to open, from `/listings/new?draft=`. Takes the
+   * place of the session draft, which is the unsaved scratch copy.
+   */
+  serverDraft?: { id: string; fields: ItemFormDraftFields } | null;
 }
 
 /**
@@ -255,13 +262,13 @@ export function ItemForm(props: ItemFormProps) {
   );
   const restoreDecision = React.useRef<boolean | null>(null);
   if (hydrated && restoreDecision.current === null) {
-    restoreDecision.current = props.mode === "create" && hasItemFormDraft();
+    restoreDecision.current = props.mode === "create" && !props.serverDraft && hasItemFormDraft();
   }
   const restoreDraft = restoreDecision.current === true;
 
   return (
     <ItemFormInner
-      key={restoreDraft ? "restored" : "fresh"}
+      key={props.serverDraft ? `draft-${props.serverDraft.id}` : restoreDraft ? "restored" : "fresh"}
       {...props}
       restoreDraft={restoreDraft}
       draftDecided={restoreDecision.current !== null}
@@ -273,6 +280,7 @@ function ItemFormInner({
   mode,
   item,
   defaultLocation = null,
+  serverDraft = null,
   restoreDraft,
   draftDecided,
 }: ItemFormProps & { restoreDraft: boolean; draftDecided: boolean }) {
@@ -281,7 +289,11 @@ function ItemFormInner({
   // CREATE ONLY. An edit form is backed by a row, so a stored draft would raise a
   // "which is newer" conflict with no safe default — see `useItemFormDraft`.
   const draftEnabled = mode === "create";
-  const restored = useInitialItemFormDraft(draftEnabled && restoreDraft);
+  const sessionRestored = useInitialItemFormDraft(draftEnabled && restoreDraft);
+  const restored = serverDraft?.fields ?? sessionRestored;
+  // The saved draft this form is editing, once it has one (0131).
+  const [draftId, setDraftId] = React.useState<string | null>(serverDraft?.id ?? null);
+  const [savingDraft, startSavingDraft] = React.useTransition();
 
   // EVERY INITIALISER PREFERS THE ROW, THEN THE DRAFT, THEN EMPTY. The row can only be
   // present in edit mode and the draft only in create mode, so the two never compete; the
@@ -460,6 +472,37 @@ function ItemFormInner({
     setKeptPaths((prev) => prev.filter((p) => p !== path));
   }
 
+  /**
+   * SAVE DRAFT, ON PURPOSE. The session copy survives a reload but not a closed tab,
+   * and never showed up anywhere; a saved draft is a row under My listings to come back
+   * to. Photos are not kept — see 0131 — and the button says so.
+   */
+  function saveDraft() {
+    startSavingDraft(async () => {
+      const result = await saveListingDraft(draftId, {
+        title,
+        description,
+        game,
+        condition,
+        listingKind,
+        fmvDollars,
+        grader,
+        grade,
+        certNumber,
+        location: locationIsDefault ? null : location,
+      });
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      setDraftId(result.data.id);
+      clearItemFormDraft();
+      toast.success("Draft saved. Photos are added when you publish.", {
+        action: { label: "My drafts", onClick: () => router.push("/listings/mine?show=drafts") },
+      });
+    });
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -569,6 +612,8 @@ function ItemFormInner({
           // unmount that follows must not leave a stored copy of a listing that was
           // published, or the next visit to this form restores work already done.
           clearItemFormDraft();
+          // Published, so the saved draft it came from is spent too.
+          if (draftId) void deleteListingDraft(draftId);
           navigateWithType(router, `/listings/${result.data.id}`, "nav-forward");
           router.refresh();
           return;
@@ -1421,12 +1466,24 @@ function ItemFormInner({
                 NO CANCEL. Dismissal is the back chevron in the header on a phone and
                 browser-back elsewhere, and a "Cancel" beside "Save changes" invited the
                 misread that it discards rather than navigates. */}
-            <div className="border-t border-border pt-5 max-md:hidden sm:flex sm:justify-end lg:block">
+            <div className="flex flex-col gap-snug border-t border-border pt-5 sm:flex-row sm:justify-end lg:flex-col">
+              {mode === "create" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={saveDraft}
+                  disabled={isSubmitting || savingDraft}
+                  aria-busy={savingDraft}
+                  className="w-full sm:w-auto lg:w-full"
+                >
+                  {draftId ? "Update draft" : "Save draft"}
+                </Button>
+              ) : null}
               <Button
                 type="submit"
                 disabled={isSubmitting}
                 aria-busy={isSubmitting}
-                className="w-full sm:w-auto lg:w-full"
+                className="w-full max-md:hidden sm:w-auto lg:w-full"
               >
                 {/* WIDTH PINNED TO THE RESTING LABEL. Where the button is `w-auto`,
                     swapping "Create listing" for the shorter "Saving…" shrank it under

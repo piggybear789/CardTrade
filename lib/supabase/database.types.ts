@@ -40,6 +40,31 @@ export type Database = {
   // with `db: { schema: 'cardtrade' }` so `.from(...)` resolves here.
   cardtrade: {
     Tables: {
+      /** Saved, unpublished listing form fields (0131). Owner-only. */
+      listing_drafts: {
+        Row: {
+          id: string;
+          owner_id: string;
+          fields: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          owner_id: string;
+          fields?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          owner_id?: string;
+          fields?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       profiles: {
         Row: {
           id: string;

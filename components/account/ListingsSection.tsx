@@ -26,6 +26,8 @@ import { PackagePlusIcon } from '@hugeicons/core-free-icons';
 import { EmptyState } from '@/components/account/EmptyState';
 import { ListingRowMenu } from '@/components/account/ListingRowMenu';
 import { SectionTabs } from '@/components/layout/SectionFilter';
+import { ListingDraftList } from '@/components/account/ListingDraftList';
+import type { ListingDraftSummary } from '@/lib/actions/listingDrafts';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState as SharedEmptyState } from '@/components/ui/empty-state';
@@ -60,9 +62,9 @@ export const ROW_GRID =
   'md:grid-cols-[3rem_minmax(0,1fr)_7rem_7rem_5rem_9rem_5.75rem]';
 
 /** The tab a row belongs to. `all` is every row. */
-export type ListingScope = 'all' | 'live' | 'contract' | 'sold' | 'hidden' | 'closed';
+export type ListingScope = 'all' | 'live' | 'contract' | 'sold' | 'hidden' | 'closed' | 'drafts';
 
-const SCOPES: readonly ListingScope[] = ['all', 'live', 'contract', 'sold', 'hidden', 'closed'];
+const SCOPES: readonly ListingScope[] = ['all', 'live', 'contract', 'sold', 'hidden', 'closed', 'drafts'];
 
 /** Read `?show=` into a scope, falling back to every listing. */
 export function resolveListingScope(value: string | string[] | undefined): ListingScope {
@@ -70,7 +72,7 @@ export function resolveListingScope(value: string | string[] | undefined): Listi
   return SCOPES.includes(raw as ListingScope) ? (raw as ListingScope) : 'all';
 }
 
-function scopeOf(item: ItemRow): Exclude<ListingScope, 'all'> {
+function scopeOf(item: ItemRow): Exclude<ListingScope, 'all' | 'drafts'> {
   if (item.hidden) return 'hidden';
   if (item.closed_at) return 'closed';
   if (item.status === 'SOLD') return 'sold';
@@ -101,13 +103,16 @@ export function ListingsSection({
   items,
   scope = 'all',
   topOfferByItem = {},
+  drafts = [],
 }: {
   items: ItemRow[];
   scope?: ListingScope;
+  /** Saved, unpublished drafts (0131), shown under their own tab. */
+  drafts?: readonly ListingDraftSummary[];
   /** The best pending offer per listing, in the listing's own minor units. */
   topOfferByItem?: Record<string, number>;
 }) {
-  if (items.length === 0) {
+  if (items.length === 0 && drafts.length === 0) {
     return (
       <EmptyState
         icon={<HugeiconsIcon icon={PackagePlusIcon} className="size-6" aria-hidden />}
@@ -126,6 +131,7 @@ export function ListingsSection({
     sold: 0,
     hidden: 0,
     closed: 0,
+    drafts: drafts.length,
   };
   for (const item of items) counts[scopeOf(item)] += 1;
 
@@ -147,16 +153,21 @@ export function ListingsSection({
       { key: 'sold', label: 'Sold' },
       { key: 'hidden', label: 'Hidden' },
       { key: 'closed', label: 'Closed' },
+      { key: 'drafts', label: 'Drafts' },
     ] as const
   )
-    .filter((tab) => (tab.key === 'hidden' || tab.key === 'closed' ? counts[tab.key] > 0 : true))
+    .filter((tab) =>
+      tab.key === 'hidden' || tab.key === 'closed' || tab.key === 'drafts' ? counts[tab.key] > 0 : true,
+    )
     .map((tab) => ({ ...tab, count: counts[tab.key], href: href(tab.key) }));
 
   return (
     <div>
       <SectionTabs label="Filter listings" currentKey={scope} tabs={tabs} />
 
-      {visible.length === 0 ? (
+      {scope === 'drafts' && drafts.length > 0 ? (
+        <ListingDraftList drafts={drafts} />
+      ) : visible.length === 0 ? (
         <SharedEmptyState
           icon={<HugeiconsIcon icon={PackagePlusIcon} className="size-6" aria-hidden />}
           title="Nothing here"

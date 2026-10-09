@@ -19,7 +19,12 @@ const cspDirectives = [
   // is unhandled the failure arrived as a wall of unhandledRejection noise with a
   // blank panel on the page rather than as one legible error. `*.js.stripe.com` is
   // Stripe's own recommendation: Stripe.js starts frames on per-feature subdomains.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com https://maps.googleapis.com",
+  //
+  // `va.vercel-scripts.com` is where Web Analytics and Speed Insights load from outside
+  // a Vercel deployment — every `next dev`, and the debug builds. On Vercel both are
+  // served same-origin from `/_vercel/*`, which 'self' already allows; without the host
+  // the dev console logged two CSP violations on every page.
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://*.js.stripe.com https://connect-js.stripe.com https://maps.googleapis.com https://va.vercel-scripts.com",
   // Tailwind injects styles at runtime; unsafe-inline is required.
   //
   // Connect embedded components are documented as needing a style-src HASH (the SHA of

@@ -49,13 +49,17 @@ export async function SiteHeader() {
 
   // Sticky isolation wraps both chromes so view-transition-name stays unique.
   // The dark bar is `md+` only; the cream strip is phone-only.
+  //
+  // SOLID, NOT FROSTED. The bar used to be 90-95% obsidian over a `backdrop-blur`: at
+  // that opacity the blur is invisible, but a sticky backdrop filter still makes the
+  // compositor re-blur whatever scrolls under it on every frame.
   return (
     <div
       style={{ viewTransitionName: 'site-header' }}
       className="sticky top-0 z-40"
     >
       <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 md:block"
+        className="market-header relative hidden border-b border-white/15 bg-obsidian pt-[env(safe-area-inset-top)] text-primary-foreground md:block"
       >
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* THE WORDMARK NEEDS MORE ROOM THAN THE NAV ITEMS NEED FROM EACH OTHER.
@@ -146,7 +150,7 @@ export function SiteHeaderSkeleton({
       className="sticky top-0 z-40"
     >
       <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian/95 pt-[env(safe-area-inset-top)] text-primary-foreground backdrop-blur supports-[backdrop-filter]:bg-obsidian/90 md:block"
+        className="market-header relative hidden border-b border-white/15 bg-obsidian pt-[env(safe-area-inset-top)] text-primary-foreground md:block"
       >
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* Same three columns as the real bar above, CLASS FOR CLASS, including

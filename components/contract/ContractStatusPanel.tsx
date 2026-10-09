@@ -106,7 +106,7 @@ export function ContractStatusPanel({
           step?.tone === 'destructive'
             ? 'border-destructive/30 bg-destructive/[0.06]'
             : mine
-              ? 'border-border bg-muted/60'
+              ? 'border-iris/50 bg-accent/60'
               : 'border-border bg-card',
         )}
       >

@@ -89,3 +89,4 @@ export type {
   ContractStatusTone,
 } from './types';
 export { FundsHeldMark } from './FundsHeldMark';
+export { ContractProgressStrip } from './ContractProgressStrip';

@@ -50,6 +50,8 @@ export interface ContractConversationPanelProps {
   status?: ReactNode;
   /** `FundsHeldMark compact` while money is held. */
   assurance?: ReactNode;
+  /** `ContractProgressStrip`, under the chat bar on a phone. */
+  progress?: ReactNode;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
   /** Cash_Sale provenance for event wording and shipment-link ownership. */
@@ -74,6 +76,7 @@ export function ContractConversationPanel({
   backHref,
   status,
   assurance,
+  progress,
   shipment = null,
   saleContext = null,
   failed = false,
@@ -94,6 +97,7 @@ export function ContractConversationPanel({
         backHref={backHref}
         status={status}
         assurance={assurance}
+        progress={progress}
         shipment={shipment}
         saleContext={saleContext}
       />
@@ -109,6 +113,7 @@ export function ContractConversationPanel({
         backHref={backHref}
         status={status}
         assurance={assurance}
+        progress={progress}
         menu={menu}
       />
       <div className="grid min-h-0 flex-1 place-items-center p-cozy text-center text-body text-muted-foreground">

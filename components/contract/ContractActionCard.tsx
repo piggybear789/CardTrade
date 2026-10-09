@@ -10,10 +10,12 @@
 // the future lives in the thin `ContractProgressRail`; everything about the past lives
 // in the collapsed history row. This card is only ever about NOW.
 //
-// The step label answers ownership in words — "Waiting for the other party to
-// join" — so the card carries no eyebrow or owner badge. When it is not the
-// viewer's move, the room passes no children and the card deliberately shows no
-// buttons.
+// WHOSE MOVE IT IS LEADS. A step the viewer owns takes the lavender wash, a violet
+// edge and a "Your move" pill; a step the other side owns stays plain under
+// "Waiting on Ada". The label alone used to carry ownership, in the same grey band
+// for both people, and on a phone the line naming who was outstanding was hidden —
+// so the room looked identical whether it was waiting on you or on them. When it is
+// not the viewer's move, the room passes no children and the card shows no buttons.
 
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -43,7 +45,7 @@ export type ContractActionTone = 'default' | 'success' | 'warning' | 'danger';
 // than "here is your next move", they are rare, and teal and red each appear
 // nowhere else on the surface — the edge is the signal, not decoration.
 const TONE: Record<ContractActionTone, string> = {
-  default: 'border-border bg-muted/60',
+  default: 'border-border bg-card',
   success: 'border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.06)]',
   warning: 'border-border bg-muted/60',
   danger: 'border-destructive/40 bg-destructive/[0.06]',
@@ -52,11 +54,42 @@ const TONE: Record<ContractActionTone, string> = {
 // The dock is a flat strip inside the chat panel, so it tints only — the
 // panel's own border rules divide it from the header and the log.
 const STRIP_TONE: Record<ContractActionTone, string> = {
-  default: 'bg-muted/60',
+  default: 'bg-card',
   success: 'bg-[hsl(var(--trust)/0.06)]',
   warning: 'bg-muted/60',
   danger: 'bg-destructive/[0.06]',
 };
+
+/**
+ * The "your move" surface, layered over the `default` tone only — an outcome
+ * (success, danger) is louder than whose move it is. The one place the violet edge
+ * is spent on this card, because it marks the single thing in the room that is
+ * waiting on the reader.
+ */
+const YOUR_MOVE_CARD = 'border-iris/50 bg-accent/60';
+const YOUR_MOVE_STRIP = 'bg-accent/60 shadow-[inset_3px_0_0_hsl(var(--iris))]';
+
+/** Whose move a step is, as the card states it. */
+function ownerOf(step: ContractStep | null): 'you' | 'them' | null {
+  if (!step || step.status !== 'active') return null;
+  if (step.owner === 'you' || step.owner === 'both') return 'you';
+  if (step.owner === 'them') return 'them';
+  return null;
+}
+
+/** "Your move" or "Waiting on Ada", inline before the step's title. */
+function OwnerPill({ owner, counterpartyName }: { owner: 'you' | 'them'; counterpartyName?: string }) {
+  return (
+    <span
+      className={cn(
+        'mr-snug inline-flex translate-y-[-1px] items-center rounded-full px-1.5 align-middle text-meta font-semibold leading-5',
+        owner === 'you' ? 'bg-iris/15 text-iris-ink' : 'bg-muted text-muted-foreground',
+      )}
+    >
+      {owner === 'you' ? 'Your move' : `Waiting on ${counterpartyName ?? 'the other party'}`}
+    </span>
+  );
+}
 
 export interface ContractActionCardProps {
   /** The live step. `null` once the contract is finished. */
@@ -89,6 +122,8 @@ export interface ContractActionCardProps {
    * identity strip — no title, no tint, just the controls.
    */
   appearance?: 'card' | 'dock' | 'header';
+  /** The other party's name, for "Waiting on Ada". */
+  counterpartyName?: string;
   className?: string;
 }
 
@@ -203,8 +238,11 @@ export function ContractActionCard({
   children,
   more,
   appearance = 'card',
+  counterpartyName,
   className,
 }: ContractActionCardProps) {
+  const owner = ownerOf(step);
+  const yourMove = owner === 'you' && tone === 'default';
   if (appearance === 'header') {
     return (
       <div
@@ -237,7 +275,7 @@ export function ContractActionCard({
     return (
       <section
         aria-live="polite"
-        className={cn('px-cozy py-snug', STRIP_TONE[tone], className)}
+        className={cn('px-cozy py-snug', yourMove ? YOUR_MOVE_STRIP : STRIP_TONE[tone], className)}
       >
         {/* ONE ROW, THREE LINES AT MOST. Text left, controls right, ⋯ last.
             This was a stack — title, detail, tracking string, then a button on
@@ -288,6 +326,7 @@ export function ContractActionCard({
                 the wrong title on first paint. A `title` override wins outright,
                 since a flow that supplied its own copy has already decided. */}
             <h3 className="line-clamp-2 text-lead font-semibold leading-tight tracking-tight md:line-clamp-1">
+              {owner ? <OwnerPill owner={owner} counterpartyName={counterpartyName} /> : null}
               {title ?? (
                 step?.compactLabel ? (
                   <>
@@ -337,7 +376,7 @@ export function ContractActionCard({
   }
 
   return (
-    <Card className={cn(TONE[tone], className)}>
+    <Card className={cn(yourMove ? YOUR_MOVE_CARD : TONE[tone], className)}>
       {/* Same three-line contract as the dock, one step roomier: the banner
           spans the page rather than a chat column, so the detail gets two lines
           before it clamps. Flex-wrap rather than a two-column grid — a grid
@@ -347,6 +386,7 @@ export function ContractActionCard({
       <CardContent className="flex flex-wrap items-center gap-x-group gap-y-cozy p-group">
         <div className="min-w-0 flex-1 basis-72">
           <h3 className="text-pretty text-subhead font-semibold leading-tight tracking-tight">
+            {owner ? <OwnerPill owner={owner} counterpartyName={counterpartyName} /> : null}
             {title ?? step?.label ?? 'This contract is finished'}
           </h3>
           {detail ?? step?.detail ? (

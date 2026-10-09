@@ -90,6 +90,8 @@ export interface ContractChatProps {
   status?: ReactNode;
   /** Passed to the bar; see ContractChatBar. */
   assurance?: ReactNode;
+  /** Passed to the bar; see ContractChatBar. */
+  progress?: ReactNode;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
   /** Cash_Sale provenance for event wording and shipment-link ownership. */
@@ -105,6 +107,7 @@ export function ContractChatBar({
   backHref,
   status,
   assurance,
+  progress,
   menu,
 }: {
   counterpartyName: string;
@@ -115,6 +118,11 @@ export function ContractChatBar({
   status?: ReactNode;
   /** `FundsHeldMark compact` while money is held. */
   assurance?: ReactNode;
+  /**
+   * `ContractProgressStrip`, under the bar on a phone only — from `md` the
+   * contract header above the split carries it.
+   */
+  progress?: ReactNode;
   /** Secondary actions about the PERSON, e.g. reporting them. */
   menu?: ReactNode;
 }) {
@@ -136,7 +144,7 @@ export function ContractChatBar({
     // below the log now, so the bar is a fixed single row again.
     <header
       className={cn(
-        'sticky top-0 z-10 flex shrink-0 items-center gap-cozy border-b bg-card px-group py-2.5',
+        'sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-cozy border-b bg-card px-group py-2.5 md:flex-nowrap',
         'max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]',
       )}
     >
@@ -220,6 +228,11 @@ export function ContractChatBar({
           is what this bar is, so it belongs here rather than in the action
           dock's menu — the dock is the contract's current step. */}
       <ContractOverflowMenu>{menu}</ContractOverflowMenu>
+      {progress ? (
+        <div className="-mt-tight basis-full md:hidden">
+          {progress}
+        </div>
+      ) : null}
     </header>
   );
 }
@@ -243,6 +256,7 @@ export function ContractChat({
   backHref,
   status,
   assurance,
+  progress,
   shipment = null,
   saleContext = null,
   className,
@@ -348,6 +362,7 @@ export function ContractChat({
         backHref={backHref}
         status={status}
         assurance={assurance}
+        progress={progress}
         menu={menu}
       />
       <div className="relative flex min-h-0 flex-1 flex-col">

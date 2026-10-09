@@ -58,6 +58,7 @@ import {
   type ContractActionTone,
   type ContractParty,
   type ContractPartyStat,
+  ContractProgressStrip,
   FundsHeldMark,
 } from '@/components/contract';
 import { isCashSaleFundsHeld } from '@/lib/lifecycle';
@@ -193,7 +194,6 @@ function haltedAtFrom(
 /** How loudly the action card should read for each status. */
 const STATUS_TONE: Partial<Record<CashSaleRow['status'], ContractActionTone>> = {
   COMPLETED: 'success',
-  ESCROW_HELD: 'success',
   PAYMENT_PENDING: 'warning',
   REFUNDED: 'warning',
   CANCELLED: 'warning',
@@ -729,6 +729,7 @@ function CashSaleRoom({
           // another in the list that links to it.
           status={<CashSaleStatusBadge status={sale.status} />}
           assurance={isCashSaleFundsHeld(sale.status) ? <FundsHeldMark kind="payment" /> : null}
+          progress={<ContractProgressStrip steps={steps} />}
           connectionStatus={connectionStatus}
         />
       </DesktopOnly>
@@ -793,6 +794,7 @@ function CashSaleRoom({
             assurance={
               isCashSaleFundsHeld(sale.status) ? <FundsHeldMark kind="payment" compact /> : null
             }
+            progress={<ContractProgressStrip steps={steps} />}
             saleContext={{
               id: sale.id,
               allowUnscopedLegacy: false,
@@ -826,6 +828,7 @@ function CashSaleRoom({
                 <ContractActionCard
                   appearance="dock"
                   step={step}
+                  counterpartyName={them.name}
                   tone={isLegacy ? 'warning' : actionTone(sale.status, step)}
                   title={isLegacy ? 'This contract cannot be continued' : undefined}
                   detail={

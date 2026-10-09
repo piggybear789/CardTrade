@@ -84,6 +84,7 @@ import {
   type ContractEvent,
   type ContractExchangeItem,
   type ContractParty,
+  ContractProgressStrip,
   FundsHeldMark,
 } from '@/components/contract';
 import { isTradeHoldsPlaced } from '@/lib/lifecycle';
@@ -159,9 +160,11 @@ function deriveFacts(
 }
 
 /** How loudly the action card should read for each Trade_State. */
+// LOCKED IS NOT AN OUTCOME. It painted the dock green for both traders mid-trade,
+// so the one who had to post and the one waiting looked the same; the "Holds placed"
+// mark now carries the reassurance and the dock says whose move it is.
 const STATE_TONE: Partial<Record<TradeState, ContractActionTone>> = {
   COMPLETED: 'success',
-  COLLATERAL_LOCKED: 'success',
   DISPUTED: 'danger',
   FRAUD_RESOLVED: 'danger',
 };
@@ -982,6 +985,7 @@ function TradeContractRoom({
             title={them ? `Trade with ${them.name}` : 'Trade'}
             status={trade ? <StateBadge state={trade.state} /> : null}
             assurance={trade && isTradeHoldsPlaced(trade.state) ? <FundsHeldMark kind="holds" /> : null}
+            progress={<ContractProgressStrip steps={steps} />}
             connectionStatus={connectionStatus}
           />
         </DesktopOnly>
@@ -1056,6 +1060,7 @@ function TradeContractRoom({
                   assurance={
                     isTradeHoldsPlaced(trade.state) ? <FundsHeldMark kind="holds" compact /> : null
                   }
+                  progress={<ContractProgressStrip steps={steps} />}
                   subject={{
                     title: (goods?.yours[0] ?? goods?.theirs[0])?.title ?? 'Trade',
                     thumb: itemImageUrl(
@@ -1086,6 +1091,7 @@ function TradeContractRoom({
                     <ContractActionCard
                       appearance="dock"
                       step={step}
+                      counterpartyName={theirName}
                       tone={STATE_TONE[trade.state]}
                       // An outcome to read, not a control — it was a paragraph
                       // child, which now lands in the button column.

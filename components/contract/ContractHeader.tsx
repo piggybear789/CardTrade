@@ -33,6 +33,8 @@ export interface ContractHeaderProps {
   status?: ReactNode;
   /** `FundsHeldMark` while money is held; beside the status it qualifies. */
   assurance?: ReactNode;
+  /** `ContractProgressStrip`, as a second line under the identity row. */
+  progress?: ReactNode;
   /** Realtime connection state. Rendered only while degraded. */
   connectionStatus?: Status;
   className?: string;
@@ -45,6 +47,7 @@ export function ContractHeader({
   parties,
   status,
   assurance,
+  progress,
   connectionStatus,
   className,
 }: ContractHeaderProps) {
@@ -87,6 +90,7 @@ export function ContractHeader({
             ) : null}
           </div>
         </div>
+        {progress ? <div className="mt-snug">{progress}</div> : null}
       </CardContent>
     </Card>
   );

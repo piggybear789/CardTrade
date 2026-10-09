@@ -63,21 +63,13 @@ export default async function MessagesPage() {
           <SectionLoadError label="conversations" />
         </div>
       ) : conversations.length === 0 ? (
-        <>
-          <p className="mt-cozy text-body text-muted-foreground md:hidden">
-            Messages with buyers and sellers will appear here.
-          </p>
-          <EmptyState
-            icon={<HugeiconsIcon icon={MessageSquareIcon} className="size-6" aria-hidden="true" />}
-            title="No conversations yet"
-            description="Messages with buyers and sellers will appear here. Browse the marketplace to start a conversation."
-            action={{ label: 'Browse marketplace', href: '/' }}
-            help={{ label: 'How holds and disputes work', href: '/help#holds' }}
-            compact
-            hideActionOnMobile
-            className="hidden md:flex"
-          />
-        </>
+        <EmptyState
+          icon={<HugeiconsIcon icon={MessageSquareIcon} className="size-6" aria-hidden="true" />}
+          title="No conversations yet"
+          description="Messages with buyers and sellers appear here. Ask a seller about any listing to start one."
+          action={{ label: 'Browse marketplace', href: '/' }}
+          compact
+        />
       ) : (
         <InboxThreadList conversations={conversations} />
       )}

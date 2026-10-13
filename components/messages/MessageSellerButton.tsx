@@ -9,7 +9,6 @@
 //     + send button) styled like a mini-compose box, matching marketplace UX
 //     patterns where the first message can be fired without leaving the page.
 //   - "icon" / "bar": the chat glyph and the filled "Chat" in the phone buyer bar.
-//   - "action": the round `ListingActionIcon` chip in the listing page's action row.
 //
 // All of them call `getOrCreateConversation` and, on success, route the buyer to the
 // conversation thread at `/messages/[conversationId]`.
@@ -20,7 +19,6 @@ import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LoaderCircleIcon, MessageCircleIcon, SendIcon } from '@hugeicons/core-free-icons';
 
-import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getOrCreateConversation, sendMessage } from '@/lib/actions/messages';
@@ -63,16 +61,15 @@ export function MessageSellerButton({
   sellerId: string;
   /** Trigger button size (button variant only). */
   size?: 'default' | 'sm' | 'lg';
-  /** Extra classes for the `button` (e.g. `w-full`) and `action` variants. */
+  /** Extra classes for the `button` variant (e.g. `w-full`). */
   className?: string;
   /**
    * `button` — labeled control.
    * `inline` — compose row on the listing.
    * `icon` — 44px chat glyph for the mobile buyer bar.
    * `bar` — filled "Chat" in the same bar.
-   * `action` — the round chip in the listing page's action row.
    */
-  variant?: 'button' | 'inline' | 'icon' | 'bar' | 'action';
+  variant?: 'button' | 'inline' | 'icon' | 'bar';
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -170,21 +167,6 @@ export function MessageSellerButton({
         {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
         Chat
       </Button>
-    );
-  }
-
-  if (variant === 'action') {
-    // Same label in both states, for the same reason as the button variant below.
-    return (
-      <ListingActionIcon
-        icon={isPending ? LoaderCircleIcon : MessageCircleIcon}
-        iconClassName={isPending ? 'animate-spin' : undefined}
-        label="Message seller"
-        onClick={handleClick}
-        disabled={isPending}
-        aria-busy={isPending}
-        className={className}
-      />
     );
   }
 

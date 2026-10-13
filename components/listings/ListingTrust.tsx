@@ -1,7 +1,8 @@
 // components/listings/ListingTrust.tsx
 //
 // What protects a buyer, said where they decide: a muted fee note under the price and
-// one protection line under the buy actions.
+// one protection line under the buy actions (with the price on a phone, where the
+// actions are the sticky buyer bar).
 //
 // WHY ON THE LISTING. The references (Vinted, Depop) put "payment held until you
 // accept" beside the price and the buy button. We had the facts, but they lived in an

@@ -174,8 +174,8 @@ test.describe('a US buyer can transact with a US seller', () => {
     // a guard that refused everyone would pass the boundary test on its own, and a guard
     // that refused nobody would pass this one.
     //
-    // `Buy now` is the label of the full-width `Button` the listing page passes to
-    // `BuyButton` as its trigger. Filtered to the visible pane for the same reason the price
+    // `Buy now` is the accessible name `BuyButton` gives its trigger via
+    // `ListingActionIcon`. Filtered to the visible pane for the same reason the price
     // assertion is: the listing renders twice, and the inactive pane is hidden, not
     // unmounted.
     await expect(

@@ -1,19 +1,27 @@
 // app/listings/[id]/loading.tsx
 //
-// Phone: the photo carousel, then title, meta line, price, fee note, protection line,
-// the borderless seller row, the phone Message row and the description.
-// Desktop: back-nav row, gallery (rail + frame) on the left, `ListingDesktopPane` on the
-// right: title, meta line, price, fee note, Buy now and the round-chip row, protection
-// line, seller row, description.
+// Phone: the photo carousel, then title, price, the buyer fee note, meta, the
+// protection line, the seller card, the description and the details list.
+// Desktop: back-nav and badge row, gallery (rail + frame) on the left,
+// `ListingDesktopPane` on the right: title and price with the fee note, meta, seller
+// card, description, details, then the bottom-pinned action stack with the protection
+// line under it.
+//
+// The fee note and the protection line are reserved for the common reader, a buyer who
+// can buy; an owner, or a listing that is not available, resolves without them.
 //
 // TWO COLUMNS, NOT ONE, ON THE RIGHT. The page renders `ListingDetailStack` inside an
-// `lg:hidden` wrapper and `ListingDesktopPane` (`hidden lg:flex`) beside it. This
-// placeholder used to draw the PHONE stack at every size, so on desktop the seller row
-// sat where the title resolves and the whole column re-laid out under the reader. Each
-// half below mirrors the component it stands in for, under the same breakpoint gate.
+// `lg:hidden` wrapper and `ListingDesktopPane` (`hidden lg:flex`) beside it, and the two
+// share almost nothing: the pane leads with a `text-head` title and the price, puts the
+// seller in a card, prints the description unclamped and pins the action stack to the
+// column's bottom edge. This placeholder used to draw the PHONE stack at every size, so
+// on desktop the seller row sat where the title resolves, the price dropped by ~70px on
+// swap and the whole column re-laid out under the reader. Each half below mirrors the
+// component it stands in for, under the same breakpoint gate.
 //
-// The status badge is not reserved: it renders only for a listing that is NOT
-// available, and a buyer almost always lands on one that is.
+// MIRRORS `ListingDetailStack` block for block, including the title's step from
+// `text-subhead` to `text-head` at `md`; the column's `pt-cozy` and each block's
+// margin are the real component's.
 
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 
@@ -33,15 +41,21 @@ export default function ItemDetailLoading() {
       >
         <span className="sr-only">Loading…</span>
 
-        {/* Desktop-only back-nav row: the back button alone. It is `size="sm"`, which
-            is `md:h-8`; any other height makes the row differ from the page's at every
-            desktop width.
+        {/* Desktop-only back-nav and badge row. The back button is `size="sm"`, which is
+            `md:h-8`; any other height makes the row differ from the page's at every
+            desktop width. Badges are `py-0.5` around a `text-meta` line plus a 1px
+            border (≈22.8px) and `rounded-md`, not 20px pills.
 
             The button is inset by the rail band (`ml-region`), which the page applies
             whenever there is more than one photo — see the gallery note below for why
             that is the case this reserves. */}
         <div className="mb-snug hidden flex-wrap items-center justify-between gap-snug lg:flex">
           <Skeleton className="ml-region h-8 w-40" />
+          <div className="flex items-center gap-snug">
+            <Skeleton className="h-[1.425rem] w-[4.5rem]" />
+            <Skeleton className="h-[1.425rem] w-20" />
+            <Skeleton className="h-[1.425rem] w-24" />
+          </div>
         </div>
 
         <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
@@ -52,7 +66,9 @@ export default function ItemDetailLoading() {
               the count. Card listings are overwhelmingly front-and-back at minimum, so
               reserving the rail is the side that is right more often; a single-photo
               listing gives up 64px of frame width on swap rather than every multi-photo
-              listing gaining a rail out of nowhere and shoving the photo sideways. */}
+              listing gaining a rail out of nowhere and shoving the photo sideways. The
+              previous placeholder also centred a fixed-height block (`justify-center`)
+              where the real frame fills the column top to bottom. */}
           <div className="hidden min-w-0 lg:flex lg:flex-1 lg:flex-col">
             <div className="flex min-h-0 flex-1 flex-row gap-snug">
               <div className="flex w-14 shrink-0 flex-col gap-snug self-center">
@@ -74,21 +90,6 @@ export default function ItemDetailLoading() {
   );
 }
 
-/** The `ListingSellerRow`: a divider, then a 40px avatar beside two lines. */
-function SellerRowSkeleton({ className }: { className?: string }) {
-  return (
-    <div className={className}>
-      <div className="flex min-w-0 items-center gap-cozy border-t border-border pt-group">
-        <Skeleton className="size-10 shrink-0 rounded-full" />
-        <div className="flex min-w-0 flex-1 flex-col gap-tight">
-          <TextLines className="text-body" widths={['w-1/2']} />
-          <TextLines className="text-meta" widths={['w-2/3']} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /** `ListingDetailStack`, photo carousel first. Below `lg` only. */
 function PhoneStackSkeleton() {
   return (
@@ -106,37 +107,70 @@ function PhoneStackSkeleton() {
         widths={['w-full', 'w-1/2']}
       />
 
+      <div className="mt-snug flex items-center gap-cozy">
+        {/* The price line is `text-display` (28px on a 1.1 line) — its height is the
+            type scale, so the bar width is texture and draws canonical. The condition
+            pill beside it keeps its honest `h-5 w-16` reserve. */}
+        <TextLines className="text-display" widths={['w-1/3']} />
+        <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+      </div>
+
+      {/* The fee note: one `text-meta` line at `mt-tight`. */}
+      <TextLines className="mt-tight text-meta" widths={['w-1/2']} />
+
       {/* Meta line: the stack always reserves two lines for it (`line-clamp-2
           min-h-[2lh]`), so nothing below moves with the location. */}
       <TextLines className="mt-snug text-meta" widths={['w-2/3', 'w-1/3']} />
 
-      {/* Price (`text-display`), then the one-line fee note at `mt-tight`. The note is
-          reserved for the common reader, a buyer who can buy; an owner or an
-          unavailable listing resolves without it. */}
-      <TextLines className="mt-snug text-display" widths={['w-1/3']} />
-      <TextLines className="mt-tight text-meta" widths={['w-1/2']} />
+      {/* The protection line, phones only (`md:hidden`): one `text-meta` line. */}
+      <TextLines className="mt-snug text-meta md:hidden" widths={['w-full']} />
 
-      {/* The protection line: one `text-meta` line at `mt-group`. */}
-      <TextLines className="mt-group text-meta" widths={['w-full']} />
-
-      <SellerRowSkeleton className="mt-group" />
-
-      {/* The `md:hidden` Message seller row a signed-in buyer gets under the seller row
-          (`size="default"` is `h-10` below `md`). A guest or owner sees the description
-          rise by that much, accepted because a buyer is the common reader. The round-chip
-          row is NOT reserved here: it renders below the description, in the md–lg band
-          only, so it moves nothing above it. */}
-      <Skeleton className="mt-snug h-10 w-full md:hidden" />
+      {/* The seller card: `p-cozy` around a 40px avatar beside three lines — the name
+          (`text-body`), the rating and the verified name (`text-meta`), `gap-tight`
+          apart. Every line always renders, so this is the card's real height. */}
+      <div className="mt-group flex items-center gap-cozy rounded-lg border border-border bg-card p-cozy">
+        <Skeleton className="size-10 shrink-0 rounded-full" />
+        <div className="flex min-w-0 flex-1 flex-col gap-tight">
+          <TextLines className="text-body" widths={['w-1/3']} />
+          <TextLines className="text-meta" widths={['w-1/3']} />
+          <TextLines className="text-meta" widths={['w-2/3']} />
+        </div>
+      </div>
 
       {/* `ExpandableDescription` is `text-body line-clamp-4`. The clamp ceiling is the
           right thing to reserve: `line-clamp-4` and the "Read more" control both switch
-          on at 200 characters, which at this column width IS about four lines. */}
+          on at 200 characters, which at this column width IS about four lines. The
+          final-line taper is texture. */}
       <TextLines
         className="mt-group text-body"
         widths={['w-full', 'w-full', 'w-full', 'w-1/2']}
       />
-      {/* The "Read more" control is `min-h-10` — a touch target, not a text row. */}
+      {/* The "Read more" control is `min-h-10` — a touch target, not a text row. The
+          height is the reserve; the width is texture. */}
       <Skeleton className="mt-tight h-10 w-1/3" />
+
+      <DetailsSkeleton className="mt-group" />
+    </div>
+  );
+}
+
+/**
+ * `ListingDetails`: a `text-meta` eyebrow, then a bordered list of `text-body` rows
+ * at `px-cozy py-snug`. Four rows (condition, game, listed, location) is the common
+ * ungraded listing; a graded one adds rows below, and a binder has none.
+ */
+function DetailsSkeleton({ className }: { className?: string }) {
+  return (
+    <div className={className}>
+      <TextLines className="mb-tight text-meta" widths={['w-1/4']} />
+      <div className="divide-y divide-border rounded-lg border border-border bg-card">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="flex items-baseline justify-between gap-group px-cozy py-snug">
+            <TextLines className="w-1/4 text-body" widths={['w-full']} />
+            <TextLines className="w-1/3 text-body" widths={['w-full']} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -144,59 +178,82 @@ function PhoneStackSkeleton() {
 /** `ListingDesktopPane`. From `lg` only. */
 function DesktopPaneSkeleton() {
   return (
-    <div className="hidden flex-col gap-group lg:flex">
-      {/* Header (`space-y-snug`): the `text-head` title with the Save / "⋯" pair
-          (`size-9` each) on the right, the meta line, then the `text-display` price
-          with the fee note at `mt-tight` (reserved for a buyer; the owner resolves
-          without it). */}
-      <div className="space-y-snug">
-        <div className="flex items-start justify-between gap-cozy">
-          <TextLines className="min-w-0 flex-1 text-head" widths={['w-2/3']} />
-          <div className="-mr-snug -mt-tight flex shrink-0 items-center">
-            <Skeleton className="size-9" />
-            <Skeleton className="size-9" />
+    <div className="hidden h-full flex-col gap-group lg:flex">
+      {/* Header: `text-head` title, the `text-display` price line at `mt-tight`, the
+          meta line at `mt-1.5`, and the Save / Report icon pair (`md:size-8` each)
+          centred on the right. The icons are signed-in-non-owner only; a buyer is the
+          reader this page is mostly for, and their width moves nothing vertically. */}
+      {/* Title/price/meta are texture inside this `flex-1` column; their type-scale
+          classes reserve the heights, so the widths draw from the canonical set. The
+          `size-8` icon pair keeps its own reserve. */}
+      <div className="flex items-center justify-between gap-cozy">
+        <div className="min-w-0 flex-1">
+          <TextLines className="text-head" widths={['w-2/3']} />
+          <TextLines className="mt-tight text-display" widths={['w-1/3']} />
+          {/* The fee note under the price, at `mt-tight`. */}
+          <TextLines className="mt-tight text-meta" widths={['w-1/3']} />
+          <TextLines className="mt-1.5 text-meta" widths={['w-1/2']} />
+        </div>
+        <div className="flex shrink-0 items-center">
+          <Skeleton className="size-8" />
+          <Skeleton className="size-8" />
+        </div>
+      </div>
+
+      {/* Seller card: `Card p-group`, a `size-10` avatar beside a `space-y-tight` column
+          of name (`text-lead`), rating (`text-meta`) and the disclosed name
+          (`text-meta leading-snug`). The column is taller than the avatar, so it — not
+          the avatar — sets the card's height. */}
+      <div className="rounded-lg border border-border bg-card p-group shadow-market">
+        <div className="flex min-w-0 items-center gap-cozy">
+          <Skeleton className="size-10 shrink-0 rounded-full" />
+          <div className="min-w-0 flex-1 space-y-tight">
+            <TextLines className="text-lead" widths={['w-1/3']} />
+            <TextLines className="text-meta" widths={['w-1/3']} />
+            <TextLines className="text-meta leading-snug" widths={['w-1/2']} />
           </div>
         </div>
-        <TextLines className="text-meta" widths={['w-1/2']} />
-        <div>
-          <TextLines className="text-display" widths={['w-1/3']} />
-          <TextLines className="mt-tight text-meta" widths={['w-1/3']} />
-        </div>
       </div>
-
-      {/* The actions: Buy now (`lg`, 40px from `md`), then the round-chip row
-          (`ListingActionRow`): 48px circles over a one-line `text-body leading-tight`
-          label, centred, each slot at most `max-w-32`. Three chips are reserved; the
-          row is one height for one to three chips, so a binder (no Offer) or a seller
-          without payout setup (Message alone) moves nothing below it. */}
-      <div className="space-y-group">
-        <Skeleton className="h-10 w-full" />
-        <div className="flex items-start justify-center gap-snug">
-          {Array.from({ length: 3 }, (_, index) => (
-            <div
-              key={index}
-              className="flex min-w-0 max-w-32 flex-1 basis-0 flex-col items-center gap-tight"
-            >
-              <Skeleton className="size-12 rounded-full" />
-              <TextLines className="w-full text-center text-body leading-tight" widths={['w-2/3']} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* The protection line: one `text-meta` line. */}
-      <TextLines className="text-meta" widths={['w-full']} />
-
-      <SellerRowSkeleton />
 
       {/* Description: a `text-meta` eyebrow at `mb-tight`, then the body UNCLAMPED —
-          the pane prints the whole text and the column scrolls. */}
+          the pane prints the whole text and the column scrolls. Four lines is the same
+          reservation the phone stack makes. */}
       <div>
         <TextLines className="mb-tight text-meta" widths={['w-1/3']} />
+        {/* Four lines mirrors the phone stack's reservation; the final-line taper is
+            texture and draws from the canonical set. */}
         <TextLines
           className="text-body"
           widths={['w-full', 'w-full', 'w-full', 'w-1/2']}
         />
+      </div>
+
+      <DetailsSkeleton />
+
+      {/* Action stack, pinned to the bottom with `mt-auto pt-group` exactly as the pane
+          pins it, so it lines up with the frame's bottom edge. Buy / Trade / Offer are
+          `ListingActionIcon`s — a `size-12` chip over a `text-body leading-tight` label
+          — and the inline message composer is a bordered `p-cozy` card holding a label
+          line and a field. Because it is bottom-pinned, a viewer who resolves to a
+          different stack (owner controls, sign-in notice) changes nothing above it. */}
+      <div className="mt-auto space-y-group pt-group">
+        <div className="flex items-start gap-snug">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="flex min-w-0 flex-1 flex-col items-center gap-tight">
+              {/* The `size-12` chip is geometry (its own reserved box); the label under
+                  it is texture in the centred `flex-1` column and draws canonical. */}
+              <Skeleton className="size-12 rounded-full" />
+              <TextLines className="text-body leading-tight" widths={['w-1/2']} />
+            </div>
+          ))}
+        </div>
+        <div className="rounded-lg border bg-card p-cozy">
+          {/* The label is texture; the field (`min-h-10`) keeps its reserve. */}
+          <TextLines className="mb-snug text-body" widths={['w-1/2']} />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        {/* The protection line under the actions: one `text-meta` line. */}
+        <TextLines className="text-meta" widths={['w-full']} />
       </div>
     </div>
   );

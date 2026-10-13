@@ -6,12 +6,7 @@
 // the seller typed them, and the cert number only in the photo. Each fact now has a row,
 // and a PSA cert links to PSA's own registry so a buyer can check the slab without
 // retyping a number off a photo. Rows without a value are left out.
-//
-// An unboxed two-column list, and the ONE place on the page where condition, game,
-// grade, cert, listed date and location are spelled out in full; the meta line under
-// the title only abbreviates them.
 
-import { Fragment } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LinkSquare02Icon } from '@hugeicons/core-free-icons';
 
@@ -77,12 +72,12 @@ export function ListingDetails({
       >
         Details
       </h2>
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-group gap-y-tight text-body">
+      <dl className="divide-y divide-border rounded-lg border border-border bg-card">
         {rows.map((row) => (
-          <Fragment key={row.label}>
-            <dt className="text-muted-foreground">{row.label}</dt>
-            <dd className="min-w-0 break-words text-foreground">{row.value}</dd>
-          </Fragment>
+          <div key={row.label} className="flex items-baseline justify-between gap-group px-cozy py-snug">
+            <dt className="shrink-0 text-body text-muted-foreground">{row.label}</dt>
+            <dd className="min-w-0 text-right text-body text-foreground">{row.value}</dd>
+          </div>
         ))}
       </dl>
     </section>

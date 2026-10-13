@@ -1,10 +1,10 @@
 // tests/component/listingPane.test.tsx
 //
-// The listing page's right-hand pane after the declutter pass: no badge chip row, one
-// muted fee note for buyers, one protection line, a borderless seller row that always
-// shows a rating, a status badge only when the listing is not available, the save count
-// as the last clause of the meta line, and the round action-chip row
-// (`ListingActionRow`, Message seller's `action` chip) under Buy now.
+// The listing page's right-hand pane and phone stack, restored to the design before
+// 81ca4e8 (Watch and Report beside the title, seller card, actions pinned to the
+// bottom), with three pieces kept from the later redesign: the fee-inclusive price,
+// the muted "Includes $X buyer fee" note under it, and the one-line buyer protection
+// strip.
 
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -28,23 +28,18 @@ vi.mock('@/lib/actions/messages', () => ({
   sendMessage: vi.fn(),
 }));
 
-// Pulls in report server actions that have nothing to do with the pane.
+// Pulls in report server actions that have nothing to do with the pane; a marker
+// stands in so the test can see where Report renders.
 vi.mock('@/components/reports/ReportDialog', () => ({
-  ReportDialog: () => null,
+  ReportDialog: ({ triggerLabel }: { triggerLabel: string }) => (
+    <button type="button">{triggerLabel}</button>
+  ),
 }));
 
-import { ListingActionRow } from '@/components/listings/ListingActionIcon';
-import { ListingDesktopPane, listingMetaLine } from '@/components/listings/ListingDesktopPane';
+import { ListingDesktopPane } from '@/components/listings/ListingDesktopPane';
+import { ListingDetailStack } from '@/components/listings/ListingDetailStack';
 import { MessageSellerButton } from '@/components/messages/MessageSellerButton';
-import { ListingSellerRow } from '@/components/listings/ListingSellerRow';
 import { ListingFeeNote, ListingProtectionLine } from '@/components/listings/ListingTrust';
-import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-
-const identity = {
-  nameIsDocumentVerified: true,
-  legalEntityName: 'Jane Citizen',
-  tradingName: null,
-} as unknown as SellerIdentityDisclosure;
 
 describe('ListingFeeNote', () => {
   it('names the buyer fee in muted text with the breakdown trigger', () => {
@@ -72,181 +67,138 @@ describe('ListingProtectionLine', () => {
   });
 });
 
-describe('ListingSellerRow', () => {
-  const base = {
-    headingId: 'seller-heading',
-    sellerId: 'seller-1',
-    name: 'Jane',
-    isOwner: false,
-    avatarPath: null,
-    verified: true,
-    firstName: 'Jane',
-    rating: null,
-    ratingCount: undefined,
-    identity: null,
-  };
-
-  it('always renders a rating line, even with no ratings', () => {
-    render(<ListingSellerRow {...base} />);
-    expect(screen.getByText('No ratings yet')).toBeInTheDocument();
-    expect(screen.getByText('Name not verified yet')).toBeInTheDocument();
-  });
-
-  it('shows the verified real name and links to the seller', () => {
-    render(<ListingSellerRow {...base} identity={identity} />);
-    expect(screen.getByText('Real name')).toBeInTheDocument();
-    expect(screen.getByText('Jane Citizen')).toBeInTheDocument();
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/sellers/seller-1');
-  });
-
-  it("links the owner to their own profile", () => {
-    render(<ListingSellerRow {...base} name="You" isOwner />);
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/profile');
-  });
-});
+const sellerProps = {
+  sellerId: 'seller-1',
+  sellerDisplayName: 'Jane',
+  sellerAvatarPath: null,
+  sellerVerified: false,
+  sellerFirstName: null,
+  sellerRating: null,
+  sellerRatingCount: undefined,
+  sellerIdentity: null,
+};
 
 describe('ListingDesktopPane', () => {
   const props = {
+    ...sellerProps,
     title: 'Charizard',
     description: 'Clean slab.',
-    priceCents: 10_000,
+    // $4,000.00 asking; the buyer pays $4,200.00 with the 5% fee.
+    priceCents: 400_000,
     currency: 'aud',
     isShopfront: false,
     itemId: 'item-1',
     isOwner: false,
-    showWatch: false,
-    canReport: false,
+    showWatch: true,
     showTrust: true,
-    category: 'Pokémon',
-    condition: 'Graded',
-    watchCount: 3,
     initialWatching: false,
-    sellerId: 'seller-1',
-    sellerDisplayName: 'Jane',
-    sellerAvatarPath: null,
-    sellerVerified: false,
-    sellerFirstName: null,
-    sellerRating: null,
-    sellerRatingCount: undefined,
-    sellerIdentity: null,
     locationLabel: 'Croydon, NSW, Australia',
     createdAt: null,
   };
 
-  it('shows no chip row for an available listing, and one quiet meta line', () => {
+  it('leads with the fee-inclusive price and the buyer fee note under it', () => {
     const { container } = render(
-      <ListingDesktopPane {...props} statusBadge={null}>
+      <ListingDesktopPane {...props}>
         <button type="button">Buy now</button>
       </ListingDesktopPane>,
     );
-    expect(screen.queryByLabelText(/^Availability:/)).toBeNull();
-    expect(
-      screen.getByText('Pokémon · Graded · Croydon, NSW, Australia · 3 saved'),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/Single item/)).toBeNull();
-    expect(screen.queryByText(/Message seller/)).toBeNull();
-    expect(screen.getByText('No ratings yet')).toBeInTheDocument();
-    expect(container.querySelector('.text-trust')).toBeNull();
+    expect(container.textContent).toContain('$4,200.00');
+    expect(screen.getByText('Includes $200.00 buyer fee')).toBeInTheDocument();
   });
 
-  it('shows a status badge when the listing is not available', () => {
+  it('puts Save and Report beside the title', () => {
     render(
-      <ListingDesktopPane {...props} statusBadge={{ label: 'Sold', variant: 'outline' }}>
+      <ListingDesktopPane {...props}>
         <span />
       </ListingDesktopPane>,
     );
-    expect(screen.getByLabelText('Availability: Sold')).toHaveTextContent('Sold');
+    const group = screen.getByRole('group', { name: 'Listing actions' });
+    expect(group).toContainElement(screen.getByRole('button', { name: 'Save item' }));
+    expect(group).toContainElement(screen.getByRole('button', { name: 'Report listing' }));
   });
 
-  it('says nothing is held on a binder or bulk listing', () => {
+  it('draws the protection strip directly under the actions', () => {
     render(
-      <ListingDesktopPane {...props} isShopfront statusBadge={null}>
-        <span />
+      <ListingDesktopPane {...props}>
+        <button type="button">Buy now</button>
       </ListingDesktopPane>,
     );
-    expect(
-      screen.getByText(/^Binder or bulk listing · nothing is held/),
-    ).toBeInTheDocument();
+    const buy = screen.getByRole('button', { name: 'Buy now' });
+    const strip = screen.getByText('Buyer protection:');
+    expect(buy.parentElement).toContainElement(strip);
+    expect(buy.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('shows the fee note to a buyer and not to the owner', () => {
-    const { unmount } = render(
-      <ListingDesktopPane {...props} statusBadge={null}>
-        <span />
-      </ListingDesktopPane>,
-    );
-    expect(screen.getByText(/buyer fee/)).toBeInTheDocument();
-    unmount();
-
+  it('shows neither the fee note nor the strip to the owner', () => {
     render(
-      <ListingDesktopPane {...props} isOwner showTrust={false} statusBadge={null}>
+      <ListingDesktopPane {...props} isOwner showWatch={false} showTrust={false}>
         <span />
       </ListingDesktopPane>,
     );
     expect(screen.queryByText(/buyer fee/)).toBeNull();
+    expect(screen.queryByText('Buyer protection:')).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Listing actions' })).toBeNull();
   });
 
-  it("falls back to 'Seller' when the seller has no display name", () => {
+  it('says nothing is held on a binder or bulk listing, with no fee note', () => {
     render(
-      <ListingDesktopPane {...props} sellerDisplayName={null} statusBadge={null}>
+      <ListingDesktopPane {...props} isShopfront>
         <span />
       </ListingDesktopPane>,
     );
-    // The row's sr-only heading also reads "Seller"; the name is the `span` match.
-    expect(screen.getAllByText('Seller').some((el) => el.tagName === 'SPAN')).toBe(true);
-    expect(screen.queryByText('Unknown seller')).toBeNull();
+    expect(screen.getByText(/^Binder or bulk listing · nothing is held/)).toBeInTheDocument();
+    expect(screen.queryByText(/Multiple items/)).toBeNull();
+    expect(screen.queryByText(/buyer fee/)).toBeNull();
+    expect(screen.getByText(/until you accept the cards\./)).toBeInTheDocument();
+  });
+
+  it('keeps the seller card rating line for an unrated seller', () => {
+    render(
+      <ListingDesktopPane {...props}>
+        <span />
+      </ListingDesktopPane>,
+    );
+    expect(screen.getByText('No ratings yet')).toBeInTheDocument();
+    expect(screen.getByText('Name not verified yet')).toBeInTheDocument();
   });
 });
 
-describe('listingMetaLine', () => {
-  const base = {
-    isShopfront: false,
-    category: 'Pokémon',
+describe('ListingDetailStack', () => {
+  const props = {
+    ...sellerProps,
+    title: 'Charizard',
+    description: 'Clean slab.',
+    priceCents: 400_000,
+    currency: 'aud',
     condition: 'Graded',
+    category: 'Pokémon',
+    isShopfront: false,
     locationLabel: null,
-    listedAgo: null,
+    createdAt: null,
+    watchCount: 0,
+    isOwner: false,
   };
 
-  it('omits the save clause when nobody has saved it', () => {
-    expect(listingMetaLine({ ...base, saves: 0 })).toBe('Pokémon · Graded');
+  it('shows the fee note and the protection strip to a buyer who can buy', () => {
+    render(<ListingDetailStack {...props} showTrust />);
+    expect(screen.getByText('Includes $200.00 buyer fee')).toBeInTheDocument();
+    expect(screen.getByText('Buyer protection:')).toBeInTheDocument();
   });
 
-  it('ends with the save count when someone has', () => {
-    expect(listingMetaLine({ ...base, saves: 1 })).toBe('Pokémon · Graded · 1 saved');
-  });
-});
-
-describe('ListingActionRow', () => {
-  it('lays out only the chips that are present', () => {
-    render(
-      <ListingActionRow label="Other ways to deal">
-        <button type="button">A</button>
-        {null}
-        <button type="button">B</button>
-      </ListingActionRow>,
-    );
-    const row = screen.getByRole('group', { name: 'Other ways to deal' });
-    expect(row.querySelectorAll('button')).toHaveLength(2);
+  it('shows neither when the viewer cannot buy', () => {
+    render(<ListingDetailStack {...props} showTrust={false} />);
+    expect(screen.queryByText(/buyer fee/)).toBeNull();
+    expect(screen.queryByText('Buyer protection:')).toBeNull();
   });
 
-  it('renders nothing when no chip is present', () => {
-    const { container } = render(
-      <ListingActionRow label="Other ways to deal">
-        {null}
-        {false}
-      </ListingActionRow>,
-    );
-    expect(container).toBeEmptyDOMElement();
+  it('says nothing is held on a binder or bulk listing', () => {
+    render(<ListingDetailStack {...props} isShopfront showTrust />);
+    expect(screen.getByText(/Binder or bulk listing · nothing is held/)).toBeInTheDocument();
+    expect(screen.queryByText(/buyer fee/)).toBeNull();
   });
 });
 
 describe('MessageSellerButton', () => {
-  it('draws the round chip for the action row', () => {
-    render(<MessageSellerButton itemId="item-1" sellerId="seller-1" variant="action" />);
-    const button = screen.getByRole('button', { name: 'Message seller' });
-    expect(button.querySelector('.md\\:rounded-full')).not.toBeNull();
-  });
-
   it('is an outline button by default, not tinted', () => {
     render(<MessageSellerButton itemId="item-1" sellerId="seller-1" />);
     const button = screen.getByRole('button', { name: 'Message seller' });

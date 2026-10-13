@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ComponentPropsWithoutRef, type ReactNode, type Ref } from 'react';
+import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 
@@ -37,9 +37,7 @@ function chipClass(variant: 'default' | 'outline') {
 
 /**
  * Compact listing CTA: round icon chip with the action label underneath.
- * Used for Propose trade, Make an offer and Message seller in the listing page's
- * action row (`ListingActionRow`), and for Save and Report via their `action` / `icon`
- * appearances.
+ * Used for Buy / Trade / Offer on the item detail page.
  */
 export function ListingActionIcon({
   icon: Icon,
@@ -96,53 +94,5 @@ export function ListingActionIcon({
     >
       {body}
     </button>
-  );
-}
-
-/**
- * The listing page's row of round `ListingActionIcon` chips, under Buy now.
- *
- * Null children drop out, so the caller passes every chip behind its own condition
- * (Offer only on a single listing with a seller disclosure, Trade only when allowed,
- * Message only when the viewer can message) and the row lays out what is left.
- * Renders nothing when no chip is left.
- *
- * ONE HEIGHT FOR ONE TO THREE CHIPS. From `md` every chip is a 48px circle over one
- * `text-body leading-tight` label, the slots are equal-basis and CENTRED, so a missing
- * chip closes up sideways and moves nothing above or below the row. `max-w-32` (128px)
- * is wide enough for "Message seller" on one line, and stops two chips spreading to the
- * column's edges. Below `md` the chips are full-width rows stacked, as before.
- */
-export function ListingActionRow({
-  label,
-  children,
-  className,
-}: {
-  /** Accessible name of the group, e.g. "Other ways to deal". */
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  const actions = Children.toArray(children);
-  if (actions.length === 0) return null;
-  return (
-    <div
-      role="group"
-      aria-label={label}
-      className={cn(
-        'flex flex-col gap-snug md:flex-row md:items-start md:justify-center',
-        className,
-      )}
-    >
-      {actions.map((action, index) => (
-        // The key `Children.toArray` assigned, so a sibling chip toggling cannot
-        // remount (and close) another chip's dialog.
-        <div
-          key={isValidElement(action) && action.key != null ? action.key : index}
-          className="min-w-0 md:max-w-32 md:flex-1 md:basis-0">
-          {action}
-        </div>
-      ))}
-    </div>
   );
 }

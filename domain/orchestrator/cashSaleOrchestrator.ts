@@ -850,6 +850,19 @@ export interface CashSaleRepository {
   loadReleaseFacts?(cashSaleId: string): Promise<ReleaseFacts | null>;
   /** ESC-03 layer 3: do the two members share a card, payout account or person? */
   areRelated?(a: string, b: string): Promise<boolean>;
+  /**
+   * ESC-14: stamp `fraud_warning_received_at` once. Null when it was already stamped,
+   * so a redelivered warning does nothing.
+   */
+  stampFraudWarning?(params: { cashSaleId: string; at: string }): Promise<CashSaleRecord | null>;
+  /** ESC-14: a pre-shipment sale refunded on a fraud warning. Guarded on `fromStatus`. */
+  markRefundedBeforeShipment?(params: {
+    cashSaleId: string;
+    fromStatus: CashSaleStatus;
+    refundCents: Cents;
+    refundNonce: string;
+    at: string;
+  }): Promise<CashSaleRecord | null>;
   /** ESC-14: is any card this buyer saved on the blocklist? */
   isBuyerCardBlocked?(buyerId: string): Promise<boolean>;
   /**
@@ -2214,6 +2227,78 @@ export async function sweepAbandonedPayments(
     tally.abandoned += 1;
   }
   return tally;
+}
+
+/** What an early fraud warning did to a sale (ESC-14). */
+export type FraudWarningOutcome = 'REFUNDED' | 'HELD' | 'ALREADY_HANDLED' | 'NOT_APPLICABLE' | 'REFUND_FAILED';
+
+/**
+ * React to an issuer's early fraud warning on a sale's charge (ESC-14).
+ *
+ * Before anything has left the seller (paid, not shipped, no handover confirmed) the
+ * buyer is refunded in full and the item goes back on sale, so the seller loses
+ * nothing and the chargeback that would follow has nothing to take. Later than that
+ * the seller's payout is HELD and staff decide. Idempotent: the warning is stamped
+ * first, under a guard, so a redelivery does nothing.
+ *
+ * The event and the copy are neutral on purpose (`REFUNDED_BEFORE_SHIPMENT`): the
+ * reason reaches neither party.
+ */
+export async function refundOnFraudWarning(
+  deps: CashSaleOrchestratorDeps,
+  params: { cashSaleId: string },
+): Promise<FraudWarningOutcome> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale || !sale.transferId) return 'NOT_APPLICABLE';
+  if (!deps.repository.stampFraudWarning) return 'NOT_APPLICABLE';
+
+  const preShipment =
+    (sale.status === 'ESCROW_HELD' || sale.status === 'HANDOVER') &&
+    !sale.shippedAt &&
+    !sale.buyerHandoverConfirmedAt &&
+    !sale.sellerHandoverConfirmedAt;
+
+  const stamped = await deps.repository.stampFraudWarning({
+    cashSaleId: sale.id,
+    at: currentIso(deps),
+  });
+  if (!stamped) return 'ALREADY_HANDLED';
+
+  if (!preShipment) {
+    // Too late to unwind cleanly: hold the money and let staff decide.
+    await deps.repository.recordPayoutDeferral?.({ cashSaleId: sale.id, releaseAt: null, holdReason: 'FRAUD_WARNING' });
+    return 'HELD';
+  }
+
+  const nonce = `cash-sale-refund:${sale.id}:fraud-warning`;
+  const refund = await deps.payments.refundPayment({
+    paymentRef: sale.transferId,
+    nonce,
+    ref: `cash-sale-refund:${sale.id}`,
+  });
+  if (refund.status !== 'SETTLED') {
+    // The stamp holds the payout (`openFraudWarning`), so nothing can leave while
+    // staff look at it.
+    await deps.repository.recordPayoutDeferral?.({ cashSaleId: sale.id, releaseAt: null, holdReason: 'FRAUD_WARNING' });
+    return 'REFUND_FAILED';
+  }
+  const refunded = await deps.repository.markRefundedBeforeShipment?.({
+    cashSaleId: sale.id,
+    fromStatus: sale.status,
+    refundCents: refund.amount,
+    refundNonce: nonce,
+    at: currentIso(deps),
+  });
+  if (!refunded) return 'REFUND_FAILED';
+  await syncListingStatus(deps, sale, 'AVAILABLE');
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: null,
+    event: 'REFUNDED_BEFORE_SHIPMENT',
+    fromStatus: sale.status,
+    toStatus: 'REFUNDED',
+  });
+  return 'REFUNDED';
 }
 
 /**
@@ -4008,6 +4093,8 @@ export interface CashSaleOrchestrator {
     | { ok: true; clientSecret: string | null; publishableKey?: string }
     | { ok: false; error: CashSaleError }
   >;
+  /** ESC-14: react to an issuer's early fraud warning on this sale's charge. */
+  refundOnFraudWarning(params: { cashSaleId: string }): Promise<FraudWarningOutcome>;
   /** ESC-03: the `:47` abandoned-payment sweep. */
   sweepAbandonedPayments(params?: { limit?: number }): Promise<{
     settled: number;
@@ -4142,6 +4229,8 @@ export function createCashSaleOrchestrator(
     confirmPayment: (params) => confirmCashSalePayment(deps, params),
     getPaymentAction: (params) => getCashSalePaymentAction(deps, params),
     sweepAbandonedPayments: (params) => sweepAbandonedPayments(deps, params),
+    refundOnFraudWarning: (params) => refundOnFraudWarning(deps, params),
+    refundOnFraudWarning: (params) => refundOnFraudWarning(deps, params),
     payoutSeller: (params) => payoutCashSaleSeller(deps, params),
     resolveDispute: (params) => resolveCashSaleDispute(deps, params),
     processDuePayouts: (params) => processDueCashSalePayouts(deps, params),

@@ -639,6 +639,40 @@ export function createSupabaseCashSaleRepository(
       };
     },
 
+    async stampFraudWarning({ cashSaleId, at }) {
+      // ESC-14. Once only: the null guard makes a redelivered warning a no-op.
+      const { data, error } = await client
+        .from('cash_sales')
+        .update({ fraud_warning_received_at: at })
+        .eq('id', cashSaleId)
+        .is('fraud_warning_received_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] stampFraudWarning: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async markRefundedBeforeShipment({ cashSaleId, fromStatus, refundCents, refundNonce, at }) {
+      // ESC-14. Guarded on the status it was read in AND on nothing having shipped, so
+      // a shipment recorded meanwhile wins and staff see the refund in the log.
+      const { data, error } = await client
+        .from('cash_sales')
+        .update({
+          status: 'REFUNDED',
+          refund_cents: refundCents,
+          refund_status: 'SETTLED',
+          refund_nonce: refundNonce,
+          updated_at: at,
+        })
+        .eq('id', cashSaleId)
+        .eq('status', fromStatus)
+        .is('shipped_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] markRefundedBeforeShipment: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
     // ESC-03 layer 3 / ESC-14, over the 0140 stores.
     areRelated: (a, b) => membersAreRelated(a, b, client),
     isBuyerCardBlocked: (buyerId) => isMemberCardBlocked(buyerId, client),

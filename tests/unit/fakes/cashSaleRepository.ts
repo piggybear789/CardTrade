@@ -532,6 +532,19 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
+    // ESC-14: once-only fraud-warning stamp, and the pre-shipment refund.
+    async stampFraudWarning({ at }) {
+      const sale = state.sale as (CashSaleRecord & { fraudWarningAt?: string }) | null;
+      if (!sale || sale.fraudWarningAt) return null;
+      state.sale = { ...sale, fraudWarningAt: at } as CashSaleRecord;
+      return state.sale;
+    },
+    async markRefundedBeforeShipment({ fromStatus, refundCents, refundNonce }) {
+      const sale = state.sale;
+      if (!sale || sale.status !== fromStatus || sale.shippedAt) return null;
+      state.sale = { ...sale, status: 'REFUNDED', refundCents, refundStatus: 'SETTLED', refundNonce };
+      return state.sale;
+    },
     // ESC-03: back to AGREEMENT after an abandoned challenge; the attempt counter stays.
     async abandonPayment() {
       const sale = state.sale;

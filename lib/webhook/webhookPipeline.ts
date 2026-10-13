@@ -56,6 +56,7 @@ import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 import { notifyCashSaleSettled } from '@/lib/notifications/settlementNotifier';
 import { reconcileTradeHoldStatus } from '@/lib/trades/collateralLock';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { blockMemberCards } from '@/lib/risk/signals';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -65,22 +66,132 @@ type AdminClient = ReturnType<typeof createAdminClient>;
  * (`listDuePayouts`) and the release policy reads the same column. Failures are
  * logged, never thrown: the dispute itself is already recorded.
  */
+/**
+ * ESC-14: stage the contract's own evidence on the provider dispute, NOT submitted.
+ * Staff review and submit from the Dashboard. Only what the contract says and the
+ * carrier reported: never an address, a name, or any identity data.
+ */
+async function stageCashSaleDisputeEvidence(
+  client: AdminClient,
+  disputeRef: string,
+  cashSaleId: string,
+): Promise<void> {
+  const { data } = await client
+    .from('cash_sales')
+    .select('item_title, fulfillment_method, tracking_carrier, tracking_number, shipped_at, carrier_delivered_at, inspection_accepted_at, completed_at')
+    .eq('id', cashSaleId)
+    .maybeSingle();
+  const sale = data as Record<string, string | null> | null;
+  if (!sale) return;
+  const payments = getPaymentService(await regionForCashSale(cashSaleId));
+  if (!payments.submitDisputeEvidence) return;
+  const lines = [
+    `NoDitto contract ${cashSaleId}.`,
+    sale.fulfillment_method ? `Fulfilment: ${sale.fulfillment_method}.` : null,
+    sale.shipped_at ? `Shipped: ${sale.shipped_at}.` : null,
+    sale.carrier_delivered_at ? `Carrier-confirmed delivery: ${sale.carrier_delivered_at}.` : null,
+    sale.inspection_accepted_at ? `Buyer accepted the goods: ${sale.inspection_accepted_at}.` : null,
+    sale.completed_at ? `Contract completed: ${sale.completed_at}.` : null,
+  ].filter(Boolean);
+  const staged = await payments.submitDisputeEvidence({
+    disputeRef,
+    submit: false,
+    evidence: {
+      productDescription: sale.item_title ?? undefined,
+      uncategorizedText: lines.join(' '),
+      ...(sale.tracking_carrier ? { shippingCarrier: sale.tracking_carrier } : {}),
+      ...(sale.tracking_number ? { shippingTrackingNumber: sale.tracking_number } : {}),
+      ...(sale.shipped_at ? { shippingDate: sale.shipped_at.slice(0, 10) } : {}),
+    },
+  });
+  if (staged.status !== 'STAGED') {
+    await logBackgroundFailure({
+      name: 'webhook.dispute_evidence',
+      errorCode: 'STAGE_FAILED',
+      message: staged.reason ?? 'Dispute evidence could not be staged.',
+      context: { cashSaleId },
+    });
+  }
+}
+
 async function applyChargeDisputePayoutHold(
   client: AdminClient,
-  params: { disputeRef: string; cashSaleId: string | null; phase: 'OPENED' | 'CLOSED'; outcome: string | null },
+  params: {
+    disputeRef: string;
+    cashSaleId: string | null;
+    tradeId?: string | null;
+    profileId?: string | null;
+    reason?: string | null;
+    phase: 'OPENED' | 'CLOSED';
+    outcome: string | null;
+  },
 ): Promise<void> {
   try {
     let cashSaleId = params.cashSaleId;
-    if (!cashSaleId) {
+    let tradeId = params.tradeId ?? null;
+    let profileId = params.profileId ?? null;
+    if (!cashSaleId || !tradeId || !profileId) {
       const { data } = await client
         .from('charge_disputes')
-        .select('cash_sale_id')
+        .select('cash_sale_id, trade_id, profile_id')
         .eq('dispute_ref', params.disputeRef)
         .maybeSingle();
-      cashSaleId = (data as { cash_sale_id: string | null } | null)?.cash_sale_id ?? null;
+      const row = data as { cash_sale_id: string | null; trade_id: string | null; profile_id: string | null } | null;
+      cashSaleId = cashSaleId ?? row?.cash_sale_id ?? null;
+      tradeId = tradeId ?? row?.trade_id ?? null;
+      profileId = profileId ?? row?.profile_id ?? null;
     }
+
+    // ESC-14: the same hold on a trade's money — its cash leg and any payout out of
+    // captured collateral — that a cash sale's payout gets.
+    if (tradeId) {
+      if (params.phase === 'OPENED') {
+        const cash = await client
+          .from('trade_cash_settlements')
+          .update({ hold_reason: 'CHARGE_DISPUTE' })
+          .eq('trade_id', tradeId)
+          .in('status', ['COLLECTED', 'RELEASE_PENDING']);
+        if (cash.error) throw new Error(cash.error.message);
+        const disbursed = await client
+          .from('collateral_disbursements')
+          .update({ hold_reason: 'CHARGE_DISPUTE' })
+          .eq('trade_id', tradeId)
+          .neq('status', 'SETTLED');
+        if (disbursed.error) throw new Error(disbursed.error.message);
+      } else if (params.outcome === 'won' || params.outcome === 'warning_closed') {
+        const cash = await client
+          .from('trade_cash_settlements')
+          .update({ hold_reason: null })
+          .eq('trade_id', tradeId)
+          .eq('hold_reason', 'CHARGE_DISPUTE');
+        if (cash.error) throw new Error(cash.error.message);
+        const disbursed = await client
+          .from('collateral_disbursements')
+          .update({ hold_reason: null })
+          .eq('trade_id', tradeId)
+          .eq('hold_reason', 'CHARGE_DISPUTE');
+        if (disbursed.error) throw new Error(disbursed.error.message);
+      }
+    }
+
+    // ESC-14: a dispute LOST as fraud or non-receipt blocks the paying member's cards
+    // and flags them, so the same card cannot be cycled through a new account.
+    if (
+      params.phase === 'CLOSED' &&
+      params.outcome === 'lost' &&
+      (params.reason === 'fraudulent' || params.reason === 'product_not_received')
+    ) {
+      let payer = profileId;
+      if (!payer && cashSaleId) {
+        const { data } = await client.from('cash_sales').select('buyer_id').eq('id', cashSaleId).maybeSingle();
+        payer = (data as { buyer_id: string } | null)?.buyer_id ?? null;
+      }
+      if (payer) await blockMemberCards(payer, params.disputeRef, params.reason, client);
+    }
+
     if (!cashSaleId) return;
     if (params.phase === 'OPENED') {
+      await stageCashSaleDisputeEvidence(client, params.disputeRef, cashSaleId);
       const { error } = await client
         .from('cash_sales')
         .update({ seller_payout_hold_reason: 'CHARGE_DISPUTE' })
@@ -518,6 +629,9 @@ async function dispatchEvent(
         await applyChargeDisputePayoutHold(admin, {
           disputeRef,
           cashSaleId: event.payload.cashSaleId ?? null,
+          tradeId: event.payload.tradeId ?? null,
+          profileId: event.payload.profileId ?? null,
+          reason: event.payload.reason ?? null,
           phase: action.phase,
           outcome: event.payload.disputeOutcome ?? null,
         });
@@ -528,6 +642,65 @@ async function dispatchEvent(
         tradeId: event.payload.tradeId ?? null,
         ...(error ? { detail: `record_charge_dispute: ${error.message}` } : {}),
       };
+    }
+
+    // ESC-14: an early fraud warning. Located by PaymentIntent: a cash sale's
+    // collection (refunded before shipment, held after), a trade cash leg (held), or
+    // a captured collateral hold (its disbursements held).
+    case 'FRAUD_WARNING': {
+      const paymentRef = event.payload.paymentRef;
+      if (!paymentRef) return { outcome: 'NO_OP', tradeId: null };
+
+      const { data: sale } = await client
+        .from('cash_sales')
+        .select('id')
+        .eq('transfer_id', paymentRef)
+        .maybeSingle();
+      if (sale) {
+        const cashSaleId = (sale as { id: string }).id;
+        const cashSales = createDefaultCashSaleOrchestrator({
+          payments: getPaymentService(await regionForCashSale(cashSaleId)),
+        });
+        const outcome = await cashSales.refundOnFraudWarning({ cashSaleId });
+        return outcome === 'REFUND_FAILED'
+          ? { outcome: 'FAILURE', tradeId: null, detail: 'fraud-warning refund failed; payout held' }
+          : { outcome: outcome === 'NOT_APPLICABLE' ? 'NO_OP' : 'SUCCESS', tradeId: null };
+      }
+
+      const { data: leg } = await client
+        .from('trade_cash_settlements')
+        .select('trade_id')
+        .eq('collection_ref', paymentRef)
+        .maybeSingle();
+      if (leg) {
+        const tradeId = (leg as { trade_id: string }).trade_id;
+        const { error } = await client
+          .from('trade_cash_settlements')
+          .update({ hold_reason: 'FRAUD_WARNING' })
+          .eq('trade_id', tradeId)
+          .in('status', ['COLLECTING', 'COLLECTED', 'RELEASE_PENDING']);
+        return error
+          ? { outcome: 'FAILURE', tradeId, detail: `trade cash hold: ${error.message}` }
+          : { outcome: 'SUCCESS', tradeId };
+      }
+
+      const { data: hold } = await client
+        .from('pre_auth_holds')
+        .select('trade_id')
+        .eq('hold_ref', paymentRef)
+        .maybeSingle();
+      if (hold) {
+        const tradeId = (hold as { trade_id: string }).trade_id;
+        const { error } = await client
+          .from('collateral_disbursements')
+          .update({ hold_reason: 'FRAUD_WARNING' })
+          .eq('hold_ref', paymentRef)
+          .neq('status', 'SETTLED');
+        return error
+          ? { outcome: 'FAILURE', tradeId, detail: `collateral hold: ${error.message}` }
+          : { outcome: 'SUCCESS', tradeId };
+      }
+      return { outcome: 'NO_OP', tradeId: null };
     }
 
     case 'NO_OP':

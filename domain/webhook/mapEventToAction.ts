@@ -44,6 +44,8 @@ export type WebhookAction =
   | { kind: 'IDENTITY_DECISION'; verified: boolean }
   | { kind: 'CASH_SALE_REFUND_FAILED' }
   | { kind: 'CHARGE_DISPUTE'; phase: 'OPENED' | 'CLOSED' }
+  /** ESC-14: an issuer's early fraud warning against one of our charges. */
+  | { kind: 'FRAUD_WARNING' }
   | { kind: 'NO_OP' };
 
 /**
@@ -142,6 +144,10 @@ export function mapEventToAction(event: WebhookEvent): WebhookAction {
       return { kind: 'CHARGE_DISPUTE', phase: 'OPENED' };
     case 'charge.dispute.closed':
       return { kind: 'CHARGE_DISPUTE', phase: 'CLOSED' };
+
+    // ESC-14: routed by the PaymentIntent; without one there is nothing to look up.
+    case 'charge.fraud_warning':
+      return event.payload.paymentRef ? { kind: 'FRAUD_WARNING' } : { kind: 'NO_OP' };
 
     // Dispute/fraud follow-ups: no webhook-driven Trade_State transition (Req 10.7).
     case 'hold.voided':

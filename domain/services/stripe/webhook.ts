@@ -229,6 +229,24 @@ export function translateStripeEvent(event: Stripe.Event): WebhookEvent[] {
       });
     }
 
+    // --- Early fraud warnings (ESC-14) ---------------------------------------
+
+    // The issuer reports the cardholder called the charge fraud; a chargeback is
+    // likely to follow. Carries no CardTrade metadata, so it is routed by the
+    // PaymentIntent the pipeline looks up against the sale, trade cash leg or hold.
+    case 'radar.early_fraud_warning.created': {
+      const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
+      const paymentRef =
+        typeof warning.payment_intent === 'string' ? warning.payment_intent : warning.payment_intent?.id;
+      if (!paymentRef) return [];
+      return build('charge.fraud_warning', {
+        paymentRef,
+        captureId: typeof warning.charge === 'string' ? warning.charge : warning.charge.id,
+        reason: warning.fraud_type,
+        status: warning.actionable ? 'actionable' : 'not_actionable',
+      });
+    }
+
     // --- Dispute refunds -----------------------------------------------------
 
     // A refund is reported SETTLED as soon as Stripe accepts it, including while

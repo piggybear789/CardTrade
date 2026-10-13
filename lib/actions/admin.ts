@@ -544,6 +544,58 @@ export const setExposureLimitOverride = withActionLog('admin.setExposureLimitOve
   return { ok: true, data: { id: profileId, limitMinor } };
 });
 
+/**
+ * Claw a released seller payout back from their connected account (ESC-14).
+ *
+ * Staff only and NEVER automatic: friendly fraud against an honest seller must not be
+ * auto-clawed, so a chargeback alone does nothing to money that has already left.
+ * Keyed on the sale, so a retry cannot reverse twice.
+ */
+export const reverseCashSalePayout = withActionLog('admin.reverseCashSalePayout', async function reverseCashSalePayout(
+  cashSaleId: string,
+  amountMinor: number,
+): Promise<AdminActionResult<{ id: string; reversalRef: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  // WP5 (ESC-36): approval — a second staff member confirms before money moves.
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('cash_sales')
+    .select('id, seller_payout_status, seller_payout_ref, amount_cents, platform_fee_cents, shipping_cost_cents')
+    .eq('id', cashSaleId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  if (data.seller_payout_status !== 'SETTLED' || !data.seller_payout_ref) {
+    return { ok: false, error: 'invalid-input', message: 'This sale has no released payout to reverse.' };
+  }
+  const releasedNet = Number(data.amount_cents ?? 0) - Number(data.platform_fee_cents ?? 0);
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0 || amountMinor > releasedNet) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      field: 'amountMinor',
+      message: 'Enter an amount above zero and no more than what the seller was paid.',
+    };
+  }
+  const payments = getPaymentService(await regionForCashSale(cashSaleId));
+  if (!payments.reversePayout) {
+    return { ok: false, error: 'persistence-error', message: 'The payment provider cannot reverse payouts.' };
+  }
+  const reversal = await payments.reversePayout({
+    transferId: data.seller_payout_ref as string,
+    amount: amountMinor,
+    nonce: `cash-sale:${cashSaleId}`,
+  });
+  if (reversal.status !== 'SETTLED') {
+    return { ok: false, error: 'persistence-error', message: 'The reversal did not go through.' };
+  }
+  revalidatePath('/admin');
+  return { ok: true, data: { id: cashSaleId, reversalRef: reversal.transferId } };
+});
+
 export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDispute', async function resolveCashSaleDispute(
   cashSaleId: string,
   outcome: CashSaleDisputeOutcome,

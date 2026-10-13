@@ -481,6 +481,19 @@ function CashSaleRoom({
   const [confirming, setConfirming] = useState<
     'cancel' | 'dispute' | 'pay' | 'receive' | 'handover' | null
   >(null);
+  // ESC-31: the terms version and total the Pay dialog showed when it opened. A
+  // Realtime change underneath it closes the dialog rather than charging a figure the
+  // buyer never saw; the server refuses a mismatch too.
+  const paySnapshot = useRef<{ termsVersion: number; amountCents: number } | null>(null);
+  useEffect(() => {
+    const shown = paySnapshot.current;
+    if (confirming !== 'pay' || !shown) return;
+    if (shown.termsVersion !== sale.terms_version || shown.amountCents !== sale.amount_cents) {
+      paySnapshot.current = null;
+      setConfirming(null);
+      toast.error('The seller changed the terms. Review them before paying.');
+    }
+  }, [confirming, sale.terms_version, sale.amount_cents]);
   // Which method the selector picked while its required details are still missing.
   const [detailsFor, setDetailsFor] = useState<'DELIVERY' | 'IN_PERSON' | null>(
     null,
@@ -968,7 +981,14 @@ function CashSaleRoom({
                           size="sm"
                           disabled={isPending || !deliveryReady || payBlocked}
                           aria-busy={busy('accept')}
-                          onClick={() => setConfirming('pay')}
+                          onClick={() => {
+                            // ESC-31: freeze what the buyer is shown.
+                            paySnapshot.current = {
+                              termsVersion: sale.terms_version,
+                              amountCents: sale.amount_cents,
+                            };
+                            setConfirming('pay');
+                          }}
                         >
                           <PendingLabel pending={busy('accept')}>
                             Accept terms and pay
@@ -1649,10 +1669,16 @@ function CashSaleRoom({
           setConfirming(null);
           setConfirmedSeller(false);
           run('accept', async () => {
+            // ESC-31: pay exactly what the dialog showed, on the version it showed.
+            const shown = paySnapshot.current ?? {
+              termsVersion: sale.terms_version,
+              amountCents: sale.amount_cents,
+            };
             const paid = await acceptCashSaleTerms(
               sale.id,
-              sale.terms_version,
+              shown.termsVersion,
               pendingSellerIdentity?.version,
+              shown.amountCents,
             );
             // ESC-03: the bank asked to check the payment. Run it in place, then
             // read the payment back; the server read decides the outcome.

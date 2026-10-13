@@ -1914,6 +1914,12 @@ export async function acceptCashSaleTerms(
      */
     sellerIdentityVersion?: string;
     buyerConfirmedSellerIdentity?: boolean;
+    /**
+     * ESC-31: the total the Buyer was shown when the Pay dialog opened. A charge
+     * for any other amount is refused as STALE_TERMS, even on the same terms
+     * version. Optional so the mobile client keeps working; the web always sends it.
+     */
+    expectedAmountCents?: Cents;
   },
 ): Promise<CashSaleResult> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
@@ -1925,6 +1931,13 @@ export async function acceptCashSaleTerms(
       ok: false,
       error: 'NOT_PERMITTED',
       detail: 'Only the buyer can start payment.',
+    };
+  }
+  if (params.expectedAmountCents !== undefined && params.expectedAmountCents !== sale.amountCents) {
+    return {
+      ok: false,
+      error: 'STALE_TERMS',
+      detail: 'The seller changed the terms. Review them before paying.',
     };
   }
   if (sale.status !== 'AGREEMENT') return { ok: false, error: 'INVALID_STATE' };
@@ -4288,6 +4301,7 @@ export interface CashSaleOrchestrator {
     termsVersion: number;
     sellerIdentityVersion?: string;
     buyerConfirmedSellerIdentity?: boolean;
+    expectedAmountCents?: Cents;
   }): Promise<CashSaleResult>;
   settleCashSale(params: {
     cashSaleId: string;

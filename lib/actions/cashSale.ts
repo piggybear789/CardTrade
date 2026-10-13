@@ -474,6 +474,8 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
    * `acceptCashSaleTerms` in the orchestrator.
    */
   confirmedSellerIdentityVersion?: string,
+  /** ESC-31: the total shown when the Pay dialog opened. The web room always sends it. */
+  expectedAmountCents?: number,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
@@ -481,11 +483,15 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
   if (!(await consumeDbRateLimit('acceptCashSaleTerms', userId))) {
     return { ok: false, error: 'rate-limited', message: 'Too many attempts. Try again in a little while.' };
   }
+  if (expectedAmountCents !== undefined && !Number.isSafeInteger(expectedAmountCents)) {
+    return { ok: false, error: 'invalid-terms' };
+  }
   const result = actionResult(
     await orchestrator().acceptTerms({
       actorId: userId,
       cashSaleId,
       termsVersion,
+      expectedAmountCents,
       ...(confirmedSellerIdentityVersion
         ? {
             sellerIdentityVersion: confirmedSellerIdentityVersion,

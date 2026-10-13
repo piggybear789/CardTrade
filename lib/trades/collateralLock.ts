@@ -11,6 +11,8 @@ import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
+import { effectiveFeeBps } from '@/domain/fees/betaFeeWaiver';
+import { resolveTradeFees, TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
 import {
   confirmCollateralIfComplete,
   reconcileHoldStatus,
@@ -91,7 +93,24 @@ export async function collateralReconcileDeps(
         .eq('trade_id', id);
       if (error) throw new Error(`[collateral lock] load fees: ${error.message}`);
       const rows = (data ?? []) as Array<{ status: string }>;
-      return rows.length > 0 && rows.every((row) => row.status === 'SETTLED');
+      if (rows.length > 0) return rows.every((row) => row.status === 'SETTLED');
+      // No rows. Placement writes one per NONZERO fee, so "no rows" means either the
+      // fees are not charged yet or nothing is owed (the beta waiver writes none). Tell
+      // the two apart from what the trade actually owes, never from row existence.
+      if (effectiveFeeBps(TRADE_FEE_BPS) === 0) return true;
+      const { data: trade, error: tradeError } = await client
+        .from('trades')
+        .select('initiator_side_minor, counterpart_side_minor')
+        .eq('id', id)
+        .maybeSingle();
+      if (tradeError) throw new Error(`[collateral lock] load side values: ${tradeError.message}`);
+      const sides = trade as { initiator_side_minor: number | null; counterpart_side_minor: number | null } | null;
+      if (sides?.initiator_side_minor == null || sides.counterpart_side_minor == null) return false;
+      const owed = resolveTradeFees({
+        initiatorReceivesCents: Number(sides.counterpart_side_minor),
+        counterpartReceivesCents: Number(sides.initiator_side_minor),
+      });
+      return owed.initiatorFeeCents + owed.counterpartFeeCents === 0;
     },
   };
 }

@@ -164,6 +164,13 @@ export const TRADE_INSPECTION_LABEL = `${TRADE_INSPECTION_HOURS / 24} days`;
 export const TRADE_INSPECTION_FLOOR_HOURS = 24;
 
 /**
+ * The window a trader ALWAYS gets, even when the collateral clamp would leave less, in
+ * hours. Matches `cardtrade.trade_inspection_min_hours()` (0149), pinned by
+ * tradeClockAgreement. The floor above yields to the clamp; this one does not.
+ */
+export const TRADE_INSPECTION_MIN_HOURS = 6;
+
+/**
  * How long a card authorisation lasts, in hours.
  *
  * Stripe reports the real deadline per charge as `capture_before` and that value
@@ -325,8 +332,15 @@ export function deriveTradeInspectionDeadline(
     // ESC-17b: THE CLAMP BEATS THE FLOOR. A window that outlives the money backing it
     // is a right to dispute that cannot be honoured; a shorter real window, with both
     // traders told to check now (0142 notifies under six hours), is the honest one.
-    // Matches `set_trade_inspection_deadline` in 0142.
-    return new Date(Math.min(deadline, lastUsefulMoment)).toISOString();
+    // Matches `set_trade_inspection_deadline` in 0149.
+    //
+    // NEVER IN THE PAST, THOUGH. A handover confirmed days late put the clamp behind
+    // `now`, so the next sweep auto-completed the trade in the same hour it was told to
+    // raise a problem. `TRADE_INSPECTION_MIN_HOURS` from entry is always given; the
+    // custody backstop (ESC-01) captures a hold before it lapses, so a dispute raised in
+    // that window still has money behind it.
+    const clamped = Math.min(deadline, lastUsefulMoment);
+    return new Date(Math.max(clamped, entered + TRADE_INSPECTION_MIN_HOURS * HOUR_MS)).toISOString();
   }
 
   return new Date(deadline).toISOString();

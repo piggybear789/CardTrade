@@ -146,24 +146,26 @@ export function createSupabaseTradeCashSettlementRepository(
       return error ? 0 : (count ?? 0);
     },
 
-    async listByStatus(status, limit) {
-      const { data, error } = await client
-        .from('trade_cash_settlements')
-        .select('*')
-        .eq('status', status)
-        .order('updated_at', { ascending: true })
-        .limit(limit);
+    async listByStatus(status, limit, opts) {
+      let query = client.from('trade_cash_settlements').select('*').eq('status', status);
+      // Eligibility BEFORE the limit, so held or future rows cannot starve the drain.
+      if (opts?.currency) query = query.eq('currency', opts.currency.toLowerCase());
+      if (opts?.dueBy) {
+        query = query.is('hold_reason', null).or(`release_at.is.null,release_at.lte.${opts.dueBy}`);
+      }
+      const { data, error } = await query.order('updated_at', { ascending: true }).limit(limit);
       check(error, `listByStatus ${status}`);
       return ((data ?? []) as Row[]).map(toRecord);
     },
 
-    async listCollectingBefore(before, limit) {
-      const { data, error } = await client
+    async listCollectingBefore(before, limit, currency) {
+      let query = client
         .from('trade_cash_settlements')
         .select('*')
         .eq('status', 'COLLECTING')
-        .lt('collection_requested_at', before)
-        .limit(limit);
+        .lt('collection_requested_at', before);
+      if (currency) query = query.eq('currency', currency.toLowerCase());
+      const { data, error } = await query.order('collection_requested_at', { ascending: true }).limit(limit);
       check(error, 'listCollectingBefore');
       return ((data ?? []) as Row[]).map(toRecord);
     },

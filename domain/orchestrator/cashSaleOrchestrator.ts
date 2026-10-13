@@ -302,6 +302,8 @@ export interface CashSaleRecord {
   returnInspectionDeadlineAt?: string | null;
   /** When the return leg was last read back from the carrier (ESC-30). */
   returnTrackingCheckedAt?: string | null;
+  /** The Currency_Conversion fee recorded at Pay (0136). Null on pre-0136 rows. */
+  fxFeeCents?: Cents | null;
   autoCompleted: boolean;
   buyerHandoverConfirmedAt: string | null;
   sellerHandoverConfirmedAt: string | null;
@@ -2128,7 +2130,9 @@ export async function settleCashSale(
   }
   // The buyer is charged the contract total PLUS any Currency_Conversion fee (0136),
   // derived by the same function the charge used, so the binding compares like with like.
-  const expectedCollected = sale.amountCents + currencyConversionFeeFor(sale.amountCents, sale.currency);
+  // The fee RECORDED at Pay wins, so a later change to the rate cannot strand an
+  // in-flight sale; derived only for rows written before the column existed.
+  const expectedCollected = sale.amountCents + (sale.fxFeeCents ?? currencyConversionFeeFor(sale.amountCents, sale.currency));
   if (params.paymentRef !== sale.transferId || params.amountReceived !== expectedCollected) {
     return {
       ok: false,

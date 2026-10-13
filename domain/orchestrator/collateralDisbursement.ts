@@ -191,6 +191,8 @@ async function processOne(
   const payout = await payments.payoutToMerchant({
     merchantRef: payee.merchantRef,
     amount: row.amountMinor,
+    // Owed in the trade's currency; the binding quotes the conversion or refuses.
+    currency: row.currency,
     ref: `collateral-payout:${row.id}`,
     // Persisted and reused verbatim on every retry.
     nonce: row.nonce,

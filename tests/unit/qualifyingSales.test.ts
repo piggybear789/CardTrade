@@ -50,7 +50,7 @@ describe('countQualifyingSales', () => {
   });
 
   it('never counts a sale in an unlisted currency', () => {
-    expect(countQualifyingSales([sale({ currency: 'gbp', agreedPriceMinor: 1_000_000 })], NOW)).toBe(0);
+    expect(countQualifyingSales([sale({ currency: 'xyz', agreedPriceMinor: 1_000_000 })], NOW)).toBe(0);
   });
 
   it('accepts an upper-case currency code', () => {

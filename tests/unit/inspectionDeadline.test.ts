@@ -1,3 +1,4 @@
+import { TRADE_INSPECTION_MIN_HOURS } from '@/domain/fulfilment/inspection';
 // tests/unit/inspectionDeadline.test.ts
 //
 // ESC-17b: a trade's inspection window never outlives the collateral behind it. The
@@ -34,12 +35,19 @@ describe('deriveTradeInspectionDeadline clamp (ESC-17b)', () => {
     // Entered late, so the floor alone would push the deadline a day out; the
     // collateral lapses sooner than that.
     const entered = new Date(T0 + 60 * HOUR);
-    const expiry = new Date(entered.getTime() + (COLLATERAL_MARGIN_HOURS + 2) * HOUR).toISOString();
+    const expiry = new Date(entered.getTime() + (COLLATERAL_MARGIN_HOURS + 8) * HOUR).toISOString();
     const deadline = Date.parse(deriveTradeInspectionDeadline(facts, entered, expiry));
-    expect(deadline).toBe(entered.getTime() + 2 * HOUR);
+    expect(deadline).toBe(entered.getTime() + 8 * HOUR);
     expect(deadline).toBeLessThan(entered.getTime() + TRADE_INSPECTION_FLOOR_HOURS * HOUR);
   });
 
+  it('never leaves less than the minimum window, even when the clamp would (review #16)', () => {
+    const entered = new Date(T0 + 200 * HOUR);
+    // The collateral's last useful moment is already behind entry.
+    const expiry = new Date(entered.getTime() + (COLLATERAL_MARGIN_HOURS - 10) * HOUR).toISOString();
+    const deadline = Date.parse(deriveTradeInspectionDeadline(facts, entered, expiry));
+    expect(deadline).toBe(entered.getTime() + TRADE_INSPECTION_MIN_HOURS * HOUR);
+  });
   it('the floor still applies when the clamp does not bind', () => {
     const entered = new Date(T0 + 70 * HOUR);
     const deadline = Date.parse(deriveTradeInspectionDeadline(facts, entered, new Date(T0 + 400 * HOUR).toISOString()));

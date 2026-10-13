@@ -91,9 +91,18 @@ export interface TradeCashSettlementRepository {
   /** The receiver's connected account, when they can be paid. */
   loadReceiverPayout(profileId: string): Promise<{ merchantRef: string | null; payable: boolean }>;
   countCompletedPurchases?(profileId: string): Promise<number>;
-  listByStatus(status: TradeCashStatus, limit: number): Promise<TradeCashSettlementRecord[]>;
+  /**
+   * Rows in status, oldest first. currency and dueBy are applied IN the query,
+   * before the limit: filtering a fetched page afterwards let held or not-yet-due rows
+   * at the head of the queue hide every eligible row behind them.
+   */
+  listByStatus(
+    status: TradeCashStatus,
+    limit: number,
+    opts?: { currency?: string; dueBy?: string },
+  ): Promise<TradeCashSettlementRecord[]>;
   /** COLLECTING rows whose collection was requested before `before`. */
-  listCollectingBefore(before: string, limit: number): Promise<TradeCashSettlementRecord[]>;
+  listCollectingBefore(before: string, limit: number, currency?: string): Promise<TradeCashSettlementRecord[]>;
   /** Release-policy facts for the receiver (ESC-03 holdback applies to trade cash). */
   loadReleaseFacts?(record: TradeCashSettlementRecord): Promise<ReleaseFacts | null>;
 }
@@ -199,6 +208,9 @@ export async function payTradeCash(
   const transfer = await deps.payments.requestTransfer({
     payerId: payerRef,
     amount: record.amountMinor,
+    // Charged in the trade's own currency. Omitted, the binding charges the platform's
+    // settlement currency, so a EUR leg on the US platform was taken as USD.
+    currency: record.currency,
     ref: `trade-cash:${params.tradeId}`,
     nonce: collectionNonce(params.tradeId, attempt),
     presence: {
@@ -429,12 +441,12 @@ export async function closeUncollectedTradeCash(
  */
 export async function sweepStaleTradeCashCollections(
   deps: TradeCashSettlementDeps,
-  params: { limit?: number } = {},
+  params: { limit?: number; currency?: string } = {},
 ): Promise<{ collected: number; reset: number; skipped: number }> {
   const tally = { collected: 0, reset: 0, skipped: 0 };
   if (!deps.payments.readCollection) return tally;
   const before = new Date(now(deps).getTime() - TRADE_CASH_ABANDON_MINUTES * 60_000).toISOString();
-  for (const record of await deps.repository.listCollectingBefore(before, params.limit ?? 50)) {
+  for (const record of await deps.repository.listCollectingBefore(before, params.limit ?? 50, params.currency)) {
     if (!record.collectionRef) {
       tally.skipped += 1;
       continue;
@@ -511,6 +523,9 @@ export async function releaseTradeCash(
   const payout = await deps.payments.payoutToMerchant({
     merchantRef: receiver.merchantRef,
     amount: record.amountMinor,
+    // Paid in the trade's currency, so the binding sizes the transfer from a locked FX
+    // quote rather than sending contract minor units as the settlement currency.
+    currency: record.currency,
     ref: `trade-cash:${record.tradeId}`,
     nonce,
     sourcePaymentRef: record.collectionRef,
@@ -571,9 +586,10 @@ export async function drainTradeCash(
   const limit = params.limit ?? 50;
   const mine = (record: TradeCashSettlementRecord) =>
     !params.currency || record.currency.toLowerCase() === params.currency.toLowerCase();
-  await sweepStaleTradeCashCollections(deps, { limit });
+  await sweepStaleTradeCashCollections(deps, { limit, currency: params.currency });
+  const scope = { currency: params.currency, dueBy: (deps.now?.() ?? new Date()).toISOString() };
 
-  for (const record of (await deps.repository.listByStatus('RELEASE_PENDING', limit)).filter(mine)) {
+  for (const record of (await deps.repository.listByStatus('RELEASE_PENDING', limit, scope)).filter(mine)) {
     const result = await releaseTradeCash(deps, record);
     if (result.ok) {
       tally.released += 1;
@@ -584,7 +600,7 @@ export async function drainTradeCash(
       params.onFailure?.({ tradeId: record.tradeId, error: result.error, detail: result.detail });
     }
   }
-  for (const record of (await deps.repository.listByStatus('REFUND_PENDING', limit)).filter(mine)) {
+  for (const record of (await deps.repository.listByStatus('REFUND_PENDING', limit, { currency: params.currency })).filter(mine)) {
     const result = await refundTradeCash(deps, record);
     if (result.ok) {
       tally.refunded += 1;

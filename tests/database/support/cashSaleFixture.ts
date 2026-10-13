@@ -138,6 +138,10 @@ export async function createCashSaleFixture(
     refund_nonce: 'null',
     transfer_id: 'null',
     seller_payout_ref: 'null',
+    // NOR ITS TRACKING NUMBERS. 0144 binds one number to one contract, so a clone that
+    // copied the source's number was refused as `tracking-in-use`. Unique per fixture.
+    tracking_number: `'FIXTURE-' || gen_random_uuid()::text`,
+    return_tracking_number: 'null',
     refund_ref: 'null',
     // A clone that shares the source's conversation would mirror its own SYSTEM events
     // into a real member's chat (0113). Fixtures talk to nobody.

@@ -57,6 +57,7 @@ import {
   caseParticipants,
   cashSaleValueMinor,
   gateResolution,
+  reopenProposal,
   staffCount,
   tradeValueMinor,
 } from '@/lib/arbitration/approvals';
@@ -460,7 +461,7 @@ export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleRet
   const approval = await gateResolution({
     action: 'RESOLVE_CASH_SALE_RETURN',
     caseRef: cashSaleId,
-    valueMinor: await cashSaleValueMinor(cashSaleId),
+    valueMinor: () => cashSaleValueMinor(cashSaleId),
     payload: { outcome },
     staffId: gate.ctx.userId,
     approvalId,
@@ -522,7 +523,7 @@ export const resolveTrackingFlag = withActionLog('admin.resolveTrackingFlag', as
   const approval = await gateResolution({
     action: 'RESOLVE_TRACKING_FLAG',
     caseRef: cashSaleId,
-    valueMinor: decision === 'REFUND_BUYER' ? await cashSaleValueMinor(cashSaleId) : 0,
+    valueMinor: decision === 'REFUND_BUYER' ? () => cashSaleValueMinor(cashSaleId) : 0,
     payload: { decision },
     staffId: gate.ctx.userId,
     approvalId,
@@ -801,7 +802,7 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
   const approval = await gateResolution({
     action: 'RESOLVE_CASH_SALE_DISPUTE',
     caseRef: cashSaleId,
-    valueMinor: await cashSaleValueMinor(cashSaleId),
+    valueMinor: () => cashSaleValueMinor(cashSaleId),
     payload: { outcome, refundCents: refundCents ?? null, requireReturn: requireReturn ?? null },
     staffId: gate.ctx.userId,
     approvalId,
@@ -897,7 +898,9 @@ export const resolveTradeDispute = withActionLog('admin.resolveTradeDispute', as
   const approval = await gateResolution({
     action: 'RESOLVE_TRADE_DISPUTE',
     caseRef: tradeId,
-    valueMinor: outcome.kind === 'UNFOUNDED' || outcome.kind === 'NO_EXCHANGE' ? 0 : await tradeValueMinor(tradeId),
+    // Valued by the money the outcome can move (collateral, collected cash, fees), not
+    // by its label: an UNFOUNDED or NO_EXCHANGE unwind can move a large cash leg.
+    valueMinor: () => tradeValueMinor(tradeId),
     payload: { outcome },
     staffId: gate.ctx.userId,
     approvalId,
@@ -1121,7 +1124,11 @@ const TERMINAL_TRADE_STATES = new Set(['COMPLETED', 'FRAUD_RESOLVED', 'CANCELLED
 async function loadCapturedCollateral(
   admin: ReturnType<typeof createAdminClient>,
   currency: string,
-): Promise<{ ok: true; inputs: HeldCollateralInput[] } | { ok: false; message: string }> {
+  /** Every currency this platform holds money for; others belong to another balance. */
+  platformCurrencies: readonly string[] = [currency],
+): Promise<
+  { ok: true; inputs: HeldCollateralInput[]; unconverted: number } | { ok: false; message: string }
+> {
   const { data: holds, error } = await admin
     .from('pre_auth_holds')
     .select('hold_ref, trade_id, captured_cents, custody_captured_at')
@@ -1133,7 +1140,7 @@ async function loadCapturedCollateral(
     captured_cents: number;
     custody_captured_at: string | null;
   }>).filter((row) => row.hold_ref);
-  if (rows.length === 0) return { ok: true, inputs: [] };
+  if (rows.length === 0) return { ok: true, inputs: [], unconverted: 0 };
 
   const tradeIds = [...new Set(rows.map((row) => row.trade_id))];
   const [{ data: trades, error: tradeError }, { data: disbursed, error: disbursedError }] = await Promise.all([
@@ -1166,10 +1173,18 @@ async function loadCapturedCollateral(
   }
 
   const inputs: HeldCollateralInput[] = [];
+  const platform = new Set(platformCurrencies.map((code) => code.toLowerCase()));
+  let unconverted = 0;
   for (const row of rows) {
     const trade = tradeOf.get(row.trade_id);
-    // Scoped to this region's balance, like the sales above.
-    if (!trade || String(trade.currency ?? 'aud').toLowerCase() !== currency) continue;
+    if (!trade) continue;
+    const tradeCurrency = String(trade.currency ?? 'aud').toLowerCase();
+    if (tradeCurrency !== currency) {
+      // Another currency on THIS platform's balance: counted as unconverted while the
+      // case is open, never silently dropped. Other platforms' rows are not ours.
+      if (platform.has(tradeCurrency) && !TERMINAL_TRADE_STATES.has(trade.state)) unconverted += 1;
+      continue;
+    }
     const settled = settledByHold.get(row.hold_ref as string) ?? 0;
     const legacy = !row.custody_captured_at;
     const legacyReturnPaid =
@@ -1182,7 +1197,7 @@ async function loadCapturedCollateral(
       platformRetainedCents: legacy ? Number(trade.friction_tax_platform_cents ?? 0) : 0,
     });
   }
-  return { ok: true, inputs };
+  return { ok: true, inputs, unconverted };
 }
 
 export const getCustodyPosition = withActionLog('admin.getCustodyPosition', async function getCustodyPosition(
@@ -1270,28 +1285,38 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
 
   // Captured trade collateral (design §1.8, ESC-01). Uncaptured authorisations are
   // still excluded: only `captured_cents > 0` rows are money in this balance.
-  const collateral = await loadCapturedCollateral(admin, settles);
+  const collateral = await loadCapturedCollateral(admin, settles, currencies);
   if (!collateral.ok) {
     return { ok: false, error: 'persistence-error', message: collateral.message };
   }
+  // Foreign-currency captured collateral has no recorded settlement amount yet, so it
+  // cannot be added to a balance in another currency. It is COUNTED, never dropped.
+  unconverted += collateral.unconverted;
 
   // ESC-05/06: trade cash legs the platform collected and has not yet paid out. A
   // leg counts from COLLECTED until RELEASED or REFUNDED; a pending release or refund
   // is still held.
   const { data: legs, error: legError } = await admin
     .from('trade_cash_settlements')
-    .select('trade_id, amount_minor, status')
-    .eq('currency', settles)
+    .select('trade_id, amount_minor, status, currency')
+    .in('currency', [...currencies])
     .in('status', ['COLLECTED', 'RELEASE_PENDING', 'REFUND_PENDING', 'RELEASED', 'REFUNDED']);
   if (legError) {
     return { ok: false, error: 'persistence-error', message: legError.message };
   }
-  const tradeCash: HeldTradeCashInput[] = (legs ?? []).map((row) => ({
-    tradeId: row.trade_id as string,
-    collectedCents: Number(row.amount_minor ?? 0),
-    settledOutCents:
-      row.status === 'RELEASED' || row.status === 'REFUNDED' ? Number(row.amount_minor ?? 0) : 0,
-  }));
+  const tradeCash: HeldTradeCashInput[] = [];
+  for (const row of legs ?? []) {
+    const stillHeld = row.status !== 'RELEASED' && row.status !== 'REFUNDED';
+    if (String(row.currency).toLowerCase() !== settles) {
+      if (stillHeld) unconverted += 1;
+      continue;
+    }
+    tradeCash.push({
+      tradeId: row.trade_id as string,
+      collectedCents: Number(row.amount_minor ?? 0),
+      settledOutCents: stillHeld ? 0 : Number(row.amount_minor ?? 0),
+    });
+  }
 
   const position = reconcileCustody({
     sales,
@@ -1382,13 +1407,22 @@ export const approveStaffResolution = withActionLog('admin.approveStaffResolutio
   if (!proposal) return { ok: false, error: 'not-found' };
 
   const action = proposal.action as ResolutionAction;
+  // Authorization facts fail CLOSED: a read error refuses rather than reading as
+  // "no participants" or "solo team".
+  let participantIds: string[];
+  let staff: number;
+  try {
+    [participantIds, staff] = await Promise.all([caseParticipants(action, proposal.case_ref), staffCount()]);
+  } catch {
+    return { ok: false, error: 'persistence-error', message: 'Could not check this approval. Try again.' };
+  }
   const refusal = canApprove({
     status: proposal.status,
     proposedBy: proposal.proposed_by,
     proposedAt: proposal.proposed_at,
     approverId: gate.ctx.userId,
-    participantIds: await caseParticipants(action, proposal.case_ref),
-    staffCount: await staffCount(),
+    participantIds,
+    staffCount: staff,
     now: new Date(),
   });
   if (refusal === 'NOT_PENDING') {
@@ -1416,6 +1450,30 @@ export const approveStaffResolution = withActionLog('admin.approveStaffResolutio
   const payload = (proposal.payload ?? {}) as Record<string, unknown>;
   const ref = proposal.case_ref as string;
   let result: AdminActionResult<unknown>;
+  try {
+    result = await executeApprovedProposal(action, ref, payload, proposalId);
+  } catch (error) {
+    // A throw must not leave the row EXECUTED with nothing moved, or APPROVED forever.
+    await reopenProposal(proposalId);
+    throw error;
+  }
+  revalidatePath('/admin/arbitration');
+  if (!result.ok) {
+    // Back to PENDING so a fresh approval can be given (0145 allows one open row).
+    await reopenProposal(proposalId);
+    return { ok: false, error: result.error, message: result.message };
+  }
+  return { ok: true, data: { id: proposalId } };
+});
+
+/** Run an approved proposal through the action that proposed it, with its stored payload. */
+async function executeApprovedProposal(
+  action: ResolutionAction,
+  ref: string,
+  payload: Record<string, unknown>,
+  proposalId: string,
+): Promise<AdminActionResult<unknown>> {
+  let result: AdminActionResult<unknown>;
   switch (action) {
     case 'RESOLVE_CASH_SALE_DISPUTE':
       result = await resolveCashSaleDispute(
@@ -1441,10 +1499,8 @@ export const approveStaffResolution = withActionLog('admin.approveStaffResolutio
     default:
       return { ok: false, error: 'invalid-input', message: 'Unknown proposal action.' };
   }
-  revalidatePath('/admin/arbitration');
-  if (!result.ok) return { ok: false, error: result.error, message: result.message };
-  return { ok: true, data: { id: proposalId } };
-});
+  return result;
+}
 
 /** Reject a pending staff decision (ESC-23). Nothing moves. */
 export const rejectStaffResolution = withActionLog('admin.rejectStaffResolution', async function rejectStaffResolution(

@@ -62,14 +62,14 @@ const MUST_WORK: GrantCheck[] = [
   { flow: 'profile: change avatar', table: 'profiles', column: 'avatar_path', privilege: 'UPDATE', allowed: true },
 
   // Listings: `createListing` (SINGLE and SHOPFRONT), `updateListing`, `deleteItem`.
-  { flow: 'listing: create sets owner', table: 'items', column: 'owner_id', privilege: 'INSERT', allowed: true },
-  { flow: 'listing: create sets title', table: 'items', column: 'title', privilege: 'INSERT', allowed: true },
-  { flow: 'listing: create sets fmv', table: 'items', column: 'fmv_cents', privilege: 'INSERT', allowed: true },
-  { flow: 'listing: create sets images', table: 'items', column: 'image_paths', privilege: 'INSERT', allowed: true },
-  { flow: 'listing: create sets status', table: 'items', column: 'status', privilege: 'INSERT', allowed: true },
-  { flow: 'listing: create sets kind', table: 'items', column: 'listing_kind', privilege: 'INSERT', allowed: true },
-  { flow: 'listing: shopfront starts hidden', table: 'items', column: 'hidden', privilege: 'INSERT', allowed: true },
-  { flow: 'listing: create sets location', table: 'items', column: 'location_label', privilege: 'INSERT', allowed: true },
+  { flow: 'listing: create sets owner (0136: service role only, via createItem)', table: 'items', column: 'owner_id', privilege: 'INSERT', allowed: false },
+  { flow: 'listing: create sets title (0136: service role only, via createItem)', table: 'items', column: 'title', privilege: 'INSERT', allowed: false },
+  { flow: 'listing: create sets fmv (0136: service role only, via createItem)', table: 'items', column: 'fmv_cents', privilege: 'INSERT', allowed: false },
+  { flow: 'listing: create sets images (0136: service role only, via createItem)', table: 'items', column: 'image_paths', privilege: 'INSERT', allowed: false },
+  { flow: 'listing: create sets status (0136: service role only, via createItem)', table: 'items', column: 'status', privilege: 'INSERT', allowed: false },
+  { flow: 'listing: create sets kind (0136: service role only, via createItem)', table: 'items', column: 'listing_kind', privilege: 'INSERT', allowed: false },
+  { flow: 'listing: shopfront starts hidden (0136: service role only, via createItem)', table: 'items', column: 'hidden', privilege: 'INSERT', allowed: false },
+  { flow: 'listing: create sets location (0136: service role only, via createItem)', table: 'items', column: 'location_label', privilege: 'INSERT', allowed: false },
   { flow: 'listing: edit location label', table: 'items', column: 'location_label', privilege: 'UPDATE', allowed: true },
   { flow: 'listing: edit location point', table: 'items', column: 'location_lat', privilege: 'UPDATE', allowed: true },
   { flow: 'listing: edit location region', table: 'items', column: 'location_country_code', privilege: 'UPDATE', allowed: true },
@@ -80,7 +80,7 @@ const MUST_WORK: GrantCheck[] = [
   { flow: 'offer: make sets author', table: 'offers', column: 'offered_by', privilege: 'INSERT', allowed: true },
   { flow: 'offer: make sets PENDING', table: 'offers', column: 'status', privilege: 'INSERT', allowed: true },
   { flow: 'offer: counter links parent', table: 'offers', column: 'parent_offer_id', privilege: 'INSERT', allowed: true },
-  { flow: 'offer: accept/decline/withdraw', table: 'offers', column: 'status', privilege: 'UPDATE', allowed: true },
+  { flow: 'offer: accept/decline/withdraw (0137: service role only)', table: 'offers', column: 'status', privilege: 'UPDATE', allowed: false },
 
   // Chat: `ensureConversation`, `sendMessage`, `markConversationRead`.
   { flow: 'chat: open thread', table: 'conversations', column: 'participant_a', privilege: 'INSERT', allowed: true },

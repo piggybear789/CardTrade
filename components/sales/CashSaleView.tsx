@@ -645,7 +645,12 @@ function CashSaleRoom({
   // The Currency_Conversion fee and what the buyer's card is actually charged. From
   // the same function the orchestrator charges with, applied to the same contract
   // total, so the room can never quote a figure the charge disagrees with (0136).
-  const fxFeeCents = currencyConversionFeeFor(sale.amount_cents, sale.currency);
+  // Once the buyer has paid, the room shows the fee RECORDED at Pay, so a later change
+  // to the rate never rewrites what they were charged. Before that it is the quote.
+  const fxFeeCents =
+    sale.status === 'AGREEMENT'
+      ? currencyConversionFeeFor(sale.amount_cents, sale.currency)
+      : (sale.fx_fee_cents ?? currencyConversionFeeFor(sale.amount_cents, sale.currency));
   const buyerChargeCents = sale.amount_cents + fxFeeCents;
 
   // The countdown to automatic completion now comes from the shared

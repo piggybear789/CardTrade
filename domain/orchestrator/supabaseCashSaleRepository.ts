@@ -147,6 +147,7 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     returnLapsedAt: row.return_lapsed_at,
     returnInspectionDeadlineAt: row.return_inspection_deadline_at ?? null,
     returnTrackingCheckedAt: row.return_tracking_checked_at ?? null,
+    fxFeeCents: (row as { fx_fee_cents?: number | null }).fx_fee_cents ?? null,
     autoCompleted: row.auto_completed,
     buyerHandoverConfirmedAt: row.buyer_handover_confirmed_at,
     sellerHandoverConfirmedAt: row.seller_handover_confirmed_at,

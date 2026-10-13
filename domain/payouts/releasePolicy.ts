@@ -34,9 +34,26 @@ export const IN_PERSON_MIN_HOLD_HOURS = 24;
 /** Captured collateral paid to a wronged trader, from the capture. */
 export const CAPTURED_COLLATERAL_HOLDBACK_HOURS = 7 * 24;
 /** Collected-but-unreleased limit for a new seller, per currency (minor units). */
+//
+// EVERY TRADING CURRENCY NEEDS AN ENTRY. An unlisted currency is refused outright (and
+// can never qualify), which made every seller in the 0136 regions unsellable. Round
+// local figures near AUD 2,000 / AUD 20, not live conversions, so the limit can be
+// stated. `tests/unit/releasePolicyCurrencies.test.ts` fails when a `tradingEnabled`
+// region's currency is missing from either table.
 export const NEW_SELLER_OPEN_EXPOSURE_MINOR: Readonly<Record<string, number>> = {
   aud: 200_000,
   usd: 150_000,
+  eur: 120_000,
+  gbp: 100_000,
+  cad: 180_000,
+  chf: 120_000,
+  sek: 1_400_000,
+  nok: 1_400_000,
+  dkk: 900_000,
+  pln: 500_000,
+  czk: 3_000_000,
+  ron: 600_000,
+  bgn: 250_000,
 };
 
 /** A sale must be at least this old to count toward "established". */
@@ -45,6 +62,17 @@ export const QUALIFYING_SALE_AGE_DAYS = 14;
 export const QUALIFYING_SALE_MIN_MINOR: Readonly<Record<string, number>> = {
   aud: 2_000,
   usd: 2_000,
+  eur: 1_500,
+  gbp: 1_500,
+  cad: 2_000,
+  chf: 1_500,
+  sek: 15_000,
+  nok: 15_000,
+  dkk: 10_000,
+  pln: 6_000,
+  czk: 35_000,
+  ron: 7_000,
+  bgn: 3_000,
 };
 
 const HOUR_MS = 3_600_000;

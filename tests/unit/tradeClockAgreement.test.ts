@@ -17,6 +17,7 @@ import {
   TRADE_INSPECTION_FLOOR_HOURS,
   TRADE_INSPECTION_HOURS,
 } from '@/domain/fulfilment';
+import { TRADE_INSPECTION_MIN_HOURS } from '@/domain/fulfilment/inspection';
 import { CASH_SALE_INSPECTION_DAYS, IN_PERSON_INSPECTION_HOURS, RETURN_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 import { sqlFunctions } from '@/scripts/lib/mobileContract';
 import { pinnedIntegerFunction } from '@/scripts/lib/migrationText';
@@ -32,6 +33,8 @@ const PINNED: Array<[sqlName: string, tsName: string, tsValue: number]> = [
   ['in_person_inspection_hours', 'IN_PERSON_INSPECTION_HOURS', IN_PERSON_INSPECTION_HOURS],
   // ESC-11: the seller's return inspection.
   ['return_inspection_hours', 'RETURN_INSPECTION_HOURS', RETURN_INSPECTION_HOURS],
+  // Review #16: the window a trader always gets, even under the collateral clamp.
+  ['trade_inspection_min_hours', 'TRADE_INSPECTION_MIN_HOURS', TRADE_INSPECTION_MIN_HOURS],
 ];
 
 describe('SQL trade clocks agree with the TypeScript constants', () => {

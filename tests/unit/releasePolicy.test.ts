@@ -139,7 +139,7 @@ describe('exceedsNewSellerExposure', () => {
   });
 
   it('refuses a new seller in an unlisted currency', () => {
-    expect(exceedsNewSellerExposure({ ...base, currency: 'gbp', openCollectedMinor: 0, addMinor: 1 })).toBe(true);
+    expect(exceedsNewSellerExposure({ ...base, currency: 'xyz', openCollectedMinor: 0, addMinor: 1 })).toBe(true);
   });
 
   it('uses a non-null override as the limit whatever the currency or history', () => {

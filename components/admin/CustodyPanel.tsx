@@ -115,7 +115,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
           {position.unconvertedSales ? (
             <p className="mt-0.5 text-body text-destructive">
               Plus {position.unconvertedSales} foreign-currency{' '}
-              {position.unconvertedSales === 1 ? 'sale' : 'sales'} with no recorded{' '}
+              {position.unconvertedSales === 1 ? 'obligation' : 'obligations'} with no recorded{' '}
               {currency.toUpperCase()} amount, not included.
             </p>
           ) : null}

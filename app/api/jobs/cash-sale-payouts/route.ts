@@ -304,6 +304,30 @@ async function runPayoutPass(request: Request): Promise<Response> {
       drainReports.push({ name: 'refund.return', errorCode: 'THREW', error });
     }
 
+    // Review #11: trade cash still COLLECTED on a trade that has already ended. Every
+    // routing call runs after the terminal event commits, so a failed queue write left
+    // the money with no drain to pick it up. Surfaced for staff every pass until fixed;
+    // the routing for a fraud outcome depends on the finding, so it is not guessed here.
+    try {
+      const { data: stranded, error: strandedError } = await createAdminClient()
+        .from('trade_cash_settlements')
+        .select('trade_id, trades!inner(state)')
+        .eq('status', 'COLLECTED')
+        .in('trades.state', ['COMPLETED', 'CANCELLED', 'FRAUD_RESOLVED'])
+        .limit(100);
+      if (strandedError) throw new Error(strandedError.message);
+      for (const row of (stranded ?? []) as Array<{ trade_id: string }>) {
+        drainReports.push({
+          name: 'trade_cash.stranded',
+          errorCode: 'TRADE_CASH_STRANDED',
+          message: 'Collected trade cash on a finished trade has no release or refund queued.',
+          context: { tradeId: row.trade_id },
+        });
+      }
+    } catch (error) {
+      drainReports.push({ name: 'trade_cash.stranded', errorCode: 'THREW', error });
+    }
+
     await Promise.all(drainReports.map((report) => logBackgroundFailure(report)));
 
     if (failures.length > 0 && totals.considered === 0) {

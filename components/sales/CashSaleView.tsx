@@ -99,9 +99,12 @@ import {
 } from '@/components/fulfilment';
 import { asFulfilmentTrackingState } from '@/domain/fulfilment';
 import type { CashSaleDeliveryAddress } from './types';
+import { completePaymentChallenge } from './paymentChallenge';
 import {
   acceptCashSaleInspection,
   acceptCashSaleTerms,
+  confirmCashSalePayment,
+  getCashSalePaymentAction,
   updateCashSaleTerms,
   cancelCashSaleAgreement,
   confirmCashSaleHandover,
@@ -1000,6 +1003,32 @@ function CashSaleRoom({
                     </Button>
                   ) : null}
 
+                  {/* ESC-03: a bank check is outstanding. The secret is read back from
+                      the provider each time, so this works after a reload or on
+                      another device, and does nothing once the check is finished. */}
+                  {sale.status === 'PAYMENT_PENDING' && iAmBuyer && sale.transfer_id ? (
+                    <Button
+                      type="button"
+                      variant="action"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() =>
+                        run('complete-payment', async () => {
+                          const action = await getCashSalePaymentAction(sale.id);
+                          if (action.ok && action.clientSecret) {
+                            return completePaymentChallenge(sale.id, {
+                              clientSecret: action.clientSecret,
+                              ...(action.publishableKey ? { publishableKey: action.publishableKey } : {}),
+                            });
+                          }
+                          return confirmCashSalePayment(sale.id);
+                        })
+                      }
+                    >
+                      {busy('complete-payment') ? 'Checking…' : 'Complete payment'}
+                    </Button>
+                  ) : null}
+
                   {sale.status === 'IN_TRANSIT' && iAmBuyer ? (
                     <Button
                       type="button"
@@ -1617,9 +1646,18 @@ function CashSaleRoom({
         onConfirm={() => {
           setConfirming(null);
           setConfirmedSeller(false);
-          run('accept', () =>
-            acceptCashSaleTerms(sale.id, sale.terms_version, pendingSellerIdentity?.version),
-          );
+          run('accept', async () => {
+            const paid = await acceptCashSaleTerms(
+              sale.id,
+              sale.terms_version,
+              pendingSellerIdentity?.version,
+            );
+            // ESC-03: the bank asked to check the payment. Run it in place, then
+            // read the payment back; the server read decides the outcome.
+            return paid.ok && paid.nextAction
+              ? completePaymentChallenge(sale.id, paid.nextAction)
+              : paid;
+          });
         }}
       >
         {pendingSellerIdentity ? (

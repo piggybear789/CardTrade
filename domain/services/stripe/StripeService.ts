@@ -823,6 +823,9 @@ export class StripeService implements PaymentService, PayerService {
           amount: params.amount,
           status: 'REQUIRES_ACTION',
           clientSecret: intent.client_secret,
+          ...(this.opts.config.publishableKey
+            ? { publishableKey: this.opts.config.publishableKey }
+            : {}),
         };
       }
 
@@ -912,7 +915,10 @@ export class StripeService implements PaymentService, PayerService {
   async readCollection(paymentRef: string): Promise<CollectionStatus> {
     try {
       const intent = await this.stripe.paymentIntents.retrieve(paymentRef);
-      return collectionStatusOf(intent);
+      const status = collectionStatusOf(intent);
+      return status.status === 'REQUIRES_ACTION' && this.opts.config.publishableKey
+        ? { ...status, publishableKey: this.opts.config.publishableKey }
+        : status;
     } catch (err) {
       this.warn('readCollection', paymentRef, err);
       return { status: 'PENDING', amountReceived: 0 };

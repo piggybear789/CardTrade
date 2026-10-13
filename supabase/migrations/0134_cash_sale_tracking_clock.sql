@@ -207,6 +207,16 @@ begin
         else
           'Payment confirmed. The seller can now continue with the agreed fulfillment method.'
       end
+    -- ESC-03 (WP2): an abandoned 3-D Secure challenge was cancelled at the provider.
+    when 'PAYMENT_ABANDONED' then
+      'The payment wasn''t completed, so nothing was charged. The buyer can pay again from this contract.'
+    -- ESC-14 (WP2): neutral on purpose. The reason is never shown to either party.
+    when 'REFUNDED_BEFORE_SHIPMENT' then
+      'The payment was refunded and the sale cancelled.'
+    -- ESC-20 (WP2): the in-person window, named from the pinned constant.
+    when 'IN_PERSON_INSPECTION_STARTED' then
+      'The buyer has ' || cardtrade.in_person_inspection_hours()::text
+      || ' hours to check the item and raise a problem before the seller is paid.'
     when 'PAYMENT_FAILED' then
       case when coalesce(p_from_shopfront, false) then
         'The payment failed. This contract did not proceed. The multi-item listing remains open, and nothing from it was held.'

@@ -104,6 +104,8 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     paymentNonce: row.payment_nonce,
     paymentRequestedAt: row.payment_requested_at,
     paymentSettledAt: row.payment_settled_at,
+    // Service-role reads select `*`; a narrower projection simply omits it.
+    paymentAttempt: (row as { payment_attempt?: number }).payment_attempt ?? 0,
     fulfillmentMethod: row.fulfillment_method,
     shippingCostCents: row.shipping_cost_cents,
     shippingNotes: row.shipping_notes,
@@ -489,13 +491,15 @@ export function createSupabaseCashSaleRepository(
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
-    async claimPayment({ cashSaleId, termsVersion, nonce, requestedAt }) {
+    async claimPayment({ cashSaleId, termsVersion, nonce, requestedAt, attempt }) {
       const { data } = await client
         .from('cash_sales')
         .update({
           status: 'PAYMENT_PENDING',
           payment_nonce: nonce,
           payment_requested_at: requestedAt,
+          // ESC-03: written in the same guarded UPDATE as the nonce it keys.
+          ...(attempt !== undefined ? { payment_attempt: attempt } : {}),
         })
         .eq('id', cashSaleId)
         .eq('status', 'AGREEMENT')
@@ -504,6 +508,41 @@ export function createSupabaseCashSaleRepository(
         .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async abandonPayment({ cashSaleId }) {
+      // ESC-03. Guarded on PAYMENT_PENDING, so a settlement that raced the sweep
+      // wins. `payment_attempt` is left alone: the next claim uses attempt + 1.
+      // The SINGLE item stays RESERVED by the still-open agreement, as before Pay.
+      return guardedUpdate(client, cashSaleId, 'PAYMENT_PENDING', {
+        status: 'AGREEMENT',
+        payment_nonce: null,
+        payment_requested_at: null,
+        transfer_id: null,
+        updated_at: new Date().toISOString(),
+      });
+    },
+
+    async listStalePaymentPending({ before, limit }) {
+      const { data, error } = await client
+        .from('cash_sales')
+        .select('*')
+        .eq('status', 'PAYMENT_PENDING')
+        .lt('payment_requested_at', before)
+        .order('payment_requested_at', { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(`listStalePaymentPending: ${error.message}`);
+      return ((data ?? []) as CashSaleRow[]).map(toCashSale);
+    },
+
+    async countCompletedPurchases(buyerId) {
+      const { count, error } = await client
+        .from('cash_sales')
+        .select('id', { count: 'exact', head: true })
+        .eq('buyer_id', buyerId)
+        .eq('status', 'COMPLETED');
+      // A read failure counts as a new buyer: the safe direction is a challenge.
+      return error ? 0 : (count ?? 0);
     },
 
     async recordPaymentSubmission({ cashSaleId, transferId }) {

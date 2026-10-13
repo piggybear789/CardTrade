@@ -46,4 +46,10 @@ export type CashSaleEventCode =
   /** ESC-02: staff resolved a tracking flag. */
   | 'TRACKING_FLAG_RESOLVED'
   /** ESC-28 (WP5): staff-only risk signal; never mirrored, never member-readable. */
-  | 'POSTAGE_OUTLIER';
+  | 'POSTAGE_OUTLIER'
+  /** ESC-03: an abandoned 3-D Secure challenge was cancelled; back to AGREEMENT. */
+  | 'PAYMENT_ABANDONED'
+  /** ESC-14: refunded on an early fraud warning before anything shipped. */
+  | 'REFUNDED_BEFORE_SHIPMENT'
+  /** ESC-20: the in-person inspection window opened. */
+  | 'IN_PERSON_INSPECTION_STARTED';

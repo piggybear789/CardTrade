@@ -513,7 +513,7 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
-    async claimPayment({ termsVersion, nonce, requestedAt }) {
+    async claimPayment({ termsVersion, nonce, requestedAt, attempt }) {
       const sale = state.sale;
       if (
         !sale ||
@@ -528,8 +528,31 @@ export function makeCashSaleRepository(options: {
         status: 'PAYMENT_PENDING',
         paymentNonce: nonce,
         paymentRequestedAt: requestedAt,
+        ...(attempt !== undefined ? { paymentAttempt: attempt } : {}),
       };
       return state.sale;
+    },
+    // ESC-03: back to AGREEMENT after an abandoned challenge; the attempt counter stays.
+    async abandonPayment() {
+      const sale = state.sale;
+      if (!sale || sale.status !== 'PAYMENT_PENDING') return null;
+      state.sale = {
+        ...sale,
+        status: 'AGREEMENT',
+        paymentNonce: null,
+        paymentRequestedAt: null,
+        transferId: null,
+      };
+      return state.sale;
+    },
+    async listStalePaymentPending({ before }) {
+      const sale = state.sale;
+      return sale &&
+        sale.status === 'PAYMENT_PENDING' &&
+        sale.paymentRequestedAt !== null &&
+        sale.paymentRequestedAt < before
+        ? [sale]
+        : [];
     },
     async recordPaymentSubmission({ transferId }) {
       const sale = state.sale;

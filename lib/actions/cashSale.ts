@@ -71,6 +71,11 @@ export type CashSaleActionResult =
       settledNow?: boolean;
       /** ESC-02: the shipment was recorded but its tracking is flagged for staff. */
       flagged?: boolean;
+      /**
+       * ESC-03: the card issuer asked for a 3-D Secure check. The room runs
+       * `stripe.handleNextAction` with this secret, then `confirmCashSalePayment`.
+       */
+      nextAction?: { clientSecret: string; publishableKey?: string };
     }
   | { ok: false; error: CashSaleActionError; message?: string };
 
@@ -198,7 +203,13 @@ function actionResult(result: Awaited<ReturnType<ReturnType<typeof orchestrator>
     return { ok: false, error: mapError(result.error), message: result.detail };
   }
   revalidatePath(`/sales/${result.sale.id}`);
-  return { ok: true, sale: result.sale, settledNow: result.settledNow, flagged: result.flagged };
+  return {
+    ok: true,
+    sale: result.sale,
+    settledNow: result.settledNow,
+    flagged: result.flagged,
+    ...(result.nextAction ? { nextAction: result.nextAction } : {}),
+  };
 }
 
 /** Create and reserve an agreement without collecting payment (Req 4.1). */
@@ -467,6 +478,43 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
   }
   return result;
 });
+
+/**
+ * Read the payment back after the browser finished a 3-D Secure check (ESC-03).
+ * Buyer only. Settles, fails, or returns the sale unchanged while still pending.
+ */
+export const confirmCashSalePayment = withActionLog('cashSale.confirmCashSalePayment', async function confirmCashSalePayment(
+  cashSaleId: string,
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  const result = actionResult(await orchestrator().confirmPayment({ actorId: userId, cashSaleId }));
+  if (result.ok && result.settledNow) {
+    await notifyCashSaleSettled({
+      buyerId: result.sale.buyerId,
+      sellerId: result.sale.sellerId,
+      cashSaleId: result.sale.id,
+    });
+  }
+  return result;
+});
+
+/**
+ * The outstanding 3-D Secure secret, read back from the provider, so a reload or a
+ * second device can finish the check (ESC-03). Null once there is nothing to finish.
+ */
+export const getCashSalePaymentAction = withActionLog('cashSale.getCashSalePaymentAction', async function getCashSalePaymentAction(
+  cashSaleId: string,
+): Promise<
+  | { ok: true; clientSecret: string | null; publishableKey?: string }
+  | { ok: false; error: CashSaleActionError }
+> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  const result = await orchestrator().getPaymentAction({ actorId: userId, cashSaleId });
+  return result.ok ? result : { ok: false, error: mapError(result.error) };
+});
+
 /** Open (or resolve) the participant chat for a contract (Req 4.2). */
 export const ensureCashSaleConversation = withActionLog('cashSale.ensureCashSaleConversation', async function ensureCashSaleConversation(
   cashSaleId: string,

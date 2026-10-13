@@ -120,6 +120,8 @@ export interface TransferResult {
   status: 'SETTLED' | 'FAILED' | 'REQUIRES_ACTION';
   /** Present only with `REQUIRES_ACTION`. Never persisted, never logged. */
   clientSecret?: string;
+  /** Browser-safe key for the account the intent lives on, with `clientSecret`. */
+  publishableKey?: string;
 }
 
 /**
@@ -139,6 +141,8 @@ export interface CollectionStatus {
   amountReceived: Cents;
   /** Present only with `REQUIRES_ACTION`. */
   clientSecret?: string;
+  /** Browser-safe key for the account the intent lives on, with `clientSecret`. */
+  publishableKey?: string;
 }
 
 /** Cancelling an uncompleted collection (an abandoned 3-D Secure challenge). */

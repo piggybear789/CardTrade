@@ -9,6 +9,7 @@ import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
 import type { CashSaleEventCode } from './cashSaleEvents';
 import { decideRelease, type ReleaseFacts } from '../payouts/releasePolicy';
+import { decideThreeDS } from '../payments/scaPolicy';
 import {
   checkRegionCompatibility,
   regionCurrency,
@@ -234,6 +235,11 @@ export interface CashSaleRecord {
   paymentNonce: string | null;
   paymentRequestedAt: string | null;
   paymentSettledAt: string | null;
+  /**
+   * ESC-03: how many payment attempts have been claimed (0138). Server-only; absent
+   * where the record came from a member-scoped read.
+   */
+  paymentAttempt?: number;
   fulfillmentMethod: FulfillmentMethod | null;
   shippingCostCents: Cents;
   shippingNotes: string | null;
@@ -463,6 +469,12 @@ export type CashSaleResult =
        * so it is flagged for staff before any inspection clock starts.
        */
       flagged?: boolean;
+      /**
+       * ESC-03: the issuer asked for a 3-D Secure challenge. The sale stays
+       * PAYMENT_PENDING; the browser runs `handleNextAction` with this secret and
+       * then calls `confirmCashSalePayment`. Never persisted, never logged.
+       */
+      nextAction?: { clientSecret: string; publishableKey?: string };
     }
   | { ok: false; error: CashSaleError; detail?: string };
 
@@ -606,7 +618,23 @@ export interface CashSaleRepository {
     termsVersion: number;
     nonce: string;
     requestedAt: string;
+    /** ESC-03: the attempt number this claim's nonce was built from. */
+    attempt?: number;
   }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-03: PAYMENT_PENDING back to AGREEMENT after an abandoned challenge was
+   * cancelled at the provider. Guarded on PAYMENT_PENDING; clears the nonce, the
+   * request time and the transfer id; leaves `payment_attempt` so the next claim
+   * uses a fresh key. Optional so older fakes compile.
+   */
+  abandonPayment?(params: { cashSaleId: string }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-03: PAYMENT_PENDING sales whose payment was requested before `before`, for
+   * the abandoned-payment sweep.
+   */
+  listStalePaymentPending?(params: { before: string; limit: number }): Promise<CashSaleRecord[]>;
+  /** ESC-03: the buyer's COMPLETED purchases, for the 3-D Secure policy. */
+  countCompletedPurchases?(buyerId: string): Promise<number>;
   recordPaymentSubmission(params: {
     cashSaleId: string;
     transferId: string;
@@ -899,6 +927,11 @@ export interface PayoutNotifier {
     /** The contract's currency — see {@link PayoutNotifier.releaseSettled}. */
     currency: string;
   }): Promise<void>;
+  /**
+   * ESC-03: the buyer's unfinished payment was cancelled and nothing was charged.
+   * Optional so existing notifier doubles need no change.
+   */
+  paymentAbandoned?(params: { buyerId: string; cashSaleId: string; itemTitle: string }): Promise<void>;
 }
 
 export interface CashSaleOrchestratorDeps {
@@ -1711,12 +1744,47 @@ async function submitClaimedPayment(
   // was no escrow: the money was already gone when a dispute could first arise.
   // Funds now always land in the platform balance and are released explicitly by
   // `payoutCashSaleSeller` once the sale completes (Req 4.3).
+  //
+  // BUYER-PRESENT (ESC-03 layer 2). The buyer just pressed Pay, so the collection is
+  // on-session and the issuer may challenge it. A stolen card number alone then
+  // cannot pay, and a passed challenge moves the fraud liability to the issuer.
+  const completedPurchases = (await deps.repository.countCompletedPurchases?.(sale.buyerId)) ?? 0;
   const transfer = await deps.payments.requestTransfer({
     payerId: target.payerId,
     amount: sale.amountCents,
     ref: `cash-sale:${sale.id}`,
     nonce: sale.paymentNonce,
+    presence: {
+      kind: 'BUYER_PRESENT',
+      threeDS: decideThreeDS({
+        completedPurchases,
+        amountMinor: sale.amountCents,
+        currency: sale.currency,
+      }),
+    },
   });
+
+  if (transfer.status === 'REQUIRES_ACTION') {
+    // Recorded so the challenge can be resumed from a reload or another device
+    // (`getCashSalePaymentAction` reads the intent back by this id) and so the
+    // abandoned-payment sweep can cancel it.
+    const pending = await deps.repository.recordPaymentSubmission({
+      cashSaleId: sale.id,
+      transferId: transfer.transferId,
+    });
+    return {
+      ok: true,
+      sale: pending ?? sale,
+      ...(transfer.clientSecret
+        ? {
+            nextAction: {
+              clientSecret: transfer.clientSecret,
+              ...(transfer.publishableKey ? { publishableKey: transfer.publishableKey } : {}),
+            },
+          }
+        : {}),
+    };
+  }
 
   if (transfer.status === 'FAILED') {
     const failed = await deps.repository.failPayment({
@@ -1846,13 +1914,21 @@ export async function acceptCashSaleTerms(
     if (!recorded) return { ok: false, error: 'INVALID_STATE' };
   }
 
+  // ONE KEY PER ATTEMPT (ESC-03). A key fixed per terms version made a re-pay after
+  // an abandoned challenge replay the provider's cached, cancelled intent for 24h.
+  // `claimPayment` writes `attempt` in the same guarded UPDATE that writes the
+  // nonce, so two concurrent claims compute the same key and only one wins. A
+  // crash-retry of the SAME claim still reuses the persisted `payment_nonce`.
+  const attempt = (sale.paymentAttempt ?? 0) + 1;
   const nonce =
-    deps.createNonce?.() ?? `cash-sale:${sale.id}:terms:${sale.termsVersion}`;
+    deps.createNonce?.() ??
+    `cash-sale:${sale.id}:terms:${sale.termsVersion}:attempt:${attempt}`;
   const claimed = await deps.repository.claimPayment({
     cashSaleId: sale.id,
     termsVersion: sale.termsVersion,
     nonce,
     requestedAt: currentIso(deps),
+    attempt,
   });
   if (!claimed) {
     const current = await deps.repository.loadCashSale(sale.id);
@@ -1924,6 +2000,165 @@ export async function settleCashSale(
   // ESCROW_HELD/HANDOVER, so the action layer can announce the purchase exactly
   // once without re-notifying on a reloaded already-settled sale (FEAT-002).
   return { ok: true, sale: settled, settledNow: true };
+}
+
+/** Fail a PAYMENT_PENDING collection the provider reports as failed, and relist. */
+async function failCollectedPayment(
+  deps: CashSaleOrchestratorDeps,
+  sale: CashSaleRecord,
+): Promise<CashSaleResult> {
+  const failed = await deps.repository.failPayment({ cashSaleId: sale.id });
+  if (!failed) return { ok: false, error: 'INVALID_STATE' };
+  await syncListingStatus(deps, sale, 'AVAILABLE');
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: null,
+    event: 'PAYMENT_FAILED',
+    fromStatus: 'PAYMENT_PENDING',
+    toStatus: 'FAILED',
+  });
+  return { ok: false, error: 'TRANSFER_FAILED', detail: sale.id };
+}
+
+/**
+ * Read a buyer-present collection back after the browser finished a 3-D Secure
+ * challenge (ESC-03). Buyer only. The webhook remains the backstop; this is the
+ * reliable path, for the same reason `refreshPayoutStatus` is on the Connect side.
+ */
+export async function confirmCashSalePayment(
+  deps: CashSaleOrchestratorDeps,
+  params: { actorId: string; cashSaleId: string },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (participantRole(sale, params.actorId) !== 'BUYER') return { ok: false, error: 'NOT_PARTICIPANT' };
+  if (sale.status !== 'PAYMENT_PENDING' || !sale.transferId) return { ok: true, sale };
+  if (!deps.payments.readCollection) return { ok: true, sale };
+
+  const collection = await deps.payments.readCollection(sale.transferId);
+  if (collection.status === 'SETTLED') {
+    return settleCashSale(deps, {
+      cashSaleId: sale.id,
+      paymentRef: sale.transferId,
+      amountReceived: collection.amountReceived,
+    });
+  }
+  if (collection.status === 'FAILED') return failCollectedPayment(deps, sale);
+  return { ok: true, sale };
+}
+
+/**
+ * The challenge secret for a PAYMENT_PENDING sale, so a reload or a second device
+ * can finish it (ESC-03). The secret is never stored: it is read back from the
+ * provider each time, and returned only while a challenge is outstanding.
+ */
+export async function getCashSalePaymentAction(
+  deps: CashSaleOrchestratorDeps,
+  params: { actorId: string; cashSaleId: string },
+): Promise<
+  | { ok: true; clientSecret: string | null; publishableKey?: string }
+  | { ok: false; error: CashSaleError }
+> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (participantRole(sale, params.actorId) !== 'BUYER') return { ok: false, error: 'NOT_PARTICIPANT' };
+  if (sale.status !== 'PAYMENT_PENDING' || !sale.transferId || !deps.payments.readCollection) {
+    return { ok: true, clientSecret: null };
+  }
+  const collection = await deps.payments.readCollection(sale.transferId);
+  return {
+    ok: true,
+    clientSecret: collection.status === 'REQUIRES_ACTION' ? (collection.clientSecret ?? null) : null,
+    ...(collection.status === 'REQUIRES_ACTION' && collection.publishableKey
+      ? { publishableKey: collection.publishableKey }
+      : {}),
+  };
+}
+
+/** How long a buyer-present payment may sit unfinished before the sweep acts. */
+export const ABANDONED_PAYMENT_MINUTES = 30;
+
+/**
+ * The `:47` sweep over PAYMENT_PENDING sales older than {@link ABANDONED_PAYMENT_MINUTES}
+ * (ESC-03). A challenge the buyer walked away from is cancelled and the sale goes back
+ * to AGREEMENT with nothing charged; one that finished meanwhile is settled; a failure
+ * is failed; anything still PENDING is left for the next run. Never throws per sale.
+ */
+export async function sweepAbandonedPayments(
+  deps: CashSaleOrchestratorDeps,
+  params: { limit?: number } = {},
+): Promise<{ settled: number; abandoned: number; failed: number; skipped: number }> {
+  const tally = { settled: 0, abandoned: 0, failed: 0, skipped: 0 };
+  if (!deps.repository.listStalePaymentPending || !deps.payments.readCollection) return tally;
+  const before = new Date(
+    new Date(currentIso(deps)).getTime() - ABANDONED_PAYMENT_MINUTES * 60_000,
+  ).toISOString();
+  const stale = await deps.repository.listStalePaymentPending({ before, limit: params.limit ?? 50 });
+
+  for (const sale of stale) {
+    if (!sale.transferId) {
+      tally.skipped += 1;
+      continue;
+    }
+    const collection = await deps.payments.readCollection(sale.transferId);
+    if (collection.status === 'SETTLED') {
+      const result = await settleCashSale(deps, {
+        cashSaleId: sale.id,
+        paymentRef: sale.transferId,
+        amountReceived: collection.amountReceived,
+      });
+      tally[result.ok ? 'settled' : 'skipped'] += 1;
+      continue;
+    }
+    if (collection.status === 'FAILED') {
+      await failCollectedPayment(deps, sale);
+      tally.failed += 1;
+      continue;
+    }
+    if (collection.status === 'PENDING' || !deps.payments.cancelCollection) {
+      tally.skipped += 1;
+      continue;
+    }
+
+    const cancel = await deps.payments.cancelCollection(sale.transferId);
+    if (cancel.status === 'ALREADY_SETTLED') {
+      const reread = await deps.payments.readCollection(sale.transferId);
+      const result = await settleCashSale(deps, {
+        cashSaleId: sale.id,
+        paymentRef: sale.transferId,
+        amountReceived: reread.amountReceived,
+      });
+      tally[result.ok ? 'settled' : 'skipped'] += 1;
+      continue;
+    }
+    if (cancel.status !== 'CANCELLED' || !deps.repository.abandonPayment) {
+      tally.skipped += 1;
+      continue;
+    }
+    const abandoned = await deps.repository.abandonPayment({ cashSaleId: sale.id });
+    if (!abandoned) {
+      tally.skipped += 1;
+      continue;
+    }
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: null,
+      event: 'PAYMENT_ABANDONED',
+      fromStatus: 'PAYMENT_PENDING',
+      toStatus: 'AGREEMENT',
+    });
+    await notifyQuietly(deps, (notifier) =>
+      notifier.paymentAbandoned
+        ? notifier.paymentAbandoned({
+            buyerId: sale.buyerId,
+            cashSaleId: sale.id,
+            itemTitle: sale.itemTitle,
+          })
+        : Promise.resolve(),
+    );
+    tally.abandoned += 1;
+  }
+  return tally;
 }
 
 /**
@@ -3708,6 +3943,23 @@ export interface CashSaleOrchestrator {
     amountReceived: number;
   }): Promise<CashSaleResult>;
   failCashSale(params: { cashSaleId: string }): Promise<CashSaleResult>;
+  /** ESC-03: read a buyer-present collection back after a 3-D Secure challenge. */
+  confirmPayment(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
+  /** ESC-03: the outstanding challenge secret, read back from the provider. */
+  getPaymentAction(params: {
+    actorId: string;
+    cashSaleId: string;
+  }): Promise<
+    | { ok: true; clientSecret: string | null; publishableKey?: string }
+    | { ok: false; error: CashSaleError }
+  >;
+  /** ESC-03: the `:47` abandoned-payment sweep. */
+  sweepAbandonedPayments(params?: { limit?: number }): Promise<{
+    settled: number;
+    abandoned: number;
+    failed: number;
+    skipped: number;
+  }>;
   /** Release escrowed proceeds to the Seller on a COMPLETED sale (Req 4.3). */
   payoutSeller(params: { cashSaleId: string }): Promise<CashSaleResult>;
   /** Resolve a disputed sale: refund, part-refund, or release (Req 4.15). */
@@ -3832,6 +4084,9 @@ export function createCashSaleOrchestrator(
     acceptTerms: (params) => acceptCashSaleTerms(deps, params),
     settleCashSale: (params) => settleCashSale(deps, params),
     failCashSale: (params) => failCashSale(deps, params),
+    confirmPayment: (params) => confirmCashSalePayment(deps, params),
+    getPaymentAction: (params) => getCashSalePaymentAction(deps, params),
+    sweepAbandonedPayments: (params) => sweepAbandonedPayments(deps, params),
     payoutSeller: (params) => payoutCashSaleSeller(deps, params),
     resolveDispute: (params) => resolveCashSaleDispute(deps, params),
     processDuePayouts: (params) => processDueCashSalePayouts(deps, params),

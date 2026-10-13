@@ -133,6 +133,24 @@ async function runPayoutPass(request: Request): Promise<Response> {
           });
         }
 
+        // ESC-03: buyer-present payments left unfinished for 30 min (an abandoned
+        // 3-D Secure check) are cancelled and returned to AGREEMENT, or settled when
+        // the check finished meanwhile. A read against another region's account
+        // reports PENDING and is simply skipped, so per-region passes are safe.
+        try {
+          const swept = await orchestrator.sweepAbandonedPayments();
+          if (swept.abandoned + swept.settled + swept.failed > 0) {
+            console.info(`[jobs] abandoned payments (${region})`, swept);
+          }
+        } catch (error) {
+          drainReports.push({
+            name: 'job.cash-sale-payouts.abandoned-payments',
+            errorCode: 'THREW',
+            error,
+            context: { region },
+          });
+        }
+
         // Money leaving CAPTURED trade collateral (0133): refunds to the hold's owner
         // and payouts to a wronged trader, each through releasePolicy. Isolated like
         // the refunds above.

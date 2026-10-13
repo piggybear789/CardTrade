@@ -152,6 +152,9 @@ export type Database = {
           email_payouts: boolean;
           /** Disputes this member raised that staff found UNFOUNDED (0133). Service-role write. */
           unfounded_dispute_count: number;
+          /** ESC-03 / ESC-14 (0138). Service-role only; no member grant. */
+          exposure_limit_override_minor: number | null;
+          buyer_risk_flagged_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -206,6 +209,8 @@ export type Database = {
           email_shipping_updates?: boolean;
           email_payouts?: boolean;
           unfounded_dispute_count?: number;
+          exposure_limit_override_minor?: number | null;
+          buyer_risk_flagged_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -260,6 +265,8 @@ export type Database = {
           email_shipping_updates?: boolean;
           email_payouts?: boolean;
           unfounded_dispute_count?: number;
+          exposure_limit_override_minor?: number | null;
+          buyer_risk_flagged_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -925,6 +932,8 @@ export type Database = {
           seller_payout_release_at: string | null;
           seller_payout_hold_reason: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
           fraud_warning_received_at: string | null;
+          /** ESC-03: per-attempt payment idempotency (0138). Server-only. */
+          payment_attempt: number;
           /** Return-conditional refund leg (0088). Separate from the outbound
               columns above so a return event cannot overwrite the original
               delivery record that inspection and arbitration depend on. */
@@ -1051,6 +1060,7 @@ export type Database = {
           seller_payout_release_at?: string | null;
           seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
           fraud_warning_received_at?: string | null;
+          payment_attempt?: number;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;
@@ -1155,6 +1165,7 @@ export type Database = {
           seller_payout_release_at?: string | null;
           seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
           fraud_warning_received_at?: string | null;
+          payment_attempt?: number;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;

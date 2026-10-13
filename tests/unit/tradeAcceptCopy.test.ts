@@ -1,3 +1,4 @@
+import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
 import { formatMoney } from '@/lib/format';
 // tests/unit/tradeAcceptCopy.test.ts
 //
@@ -38,6 +39,15 @@ describe('tradeAcceptCopy', () => {
   });
 
   // ESC-05: the cash sentence is for the paying viewer only.
+  it('tells the payer of a converted leg about the conversion fee, and only them', () => {
+    const payer = tradeAcceptCopy({ cashMinor: 5_000, payerIsViewer: true, bondMinor: 50_000, currency: 'eur' });
+    expect(payer.description).toContain(`plus a ${formatMoney(currencyConversionFeeFor(5_000, 'eur'), 'eur')} currency conversion fee`);
+    const aud = tradeAcceptCopy({ cashMinor: 5_000, payerIsViewer: true, bondMinor: 50_000, currency: 'aud' });
+    expect(aud.description).not.toMatch(/conversion fee/);
+    const receiver = tradeAcceptCopy({ cashMinor: 5_000, payerIsViewer: false, bondMinor: 50_000, currency: 'eur' });
+    expect(receiver.description).not.toMatch(/conversion fee/);
+  });
+
   it('tells the paying viewer to pay the cash before the hold', () => {
     const payer = tradeAcceptCopy({ cashMinor: 2_000, payerIsViewer: true, bondMinor: 50_000, currency: 'aud' });
     expect(payer.description).toContain(`pay the ${formatMoney(2_000, 'aud')} cash before the hold`);

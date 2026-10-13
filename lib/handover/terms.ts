@@ -14,6 +14,13 @@
 
 import { formatAud, formatMoney } from '@/lib/format';
 import { tradeFeeRateLabel } from '@/lib/fees/feeLabels';
+import { FX_FEE_BPS, currencyConversionFeeFor } from '@/domain/fees/fxFee';
+
+/** "2%", from the rate the conversion fee is charged at (lib may not import components). */
+function fxFeeRateLabel(): string {
+  const percent = FX_FEE_BPS / 100;
+  return `${Number.isInteger(percent) ? percent : percent.toFixed(1)}%`;
+}
 import {
   areFulfilmentTermsComplete,
   BOND_PLACEMENT_LEAD_HOURS,
@@ -47,10 +54,15 @@ export function tradeAcceptCopy(params: {
 }): TradeAcceptCopy {
   const rate = tradeFeeRateLabel(params.currency);
   const hold = params.bondMinor === null ? 'a temporary card hold' : `a temporary card hold of ${formatMoney(params.bondMinor, params.currency)}`;
-  // ESC-05: only the trader who pays the cash is told to pay it, and when.
+  // ESC-05: only the trader who pays the cash is told to pay it, and when. On a converted
+  // leg they also pay the Currency_Conversion fee; the platform never absorbs it.
+  const fxFeeMinor = currencyConversionFeeFor(params.cashMinor, params.currency);
   const cashSentence =
     params.cashMinor > 0 && params.payerIsViewer
-      ? ` You then pay the ${formatMoney(params.cashMinor, params.currency)} cash before the hold goes on. ` +
+      ? ` You then pay the ${formatMoney(params.cashMinor, params.currency)} cash before the hold goes on` +
+        (fxFeeMinor > 0
+          ? `, plus a ${formatMoney(fxFeeMinor, params.currency)} currency conversion fee (${fxFeeRateLabel()}, not refunded). `
+          : '. ') +
         'NoDitto holds it until the trade completes, and refunds it if the trade is cancelled.'
       : '';
   return {

@@ -1954,6 +1954,8 @@ export type Database = {
           payer_id: string;
           receiver_id: string;
           amount_minor: number;
+          /** Currency_Conversion fee charged at collection (0151). */
+          fx_fee_minor: number;
           currency: string;
           status: TradeCashSettlementStatus;
           collection_attempt: number;
@@ -1978,6 +1980,7 @@ export type Database = {
           payer_id: string;
           receiver_id: string;
           amount_minor: number;
+          fx_fee_minor?: number;
           currency: string;
           status?: TradeCashSettlementStatus;
           collection_attempt?: number;
@@ -2002,6 +2005,7 @@ export type Database = {
           payer_id?: string;
           receiver_id?: string;
           amount_minor?: number;
+          fx_fee_minor?: number;
           currency?: string;
           status?: TradeCashSettlementStatus;
           collection_attempt?: number;

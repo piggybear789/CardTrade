@@ -36,6 +36,8 @@ export interface CurrencyNoticeProps {
   amountMinor: number;
   /** The buyer's own region currency, when known, to decide the bank note. */
   buyerCurrency?: string | null;
+  /** Who is paid the agreed figure, and what it is called. Defaults to a cash sale. */
+  recipient?: { who: string; what: string };
   className?: string;
 }
 
@@ -43,7 +45,13 @@ export interface CurrencyNoticeProps {
  * What the buyer pays in, and any conversion cost. Renders nothing when there is
  * nothing to disclose: same currency as the buyer's region and no conversion fee.
  */
-export function CurrencyNotice({ currency, amountMinor, buyerCurrency, className }: CurrencyNoticeProps) {
+export function CurrencyNotice({
+  currency,
+  amountMinor,
+  buyerCurrency,
+  recipient = { who: 'the seller', what: 'the agreed price' },
+  className,
+}: CurrencyNoticeProps) {
   const code = currency.trim().toUpperCase();
   const fxFee = currencyConversionFeeFor(amountMinor, currency);
   const buyerCode = buyerCurrency?.trim().toUpperCase() || null;
@@ -66,7 +74,7 @@ export function CurrencyNotice({ currency, amountMinor, buyerCurrency, className
         {fxFee > 0 ? (
           <p className="text-muted-foreground">
             Includes a {formatMoney(fxFee, currency)} currency conversion fee ({fxFeeRateLabel()}). It
-            covers converting your payment so the seller receives exactly the agreed price, and it is
+            covers converting your payment so {recipient.who} receives exactly {recipient.what}, and it is
             not refunded.
           </p>
         ) : null}

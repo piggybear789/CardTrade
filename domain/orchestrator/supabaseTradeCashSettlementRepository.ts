@@ -31,6 +31,7 @@ function toRecord(row: Row): TradeCashSettlementRecord {
     payerId: row.payer_id,
     receiverId: row.receiver_id,
     amountMinor: Number(row.amount_minor),
+    fxFeeMinor: Number(row.fx_fee_minor ?? 0),
     currency: row.currency,
     status: row.status,
     collectionAttempt: Number(row.collection_attempt ?? 0),
@@ -56,6 +57,7 @@ function toColumns(patch: TradeCashPatch = {}): Partial<Row> {
   if (patch.refundNonce !== undefined) out.refund_nonce = patch.refundNonce;
   if (patch.cancelFailures !== undefined) out.cancel_failures = patch.cancelFailures;
   if (patch.attempts !== undefined) out.attempts = patch.attempts;
+  if (patch.fxFeeMinor !== undefined) out.fx_fee_minor = patch.fxFeeMinor;
   if (patch.releaseRef !== undefined) out.release_ref = patch.releaseRef;
   if (patch.refundRef !== undefined) out.refund_ref = patch.refundRef;
   if (patch.releaseAt !== undefined) out.release_at = patch.releaseAt;

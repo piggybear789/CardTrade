@@ -28,6 +28,8 @@ import {
   type TradeCashActionResult,
 } from '@/lib/actions/tradeNegotiation';
 import { formatContractDateTime, formatMoney } from '@/lib/format';
+import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
+import { CurrencyNotice } from '@/components/payments/CurrencyNotice';
 import type { TradeCashSettlementStatus, Tables } from '@/lib/supabase/database.types';
 
 /** What the room needs to know about the cash leg. Read under RLS by the page. */
@@ -78,6 +80,11 @@ export function TradeCashLeg({
   const [isPending, startTransition] = useTransition();
   const amount = formatMoney(cashAmountCents, trade.currency);
   const iPay = cashDirection === 'outgoing';
+  // The payer pays the Currency_Conversion fee on a converted leg, as a cash-sale buyer
+  // does. Same function the charge uses, so the button and the card agree. The receiver
+  // gets exactly the agreed cash.
+  const fxFeeCents = currencyConversionFeeFor(cashAmountCents, trade.currency);
+  const payTotal = formatMoney(cashAmountCents + fxFeeCents, trade.currency);
   const payBy = formatContractDateTime(leg.payBy) ?? leg.payBy;
   const awaitingPayment =
     trade.state === 'COLLATERAL_PENDING' && (leg.status === 'NOT_COLLECTED' || leg.status === 'COLLECTING');
@@ -110,7 +117,7 @@ export function TradeCashLeg({
   let title: string;
   let body: string;
   if (awaitingPayment) {
-    title = iPay ? `Pay ${amount} to lock the trade` : `Waiting for the other trader to pay ${amount}`;
+    title = iPay ? `Pay ${payTotal} to lock the trade` : `Waiting for the other trader to pay ${amount}`;
     body = iPay
       ? `NoDitto holds the cash until the trade completes, then releases it to the other trader. Pay by ${payBy}, or the trade is cancelled. The card holds go on after you pay.`
       : `They pay by ${payBy}. NoDitto holds the cash until the trade completes, then releases it to you.`;
@@ -135,7 +142,11 @@ export function TradeCashLeg({
     body = iPay ? 'The other trader has been paid.' : 'It has been paid to your payout account.';
   } else if (leg.status === 'REFUND_PENDING' || leg.status === 'REFUNDED') {
     title = leg.status === 'REFUNDED' ? `Cash of ${amount} refunded` : `Cash of ${amount} is being refunded`;
-    body = iPay ? 'It goes back to the card you paid with.' : 'The trade did not go ahead, so the payer is refunded.';
+    body = iPay
+      ? fxFeeCents > 0
+        ? `The ${amount} goes back to the card you paid with. The currency conversion fee is not refunded.`
+        : 'It goes back to the card you paid with.'
+      : 'The trade did not go ahead, so the payer is refunded.';
   } else {
     return null;
   }
@@ -144,10 +155,18 @@ export function TradeCashLeg({
     <div className="rounded-lg border border-border bg-muted px-group py-cozy text-body">
       <p className="font-medium">{title}</p>
       <p className="mt-tight text-muted-foreground">{body}</p>
+      {awaitingPayment && iPay && fxFeeCents > 0 ? (
+        <CurrencyNotice
+          currency={trade.currency}
+          amountMinor={cashAmountCents}
+          recipient={{ who: 'the other trader', what: 'the agreed cash' }}
+          className="mt-cozy"
+        />
+      ) : null}
       {awaitingPayment && iPay ? (
         <Button type="button" size="sm" className="mt-cozy" disabled={isPending} onClick={pay}>
           <PendingLabel pending={isPending} pendingLabel="Paying…" spinner={false}>
-            {leg.status === 'COLLECTING' ? 'Complete payment' : `Pay ${amount}`}
+            {leg.status === 'COLLECTING' ? 'Complete payment' : `Pay ${payTotal}`}
           </PendingLabel>
         </Button>
       ) : null}

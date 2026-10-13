@@ -23,6 +23,7 @@
 
 import type { PaymentService } from '../services/types';
 import { decideThreeDS } from '../payments/scaPolicy';
+import { currencyConversionFeeFor } from '../fees/fxFee';
 import { BOND_PLACEMENT_LEAD_HOURS } from '../fulfilment/inspection';
 import { decideRelease, type ReleaseFacts } from '../payouts/releasePolicy';
 
@@ -41,6 +42,11 @@ export interface TradeCashSettlementRecord {
   payerId: string;
   receiverId: string;
   amountMinor: number;
+  /**
+   * Currency_Conversion fee the payer was charged on top of `amountMinor` (0151).
+   * Zero for a leg in its platform's settlement currency. Not refunded.
+   */
+  fxFeeMinor: number;
   currency: string;
   status: TradeCashStatus;
   collectionAttempt: number;
@@ -67,6 +73,7 @@ export type TradeCashPatch = Partial<
     | 'refundNonce'
     | 'cancelFailures'
     | 'attempts'
+    | 'fxFeeMinor'
   >
 > & { releaseRef?: string | null; refundRef?: string | null; releaseAt?: string | null; lastError?: string | null };
 
@@ -204,10 +211,19 @@ export async function payTradeCash(
   if (!claimed) return { ok: false, error: 'CONCURRENT' };
 
   const completedPurchases = (await deps.repository.countCompletedPurchases?.(record.payerId)) ?? 0;
+  // The PAYER pays the Currency_Conversion fee, as a cash-sale buyer does: the platform
+  // never absorbs the conversion, and the receiver gets exactly the agreed cash. Derived
+  // by the same function the trade room discloses it with, so the two cannot disagree.
+  const fxFeeMinor = currencyConversionFeeFor(record.amountMinor, record.currency);
+  if (fxFeeMinor !== record.fxFeeMinor) {
+    // Recorded BEFORE the charge, so the figure on the row is the figure charged.
+    const recorded = await deps.repository.patch(params.tradeId, 'COLLECTING', { fxFeeMinor });
+    if (!recorded) return { ok: false, error: 'CONCURRENT' };
+  }
   // No `merchantRef`: collected into the platform balance, released later.
   const transfer = await deps.payments.requestTransfer({
     payerId: payerRef,
-    amount: record.amountMinor,
+    amount: record.amountMinor + fxFeeMinor,
     // Charged in the trade's own currency. Omitted, the binding charges the platform's
     // settlement currency, so a EUR leg on the US platform was taken as USD.
     currency: record.currency,

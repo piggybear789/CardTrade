@@ -24,6 +24,7 @@ import {
 } from '@/domain/orchestrator/tradeCashSettlement';
 import { createSettlementTableTradeCashLeg, createLegacyTradeCashLeg } from '@/domain/orchestrator/tradeCashLeg';
 import { InMemoryService } from '@/domain/services/testing/InMemoryService';
+import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
 
 const T0 = Date.parse('2026-10-13T00:00:00.000Z');
 const HOUR = 3_600_000;
@@ -37,6 +38,7 @@ function harness(overrides: {
   payBy?: string;
   status?: TradeCashStatus;
   payerRef?: string | null;
+  currency?: string;
 } = {}) {
   let now = T0;
   const trade = {
@@ -49,7 +51,8 @@ function harness(overrides: {
     payerId: PAYER,
     receiverId: RECEIVER,
     amountMinor: 5_000,
-    currency: 'aud',
+    fxFeeMinor: 0,
+    currency: overrides.currency ?? 'aud',
     status: overrides.status ?? 'NOT_COLLECTED',
     collectionAttempt: 0,
     collectionRef: null,
@@ -130,6 +133,23 @@ describe('payTradeCash (ESC-05)', () => {
     expect(h.row.status).toBe('COLLECTED');
     expect(h.payments.transfers).toHaveLength(1);
     expect(h.payments.payouts).toHaveLength(0);
+  });
+
+  it('charges the payer the Currency_Conversion fee on a converted leg, and records it', async () => {
+    const h = harness({ currency: 'eur' });
+    const result = await payTradeCash(h.deps, { actorId: PAYER, tradeId: TRADE });
+    expect(result.ok).toBe(true);
+    const fee = currencyConversionFeeFor(5_000, 'eur');
+    expect(fee).toBeGreaterThan(0);
+    expect(h.payments.transfers[0].amount).toBe(5_000 + fee);
+    expect(h.row.fxFeeMinor).toBe(fee);
+  });
+
+  it('charges no conversion fee on a leg in the platform currency', async () => {
+    const h = harness({ currency: 'aud' });
+    await payTradeCash(h.deps, { actorId: PAYER, tradeId: TRADE });
+    expect(h.payments.transfers[0].amount).toBe(5_000);
+    expect(h.row.fxFeeMinor).toBe(0);
   });
 
   it('only the payer may pay', async () => {

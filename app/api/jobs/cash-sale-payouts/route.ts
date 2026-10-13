@@ -20,6 +20,8 @@ import { timingSafeEqual } from 'node:crypto';
 
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { createDefaultCollateralDisbursementDrain } from '@/domain/orchestrator/supabaseCollateralDisbursementRepository';
+import { drainTradeCash } from '@/domain/orchestrator/tradeCashSettlement';
+import { createDefaultTradeCashDeps } from '@/domain/orchestrator/supabaseTradeCashSettlementRepository';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { regionCurrency } from '@/domain/region';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
@@ -82,6 +84,7 @@ async function runPayoutPass(request: Request): Promise<Response> {
     // now nothing retried one that failed, which for a partial refund meant never.
     const refunds = { considered: 0, settled: 0, stillOwed: 0 };
     const collateral = { considered: 0, settled: 0, deferred: 0, failed: 0 };
+    const tradeCash = { released: 0, refunded: 0, deferred: 0, failed: 0 };
     const failures: string[] = [];
 
     // Every per-sale failure the drains report, written to the error log (0123) once
@@ -151,6 +154,34 @@ async function runPayoutPass(request: Request): Promise<Response> {
           });
         }
 
+        // ESC-05 / ESC-06: trade cash legs the platform holds. Releases to the
+        // receiver through the release policy, refunds to the payer, and unfinished
+        // 3-D Secure checks older than 30 minutes cancelled. Isolated like the rest.
+        try {
+          const cash = await drainTradeCash(createDefaultTradeCashDeps(getPaymentService(region)), {
+            currency: regionCurrency(region) ?? undefined,
+            onFailure: ({ tradeId, error, detail }) => {
+              drainReports.push({
+                name: error === 'REFUND_FAILED' ? 'trade_cash.refund' : 'trade_cash.release',
+                errorCode: error,
+                message: detail ?? `Trade cash ${error}`,
+                context: { tradeId, region },
+              });
+            },
+          });
+          tradeCash.released += cash.released;
+          tradeCash.refunded += cash.refunded;
+          tradeCash.deferred += cash.deferred;
+          tradeCash.failed += cash.failed;
+        } catch (error) {
+          drainReports.push({
+            name: 'trade_cash.drain',
+            errorCode: 'THREW',
+            error,
+            context: { region },
+          });
+        }
+
         // Money leaving CAPTURED trade collateral (0133): refunds to the hold's owner
         // and payouts to a wronged trader, each through releasePolicy. Isolated like
         // the refunds above.
@@ -210,6 +241,7 @@ async function runPayoutPass(request: Request): Promise<Response> {
       ...totals,
       refunds,
       collateral,
+      tradeCash,
       ...(failures.length > 0 ? { failedRegions: failures } : {}),
     });
   } catch (error) {

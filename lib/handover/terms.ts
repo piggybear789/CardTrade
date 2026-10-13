@@ -36,8 +36,8 @@ export interface TradeAcceptCopy {
  * expire on an open problem IS charged, then refunded or paid out. Never "escrow",
  * never "not charged".
  *
- * `cashMinor` / `payerIsViewer` are accepted now and used by WP2 (ESC-05), which adds
- * the cash-payment sentence; until then no cash sentence is emitted.
+ * `cashMinor` / `payerIsViewer` add the cash-payment sentence (ESC-05), for the paying
+ * viewer only: the receiver pays nothing and is not told to.
  */
 export function tradeAcceptCopy(params: {
   cashMinor: number;
@@ -47,10 +47,17 @@ export function tradeAcceptCopy(params: {
 }): TradeAcceptCopy {
   const rate = tradeFeeRateLabel(params.currency);
   const hold = params.bondMinor === null ? 'a temporary card hold' : `a temporary card hold of ${formatMoney(params.bondMinor, params.currency)}`;
+  // ESC-05: only the trader who pays the cash is told to pay it, and when.
+  const cashSentence =
+    params.cashMinor > 0 && params.payerIsViewer
+      ? ` You then pay the ${formatMoney(params.cashMinor, params.currency)} cash before the hold goes on. ` +
+        'NoDitto holds it until the trade completes, and refunds it if the trade is cancelled.'
+      : '';
   return {
     description:
       `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting ` +
-      `(or straight away if it's sooner) we place ${hold} and charge the ${rate} fee.`,
+      `(or straight away if it's sooner) we place ${hold} and charge the ${rate} fee.` +
+      cashSentence,
     collateralHint:
       "A temporary card hold, not a charge. Make sure your card's available limit covers it. " +
       "It's released when the trade completes. If a problem is still open when the hold is about " +

@@ -803,7 +803,12 @@ export async function resolveTradeDispute(
   // ---- 5. The cash leg ---------------------------------------------------
   const hasCash = Number(trade.cash_amount_cents ?? 0) > 0;
   if (hasCash && deps.cashLeg) {
-    const cash = await deps.cashLeg.settleForOutcome(params.tradeId, outcome.kind);
+    const cash = await deps.cashLeg.settleForOutcome(
+      params.tradeId,
+      outcome.kind,
+      // ESC-06: on FRAUD the collected cash goes to whichever side was wronged.
+      outcome.kind === 'FRAUD' ? { victimId: outcome.victimId } : undefined,
+    );
     if (cash.manualReconciliation) {
       manualReconciliation = true;
       await repository.flagManualReconciliation({ tradeId: params.tradeId });

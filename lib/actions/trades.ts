@@ -421,6 +421,17 @@ export const retrySettleTradeCash = withActionLog('trades.retrySettleTradeCash',
     return { ok: true };
   }
 
+  // ESC-06: LEGACY TRADES ONLY. A trade with a cash leg row has its cash held by the
+  // platform and released by the `:47` drain; charging the payer again here would
+  // take the cash twice. Kept (rather than deleted) so a completed trade agreed
+  // before the switch is not stranded with no way to settle.
+  const { data: leg } = await createAdminClient()
+    .from('trade_cash_settlements')
+    .select('trade_id')
+    .eq('trade_id', tradeId)
+    .maybeSingle();
+  if (leg) return { ok: false, error: 'not-permitted' };
+
   const settled = await settleTradeCash(trade);
   if (!settled.ok) {
     return { ok: false, error: settled.error, detail: settled.detail };

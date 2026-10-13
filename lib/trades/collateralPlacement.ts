@@ -41,6 +41,15 @@ import { confirmTradeCollateral } from './collateralLock';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { createNotification } from '@/lib/notifications/createNotification';
 import type { Tables } from '@/lib/supabase/database.types';
+import {
+  queueTradeCashRefund,
+  resolveCashAtPayBy,
+  settleCashBeforeAbandon,
+} from '@/domain/orchestrator/tradeCashSettlement';
+import {
+  createDefaultTradeCashDeps,
+  ensureTradeCashSettlement,
+} from '@/domain/orchestrator/supabaseTradeCashSettlementRepository';
 
 type TradeRow = Tables<'trades'>;
 
@@ -52,7 +61,11 @@ export type CollateralPlacementError =
   | 'payer-not-found'
   | 'hold-failed'
   | 'side-unvalued'
-  | 'failed';
+  | 'failed'
+  /** ESC-05: the cash leg is not paid yet and its deadline has not passed. Quiet. */
+  | 'cash-pending'
+  /** ESC-05: the cash leg was not paid by its deadline; the trade was abandoned. */
+  | 'cash-not-collected';
 
 export type CollateralPlacementResult =
   | { ok: true; alreadyActive: boolean }
@@ -190,6 +203,43 @@ export async function placeTradeCollateral(params: {
   const repository = createSupabaseTradeProposalRepository(admin);
   const payments = getPaymentService(await regionForTrade(tradeId));
   const orchestrator = createLoggedTradeOrchestrator({ payments });
+
+  // CASH FIRST (ESC-05). A trade with a cash leg is never authorised until the payer
+  // has paid it buyer-present: collateral covers the goods, and the cash is held by
+  // the platform. Before `pay_by` an unpaid leg simply waits; after it, the trade is
+  // abandoned (a payment still in flight is cancelled first, never abandoned over).
+  if (Number(trade.cash_amount_cents ?? 0) > 0) {
+    if (!(await ensureTradeCashSettlement(trade, admin))) {
+      return { ok: false, error: 'failed', message: 'The trade cash could not be checked. Try again shortly.' };
+    }
+    const cashDeps = createDefaultTradeCashDeps(payments);
+    const decision = await resolveCashAtPayBy(cashDeps, { tradeId });
+    if (decision.kind === 'WAIT') {
+      if (decision.flagged) {
+        await admin.from('trades').update({ manual_reconciliation: true }).eq('id', tradeId);
+        await logBackgroundFailure({
+          name: 'trade_cash.cancel',
+          errorCode: 'TRADE_CASH_CANCEL_FAILED',
+          message: 'The unfinished trade cash payment could not be cancelled after repeated attempts.',
+          context: { tradeId },
+        });
+      }
+      return {
+        ok: false,
+        error: 'cash-pending',
+        message: 'The agreed cash has not been paid yet, so the card holds are waiting for it.',
+      };
+    }
+    if (decision.kind === 'ABANDON') {
+      await abandonCollateralPendingTrade(tradeId, 'PAY_BY_PASSED');
+      return {
+        ok: false,
+        error: 'cash-not-collected',
+        message: 'The agreed cash was not paid in time, so the trade was cancelled.',
+      };
+    }
+  }
+
   const existing = await repository.getHolds(tradeId);
 
   // Already authorised and just never confirmed — the process died between placing
@@ -309,11 +359,22 @@ export async function abandonCollateralPendingTrade(
   const trade = row as { id: string; state: string; initiator_id: string; counterpart_id: string } | null;
   if (!trade || trade.state !== 'COLLATERAL_PENDING') return { ok: true, abandoned: false, reason: 'NOT_PENDING' };
 
-  // 1. WP2 (ESC-05): resolve the trade cash row here before anything else.
-
-  // 2. Void live holds first. One trader's hold can be live while the other's failed.
   const repository = createSupabaseTradeProposalRepository(admin);
   const payments = getPaymentService(await regionForTrade(tradeId));
+  const cashDeps = createDefaultTradeCashDeps(payments);
+
+  // 1. ESC-05: never end a trade over a cash payment that may still succeed.
+  if ((await settleCashBeforeAbandon(cashDeps, { tradeId })) === 'STOP') {
+    await logBackgroundFailure({
+      name: 'trade_cash.cancel',
+      errorCode: 'TRADE_CASH_CANCEL_FAILED',
+      message: `Abandon (${reason}) deferred: an unfinished cash payment could not be cancelled.`,
+      context: { tradeId },
+    });
+    return { ok: false, error: 'TRANSITION_FAILED', detail: 'cash-in-flight' };
+  }
+
+  // 2. Void live holds first. One trader's hold can be live while the other's failed.
   for (const hold of await repository.getHolds(tradeId)) {
     if (hold.status !== 'ACTIVE') continue;
     const voided = await payments.voidHold(hold.holdRef);
@@ -362,7 +423,13 @@ export async function abandonCollateralPendingTrade(
     await logBackgroundFailure({ name: 'trade.fee_refund', errorCode: 'REFUND_FAILED', error, context: { tradeId } });
   }
 
-  // 6. WP2 (ESC-05): a COLLECTED cash row moves to REFUND_PENDING here.
+  // 6. ESC-05: a COLLECTED cash leg is refunded by the `:47` drain. (A collection
+  // landing after this point is refunded by the 0139 trigger instead.)
+  try {
+    await queueTradeCashRefund(cashDeps, { tradeId });
+  } catch (error) {
+    await logBackgroundFailure({ name: 'trade_cash.refund', errorCode: 'WRITE_FAILED', error, context: { tradeId } });
+  }
 
   // 7. Both traders.
   for (const userId of [trade.initiator_id, trade.counterpart_id]) {

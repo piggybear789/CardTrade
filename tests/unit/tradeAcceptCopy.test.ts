@@ -34,9 +34,17 @@ describe('tradeAcceptCopy', () => {
     expect(copy.collateralHint).toMatch(/charged and then refunded or paid out/);
   });
 
-  it('emits no cash sentence before WP2', () => {
+  // ESC-05: the cash sentence is for the paying viewer only.
+  it('tells the paying viewer to pay the cash before the hold', () => {
     const payer = tradeAcceptCopy({ cashMinor: 2_000, payerIsViewer: true, bondMinor: 50_000, currency: 'aud' });
-    expect(payer.description).not.toMatch(/pay \$20/i);
+    expect(payer.description).toMatch(/pay the \$20(\.00)? cash before the hold/i);
+    expect(payer.description).toMatch(/refunds it if the trade is cancelled/);
+  });
+
+  it('says nothing about paying cash to the receiver or on a cash-free trade', () => {
+    const receiver = tradeAcceptCopy({ cashMinor: 2_000, payerIsViewer: false, bondMinor: 50_000, currency: 'aud' });
+    expect(receiver.description).not.toMatch(/cash/i);
+    expect(copy.description).not.toMatch(/cash/i);
   });
 
   it('names the card limit in the decline message', () => {

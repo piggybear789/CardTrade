@@ -26,6 +26,17 @@
 // Insert marks columns optional when they have a default or are nullable.
 // Update marks every column optional.
 
+/** `trade_cash_settlements.status` (0139). */
+export type TradeCashSettlementStatus =
+  | 'NOT_COLLECTED'
+  | 'COLLECTING'
+  | 'COLLECTED'
+  | 'RELEASE_PENDING'
+  | 'RELEASED'
+  | 'REFUND_PENDING'
+  | 'REFUNDED'
+  | 'FAILED';
+
 export type Json =
   | string
   | number
@@ -1830,6 +1841,86 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      /**
+       * A trade's cash leg (0139, ESC-05/06): collected buyer-present before any
+       * collateral hold, held by the platform, released or refunded by the outcome.
+       * Service-role writes; participants and staff may read.
+       */
+      trade_cash_settlements: {
+        Row: {
+          trade_id: string;
+          payer_id: string;
+          receiver_id: string;
+          amount_minor: number;
+          currency: string;
+          status: TradeCashSettlementStatus;
+          collection_attempt: number;
+          collection_ref: string | null;
+          collection_requested_at: string | null;
+          collected_at: string | null;
+          pay_by: string;
+          release_nonce: string | null;
+          release_ref: string | null;
+          release_at: string | null;
+          hold_reason: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          refund_nonce: string | null;
+          refund_ref: string | null;
+          cancel_failures: number;
+          attempts: number;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          trade_id: string;
+          payer_id: string;
+          receiver_id: string;
+          amount_minor: number;
+          currency: string;
+          status?: TradeCashSettlementStatus;
+          collection_attempt?: number;
+          collection_ref?: string | null;
+          collection_requested_at?: string | null;
+          collected_at?: string | null;
+          pay_by: string;
+          release_nonce?: string | null;
+          release_ref?: string | null;
+          release_at?: string | null;
+          hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          refund_nonce?: string | null;
+          refund_ref?: string | null;
+          cancel_failures?: number;
+          attempts?: number;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          trade_id?: string;
+          payer_id?: string;
+          receiver_id?: string;
+          amount_minor?: number;
+          currency?: string;
+          status?: TradeCashSettlementStatus;
+          collection_attempt?: number;
+          collection_ref?: string | null;
+          collection_requested_at?: string | null;
+          collected_at?: string | null;
+          pay_by?: string;
+          release_nonce?: string | null;
+          release_ref?: string | null;
+          release_at?: string | null;
+          hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          refund_nonce?: string | null;
+          refund_ref?: string | null;
+          cancel_failures?: number;
+          attempts?: number;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       /**
        * Every movement out of a captured trade hold (0133): refund, payout to a

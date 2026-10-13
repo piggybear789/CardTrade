@@ -22,7 +22,16 @@ import type {
   DisputeNotifier,
   DisputeResolutionOrchestrator,
 } from '@/domain/orchestrator/disputeResolution';
-import { createLegacyTradeCashLeg } from '@/domain/orchestrator/tradeCashLeg';
+import {
+  createLegacyTradeCashLeg,
+  createSettlementTableTradeCashLeg,
+} from '@/domain/orchestrator/tradeCashLeg';
+import {
+  closeUncollectedTradeCash,
+  queueTradeCashRefund,
+  queueTradeCashRelease,
+} from '@/domain/orchestrator/tradeCashSettlement';
+import { createDefaultTradeCashDeps } from '@/domain/orchestrator/supabaseTradeCashSettlementRepository';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { formatMoney } from '@/lib/format';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
@@ -95,6 +104,21 @@ async function settleLegacyCashLeg(tradeId: string): Promise<void> {
   await settleTradeCash(data as Tables<'trades'>);
 }
 
+/** The settlement-table cash leg (ESC-06), with the legacy leg as its fallback. */
+function tradeCashLegFor(payments: ReturnType<typeof getPaymentService>) {
+  const deps = createDefaultTradeCashDeps(payments);
+  return createSettlementTableTradeCashLeg({
+    async loadSettlement(tradeId) {
+      const row = await deps.repository.load(tradeId);
+      return row ? { payerId: row.payerId, receiverId: row.receiverId, status: row.status } : null;
+    },
+    queueRelease: (tradeId) => queueTradeCashRelease(deps, { tradeId }),
+    queueRefund: (tradeId) => queueTradeCashRefund(deps, { tradeId }),
+    closeUncollected: (tradeId) => closeUncollectedTradeCash(deps, { tradeId }),
+    legacy: createLegacyTradeCashLeg({ settleTradeCash: settleLegacyCashLeg }),
+  });
+}
+
 /** Refund both Trade_Fees; a failure is logged and retried by the fee drain. */
 async function refundFeesLogged(tradeId: string): Promise<{ ok: boolean; detail?: string }> {
   try {
@@ -117,7 +141,9 @@ export function createLoggedDisputeOrchestrator(region?: string | null): Dispute
   return createDefaultDisputeResolutionOrchestrator({
     orchestrator: createLoggedTradeOrchestrator({ payments }),
     payments,
-    cashLeg: createLegacyTradeCashLeg({ settleTradeCash: settleLegacyCashLeg }),
+    // ESC-06: the collected cash is routed by the outcome. A trade agreed before the
+    // switch has no settlement row and keeps the legacy leg.
+    cashLeg: tradeCashLegFor(payments),
     refundFees: refundFeesLogged,
     notifier: createDisputeNotifier(),
   });

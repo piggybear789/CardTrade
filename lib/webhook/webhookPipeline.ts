@@ -322,6 +322,39 @@ async function dispatchEvent(
         : { outcome: 'FAILURE', tradeId: null, detail: failureDetail(result) };
     }
 
+    // ESC-05: the backstop for a trade cash collection. Bound to the recorded intent
+    // AND the amount (the ESC-37 rule), guarded on COLLECTING; the 0139 trigger
+    // refunds it if the trade ended while the payment was in flight.
+    case 'TRADE_CASH_SETTLE': {
+      const tradeId = event.payload.tradeId;
+      const transferId = event.payload.transferId;
+      if (!tradeId || !transferId) return { outcome: 'NO_OP', tradeId: tradeId ?? null };
+      const { data: row, error: readError } = await client
+        .from('trade_cash_settlements')
+        .select('status, collection_ref, amount_minor')
+        .eq('trade_id', tradeId)
+        .maybeSingle();
+      if (readError) {
+        return { outcome: 'FAILURE', tradeId, detail: `trade_cash_settlements read: ${readError.message}` };
+      }
+      const leg = row as { status: string; collection_ref: string | null; amount_minor: number } | null;
+      if (!leg || leg.status !== 'COLLECTING' || leg.collection_ref !== transferId) {
+        return { outcome: 'NO_OP', tradeId };
+      }
+      if (Number(leg.amount_minor) !== Number(event.payload.amount ?? -1)) {
+        return { outcome: 'FAILURE', tradeId, detail: 'SETTLEMENT_MISMATCH: trade cash amount' };
+      }
+      const { error } = await client
+        .from('trade_cash_settlements')
+        .update({ status: 'COLLECTED', collected_at: new Date().toISOString() })
+        .eq('trade_id', tradeId)
+        .eq('status', 'COLLECTING')
+        .eq('collection_ref', transferId);
+      return error
+        ? { outcome: 'FAILURE', tradeId, detail: `trade_cash_settlements update: ${error.message}` }
+        : { outcome: 'SUCCESS', tradeId };
+    }
+
     case 'CASH_SALE_REFUND_FAILED': {
       const cashSaleId = event.payload.cashSaleId;
       if (!cashSaleId) return { outcome: 'NO_OP', tradeId: null };

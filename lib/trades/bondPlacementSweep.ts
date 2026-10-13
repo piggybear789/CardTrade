@@ -104,6 +104,14 @@ export async function placeDueTradeCollateral(): Promise<BondPlacementSweepResul
         placed += 1;
         continue;
       }
+      // ESC-05: the payer still has time to pay the cash leg. Nothing has failed,
+      // so nobody is told and nothing is logged; the next pass looks again.
+      if (result.error === 'cash-pending') continue;
+      // ESC-05: abandoned for unpaid cash. The abandon already told both traders.
+      if (result.error === 'cash-not-collected') {
+        failed += 1;
+        continue;
+      }
 
       failed += 1;
       // Told to BOTH traders, not just the one whose card refused. The other has a

@@ -29,6 +29,7 @@ import {
   deliveryNotesFromDetails,
   summarizeHandover,
 } from '@/lib/handover/terms';
+import { TradeCashLeg, type TradeCashLegView } from './TradeCashLeg';
 import {
   getTradeDeliveryAddresses,
   retrySettleTradeCash,
@@ -295,6 +296,11 @@ export interface TradeContractProps {
    * completion; after completion `manual_reconciliation` is the source of truth.
    */
   cashReceiverPayoutReady?: boolean;
+  /**
+   * The cash leg the platform holds (ESC-05/06), read under RLS by the page. Null for
+   * a trade with no cash, or one agreed before the switch (the legacy notice renders).
+   */
+  cashLeg?: TradeCashLegView | null;
   /** An undecided meeting-change proposal on a COLLATERAL_PENDING trade (ESC-04). */
   handoverChange?: HandoverChangeView | null;
   /**
@@ -775,6 +781,7 @@ function TradeContractRoom({
   paymentMethod = null,
   initialAddresses,
   cashReceiverPayoutReady = true,
+  cashLeg = null,
   handoverChange = null,
   demoPanel,
   disputeEvidence = [],
@@ -1012,7 +1019,15 @@ function TradeContractRoom({
               />
             ) : null}
 
-            {goods ? (
+            {goods && cashLeg ? (
+              <TradeCashLeg
+                trade={trade}
+                leg={cashLeg}
+                cashDirection={goods.cashDirection}
+                cashAmountCents={goods.cashAmountCents}
+                cashReceiverPayoutReady={cashReceiverPayoutReady}
+              />
+            ) : goods ? (
               <TradeCashSettlementNotice
                 trade={trade}
                 cashDirection={goods.cashDirection}

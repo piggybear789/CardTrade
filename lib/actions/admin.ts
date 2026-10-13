@@ -43,6 +43,7 @@ import {
   type CustodyPosition,
   type HeldSaleInput,
   type HeldCollateralInput,
+  type HeldTradeCashInput,
 } from '@/domain/payouts/custodyReconciliation';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
@@ -991,11 +992,28 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
     return { ok: false, error: 'persistence-error', message: collateral.message };
   }
 
+  // ESC-05/06: trade cash legs the platform collected and has not yet paid out. A
+  // leg counts from COLLECTED until RELEASED or REFUNDED; a pending release or refund
+  // is still held.
+  const { data: legs, error: legError } = await admin
+    .from('trade_cash_settlements')
+    .select('trade_id, amount_minor, status')
+    .eq('currency', currency)
+    .in('status', ['COLLECTED', 'RELEASE_PENDING', 'REFUND_PENDING', 'RELEASED', 'REFUNDED']);
+  if (legError) {
+    return { ok: false, error: 'persistence-error', message: legError.message };
+  }
+  const tradeCash: HeldTradeCashInput[] = (legs ?? []).map((row) => ({
+    tradeId: row.trade_id as string,
+    collectedCents: Number(row.amount_minor ?? 0),
+    settledOutCents:
+      row.status === 'RELEASED' || row.status === 'REFUNDED' ? Number(row.amount_minor ?? 0) : 0,
+  }));
+
   const position = reconcileCustody({
     sales,
     collateral: collateral.inputs,
-    // Trade cash legs land with WP2 (`trade_cash_settlements`); none are held before it.
-    tradeCash: [],
+    tradeCash,
     balance: {
       availableCents: balance.availableCents,
       pendingCents: balance.pendingCents,

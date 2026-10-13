@@ -62,8 +62,26 @@ export async function collateralReconcileDeps(
         console.error('[collateral lock] notification failed', error);
       }
     },
-    // WP2 (ESC-05) and WP3 (ESC-29) make these real.
-    isCashLegCollected: async () => true,
+    // ESC-05: a trade with a cash leg never locks until the platform holds the cash.
+    // A cash trade with no settlement row is refused too: placement creates the row,
+    // so its absence means placement has not checked the cash yet.
+    async isCashLegCollected(id) {
+      const { data: trade, error } = await client
+        .from('trades')
+        .select('cash_amount_cents')
+        .eq('id', id)
+        .maybeSingle();
+      if (error) throw new Error(`[collateral lock] load cash: ${error.message}`);
+      if (Number((trade as { cash_amount_cents?: number } | null)?.cash_amount_cents ?? 0) <= 0) return true;
+      const { data: row, error: rowError } = await client
+        .from('trade_cash_settlements')
+        .select('status')
+        .eq('trade_id', id)
+        .maybeSingle();
+      if (rowError) throw new Error(`[collateral lock] load cash leg: ${rowError.message}`);
+      return (row as { status?: string } | null)?.status === 'COLLECTED';
+    },
+    // WP3 (ESC-29) makes this real.
     areFeesSettled: async () => true,
   };
 }

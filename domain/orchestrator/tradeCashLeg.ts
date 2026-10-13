@@ -25,7 +25,66 @@ export interface TradeCashLegResult {
 
 /** Settles a trade's cash leg for a dispute outcome. */
 export interface TradeCashLegPort {
-  settleForOutcome(tradeId: string, outcome: TradeDisputeOutcomeKind): Promise<TradeCashLegResult>;
+  settleForOutcome(
+    tradeId: string,
+    outcome: TradeDisputeOutcomeKind,
+    /** FRAUD only: the wronged trader, who the collected cash is routed to. */
+    context?: { victimId?: string | null },
+  ): Promise<TradeCashLegResult>;
+}
+
+/**
+ * The WP2 binding over `trade_cash_settlements` (ESC-05/06), with the legacy binding
+ * as the fallback for a trade agreed before the switch (a cash leg with no row).
+ *
+ * - UNFOUNDED / CONDITION: the trade completes, so the collected cash is queued for
+ *   release to the receiver (the `:47` drain pays it through the release policy).
+ * - FRAUD: the cash goes to the wronged side. Payer wronged: refunded. Receiver
+ *   wronged: released to them. Victim unknown: left for an operator.
+ * - NO_EXCHANGE: a collected leg is refunded; an uncollected one is closed.
+ */
+export function createSettlementTableTradeCashLeg(deps: {
+  /** Null when the trade has no settlement row (agreed before the switch). */
+  loadSettlement(tradeId: string): Promise<{ payerId: string; receiverId: string; status: string } | null>;
+  queueRelease(tradeId: string): Promise<boolean>;
+  queueRefund(tradeId: string): Promise<boolean>;
+  closeUncollected(tradeId: string): Promise<boolean>;
+  legacy: TradeCashLegPort;
+}): TradeCashLegPort {
+  return {
+    async settleForOutcome(tradeId, outcome, context) {
+      const row = await deps.loadSettlement(tradeId);
+      if (!row) return deps.legacy.settleForOutcome(tradeId, outcome, context);
+
+      if (outcome === 'NO_EXCHANGE') {
+        if (row.status === 'COLLECTED') {
+          return { manualReconciliation: !(await deps.queueRefund(tradeId)) };
+        }
+        if (row.status === 'NOT_COLLECTED') {
+          return { manualReconciliation: !(await deps.closeUncollected(tradeId)) };
+        }
+        // COLLECTING (a payment in flight) or already moving: a human decides.
+        return { manualReconciliation: row.status !== 'REFUND_PENDING' && row.status !== 'REFUNDED' };
+      }
+
+      if (row.status !== 'COLLECTED') {
+        // A lock requires a COLLECTED leg, so anything else here is an anomaly.
+        return { manualReconciliation: true };
+      }
+
+      if (outcome === 'FRAUD') {
+        if (context?.victimId === row.payerId) {
+          return { manualReconciliation: !(await deps.queueRefund(tradeId)) };
+        }
+        if (context?.victimId === row.receiverId) {
+          return { manualReconciliation: !(await deps.queueRelease(tradeId)) };
+        }
+        return { manualReconciliation: true };
+      }
+
+      return { manualReconciliation: !(await deps.queueRelease(tradeId)) };
+    },
+  };
 }
 
 /**

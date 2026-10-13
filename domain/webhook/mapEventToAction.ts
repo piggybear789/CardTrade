@@ -31,6 +31,8 @@ export type WebhookAction =
    */
   | { kind: 'HOLD_STATUS'; status: 'ACTIVE' | 'FAILED'; holdId: string; tradeId: string | null }
   | { kind: 'CASH_SALE_SETTLE' }
+  /** ESC-05: a trade's cash leg cleared at the provider (the read-back is the main path). */
+  | { kind: 'TRADE_CASH_SETTLE' }
   | { kind: 'CASH_SALE_FAIL' }
   | { kind: 'MERCHANT_COMPLIANCE' }
   /**
@@ -82,7 +84,12 @@ export function mapEventToAction(event: WebhookEvent): WebhookAction {
     // Bank transfers -> Cash_Sale settlement/failure when a sale is referenced;
     // otherwise a fraud payout that needs no further transition (Req 4.3, 4.4, 8.3).
     case 'transfer.settled':
-      return event.payload.cashSaleId ? { kind: 'CASH_SALE_SETTLE' } : { kind: 'NO_OP' };
+      if (event.payload.cashSaleId) return { kind: 'CASH_SALE_SETTLE' };
+      // ESC-05: a trade's cash leg. Applied only to a COLLECTING row whose recorded
+      // collection is this intent, so a fraud payout or a legacy leg is a no-op.
+      return event.payload.tradeId && event.payload.transferId
+        ? { kind: 'TRADE_CASH_SETTLE' }
+        : { kind: 'NO_OP' };
     case 'transfer.failed':
       return event.payload.cashSaleId ? { kind: 'CASH_SALE_FAIL' } : { kind: 'NO_OP' };
 

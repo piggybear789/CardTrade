@@ -555,6 +555,14 @@ describe('cash sale — fulfillment', () => {
     // In-person sales settle straight into HANDOVER when the transfer clears.
     expect(second.sale.status).toBe('HANDOVER');
 
+    // ESC-20: refused more than an hour before the meeting.
+    expect(await confirmCashSaleHandover(deps, { actorId: ITEM.ownerId, cashSaleId: saleId })).toMatchObject({
+      ok: false,
+      error: 'HANDOVER_TOO_EARLY',
+    });
+    // From then on, the clock is at the meeting.
+    deps.now = () => new Date('2099-01-15T03:00:00.000Z');
+
     const sellerFirst = await confirmCashSaleHandover(deps, {
       actorId: ITEM.ownerId,
       cashSaleId: saleId,

@@ -10,7 +10,7 @@
 // minting a second payer on that sub-merchant from a stored, reusable card token.
 // A Stripe Customer can pay any connected account, so no such token is kept.
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   acceptCashSaleTerms,
@@ -89,6 +89,16 @@ async function runToPayment(options: {
 
   return { deps, created, state, calls, result };
 }
+
+// ESC-20: a handover can be confirmed only from an hour before the meeting, so the
+// clock sits half an hour before the fixture meeting (still in the future for terms).
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2099-01-15T02:30:00.000Z'));
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe('cash sale — direct payout mode', () => {
   it('collects into the platform balance and does NOT pay the seller at agreement', async () => {

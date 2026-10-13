@@ -448,6 +448,8 @@ export type CashSaleError =
   | 'CARD_BLOCKED'
   /** ESC-25: the payout account name does not match the verified ID. Expected. */
   | 'PAYEE_IDENTITY_MISMATCH'
+  /** ESC-20: confirming an in-person handover more than an hour before the meeting. */
+  | 'HANDOVER_TOO_EARLY'
   /**
    * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
    * this sale's shipment (the stale-number attack). Expected; nothing is written.
@@ -3764,6 +3766,18 @@ export async function confirmCashSaleHandover(
   if (alreadyConfirmed) {
     return { ok: false, error: 'ALREADY_RECORDED' };
   }
+  // ESC-20: a handover cannot be confirmed long before the meeting. Pre-confirming
+  // the night before is how a buyer is talked into "confirming" goods never seen.
+  if (sale.meetingAt) {
+    const earliest = Date.parse(sale.meetingAt) - HANDOVER_CONFIRM_LEAD_MINUTES * 60_000;
+    if (Number.isFinite(earliest) && new Date(currentIso(deps)).getTime() < earliest) {
+      return {
+        ok: false,
+        error: 'HANDOVER_TOO_EARLY',
+        detail: 'You can confirm the handover from an hour before the meeting.',
+      };
+    }
+  }
   const updated = await deps.repository.confirmHandover({
     cashSaleId: sale.id,
     actor,
@@ -3781,7 +3795,19 @@ export async function confirmCashSaleHandover(
     toStatus: updated.status,
   });
 
-  // Both parties confirmed the meetup, so the seller's payout is now owed (Req 4.3).
+  // ESC-20: the second confirmation opens the buyer's in-person inspection window.
+  // It never completes the sale or pays the seller here: the pg_cron auto-complete
+  // does that when the window lapses, and the drain pays through the release policy.
+  if (updated.status === 'INSPECTION') {
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: null,
+      event: 'IN_PERSON_INSPECTION_STARTED',
+      fromStatus: 'HANDOVER',
+      toStatus: 'INSPECTION',
+    });
+  }
+  // Defensive only: a repository that still completed on the second confirmation.
   if (updated.status === 'COMPLETED') {
     const released = await payoutCashSaleSeller(deps, { cashSaleId: sale.id });
     if (released.ok) return released;
@@ -3792,6 +3818,9 @@ export async function confirmCashSaleHandover(
   }
   return { ok: true, sale: updated };
 }
+/** ESC-20: how early before the meeting a handover may be confirmed. */
+export const HANDOVER_CONFIRM_LEAD_MINUTES = 60;
+
 /**
  * Ensure the contract has its participant chat (Req 4.2). Contracts opened
  * before the conversation link existed are repaired on first view.
@@ -4235,7 +4264,6 @@ export function createCashSaleOrchestrator(
     confirmPayment: (params) => confirmCashSalePayment(deps, params),
     getPaymentAction: (params) => getCashSalePaymentAction(deps, params),
     sweepAbandonedPayments: (params) => sweepAbandonedPayments(deps, params),
-    refundOnFraudWarning: (params) => refundOnFraudWarning(deps, params),
     refundOnFraudWarning: (params) => refundOnFraudWarning(deps, params),
     payoutSeller: (params) => payoutCashSaleSeller(deps, params),
     resolveDispute: (params) => resolveCashSaleDispute(deps, params),

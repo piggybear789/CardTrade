@@ -46,6 +46,7 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   'related-accounts': "This deal can't go ahead. Contact support if you think this is a mistake.",
   'card-blocked': "This card can't be used on NoDitto. Try a different card or contact support.",
   'payee-identity-mismatch': "Your payout account name doesn't match your verified ID. Update it in Stripe or contact support.",
+  'handover-too-early': 'You can confirm the handover from an hour before the meeting.',
   'rate-limited': 'Too many attempts. Try again in a little while.',
   'payout-held': 'The seller is paid after a short safety hold. Nothing is wrong with this contract.',
   'seller-exposure-limit':

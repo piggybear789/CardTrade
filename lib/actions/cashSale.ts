@@ -66,7 +66,9 @@ export type CashSaleActionError =
   /** ESC-14: the card is blocked. */
   | 'card-blocked'
   /** ESC-25: the payout account name does not match the verified ID. */
-  | 'payee-identity-mismatch';
+  | 'payee-identity-mismatch'
+  /** ESC-20: the meeting is more than an hour away. */
+  | 'handover-too-early';
 
 export type CashSaleActionResult =
   | {
@@ -184,6 +186,7 @@ function mapError(error: CashSaleError): CashSaleActionError {
     RELATED_ACCOUNTS: 'related-accounts',
     CARD_BLOCKED: 'card-blocked',
     PAYEE_IDENTITY_MISMATCH: 'payee-identity-mismatch',
+    HANDOVER_TOO_EARLY: 'handover-too-early',
     // ESC-37: only the webhook settles against a provider ref, so a member never
     // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
     SETTLEMENT_MISMATCH: 'invalid-state',

@@ -111,7 +111,41 @@ export interface CaptureResult {
 export interface TransferResult {
   transferId: string;
   amount: Cents;
-  status: 'SETTLED' | 'FAILED';
+  /**
+   * `REQUIRES_ACTION` (ESC-03) is reachable only from a BUYER_PRESENT
+   * {@link PaymentService.requestTransfer}: the issuer asked for a 3-D Secure
+   * challenge, nothing is collected yet, and {@link TransferResult.clientSecret}
+   * lets the browser run it. Off-session calls never return it.
+   */
+  status: 'SETTLED' | 'FAILED' | 'REQUIRES_ACTION';
+  /** Present only with `REQUIRES_ACTION`. Never persisted, never logged. */
+  clientSecret?: string;
+}
+
+/**
+ * The payer is at the keyboard (ESC-03). The collection is made ON-session so the
+ * issuer can challenge it, which moves card-fraud liability to the issuer and stops a
+ * stolen card number alone from paying. `threeDS` comes from `domain/payments/scaPolicy.ts`.
+ */
+export interface PaymentPresence {
+  kind: 'BUYER_PRESENT';
+  threeDS: 'any' | 'automatic';
+}
+
+/** A collection read back from the provider (ESC-03 resume, ESC-37 binding). */
+export interface CollectionStatus {
+  status: 'SETTLED' | 'FAILED' | 'PENDING' | 'REQUIRES_ACTION';
+  /** What the provider actually collected. 0 unless SETTLED. */
+  amountReceived: Cents;
+  /** Present only with `REQUIRES_ACTION`. */
+  clientSecret?: string;
+}
+
+/** Cancelling an uncompleted collection (an abandoned 3-D Secure challenge). */
+export interface CollectionCancel {
+  /** `ALREADY_SETTLED`: the challenge finished first, so the money WAS collected. */
+  status: 'CANCELLED' | 'ALREADY_SETTLED' | 'FAILED';
+  reason?: string;
 }
 
 /**
@@ -186,6 +220,16 @@ export interface ManagedMerchant {
    * bank details are all deliberately excluded and must never be exposed.
    */
   legalName?: string | null;
+  /**
+   * Opaque fingerprint of the payout bank account (ESC-03 related accounts).
+   * Best-effort: null when the provider does not expose one.
+   */
+  payoutAccountFingerprint?: string | null;
+  /**
+   * The individual's name as the provider holds it on the payee account (ESC-25).
+   * Best-effort: null when not exposed, which is NOT a mismatch.
+   */
+  individualName?: { given: string; family: string } | null;
 }
 
 /**
@@ -308,6 +352,12 @@ export interface VaultedInstrument {
   brand?: string;
   /** Last four digits. Display only. */
   last4?: string;
+  /**
+   * Opaque provider card fingerprint (ESC-03 related accounts, ESC-14 blocklist).
+   * The same physical card yields the same value across payers. Callers HMAC it
+   * before storing; it never leaves the server.
+   */
+  fingerprint?: string;
 }
 
 /**
@@ -384,7 +434,11 @@ export type WebhookEventType =
   // opportunity to contest before the provider's evidence deadline.
   | 'charge.disputed'
   // The dispute reached a terminal outcome (won or lost).
-  | 'charge.dispute.closed';
+  | 'charge.dispute.closed'
+  // An issuer's early fraud warning (Radar), ESC-14: the cardholder has reported the
+  // charge as fraud and a chargeback is likely. Observed so the money is held or
+  // refunded BEFORE the seller is paid.
+  | 'charge.fraud_warning';
 
 /**
  * The data carried by a Webhook_Event. Every field is optional because the
@@ -441,6 +495,8 @@ export interface WebhookEventPayload {
    * path.
    */
   merchantActive?: boolean;
+  /** Provider charge / PaymentIntent the event concerns, when it is not a hold or transfer. */
+  paymentRef?: string;
 }
 
 /**
@@ -506,7 +562,48 @@ export interface PaymentService {
     nonce: string;
     merchantRef?: string;
     applicationFee?: Cents;
+    /**
+     * ESC-03: collect with the payer present (3-D Secure possible). Absent means
+     * off-session, which is reserved for collateral holds and the Trade_Fee.
+     */
+    presence?: PaymentPresence;
   }): Promise<TransferResult>;
+
+  /**
+   * Read a collection back (ESC-03, ESC-37). Stripe mapping: `succeeded` SETTLED;
+   * `requires_action` REQUIRES_ACTION (with the secret); `processing` and
+   * `requires_confirmation` PENDING; `canceled` and `requires_payment_method` FAILED.
+   */
+  readCollection?(paymentRef: string): Promise<CollectionStatus>;
+
+  /**
+   * Cancel a collection that has not completed (ESC-03 abandoned challenge, ESC-05
+   * trade cash at `pay_by`). `ALREADY_SETTLED` when it succeeded first.
+   */
+  cancelCollection?(paymentRef: string): Promise<CollectionCancel>;
+
+  /**
+   * Claw a payout back from a connected account (ESC-14). Staff-initiated only,
+   * never automatic. Idempotent on `nonce`.
+   */
+  reversePayout?(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult>;
+
+  /**
+   * Stage chargeback evidence on the provider dispute WITHOUT submitting it (ESC-14).
+   * Staff review and submit from the provider dashboard. Never carries an address,
+   * identity or contact data.
+   */
+  submitDisputeEvidence?(params: {
+    disputeRef: string;
+    evidence: {
+      productDescription?: string;
+      uncategorizedText?: string;
+      shippingCarrier?: string;
+      shippingTrackingNumber?: string;
+      shippingDate?: string;
+    };
+    submit: false;
+  }): Promise<{ status: 'STAGED' | 'FAILED'; reason?: string }>;
 
   /**
    * Pay OUT of the platform balance to a Seller's connected account (Req 4.3).

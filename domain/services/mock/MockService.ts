@@ -29,6 +29,9 @@ import { createHash, createHmac } from 'node:crypto';
 import type {
   CaptureResult,
   Cents,
+  CollectionCancel,
+  CollectionStatus,
+  PaymentPresence,
   InstrumentSetup,
   ManagedMerchant,
   ManagedMerchantDetails,
@@ -367,6 +370,8 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     nonce: string;
     merchantRef?: string;
     applicationFee?: Cents;
+    /** Accepted for parity; the simulation never asks for a challenge (ESC-03). */
+    presence?: PaymentPresence;
   }): Promise<TransferResult> {
     const cached = this.nonces.get(`transfer:${params.nonce}`);
     if (cached) return { ...(cached as TransferResult) };
@@ -388,6 +393,37 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
       }),
     );
     return result;
+  }
+
+  /** Read a simulated collection back (ESC-03, ESC-37). Never REQUIRES_ACTION. */
+  async readCollection(paymentRef: string): Promise<CollectionStatus> {
+    const collected = this.money.get(paymentRef);
+    return collected
+      ? { status: 'SETTLED', amountReceived: collected.collectedCents }
+      : { status: 'FAILED', amountReceived: 0 };
+  }
+
+  /** A simulated collection settles synchronously, so there is never one to cancel. */
+  async cancelCollection(paymentRef: string): Promise<CollectionCancel> {
+    return this.money.has(paymentRef) ? { status: 'ALREADY_SETTLED' } : { status: 'CANCELLED' };
+  }
+
+  /** Simulated clawback (ESC-14). Deterministic and keyed like every other write. */
+  async reversePayout(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult> {
+    const cached = this.nonces.get(`reverse:${params.nonce}`);
+    if (cached) return { ...(cached as TransferResult) };
+    const result: TransferResult = {
+      transferId: `reversal_${shortHash(params.nonce)}`,
+      amount: params.amount,
+      status: 'SETTLED',
+    };
+    this.nonces.set(`reverse:${params.nonce}`, result);
+    return result;
+  }
+
+  /** No dispute to stage evidence on in the simulation. */
+  async submitDisputeEvidence(): Promise<{ status: 'STAGED' | 'FAILED' }> {
+    return { status: 'STAGED' };
   }
 
   /**
@@ -557,6 +593,8 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
       sourceId: `src_${shortHash(`${params.payerId}:${params.setupId}`)}`,
       brand: 'visa',
       last4: '4242',
+      // Per payer, so two mock members are never "related" by a shared card.
+      fingerprint: `fp_${shortHash(params.payerId)}`,
     };
   }
 

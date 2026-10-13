@@ -27,6 +27,9 @@
 import type {
   CaptureResult,
   Cents,
+  CollectionCancel,
+  CollectionStatus,
+  PaymentPresence,
   Payer,
   PayerService,
   PayerDetails,
@@ -81,7 +84,7 @@ export interface InMemoryTransfer {
   payerId: string;
   amount: Cents;
   ref: string;
-  status: 'SETTLED' | 'FAILED';
+  status: TransferResult['status'];
 }
 
 /**
@@ -94,7 +97,7 @@ export interface InMemoryPayout {
   merchantRef: string;
   amount: Cents;
   ref: string;
-  status: 'SETTLED' | 'FAILED';
+  status: TransferResult['status'];
 }
 
 /**
@@ -292,15 +295,52 @@ export class InMemoryService
   // PaymentService
   // -------------------------------------------------------------------------
 
+  /**
+   * Test control (ESC-03): the next BUYER_PRESENT collections ask for a 3-D Secure
+   * challenge instead of settling. Off-session calls are never affected, matching
+   * Stripe, where only an on-session confirm can return `requires_action`.
+   */
+  forceRequiresAction = false;
+
+  /** Collections awaiting a challenge, by transfer id. */
+  private readonly challenges = new Map<
+    string,
+    { amount: Cents; status: 'REQUIRES_ACTION' | 'SETTLED' | 'FAILED' | 'CANCELLED' }
+  >();
+
+  /** Test control: the buyer finished (or failed) the challenge in the browser. */
+  completeChallenge(transferId: string, outcome: 'SETTLED' | 'FAILED'): void {
+    const challenge = this.challenges.get(transferId);
+    if (!challenge || challenge.status !== 'REQUIRES_ACTION') return;
+    challenge.status = outcome;
+    if (outcome === 'SETTLED') {
+      this.ledger.set(transferId, { collectedCents: challenge.amount, spentCents: 0 });
+    }
+  }
+
   /** Request a bank-to-bank transfer of `amount` (Req 4.2, 8.3). */
   async requestTransfer(params: {
     payerId: string;
     amount: Cents;
     ref: string;
     nonce: string;
+    presence?: PaymentPresence;
   }): Promise<TransferResult> {
     const cached = this.cachedByNonce(`transfer:${params.nonce}`);
     if (cached) return cached;
+
+    if (params.presence && this.forceRequiresAction) {
+      const transferId = `transfer_${this.nextId()}`;
+      const challenged: TransferResult = {
+        transferId,
+        amount: params.amount,
+        status: 'REQUIRES_ACTION',
+        clientSecret: `${transferId}_secret`,
+      };
+      this.challenges.set(transferId, { amount: params.amount, status: 'REQUIRES_ACTION' });
+      this.nonceResults.set(`transfer:${params.nonce}`, challenged);
+      return { ...challenged };
+    }
 
     const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
     const result: TransferResult = {
@@ -363,6 +403,64 @@ export class InMemoryService
     if (ok && source) source.spentCents += params.amount;
     this.nonceResults.set(`payout:${params.nonce}`, result);
     return result;
+  }
+
+  /** Read a collection back (ESC-03, ESC-37). */
+  async readCollection(paymentRef: string): Promise<CollectionStatus> {
+    const challenge = this.challenges.get(paymentRef);
+    if (challenge) {
+      if (challenge.status === 'REQUIRES_ACTION') {
+        return { status: 'REQUIRES_ACTION', amountReceived: 0, clientSecret: `${paymentRef}_secret` };
+      }
+      if (challenge.status === 'SETTLED') return { status: 'SETTLED', amountReceived: challenge.amount };
+      return { status: 'FAILED', amountReceived: 0 };
+    }
+    const transfer = this.transfers.find((t) => t.transferId === paymentRef);
+    if (!transfer) return { status: 'FAILED', amountReceived: 0 };
+    return transfer.status === 'SETTLED'
+      ? { status: 'SETTLED', amountReceived: transfer.amount }
+      : { status: 'FAILED', amountReceived: 0 };
+  }
+
+  /** Cancel an uncompleted collection (ESC-03, ESC-05). */
+  async cancelCollection(paymentRef: string): Promise<CollectionCancel> {
+    const challenge = this.challenges.get(paymentRef);
+    if (challenge) {
+      if (challenge.status === 'SETTLED') return { status: 'ALREADY_SETTLED' };
+      challenge.status = 'CANCELLED';
+      return { status: 'CANCELLED' };
+    }
+    const transfer = this.transfers.find((t) => t.transferId === paymentRef);
+    if (transfer?.status === 'SETTLED') return { status: 'ALREADY_SETTLED' };
+    return { status: transfer ? 'CANCELLED' : 'FAILED' };
+  }
+
+  /** Reversals recorded for assertions (ESC-14). */
+  readonly reversals: { transferId: string; amount: Cents; nonce: string }[] = [];
+
+  async reversePayout(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult> {
+    const cached = this.cachedByNonce(`reverse:${params.nonce}`);
+    if (cached) return cached;
+    this.reversals.push({ ...params });
+    const result: TransferResult = {
+      transferId: `reversal_${this.nextId()}`,
+      amount: params.amount,
+      status: 'SETTLED',
+    };
+    this.nonceResults.set(`reverse:${params.nonce}`, result);
+    return result;
+  }
+
+  /** Evidence staged for assertions (ESC-14). */
+  readonly stagedEvidence: { disputeRef: string }[] = [];
+
+  async submitDisputeEvidence(params: {
+    disputeRef: string;
+    evidence: Record<string, string | undefined>;
+    submit: false;
+  }): Promise<{ status: 'STAGED' | 'FAILED' }> {
+    this.stagedEvidence.push({ disputeRef: params.disputeRef });
+    return { status: 'STAGED' };
   }
 
   /**

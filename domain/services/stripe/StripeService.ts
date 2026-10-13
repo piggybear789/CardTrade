@@ -46,6 +46,8 @@ import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 import type {
   CaptureResult,
   Cents,
+  CollectionCancel,
+  CollectionStatus,
   EmbeddedClientSecret,
   InstrumentSetup,
   ManagedMerchant,
@@ -57,6 +59,7 @@ import type {
   PayerCreateOptions,
   PayerDetails,
   PayerService,
+  PaymentPresence,
   PaymentService,
   PlatformBalance,
   PreAuthHold,
@@ -519,6 +522,8 @@ export class StripeService implements PaymentService, PayerService {
       sourceId: method.id,
       brand: method.card?.brand,
       last4: method.card?.last4,
+      // ESC-03/14: opaque, the same for one physical card across customers.
+      ...(method.card?.fingerprint ? { fingerprint: method.card.fingerprint } : {}),
     };
   }
 
@@ -777,10 +782,23 @@ export class StripeService implements PaymentService, PayerService {
     nonce: string;
     merchantRef?: string;
     applicationFee?: Cents;
+    presence?: PaymentPresence;
   }): Promise<TransferResult> {
     try {
       const paymentMethod = await this.defaultPaymentMethod(params.payerId);
       if (!paymentMethod) return { transferId: '', amount: params.amount, status: 'FAILED' };
+
+      // ESC-03: a BUYER_PRESENT collection is on-session, so the issuer may
+      // challenge it (3-D Secure). `use_stripe_sdk` makes the next action one the
+      // browser's `stripe.handleNextAction` can run in place, with no redirect URL.
+      const presenceParams = params.presence
+        ? {
+            use_stripe_sdk: true,
+            payment_method_options: {
+              card: { request_three_d_secure: params.presence.threeDS },
+            },
+          }
+        : { off_session: true };
 
       const intent = await this.stripe.paymentIntents.create(
         {
@@ -790,7 +808,7 @@ export class StripeService implements PaymentService, PayerService {
           payment_method: paymentMethod,
           payment_method_types: CARD_ONLY,
           confirm: true,
-          off_session: true,
+          ...presenceParams,
           description: 'NoDitto payment',
           metadata: metadataFor('TRANSFER', params.ref),
           expand: ['latest_charge'],
@@ -798,6 +816,15 @@ export class StripeService implements PaymentService, PayerService {
         // The persisted nonce, reused verbatim on retry (never regenerated).
         { idempotencyKey: params.nonce },
       );
+
+      if (intent.status === 'requires_action' && params.presence && intent.client_secret) {
+        return {
+          transferId: intent.id,
+          amount: params.amount,
+          status: 'REQUIRES_ACTION',
+          clientSecret: intent.client_secret,
+        };
+      }
 
       if (intent.status !== 'succeeded') {
         return { transferId: intent.id, amount: params.amount, status: 'FAILED' };
@@ -873,6 +900,102 @@ export class StripeService implements PaymentService, PayerService {
     } catch (err) {
       this.warn('payoutToMerchant', params.ref, err);
       return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+  }
+
+  /**
+   * Read a collection back (ESC-03 resume, ESC-37). The client secret is returned
+   * only while a challenge is outstanding, so a finished intent never hands one out.
+   * A read failure is PENDING: "could not tell" must never read as "failed" and
+   * relist goods the buyer may have paid for.
+   */
+  async readCollection(paymentRef: string): Promise<CollectionStatus> {
+    try {
+      const intent = await this.stripe.paymentIntents.retrieve(paymentRef);
+      return collectionStatusOf(intent);
+    } catch (err) {
+      this.warn('readCollection', paymentRef, err);
+      return { status: 'PENDING', amountReceived: 0 };
+    }
+  }
+
+  /**
+   * Cancel an uncompleted collection (ESC-03, ESC-05). Stripe refuses to cancel a
+   * succeeded intent, so a refusal is checked against a fresh read: succeeded means
+   * the challenge finished first and the money WAS collected.
+   */
+  async cancelCollection(paymentRef: string): Promise<CollectionCancel> {
+    try {
+      const intent = await this.stripe.paymentIntents.cancel(paymentRef, {
+        cancellation_reason: 'abandoned',
+      });
+      return intent.status === 'canceled'
+        ? { status: 'CANCELLED' }
+        : { status: 'FAILED', reason: intent.status };
+    } catch (err) {
+      try {
+        const intent = await this.stripe.paymentIntents.retrieve(paymentRef);
+        if (intent.status === 'succeeded') return { status: 'ALREADY_SETTLED' };
+        if (intent.status === 'canceled') return { status: 'CANCELLED' };
+      } catch {
+        // Fall through to FAILED: the caller retries next sweep.
+      }
+      this.warn('cancelCollection', paymentRef, err);
+      return { status: 'FAILED', reason: err instanceof Error ? err.message : 'cancel failed' };
+    }
+  }
+
+  /** Claw a payout back (ESC-14). Staff-initiated; keyed so a retry cannot double-reverse. */
+  async reversePayout(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult> {
+    try {
+      const reversal = await this.stripe.transfers.createReversal(
+        params.transferId,
+        { amount: params.amount },
+        { idempotencyKey: `reverse:${params.nonce}` },
+      );
+      return { transferId: reversal.id, amount: reversal.amount, status: 'SETTLED' };
+    } catch (err) {
+      this.warn('reversePayout', params.transferId, err);
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+  }
+
+  /**
+   * Stage chargeback evidence WITHOUT submitting (ESC-14). Staff submit from the
+   * Dashboard after review, because a submission is final.
+   */
+  async submitDisputeEvidence(params: {
+    disputeRef: string;
+    evidence: {
+      productDescription?: string;
+      uncategorizedText?: string;
+      shippingCarrier?: string;
+      shippingTrackingNumber?: string;
+      shippingDate?: string;
+    };
+    submit: false;
+  }): Promise<{ status: 'STAGED' | 'FAILED'; reason?: string }> {
+    try {
+      await this.stripe.disputes.update(params.disputeRef, {
+        submit: false,
+        evidence: {
+          ...(params.evidence.productDescription
+            ? { product_description: params.evidence.productDescription }
+            : {}),
+          ...(params.evidence.uncategorizedText
+            ? { uncategorized_text: params.evidence.uncategorizedText }
+            : {}),
+          ...(params.evidence.shippingCarrier ? { shipping_carrier: params.evidence.shippingCarrier } : {}),
+          ...(params.evidence.shippingTrackingNumber
+            ? { shipping_tracking_number: params.evidence.shippingTrackingNumber }
+            : {}),
+          ...(params.evidence.shippingDate ? { shipping_date: params.evidence.shippingDate } : {}),
+        },
+      });
+      return { status: 'STAGED' };
+    } catch (err) {
+      this.warn('submitDisputeEvidence', params.disputeRef, err);
+      return { status: 'FAILED', reason: err instanceof Error ? err.message : 'update failed' };
     }
   }
 
@@ -1316,6 +1439,32 @@ function resolveAccountCountry(
  * part of an idempotency key). The hashed body may include identity fields that
  * must never be logged in the clear.
  */
+/**
+ * The §1.9 mapping from a PaymentIntent to a {@link CollectionStatus}. Exported for
+ * tests; never leaks a Stripe type to callers.
+ */
+export function collectionStatusOf(intent: Stripe.PaymentIntent): CollectionStatus {
+  switch (intent.status) {
+    case 'succeeded':
+      return { status: 'SETTLED', amountReceived: intent.amount_received };
+    case 'requires_action':
+      return {
+        status: 'REQUIRES_ACTION',
+        amountReceived: 0,
+        ...(intent.client_secret ? { clientSecret: intent.client_secret } : {}),
+      };
+    case 'processing':
+    case 'requires_confirmation':
+      return { status: 'PENDING', amountReceived: 0 };
+    case 'canceled':
+    case 'requires_payment_method':
+      return { status: 'FAILED', amountReceived: 0 };
+    default:
+      // `requires_capture` is a manual-capture HOLD, never a collection.
+      return { status: 'PENDING', amountReceived: 0 };
+  }
+}
+
 function fingerprint(body: unknown): string {
   const canonical = JSON.stringify(body, (_key, value) =>
     value && typeof value === 'object' && !Array.isArray(value)

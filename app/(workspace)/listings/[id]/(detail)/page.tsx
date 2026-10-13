@@ -62,7 +62,10 @@ import {
 import { readImageDims, type ImageDim } from "@/lib/images/dimensions";
 import { ListingBuyerBar } from "@/components/listings/ListingBuyerBar";
 import { ListingChromePublisher } from "@/components/listings/ListingChromePublisher";
-import { ListingDesktopPane } from "@/components/listings/ListingDesktopPane";
+import {
+  ListingDesktopPane,
+  type ListingStatusBadge,
+} from "@/components/listings/ListingDesktopPane";
 import { ListingDetailStack } from "@/components/listings/ListingDetailStack";
 import { ListingDetails } from "@/components/listings/ListingDetails";
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
@@ -82,7 +85,6 @@ import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 /* `PlaceMap` and `PlacePrecision` are gone from this route: the suburb is a clause of
    the meta line in both layouts now, not a plotted map. */
-import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusNotice } from "@/components/ui/status-notice";
 
@@ -91,12 +93,11 @@ import { StatusNotice } from "@/components/ui/status-notice";
 
 type ItemStatus = "AVAILABLE" | "RESERVED" | "SOLD";
 
-/** Map each availability status to a Badge variant + human-readable label. */
-const STATUS_BADGE: Record<
-  ItemStatus,
-  { variant: NonNullable<BadgeProps["variant"]>; label: string }
-> = {
-  AVAILABLE: { variant: "default", label: "Available" },
+/**
+ * The badge above the title, for a listing that is NOT open for business. An available
+ * listing shows none: "Available" on every listing a buyer can reach says nothing.
+ */
+const UNAVAILABLE_BADGE: Record<"RESERVED" | "SOLD", ListingStatusBadge> = {
   RESERVED: { variant: "secondary", label: "Under contract" },
   SOLD: { variant: "outline", label: "Sold" },
 };
@@ -202,12 +203,12 @@ export default async function ItemDetailPage({
   // open for business. Being unclosed is the whole test (0064).
   const isShopfront = item.listing_kind === "SHOPFRONT";
   const isClosed = Boolean(item.closed_at);
-  const statusBadge = isShopfront
-    ? isClosed
-      ? { variant: "outline" as const, label: "Closed" }
-      : { variant: "default" as const, label: "Open" }
-    : (STATUS_BADGE[status] ?? STATUS_BADGE.AVAILABLE);
   const isAvailable = isShopfront ? !isClosed : status === "AVAILABLE";
+  const unavailableBadge: ListingStatusBadge | null = isAvailable
+    ? null
+    : isShopfront
+      ? { variant: "outline", label: "Closed" }
+      : (UNAVAILABLE_BADGE[status as "RESERVED" | "SOLD"] ?? null);
 
   // Authenticated non-owners: watch state, own goods for Propose Trade, and
   // public seller profile + identity can load together.
@@ -467,9 +468,8 @@ export default async function ItemDetailPage({
     ]),
   ];
 
-  // The badges ride above the title in the desktop pane. They floated at the far end
-  // of the back-button row, where they read as page chrome rather than as facts about
-  // the card under the title.
+  // The full facts — condition, game, grade, listed date, location — live here; the
+  // meta line under the title only abbreviates them.
   const listingDetails = isShopfront ? null : (
     <ListingDetails
       condition={item.condition}
@@ -482,22 +482,8 @@ export default async function ItemDetailPage({
     />
   );
 
-  const listingChips = (
-    <>
-      <Badge variant={statusBadge.variant} aria-label={`Availability: ${statusBadge.label}`}>
-        {statusBadge.label}
-      </Badge>
-      {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
-      <Badge variant="outline">{item.condition}</Badge>
-      {watchCount > 0 ? (
-        <span className="text-meta tabular-nums text-muted-foreground">
-          {watchCount} {watchCount === 1 ? "person saved this" : "people saved this"}
-        </span>
-      ) : null}
-    </>
-  );
-  // A buyer looking at something they can still buy: the fee line and the protection
-  // rows. Guests included — they need the reassurance most.
+  // A buyer looking at something they can still buy: the protection line. Guests
+  // included — they need the reassurance most.
   const showTrust = !isOwner && isAvailable && !myContractId;
   const canMessage = Boolean(user) && !isOwner && isAvailable && !myContractId;
 
@@ -529,8 +515,9 @@ export default async function ItemDetailPage({
         />
         {/* A BUTTON, NOT A COMPOSER. The inline "Send seller a message" field sat
             under Buy / Offer / Trade at the same visual weight as opening a contract;
-            asking a question now opens the conversation from one outline button. */}
-        {user && !isOwner && isAvailable && !myContractId ? (
+            asking a question now opens the conversation from one full-width button,
+            tinted (`secondary`) so it reads as the last row of the stack. */}
+        {canMessage ? (
           <section aria-labelledby={headingId}>
             <h2 id={headingId} className="sr-only">
               Message seller
@@ -539,6 +526,7 @@ export default async function ItemDetailPage({
               itemId={item.id}
               sellerId={item.owner_id}
               variant="button"
+              tone="secondary"
               size="lg"
               className="w-full"
             />
@@ -666,8 +654,8 @@ export default async function ItemDetailPage({
                 isShopfront={isShopfront}
                 locationLabel={item.location_label}
                 createdAt={item.created_at ?? null}
-                watchCount={watchCount}
                 isOwner={isOwner}
+                statusBadge={unavailableBadge}
                 sellerId={item.owner_id}
                 sellerDisplayName={
                   isOwner
@@ -691,6 +679,7 @@ export default async function ItemDetailPage({
                         itemId={item.id}
                         sellerId={item.owner_id}
                         variant="button"
+                        tone="secondary"
                         size="default"
                         className="w-full"
                       />
@@ -767,7 +756,10 @@ export default async function ItemDetailPage({
               showWatch={Boolean(user && !isOwner)}
               canReport={Boolean(user && !isOwner)}
               showTrust={showTrust}
-              chips={listingChips}
+              statusBadge={unavailableBadge}
+              category={item.category}
+              condition={item.condition}
+              watchCount={watchCount}
               initialWatching={initialWatching}
               sellerId={item.owner_id}
               sellerDisplayName={
@@ -1129,7 +1121,7 @@ function ItemActions({
   // were three equal round icons with captions — a toolbar, not a decision. Buying is
   // the step most buyers take, so it is the full-width primary; offering and trading
   // are the alternatives beside each other under it. Message follows as its own
-  // outline row (see `renderListingActions`).
+  // tinted full-width row (see `renderListingActions`).
   const showOffer = Boolean(sellerIdentity) && !isShopfront;
 
   return (

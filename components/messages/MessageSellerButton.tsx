@@ -53,6 +53,7 @@ export function MessageSellerButton({
   sellerId,
   size = 'lg',
   variant = 'button',
+  tone = 'outline',
   className,
 }: {
   /** The listing the thread is about, or null for the two members' general thread. */
@@ -69,6 +70,12 @@ export function MessageSellerButton({
    * `bar` — filled "Chat" in the same bar.
    */
   variant?: 'button' | 'inline' | 'icon' | 'bar';
+  /**
+   * Fill of the `button` variant. `outline` everywhere by default; the listing page's
+   * action stack asks for `secondary` (light iris fill, iris label) so Message reads
+   * as part of that stack, beneath Buy / Offer / Trade.
+   */
+  tone?: 'outline' | 'secondary';
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -233,11 +240,12 @@ export function MessageSellerButton({
 
   return (
     <div className="space-y-snug">
-      {/* Outline, not `secondary`: the lavender fill is this app's selected state,
-          and a message is a way to ask, not a choice already made. */}
+      {/* Outline by default: the lavender fill is this app's selected state, and a
+          message is a way to ask, not a choice already made. The listing page's action
+          stack opts into `secondary` via `tone`. */}
       <Button
         type="button"
-        variant="outline"
+        variant={tone}
         size={size}
         className={className ?? 'w-full sm:w-auto'}
         onClick={handleClick}

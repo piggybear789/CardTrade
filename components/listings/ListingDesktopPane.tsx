@@ -1,33 +1,37 @@
 import type { ReactNode } from 'react';
-import Link from 'next/link';
-import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { ListingOverflowMenu } from '@/components/listings/ListingOverflowMenu';
-import { ListingFeeLine, ListingTrustRows } from '@/components/listings/ListingTrust';
+import { ListingSellerRow } from '@/components/listings/ListingSellerRow';
+import { ListingFeeNote, ListingProtectionLine } from '@/components/listings/ListingTrust';
 import { WatchButton } from '@/components/listings/WatchButton';
-import { StarRating } from '@/components/listings/StarRating';
-import { Avatar } from '@/components/ui/avatar';
-import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { buyerPaysCents, listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
-import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
-import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
-import { displayLegalName, formatMoney, formatRelativeTime } from '@/lib/format';
+import { listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 
-/* The fee label is `platformFeeRateLabel` in `lib/fees/feeLabels.ts`, shared with
-   `ListingDetailStack`; the fee-inclusive figure and `splitMoney` are in
+/* The fee note and its (i) breakdown are `ListingFeeNote` in `ListingTrust.tsx`, shared
+   with `ListingDetailStack`; the fee-inclusive figure and `splitMoney` are in
    `lib/listings/buyerPrice.ts`. */
 
+/** Shown above the title only when the listing is NOT open for business. */
+export type ListingStatusBadge = { label: string; variant: 'secondary' | 'outline' };
+
 /**
- * The desktop listing column, in the order a buyer decides in: what it is, what it
- * costs and what protects them, then the actions, then who is selling and the
- * description. Phone layout stays in ListingDetailStack.
+ * The desktop listing column, in the order a buyer decides in: what it is (a status
+ * badge only when it is not available, the title, one quiet meta line), what it costs
+ * (the fee-inclusive price and one muted fee note), the actions, one line on how the
+ * purchase is protected, who is selling, the description and the details. Phone layout
+ * stays in ListingDetailStack and carries the same content.
  *
  * THE ACTIONS FOLLOW THE PRICE. They used to be pinned to the bottom of the column
  * so they lined up with the photo's bottom edge, which put roughly 180px of empty
  * column between the price and Buy now and let the seller card and description sit
  * between the two things a buyer reads together. Alignment with the photo was the
  * weaker reason; every reference (Depop, Etsy, Shop) keeps the buttons under the price.
+ *
+ * ONE LOUD THING. There used to be a chip row (status, game, condition, saves), a green
+ * fee-and-hold line, a bordered three-row protection card and a boxed seller card, so
+ * the column had five competing weights before the description. The only filled
+ * colour now is the primary action; everything else is muted text or a divider.
  */
 export function ListingDesktopPane({
   title,
@@ -40,7 +44,10 @@ export function ListingDesktopPane({
   showWatch,
   canReport,
   showTrust,
-  chips,
+  statusBadge,
+  category,
+  condition,
+  watchCount,
   initialWatching,
   sellerId,
   sellerDisplayName,
@@ -70,8 +77,13 @@ export function ListingDesktopPane({
   canReport: boolean;
   /** Show how a purchase is protected under the actions (a buyer who can buy). */
   showTrust: boolean;
-  /** Status, game and condition badges, left-aligned above the title. */
-  chips?: ReactNode;
+  /** Under contract / Sold / Closed. Null while the listing is available. */
+  statusBadge?: ListingStatusBadge | null;
+  /** The card game, for the meta line. */
+  category: string | null;
+  condition: string;
+  /** Members who saved it, drawn beside the heart. */
+  watchCount: number;
   initialWatching: boolean;
   sellerId: string;
   sellerDisplayName: string | null;
@@ -82,15 +94,18 @@ export function ListingDesktopPane({
   sellerRatingCount: number | undefined;
   sellerIdentity: SellerIdentityDisclosure | null;
   locationLabel: string | null;
-  /** `items.created_at`, for the listing-age clause of the meta line. */
+  /** `items.created_at`, for the listing-age clause of a binder's meta line. */
   createdAt: string | null;
   children: ReactNode;
 }) {
   const name = isOwner ? 'You' : (sellerDisplayName ?? 'Unknown seller');
-  // Relative, so it reads as freshness rather than as a date to decode. Rendered under
-  // `suppressHydrationWarning` because the server and the browser compute it a moment
-  // apart — the same reason `InspectionCountdown` does.
-  const listedAgo = formatRelativeTime(createdAt);
+  const meta = listingMetaLine({
+    isShopfront,
+    category,
+    condition,
+    locationLabel,
+    listedAgo: formatRelativeTime(createdAt),
+  });
   // A binder shows its own indicative "from" figure; a single listing shows what the
   // buyer is actually charged — the same figure as its catalog tile.
   const headline = splitMoney(
@@ -100,21 +115,25 @@ export function ListingDesktopPane({
   return (
     <div className="hidden flex-col gap-group lg:flex">
       <header className="space-y-snug">
-        {chips ? <div className="flex flex-wrap items-center gap-snug">{chips}</div> : null}
+        {statusBadge ? (
+          <Badge variant={statusBadge.variant} aria-label={`Availability: ${statusBadge.label}`}>
+            {statusBadge.label}
+          </Badge>
+        ) : null}
 
         <div className="flex items-start justify-between gap-cozy">
           <h2 className="min-w-0 text-balance text-head font-semibold tracking-tight">
             {title}
           </h2>
-          {/* Save and "⋯" at 20px, beside the title they act on. They were 14px flags
-              floating at the column's edge; Report now lives in the menu, which is
-              the weight a rare action deserves. */}
+          {/* Save and "⋯" at 20px, beside the title they act on. The save count sits
+              beside the heart rather than in a chip row of its own. */}
           <div className="-mr-snug -mt-tight flex shrink-0 items-center" role="group" aria-label="Listing actions">
             {showWatch ? (
               <WatchButton
                 itemId={itemId}
                 initialWatching={initialWatching}
                 variant="icon"
+                count={watchCount}
                 className="size-9 md:size-9"
                 glyphClassName="size-5"
               />
@@ -123,128 +142,56 @@ export function ListingDesktopPane({
           </div>
         </div>
 
+        {/* Relative listing age is part of a binder's line, so hydration-suppressed:
+            the server and the browser compute it a moment apart. */}
+        <p className="text-meta text-muted-foreground" suppressHydrationWarning>
+          {meta}
+        </p>
+
         <div>
           {/* THE PRICE IS WHAT THE BUYER PAYS, at `text-display` with symbol and cents
               receding. A shopfront keeps its indicative "from" figure: adding a precise
               fee to an imprecise number would be worse than saying nothing. */}
-          <div className="flex flex-wrap items-baseline gap-x-snug">
-            <p className="font-display font-semibold tabular-nums tracking-tight">
-              {isShopfront ? (
-                <span className="mr-tight text-body font-medium text-muted-foreground">
-                  from{' '}
-                </span>
-              ) : null}
-              <span className="text-lead font-semibold text-muted-foreground">
-                {headline.symbol}
+          <p className="font-display font-semibold tabular-nums tracking-tight">
+            {isShopfront ? (
+              <span className="mr-tight text-body font-medium text-muted-foreground">
+                from{' '}
               </span>
-              <span className="text-display">{headline.major}</span>
-              {headline.minor ? (
-                <span className="text-lead font-semibold text-muted-foreground">
-                  {headline.minor}
-                </span>
-              ) : null}
-            </p>
-            {!isShopfront ? (
-              <FeeInfoPopover
-                priceText={formatMoney(priceCents, currency)}
-                feeText={formatMoney(platformFeeCentsFor(priceCents, currency), currency)}
-                totalText={formatMoney(buyerPaysCents(priceCents, currency), currency)}
-                rateLabel={platformFeeRateLabel(currency)}
-              />
             ) : null}
-          </div>
-          {!isShopfront && !isOwner ? (
-            <ListingFeeLine priceCents={priceCents} currency={currency} className="mt-tight" />
-          ) : null}
-          <p className="mt-1.5 text-meta text-muted-foreground" suppressHydrationWarning>
-            {[
-              isShopfront ? 'Multiple items' : 'Single item',
-              listedAgo ? `Listed ${listedAgo}` : null,
-              locationLabel ? `Based in ${locationLabel}` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
+            <span className="text-lead font-semibold text-muted-foreground">
+              {headline.symbol}
+            </span>
+            <span className="text-display">{headline.major}</span>
+            {headline.minor ? (
+              <span className="text-lead font-semibold text-muted-foreground">
+                {headline.minor}
+              </span>
+            ) : null}
           </p>
+          {!isShopfront ? (
+            <ListingFeeNote priceCents={priceCents} currency={currency} className="mt-tight" />
+          ) : null}
         </div>
       </header>
 
       <div className="space-y-group">{children}</div>
 
-      {showTrust ? <ListingTrustRows /> : null}
+      {showTrust ? (
+        <ListingProtectionLine isShopfront={isShopfront} headingId="listing-protection-heading" />
+      ) : null}
 
-      <section aria-labelledby="seller-heading">
-        <h2 id="seller-heading" className="sr-only">
-          Seller
-        </h2>
-        <Card className="p-group">
-          <div className="flex min-w-0 items-center gap-cozy">
-            <Avatar avatarPath={sellerAvatarPath} displayName={name} size="md" />
-            <div className="min-w-0 space-y-tight">
-              <div className="flex min-w-0 items-center gap-tight">
-                {isOwner ? (
-                  <p className="truncate text-lead font-semibold">{name}</p>
-                ) : (
-                  <Link
-                    href={`/sellers/${sellerId}`}
-                    transitionTypes={['nav-forward']}
-                    className="truncate text-lead font-semibold underline-offset-2 hover:underline"
-                  >
-                    {name}
-                  </Link>
-                )}
-                <IdentityBadge
-                  verified={sellerVerified}
-                  firstName={sellerFirstName}
-                  size={14}
-                  iconOnly
-                  className="shrink-0"
-                />
-              </div>
-              {sellerRating != null ? (
-                isOwner ? (
-                  <StarRating rating={sellerRating} count={sellerRatingCount} size={12} className="text-meta" />
-                ) : (
-                  <Link
-                    href={`/sellers/${sellerId}#reviews`}
-                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
-                    aria-label="Read seller reviews"
-                  >
-                    <StarRating rating={sellerRating} count={sellerRatingCount} size={12} className="text-meta" />
-                  </Link>
-                )
-              ) : (
-                // Unrated: the same one-line box, so the card is one height for every seller.
-                <p className="inline-flex border border-transparent text-meta text-muted-foreground">
-                  No ratings yet
-                </p>
-              )}
-              {sellerIdentity && !isOwner ? (
-                // ONE LINE, clipped, so a trading name cannot wrap the card taller.
-                <dl className="flex min-w-0 flex-nowrap gap-x-cozy gap-y-0 overflow-hidden whitespace-nowrap text-meta leading-snug">
-                  <div className="flex min-w-0 gap-tight">
-                    <dt className="shrink-0 text-muted-foreground">
-                      {sellerIdentity.nameIsDocumentVerified ? 'Real name' : 'Stated name'}
-                    </dt>
-                    <dd className="min-w-0 truncate font-medium">
-                      {displayLegalName(sellerIdentity.legalEntityName)}
-                    </dd>
-                  </div>
-                  {sellerIdentity.tradingName ? (
-                    <div className="flex min-w-0 gap-tight">
-                      <dt className="shrink-0 text-muted-foreground">Trading as</dt>
-                      <dd className="min-w-0 truncate font-medium">{sellerIdentity.tradingName}</dd>
-                    </div>
-                  ) : null}
-                </dl>
-              ) : (
-                <p className="truncate text-meta leading-snug text-muted-foreground">
-                  {isOwner ? 'Buyers see your verified name here' : 'Name not verified yet'}
-                </p>
-              )}
-            </div>
-          </div>
-        </Card>
-      </section>
+      <ListingSellerRow
+        headingId="seller-heading"
+        sellerId={sellerId}
+        name={name}
+        isOwner={isOwner}
+        avatarPath={sellerAvatarPath}
+        verified={sellerVerified}
+        firstName={sellerFirstName}
+        rating={sellerRating}
+        ratingCount={sellerRatingCount}
+        identity={sellerIdentity}
+      />
 
       {description.trim() ? (
         <section aria-labelledby="description-heading" className="pb-group">
@@ -260,4 +207,36 @@ export function ListingDesktopPane({
       {details ? <div className="pb-group">{details}</div> : null}
     </div>
   );
+}
+
+/**
+ * The one quiet line under the title, shared by both layouts so they read the same.
+ *
+ * A single listing: `Pokémon · Graded · Croydon, NSW, Australia` — the full facts,
+ * listed date included, are in Details. A binder or bulk listing has no Details, so its
+ * line keeps the listing age, and it always says that nothing is held: on every other
+ * listing opening a contract reserves the goods.
+ */
+export function listingMetaLine({
+  isShopfront,
+  category,
+  condition,
+  locationLabel,
+  listedAgo,
+}: {
+  isShopfront: boolean;
+  category: string | null;
+  condition: string;
+  locationLabel: string | null;
+  listedAgo: string | null;
+}): string {
+  const parts = isShopfront
+    ? [
+        'Multiple items · nothing is held',
+        category,
+        listedAgo ? `Listed ${listedAgo}` : null,
+        locationLabel,
+      ]
+    : [category, condition, locationLabel];
+  return parts.filter(Boolean).join(' · ');
 }

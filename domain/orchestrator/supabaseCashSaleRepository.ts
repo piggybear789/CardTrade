@@ -636,6 +636,72 @@ export function createSupabaseCashSaleRepository(
       };
     },
 
+    async loadSellerExposure(sellerId, excludeCashSaleId) {
+      // ESC-03 layer 1. Every read checks its error and THROWS: a guessed zero
+      // would wave through the exact new-seller burst the cap exists to stop.
+      const { data: profile, error: profileError } = await client
+        .from('profiles')
+        .select('exposure_limit_override_minor')
+        .eq('id', sellerId)
+        .maybeSingle();
+      if (profileError) throw new Error(`[cash sale] loadSellerExposure profile: ${profileError.message}`);
+
+      const { data: open, error: openError } = await client
+        .from('cash_sales')
+        .select('id, amount_cents, status, seller_payout_status')
+        .eq('seller_id', sellerId)
+        .neq('id', excludeCashSaleId)
+        .in('status', [
+          'PAYMENT_PENDING',
+          'ESCROW_HELD',
+          'IN_TRANSIT',
+          'HANDOVER',
+          'INSPECTION',
+          'DISPUTED',
+          'RETURN_PENDING',
+          'RETURN_IN_TRANSIT',
+          'COMPLETED',
+        ]);
+      if (openError) throw new Error(`[cash sale] loadSellerExposure open: ${openError.message}`);
+      // Collected but not yet released: every live sale, plus a COMPLETED one whose
+      // payout has not settled.
+      const openCollectedMinor = (open ?? [])
+        .filter((row) => row.status !== 'COMPLETED' || row.seller_payout_status !== 'SETTLED')
+        .reduce((sum, row) => sum + Number(row.amount_cents ?? 0), 0);
+
+      const { data: completed, error: completedError } = await client
+        .from('cash_sales')
+        .select('id, buyer_id, agreed_price_cents, currency, payment_settled_at')
+        .eq('seller_id', sellerId)
+        .eq('status', 'COMPLETED')
+        .limit(200);
+      if (completedError) throw new Error(`[cash sale] loadSellerExposure history: ${completedError.message}`);
+      const ids = (completed ?? []).map((row) => row.id as string);
+      const { data: disputes, error: disputeError } = ids.length
+        ? await client.from('charge_disputes').select('cash_sale_id').in('cash_sale_id', ids)
+        : { data: [], error: null };
+      if (disputeError) throw new Error(`[cash sale] loadSellerExposure disputes: ${disputeError.message}`);
+      const disputed = new Set((disputes ?? []).map((row) => row.cash_sale_id as string));
+      const facts: CompletedSaleFact[] = (completed ?? [])
+        .filter((row) => row.payment_settled_at)
+        .map((row) => ({
+          buyerId: row.buyer_id as string,
+          agreedPriceMinor: Number(row.agreed_price_cents ?? 0),
+          currency: String(row.currency ?? 'aud'),
+          paymentSettledAt: row.payment_settled_at as string,
+          chargeDisputed: disputed.has(row.id as string),
+          buyerRelated: false,
+        }));
+
+      const override = (profile as { exposure_limit_override_minor?: number | null } | null)
+        ?.exposure_limit_override_minor;
+      return {
+        qualifyingCompletedSales: countQualifyingSales(facts, new Date()),
+        openCollectedMinor,
+        overrideMinor: override === undefined || override === null ? null : Number(override),
+      };
+    },
+
     async recordPayoutDeferral({ cashSaleId, releaseAt, holdReason }) {
       const { error } = await client
         .from('cash_sales')

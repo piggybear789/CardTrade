@@ -44,6 +44,7 @@ import { ReportActions } from '@/components/admin/ReportActions';
 import { FeedbackActions } from '@/components/admin/FeedbackActions';
 import { ClearFlagButton } from '@/components/admin/ClearFlagButton';
 import { CustodyPanel } from '@/components/admin/CustodyPanel';
+import { ExposureOverrideForm } from '@/components/admin/ExposureOverrideForm';
 import {
   ErrorsQueue,
   type ErrorGroupRow,
@@ -489,6 +490,8 @@ export default async function AdminPage({
           {custodyPositions.map((position) => (
             <CustodyPanel key={position.region} position={position} />
           ))}
+
+          <ExposureOverrideForm />
 
           <div className="mb-group flex flex-wrap items-center justify-between gap-cozy">
             <div className="flex flex-wrap items-center gap-snug">

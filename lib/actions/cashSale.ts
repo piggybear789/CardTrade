@@ -55,7 +55,9 @@ export type CashSaleActionError =
   /** ESC-02: the tracking was scanned before the buyer paid, so it is not this parcel. */
   | 'tracking-predates-payment'
   /** ESC-03: the seller payout is deferred by the holdback; it is released later. */
-  | 'payout-held';
+  | 'payout-held'
+  /** ESC-03: a new seller is at their open-sales limit; the buyer can try later. */
+  | 'seller-exposure-limit';
 
 export type CashSaleActionResult =
   | {
@@ -169,6 +171,7 @@ function mapError(error: CashSaleError): CashSaleActionError {
     INVALID_STATE: 'invalid-state',
     TRACKING_PREDATES_PAYMENT: 'tracking-predates-payment',
     PAYOUT_HELD: 'payout-held',
+    SELLER_EXPOSURE_LIMIT: 'seller-exposure-limit',
     // ESC-37: only the webhook settles against a provider ref, so a member never
     // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
     SETTLEMENT_MISMATCH: 'invalid-state',

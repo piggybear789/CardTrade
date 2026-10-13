@@ -44,6 +44,8 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   'invalid-refund-amount': 'That refund amount is not valid for this contract.',
   'nothing-to-refund': 'Nothing was collected on this contract, so there is nothing to refund.',
   'payout-held': 'The seller is paid after a short safety hold. Nothing is wrong with this contract.',
+  'seller-exposure-limit':
+    'This seller has reached their limit for new sellers. Try again after their current sales complete.',
   'tracking-predates-payment':
     'That tracking number was scanned by the carrier before this sale was paid for, so it cannot be this parcel. Check the number.',
 };

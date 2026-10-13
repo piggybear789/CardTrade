@@ -206,6 +206,22 @@ const EXPECTED_CODES = new Set([
   // ESC-14 / ESC-21: a payout deferred by the release policy (holdback window,
   // chargeback, fraud warning). The money is safe in the platform balance.
   'payout-held',
+  // ESC-03 layer 1: a new seller at their open-sales limit.
+  'seller-exposure-limit',
+  // ESC-03 layer 3: the two members share a card, payout account or identity.
+  'related-accounts',
+  // ESC-14: a card fingerprint blocked after a lost fraud chargeback.
+  'card-blocked',
+  // ESC-25: the payout account name does not match the verified ID.
+  'payee-identity-mismatch',
+  // ESC-20: confirming an in-person handover long before the meeting.
+  'handover-too-early',
+  // ESC-24: staff approval refused while the duplicate account is live or banned.
+  'duplicate-still-live',
+  'duplicate-banned',
+  // ESC-05: the trade cash leg was declined, or not paid in time.
+  'cash-declined',
+  'trade-cash-pay-by-passed',
 ]);
 
 /**
@@ -220,6 +236,10 @@ const UNEXPECTED_CODES = new Set([
   // ESC-37: a provider settlement that is not this sale's collection. Would read as
   // a refusal by the `-mismatch` pattern; it is a payment that cannot be matched.
   'settlement-mismatch',
+  // ESC-15 / ESC-25: a provider stopped returning what a check depends on. Would read
+  // as refusals by the `-unavailable` pattern; they are gaps in a safety control.
+  'person-keys-unavailable',
+  'payee-name-unavailable',
 ]);
 
 /**

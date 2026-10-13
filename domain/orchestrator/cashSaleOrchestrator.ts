@@ -8,7 +8,7 @@
 import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
 import type { CashSaleEventCode } from './cashSaleEvents';
-import { decideRelease, type ReleaseFacts } from '../payouts/releasePolicy';
+import { decideRelease, exceedsNewSellerExposure, type ReleaseFacts } from '../payouts/releasePolicy';
 import { decideThreeDS } from '../payments/scaPolicy';
 import {
   checkRegionCompatibility,
@@ -438,6 +438,11 @@ export type CashSaleError =
    */
   | 'SETTLEMENT_MISMATCH'
   /**
+   * ESC-03 layer 1: a new seller already holds as much collected-but-unreleased money
+   * as the platform will carry for them. Expected; clears as their sales complete.
+   */
+  | 'SELLER_EXPOSURE_LIMIT'
+  /**
    * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
    * this sale's shipment (the stale-number attack). Expected; nothing is written.
    */
@@ -839,6 +844,14 @@ export interface CashSaleRepository {
    * means "no policy input" (release now). Optional so a test fake may omit it.
    */
   loadReleaseFacts?(cashSaleId: string): Promise<ReleaseFacts | null>;
+  /**
+   * ESC-03 layer 1: what the new-seller exposure cap reads. Throws on a failed read
+   * rather than guessing zero. Optional so a test fake may omit it (no cap).
+   */
+  loadSellerExposure?(
+    sellerId: string,
+    excludeCashSaleId: string,
+  ): Promise<{ qualifyingCompletedSales: number; openCollectedMinor: number; overrideMinor: number | null }>;
   /** Record WHEN (or why not) a deferred payout may move. Spends no attempt. */
   recordPayoutDeferral?(params: {
     cashSaleId: string;
@@ -1902,6 +1915,26 @@ export async function acceptCashSaleTerms(
       ok: false,
       error: 'BUYER_NO_PAYMENT_METHOD',
       detail: 'Add a card before you pay.',
+    };
+  }
+
+  // NEW-SELLER EXPOSURE CAP (ESC-03 layer 1). A stolen-card cash-out needs volume
+  // through a fresh seller account; the holdback delays each payout, and this caps
+  // how much can pile up behind it. Checked before anything is frozen or collected.
+  const exposure = await deps.repository.loadSellerExposure?.(sale.sellerId, sale.id);
+  if (
+    exposure &&
+    exceedsNewSellerExposure({
+      ...exposure,
+      addMinor: sale.amountCents,
+      currency: sale.currency,
+    })
+  ) {
+    return {
+      ok: false,
+      error: 'SELLER_EXPOSURE_LIMIT',
+      detail:
+        'This seller has reached their limit for new sellers. Try again after their current sales complete.',
     };
   }
 

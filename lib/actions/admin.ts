@@ -61,12 +61,18 @@ export type AdminActionError =
   | 'not-authenticated'
   | 'not-authorized'
   | 'not-found'
-  | 'persistence-error';
+  | 'persistence-error'
+  /** A staff input failed validation; `field` names it. */
+  | 'invalid-input'
+  /** ESC-24: the duplicate-of account is still live; close it first. */
+  | 'duplicate-still-live'
+  /** ESC-24: the duplicate-of account was banned for fraud; never approved. */
+  | 'duplicate-banned';
 
 /** Discriminated result returned by every admin action. */
 export type AdminActionResult<T = { id: string }> =
   | { ok: true; data: T }
-  | { ok: false; error: AdminActionError; message?: string };
+  | { ok: false; error: AdminActionError; message?: string; field?: string };
 
 /**
  * Build the dispute coordinator for one trade, on the trade's own platform account.
@@ -498,6 +504,43 @@ export const resolveTrackingFlag = withActionLog('admin.resolveTrackingFlag', as
   revalidatePath(`/admin/arbitration/CASH_SALE/${cashSaleId}`);
   revalidatePath(`/sales/${cashSaleId}`);
   return { ok: true, data: { id: result.sale.id, status: result.sale.status } };
+});
+
+/**
+ * Set or clear a seller's open-exposure limit (ESC-03 layer 1).
+ *
+ * `limitMinor` replaces the per-currency new-seller limit for this seller whatever
+ * their history: a higher figure lets a known trader sell a big binder, 0 pauses
+ * them. `null` clears it, returning them to the default policy. Staff only; the
+ * column has no member grant.
+ */
+export const setExposureLimitOverride = withActionLog('admin.setExposureLimitOverride', async function setExposureLimitOverride(
+  profileId: string,
+  limitMinor: number | null,
+): Promise<AdminActionResult<{ id: string; limitMinor: number | null }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  if (limitMinor !== null && (!Number.isSafeInteger(limitMinor) || limitMinor < 0)) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      field: 'limitMinor',
+      message: 'Enter a whole amount of zero or more, or clear the override.',
+    };
+  }
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('profiles')
+    .update({ exposure_limit_override_minor: limitMinor })
+    .eq('id', profileId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: profileId, limitMinor } };
 });
 
 export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDispute', async function resolveCashSaleDispute(

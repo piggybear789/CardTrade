@@ -116,6 +116,35 @@ Every write in `StripeService` carries an explicit `idempotencyKey`:
 The SDK is configured with `maxNetworkRetries: 2`, which is safe precisely
 because every write is keyed.
 
+A collection the payer can RETRY gets one key per ATTEMPT, never one per contract:
+cash sales use `cash-sale:<id>:terms:<v>:attempt:<n>` (`cash_sales.payment_attempt`,
+0138) and trade cash uses `trade-cash:collect:<tradeId>:<n>`. A fixed key made a
+re-pay after an abandoned 3-D Secure check replay Stripe's cached, cancelled intent.
+A crash-retry of the SAME attempt still reuses its persisted nonce.
+
+## Buyer-present collection (ESC-03, ESC-05)
+
+Money a member PAYS (a cash sale, a trade's cash leg) is collected with the payer
+present: `requestTransfer({ presence: { kind: 'BUYER_PRESENT', threeDS } })` omits
+`off_session`, sets `payment_method_options.card.request_three_d_secure` from
+`domain/payments/scaPolicy.ts`, and passes `use_stripe_sdk` so the browser's
+`stripe.handleNextAction` can run the check in place. `requires_action` comes back as
+`REQUIRES_ACTION` with the client secret (never persisted or logged); the room runs the
+check and then a read-back action (`confirmCashSalePayment`, `confirmTradeCashPayment`)
+decides through `readCollection`. A secret is re-read from Stripe for "Complete
+payment", so a reload or a second device can finish it. Off-session is for collateral
+holds and the Trade_Fee only.
+
+`cancelCollection` treats a refusal on a succeeded intent as `ALREADY_SETTLED`. The
+`:47` job cancels a check left unfinished for 30 minutes (cash sale back to AGREEMENT,
+trade cash back to NOT_COLLECTED) or settles it if it finished meanwhile.
+
+Settlement is BOUND to the sale's own collection (ESC-37): `settleCashSale` requires the
+webhook's PaymentIntent to be the recorded `transfer_id` and its `amount_received` to be
+the contract amount, else `SETTLEMENT_MISMATCH` (unexpected). `translateStripeEvent`
+drops `payment_intent.*`, `charge.*` and `identity.*` events carrying `event.account`:
+those happened inside a member's own connected account.
+
 ## Webhooks
 
 `app/api/webhooks/stripe/route.ts` is signature-authenticated, not
@@ -213,6 +242,24 @@ Separate charges and transfers, not destination charges. Required because the
 platform must hold funds before release AND, on Objective_Fraud, pay captured
 collateral to the VICTIM rather than to whoever paid (Req 8.3).
 
+**Every release goes through `domain/payouts/releasePolicy.ts`** (ESC-03, ESC-14): a
+new seller's cash-sale proceeds and trade cash wait out the holdback from collection,
+an open chargeback or early fraud warning holds them outright, and a deferral spends no
+attempt. A chargeback OPENED holds an unreleased payout (cash sale, trade cash leg,
+collateral disbursement) and stages evidence with `submitDisputeEvidence({ submit:
+false })`; WON clears the hold; LOST as `fraudulent` / `product_not_received` blocks the
+payer's saved cards (`blocked_payment_fingerprints`, 0140). An early fraud warning
+(`radar.early_fraud_warning.created`, subscribe the platform endpoint to it) refunds a
+sale that has not shipped and holds one that has. A payout that already left is only
+ever clawed back by staff (`reverseCashSalePayout`), never automatically.
+
+**Trade cash is held, not forwarded** (ESC-05/06, `trade_cash_settlements`, 0139): the
+payer pays buyer-present before any collateral hold, the platform holds it, completion
+queues a release that the `:47` drain pays with `payoutToMerchant(sourcePaymentRef)`,
+and every outcome routes it (NO_EXCHANGE and abandon refund; FRAUD goes to the wronged
+side). `PAYOUT_MODE` plays no part. `settleTradeCash` survives only for trades agreed
+before the switch (no settlement row).
+
 **Do not "improve" this by moving to destination charges with delayed payouts.**
 This has been proposed and rejected twice, and the second time only after checking
 Stripe's own documentation, so here is the reasoning in full:
@@ -305,6 +352,30 @@ the hosted flow will not wait for a delayed delivery before deciding the app is 
 
 `createIdentityCheck` throws rather than returning a status, matching `createPayer`, so a
 provider failure leaves verification state untouched (Req 2.6).
+
+**Person keys need the restricted Identity key** (ESC-15). The fraud blocklist matches a
+banned PERSON by HMAC keys built from the document. Stripe returns a session's document
+number and date of birth only to a restricted key with Identity "read verification
+results", only when expanded explicitly (`IDENTITY_SENSITIVE_EXPANDS`, including
+`last_verification_report.document.number`), and only for 48 hours. Read with the normal
+secret key they are null and the keys were silently empty. Set
+`STRIPE_IDENTITY_RESTRICTED_KEY[_<REGION>]`; without it verification still proceeds, but
+`PERSON_KEYS_UNAVAILABLE` is logged and `identity_keys_missing_at` is set for the `:17`
+backfill. Keys are `doc:<issuingCountry>:<number>` and `namedob:<family>:<firstGiven>:<dob>`,
+never the address country.
+
+**One person, one live account** (ESC-24): a VERIFIED session whose person key belongs to
+another live account is held PENDING with `identity_duplicate_of` for staff
+(`resolveDuplicateIdentity`; approve only once the older account is closed).
+
+**The payee is the verified person** (ESC-25): every payout read-back compares the Connect
+account's individual name with the Identity name (`domain/identity/payeeNameMatch.ts`). A
+mismatch sets `payee_identity_mismatch_at` and `canReceiveFunds` turns false; staff clear a
+legitimate short form with `clearPayeeMismatch` (an HMAC of the name pair, never the
+names). An unexposed payee name is logged once and never flags. The disclosure falls back
+to `merchant_legal_entity_name` ONLY for members 0069 grandfathered
+(`identity_grandfathered_at`), through `disclosedLegalName` in both places that disclose a
+name.
 
 Verified identity data is sensitive: server-only, never logged, never returned to a client
 component. The disclosure is a name and nothing else — never document numbers, address, or

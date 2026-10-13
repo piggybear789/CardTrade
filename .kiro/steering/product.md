@@ -127,6 +127,8 @@ Lifecycle:
 5. Inspect — **7 days**. Auto-complete via pg_cron `auto_complete_due_cash_sales` (`:07` hourly). Warning emails from the Vercel job.
 6. Payout — queued, drained by `/api/jobs/cash-sale-payouts` (`:47` hourly). Needs `canReceiveFunds`, else `SELLER_NOT_PAYABLE`. Release is also gated by the release policy (0138): `seller_payout_release_at` (holdback window) and `seller_payout_hold_reason` (`CHARGE_DISPUTE` on an opened card dispute, cleared when won). A deferred payout returns `PAYOUT_HELD` and is not a failure.
 7. Cancel — only from `AGREEMENT` (pre-payment). Item returns to the catalog.
+
+Fraud controls on the buy path (ESC-03, ESC-14): payment is buyer-present with 3-D Secure for new buyers and large amounts (an unfinished check is cancelled after 30 minutes, back to `AGREEMENT`, nothing charged); a new seller can hold at most a capped amount in open sales (`SELLER_EXPOSURE_LIMIT`, staff override on `/admin` → Payouts); two accounts sharing a card, payout account or verified person cannot deal with each other (`RELATED_ACCOUNTS`, never says why); a card lost to a fraud chargeback is blocked (`CARD_BLOCKED`); money-path actions are rate limited across instances. An early fraud warning before shipment refunds the sale (`REFUNDED`, neutral copy); after shipment it holds the payout. In person, a handover can be confirmed only from an hour before the meeting (`HANDOVER_TOO_EARLY`).
 8. Dispute — from `ESCROW_HELD` | `IN_TRANSIT` | `HANDOVER` | `INSPECTION`. Withdrawal exists (0084).
 9. Returns — see [Return-conditional refunds](#return-conditional-refunds).
 
@@ -141,6 +143,8 @@ Routes: `/trades`, `/trades/new`, `/trades/[id]`.
 A Trade row is created on the first offer and lives in `NEGOTIATING` until `TERMS_AGREED`. Either party can counter. The same `terms_version` must be accepted by both. Saved card is a hard prerequisite for escrow.
 
 Fulfilment: trades are `IN_PERSON` only (`TRADE_HANDOVER_METHODS`). Cash, declared value, or `counterpart_goods_description` void both acceptances. **Meeting edits are locked by state (ESC-04, `domain/fulfilment/handoverEdits.ts`, backed by the 0133 `trades_lock_handover` trigger):** while NEGOTIATING an edit clears the OTHER trader's acceptance (a refinement of 0101 for trades: the meeting place is where a robbery happens); in COLLATERAL_PENDING before the placement cutoff, with no live hold, it is a PROPOSAL the other trader must accept (`trade_handover_changes`); after that it is refused. A COLLATERAL_PENDING trade whose meeting passed without locking is ended by the one abandon operation (`abandonCollateralPendingTrade`: void holds, `COLLATERAL_ABANDONED`, filtered restore, refund fees, notify).
+
+**A cash leg is paid before the holds and held by the platform** (ESC-05/06, `trade_cash_settlements`, 0139). After TERMS_AGREED the paying trader pays the cash buyer-present in the room by `pay_by` (`BOND_PLACEMENT_LEAD_HOURS` before the meeting); collateral is placed only once it is collected, and an unpaid leg at `pay_by` abandons the trade. Completion releases it to the receiver through the release policy; a cancelled or unwound trade refunds it; on fraud it goes to the wronged trader. A payment landing after the trade ended is refunded by trigger.
 
 See [2-Way Trade Escrow](#2-way-trade-escrow) for collateral, inspection, shopfront trades, and the in-person vs delivery split.
 

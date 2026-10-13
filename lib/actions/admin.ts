@@ -52,6 +52,14 @@ import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { normalizeRegionCode, regionCurrency } from '@/domain/region';
 import type { Enums } from '@/lib/supabase/database.types';
 import { createNotification } from '@/lib/notifications/createNotification';
+import {
+  caseParticipants,
+  cashSaleValueMinor,
+  gateResolution,
+  staffCount,
+  tradeValueMinor,
+} from '@/lib/arbitration/approvals';
+import { canApprove, type ResolutionAction } from '@/domain/arbitration/approvalPolicy';
 
 /**
  * Admin action error codes.
@@ -70,7 +78,15 @@ export type AdminActionError =
   /** ESC-24: the duplicate-of account is still live; close it first. */
   | 'duplicate-still-live'
   /** ESC-24: the duplicate-of account was banned for fraud; never approved. */
-  | 'duplicate-banned';
+  | 'duplicate-banned'
+  /** ESC-23: the decision was saved as a proposal for a second staff member. */
+  | 'approval-required'
+  /** ESC-23: the approval id is not an APPROVED proposal for this decision. */
+  | 'approval-invalid'
+  /** ESC-23: approval refusals from `canApprove`. */
+  | 'SAME_STAFFER'
+  | 'COOLING_OFF'
+  | 'RECUSED';
 
 /** Discriminated result returned by every admin action. */
 export type AdminActionResult<T = { id: string }> =
@@ -433,11 +449,22 @@ export const retryCashSalePayout = withActionLog('admin.retryCashSalePayout', as
 export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleReturnCase', async function resolveCashSaleReturnCase(
   cashSaleId: string,
   outcome: 'REFUND_BUYER' | 'RELEASE_SELLER',
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
 ): Promise<AdminActionResult<{ id: string; status: string }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+  const approval = await gateResolution({
+    action: 'RESOLVE_CASH_SALE_RETURN',
+    caseRef: cashSaleId,
+    valueMinor: await cashSaleValueMinor(cashSaleId),
+    payload: { outcome },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
 
   const orchestrator = createDefaultCashSaleOrchestrator({
     payments: getPaymentService(await regionForCashSale(cashSaleId)),
@@ -447,6 +474,7 @@ export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleRet
     actorId: gate.ctx.userId,
     outcome,
   });
+  await approval.settle(result.ok);
 
   if (!result.ok) {
     return {
@@ -482,11 +510,23 @@ export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleRet
 export const resolveTrackingFlag = withActionLog('admin.resolveTrackingFlag', async function resolveTrackingFlag(
   cashSaleId: string,
   decision: TrackingFlagDecision,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
 ): Promise<AdminActionResult<{ id: string; status: string }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+  // Only a refund moves money; starting the clock does not.
+  const approval = await gateResolution({
+    action: 'RESOLVE_TRACKING_FLAG',
+    caseRef: cashSaleId,
+    valueMinor: decision === 'REFUND_BUYER' ? await cashSaleValueMinor(cashSaleId) : 0,
+    payload: { decision },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
   const orchestrator = createDefaultCashSaleOrchestrator({
     payments: getPaymentService(await regionForCashSale(cashSaleId)),
   });
@@ -496,6 +536,7 @@ export const resolveTrackingFlag = withActionLog('admin.resolveTrackingFlag', as
     decision,
     inspectionDays: CASH_SALE_INSPECTION_DAYS,
   });
+  await approval.settle(result.ok);
   if (!result.ok) {
     return {
       ok: false,
@@ -677,12 +718,13 @@ export const resolveDuplicateIdentity = withActionLog('admin.resolveDuplicateIde
 export const reverseCashSalePayout = withActionLog('admin.reverseCashSalePayout', async function reverseCashSalePayout(
   cashSaleId: string,
   amountMinor: number,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
 ): Promise<AdminActionResult<{ id: string; reversalRef: string }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
-  // WP5 (ESC-36): approval — a second staff member confirms before money moves.
   const admin = createAdminClient();
   const { data, error } = await admin
     .from('cash_sales')
@@ -707,11 +749,22 @@ export const reverseCashSalePayout = withActionLog('admin.reverseCashSalePayout'
   if (!payments.reversePayout) {
     return { ok: false, error: 'persistence-error', message: 'The payment provider cannot reverse payouts.' };
   }
+  // ESC-23: a second staff member confirms before a clawback above the threshold.
+  const approval = await gateResolution({
+    action: 'REVERSE_CASH_SALE_PAYOUT',
+    caseRef: cashSaleId,
+    valueMinor: amountMinor,
+    payload: { amountMinor },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
   const reversal = await payments.reversePayout({
     transferId: data.seller_payout_ref as string,
     amount: amountMinor,
     nonce: `cash-sale:${cashSaleId}`,
   });
+  await approval.settle(reversal.status === 'SETTLED');
   if (reversal.status !== 'SETTLED') {
     return { ok: false, error: 'persistence-error', message: 'The reversal did not go through.' };
   }
@@ -737,11 +790,22 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
    * the columns cannot.
    */
   requireReturn?: boolean,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
 ): Promise<AdminActionResult<{ id: string; status: string; refundCents: number }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+  const approval = await gateResolution({
+    action: 'RESOLVE_CASH_SALE_DISPUTE',
+    caseRef: cashSaleId,
+    valueMinor: await cashSaleValueMinor(cashSaleId),
+    payload: { outcome, refundCents: refundCents ?? null, requireReturn: requireReturn ?? null },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
 
   // A resolution refunds the buyer and/or releases to the seller, so it must run on
   // the platform account that collected the money (0068).
@@ -755,6 +819,7 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
     refundCents,
     requireReturn,
   });
+  await approval.settle(result.ok);
 
   if (!result.ok) {
     const message =
@@ -820,17 +885,31 @@ export type ResolveTradeDisputeActionData = {
 export const resolveTradeDispute = withActionLog('admin.resolveTradeDispute', async function resolveTradeDispute(
   tradeId: string,
   outcome: TradeDisputeOutcome,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
 ): Promise<AdminActionResult<ResolveTradeDisputeActionData>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+  // A fraud finding always needs a second approver: it also bans a member for good.
+  const approval = await gateResolution({
+    action: 'RESOLVE_TRADE_DISPUTE',
+    caseRef: tradeId,
+    valueMinor: outcome.kind === 'UNFOUNDED' || outcome.kind === 'NO_EXCHANGE' ? 0 : await tradeValueMinor(tradeId),
+    payload: { outcome },
+    staffId: gate.ctx.userId,
+    approvalId,
+    fraud: outcome.kind === 'FRAUD',
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
 
   const result = await (await buildAdminDisputeOrchestrator(tradeId)).resolveTradeDispute({
     tradeId,
     actorId: gate.ctx.userId,
     outcome,
   });
+  await approval.settle(result.ok);
 
   if (!result.ok) {
     return {
@@ -1242,4 +1321,120 @@ export const drainCashSalePayouts = withActionLog('admin.drainCashSalePayouts', 
 
   revalidatePath('/admin');
   return { ok: true, data: totals };
+});
+
+/**
+ * Approve a pending staff decision and run it (ESC-23).
+ *
+ * The approver must be a different staff member, not a party to the case. On a
+ * one-person team the proposer may approve after `SOLO_COOLING_OFF_HOURS`. The
+ * decision then runs through the same action that proposed it, with the proposal id,
+ * so every guard in that action applies again.
+ */
+export const approveStaffResolution = withActionLog('admin.approveStaffResolution', async function approveStaffResolution(
+  proposalId: string,
+): Promise<AdminActionResult<{ id: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const table = () => (admin as any).from('staff_resolution_proposals');
+  const { data: proposal, error } = await table()
+    .select('id, action, case_ref, payload, status, proposed_by, proposed_at')
+    .eq('id', proposalId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!proposal) return { ok: false, error: 'not-found' };
+
+  const action = proposal.action as ResolutionAction;
+  const refusal = canApprove({
+    status: proposal.status,
+    proposedBy: proposal.proposed_by,
+    proposedAt: proposal.proposed_at,
+    approverId: gate.ctx.userId,
+    participantIds: await caseParticipants(action, proposal.case_ref),
+    staffCount: await staffCount(),
+    now: new Date(),
+  });
+  if (refusal === 'NOT_PENDING') {
+    return { ok: false, error: 'approval-invalid', message: 'That proposal is no longer waiting for approval.' };
+  }
+  if (refusal) {
+    const messages: Record<typeof refusal, string> = {
+      SAME_STAFFER: 'A different staff member has to approve this.',
+      COOLING_OFF: 'On a one-person team you can approve your own proposal 24 hours after making it.',
+      RECUSED: 'You are a party to this case, so you cannot approve it.',
+    };
+    return { ok: false, error: refusal, message: messages[refusal] };
+  }
+
+  const { data: claimed, error: claimError } = await table()
+    .update({ status: 'APPROVED', decided_by: gate.ctx.userId, decided_at: new Date().toISOString() })
+    .eq('id', proposalId)
+    .eq('status', 'PENDING')
+    .select('id');
+  if (claimError) return { ok: false, error: 'persistence-error', message: claimError.message };
+  if (!claimed || claimed.length === 0) {
+    return { ok: false, error: 'approval-invalid', message: 'Someone else decided this proposal first.' };
+  }
+
+  const payload = (proposal.payload ?? {}) as Record<string, unknown>;
+  const ref = proposal.case_ref as string;
+  let result: AdminActionResult<unknown>;
+  switch (action) {
+    case 'RESOLVE_CASH_SALE_DISPUTE':
+      result = await resolveCashSaleDispute(
+        ref,
+        payload.outcome as CashSaleDisputeOutcome,
+        (payload.refundCents as number | null) ?? undefined,
+        (payload.requireReturn as boolean | null) ?? undefined,
+        proposalId,
+      );
+      break;
+    case 'RESOLVE_CASH_SALE_RETURN':
+      result = await resolveCashSaleReturnCase(ref, payload.outcome as 'REFUND_BUYER' | 'RELEASE_SELLER', proposalId);
+      break;
+    case 'RESOLVE_TRACKING_FLAG':
+      result = await resolveTrackingFlag(ref, payload.decision as TrackingFlagDecision, proposalId);
+      break;
+    case 'REVERSE_CASH_SALE_PAYOUT':
+      result = await reverseCashSalePayout(ref, Number(payload.amountMinor), proposalId);
+      break;
+    case 'RESOLVE_TRADE_DISPUTE':
+      result = await resolveTradeDispute(ref, payload.outcome as TradeDisputeOutcome, proposalId);
+      break;
+    default:
+      return { ok: false, error: 'invalid-input', message: 'Unknown proposal action.' };
+  }
+  revalidatePath('/admin/arbitration');
+  if (!result.ok) return { ok: false, error: result.error, message: result.message };
+  return { ok: true, data: { id: proposalId } };
+});
+
+/** Reject a pending staff decision (ESC-23). Nothing moves. */
+export const rejectStaffResolution = withActionLog('admin.rejectStaffResolution', async function rejectStaffResolution(
+  proposalId: string,
+  note?: string,
+): Promise<AdminActionResult<{ id: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (createAdminClient() as any)
+    .from('staff_resolution_proposals')
+    .update({
+      status: 'REJECTED',
+      decided_by: gate.ctx.userId,
+      decided_at: new Date().toISOString(),
+      note: note?.trim().slice(0, 2000) || null,
+    })
+    .eq('id', proposalId)
+    .eq('status', 'PENDING')
+    .select('id');
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'approval-invalid', message: 'That proposal is no longer waiting for approval.' };
+  }
+  revalidatePath('/admin/arbitration');
+  return { ok: true, data: { id: proposalId } };
 });

@@ -222,6 +222,12 @@ const EXPECTED_CODES = new Set([
   'tracking-in-use',
   'tracking-already-delivered',
   'tracking-predates-dispute',
+  // ESC-23: two-person rule outcomes. A proposal is the designed result, not a fault.
+  'approval-required',
+  'approval-invalid',
+  'SAME_STAFFER',
+  'COOLING_OFF',
+  'RECUSED',
   // ESC-12: carrier destination differs from the contract. Logged, never refused.
   'DESTINATION_COUNTRY_MISMATCH',
   // ESC-24: staff approval refused while the duplicate account is live or banned.

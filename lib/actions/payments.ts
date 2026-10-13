@@ -20,6 +20,7 @@
 
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { consumeDbRateLimit } from '@/lib/rateLimitDb';
+import { isCardHashBlocked, recordRiskSignal } from '@/lib/risk/signals';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -34,7 +35,9 @@ export type CardSetupError =
   | 'PAYER_UNAVAILABLE'
   | 'PROVIDER_ERROR'
   /** ESC-03 layer 4: too many card setups this hour. */
-  | 'rate-limited';
+  | 'rate-limited'
+  /** ESC-14: this card is blocked after a lost fraud chargeback. Generic copy. */
+  | 'CARD_BLOCKED';
 
 /** What the browser needs to mount the provider's own card fields. */
 export interface CardSetupSession {
@@ -113,6 +116,13 @@ export const completeCardSetup = withActionLog('payments.completeCardSetup', asy
     });
 
     const admin = createAdminClient();
+    // ESC-03 layer 3 / ESC-14: remember the card (as an HMAC) so a second account
+    // using it is recognised, and refuse a card blocked after a lost fraud chargeback
+    // BEFORE it becomes this member's card on file.
+    const cardHash = await recordRiskSignal(userId, 'CARD_FINGERPRINT', instrument.fingerprint, admin);
+    if (cardHash && (await isCardHashBlocked(cardHash, admin))) {
+      return fail('CARD_BLOCKED', "This card can't be used on NoDitto. Try a different card or contact support.");
+    }
     await admin
       .from('profiles')
       .update({

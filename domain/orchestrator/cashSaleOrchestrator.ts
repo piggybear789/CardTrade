@@ -442,6 +442,10 @@ export type CashSaleError =
    * as the platform will carry for them. Expected; clears as their sales complete.
    */
   | 'SELLER_EXPOSURE_LIMIT'
+  /** ESC-03 layer 3: the two parties are related accounts. Expected; generic copy. */
+  | 'RELATED_ACCOUNTS'
+  /** ESC-14: the buyer's card is blocked after a lost fraud chargeback. Expected. */
+  | 'CARD_BLOCKED'
   /**
    * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
    * this sale's shipment (the stale-number attack). Expected; nothing is written.
@@ -844,6 +848,10 @@ export interface CashSaleRepository {
    * means "no policy input" (release now). Optional so a test fake may omit it.
    */
   loadReleaseFacts?(cashSaleId: string): Promise<ReleaseFacts | null>;
+  /** ESC-03 layer 3: do the two members share a card, payout account or person? */
+  areRelated?(a: string, b: string): Promise<boolean>;
+  /** ESC-14: is any card this buyer saved on the blocklist? */
+  isBuyerCardBlocked?(buyerId: string): Promise<boolean>;
   /**
    * ESC-03 layer 1: what the new-seller exposure cap reads. Throws on a failed read
    * rather than guessing zero. Optional so a test fake may omit it (no cap).
@@ -1223,6 +1231,11 @@ async function openAgreement(
   const item = await deps.repository.loadItem(params.itemId);
   if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
   if (item.ownerId === params.buyerId) return { ok: false, error: 'SELF_PURCHASE' };
+  // ESC-03 layer 3: a buyer and seller who share a card, a payout account or a
+  // verified person are one party dealing with itself. The copy never says why.
+  if (await deps.repository.areRelated?.(params.buyerId, item.ownerId)) {
+    return { ok: false, error: 'RELATED_ACCOUNTS' };
+  }
 
   // Region precondition (0065). Checked here, at the point a contract is opened,
   // rather than relying on the catalog being region-scoped: a browse filter is
@@ -1916,6 +1929,15 @@ export async function acceptCashSaleTerms(
       error: 'BUYER_NO_PAYMENT_METHOD',
       detail: 'Add a card before you pay.',
     };
+  }
+
+  // ESC-03 layer 3 again at Pay (signals can arrive after the agreement opened), and
+  // ESC-14: a card blocked after a lost fraud chargeback cannot pay.
+  if (await deps.repository.areRelated?.(sale.buyerId, sale.sellerId)) {
+    return { ok: false, error: 'RELATED_ACCOUNTS' };
+  }
+  if (await deps.repository.isBuyerCardBlocked?.(sale.buyerId)) {
+    return { ok: false, error: 'CARD_BLOCKED' };
   }
 
   // NEW-SELLER EXPOSURE CAP (ESC-03 layer 1). A stolen-card cash-out needs volume

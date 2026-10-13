@@ -60,7 +60,11 @@ export type CashSaleActionError =
   /** ESC-03: a new seller is at their open-sales limit; the buyer can try later. */
   | 'seller-exposure-limit'
   /** ESC-03 layer 4: too many attempts this hour. */
-  | 'rate-limited';
+  | 'rate-limited'
+  /** ESC-03 layer 3: refused, generic copy. */
+  | 'related-accounts'
+  /** ESC-14: the card is blocked. */
+  | 'card-blocked';
 
 export type CashSaleActionResult =
   | {
@@ -175,6 +179,8 @@ function mapError(error: CashSaleError): CashSaleActionError {
     TRACKING_PREDATES_PAYMENT: 'tracking-predates-payment',
     PAYOUT_HELD: 'payout-held',
     SELLER_EXPOSURE_LIMIT: 'seller-exposure-limit',
+    RELATED_ACCOUNTS: 'related-accounts',
+    CARD_BLOCKED: 'card-blocked',
     // ESC-37: only the webhook settles against a provider ref, so a member never
     // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
     SETTLEMENT_MISMATCH: 'invalid-state',

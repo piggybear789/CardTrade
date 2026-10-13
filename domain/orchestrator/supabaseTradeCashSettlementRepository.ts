@@ -10,6 +10,7 @@ import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Tables, TradeCashSettlementStatus } from '@/lib/supabase/database.types';
 import { canReceiveFunds } from './merchantOnboarding';
+import { relatedBuyers } from '@/lib/risk/signals';
 import { createSupabaseMerchantRepository } from './supabaseMerchantRepository';
 import { countQualifyingSales, type CompletedSaleFact, type ReleaseFacts } from '../payouts/releasePolicy';
 import {
@@ -183,6 +184,8 @@ export function createSupabaseTradeCashSettlementRepository(
         : { data: [], error: null };
       check(saleDisputeError, 'loadReleaseFacts sale disputes');
       const disputed = new Set((saleDisputes ?? []).map((row) => row.cash_sale_id as string));
+      // ESC-03 layer 3: a sale to a related buyer never counts.
+      const related = await relatedBuyers(record.receiverId, (completed ?? []).map((row) => row.buyer_id as string), client);
       const facts: CompletedSaleFact[] = (completed ?? [])
         .filter((row) => row.payment_settled_at)
         .map((row) => ({
@@ -191,7 +194,7 @@ export function createSupabaseTradeCashSettlementRepository(
           currency: String(row.currency ?? 'aud'),
           paymentSettledAt: row.payment_settled_at as string,
           chargeDisputed: disputed.has(row.id as string),
-          buyerRelated: false,
+          buyerRelated: related.has(row.buyer_id as string),
         }));
       const { data: openDisputes, error: openError } = await client
         .from('charge_disputes')

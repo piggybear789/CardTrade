@@ -42,6 +42,8 @@ import type { Tables } from '@/lib/supabase/database.types';
 import { getPaymentService } from '@/domain/services';
 import { regionForTrade } from '@/lib/regionBinding';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { membersAreRelated } from '@/lib/risk/signals';
+import { RELATED_ACCOUNTS_MESSAGE } from '@/domain/risk/relatedAccounts';
 import {
   confirmTradeCashPayment as confirmTradeCashPaymentCore,
   getTradeCashPaymentAction as getTradeCashPaymentActionCore,
@@ -73,7 +75,9 @@ export type TradeNegotiationError =
   /** ESC-05: the deadline to pay the trade cash has passed. */
   | 'trade-cash-pay-by-passed'
   /** ESC-05: a saved card is needed to pay the trade cash. */
-  | 'no-payment-method';
+  | 'no-payment-method'
+  /** ESC-03 layer 3: the two traders are related accounts. Generic copy. */
+  | 'related-accounts';
 
 export type TradeNegotiationResult =
   | {
@@ -367,6 +371,11 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
 
   const loaded = await loadParticipantTrade(tradeId, userId);
   if (!loaded.ok) return loaded;
+
+  // ESC-03 layer 3, again at the Commitment_Point: signals can arrive after opening.
+  if (await membersAreRelated(userId, loaded.counterpartyId)) {
+    return { ok: false, error: 'related-accounts', message: RELATED_ACCOUNTS_MESSAGE };
+  }
 
   for (const partyId of [userId, loaded.counterpartyId]) {
     const gate = await readIdentityGate(partyId);
@@ -811,6 +820,10 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
       error: 'region-mismatch',
       message: regionMismatchMessage(mismatch),
     };
+  }
+  // ESC-03 layer 3: two accounts sharing a card, payout account or person.
+  if (await membersAreRelated(userId, target.owner_id, admin)) {
+    return { ok: false, error: 'related-accounts', message: RELATED_ACCOUNTS_MESSAGE };
   }
   // A binder CAN be traded for since 0081, but the trade has to say what is coming
   // out of it — the listing cannot, and arbitration reads the contract and never the

@@ -8,6 +8,8 @@
 
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { consumeDbRateLimit } from '@/lib/rateLimitDb';
+import { membersAreRelated } from '@/lib/risk/signals';
+import { RELATED_ACCOUNTS_MESSAGE } from '@/domain/risk/relatedAccounts';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 
@@ -60,7 +62,9 @@ export type DealInviteError =
   | 'private-item-required'
   | 'rejected'
   /** ESC-03 layer 4: too many invites this hour. */
-  | 'rate-limited';
+  | 'rate-limited'
+  /** ESC-03 layer 3: host and joiner are related accounts. Generic copy. */
+  | 'related-accounts';
 
 /**
  * What still stands between the host and the deal going through.
@@ -330,6 +334,10 @@ async function claimBlock(
     return { reason: 'region-mismatch', message: regionMismatchMessage(mismatch) };
   }
 
+  // ESC-03 layer 3: a private deal between two accounts of one person.
+  if (await membersAreRelated(viewerId, invite.host_id)) {
+    return { reason: 'related-accounts', message: RELATED_ACCOUNTS_MESSAGE };
+  }
   if (invite.kind === 'CASH_SALE' && !invite.host_role) {
     return { reason: 'wrong-kind', message: 'That cash deal is missing a host role.' };
   }

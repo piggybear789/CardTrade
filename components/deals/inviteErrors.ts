@@ -19,6 +19,7 @@ export const DEAL_INVITE_ERROR_COPY: Record<DealInviteError, string> = {
   'not-host': 'Only the person who created this invite can cancel it.',
   'wrong-kind': 'This invite cannot be claimed that way.',
   'private-item-required': 'Describe the unlisted card for this deal.',
+  'related-accounts': "This deal can't go ahead. Contact support if you think this is a mistake.",
   'rate-limited': 'Too many attempts. Try again in a little while.',
   rejected: 'That deal could not be opened. Please try again.',
 };

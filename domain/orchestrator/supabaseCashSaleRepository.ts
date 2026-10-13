@@ -5,6 +5,7 @@
 
 import 'server-only';
 
+import { isMemberCardBlocked, membersAreRelated, relatedBuyers } from '@/lib/risk/signals';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Tables, TablesUpdate } from '@/lib/supabase/database.types';
 import { createPayoutNotifier } from '@/lib/notifications/payoutNotifier';
@@ -610,6 +611,8 @@ export function createSupabaseCashSaleRepository(
       if (disputeError) throw new Error(`[cash sale] loadReleaseFacts disputes: ${disputeError.message}`);
       const disputed = new Set((disputes ?? []).map((row) => row.cash_sale_id as string));
       const openOnThis = (disputes ?? []).some((row) => row.cash_sale_id === cashSaleId && !row.closed_at);
+      // ESC-03 layer 3: a sale to a related buyer never counts.
+      const related = await relatedBuyers(sale.seller_id as string, (completed ?? []).map((row) => row.buyer_id as string), client);
       const facts: CompletedSaleFact[] = (completed ?? [])
         .filter((row) => row.payment_settled_at)
         .map((row) => ({
@@ -618,7 +621,7 @@ export function createSupabaseCashSaleRepository(
           currency: String(row.currency ?? 'aud'),
           paymentSettledAt: row.payment_settled_at as string,
           chargeDisputed: disputed.has(row.id as string),
-          buyerRelated: false,
+          buyerRelated: related.has(row.buyer_id as string),
         }));
       const inPerson = sale.fulfillment_method === 'IN_PERSON';
       const confirmations = [sale.buyer_handover_confirmed_at, sale.seller_handover_confirmed_at]
@@ -635,6 +638,10 @@ export function createSupabaseCashSaleRepository(
         staffHold: sale.seller_payout_hold_reason === 'STAFF',
       };
     },
+
+    // ESC-03 layer 3 / ESC-14, over the 0140 stores.
+    areRelated: (a, b) => membersAreRelated(a, b, client),
+    isBuyerCardBlocked: (buyerId) => isMemberCardBlocked(buyerId, client),
 
     async loadSellerExposure(sellerId, excludeCashSaleId) {
       // ESC-03 layer 1. Every read checks its error and THROWS: a guessed zero
@@ -682,6 +689,8 @@ export function createSupabaseCashSaleRepository(
         : { data: [], error: null };
       if (disputeError) throw new Error(`[cash sale] loadSellerExposure disputes: ${disputeError.message}`);
       const disputed = new Set((disputes ?? []).map((row) => row.cash_sale_id as string));
+      // ESC-03 layer 3: a sale to a related buyer never counts.
+      const related = await relatedBuyers(sellerId, (completed ?? []).map((row) => row.buyer_id as string), client);
       const facts: CompletedSaleFact[] = (completed ?? [])
         .filter((row) => row.payment_settled_at)
         .map((row) => ({
@@ -690,7 +699,7 @@ export function createSupabaseCashSaleRepository(
           currency: String(row.currency ?? 'aud'),
           paymentSettledAt: row.payment_settled_at as string,
           chargeDisputed: disputed.has(row.id as string),
-          buyerRelated: false,
+          buyerRelated: related.has(row.buyer_id as string),
         }));
 
       const override = (profile as { exposure_limit_override_minor?: number | null } | null)

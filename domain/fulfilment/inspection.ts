@@ -64,6 +64,64 @@ export const CASH_SALE_INSPECTION_DAYS = 7;
 export const IN_PERSON_INSPECTION_HOURS = 24;
 
 /**
+ * The Seller's window to inspect a delivered RETURN, in hours (ESC-11). Carrier
+ * delivery of the return opens it; when it closes with no contest the Buyer is
+ * refunded automatically. Matches `cardtrade.return_inspection_hours()` (0143), pinned
+ * by tradeClockAgreement.
+ */
+export const RETURN_INSPECTION_HOURS = 72;
+
+/** The return inspection window as member copy ("3 days"). */
+export const RETURN_INSPECTION_LABEL = `${RETURN_INSPECTION_HOURS / 24} days`;
+
+/** The return-leg facts the window derivation reads. */
+export interface ReturnInspectionFacts {
+  status: string;
+  returnCarrierDeliveredAt: string | null;
+  returnInspectionDeadlineAt?: string | null;
+  returnDisputedAt?: string | null;
+}
+
+/**
+ * When the Seller's return inspection closes, or `null` while the return has not
+ * been delivered.
+ *
+ * The stored deadline wins. A return delivered before 0143 has none, so it is derived
+ * from the carrier's delivery instant instead: those sales must still reach a refund
+ * rather than wait forever on a column nothing will write.
+ */
+export function returnInspectionDeadline(facts: ReturnInspectionFacts): string | null {
+  const stored = instant(facts.returnInspectionDeadlineAt);
+  if (stored) return stored.toISOString();
+  const delivered = instant(facts.returnCarrierDeliveredAt);
+  if (!delivered) return null;
+  return new Date(delivered.getTime() + RETURN_INSPECTION_HOURS * HOUR_MS).toISOString();
+}
+
+/**
+ * Whether the Seller may still contest the return.
+ *
+ * Open while the return is owed but not yet delivered, and for
+ * `RETURN_INSPECTION_HOURS` after delivery. Closed once the window has passed, because
+ * the Buyer's refund is then due and a late contest would take it back from them.
+ */
+export function returnInspectionOpen(facts: ReturnInspectionFacts, now: Date = new Date()): boolean {
+  if (facts.status === 'RETURN_PENDING') return true;
+  if (facts.status !== 'RETURN_IN_TRANSIT') return false;
+  const deadline = returnInspectionDeadline(facts);
+  if (!deadline) return true;
+  return now.getTime() < new Date(deadline).getTime();
+}
+
+/** Whether a delivered, uncontested return's refund is due (the window has closed). */
+export function returnRefundDue(facts: ReturnInspectionFacts, now: Date = new Date()): boolean {
+  if (facts.status !== 'RETURN_IN_TRANSIT' || facts.returnDisputedAt) return false;
+  const deadline = returnInspectionDeadline(facts);
+  if (!deadline) return false;
+  return new Date(deadline).getTime() <= now.getTime();
+}
+
+/**
  * The handover methods a Trade offers. Face-to-face only.
  *
  * Not a preference. Collateral is a card authorisation that lapses in about a week and

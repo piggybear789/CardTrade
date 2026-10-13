@@ -126,6 +126,12 @@ export function scheduleCashSaleTrackingCheck(cashSaleId: string): void {
         .eq('id', cashSaleId)
         .maybeSingle();
 
+      // ESC-30: a return in flight is checked on read too, on its own throttle.
+      if (sale?.status === 'RETURN_IN_TRANSIT') {
+        await checkCashSaleReturnLeg(cashSaleId);
+        return;
+      }
+
       // IN_TRANSIT only. Before that there is no parcel; after it the delivery is
       // already recorded and a carrier answer cannot change the contract.
       if (!sale || sale.status !== 'IN_TRANSIT' || !sale.tracking_number) return;
@@ -155,6 +161,77 @@ export function scheduleCashSaleTrackingCheck(cashSaleId: string): void {
       console.error('[tracking] cash sale check failed', cashSaleId, error);
     }
   });
+}
+
+/**
+ * Claim the right to ask about a sale's RETURN parcel (ESC-30). Same single-statement
+ * claim as the outbound leg, on its own column so the two legs never throttle each
+ * other.
+ */
+async function claimReturnLeg(cashSaleId: string, ttlMinutes: number): Promise<boolean> {
+  const before = new Date(Date.now() - ttlMinutes * 60_000).toISOString();
+  const { data, error } = await createAdminClient()
+    .from('cash_sales')
+    .update({ return_tracking_checked_at: new Date().toISOString() })
+    .eq('id', cashSaleId)
+    .eq('status', 'RETURN_IN_TRANSIT')
+    .is('return_carrier_delivered_at', null)
+    .or(`return_tracking_checked_at.is.null,return_tracking_checked_at.lt.${before}`)
+    .select('id');
+  return !error && (data ?? []).length > 0;
+}
+
+/**
+ * Ask the carrier about a sale's return parcel now, and apply the answer (ESC-30).
+ *
+ * Before this, only the Ship24 webhook could record a return's delivery, so a missed
+ * delivery left the buyer's refund waiting on nothing. Since ESC-11, delivery opens
+ * the seller's inspection window and nothing more; the refund itself is released by
+ * the `:47` job once that window closes.
+ *
+ * Returns whether a lookup happened. Never throws.
+ */
+export async function checkCashSaleReturnLeg(
+  cashSaleId: string,
+  options: { ttlMinutes?: number } = {},
+): Promise<boolean> {
+  const tracking = getTrackingService();
+  if (typeof tracking.fetchStatus !== 'function') return false;
+  try {
+    const admin = createAdminClient();
+    const { data: sale } = await admin
+      .from('cash_sales')
+      .select('id, status, return_tracking_carrier, return_tracking_number, return_carrier_delivered_at')
+      .eq('id', cashSaleId)
+      .maybeSingle();
+    if (
+      !sale ||
+      sale.status !== 'RETURN_IN_TRANSIT' ||
+      !sale.return_tracking_number ||
+      sale.return_carrier_delivered_at
+    ) {
+      return false;
+    }
+    if (!(await claimReturnLeg(cashSaleId, options.ttlMinutes ?? CHECK_TTL_MINUTES))) return false;
+
+    const snapshot = await tracking.fetchStatus({
+      carrier: sale.return_tracking_carrier ?? '',
+      trackingNumber: sale.return_tracking_number,
+    });
+    if (!snapshot) return true;
+
+    // The same RPC the webhook calls, so both paths open the same window.
+    const { error } = await admin.rpc('apply_cash_sale_return_tracking', {
+      p_cash_sale_id: cashSaleId,
+      p_tracking_status: snapshot.status,
+      p_delivered_at: snapshot.deliveredAt ?? undefined,
+    });
+    if (error) console.error('[tracking] return leg not applied', cashSaleId, error.message);
+    return true;
+  } catch (error) {
+    console.error('[tracking] return leg check failed', cashSaleId, error);
+    return false;
+  }
 }
 
 /**

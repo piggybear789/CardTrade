@@ -8,6 +8,7 @@
 // and this can be tested in the Node-only Vitest project.
 
 import type { CashSaleStatus } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { RETURN_INSPECTION_LABEL, returnInspectionOpen } from '@/domain/fulfilment/inspection';
 import {
   sequenceHaltedSteps,
   sequenceSteps,
@@ -60,6 +61,9 @@ export interface CashSaleStepFacts {
   hasReturnTracking?: boolean;
   /** True when the seller has contested the return (0088). */
   returnDisputed?: boolean;
+  /** Carrier delivery of the return, and the seller's window to check it (ESC-11). */
+  returnCarrierDeliveredAt?: string | null;
+  returnInspectionDeadlineAt?: string | null;
   /**
    * For a closed sale: the status it was in immediately before it went terminal,
    * i.e. `from_status` on the event that closed it.
@@ -450,12 +454,32 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
           : undefined,
     });
 
+    // ESC-11: delivery opens the seller's window to check the parcel.
+    const returnFacts = {
+      status,
+      returnCarrierDeliveredAt: facts.returnCarrierDeliveredAt ?? null,
+      returnInspectionDeadlineAt: facts.returnInspectionDeadlineAt ?? null,
+      returnDisputedAt: returnDisputedNow ? 'contested' : null,
+    };
+    const returnDelivered = Boolean(facts.returnCarrierDeliveredAt);
+    drafts.push({
+      id: 'return-inspect',
+      short: '',
+      label:
+        viewerRole === 'SELLER' ? 'Check the return' : `${counterpartyName} checks the return`,
+      detail:
+        viewerRole === 'SELLER'
+          ? `You have ${RETURN_INSPECTION_LABEL} after delivery to report a problem. After that the buyer is refunded automatically.`
+          : `${counterpartyName} has ${RETURN_INSPECTION_LABEL} after delivery to check it.`,
+      owner: returnDisputedNow ? 'platform' : ownerFor('SELLER', viewerRole),
+      done: returnDelivered && !returnInspectionOpen(returnFacts),
+    });
+
     drafts.push({
       id: 'return-refund',
       short: '',
       label: 'Refund released',
-      detail:
-        'The refund releases once a carrier confirms the return arrived.',
+      detail: `The refund releases automatically ${RETURN_INSPECTION_LABEL} after the carrier confirms the return arrived.`,
       owner: 'platform',
       done: false,
     });

@@ -10,6 +10,7 @@ import type { TrackingService, TrackingState } from '../services/tracking/types'
 import type { CashSaleEventCode } from './cashSaleEvents';
 import { decideRelease, exceedsNewSellerExposure, type ReleaseFacts } from '../payouts/releasePolicy';
 import { decideThreeDS } from '../payments/scaPolicy';
+import { returnInspectionOpen, returnRefundDue } from '../fulfilment/inspection';
 import {
   checkRegionCompatibility,
   regionCurrency,
@@ -295,6 +296,13 @@ export interface CashSaleRecord {
   returnDisputeReason: string | null;
   /** Set by the sweep when a dispatch deadline passed unposted (0089). Triage only. */
   returnLapsedAt: string | null;
+  /**
+   * When the Seller's window to inspect a delivered return closes (0143, ESC-11).
+   * Optional so older fixtures compile; absent means "derive from delivery".
+   */
+  returnInspectionDeadlineAt?: string | null;
+  /** When the return leg was last read back from the carrier (ESC-30). */
+  returnTrackingCheckedAt?: string | null;
   autoCompleted: boolean;
   buyerHandoverConfirmedAt: string | null;
   sellerHandoverConfirmedAt: string | null;
@@ -413,6 +421,14 @@ export type CashSaleError =
   | 'INVALID_TERMS'
   | 'STALE_TERMS'
   | 'ALREADY_RECORDED'
+  // ESC-11: the Seller's return inspection window is still open / already closed.
+  | 'RETURN_INSPECTION_OPEN'
+  | 'RETURN_WINDOW_CLOSED'
+  // ESC-12: a tracking number bound to another contract, or one that cannot be this
+  // return's (delivered already, or scanned before the dispute was decided).
+  | 'TRACKING_IN_USE'
+  | 'TRACKING_ALREADY_DELIVERED'
+  | 'TRACKING_PREDATES_DISPUTE'
   | 'NOT_SUPPORTED'
   | 'INVALID_STATE'
   /** The Seller release could not be settled; platform is holding their funds. */
@@ -846,6 +862,12 @@ export interface CashSaleRepository {
     reason: string;
     disputedAt: string;
   }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-11: uncontested RETURN_IN_TRANSIT sales whose Seller inspection window has
+   * closed (`return_inspection_deadline_at <= now`), oldest first. Optional so a fake
+   * may omit it; the release pass then does nothing.
+   */
+  listDueReturnRefunds?(params: { nowIso: string; limit: number }): Promise<string[]>;
   setItemStatus(params: { itemId: string; status: ItemStatus }): Promise<void>;
   /**
    * ESC-03 / ESC-14: the facts the release policy reads for one COMPLETED sale. Null
@@ -2854,6 +2876,11 @@ export async function finalizeReturnedCashSale(
   if (sale.returnDisputedAt) {
     return { ok: false, error: 'INVALID_STATE', detail: 'Return is contested' };
   }
+  // ESC-11: NOT WHILE THE SELLER IS STILL INSPECTING. Delivery opens a window for the
+  // Seller to open the parcel; refunding on the scan itself refunded empty boxes.
+  if (!returnRefundDue(sale, deps.now?.() ?? new Date())) {
+    return { ok: false, error: 'RETURN_INSPECTION_OPEN' };
+  }
 
   // ISSUE THE REFUND BEFORE MOVING THE STATE, and issue it HERE rather than trusting
   // the SQL that queued it.
@@ -2975,6 +3002,11 @@ export async function disputeCashSaleReturn(
   if (sale.status !== 'RETURN_IN_TRANSIT' && sale.status !== 'RETURN_PENDING') {
     return { ok: false, error: 'INVALID_STATE', detail: sale.status };
   }
+  // ESC-11: a contest belongs INSIDE the Seller's return inspection window. After it
+  // the Buyer's refund is due, and a late contest would take it back from them.
+  if (!returnInspectionOpen(sale, deps.now?.() ?? new Date())) {
+    return { ok: false, error: 'RETURN_WINDOW_CLOSED' };
+  }
 
   const reason = params.reason.trim();
   if (reason.length < 10) {
@@ -3002,6 +3034,64 @@ export async function disputeCashSaleReturn(
   });
 
   return { ok: true, sale: updated };
+}
+
+/** Options for {@link releaseDueReturnRefunds}. */
+export interface ReturnReleaseParams {
+  limit?: number;
+  /**
+   * ESC-38: the payment binding for ONE sale. A refund goes back through the region's
+   * own Stripe account, so the caller resolves it per sale. Absent, `deps.payments`.
+   */
+  paymentsFor?: (cashSaleId: string) => Promise<PaymentService>;
+}
+
+/** What one release pass did. */
+export interface ReturnReleaseSummary {
+  examined: number;
+  refunded: string[];
+  failed: Array<{ cashSaleId: string; error: CashSaleError; detail?: string }>;
+}
+
+/**
+ * ESC-11: release the refund on every delivered, uncontested return whose Seller
+ * inspection window has closed. Called by the `:47` job.
+ *
+ * Each sale goes through {@link finalizeReturnedCashSale}, which re-reads the row and
+ * re-checks every guard (status, carrier confirmation, contest, window), so a list
+ * that is stale by the time it is processed cannot refund the wrong sale. A failure on
+ * one sale never stops the pass.
+ */
+export async function releaseDueReturnRefunds(
+  deps: CashSaleOrchestratorDeps,
+  params: ReturnReleaseParams = {},
+): Promise<ReturnReleaseSummary> {
+  const summary: ReturnReleaseSummary = { examined: 0, refunded: [], failed: [] };
+  if (!deps.repository.listDueReturnRefunds) return summary;
+
+  const ids = await deps.repository.listDueReturnRefunds({
+    nowIso: currentIso(deps),
+    limit: Math.max(1, Math.min(params.limit ?? 50, 200)),
+  });
+
+  for (const cashSaleId of ids) {
+    summary.examined += 1;
+    try {
+      const saleDeps = params.paymentsFor
+        ? { ...deps, payments: await params.paymentsFor(cashSaleId) }
+        : deps;
+      const result = await finalizeReturnedCashSale(saleDeps, { cashSaleId });
+      if (result.ok) summary.refunded.push(cashSaleId);
+      else summary.failed.push({ cashSaleId, error: result.error, detail: result.detail });
+    } catch (err: unknown) {
+      summary.failed.push({
+        cashSaleId,
+        error: 'REFUND_FAILED',
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return summary;
 }
 
 /**
@@ -4233,6 +4323,9 @@ export interface CashSaleOrchestrator {
     reason: string;
   }): Promise<CashSaleResult>;
 
+  /** ESC-11: refund every return whose Seller inspection window closed uncontested. */
+  releaseDueReturnRefunds(params?: ReturnReleaseParams): Promise<ReturnReleaseSummary>;
+
   /**
    * Staff decide a STALLED return - contested or never posted (0088/0089).
    *
@@ -4285,6 +4378,7 @@ export function createCashSaleOrchestrator(
     recordReturnShipment: (params) => recordCashSaleReturnShipment(deps, params),
     finalizeReturn: (params) => finalizeReturnedCashSale(deps, params),
     disputeReturn: (params) => disputeCashSaleReturn(deps, params),
+    releaseDueReturnRefunds: (params) => releaseDueReturnRefunds(deps, params),
     resolveReturnCase: (params) => resolveCashSaleReturnCase(deps, params),
   };
 }

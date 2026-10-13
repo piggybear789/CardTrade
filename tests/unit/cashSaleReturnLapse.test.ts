@@ -106,7 +106,10 @@ describe('a return whose deadline has passed', () => {
     expect(posted).not.toBeNull();
 
     const current = await deps.repository.loadCashSale(sale.id);
-    Object.assign(current!, { returnCarrierDeliveredAt: new Date().toISOString() });
+    // Delivered four days ago, so the seller's 72-hour return check (ESC-11) is over.
+    Object.assign(current!, {
+      returnCarrierDeliveredAt: new Date(Date.now() - 96 * 3_600_000).toISOString(),
+    });
 
     const result = await finalizeReturnedCashSale(deps, { cashSaleId: sale.id });
 

@@ -25,6 +25,9 @@ import { createDefaultTradeCashDeps } from '@/domain/orchestrator/supabaseTradeC
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { regionCurrency } from '@/domain/region';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { regionForCashSale } from '@/lib/regionBinding';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { checkCashSaleReturnLeg } from '@/lib/tracking/refreshOnRead';
 
 /** Payouts must not be prerendered or cached. */
 export const dynamic = 'force-dynamic';
@@ -46,6 +49,39 @@ function bearerToken(request: Request): string | null {
   if (scheme.toLowerCase() !== 'bearer') return null;
   const token = rest.join(' ').trim();
   return token || null;
+}
+
+/** A return not read back from the carrier for this long is re-checked (ESC-30). */
+const RETURN_SYNC_TTL_MINUTES = 6 * 60;
+/** A return still in transit after this many days is surfaced to staff. */
+const STALE_RETURN_DAYS = 14;
+
+/**
+ * Read back every in-flight return the carrier has not been asked about in six hours,
+ * so a missed webhook cannot strand a buyer's refund (ESC-30). Returns the number
+ * checked and the sales that have been in transit for over two weeks.
+ */
+async function syncStaleReturns(): Promise<{ checked: number; stale: string[] }> {
+  const admin = createAdminClient();
+  const before = new Date(Date.now() - RETURN_SYNC_TTL_MINUTES * 60_000).toISOString();
+  const { data, error } = await admin
+    .from('cash_sales')
+    .select('id, return_shipped_at')
+    .eq('status', 'RETURN_IN_TRANSIT')
+    .is('return_carrier_delivered_at', null)
+    .or(`return_tracking_checked_at.is.null,return_tracking_checked_at.lt.${before}`)
+    .limit(100);
+  if (error) throw new Error(`syncStaleReturns: ${error.message}`);
+
+  const staleCutoff = Date.now() - STALE_RETURN_DAYS * 86_400_000;
+  let checked = 0;
+  const stale: string[] = [];
+  for (const row of data ?? []) {
+    if (await checkCashSaleReturnLeg(row.id, { ttlMinutes: RETURN_SYNC_TTL_MINUTES })) checked += 1;
+    const shipped = row.return_shipped_at ? Date.parse(row.return_shipped_at) : NaN;
+    if (Number.isFinite(shipped) && shipped < staleCutoff) stale.push(row.id);
+  }
+  return { checked, stale };
 }
 
 /** Authenticate, run one pass, and report the outcome. Shared by GET and POST. */
@@ -225,6 +261,45 @@ async function runPayoutPass(request: Request): Promise<Response> {
       }
     }
 
+    // RETURNS (ESC-11, ESC-30, ESC-38). Once per pass, NOT per region: a return's
+    // refund goes back through the region of the SALE, resolved per sale from its
+    // frozen currency, so a regional loop would only add ways to pick the wrong one.
+    const returns = { synced: 0, stale: 0, refunded: 0, failed: 0 };
+    try {
+      const synced = await syncStaleReturns();
+      returns.synced = synced.checked;
+      returns.stale = synced.stale.length;
+      for (const cashSaleId of synced.stale) {
+        drainReports.push({
+          name: 'returns.stale',
+          errorCode: 'RETURN_STALE',
+          message: `Return in transit for over ${STALE_RETURN_DAYS} days with no carrier delivery.`,
+          context: { cashSaleId },
+        });
+      }
+    } catch (error) {
+      drainReports.push({ name: 'returns.sync', errorCode: 'THREW', error });
+    }
+    try {
+      const released = await createDefaultCashSaleOrchestrator({
+        payments: getPaymentService(),
+      }).releaseDueReturnRefunds({
+        paymentsFor: async (cashSaleId) => getPaymentService(await regionForCashSale(cashSaleId)),
+      });
+      returns.refunded = released.refunded.length;
+      returns.failed = released.failed.length;
+      for (const failure of released.failed) {
+        drainReports.push({
+          name: 'refund.return',
+          errorCode: failure.error,
+          message: failure.detail ?? `Return refund failed: ${failure.error}`,
+          context: { cashSaleId: failure.cashSaleId },
+        });
+      }
+    } catch (error) {
+      drainReports.push({ name: 'refund.return', errorCode: 'THREW', error });
+    }
+
     await Promise.all(drainReports.map((report) => logBackgroundFailure(report)));
 
     if (failures.length > 0 && totals.considered === 0) {
@@ -242,6 +317,7 @@ async function runPayoutPass(request: Request): Promise<Response> {
       refunds,
       collateral,
       tradeCash,
+      returns,
       ...(failures.length > 0 ? { failedRegions: failures } : {}),
     });
   } catch (error) {

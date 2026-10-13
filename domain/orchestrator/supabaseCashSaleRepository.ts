@@ -145,6 +145,8 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     returnDisputedAt: row.return_disputed_at,
     returnDisputeReason: row.return_dispute_reason,
     returnLapsedAt: row.return_lapsed_at,
+    returnInspectionDeadlineAt: row.return_inspection_deadline_at ?? null,
+    returnTrackingCheckedAt: row.return_tracking_checked_at ?? null,
     autoCompleted: row.auto_completed,
     buyerHandoverConfirmedAt: row.buyer_handover_confirmed_at,
     sellerHandoverConfirmedAt: row.seller_handover_confirmed_at,
@@ -1239,6 +1241,22 @@ export function createSupabaseCashSaleRepository(
         .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async listDueReturnRefunds({ nowIso, limit }: { nowIso: string; limit: number }) {
+      // ESC-11. Delivered, uncontested, window closed. `finalizeReturnedCashSale`
+      // re-checks every one of these, so this is a work list, not a decision.
+      const { data, error } = await client
+        .from('cash_sales')
+        .select('id')
+        .eq('status', 'RETURN_IN_TRANSIT')
+        .is('return_disputed_at', null)
+        .not('return_carrier_delivered_at', 'is', null)
+        .lte('return_inspection_deadline_at', nowIso)
+        .order('return_inspection_deadline_at', { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(`listDueReturnRefunds: ${error.message}`);
+      return (data ?? []).map((row: { id: string }) => row.id);
     },
 
     async setItemStatus({ itemId, status }: { itemId: string; status: ItemStatus }) {

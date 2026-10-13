@@ -214,6 +214,8 @@ const CASH_SALE_SUMMARY_COLUMNS = [
   'disputed_by',
   'return_tracking_number',
   'return_disputed_at',
+  'return_carrier_delivered_at',
+  'return_inspection_deadline_at',
 ].join(', ');
 
 /** Shape of the selected cash-sale summary row. */
@@ -235,6 +237,8 @@ interface CashSaleSummaryRow {
   disputed_by: string | null;
   return_tracking_number: string | null;
   return_disputed_at: string | null;
+  return_carrier_delivered_at: string | null;
+  return_inspection_deadline_at: string | null;
 }
 
 /** Map a snapshot row to the account list summary. */
@@ -279,6 +283,8 @@ function toCashSaleSummary(
         disputeRaisedByMe: row.disputed_by === userId,
         hasReturnTracking: Boolean(row.return_tracking_number),
         returnDisputed: Boolean(row.return_disputed_at),
+        returnCarrierDeliveredAt: row.return_carrier_delivered_at ?? null,
+        returnInspectionDeadlineAt: row.return_inspection_deadline_at ?? null,
       })
     : [];
 

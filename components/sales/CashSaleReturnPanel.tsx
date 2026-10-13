@@ -35,6 +35,12 @@ import { HandoverFailedDialog } from '@/components/fulfilment/HandoverFailedDial
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { formatMoney } from '@/lib/format';
+import {
+  RETURN_INSPECTION_LABEL,
+  returnInspectionDeadline,
+  returnInspectionOpen,
+} from '@/domain/fulfilment/inspection';
+import { cashSaleErrorMessage } from './errorCopy';
 
 export interface CashSaleReturnPanelProps {
   cashSaleId: string;
@@ -50,6 +56,9 @@ export interface CashSaleReturnPanelProps {
   returnDisputedAt: string | null;
   returnDisputeReason: string | null;
   returnLapsedAt: string | null;
+  /** Carrier delivery of the return, and the seller's window to check it (ESC-11). */
+  returnCarrierDeliveredAt?: string | null;
+  returnInspectionDeadlineAt?: string | null;
   counterpartyName: string;
 }
 
@@ -66,6 +75,8 @@ export function CashSaleReturnPanel({
   returnDisputedAt,
   returnDisputeReason,
   returnLapsedAt,
+  returnCarrierDeliveredAt = null,
+  returnInspectionDeadlineAt = null,
   counterpartyName,
 }: CashSaleReturnPanelProps) {
   const [pending, startTransition] = useTransition();
@@ -74,6 +85,12 @@ export function CashSaleReturnPanel({
 
   const amount = formatMoney(amountCents, currency);
   const inTransit = status === 'RETURN_IN_TRANSIT';
+  // ESC-11: delivery opens the seller's window to check the parcel. The refund is
+  // released automatically when it closes, unless the seller reports a problem.
+  const returnFacts = { status, returnCarrierDeliveredAt, returnInspectionDeadlineAt, returnDisputedAt };
+  const delivered = inTransit && Boolean(returnCarrierDeliveredAt);
+  const inspectionDeadline = returnInspectionDeadline(returnFacts);
+  const canContest = returnInspectionOpen(returnFacts);
 
   function onSaveAddress() {
     if (!address) return;
@@ -100,7 +117,7 @@ export function CashSaleReturnPanel({
         setShipOpen(false);
         
       } else {
-        toast.error('Could not record that return');
+        toast.error(cashSaleErrorMessage(result));
       }
     });
   }
@@ -110,7 +127,7 @@ export function CashSaleReturnPanel({
   async function onContest(reason: string) {
     const result = await disputeCashSaleReturn(cashSaleId, reason);
     if (result.ok) return { ok: true as const };
-    return { ok: false as const, message: 'Could not report that problem. Try again.' };
+    return { ok: false as const, message: cashSaleErrorMessage(result) };
   }
 
   // A contested return has left the automatic path entirely. Say so first and stop —
@@ -142,14 +159,18 @@ export function CashSaleReturnPanel({
       <div className="space-y-tight">
         <h3 className="flex items-center gap-snug font-semibold">
           <HugeiconsIcon icon={RotateCcwIcon} className="size-4 text-iris-ink" aria-hidden="true" />
-          {inTransit ? 'Return on its way' : 'Return needed before the refund'}
+          {delivered ? 'Return delivered' : inTransit ? 'Return on its way' : 'Return needed before the refund'}
         </h3>
         <p className="text-body text-muted-foreground">
           {/* States the CONDITION on the money in one sentence, for both parties. */}
-          {inTransit
+          {delivered
             ? viewerIsBuyer
-              ? `Your ${amount} refund is released automatically as soon as the carrier confirms it reached ${counterpartyName}. There is nothing else for you to do.`
-              : `${counterpartyName} has posted the item back. Their ${amount} refund is released automatically when the carrier confirms it reached you, and your listing goes back on sale at the same time.`
+              ? `The carrier confirmed the return reached ${counterpartyName}. They have ${RETURN_INSPECTION_LABEL} to check it, then your ${amount} refund is released automatically.`
+              : `The return has arrived. Check it within ${RETURN_INSPECTION_LABEL}. After that the buyer's ${amount} refund is released automatically and your listing goes back on sale.`
+            : inTransit
+            ? viewerIsBuyer
+              ? `Once the carrier confirms it reached ${counterpartyName}, they have ${RETURN_INSPECTION_LABEL} to check it, then your ${amount} refund is released automatically. There is nothing else for you to do.`
+              : `${counterpartyName} has posted the item back. Once the carrier confirms it reached you, you have ${RETURN_INSPECTION_LABEL} to check it before their ${amount} refund is released.`
             : viewerIsBuyer
               ? `Your ${amount} refund was approved and is waiting on the item going back to ${counterpartyName}. Post it, add the tracking number, and the refund releases when the carrier confirms it arrived.`
               : `${counterpartyName} is refunded once they post the item back to you. Give them a return address so they can.`}
@@ -177,6 +198,18 @@ export function CashSaleReturnPanel({
             viewerIsBuyer
               ? 'If you miss it, our team reviews the case instead of closing it automatically — your refund is not cancelled, but it takes longer.'
               : 'If they miss it, our team reviews the case. Nothing is paid out to either side on a timer.'
+          }
+        />
+      ) : null}
+
+      {delivered && inspectionDeadline ? (
+        <InspectionCountdown
+          deadlineAt={inspectionDeadline}
+          viewerMustAct={!viewerIsBuyer}
+          expiryConsequence={
+            viewerIsBuyer
+              ? 'When it ends your refund is released automatically.'
+              : 'When it ends the buyer is refunded automatically. Report a problem before then if the parcel is wrong, empty or damaged.'
           }
         />
       ) : null}
@@ -239,7 +272,7 @@ export function CashSaleReturnPanel({
           nothing to contest before the buyer has posted anything. Evidence matters
           more here than almost anywhere: "the box arrived empty" is exactly the claim
           a photograph settles, and this dialog already collects them. */}
-      {!viewerIsBuyer && inTransit ? (
+      {!viewerIsBuyer && inTransit && canContest ? (
         <HandoverFailedDialog
           onSubmit={onContest}
           triggerLabel="Report a problem with the return"

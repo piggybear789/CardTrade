@@ -292,7 +292,7 @@ begin
     when 'DISPUTE_RESOLVED_RELEASE_SELLER' then
       'Support decided the dispute in the seller''s favour. The payment is being released to the seller.'
     when 'RETURN_DELIVERED' then
-      'The carrier confirmed the return reached the seller. The refund is queued.'
+      'The carrier confirmed the return reached the seller. The seller has 3 days to check it, then the buyer is refunded automatically.'
     when 'TRACKING_FLAG_RESOLVED' then
       'Support checked the tracking and made a decision.'
     when 'RETURN_REQUIRED' then

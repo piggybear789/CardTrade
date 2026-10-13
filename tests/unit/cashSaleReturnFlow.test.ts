@@ -38,6 +38,7 @@ import {
 } from './fakes/cashSaleRepository';
 import { disputedCashSale } from './helpers/disputedCashSale';
 import type { PaymentService } from '@/domain/services/types';
+import { RETURN_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 
 const OPERATOR = 'admin-1';
 const SELLER = ITEM.ownerId;
@@ -211,7 +212,13 @@ describe('recordCashSaleReturnShipment', () => {
 
 describe('finalizeReturnedCashSale', () => {
   /** Post the return and stamp the carrier confirmation the SQL function would set. */
-  async function inTransitAndDelivered(deps: CashSaleOrchestratorDeps, saleId: string) {
+  // ESC-11: delivered long enough ago that the seller's inspection window has closed,
+  // unless a test asks for a fresher delivery.
+  async function inTransitAndDelivered(
+    deps: CashSaleOrchestratorDeps,
+    saleId: string,
+    hoursAgo = RETURN_INSPECTION_HOURS + 1,
+  ) {
     await recordCashSaleReturnShipment(deps, {
       cashSaleId: saleId,
       actorId: BUYER.profileId,
@@ -222,9 +229,29 @@ describe('finalizeReturnedCashSale', () => {
     if (!sale) throw new Error('setup: sale vanished');
     // `apply_cash_sale_return_tracking` is what sets this in production; the fake has
     // no carrier, so the test stamps it directly.
-    Object.assign(sale, { returnCarrierDeliveredAt: new Date().toISOString() });
+    const delivered = new Date(Date.now() - hoursAgo * 3_600_000);
+    Object.assign(sale, {
+      returnCarrierDeliveredAt: delivered.toISOString(),
+      returnInspectionDeadlineAt: new Date(
+        delivered.getTime() + RETURN_INSPECTION_HOURS * 3_600_000,
+      ).toISOString(),
+    });
     return sale;
   }
+
+  it('does not refund while the seller is still inspecting the return (ESC-11)', async () => {
+    const { deps, calls, state } = makeDeps();
+    const sale = await returnPending(deps);
+    await inTransitAndDelivered(deps, sale.id, 1);
+
+    const result = await finalizeReturnedCashSale(deps, { cashSaleId: sale.id });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe('RETURN_INSPECTION_OPEN');
+    expect(calls.refunds).toHaveLength(0);
+    expect(state.item.status).not.toBe('AVAILABLE');
+  });
 
   it('refuses to close without a carrier confirmation', async () => {
     const { deps, state } = makeDeps();
@@ -340,7 +367,7 @@ describe('finalizeReturnedCashSale', () => {
   it('will not close a return the seller has contested', async () => {
     const { deps, state } = makeDeps();
     const sale = await returnPending(deps);
-    await inTransitAndDelivered(deps, sale.id);
+    await inTransitAndDelivered(deps, sale.id, 1);
 
     const contested = await disputeCashSaleReturn(deps, {
       cashSaleId: sale.id,

@@ -216,6 +216,12 @@ const EXPECTED_CODES = new Set([
   'payee-identity-mismatch',
   // ESC-20: confirming an in-person handover long before the meeting.
   'handover-too-early',
+  // ESC-11 / ESC-12: return window and tracking-number binding refusals.
+  'return-inspection-open',
+  'return-window-closed',
+  'tracking-in-use',
+  'tracking-already-delivered',
+  'tracking-predates-dispute',
   // ESC-24: staff approval refused while the duplicate account is live or banned.
   'duplicate-still-live',
   'duplicate-banned',

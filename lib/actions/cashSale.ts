@@ -68,7 +68,14 @@ export type CashSaleActionError =
   /** ESC-25: the payout account name does not match the verified ID. */
   | 'payee-identity-mismatch'
   /** ESC-20: the meeting is more than an hour away. */
-  | 'handover-too-early';
+  | 'handover-too-early'
+  /** ESC-11: the seller is still inspecting the return / the window has closed. */
+  | 'return-inspection-open'
+  | 'return-window-closed'
+  /** ESC-12: the tracking number cannot be this contract's. */
+  | 'tracking-in-use'
+  | 'tracking-already-delivered'
+  | 'tracking-predates-dispute';
 
 export type CashSaleActionResult =
   | {
@@ -187,6 +194,11 @@ function mapError(error: CashSaleError): CashSaleActionError {
     CARD_BLOCKED: 'card-blocked',
     PAYEE_IDENTITY_MISMATCH: 'payee-identity-mismatch',
     HANDOVER_TOO_EARLY: 'handover-too-early',
+    RETURN_INSPECTION_OPEN: 'return-inspection-open',
+    RETURN_WINDOW_CLOSED: 'return-window-closed',
+    TRACKING_IN_USE: 'tracking-in-use',
+    TRACKING_ALREADY_DELIVERED: 'tracking-already-delivered',
+    TRACKING_PREDATES_DISPUTE: 'tracking-predates-dispute',
     // ESC-37: only the webhook settles against a provider ref, so a member never
     // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
     SETTLEMENT_MISMATCH: 'invalid-state',

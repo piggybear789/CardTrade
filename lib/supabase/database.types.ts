@@ -998,6 +998,9 @@ export type Database = {
           return_shipped_at: string | null;
           return_deadline_at: string | null;
           return_lapsed_at: string | null;
+          /** Seller's return inspection window and the return leg's last read-back (0143). */
+          return_inspection_deadline_at: string | null;
+          return_tracking_checked_at: string | null;
           /** Ship-by date for a posted sale, and its warning and lapse stamps (0132). */
           ship_by_at: string | null;
           ship_warned_at: string | null;
@@ -1122,6 +1125,8 @@ export type Database = {
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
           return_lapsed_at?: string | null;
+          return_inspection_deadline_at?: string | null;
+          return_tracking_checked_at?: string | null;
           ship_by_at?: string | null;
           ship_warned_at?: string | null;
           ship_lapsed_at?: string | null;
@@ -1227,6 +1232,8 @@ export type Database = {
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
           return_lapsed_at?: string | null;
+          return_inspection_deadline_at?: string | null;
+          return_tracking_checked_at?: string | null;
           ship_by_at?: string | null;
           ship_warned_at?: string | null;
           ship_lapsed_at?: string | null;
@@ -3327,9 +3334,9 @@ export type Database = {
        *
        * Distinct from `apply_cash_sale_tracking` on purpose: it writes only the
        * `return_*` columns, so a return event can never overwrite the outbound
-       * delivery record the original inspection and any arbitration read. A
-       * DELIVERED status queues the refund; it is monotonic, so a duplicate carrier
-       * event cannot queue it twice.
+       * delivery record the original inspection and any arbitration read. Since
+       * 0143 a DELIVERED status opens the seller's return inspection window and no
+       * longer queues the refund (ESC-11); it is monotonic.
        */
       apply_cash_sale_return_tracking: {
         Args: {

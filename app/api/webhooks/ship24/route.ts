@@ -32,8 +32,6 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
-import { getPaymentService } from '@/domain/services';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { deliveredEventAt } from '@/domain/services/tracking/ship24Tracking';
 
@@ -184,7 +182,7 @@ export async function POST(request: Request): Promise<Response> {
       }
     }
 
-    // --- RETURN leg: releases the refund ---
+    // --- RETURN leg: opens the seller's return inspection window (ESC-11) ---
     const { data: returning } = await admin
       .from('cash_sales')
       .select('id')
@@ -194,8 +192,10 @@ export async function POST(request: Request): Promise<Response> {
 
     for (const sale of returning ?? []) {
       try {
-        // Stamps `return_carrier_delivered_at` and queues the refund, atomically and
-        // monotonically — a duplicate carrier event cannot queue a second refund.
+        // Stamps `return_carrier_delivered_at` and opens the seller's window to check
+        // the parcel, monotonically. NO MONEY MOVES HERE (ESC-11): refunding on the
+        // scan itself refunded empty boxes. The `:47` job releases the refund once the
+        // window closes uncontested, through the sale's own region (ESC-38).
         const { error: returnError } = await admin.rpc('apply_cash_sale_return_tracking', {
           p_cash_sale_id: sale.id,
           p_tracking_status: 'DELIVERED',
@@ -209,21 +209,6 @@ export async function POST(request: Request): Promise<Response> {
             message: `apply_cash_sale_return_tracking: ${returnError.message}`,
             context: { cashSaleId: sale.id },
           });
-        }
-
-        // Then close the sale and restore the listing. Deliberately a separate step
-        // in TypeScript: the status change and the ITEM change belong to the
-        // orchestrator, and `finalizeReturnedCashSale` re-reads the row and re-checks
-        // every guard, so it is safe to call even if the RPC above did nothing.
-        const result = await createDefaultCashSaleOrchestrator({
-          payments: getPaymentService(),
-        }).finalizeReturn({ cashSaleId: sale.id });
-        if (!result.ok) {
-          // Expected for a contested return, which an operator must decide. Logged at
-          // info level rather than error because it is a designed outcome.
-          console.info(
-            `[ship24-webhook] return for ${sale.id} not closed: ${result.error}`,
-          );
         }
       } catch (err: unknown) {
         console.error(`[ship24-webhook] return delivery failed for ${sale.id}:`, err);

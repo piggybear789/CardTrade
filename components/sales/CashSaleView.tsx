@@ -1545,6 +1545,8 @@ function CashSaleRoom({
                 returnDisputedAt={sale.return_disputed_at}
                 returnDisputeReason={sale.return_dispute_reason}
                 returnLapsedAt={sale.return_lapsed_at}
+                returnCarrierDeliveredAt={sale.return_carrier_delivered_at}
+                returnInspectionDeadlineAt={sale.return_inspection_deadline_at ?? null}
                 counterpartyName={them.name}
               />
             </ContractDetailRow>

@@ -47,6 +47,11 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   'card-blocked': "This card can't be used on NoDitto. Try a different card or contact support.",
   'payee-identity-mismatch': "Your payout account name doesn't match your verified ID. Update it in Stripe or contact support.",
   'handover-too-early': 'You can confirm the handover from an hour before the meeting.',
+  'return-inspection-open': 'The seller is still checking the return. The refund follows automatically when their window closes.',
+  'return-window-closed': 'The window to report a problem with this return has closed.',
+  'tracking-in-use': 'That tracking number is already on another contract. Check it and try again.',
+  'tracking-already-delivered': 'That tracking number already shows as delivered. Use the number for the parcel you are sending now.',
+  'tracking-predates-dispute': 'That parcel was scanned before the dispute was decided, so it cannot be this return. Use the number for the return parcel.',
   'rate-limited': 'Too many attempts. Try again in a little while.',
   'payout-held': 'The seller is paid after a short safety hold. Nothing is wrong with this contract.',
   'seller-exposure-limit':

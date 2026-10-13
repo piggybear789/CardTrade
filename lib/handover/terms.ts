@@ -62,7 +62,9 @@ export function tradeAcceptCopy(params: {
       "A temporary card hold, not a charge. Make sure your card's available limit covers it. " +
       "It's released when the trade completes. If a problem is still open when the hold is about " +
       "to expire, it's charged and then refunded or paid out when staff decide.",
-    feeHint: 'Charged when the card hold is placed.',
+    // ESC-29: the fee is a lock precondition, so say what a decline means.
+    feeHint:
+      "Charged when the card hold is placed. If the fee is declined, the trade doesn't lock and you can switch card and retry.",
   };
 }
 

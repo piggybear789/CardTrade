@@ -372,7 +372,12 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     applicationFee?: Cents;
     /** Accepted for parity; the simulation never asks for a challenge (ESC-03). */
     presence?: PaymentPresence;
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult> {
+    // ESC-29: the same off-session boundary as the real binding.
+    if (params.merchantRef && !params.presence && !params.legacyOffSessionToMember) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
     const cached = this.nonces.get(`transfer:${params.nonce}`);
     if (cached) return { ...(cached as TransferResult) };
 

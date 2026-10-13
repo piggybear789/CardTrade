@@ -81,8 +81,18 @@ export async function collateralReconcileDeps(
       if (rowError) throw new Error(`[collateral lock] load cash leg: ${rowError.message}`);
       return (row as { status?: string } | null)?.status === 'COLLECTED';
     },
-    // WP3 (ESC-29) makes this real.
-    areFeesSettled: async () => true,
+    // ESC-29: the Trade_Fee is a lock precondition. Every fee row on the trade must
+    // be SETTLED, and there must be one: placement writes them after the holds, so
+    // an early hold webhook cannot lock a trade before its fees are charged.
+    async areFeesSettled(id) {
+      const { data, error } = await client
+        .from('trade_fees')
+        .select('status')
+        .eq('trade_id', id);
+      if (error) throw new Error(`[collateral lock] load fees: ${error.message}`);
+      const rows = (data ?? []) as Array<{ status: string }>;
+      return rows.length > 0 && rows.every((row) => row.status === 'SETTLED');
+    },
   };
 }
 

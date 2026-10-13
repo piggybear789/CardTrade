@@ -571,6 +571,13 @@ export interface PaymentService {
      * off-session, which is reserved for collateral holds and the Trade_Fee.
      */
     presence?: PaymentPresence;
+    /**
+     * @deprecated ESC-29: the ONE permitted off-session charge forwarded to a member,
+     * the legacy trade cash leg (`settleTradeCash`) for trades agreed before
+     * `trade_cash_settlements`. Every binding refuses a `merchantRef` without
+     * `presence` unless this is set, so no new off-session-to-member path can appear.
+     */
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult>;
 
   /**

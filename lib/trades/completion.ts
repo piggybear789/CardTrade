@@ -157,6 +157,9 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
       // Reused verbatim on retry, never regenerated, so a repeat cannot double-pay.
       nonce: `trade-cash:${trade.id}`,
       merchantRef,
+      // ESC-29: the only off-session charge to a member the bindings still allow,
+      // and only for trades agreed before `trade_cash_settlements` (ESC-05/06).
+      legacyOffSessionToMember: true,
     });
     if (transfer.status !== 'SETTLED') {
       await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);

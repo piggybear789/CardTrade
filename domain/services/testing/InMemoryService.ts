@@ -324,8 +324,14 @@ export class InMemoryService
     amount: Cents;
     ref: string;
     nonce: string;
+    merchantRef?: string;
     presence?: PaymentPresence;
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult> {
+    // ESC-29: the same off-session boundary as the real binding.
+    if (params.merchantRef && !params.presence && !params.legacyOffSessionToMember) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
     const cached = this.cachedByNonce(`transfer:${params.nonce}`);
     if (cached) return cached;
 

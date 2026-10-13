@@ -815,7 +815,13 @@ export class StripeService implements PaymentService, PayerService {
     merchantRef?: string;
     applicationFee?: Cents;
     presence?: PaymentPresence;
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult> {
+    // ESC-29: off-session is for collateral holds and the Trade_Fee. Money forwarded
+    // to a member must be paid by a buyer who is present. Refused before any call.
+    if (offSessionToMemberRefused(params)) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
     try {
       const paymentMethod = await this.defaultPaymentMethod(params.payerId);
       if (!paymentMethod) return { transferId: '', amount: params.amount, status: 'FAILED' };
@@ -1477,6 +1483,15 @@ function resolveAccountCountry(
  * part of an idempotency key). The hashed body may include identity fields that
  * must never be logged in the clear.
  */
+/** ESC-29: a charge forwarded to a member without the payer present. */
+function offSessionToMemberRefused(params: {
+  merchantRef?: string;
+  presence?: PaymentPresence;
+  legacyOffSessionToMember?: boolean;
+}): boolean {
+  return Boolean(params.merchantRef) && !params.presence && !params.legacyOffSessionToMember;
+}
+
 /**
  * The §1.9 mapping from a PaymentIntent to a {@link CollectionStatus}. Exported for
  * tests; never leaks a Stripe type to callers.

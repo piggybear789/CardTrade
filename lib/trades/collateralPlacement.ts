@@ -62,6 +62,8 @@ export type CollateralPlacementError =
   | 'hold-failed'
   | 'side-unvalued'
   | 'failed'
+  /** ESC-29: a trader's card declined the Trade_Fee; handled as a hold failure. */
+  | 'fee-declined'
   /** ESC-05: the cash leg is not paid yet and its deadline has not passed. Quiet. */
   | 'cash-pending'
   /** ESC-05: the cash leg was not paid by its deadline; the trade was abandoned. */
@@ -143,7 +145,7 @@ export async function freezeTradeSideValues(
   return !error;
 }
 
-async function chargeFeesForAgreedTrade(trade: TradeRow): Promise<void> {
+async function chargeFeesForAgreedTrade(trade: TradeRow): Promise<{ anyFailed: boolean }> {
   const { initiatorSideCents: initiatorGives, counterpartSideCents: counterpartGives } =
     await sideValuesFor(trade);
   const cash = Number(trade.cash_amount_cents ?? 0);
@@ -155,12 +157,7 @@ async function chargeFeesForAgreedTrade(trade: TradeRow): Promise<void> {
     initiatorReceivesCents: counterpartGives + (initiatorPaysCash ? 0 : cash),
     counterpartReceivesCents: initiatorGives + (initiatorPaysCash ? cash : 0),
   });
-  if (fees.anyFailed) {
-    console.warn(
-      `[collateral] trade ${trade.id}: at least one Trade_Fee did not collect; ` +
-        'left FAILED for the retry drain.',
-    );
-  }
+  return { anyFailed: fees.anyFailed };
 }
 
 /**
@@ -280,15 +277,38 @@ export async function placeTradeCollateral(params: {
   if (currentHoldsCoverTraders(existing, [trade.initiator_id, trade.counterpart_id])) {
     // The same rule as every other lock path (ESC-08): it no longer skips the fee
     // and cash preconditions just because the holds happened to be on file already.
-    await confirmTradeCollateral({ tradeId, actorId });
+    const confirmed = await confirmTradeCollateral({ tradeId, actorId });
+    // ESC-29: the process died after the holds and before the fees. Charge them now.
+    if (confirmed.kind === 'INCOMPLETE' && confirmed.reason === 'FEES') {
+      const fees = await chargeFeesForAgreedTrade(trade);
+      if (!fees.anyFailed) await confirmTradeCollateral({ tradeId, actorId });
+    }
     return { ok: true, alreadyActive: true };
   }
 
   // A crashed attempt could leave one side ACTIVE while the other failed. Release
   // those before placing again so two authorisations cannot sit on one card.
+  //
+  // ESC-34: the void RESULT is honoured. Marking a hold VOIDED that the provider
+  // still held orphaned a live authorisation: no row said it existed, so nothing
+  // would ever release it. A failed void keeps the row, flags the trade, and stops.
   for (const hold of existing) {
     if (hold.status === 'ACTIVE') {
-      await payments.voidHold(hold.holdRef);
+      const voided = await payments.voidHold(hold.holdRef);
+      if (voided.status !== 'VOIDED') {
+        await admin.from('trades').update({ manual_reconciliation: true }).eq('id', tradeId);
+        await logBackgroundFailure({
+          name: 'collateral.void',
+          errorCode: 'VOID_FAILED',
+          message: 'A stray hold could not be released before re-placing collateral.',
+          context: { tradeId },
+        });
+        return {
+          ok: false,
+          error: 'failed',
+          message: 'A previous card hold could not be released yet. Try again shortly.',
+        };
+      }
       await repository.markHoldStatus(hold.holdRef, 'VOIDED');
     }
   }
@@ -357,7 +377,35 @@ export async function placeTradeCollateral(params: {
 
   // The Commitment_Point. Charged only now, so a trade that cannot get collateral
   // is never billed.
-  await chargeFeesForAgreedTrade(trade);
+  // ESC-29: AND A LOCK PRECONDITION. A declined fee is handled exactly as that
+  // trader's declined hold: HOLDS_FAILED loops the trade back to COLLATERAL_PENDING
+  // (its side effects release the holds), any fee that did settle is refunded, and
+  // the trader can switch card and retry. The trade never locks with a fee unpaid.
+  const fees = await chargeFeesForAgreedTrade(trade);
+  if (fees.anyFailed) {
+    for (const hold of await repository.getHolds(tradeId)) {
+      if (hold.status !== 'ACTIVE') continue;
+      const voided = await payments.voidHold(hold.holdRef);
+      if (voided.status === 'VOIDED') {
+        await repository.markHoldStatus(hold.holdRef, 'VOIDED');
+      } else {
+        await admin.from('trades').update({ manual_reconciliation: true }).eq('id', tradeId);
+        await logBackgroundFailure({
+          name: 'collateral.void',
+          errorCode: 'VOID_FAILED',
+          message: 'A hold could not be released after a declined trade fee.',
+          context: { tradeId },
+        });
+      }
+    }
+    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
+    await refundTradeFees(tradeId);
+    return {
+      ok: false,
+      error: 'fee-declined',
+      message: 'Your card declined the trade fee. Nothing was held. Switch card, then retry.',
+    };
+  }
 
   if (bonds.bondsRequired === 0) {
     // Nobody owes a bond, so no provider event will ever arrive to confirm one.

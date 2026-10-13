@@ -183,7 +183,7 @@ begin
   return case p_event
     when 'AGREEMENT_CREATED' then
       case when coalesce(p_from_shopfront, false) then
-        v_who || ' started this purchase contract for a multi-item listing. '
+        v_who || ' started this purchase contract for a binder or bulk listing. '
         || 'Nothing in the listing is held, and no money has moved yet.'
       else
         v_who || ' started this purchase contract and reserved the item. No money has moved yet.'
@@ -219,7 +219,7 @@ begin
       || ' hours to check the item and raise a problem before the seller is paid.'
     when 'PAYMENT_FAILED' then
       case when coalesce(p_from_shopfront, false) then
-        'The payment failed. This contract did not proceed. The multi-item listing remains open, and nothing from it was held.'
+        'The payment failed. This contract did not proceed. The binder or bulk listing remains open, and nothing from it was held.'
       else
         'The payment failed. The item has returned to the catalogue.'
       end
@@ -324,7 +324,7 @@ end;
 $$;
 
 comment on function cardtrade.describe_cash_sale_event(text, text, text, text, boolean) is
-  'Human-readable Cash_Sale event copy with fulfillment and multi-item-listing-aware wording. Replacing this function must reproduce every branch.';
+  'Human-readable Cash_Sale event copy with fulfillment and binder-listing-aware wording. Replacing this function must reproduce every branch.';
 
 -- Rewrite the lines already in transcripts for the codes that had no copy, from the
 -- same function and with the same joins the 0116 and 0119 backfills used.

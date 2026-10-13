@@ -25,6 +25,7 @@ import {
   TERMS_BETA_FEE_SENTENCE,
   TILE_BETA_FEE_NOTE,
   betaFeeNote,
+  feeWaiverExplanation,
   feesWaivedForBeta,
   platformFeePhrase,
   platformFeeRateLabel,
@@ -152,18 +153,26 @@ describe('what the buyer is shown', () => {
     expect(platformFeeRateLabel('aud')).not.toMatch(/min/i);
   });
 
-  it('says plainly that fees are waived during beta and names the normal rate', () => {
+  it('says plainly that fees are waived for now and names the normal rate', () => {
     expect(feesWaivedForBeta()).toBe(BETA_FEE_WAIVER);
-    expect(betaFeeNote()).toBe('No fees during beta (normally 5%)');
-    expect(platformFeeRowRate(0)).toBe('waived during beta, normally 5%');
+    expect(betaFeeNote()).toBe('No fees for now (normally 5%)');
+    expect(LISTING_BETA_FEE_NOTE).toBe('No fees for now (normally 5%)');
+    expect(NO_FEE_DURING_BETA).toBe('no fees for now (normally 5%)');
+    expect(TILE_BETA_FEE_NOTE).toBe('no fees for now');
+    expect(feeWaiverExplanation()).toBe(
+      "We're waiving fees for now. The standard fee is 5%, and we'll tell you before it applies.",
+    );
+    expect(TERMS_BETA_FEE_SENTENCE).toContain('members will be told before standard fees apply');
+    expect(platformFeeRowRate(0)).toBe('waived for now, normally 5%');
     expect(platformFeeRowRate(500)).toBe('5%');
-    expect(tradeFeeRowRate(0)).toBe('waived during beta, normally 5%');
+    expect(tradeFeeRowRate(0)).toBe('waived for now, normally 5%');
     expect(tradeFeeRowRate(500)).toBe('5%');
   });
 
-  it('never prints a $0.00 fee or a minimum in beta copy', () => {
+  it('never says beta, prints a $0.00 fee or a minimum in fee-waiver copy', () => {
     for (const text of [
       betaFeeNote(),
+      feeWaiverExplanation(),
       LISTING_BETA_FEE_NOTE,
       NO_FEE_DURING_BETA,
       TILE_BETA_FEE_NOTE,
@@ -175,7 +184,7 @@ describe('what the buyer is shown', () => {
       platformFeeRowRate(0),
       tradeFeeRowRate(0),
     ]) {
-      expect(text).not.toMatch(/\$0\.00|min/i);
+      expect(text).not.toMatch(/\$0\.00|min|beta/i);
     }
   });
 });

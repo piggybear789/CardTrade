@@ -8,10 +8,10 @@
 //
 // BETA WAIVER. Every fee is waived while `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`)
 // is on. The rate labels below still return the STANDARD rate; the strings after them
-// are the ONLY beta-fee wording, so every surface says the same thing. Prose never says
-// "$0.00 fee": it says there are no fees during beta and names the normal rate. Money
-// tables keep the numeric $0.00 so the arithmetic adds up, and put the waiver in the
-// row label instead. No end date is promised.
+// are the ONLY fee-waiver wording, so every surface says the same thing. Member copy
+// never says "beta" and never says "$0.00 fee": it says there are no fees for now and
+// names the normal rate. Money tables keep the numeric $0.00 so the arithmetic adds up,
+// and put the waiver in the row label instead. No end date is promised.
 
 import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
@@ -41,47 +41,53 @@ export function feesWaivedForBeta(): boolean {
   return BETA_FEE_WAIVER;
 }
 
-/** "No fees during beta (normally 5%)" — the one sentence prose surfaces use. */
+/** "No fees for now (normally 5%)" — the standard sentence prose surfaces use. */
 export function betaFeeNote(): string {
-  return `No fees during beta (normally ${rateLabel(PLATFORM_FEE_BPS)})`;
+  return `No fees for now (normally ${rateLabel(PLATFORM_FEE_BPS)})`;
+}
+
+/**
+ * The explanatory form, for the popover and help: "We're waiving fees for now. The
+ * standard fee is 5%, and we'll tell you before it applies."
+ */
+export function feeWaiverExplanation(): string {
+  return `We're waiving fees for now. The standard fee is ${rateLabel(PLATFORM_FEE_BPS)}, and we'll tell you before it applies.`;
 }
 
 /** Under a listing's price while waived. */
-export const LISTING_BETA_FEE_NOTE = 'No buyer fee during beta';
+export const LISTING_BETA_FEE_NOTE = betaFeeNote();
 
-/** Lower-case clause after a figure: "You'd pay $X, no fee during beta". */
-export const NO_FEE_DURING_BETA = 'no fee during beta';
+/** Lower-case clause after a figure: "You'd pay $X, no fees for now (normally 5%)". */
+export const NO_FEE_DURING_BETA = `no fees for now (normally ${rateLabel(PLATFORM_FEE_BPS)})`;
 
-/** Catalog tile, replaces "incl. fees" while waived. */
-export const TILE_BETA_FEE_NOTE = 'no fees in beta';
+/** Catalog tile, replaces "incl. fees" while waived. Short form: no room for the rate. */
+export const TILE_BETA_FEE_NOTE = 'no fees for now';
 
-/** Hint beside a $0.00 fee row. */
-export const FEE_WAIVED_HINT = 'No fee during beta.';
+/** Hint beside a $0.00 fee row, whose label already names the normal rate. */
+export const FEE_WAIVED_HINT = 'No fees for now.';
 
 /** FeeInfoPopover while waived. */
-export const FEE_POPOVER_WAIVED_TRIGGER = 'No buyer fee during beta. Show breakdown';
-export const FEE_POPOVER_WAIVED_TITLE = 'No NoDitto fee during beta';
-export const FEE_POPOVER_WAIVED_FOOTNOTE =
-  'Fees are waived during the beta. Postage, if any, is agreed with the seller before you pay.';
+export const FEE_POPOVER_WAIVED_TRIGGER = 'No fees for now. Show breakdown';
+export const FEE_POPOVER_WAIVED_TITLE = 'No NoDitto fee for now';
+export const FEE_POPOVER_WAIVED_FOOTNOTE = `${feeWaiverExplanation()} Postage, if any, is agreed with the seller before you pay.`;
 
-/** Terms page, one sentence. */
-export const TERMS_BETA_FEE_SENTENCE =
-  'Platform fees on cash sales and trades are waived during the beta, and members will be told before standard fees apply.';
+/** Terms page. Keeps the notice that members will be told before standard fees apply. */
+export const TERMS_BETA_FEE_SENTENCE = `We're waiving platform fees on cash sales and trades for now. The standard fee is ${rateLabel(PLATFORM_FEE_BPS)}, and members will be told before standard fees apply.`;
 
 /**
- * Parenthetical for a Cash_Sale fee row: "waived during beta, normally 5%" when the
+ * Parenthetical for a Cash_Sale fee row: "waived for now, normally 5%" when the
  * stored fee is 0, else "5%". Decided by the FIGURE, so a contract that stored a fee
- * before the beta still reads "5%".
+ * before the waiver still reads "5%".
  */
 export function platformFeeRowRate(feeCents: number): string {
   return feeCents === 0
-    ? `waived during beta, normally ${rateLabel(PLATFORM_FEE_BPS)}`
+    ? `waived for now, normally ${rateLabel(PLATFORM_FEE_BPS)}`
     : rateLabel(PLATFORM_FEE_BPS);
 }
 
 /** Same as `platformFeeRowRate`, for a Trade_Fee row. */
 export function tradeFeeRowRate(feeCents: number): string {
   return feeCents === 0
-    ? `waived during beta, normally ${rateLabel(TRADE_FEE_BPS)}`
+    ? `waived for now, normally ${rateLabel(TRADE_FEE_BPS)}`
     : rateLabel(TRADE_FEE_BPS);
 }

@@ -204,17 +204,21 @@ abstract final class Money {
     return '5%';
   }
 
-  /// "No fees during beta (normally 5%)", the one sentence prose surfaces use.
+  /// "No fees for now (normally 5%)", the standard sentence prose surfaces use.
+  /// Member copy never says "beta".
   ///
   /// Mirrors `betaFeeNote` in `lib/fees/feeLabels.ts`.
-  static String betaFeeNote() => 'No fees during beta (normally 5%)';
+  static String betaFeeNote() => 'No fees for now (normally 5%)';
 
-  /// Parenthetical for a fee row: "waived during beta, normally 5%" when the fee
-  /// is 0, else "5%". Decided by the figure, so a stored pre-beta fee reads "5%".
+  /// Hint beside a $0.00 fee row. Mirrors `FEE_WAIVED_HINT` in `lib/fees/feeLabels.ts`.
+  static const String feeWaivedHint = 'No fees for now.';
+
+  /// Parenthetical for a fee row: "waived for now, normally 5%" when the fee
+  /// is 0, else "5%". Decided by the figure, so a stored pre-waiver fee reads "5%".
   ///
   /// Mirrors `platformFeeRowRate` / `tradeFeeRowRate` in `lib/fees/feeLabels.ts`.
   static String feeRowRate(int feeCents) =>
-      feeCents == 0 ? 'waived during beta, normally 5%' : '5%';
+      feeCents == 0 ? 'waived for now, normally 5%' : '5%';
 
   /// Returns total cost for a cash sale buyer: price + shipping + platform fee.
   static int cashSaleTotal({

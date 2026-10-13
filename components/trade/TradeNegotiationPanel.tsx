@@ -106,7 +106,7 @@ export interface TradeNegotiationPanelProps {
     /** Trade fee taken from the card the moment the last accept lands. */
     feeText: string;
     /**
-     * The rate as members read it, e.g. "5%" or "waived during beta, normally 5%",
+     * The rate as members read it, e.g. "5%" or "waived for now, normally 5%",
      * from `tradeFeeRowRate`, so the label has one source. Falls back to the bare
      * percentage.
      */

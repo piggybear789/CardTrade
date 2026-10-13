@@ -5,7 +5,7 @@
 // bottom), with three pieces kept from the later redesign: the fee-inclusive price,
 // the muted "Includes $X buyer fee" note under it, and the one-line buyer protection
 // strip. While fees are waived for the beta (`BETA_FEE_WAIVER`) the note reads
-// "No buyer fee during beta" instead, so the assertions branch on the switch.
+// "No fees for now (normally 5%)" instead, so the assertions branch on the switch.
 
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';

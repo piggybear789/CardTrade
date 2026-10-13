@@ -520,9 +520,17 @@ function ActiveSalesSummary({ model, currency }: { model: PayoutReadModel; curre
                         {/* Below `sm` the two middle columns are gone, so the gross and
                             fee fold into one line here — the seller still gets the
                             arithmetic, just as a sentence rather than a table. */}
+                        {/* A zero fee (fees are waived for now) drops the
+                            "less $0.00 fee" clause, as AccountStatement's Breakdown does. */}
                         <p className="text-meta tabular-nums text-muted-foreground sm:hidden">
-                          Buyer paid {money(sale.grossCents)}, less{' '}
-                          {money(sale.feeCents)} fee
+                          Buyer paid {money(sale.grossCents)}
+                          {sale.feeCents === 0 ? (
+                            ', no fee'
+                          ) : (
+                            <>
+                              , less {money(sale.feeCents)} fee
+                            </>
+                          )}
                         </p>
                         {sale.blocked ? (
                           <p className="text-meta text-destructive">Held up</p>
@@ -532,7 +540,9 @@ function ActiveSalesSummary({ model, currency }: { model: PayoutReadModel; curre
                         {money(sale.grossCents)}
                       </span>
                       <span className="hidden text-right text-body tabular-nums text-muted-foreground sm:block">
-                        −{money(sale.feeCents)}
+                        {/* "—" rather than "−$0.00", and the cell stays so the grid
+                            keeps its four columns. */}
+                        {sale.feeCents === 0 ? '—' : <>−{money(sale.feeCents)}</>}
                       </span>
                       <span className="text-right text-body font-semibold tabular-nums">
                         {money(sale.netCents)}

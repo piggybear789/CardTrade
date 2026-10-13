@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { betaFeeNote, feesWaivedForBeta } from '@/lib/fees/feeLabels';
+import { feeWaiverExplanation, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { cn } from '@/lib/utils';
 
 type TopicId = 'buying' | 'selling' | 'trades' | 'payouts-id' | 'account';
@@ -70,7 +70,7 @@ function answers(tradeInspectionDays: number): Answer[] {
             the seller is paid only after you accept the card, or your inspection window
             ends without a dispute.{' '}
             {feesWaivedForBeta()
-              ? `${betaFeeNote()}.`
+              ? feeWaiverExplanation()
               : 'The buyer fee is included in the price you see before paying.'}
           </p>
           <p>

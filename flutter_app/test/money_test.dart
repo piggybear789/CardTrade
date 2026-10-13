@@ -85,9 +85,13 @@ void main() {
       expect(Money.tradeFeeRateLabel('aud'), equals('5%'));
     });
 
-    test('beta copy names the normal rate', () {
-      expect(Money.betaFeeNote(), equals('No fees during beta (normally 5%)'));
-      expect(Money.feeRowRate(0), equals('waived during beta, normally 5%'));
+    test('fee-waiver copy names the normal rate and never says beta', () {
+      expect(Money.betaFeeNote(), equals('No fees for now (normally 5%)'));
+      expect(Money.feeWaivedHint, equals('No fees for now.'));
+      expect(Money.feeRowRate(0), equals('waived for now, normally 5%'));
+      expect(Money.betaFeeNote().toLowerCase(), isNot(contains('beta')));
+      expect(Money.feeWaivedHint.toLowerCase(), isNot(contains('beta')));
+      expect(Money.feeRowRate(0).toLowerCase(), isNot(contains('beta')));
       expect(Money.feeRowRate(500), equals('5%'));
     });
   });

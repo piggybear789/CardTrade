@@ -24,6 +24,8 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
+import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
+
 import { createFakeAdmin, type FakeAdmin } from './fakes/supabaseChain';
 
 let admin: FakeAdmin;
@@ -46,7 +48,7 @@ vi.mock('@/lib/regionBinding', () => ({
   regionForTrade: async () => 'AU',
 }));
 
-const { drainFailedTradeFees } = await import('@/lib/actions/tradeFees');
+const { chargeTradeFees, drainFailedTradeFees } = await import('@/lib/actions/tradeFees');
 
 /** A FAILED fee row, with only the columns the drain reads. */
 function failedFee(index: number, overrides: Record<string, unknown> = {}) {
@@ -230,5 +232,44 @@ describe('drainFailedTradeFees', () => {
 
     expect(result).toMatchObject({ attempted: 0, settled: 0, stillFailed: 0, moreDue: false });
     expect(requestTransfer).not.toHaveBeenCalled();
+  });
+
+  it('settles a zero-amount row without calling the provider, so it cannot loop', async () => {
+    // Stripe refuses a zero-amount charge, and a FAILED zero row retried hourly would
+    // otherwise never leave the queue.
+    admin = createFakeAdmin({
+      selects: { trade_fees: [{ data: [failedFee(1, { amount_cents: 0 })] }] },
+      defaults: {
+        trade_fees: { data: { attempts: 1 } },
+        profiles: { data: { payer_id: 'payer_1' } },
+      },
+    });
+
+    const result = await drainFailedTradeFees();
+
+    expect(requestTransfer).not.toHaveBeenCalled();
+    expect(result.settled).toBe(1);
+    expect(result.stillFailed).toBe(0);
+    expect(feeUpdates(admin).map((u) => u.status)).toEqual(['SETTLED']);
+  });
+});
+
+describe.runIf(BETA_FEE_WAIVER)('chargeTradeFees during the beta fee waiver', () => {
+  it('writes no fee row and makes no provider call', async () => {
+    admin = createFakeAdmin({
+      defaults: { profiles: { data: { payer_id: 'payer_1' } } },
+    });
+
+    const outcome = await chargeTradeFees({
+      tradeId: 'trade-1',
+      initiatorId: 'trader-a',
+      counterpartId: 'trader-b',
+      initiatorReceivesCents: 126_000,
+      counterpartReceivesCents: 111_000,
+    });
+
+    expect(outcome).toEqual({ collectedCents: 0, anyFailed: false });
+    expect(requestTransfer).not.toHaveBeenCalled();
+    expect(admin.writes.filter((write) => write.table === 'trade_fees')).toEqual([]);
   });
 });

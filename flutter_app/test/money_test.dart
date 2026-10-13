@@ -69,67 +69,82 @@ void main() {
   });
 
   group('Money.platformFee()', () {
-    test('calculates 5% above the AUD minimum — 10000 cents → 500 cents', () {
-      expect(Money.platformFee(10000, currency: 'aud'), equals(500));
+    test('is 0 for every price while fees are waived for the beta', () {
+      expect(Money.betaFeeWaiver, isTrue);
+      expect(Money.platformFee(10000, currency: 'aud'), equals(0));
+      expect(Money.platformFee(7777, currency: 'aud'), equals(0));
+      expect(Money.platformFee(1000, currency: null), equals(0));
+    });
+
+    test('zero price → zero fee', () {
+      expect(Money.platformFee(0, currency: 'aud'), equals(0));
+    });
+
+    test('rate labels name the standard rate and no minimum', () {
+      expect(Money.platformFeeRateLabel('aud'), equals('5%'));
+      expect(Money.tradeFeeRateLabel('aud'), equals('5%'));
+    });
+
+    test('fee-waiver copy names the normal rate and never says beta', () {
+      expect(Money.betaFeeNote(), equals('No fees for now (normally 5%)'));
+      expect(Money.feeWaivedHint, equals('No fees for now.'));
+      expect(Money.feeRowRate(0), equals('waived for now, normally 5%'));
+      expect(Money.betaFeeNote().toLowerCase(), isNot(contains('beta')));
+      expect(Money.feeWaivedHint.toLowerCase(), isNot(contains('beta')));
+      expect(Money.feeRowRate(0).toLowerCase(), isNot(contains('beta')));
+      expect(Money.feeRowRate(500), equals('5%'));
+    });
+  });
+
+  group('Money.standardFee() — the rate once the beta ends', () {
+    test('calculates 5% — 10000 cents → 500 cents', () {
+      expect(Money.standardFeeBps, equals(500));
+      expect(Money.standardFee(10000), equals(500));
     });
 
     test('rounds half-up like the server — 7777 cents → 389 cents', () {
       // 7777 * 500 / 10000 = 388.85 → rounds to 389
-      expect(Money.platformFee(7777, currency: 'aud'), equals(389));
+      expect(Money.standardFee(7777), equals(389));
     });
 
-    test('applies the AUD \$1.50 minimum below \$30', () {
-      expect(Money.platformFee(1000, currency: 'aud'), equals(150));
-      expect(Money.platformFee(2000, currency: 'aud'), equals(150));
-      expect(Money.platformFee(1, currency: 'aud'), equals(150));
+    test('has no minimum — small sales pay the plain 5%', () {
+      expect(Money.standardFee(1000), equals(50));
+      expect(Money.standardFee(2000), equals(100));
+      expect(Money.standardFee(1), equals(0));
+      expect(Money.standardFee(1999), equals(100));
     });
 
-    test('the percentage takes over exactly at the crossover', () {
-      expect(Money.platformFee(3000, currency: 'aud'), equals(150));
-      expect(Money.platformFee(3020, currency: 'aud'), equals(151));
-    });
-
-    test('a currency with no floor gets the plain percentage', () {
-      expect(Money.platformFee(1000, currency: 'usd'), equals(50));
-      expect(Money.platformFee(1999, currency: 'usd'), equals(100));
-      expect(Money.platformFee(1000, currency: null), equals(50));
-    });
-
-    test('zero price → zero fee, never the minimum', () {
-      expect(Money.platformFee(0, currency: 'aud'), equals(0));
+    test('zero price → zero fee', () {
+      expect(Money.standardFee(0), equals(0));
+      expect(Money.standardFee(-5), equals(0));
     });
   });
 
   group('Money.tradeFee()', () {
-    test('calculates 5% above the AUD minimum', () {
-      expect(Money.tradeFee(10000, currency: 'aud'), equals(500));
-    });
-
-    test('applies the AUD \$1.00 per-trader minimum', () {
-      expect(Money.tradeFee(1000, currency: 'aud'), equals(100));
+    test('is 0 while fees are waived for the beta', () {
+      expect(Money.tradeFee(10000, currency: 'aud'), equals(0));
       expect(Money.tradeFee(0, currency: 'aud'), equals(0));
     });
   });
 
   group('Money.cashSaleTotal()', () {
     test('sums price + shipping + platform fee', () {
-      // price: 10000, shipping: 200, fee: 500 → total: 10700
+      // price: 10000, shipping: 200, fee: 0 during the beta → total: 10200
       final total = Money.cashSaleTotal(
         priceCents: 10000,
         shippingCents: 200,
         currency: 'aud',
       );
-      expect(total, equals(10700));
+      expect(total, equals(10200));
     });
 
-    test('includes the minimum fee on a small sale', () {
+    test('adds no fee on a small sale during the beta', () {
       final total = Money.cashSaleTotal(
         priceCents: 1000,
         shippingCents: 0,
         currency: 'aud',
       );
-      // 1000 + 0 + 150 = 1150
-      expect(total, equals(1150));
+      expect(total, equals(1000));
     });
   });
 

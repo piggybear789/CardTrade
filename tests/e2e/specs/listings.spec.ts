@@ -17,9 +17,10 @@
 //      PlacePicker falls back to a plain text input — see the note in
 //      playwright.config.ts.
 //   4. Listing kind is a pair of radio tiles labelled "One item" and "Binder or
-//      bulk listing". They no longer carry a description, so the accessible name is just
-//      the label — but they are still matched by PREFIX rather than equality, so
-//      that reinstating a per-tile hint does not break every spec at once.
+//      bulk listing". Each tile also carries a short hint ("Held for one buyer" /
+//      "Many cards, nothing held") that joins its accessible name, so they are
+//      matched by PREFIX rather than equality and rewording a hint does not break
+//      every spec at once.
 
 import { test, expect } from '../support/fixtures';
 import { ALICE, storageStatePath } from '../support/users';

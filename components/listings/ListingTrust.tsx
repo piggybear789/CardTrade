@@ -1,7 +1,8 @@
 // components/listings/ListingTrust.tsx
 //
 // What protects a buyer, said where they decide: a muted fee note under the price and
-// one protection line under the buy actions.
+// one protection line under the buy actions (with the price on a phone, where the
+// actions are the sticky buyer bar).
 //
 // WHY ON THE LISTING. The references (Vinted, Depop) put "payment held until you
 // accept" beside the price and the buy button. We had the facts, but they lived in an
@@ -20,7 +21,11 @@ import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
+import {
+  LISTING_BETA_FEE_NOTE,
+  feesWaivedForBeta,
+  platformFeeRateLabel,
+} from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
 import { cn } from '@/lib/utils';
@@ -28,6 +33,9 @@ import { cn } from '@/lib/utils';
 /**
  * "Includes $X buyer fee" under a single listing's fee-inclusive price, with the (i)
  * that breaks the figure down. The headline already contains the fee; this says so.
+ *
+ * While fees are waived for the beta it reads "No fees for now (normally 5%)" instead, so a
+ * member never sees "Includes $0.00 buyer fee". Same line, same geometry.
  */
 export function ListingFeeNote({
   priceCents,
@@ -39,15 +47,18 @@ export function ListingFeeNote({
   currency: string;
   className?: string;
 }) {
-  const fee = formatMoney(platformFeeCentsFor(priceCents, currency), currency);
+  const feeCents = platformFeeCentsFor(priceCents, currency);
+  const fee = formatMoney(feeCents, currency);
+  const waived = feesWaivedForBeta();
   return (
     <p className={cn('flex items-center gap-tight text-meta text-muted-foreground', className)}>
-      <span>Includes {fee} buyer fee</span>
+      <span>{waived ? LISTING_BETA_FEE_NOTE : <>Includes {fee} buyer fee</>}</span>
       <FeeInfoPopover
         priceText={formatMoney(priceCents, currency)}
         feeText={fee}
         totalText={formatMoney(buyerPaysCents(priceCents, currency), currency)}
         rateLabel={platformFeeRateLabel(currency)}
+        waived={waived}
       />
     </p>
   );

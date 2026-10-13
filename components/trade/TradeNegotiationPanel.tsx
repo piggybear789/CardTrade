@@ -53,6 +53,7 @@ import type { TradeViewerContext } from '@/domain/state-machine/types';
 import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
 import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
 import { HOLD_DECLINED_MESSAGE, type TradeAcceptCopy } from '@/lib/handover/terms';
+import { FEE_WAIVED_HINT, NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import {
   acceptTradeTerms,
   declineTradeOffer,
@@ -110,9 +111,9 @@ export interface TradeNegotiationPanelProps {
      */
     feeText: string;
     /**
-     * The rate as members read it, from `tradeFeeRateLabel`. Passed in because it
-     * depends on the trade's currency, which this panel does not hold. Falls back to
-     * the bare percentage.
+     * The rate as members read it, e.g. "5%" or "waived for now, normally 5%",
+     * from `tradeFeeRowRate`, so the label has one source. Falls back to the bare
+     * percentage.
      */
     feeRateLabel?: string;
     /**
@@ -348,7 +349,9 @@ export function TradeNegotiationPanel({
             <DialogTitle>Accept these terms?</DialogTitle>
             <DialogDescription>
               {acceptCost?.copy?.description ??
-                `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold and charge the fee.`}{' '}
+                (feesWaivedForBeta()
+                  ? `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold, with ${NO_FEE_DURING_BETA}.`
+                  : `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold and charge the fee.`)}{' '}
               Replace the card here if you do not want this one used.
             </DialogDescription>
           </DialogHeader>
@@ -363,7 +366,9 @@ export function TradeNegotiationPanel({
                 {
                   label: `NoDitto fee (${acceptCost.feeRateLabel ?? `${TRADE_FEE_BPS / 100}%`})`,
                   value: acceptCost.feeText,
-                  hint: acceptCost.copy?.feeHint ?? 'Charged when the card hold is placed.',
+                  hint: feesWaivedForBeta()
+                    ? FEE_WAIVED_HINT
+                    : (acceptCost.copy?.feeHint ?? 'Charged when the card hold is placed.'),
                 },
                 {
                   label: 'Trade collateral',

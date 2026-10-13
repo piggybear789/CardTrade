@@ -143,72 +143,82 @@ abstract final class Money {
     return formatted;
   }
 
-  /// Minimum Platform_Fee per contract, per currency, in minor units.
+  /// True while every platform fee is waived for the beta.
   ///
-  /// Mirrors `PLATFORM_FEE_MINIMUM_MINOR` in `domain/fees/feeMinimums.ts`. A
-  /// currency with no entry has no floor. ADVISORY: the server sizes the fee.
-  static const Map<String, int> platformFeeMinimumMinor = <String, int>{
-    'aud': 150,
-  };
+  /// Mirrors `BETA_FEE_WAIVER` in `domain/fees/betaFeeWaiver.ts`, and is pinned to it
+  /// by `tests/unit/mobileDomainAgreement.test.ts`. Ending the beta means flipping
+  /// both. ADVISORY: the server decides the fee it charges.
+  static const bool betaFeeWaiver = true;
 
-  /// Minimum Trade_Fee per trader, per currency, in minor units.
+  /// The STANDARD fee rate in basis points (5%), once the beta ends.
   ///
-  /// Mirrors `TRADE_FEE_MINIMUM_MINOR` in `domain/fees/feeMinimums.ts`.
-  static const Map<String, int> tradeFeeMinimumMinor = <String, int>{
-    'aud': 100,
-  };
+  /// Mirrors `PLATFORM_FEE_BPS` / `TRADE_FEE_BPS` in the web app.
+  static const int standardFeeBps = 500;
 
-  static int _minimumFor(Map<String, int> table, String? currency) {
-    if (currency == null) return 0;
-    final int? minimum = table[currency.trim().toLowerCase()];
-    return minimum != null && minimum > 0 ? minimum : 0;
+  /// [standardFeeBps] of [baseCents], rounded half-up to the nearest minor unit,
+  /// with no minimum. Zero or negative base → 0. The standard rate, regardless of
+  /// [betaFeeWaiver].
+  ///
+  /// Mirrors `percentageFeeMinor` in `domain/fees/percentageFee.ts`.
+  static int standardFee(int baseCents) {
+    if (baseCents <= 0) return 0;
+    return ((baseCents * standardFeeBps) + 5000) ~/ 10000;
   }
 
-  /// 5% of [baseCents], rounded half-up, raised to [minimumCents]. Zero base → 0.
+  /// The fee actually applied: 0 while [betaFeeWaiver], else [standardFee].
   ///
-  /// Mirrors `percentageFeeWithMinimum` in `domain/fees/feeMinimums.ts`.
-  static int _feeWithMinimum(int baseCents, int minimumCents) {
-    if (baseCents <= 0) return 0;
-    final int percentage = ((baseCents * 500) + 5000) ~/ 10000;
-    return percentage > minimumCents ? percentage : minimumCents;
+  /// Mirrors `effectiveFeeBps` in `domain/fees/betaFeeWaiver.ts`.
+  static int _percentageFee(int baseCents) {
+    return betaFeeWaiver ? 0 : standardFee(baseCents);
   }
 
   /// Calculates platform fee from item price in the currency's minor units.
   ///
-  /// 5% of item price (PLATFORM_FEE_BPS = 500), with the currency's per-contract
-  /// minimum ($1.50 in AUD). Uses rounding (not truncation) to match
-  /// `platformFeeCentsFor` in `domain/orchestrator/cashSaleOrchestrator.ts`.
+  /// 5% of item price (PLATFORM_FEE_BPS = 500), no minimum, and 0 while
+  /// [betaFeeWaiver]. Uses rounding (not
+  /// truncation) to match `platformFeeCentsFor` in
+  /// `domain/orchestrator/cashSaleOrchestrator.ts`. [currency] does not affect
+  /// the result. ADVISORY: the server sizes the fee.
   static int platformFee(int priceCents, {required String? currency}) {
-    return _feeWithMinimum(
-      priceCents,
-      _minimumFor(platformFeeMinimumMinor, currency),
-    );
+    return _percentageFee(priceCents);
   }
 
-  /// Calculates trade fee for one side (5% of value, min $1.00 in AUD).
+  /// Calculates trade fee for one side (5% of value, no minimum; 0 while
+  /// [betaFeeWaiver]).
   /// Rounds to match the server's `tradeFeeCentsFor`.
   static int tradeFee(int valueCents, {required String? currency}) {
-    return _feeWithMinimum(
-      valueCents,
-      _minimumFor(tradeFeeMinimumMinor, currency),
-    );
+    return _percentageFee(valueCents);
   }
 
-  /// The Cash_Sale fee rate as members read it: "5%, min $1.50".
+  /// The Cash_Sale fee rate as members read it: "5%".
   ///
   /// Mirrors `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
   static String platformFeeRateLabel(String currency) {
-    final int minimum = _minimumFor(platformFeeMinimumMinor, currency);
-    return minimum > 0 ? '5%, min ${format(minimum, currency)}' : '5%';
+    return '5%';
   }
 
-  /// The per-trader Trade_Fee rate as members read it: "5%, min $1.00".
+  /// The per-trader Trade_Fee rate as members read it: "5%".
   ///
   /// Mirrors `tradeFeeRateLabel` in `lib/fees/feeLabels.ts`.
   static String tradeFeeRateLabel(String currency) {
-    final int minimum = _minimumFor(tradeFeeMinimumMinor, currency);
-    return minimum > 0 ? '5%, min ${format(minimum, currency)}' : '5%';
+    return '5%';
   }
+
+  /// "No fees for now (normally 5%)", the standard sentence prose surfaces use.
+  /// Member copy never says "beta".
+  ///
+  /// Mirrors `betaFeeNote` in `lib/fees/feeLabels.ts`.
+  static String betaFeeNote() => 'No fees for now (normally 5%)';
+
+  /// Hint beside a $0.00 fee row. Mirrors `FEE_WAIVED_HINT` in `lib/fees/feeLabels.ts`.
+  static const String feeWaivedHint = 'No fees for now.';
+
+  /// Parenthetical for a fee row: "waived for now, normally 5%" when the fee
+  /// is 0, else "5%". Decided by the figure, so a stored pre-waiver fee reads "5%".
+  ///
+  /// Mirrors `platformFeeRowRate` / `tradeFeeRowRate` in `lib/fees/feeLabels.ts`.
+  static String feeRowRate(int feeCents) =>
+      feeCents == 0 ? 'waived for now, normally 5%' : '5%';
 
   /// Returns total cost for a cash sale buyer: price + shipping + platform fee.
   static int cashSaleTotal({

@@ -19,11 +19,8 @@ import {
   tradingRegions,
   type RegionCode,
 } from '../region';
-import {
-  feeMinimumMinor,
-  percentageFeeWithMinimum,
-  PLATFORM_FEE_MINIMUM_MINOR,
-} from '../fees/feeMinimums';
+import { percentageFeeMinor } from '../fees/percentageFee';
+import { effectiveFeeBps } from '../fees/betaFeeWaiver';
 import {
   canReceiveFunds,
   sellerIdentityDisclosure,
@@ -77,6 +74,9 @@ export type CashSaleStatus =
  * Platform fee rate in basis points (1 bp = 0.01%), so 500 bp = 5% of the
  * agreed item price. Held in basis points rather than a float percentage so the
  * fee stays exact integer arithmetic end-to-end — no floating-point money.
+ *
+ * This is the STANDARD rate. While `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`)
+ * is on, the applied rate is 0.
  */
 export const PLATFORM_FEE_BPS = 500;
 
@@ -84,25 +84,21 @@ export const PLATFORM_FEE_BPS = 500;
  * The Platform_Fee for a given agreed item price, in the contract currency's minor
  * units (Req 4.7).
  *
- * `PLATFORM_FEE_BPS` of the item price, raised to the currency's minimum
- * (`PLATFORM_FEE_MINIMUM_MINOR`, $1.50 in AUD) so a low-value contract still covers
- * the fixed part of the provider's costs. The floor applies per CONTRACT, so a
- * multi-line binder purchase pays it once. A currency with no floor on file gets the
- * plain percentage.
+ * A plain `PLATFORM_FEE_BPS` of the item price, with NO minimum. A per-contract
+ * floor was removed deliberately; that small sales may not cover the provider's
+ * fixed costs is an accepted trade-off.
  *
  * The fee is charged on the item price only — shipping is a pass-through cost to
  * the carrier, not platform revenue, so it is excluded from the base. Rounded to
- * the nearest minor unit; a price of 0 yields a fee of 0.
+ * the nearest minor unit (`Math.round`); a price of 0 yields a fee of 0.
  *
- * `currency` is required rather than defaulted: the floor is a money amount, and a
- * silent AUD default is how a per-currency value ends up charged in the wrong one.
+ * BETA WAIVER: the fee is 0 for every price while `BETA_FEE_WAIVER` is on. Disclosure
+ * and charge both call this function, so they cannot disagree.
+ *
+ * `_currency` does not affect the result and is kept so callers keep their signature.
  */
-export function platformFeeCentsFor(agreedPriceCents: Cents, currency: string | null): Cents {
-  return percentageFeeWithMinimum(
-    agreedPriceCents,
-    PLATFORM_FEE_BPS,
-    feeMinimumMinor(PLATFORM_FEE_MINIMUM_MINOR, currency),
-  );
+export function platformFeeCentsFor(agreedPriceCents: Cents, _currency?: string | null): Cents {
+  return percentageFeeMinor(agreedPriceCents, effectiveFeeBps(PLATFORM_FEE_BPS));
 }
 
 export interface BuyerRecord {
@@ -1375,8 +1371,8 @@ async function openAgreement(
       sellerId: item.ownerId,
       agreedPriceCents,
       // The row's currency is derived on insert from the PAYEE's region
-      // (`set_row_currency_from_region`, 0068), so the fee floor is read from the
-      // same place. The region guard above has already refused an unknown region.
+      // (`set_row_currency_from_region`, 0068); the fee is denominated in it. The
+      // region guard above has already refused an unknown region.
       platformFeeCents:
         deps.platformFeeCents ??
         platformFeeCentsFor(agreedPriceCents, regionCurrency(item.ownerRegionCode)),

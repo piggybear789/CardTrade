@@ -84,7 +84,7 @@ import { OffPlatformWarning } from '@/components/deals/DealVerificationNotice';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
 
-import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
+import { FEE_WAIVED_HINT, platformFeeRowRate } from '@/lib/fees/feeLabels';
 import { formatMoney, formatContractDateTime, formatShortDate, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -1455,7 +1455,7 @@ function CashSaleRoom({
                     value: money(sale.shipping_cost_cents),
                   },
                   {
-                    label: `Platform fee (${platformFeeRateLabel(sale.currency)})`,
+                    label: `Platform fee (${platformFeeRowRate(sale.platform_fee_cents)})`,
                     value: money(sale.platform_fee_cents),
                   },
                   {
@@ -1709,9 +1709,12 @@ function CashSaleRoom({
               ? [{ label: 'Shipping', value: money(sale.shipping_cost_cents) }]
               : []),
             {
-              label: `Platform fee (${platformFeeRateLabel(sale.currency)})`,
+              label: `Platform fee (${platformFeeRowRate(sale.platform_fee_cents)})`,
               value: money(sale.platform_fee_cents),
-              hint: 'Returned if the sale is refunded in full.',
+              hint:
+                sale.platform_fee_cents === 0
+                  ? FEE_WAIVED_HINT
+                  : 'Returned if the sale is refunded in full.',
             },
             {
               label: 'Charged now',

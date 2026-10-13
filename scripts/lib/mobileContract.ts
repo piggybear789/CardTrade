@@ -573,6 +573,22 @@ export function dartZeroDecimalCurrencies(): string[] {
 }
 
 /**
+ * The beta fee waiver switch and the standard rate, as `core/money.dart` holds them.
+ *
+ * Strict: throws if either constant cannot be read, so a renamed field fails the
+ * agreement test instead of passing it vacuously. `source` is returned so the test
+ * can also pin the beta copy literals.
+ */
+export function dartFeeSchedule(): { betaFeeWaiver: boolean; standardFeeBps: number; source: string } {
+  const source = readFlutter('core/money.dart');
+  const waiver = /static\s+const\s+bool\s+betaFeeWaiver\s*=\s*(true|false)\s*;/.exec(source);
+  if (!waiver) throw new Error('static const bool betaFeeWaiver not found in core/money.dart');
+  const bps = /static\s+const\s+int\s+standardFeeBps\s*=\s*(\d+)\s*;/.exec(source);
+  if (!bps) throw new Error('static const int standardFeeBps not found in core/money.dart');
+  return { betaFeeWaiver: waiver[1] === 'true', standardFeeBps: Number(bps[1]), source };
+}
+
+/**
  * Every Dart identifier, path segment and route referencing retired vocabulary.
  *
  * `Deal` went with migration 0055 and `KYC_Status` before it. The web app cannot

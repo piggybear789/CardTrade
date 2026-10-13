@@ -6,7 +6,7 @@ import { Clock01Icon, LockIcon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/co
 
 import { TabbedPanels, type TabDescriptor } from '@/components/ui/tabbed-panels';
 import { TRADE_INSPECTION_FLOOR_HOURS, TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
-import { platformFeePhrase } from '@/lib/fees/feeLabels';
+import { betaFeeNote, feesWaivedForBeta, platformFeePhrase } from '@/lib/fees/feeLabels';
 
 import { RolePanel, SafetyList, SafetySection, type Stage } from './stage-rail';
 
@@ -104,7 +104,11 @@ const BUYING: Stage[] = [
     moves: [
       <>Your payment is held by Stripe, not paid to the seller, until you accept.</>,
       <>Check the delivery address and postage before paying.</>,
-      <>The buyer pays a NoDitto fee of {platformFeePhrase('aud')}, included in the price you see before paying. Postage is passed through at cost.</>,
+      feesWaivedForBeta() ? (
+        <>{betaFeeNote()}. Postage is passed through at cost.</>
+      ) : (
+        <>The buyer pays a NoDitto fee of {platformFeePhrase('aud')}, included in the price you see before paying. Postage is passed through at cost.</>
+      ),
     ],
   },
   {

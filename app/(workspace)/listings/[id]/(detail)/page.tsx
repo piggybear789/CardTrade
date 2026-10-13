@@ -14,18 +14,12 @@
 // The buy/trade actions re-enforce these gates server-side; the gating here
 // only decides what to surface.
 
-import { Suspense, ViewTransition, type ReactNode } from "react";
+import { Suspense, ViewTransition } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowLeft01Icon,
-  FileTextIcon,
-  LogInIcon,
-  PencilIcon,
-  ShoppingCart01Icon,
-} from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
 
 import { getItem } from "@/lib/actions/listings";
 import type { TradeOfferOwnItem } from "@/components/trade/TradeOfferForm";
@@ -48,6 +42,7 @@ import {
   itemImageUrl,
 } from "@/lib/format";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
+import { betaFeeNote, feesWaivedForBeta } from "@/lib/fees/feeLabels";
 import { BuyButton, ShopfrontBuyButton } from "@/components/listings/BuyButton";
 import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
 import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
@@ -58,15 +53,12 @@ import {
   type GalleryImage,
 } from "@/components/listings/ImageGallery";
 import { readImageDims, type ImageDim } from "@/lib/images/dimensions";
-import { ListingActionRow } from "@/components/listings/ListingActionIcon";
 import { ListingBuyerBar } from "@/components/listings/ListingBuyerBar";
 import { ListingChromePublisher } from "@/components/listings/ListingChromePublisher";
-import {
-  ListingDesktopPane,
-  type ListingStatusBadge,
-} from "@/components/listings/ListingDesktopPane";
+import { ListingDesktopPane } from "@/components/listings/ListingDesktopPane";
 import { ListingDetailStack } from "@/components/listings/ListingDetailStack";
 import { ListingDetails } from "@/components/listings/ListingDetails";
+import { ListingProtectionLine } from "@/components/listings/ListingTrust";
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
 import { CloseShopfrontDialog } from "@/components/listings/CloseShopfrontDialog";
@@ -84,6 +76,7 @@ import { PayoutReturnRefresh } from "@/components/payouts/PayoutReturnRefresh";
 import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
 /* `PlaceMap` and `PlacePrecision` are gone from this route: the suburb is a clause of
    the meta line in both layouts now, not a plotted map. */
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StatusNotice } from "@/components/ui/status-notice";
 
@@ -92,11 +85,12 @@ import { StatusNotice } from "@/components/ui/status-notice";
 
 type ItemStatus = "AVAILABLE" | "RESERVED" | "SOLD";
 
-/**
- * The badge above the title, for a listing that is NOT open for business. An available
- * listing shows none: "Available" on every listing a buyer can reach says nothing.
- */
-const UNAVAILABLE_BADGE: Record<"RESERVED" | "SOLD", ListingStatusBadge> = {
+/** Map each availability status to a Badge variant + human-readable label. */
+const STATUS_BADGE: Record<
+  ItemStatus,
+  { variant: NonNullable<BadgeProps["variant"]>; label: string }
+> = {
+  AVAILABLE: { variant: "default", label: "Available" },
   RESERVED: { variant: "secondary", label: "Under contract" },
   SOLD: { variant: "outline", label: "Sold" },
 };
@@ -202,12 +196,12 @@ export default async function ItemDetailPage({
   // open for business. Being unclosed is the whole test (0064).
   const isShopfront = item.listing_kind === "SHOPFRONT";
   const isClosed = Boolean(item.closed_at);
+  const statusBadge = isShopfront
+    ? isClosed
+      ? { variant: "outline" as const, label: "Closed" }
+      : { variant: "default" as const, label: "Open" }
+    : (STATUS_BADGE[status] ?? STATUS_BADGE.AVAILABLE);
   const isAvailable = isShopfront ? !isClosed : status === "AVAILABLE";
-  const unavailableBadge: ListingStatusBadge | null = isAvailable
-    ? null
-    : isShopfront
-      ? { variant: "outline", label: "Closed" }
-      : (UNAVAILABLE_BADGE[status as "RESERVED" | "SOLD"] ?? null);
 
   // Authenticated non-owners: watch state, own goods for Propose Trade, and
   // public seller profile + identity can load together.
@@ -230,7 +224,6 @@ export default async function ItemDetailPage({
     viewerTradeGate,
     viewerRegion,
     mySaleRow,
-    openOffersResult,
   ] = await Promise.all([
     user && !isOwner ? isWatching(item.id) : Promise.resolve(false),
     getWatchCount(item.id),
@@ -271,18 +264,9 @@ export default async function ItemDetailPage({
           .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
-    // The owner's open offers on this listing, for the stats line in their tools.
-    isOwner && !isShopfront
-      ? supabase
-          .from("offers")
-          .select("id", { count: "exact", head: true })
-          .eq("item_id", item.id)
-          .eq("status", "PENDING")
-      : Promise.resolve({ count: 0 }),
   ]);
 
   const sellerRow = sellerRowResult.data;
-  const openOffers = openOffersResult.count ?? 0;
   const ownItems = (ownItemsResult.data ?? []) as TradeOfferOwnItem[];
   // The viewer's own gate no longer disables Propose Trade: an unverified viewer
   // gets a pressable button that opens verification (see ProposeTradeDialog).
@@ -467,8 +451,9 @@ export default async function ItemDetailPage({
     ]),
   ];
 
-  // The full facts — condition, game, grade, listed date, location — live here; the
-  // meta line under the title only abbreviates them.
+  // The listing's facts — grade, cert (with Verify on PSA), condition, game, listed
+  // date, location — as a list under the description (0129). A binder has no single
+  // condition or grade, so it gets none.
   const listingDetails = isShopfront ? null : (
     <ListingDetails
       condition={item.condition}
@@ -481,47 +466,49 @@ export default async function ItemDetailPage({
     />
   );
 
-  // A buyer looking at something they can still buy: the protection line. Guests
-  // included — they need the reassurance most.
+  // A buyer looking at something they can still buy: the fee note under the price
+  // and the one-line protection strip under the actions. Guests included — they need
+  // the reassurance most. The same condition as the phone buyer bar.
   const showTrust = !isOwner && isAvailable && !myContractId;
-  const canMessage = Boolean(user) && !isOwner && isAvailable && !myContractId;
 
-  function renderListingActions() {
+  function renderListingActions(headingId: string) {
     return (
-      <ItemActions
-        itemId={item.id}
-        itemTitle={item.title}
-        itemImagePath={(item.image_paths ?? [])[0] ?? null}
-        sellerId={item.owner_id}
-        sellerDisplayName={sellerDisplayName}
-        fmvCents={item.fmv_cents}
-        currency={item.currency}
-        isOwner={isOwner}
-        isAuthenticated={Boolean(user)}
-        isAvailable={isAvailable}
-        regionNotice={regionNotice}
-        viewerVerification={viewerVerification}
-        sellerIdentity={sellerIdentity}
-        activeSaleId={activeSaleId}
-        activeTradeId={activeTradeId}
-        isShopfront={isShopfront}
-        isClosed={isClosed}
-        openContracts={openContracts}
-        ownItems={ownItems}
-        myContractId={myContractId}
-        ownerStats={{ saves: watchCount, openOffers }}
-        messageAction={
-          // A CHIP, NOT A COMPOSER. Asking a question opens the conversation from
-          // the last round chip in the action row, beside Trade and Offer.
-          canMessage ? (
+      <>
+        <ItemActions
+          itemId={item.id}
+          itemTitle={item.title}
+          itemImagePath={(item.image_paths ?? [])[0] ?? null}
+          sellerId={item.owner_id}
+          sellerDisplayName={sellerDisplayName}
+          fmvCents={item.fmv_cents}
+          currency={item.currency}
+          isOwner={isOwner}
+          isAuthenticated={Boolean(user)}
+          isAvailable={isAvailable}
+          regionNotice={regionNotice}
+          viewerVerification={viewerVerification}
+          sellerIdentity={sellerIdentity}
+          activeSaleId={activeSaleId}
+          activeTradeId={activeTradeId}
+          isShopfront={isShopfront}
+          isClosed={isClosed}
+          openContracts={openContracts}
+          ownItems={ownItems}
+          myContractId={myContractId}
+        />
+        {user && !isOwner && isAvailable && !myContractId ? (
+          <section aria-labelledby={headingId}>
+            <h2 id={headingId} className="sr-only">
+              Message seller
+            </h2>
             <MessageSellerButton
               itemId={item.id}
               sellerId={item.owner_id}
-              variant="action"
+              variant="inline"
             />
-          ) : null
-        }
-      />
+          </section>
+        ) : null}
+      </>
     );
   }
 
@@ -576,6 +563,21 @@ export default async function ItemDetailPage({
             </Link>
           </Button>
 
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-snug">
+            <Badge
+              variant={statusBadge.variant}
+              aria-label={`Availability: ${statusBadge.label}`}
+            >
+              {statusBadge.label}
+            </Badge>
+            {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
+            <Badge variant="outline">{item.condition}</Badge>
+            {watchCount > 0 ? (
+              <span className="text-meta tabular-nums text-muted-foreground">
+                {watchCount} {watchCount === 1 ? "save" : "saves"}
+              </span>
+            ) : null}
+          </div>
         </nav>
 
         <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
@@ -634,6 +636,7 @@ export default async function ItemDetailPage({
             <div className="lg:hidden">
               <ListingDetailStack
                 details={listingDetails}
+                showTrust={showTrust}
                 title={listingTitle}
                 description={item.description ?? ''}
                 priceCents={item.fmv_cents}
@@ -645,7 +648,6 @@ export default async function ItemDetailPage({
                 createdAt={item.created_at ?? null}
                 watchCount={watchCount}
                 isOwner={isOwner}
-                statusBadge={unavailableBadge}
                 sellerId={item.owner_id}
                 sellerDisplayName={
                   isOwner
@@ -660,21 +662,6 @@ export default async function ItemDetailPage({
                 sellerRating={sellerRow?.rating ?? null}
                 sellerRatingCount={sellerRow?.rating_count ?? undefined}
                 sellerIdentity={sellerIdentity}
-                showTrust={showTrust}
-                sellerAction={
-                  // Phones only: from `md` the action stack below carries Message.
-                  canMessage ? (
-                    <div className="md:hidden">
-                      <MessageSellerButton
-                        itemId={item.id}
-                        sellerId={item.owner_id}
-                        variant="button"
-                        size="default"
-                        className="w-full"
-                      />
-                    </div>
-                  ) : null
-                }
                 media={
                   images.length > 0 ? (
                     <ImageGallery
@@ -729,12 +716,21 @@ export default async function ItemDetailPage({
                     : 'mt-group space-y-group pt-snug'
                 }
               >
-                {renderListingActions()}
+                {renderListingActions('message-seller-heading')}
+                {/* Under the actions from `md`; below it the stack carries the line,
+                    because there the actions are the sticky buyer bar. */}
+                {showTrust ? (
+                  <ListingProtectionLine
+                    isShopfront={isShopfront}
+                    headingId="listing-protection-heading-inline"
+                  />
+                ) : null}
               </div>
             </div>
 
             <ListingDesktopPane
               details={listingDetails}
+              showTrust={showTrust}
               title={listingTitle}
               description={item.description ?? ''}
               priceCents={item.fmv_cents}
@@ -743,12 +739,6 @@ export default async function ItemDetailPage({
               itemId={item.id}
               isOwner={isOwner}
               showWatch={Boolean(user && !isOwner)}
-              canReport={Boolean(user && !isOwner)}
-              showTrust={showTrust}
-              statusBadge={unavailableBadge}
-              category={item.category}
-              condition={item.condition}
-              watchCount={watchCount}
               initialWatching={initialWatching}
               sellerId={item.owner_id}
               sellerDisplayName={
@@ -765,7 +755,7 @@ export default async function ItemDetailPage({
               locationLabel={item.location_label}
               createdAt={item.created_at ?? null}
             >
-              {renderListingActions()}
+              {renderListingActions('message-seller-heading-desktop')}
             </ListingDesktopPane>
           </div>
         </div>
@@ -776,8 +766,6 @@ export default async function ItemDetailPage({
       <ListingChromePublisher
         itemId={item.id}
         canReport={Boolean(user && !isOwner)}
-        canSave={Boolean(user && !isOwner)}
-        initialWatching={initialWatching}
       />
 
       {showBuyerBar ? (
@@ -791,6 +779,7 @@ export default async function ItemDetailPage({
           currency={item.currency}
           isAuthenticated={Boolean(user)}
           isShopfront={isShopfront}
+          initialWatching={initialWatching}
           sellerIdentity={sellerIdentity}
           viewerVerification={viewerVerification}
           ownItems={ownItems}
@@ -835,8 +824,6 @@ function ItemActions({
   openContracts,
   ownItems,
   myContractId,
-  ownerStats,
-  messageAction,
 }: {
   itemId: string;
   itemTitle: string;
@@ -869,10 +856,6 @@ function ItemActions({
   ownItems: TradeOfferOwnItem[];
   /** The viewer's own live contract on this item, if any. */
   myContractId: string | null;
-  /** Saves and open offers, for the owner's tools. */
-  ownerStats: { saves: number; openOffers: number };
-  /** The Message seller chip, or null. Rendered last in the action row. */
-  messageAction: ReactNode;
 }) {
   // Only the SELLER's missing setup disables the trigger — the viewer cannot
   // complete somebody else's onboarding by pressing a button, so there is nothing
@@ -882,8 +865,8 @@ function ItemActions({
     : null;
 
   // Desktop never shows a dead Propose Trade chip — the payout banner already
-  // says why a trade cannot start, and the Message chip is still available beside
-  // it. Mobile keeps a disabled Trade slot in the sticky buyer bar.
+  // says why a trade cannot start, and Message is still available underneath.
+  // Mobile keeps a disabled Trade slot in the sticky buyer bar.
   const proposeTrade =
     isAuthenticated && !isOwner && isAvailable && !disabledTradeReason ? (
       <ProposeTradeDialog
@@ -998,8 +981,9 @@ function ItemActions({
       // EDIT IS THE PRIMARY. It is the owner's next step on their own listing; Copy
       // stays neutral and Delete stays quiet until its confirmation.
       <div className="space-y-snug">
-        {/* WHAT THE PRICE MEANS TO EACH SIDE. The page shows the owner the buyer's
-            figure, which is not what they get; this is the one place both are said.
+        {/* WHAT THE PRICE MEANS TO EACH SIDE. The headline is the buyer's
+            fee-inclusive figure, which is not what the owner gets, and the buyer fee
+            note under it is for buyers only; this is the one place both are said.
             The fee comes out of what the buyer pays, so the seller receives their
             asking price (before card-processing costs, which the statement shows). */}
         <dl className="rounded-md border bg-card p-cozy text-body">
@@ -1011,18 +995,10 @@ function ItemActions({
             <dt className="text-muted-foreground">You receive</dt>
             <dd className="font-semibold tabular-nums">{formatMoney(fmvCents, currency)}</dd>
           </div>
-          <div className="mt-snug border-t pt-snug text-meta text-muted-foreground">
-            {ownerStats.saves === 1 ? '1 save' : `${ownerStats.saves} saves`}
-            {' · '}
-            {ownerStats.openOffers > 0 ? (
-              <Link href="/offers" className="font-medium text-foreground underline-offset-4 hover:underline">
-                {ownerStats.openOffers === 1 ? '1 open offer' : `${ownerStats.openOffers} open offers`}
-              </Link>
-            ) : (
-              'No open offers'
-            )}
-          </div>
         </dl>
+        {feesWaivedForBeta() ? (
+          <p className="text-meta text-muted-foreground">{betaFeeNote()}</p>
+        ) : null}
         <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
           <Button asChild size="lg" className="min-w-0 w-full px-snug">
             <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
@@ -1103,12 +1079,8 @@ function ItemActions({
   // could receive fraud restitution, so both must pass the Identity_Gate before
   // a proposal can become a trade.
   //
-  // ONE FILLED ACTION, THEN A ROW OF ROUND CHIPS. Buy now is the full-width primary.
-  // Propose trade, Make an offer and Message seller are round `ListingActionIcon`
-  // chips under it, in the order the row had before `81ca4e8` (Trade, Offer), with
-  // Message last. `81ca4e8` swapped the chips for labelled outline buttons, and that
-  // column had too much going on. Each chip keeps its own condition; the row centres
-  // whatever is left at one fixed height (`ListingActionRow`).
+  // Buy / trade / offer sit as one circular row. Message is a compose bar
+  // underneath so it does not compete with opening a contract.
   const showOffer = Boolean(sellerIdentity) && !isShopfront;
 
   return (
@@ -1119,45 +1091,38 @@ function ItemActions({
           description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
         />
       ) : (
-        <div role="group" aria-label="Start a contract">
-          {isShopfront ? (
-            <ShopfrontBuyButton
-              itemId={itemId}
-              sellerIdentity={sellerIdentity}
-              trigger={
-                <Button type="button" variant="action" size="lg" className="w-full">
-                  <HugeiconsIcon icon={ShoppingCart01Icon} aria-hidden />
-                  Request cards
-                </Button>
-              }
-            />
-          ) : (
-            <BuyButton
-              itemId={itemId}
-              sellerIdentity={sellerIdentity}
-              summary={{ title: itemTitle, imagePath: itemImagePath, priceCents: fmvCents, currency }}
-              trigger={
-                <Button type="button" variant="action" size="lg" className="w-full">
-                  <HugeiconsIcon icon={ShoppingCart01Icon} aria-hidden />
-                  Buy now
-                </Button>
-              }
-            />
-          )}
+        <div
+          className="flex flex-col items-stretch gap-snug md:flex-row md:items-start"
+          role="group"
+          aria-label="Start a contract"
+        >
+          <div className="min-w-0 flex-1">
+            {isShopfront ? (
+              <ShopfrontBuyButton
+                itemId={itemId}
+                sellerIdentity={sellerIdentity}
+              />
+            ) : (
+              <BuyButton
+                itemId={itemId}
+                sellerIdentity={sellerIdentity}
+                summary={{ title: itemTitle, imagePath: itemImagePath, priceCents: fmvCents, currency }}
+              />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">{proposeTrade}</div>
+          {showOffer ? (
+            <div className="min-w-0 flex-1">
+              <MakeOfferDialog
+                itemId={itemId}
+                fmvCents={fmvCents}
+                currency={currency}
+                sellerIdentity={sellerIdentity}
+              />
+            </div>
+          ) : null}
         </div>
       )}
-      <ListingActionRow label="Other ways to deal">
-        {proposeTrade}
-        {showOffer && sellerIdentity ? (
-          <MakeOfferDialog
-            itemId={itemId}
-            fmvCents={fmvCents}
-            currency={currency}
-            sellerIdentity={sellerIdentity}
-          />
-        ) : null}
-        {messageAction}
-      </ListingActionRow>
       {regionGateNotice}
     </div>
   );

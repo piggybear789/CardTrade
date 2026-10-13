@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:cardtrade/core/money.dart';
 import 'package:cardtrade/models/enums.dart';
 import 'package:cardtrade/domain/identity/identity_gate.dart';
 import 'package:cardtrade/domain/bond/bond_policy.dart';
@@ -193,20 +194,27 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
 
   group('Trade Fee', () {
-    test('5% of side value, rounded like the server', () {
-      expect(tradeFee(10000, currency: 'aud'), 500); // 5% of $100
+    test('is 0 while fees are waived for the beta', () {
+      expect(Money.betaFeeWaiver, isTrue);
+      expect(tradeFee(10000, currency: 'aud'), 0);
+      expect(tradeFee(1999, currency: 'usd'), 0);
+    });
+
+    test('standard rate: 5% of side value, rounded like the server', () {
+      expect(platformFeeBps, Money.standardFeeBps);
+      expect(Money.standardFee(10000), 500); // 5% of $100
       // 5% of $39.99 = $1.9995 → $2.00, matching `Math.round` in tradeFee.ts.
-      expect(tradeFee(3999, currency: 'aud'), 200);
-      // No floor for a currency without one: 5% of $19.99 → $1.00 (rounded).
-      expect(tradeFee(1999, currency: 'usd'), 100);
+      expect(Money.standardFee(3999), 200);
+      // 5% of $19.99 → $1.00 (rounded).
+      expect(Money.standardFee(1999), 100);
     });
 
-    test('applies the AUD \$1.00 per-trader minimum', () {
-      expect(tradeFee(100, currency: 'aud'), 100); // 5% of $1.00 is 5c
-      expect(tradeFee(1999, currency: 'aud'), 100);
+    test('standard rate has no per-trader minimum', () {
+      expect(Money.standardFee(100), 5); // 5% of $1.00 is 5c
+      expect(Money.standardFee(1999), 100);
     });
 
-    test('zero and negative values return 0, never the minimum', () {
+    test('zero and negative values return 0', () {
       expect(tradeFee(0, currency: 'aud'), 0);
       expect(tradeFee(-1000, currency: 'aud'), 0);
     });
@@ -218,7 +226,7 @@ void main() {
         currency: 'aud',
       );
       expect(fees.initiatorFeeCents, fees.counterpartFeeCents);
-      expect(fees.initiatorFeeCents, 250); // 5% of $50
+      expect(fees.initiatorFeeCents, 0); // waived during the beta
     });
   });
 

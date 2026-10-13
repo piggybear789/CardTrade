@@ -1,49 +1,93 @@
 // lib/fees/feeLabels.ts
 //
-// How the Platform_Fee and Trade_Fee RATES read to members, e.g. "5%, min $1.50".
+// How the Platform_Fee and Trade_Fee read to members, e.g. "5%".
 //
-// Derived from the same constants the charge uses (`PLATFORM_FEE_BPS`, `TRADE_FEE_BPS`
-// and the per-currency minimums in `domain/fees/feeMinimums.ts`), so the copy cannot
-// drift from what is collected. Lives in `lib/` rather than `domain/` only because it
-// formats money, and `formatMoney` is framework glue that `domain/` may not import.
+// Derived from the same constants the charge uses (`PLATFORM_FEE_BPS`, `TRADE_FEE_BPS`),
+// so the copy cannot drift from what is collected. There is no fee minimum, so the
+// label is the bare rate.
+//
+// BETA WAIVER. Every fee is waived while `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`)
+// is on. The rate labels below still return the STANDARD rate; the strings after them
+// are the ONLY fee-waiver wording, so every surface says the same thing. Member copy
+// never says "beta" and never says "$0.00 fee": it says there are no fees for now and
+// names the normal rate. Money tables keep the numeric $0.00 so the arithmetic adds up,
+// and put the waiver in the row label instead. No end date is promised.
 
+import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
-import {
-  feeMinimumMinor,
-  PLATFORM_FEE_MINIMUM_MINOR,
-  TRADE_FEE_MINIMUM_MINOR,
-} from '@/domain/fees/feeMinimums';
-import { formatMoney } from '@/lib/format';
 
-function rateLabel(
-  rateBps: number,
-  table: Readonly<Record<string, number>>,
-  currency: string | null | undefined,
-): string {
-  const percent = `${rateBps / 100}%`;
-  const minimum = feeMinimumMinor(table, currency);
-  return minimum > 0 && currency ? `${percent}, min ${formatMoney(minimum, currency)}` : percent;
+function rateLabel(rateBps: number): string {
+  return `${rateBps / 100}%`;
 }
 
-/** The Cash_Sale fee as members read it: "5%, min $1.50" (or "5%" with no floor). */
-export function platformFeeRateLabel(currency: string | null | undefined): string {
-  return rateLabel(PLATFORM_FEE_BPS, PLATFORM_FEE_MINIMUM_MINOR, currency);
+/** The Cash_Sale fee as members read it: "5%". */
+export function platformFeeRateLabel(_currency?: string | null): string {
+  return rateLabel(PLATFORM_FEE_BPS);
+}
+
+/** The Cash_Sale fee as a phrase for prose: "5% of the item price". */
+export function platformFeePhrase(_currency?: string | null): string {
+  return `${PLATFORM_FEE_BPS / 100}% of the item price`;
+}
+
+/** The per-trader Trade_Fee as members read it: "5%". */
+export function tradeFeeRateLabel(_currency?: string | null): string {
+  return rateLabel(TRADE_FEE_BPS);
+}
+
+/** Whether fees are waived for the beta. Read at call time, from the one switch. */
+export function feesWaivedForBeta(): boolean {
+  return BETA_FEE_WAIVER;
+}
+
+/** "No fees for now (normally 5%)" — the standard sentence prose surfaces use. */
+export function betaFeeNote(): string {
+  return `No fees for now (normally ${rateLabel(PLATFORM_FEE_BPS)})`;
 }
 
 /**
- * The Cash_Sale fee as a phrase for prose: "5% of the item price, with a minimum of
- * $1.50" (or "5% of the item price" with no floor).
+ * The explanatory form, for the popover and help: "We're waiving fees for now. The
+ * standard fee is 5%, and we'll tell you before it applies."
  */
-export function platformFeePhrase(currency: string | null | undefined): string {
-  const base = `${PLATFORM_FEE_BPS / 100}% of the item price`;
-  const minimum = feeMinimumMinor(PLATFORM_FEE_MINIMUM_MINOR, currency);
-  return minimum > 0 && currency
-    ? `${base}, with a minimum of ${formatMoney(minimum, currency)}`
-    : base;
+export function feeWaiverExplanation(): string {
+  return `We're waiving fees for now. The standard fee is ${rateLabel(PLATFORM_FEE_BPS)}, and we'll tell you before it applies.`;
 }
 
-/** The per-trader Trade_Fee as members read it: "5%, min $1.00" (or "5%"). */
-export function tradeFeeRateLabel(currency: string | null | undefined): string {
-  return rateLabel(TRADE_FEE_BPS, TRADE_FEE_MINIMUM_MINOR, currency);
+/** Under a listing's price while waived. */
+export const LISTING_BETA_FEE_NOTE = betaFeeNote();
+
+/** Lower-case clause after a figure: "You'd pay $X, no fees for now (normally 5%)". */
+export const NO_FEE_DURING_BETA = `no fees for now (normally ${rateLabel(PLATFORM_FEE_BPS)})`;
+
+/** Catalog tile, replaces "incl. fees" while waived. Short form: no room for the rate. */
+export const TILE_BETA_FEE_NOTE = 'no fees for now';
+
+/** Hint beside a $0.00 fee row, whose label already names the normal rate. */
+export const FEE_WAIVED_HINT = 'No fees for now.';
+
+/** FeeInfoPopover while waived. */
+export const FEE_POPOVER_WAIVED_TRIGGER = 'No fees for now. Show breakdown';
+export const FEE_POPOVER_WAIVED_TITLE = 'No NoDitto fee for now';
+export const FEE_POPOVER_WAIVED_FOOTNOTE = `${feeWaiverExplanation()} Postage, if any, is agreed with the seller before you pay.`;
+
+/** Terms page. Keeps the notice that members will be told before standard fees apply. */
+export const TERMS_BETA_FEE_SENTENCE = `We're waiving platform fees on cash sales and trades for now. The standard fee is ${rateLabel(PLATFORM_FEE_BPS)}, and members will be told before standard fees apply.`;
+
+/**
+ * Parenthetical for a Cash_Sale fee row: "waived for now, normally 5%" when the
+ * stored fee is 0, else "5%". Decided by the FIGURE, so a contract that stored a fee
+ * before the waiver still reads "5%".
+ */
+export function platformFeeRowRate(feeCents: number): string {
+  return feeCents === 0
+    ? `waived for now, normally ${rateLabel(PLATFORM_FEE_BPS)}`
+    : rateLabel(PLATFORM_FEE_BPS);
+}
+
+/** Same as `platformFeeRowRate`, for a Trade_Fee row. */
+export function tradeFeeRowRate(feeCents: number): string {
+  return feeCents === 0
+    ? `waived for now, normally ${rateLabel(TRADE_FEE_BPS)}`
+    : rateLabel(TRADE_FEE_BPS);
 }

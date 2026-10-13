@@ -154,21 +154,29 @@ void main() {
     });
 
     group('Money.platformFee()', () {
-      test('calculates 5% above the minimum — 10000 cents → 500', () {
-        expect(Money.platformFee(10000, currency: 'aud'), equals(500));
+      test('is 0 while fees are waived for the beta', () {
+        if (!Money.betaFeeWaiver) return;
+        expect(Money.platformFee(10000, currency: 'aud'), equals(0));
+        expect(Money.platformFee(1999, currency: 'usd'), equals(0));
+      });
+    });
+
+    group('Money.standardFee() — the rate once the beta ends', () {
+      test('calculates 5% — 10000 cents → 500', () {
+        expect(Money.standardFee(10000), equals(500));
       });
 
-      test('applies the AUD minimum — 2000 cents → 150', () {
-        expect(Money.platformFee(2000, currency: 'aud'), equals(150));
+      test('has no minimum — 2000 cents → 100', () {
+        expect(Money.standardFee(2000), equals(100));
       });
 
-      test('calculates 5% — rounds correctly with no floor', () {
+      test('calculates 5% — rounds correctly', () {
         // 1999 * 500 / 10000 = 99.95 → rounds to 100
-        expect(Money.platformFee(1999, currency: 'usd'), equals(100));
+        expect(Money.standardFee(1999), equals(100));
       });
 
       test('zero price → zero fee', () {
-        expect(Money.platformFee(0, currency: 'aud'), equals(0));
+        expect(Money.standardFee(0), equals(0));
       });
     });
 

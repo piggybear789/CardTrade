@@ -18,13 +18,11 @@
 
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 
-// `PLATFORM_FEE_LABEL` (a bare "5%") used to live here. The fee now has a
-// per-currency minimum, so the label needs the currency too: it is
-// `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
+// The member-facing rate label is `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
 
 /**
  * What the buyer is charged for an item listed at `priceCents` in `currency`: the
- * asking price plus the Platform_Fee (including its minimum), excluding any shipping
+ * asking price plus the Platform_Fee, excluding any shipping
  * agreed later.
  *
  * The fee itself comes from `platformFeeCentsFor` — the same function the orchestrator

@@ -488,9 +488,11 @@ class _TradeMoneySection extends ConsumerWidget {
 
     return ContractSection(
       title: 'Money',
-      explainer: 'A trade moves goods, not cash. The platform fee is '
-          '$feeRate of what each trader receives, '
-          'charged when both accept.',
+      explainer: Money.betaFeeWaiver
+          ? 'A trade moves goods, not cash. ${Money.betaFeeNote()}.'
+          : 'A trade moves goods, not cash. The platform fee is '
+              '$feeRate of what each trader receives, '
+              'charged when both accept.',
       children: <Widget>[
         ContractMoneyTable(
           semanticsLabel: 'Trade money breakdown',
@@ -508,7 +510,7 @@ class _TradeMoneySection extends ConsumerWidget {
                   : null,
             ),
             ContractMoneyRow(
-              label: 'Your trade fee ($feeRate)',
+              label: 'Your trade fee (${Money.feeRowRate(yourFeeCents)})',
               value: Money.format(yourFeeCents, trade.currency),
               total: true,
             ),

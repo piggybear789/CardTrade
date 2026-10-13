@@ -222,6 +222,8 @@ const EXPECTED_CODES = new Set([
   'tracking-in-use',
   'tracking-already-delivered',
   'tracking-predates-dispute',
+  // ESC-12: carrier destination differs from the contract. Logged, never refused.
+  'DESTINATION_COUNTRY_MISMATCH',
   // ESC-24: staff approval refused while the duplicate account is live or banned.
   'duplicate-still-live',
   'duplicate-banned',

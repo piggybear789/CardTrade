@@ -15,6 +15,7 @@ import {
   checkRegionCompatibility,
   regionCurrency,
   regionMismatchMessage,
+  tradingRegions,
   type RegionCode,
 } from '../region';
 import {
@@ -868,6 +869,11 @@ export interface CashSaleRepository {
    * may omit it; the release pass then does nothing.
    */
   listDueReturnRefunds?(params: { nowIso: string; limit: number }): Promise<string[]>;
+  /**
+   * ESC-12: the destination country of one leg, from its address row (delivery
+   * details for OUTBOUND, return details for RETURN). Null when no address carries one.
+   */
+  loadDestinationCountry?(params: { cashSaleId: string; leg: 'OUTBOUND' | 'RETURN' }): Promise<string | null>;
   setItemStatus(params: { itemId: string; status: ItemStatus }): Promise<void>;
   /**
    * ESC-03 / ESC-14: the facts the release policy reads for one COMPLETED sale. Null
@@ -1039,6 +1045,11 @@ export interface CashSaleOrchestratorDeps {
    * in a region with no Stripe account to pay the seller from.
    */
   operationalRegions?: ReadonlySet<RegionCode>;
+  /**
+   * ESC-12: a non-blocking tracking anomaly (the carrier's destination country is not
+   * the contract's). domain/ never logs; the caller records it.
+   */
+  onTrackingWarning?: (warning: { cashSaleId: string; code: 'DESTINATION_COUNTRY_MISMATCH'; detail: string }) => void;
   /**
    * The currency of the platform account {@link CashSaleOrchestratorDeps.payments}
    * is bound to, scoping the payout drain to contracts it can actually settle (0068).
@@ -2815,16 +2826,44 @@ export async function recordCashSaleReturnShipment(
     };
   }
 
-  const registered = await deps.tracking?.registerShipment({ carrier, trackingNumber });
+  const destinationCountryCode = await destinationFor(deps, sale, 'RETURN');
+  const registered = await deps.tracking?.registerShipment({ carrier, trackingNumber, destinationCountryCode });
+  if (registered) warnOnDestination(deps, sale.id, destinationCountryCode, registered.destinationCountryCode);
 
-  const updated = await deps.repository.recordReturnShipment({
-    cashSaleId: sale.id,
-    carrier: registered?.carrier ?? carrier,
-    trackingNumber: registered?.trackingNumber ?? trackingNumber,
-    trackingUrl: registered?.trackingUrl ?? null,
-    trackingStatus: registered?.status ?? null,
-    shippedAt: currentIso(deps),
-  });
+  // ESC-12: a number that is already delivered cannot be a return about to be posted,
+  // and a parcel scanned before the dispute was decided cannot be this return. A
+  // label printed earlier is not a scan, and no scan yet means no verdict.
+  if (registered?.status === 'DELIVERED') {
+    return {
+      ok: false,
+      error: 'TRACKING_ALREADY_DELIVERED',
+      detail: 'That tracking number already shows as delivered. Use the number for the parcel you are sending now.',
+    };
+  }
+  const firstScan = parseInstant(registered?.firstEventAt);
+  const decidedAt = parseInstant(sale.disputeResolvedAt);
+  if (firstScan !== null && decidedAt !== null && firstScan < decidedAt) {
+    return {
+      ok: false,
+      error: 'TRACKING_PREDATES_DISPUTE',
+      detail: 'That parcel was scanned before the dispute was decided, so it cannot be this return.',
+    };
+  }
+
+  let updated: CashSaleRecord | null;
+  try {
+    updated = await deps.repository.recordReturnShipment({
+      cashSaleId: sale.id,
+      carrier: registered?.carrier ?? carrier,
+      trackingNumber: registered?.trackingNumber ?? trackingNumber,
+      trackingUrl: registered?.trackingUrl ?? null,
+      trackingStatus: registered?.status ?? null,
+      shippedAt: currentIso(deps),
+    });
+  } catch (err: unknown) {
+    if (isTrackingInUse(err)) return trackingInUse();
+    throw err;
+  }
   // Null means the guarded update matched nothing: already recorded, or the status
   // moved on while this was in flight.
   if (!updated) return { ok: false, error: 'ALREADY_RECORDED' };
@@ -3608,7 +3647,9 @@ export async function recordCashSaleShipment(
   if (!params.shipment.carrier.trim() || params.shipment.trackingNumber.trim().length < 2) {
     return { ok: false, error: 'INVALID_TERMS', detail: 'Carrier and tracking number are required.' };
   }
-  const tracking = await deps.tracking.registerShipment(params.shipment);
+  const destinationCountryCode = await destinationFor(deps, sale, 'OUTBOUND');
+  const tracking = await deps.tracking.registerShipment({ ...params.shipment, destinationCountryCode });
+  warnOnDestination(deps, sale.id, destinationCountryCode, tracking.destinationCountryCode);
 
   // ESC-02, rule 1: a physical carrier scan BEFORE the buyer paid means this parcel
   // cannot be this sale's shipment. That is the stale-number attack: enter any old
@@ -3625,14 +3666,20 @@ export async function recordCashSaleShipment(
   }
 
   const now = currentIso(deps);
-  const updated = await deps.repository.recordShipment({
-    cashSaleId: sale.id,
-    carrier: tracking.carrier,
-    trackingNumber: tracking.trackingNumber,
-    trackingUrl: tracking.trackingUrl,
-    trackingStatus: tracking.status,
-    shippedAt: now,
-  });
+  let updated: CashSaleRecord | null;
+  try {
+    updated = await deps.repository.recordShipment({
+      cashSaleId: sale.id,
+      carrier: tracking.carrier,
+      trackingNumber: tracking.trackingNumber,
+      trackingUrl: tracking.trackingUrl,
+      trackingStatus: tracking.status,
+      shippedAt: now,
+    });
+  } catch (err: unknown) {
+    if (isTrackingInUse(err)) return trackingInUse();
+    throw err;
+  }
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
   await deps.repository.logEvent({
     cashSaleId: sale.id,
@@ -3665,6 +3712,46 @@ export async function recordCashSaleShipment(
     }
   }
   return { ok: true, sale: updated };
+}
+
+/** ESC-12: the 0144 trigger's refusal, surfaced by the repository as a thrown error. */
+function isTrackingInUse(err: unknown): boolean {
+  return err instanceof Error && err.message.includes('tracking-in-use');
+}
+
+function trackingInUse(): CashSaleResult {
+  return {
+    ok: false,
+    error: 'TRACKING_IN_USE',
+    detail: 'That tracking number is already on another contract. Check it and try again.',
+  };
+}
+
+/** ESC-12: where this leg is going: its address's country, else the sale's region. */
+async function destinationFor(
+  deps: CashSaleOrchestratorDeps,
+  sale: CashSaleRecord,
+  leg: 'OUTBOUND' | 'RETURN',
+): Promise<string | null> {
+  const fromAddress = await deps.repository.loadDestinationCountry?.({ cashSaleId: sale.id, leg });
+  if (fromAddress) return fromAddress;
+  const currency = (sale.currency ?? '').toLowerCase();
+  return tradingRegions().find((region) => region.currency === currency)?.code ?? null;
+}
+
+/** ESC-12: report, never refuse, a carrier destination that is not the contract's. */
+function warnOnDestination(
+  deps: CashSaleOrchestratorDeps,
+  cashSaleId: string,
+  expected: string | null,
+  reported: string | null | undefined,
+): void {
+  if (!expected || !reported || expected.toUpperCase() === reported.toUpperCase()) return;
+  deps.onTrackingWarning?.({
+    cashSaleId,
+    code: 'DESTINATION_COUNTRY_MISMATCH',
+    detail: `Carrier reports ${reported.toUpperCase()}; contract expects ${expected.toUpperCase()}`,
+  });
 }
 
 function parseInstant(iso: string | null | undefined): number | null {

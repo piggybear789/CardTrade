@@ -210,13 +210,16 @@ async function guardedUpdate(
   expectedStatus: CashSaleRecord['status'],
   patch: TablesUpdate<'cash_sales'>,
 ): Promise<CashSaleRecord | null> {
-  const { data } = await client
+  const { data, error } = await client
     .from('cash_sales')
     .update(patch)
     .eq('id', cashSaleId)
     .eq('status', expectedStatus)
     .select('*')
     .maybeSingle();
+  // ESC-12: the 0144 trigger refuses a tracking number bound to another contract.
+  // Thrown so the orchestrator can tell it from "no row matched".
+  if (error?.message?.includes('tracking-in-use')) throw new Error('tracking-in-use');
   return data ? toCashSale(data as CashSaleRow) : null;
 }
 
@@ -1154,7 +1157,7 @@ export function createSupabaseCashSaleRepository(
       trackingStatus: string | null;
       shippedAt: string;
     }) {
-      const { data } = await client
+      const { data, error: returnError } = await client
         .from('cash_sales')
         .update({
           status: 'RETURN_IN_TRANSIT',
@@ -1178,6 +1181,7 @@ export function createSupabaseCashSaleRepository(
         .is('return_shipped_at', null)
         .select('*')
         .maybeSingle();
+      if (returnError?.message?.includes('tracking-in-use')) throw new Error('tracking-in-use');
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
@@ -1241,6 +1245,16 @@ export function createSupabaseCashSaleRepository(
         .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async loadDestinationCountry({ cashSaleId, leg }: { cashSaleId: string; leg: 'OUTBOUND' | 'RETURN' }) {
+      // ESC-12: the address row's own country. Null falls back to the sale's region.
+      const { data } = await client
+        .from(leg === 'OUTBOUND' ? 'cash_sale_delivery_details' : 'cash_sale_return_details')
+        .select('country_code')
+        .eq('cash_sale_id', cashSaleId)
+        .maybeSingle();
+      return (data as { country_code: string | null } | null)?.country_code ?? null;
     },
 
     async listDueReturnRefunds({ nowIso, limit }: { nowIso: string; limit: number }) {

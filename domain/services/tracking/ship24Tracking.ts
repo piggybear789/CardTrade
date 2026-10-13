@@ -8,7 +8,7 @@
 // Bearer token auth.
 
 import { carrierTrackingUrl, ship24CourierCode } from './carriers';
-import type { TrackingService, TrackingSnapshot, TrackingState } from './types';
+import type { TrackingLookup, TrackingService, TrackingSnapshot, TrackingState } from './types';
 
 const BASE_URL = 'https://api.ship24.com/public/v1';
 
@@ -92,6 +92,7 @@ function snapshotFrom(
     status,
     deliveredAt: status === 'DELIVERED' ? (deliveredEventAt(events) ?? events[0]?.occurrenceDatetime ?? null) : null,
     firstEventAt: firstCarrierScanAt(events),
+    destinationCountryCode: tracking?.shipment?.destinationCountryCode ?? null,
   };
 }
 
@@ -118,19 +119,16 @@ export class Ship24TrackingService implements TrackingService {
     return res.json() as Promise<T>;
   }
 
-  async registerShipment(input: {
-    carrier: string;
-    trackingNumber: string;
-  }): Promise<TrackingSnapshot> {
+  async registerShipment(input: TrackingLookup): Promise<TrackingSnapshot> {
     const carrier = input.carrier.trim();
     const trackingNumber = input.trackingNumber.trim();
     const courierCode = ship24CourierCode(carrier);
 
     // POST /trackers/track is idempotent — creates if needed, returns results.
-    const body: Record<string, unknown> = {
-      trackingNumber,
-      destinationCountryCode: 'AU',
-    };
+    // ESC-12: the contract's own destination, never a hard-coded 'AU'.
+      const body: Record<string, unknown> = { trackingNumber };
+      const destination = input.destinationCountryCode?.trim().toUpperCase();
+      if (destination && /^[A-Z]{2}$/.test(destination)) body.destinationCountryCode = destination;
     if (courierCode) {
       body.courierCode = [courierCode];
     }
@@ -154,20 +152,17 @@ export class Ship24TrackingService implements TrackingService {
     }
   }
 
-  async fetchStatus(input: {
-    carrier: string;
-    trackingNumber: string;
-  }): Promise<TrackingSnapshot | null> {
+  async fetchStatus(input: TrackingLookup): Promise<TrackingSnapshot | null> {
     const carrier = input.carrier.trim();
     const trackingNumber = input.trackingNumber.trim();
     const courierCode = ship24CourierCode(carrier);
 
     try {
       // Use the same idempotent endpoint to get current status.
-      const body: Record<string, unknown> = {
-        trackingNumber,
-        destinationCountryCode: 'AU',
-      };
+      // ESC-12: the contract's own destination, never a hard-coded 'AU'.
+      const body: Record<string, unknown> = { trackingNumber };
+      const destination = input.destinationCountryCode?.trim().toUpperCase();
+      if (destination && /^[A-Z]{2}$/.test(destination)) body.destinationCountryCode = destination;
       if (courierCode) {
         body.courierCode = [courierCode];
       }
@@ -195,6 +190,7 @@ interface Ship24TrackResponse {
       shipment: {
         trackingNumber: string;
         statusMilestone: string | null;
+        destinationCountryCode?: string | null;
       } | null;
       events: Array<{
         eventId: string;

@@ -5,6 +5,7 @@
 // the orchestrator directly; no client-callable settle/fail simulation exists.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { consumeDbRateLimit } from '@/lib/rateLimitDb';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
@@ -142,7 +143,19 @@ async function getUserId(): Promise<string | null> {
  * imply this call selects a Stripe account when it selects nothing.
  */
 function orchestrator() {
-  return createDefaultCashSaleOrchestrator({ payments: getPaymentService() });
+  return createDefaultCashSaleOrchestrator({
+    payments: getPaymentService(),
+    // ESC-12: the carrier's destination disagrees with the contract. Logged for staff,
+    // never refused.
+    onTrackingWarning: ({ cashSaleId, code, detail }) => {
+      void logBackgroundFailure({
+        name: 'tracking.destination_country',
+        errorCode: code,
+        message: detail,
+        context: { cashSaleId },
+      });
+    },
+  });
 }
 
 /**

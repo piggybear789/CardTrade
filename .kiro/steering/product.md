@@ -331,6 +331,10 @@ Treat Flutter as **partial parity**, not a second complete product. `.kiro/specs
 
 ### Return-conditional refunds
 
+**Since 0143 (ESC-11) carrier delivery of the return opens a 72-hour seller window to check the parcel; it does not refund.** The refund releases automatically when the window closes uncontested. A seller may contest only inside the window. **One tracking number is one contract (0144, ESC-12):** a number on another live (or <90-day-closed) contract is refused, a return number may never equal an outbound one, and a return number already delivered or first scanned before the dispute was decided is refused.
+
+**Staff decisions that move money are two-person (0145, ESC-23):** at or above `TWO_PERSON_THRESHOLD_MINOR`, and every fraud finding, become a proposal until a second, non-party staff member approves. A one-person team may self-approve after 24h. **Postage is bounded (ESC-28):** at most the item price, within $25–$150; an outlier is flagged for staff. **Off-platform lures in chat are flagged, never blocked (0148, ESC-27).**
+
 Implemented (0088–0092). When a full `REFUND_BUYER` is awarded and the goods are with the Buyer:
 
 1. Sale → `RETURN_PENDING`. Item stays `RESERVED`. Seller return address lives in `cash_sale_return_details`.

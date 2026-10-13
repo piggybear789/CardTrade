@@ -387,16 +387,24 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
   // Collateral per trader, so a trade case can state what a fraud finding captures.
   const tradeIds = (trades.data ?? []).map((t) => t.id as string);
   const bondOf = new Map<string, Map<string, number>>();
+  // ESC-21 / ESC-17b: the earliest LIVE hold expiry per trade. Collateral that lapses
+  // takes the remedy with it, so it is a deadline the queue must rank by.
+  const holdExpiryOf = new Map<string, string>();
   if (tradeIds.length > 0) {
     const { data: holds } = await admin
       .from('pre_auth_holds')
-      .select('trade_id, trader_id, amount_cents')
+      .select('trade_id, trader_id, amount_cents, status, expires_at')
       .in('trade_id', tradeIds);
     for (const hold of holds ?? []) {
       const tradeId = hold.trade_id as string;
       const perTrader = bondOf.get(tradeId) ?? new Map<string, number>();
       perTrader.set(hold.trader_id as string, Number(hold.amount_cents ?? 0));
       bondOf.set(tradeId, perTrader);
+      const expiresAt = hold.expires_at as string | null;
+      if (hold.status === 'ACTIVE' && expiresAt) {
+        const current = holdExpiryOf.get(tradeId);
+        if (!current || Date.parse(expiresAt) < Date.parse(current)) holdExpiryOf.set(tradeId, expiresAt);
+      }
     }
   }
 
@@ -603,6 +611,7 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
       hasHardDeadline: false,
       deadlineAt: null,
       fraudAlleged: Boolean(trade.fraud_claimed_by),
+      earliestHoldExpiryAt: holdExpiryOf.get(id) ?? null,
     });
   }
 

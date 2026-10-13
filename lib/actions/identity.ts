@@ -570,7 +570,8 @@ export const refreshIdentityCheck = withActionLog('identity.refreshIdentityCheck
     // Straight from the provider — this is the one path that actually knows. A
     // 'blocked' decision reports DECIDED rather than a review still running: nothing
     // more is coming for that session.
-    progress: decision === 'blocked' ? 'DECIDED' : (check.progress ?? 'NOT_SUBMITTED'),
+    progress:
+      decision === 'blocked' || decision === 'duplicate' ? 'DECIDED' : (check.progress ?? 'NOT_SUBMITTED'),
     verifiedName:
       decision === 'verified'
         ? (check.verifiedName ?? ((profile?.identity_check_name as string | null) ?? null))
@@ -579,6 +580,12 @@ export const refreshIdentityCheck = withActionLog('identity.refreshIdentityCheck
       decision === 'verified'
         ? (check.verifiedAt ?? ((profile?.identity_check_verified_at as string | null) ?? null))
         : ((profile?.identity_check_verified_at as string | null) ?? null),
-    failureReason: decision === 'failed' ? (check.failureReason ?? null) : null,
+    // ESC-24: never says another account exists, only that support has to look.
+    failureReason:
+      decision === 'failed'
+        ? (check.failureReason ?? null)
+        : decision === 'duplicate'
+          ? 'We need to check something before you can sell. Contact support.'
+          : null,
   });
 });

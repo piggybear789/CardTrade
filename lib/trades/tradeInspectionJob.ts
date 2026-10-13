@@ -26,6 +26,7 @@ import { reestimateHoldExpiries } from './holdExpiryReestimate';
 import { sweepCustodyEscalation } from './custodyEscalationSweep';
 import { expireHandoverChangeProposals } from './handoverChanges';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
+import { backfillPersonKeys } from '@/lib/identity/personKeyBackfill';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** One pass of the job. */
@@ -47,6 +48,8 @@ export const TRADE_INSPECTION_JOB_STEPS: readonly TradeInspectionJobStep[] = [
   { key: 'handovers', run: () => advanceDueHandovers() },
   { key: 'stale', run: () => flagStaleCollateralTrades() },
   { key: 'handoverProposals', run: () => expireHandoverChangeProposals() },
+  // ESC-15: person keys a verification came back without, inside Stripe's 48h window.
+  { key: 'personKeys', run: () => backfillPersonKeys() },
 ];
 
 /**

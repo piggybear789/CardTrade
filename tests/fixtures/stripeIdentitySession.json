@@ -1,0 +1,29 @@
+{
+  "id": "vs_test_synthetic",
+  "object": "identity.verification_session",
+  "status": "verified",
+  "created": 1700000000,
+  "url": null,
+  "last_error": null,
+  "metadata": { "cardtrade_profile_id": "00000000-0000-4000-8000-000000000001" },
+  "verified_outputs": {
+    "first_name": "Jenny",
+    "last_name": "Rosen",
+    "id_number": null,
+    "dob": { "day": 1, "month": 1, "year": 1901 },
+    "address": { "line1": "1 Test St", "line2": null, "city": "Sydney", "state": "NSW", "postal_code": "2000", "country": "AU" }
+  },
+  "last_verification_report": {
+    "id": "vr_test_synthetic",
+    "object": "identity.verification_report",
+    "document": {
+      "status": "verified",
+      "type": "driving_license",
+      "issuing_country": "AU",
+      "number": "TEST000000",
+      "first_name": "Jenny",
+      "last_name": "Rosen",
+      "dob": { "day": 1, "month": 1, "year": 1901 }
+    }
+  }
+}

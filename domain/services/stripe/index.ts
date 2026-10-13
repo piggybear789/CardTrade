@@ -78,6 +78,11 @@ export function createStripeService(
   const config = readStripeConfig(process.env, options.region ?? DEFAULT_CONFIG_REGION);
   return new StripeService({
     client: createStripeClient(config),
+    // ESC-15: a second client on the restricted Identity key, used ONLY to read a
+    // session's sensitive verified outputs (document number, date of birth).
+    ...(config.identityRestrictedKey
+      ? { identityClient: createStripeClient({ ...config, secretKey: config.identityRestrictedKey }) }
+      : {}),
     config,
   });
 }

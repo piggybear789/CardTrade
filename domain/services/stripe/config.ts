@@ -111,6 +111,13 @@ export interface StripeConfig {
    * production and keep it stable.
    */
   identityFingerprintSecret: string;
+  /**
+   * ESC-15: a restricted key (`rk_...`) with Identity "read verification results"
+   * only, per region with no fallback across regions. Stripe returns a session's
+   * document number and date of birth only to such a key, and only for 48 hours, so
+   * without it the person keys behind the fraud blocklist were always empty.
+   */
+  identityRestrictedKey?: string;
 
   payoutMode: StripePayoutMode;
   /**
@@ -368,6 +375,7 @@ export function readStripeConfig(
     ),
     identityFingerprintSecret:
       env.IDENTITY_FINGERPRINT_SECRET?.trim() || secretKey,
+    identityRestrictedKey: readRegionalEnv(env, 'STRIPE_IDENTITY_RESTRICTED_KEY', code),
 
     payoutMode: env.PAYOUT_MODE?.trim().toLowerCase() === 'direct' ? 'direct' : 'platform',
     webhookToleranceSeconds: Number.isFinite(tolerance) && tolerance > 0

@@ -954,6 +954,12 @@ export interface IdentityCheck {
     kind: 'document-id' | 'name-dob';
     hash: string;
   }>;
+  /**
+   * ESC-15: VERIFIED, but the provider did not return the document number (no
+   * restricted key, or past its 48-hour window), so no document person key exists.
+   * The caller logs `PERSON_KEYS_UNAVAILABLE` and marks the profile for backfill.
+   */
+  personKeysUnavailable?: boolean;
 }
 
 /**

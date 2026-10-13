@@ -36,7 +36,8 @@ import type { CashSaleDisputeOutcome, TrackingFlagDecision } from '@/domain/orch
 import { CASH_SALE_INSPECTION_DAYS } from '@/domain/fulfilment/inspection';
 import { createLoggedDisputeOrchestrator } from '@/lib/trades/disputeOrchestrator';
 import type { TradeDisputeOutcome } from '@/domain/orchestrator/disputeResolution';
-import { regionForTrade } from '@/lib/regionBinding';
+import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
+import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 import {
   COLLECTED_SALE_STATUSES,
   reconcileCustody,
@@ -542,6 +543,80 @@ export const setExposureLimitOverride = withActionLog('admin.setExposureLimitOve
   if (!data) return { ok: false, error: 'not-found' };
   revalidatePath('/admin');
   return { ok: true, data: { id: profileId, limitMinor } };
+});
+
+/**
+ * Decide a member held for a duplicate identity (ESC-24).
+ *
+ * APPROVE only once the older account is CLOSED (the "lost my old login" case). A
+ * live older account is refused (`duplicate-still-live`): close it first. A banned
+ * one is refused outright (`duplicate-banned`): that is exactly the evasion the
+ * blocklist exists for. Approval goes through the same writer as every identity
+ * decision, so the bans and the person keys still apply.
+ *
+ * REJECT marks the check FAILED and tells the member to contact support.
+ */
+export const resolveDuplicateIdentity = withActionLog('admin.resolveDuplicateIdentity', async function resolveDuplicateIdentity(
+  profileId: string,
+  decision: 'APPROVE' | 'REJECT',
+): Promise<AdminActionResult<{ id: string; status: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  const admin = createAdminClient();
+  const { data: profile, error } = await admin
+    .from('profiles')
+    .select('id, identity_duplicate_of, identity_check_session_id')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!profile?.identity_duplicate_of) return { ok: false, error: 'not-found', message: 'No duplicate review is open for this member.' };
+
+  if (decision === 'REJECT') {
+    const { error: rejectError } = await admin
+      .from('profiles')
+      .update({ identity_check_status: 'FAILED' })
+      .eq('id', profileId)
+      .neq('identity_check_status', 'VERIFIED');
+    if (rejectError) return { ok: false, error: 'persistence-error', message: rejectError.message };
+    await createNotification({
+      userId: profileId,
+      type: 'SYSTEM',
+      title: 'Identity check not approved',
+      body: "We couldn't approve your identity check. Contact support if you think this is a mistake.",
+      link: '/profile?tab=verification',
+    });
+    revalidatePath('/admin');
+    return { ok: true, data: { id: profileId, status: 'FAILED' } };
+  }
+
+  const { data: older, error: olderError } = await admin
+    .from('profiles')
+    .select('id, closed_at, fraud_banned_at')
+    .eq('id', profile.identity_duplicate_of as string)
+    .maybeSingle();
+  if (olderError) return { ok: false, error: 'persistence-error', message: olderError.message };
+  if (older?.fraud_banned_at) {
+    return { ok: false, error: 'duplicate-banned', message: 'The other account was banned for fraud, so this cannot be approved.' };
+  }
+  if (older && !older.closed_at) {
+    return { ok: false, error: 'duplicate-still-live', message: 'Close the other account first, then approve this one.' };
+  }
+
+  const sessionId = profile.identity_check_session_id as string | null;
+  const payments = getPaymentService(await regionForProfile(profileId));
+  if (!sessionId || !payments.readIdentityCheck) {
+    return { ok: false, error: 'persistence-error', message: 'The identity session could not be read back.' };
+  }
+  const check = await payments.readIdentityCheck(sessionId);
+  const applied = await applyIdentityDecision({
+    profileId,
+    check,
+    staffOverride: { staffId: gate.ctx.userId },
+  });
+  revalidatePath('/admin');
+  return { ok: true, data: { id: profileId, status: applied === 'verified' ? 'VERIFIED' : applied.toUpperCase() } };
 });
 
 /**

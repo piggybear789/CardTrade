@@ -89,8 +89,24 @@ const CARD_ONLY = ['card'];
 
 export interface StripeServiceOptions {
   client: Stripe;
+  /** ESC-15: built from `STRIPE_IDENTITY_RESTRICTED_KEY[_<REGION>]`; reads only. */
+  identityClient?: Stripe;
   config: StripeConfig;
 }
+
+/**
+ * The exact expansions a restricted-key read needs (ESC-15). `document.number` and
+ * `document.dob` on the report are sensitive and returned only when named here;
+ * expanding the report alone yields a null number and silently empties the keys.
+ */
+export const IDENTITY_SENSITIVE_EXPANDS = [
+  'verified_outputs',
+  'verified_outputs.dob',
+  'verified_outputs.id_number',
+  'last_verification_report',
+  'last_verification_report.document.number',
+  'last_verification_report.document.dob',
+] as const;
 
 /** A hold/transfer failure that carries no provider id. */
 function failedHold(payerId: string, amount: Cents): PreAuthHold {
@@ -315,8 +331,12 @@ export class StripeService implements PaymentService, PayerService {
    * carries the document-backed name that becomes the buyer-facing disclosure.
    */
   async readIdentityCheck(sessionId: string): Promise<IdentityCheck> {
-    const session = await this.stripe.identity.verificationSessions.retrieve(sessionId, {
-      expand: ['verified_outputs'],
+    // ESC-15: with the restricted key, read the document number and DOB so the person
+    // keys exist. Without it the check still proceeds (honest members are not blocked
+    // by our configuration) and the caller is told the keys are unavailable.
+    const restricted = this.opts.identityClient;
+    const session = await (restricted ?? this.stripe).identity.verificationSessions.retrieve(sessionId, {
+      expand: restricted ? [...IDENTITY_SENSITIVE_EXPANDS] : ['verified_outputs'],
     });
     return this.toIdentityCheck(session);
   }
@@ -363,23 +383,34 @@ export class StripeService implements PaymentService, PayerService {
     const dob = verified?.dob ?? null;
     const addr = verified?.address ?? null;
 
-    // Hash immediately; the raw ID number never sits on IdentityCheck.
+    // Hash immediately; the raw document number never sits on IdentityCheck (ESC-15).
+    // The document number comes from the verification REPORT (only with the
+    // restricted key and its explicit expands) and is keyed by the document's own
+    // issuing country, never the address country.
+    const report =
+      session.last_verification_report && typeof session.last_verification_report === 'object'
+        ? (session.last_verification_report as Stripe.Identity.VerificationReport)
+        : null;
+    const documentNumber = report?.document?.number ?? verified?.id_number ?? null;
+    const reportDob = report?.document?.dob ?? null;
+    const keyDob = dob ?? reportDob;
     const fingerprints =
       outcome === 'VERIFIED'
         ? identityFingerprints(
             {
-              idNumber: verified?.id_number,
-              firstName: verified?.first_name,
-              lastName: verified?.last_name,
+              idNumber: documentNumber,
+              issuingCountry: report?.document?.issuing_country ?? null,
+              firstName: verified?.first_name ?? report?.document?.first_name,
+              lastName: verified?.last_name ?? report?.document?.last_name,
               dob:
-                dob && dob.day && dob.month && dob.year
-                  ? { day: dob.day, month: dob.month, year: dob.year }
+                keyDob && keyDob.day && keyDob.month && keyDob.year
+                  ? { day: keyDob.day, month: keyDob.month, year: keyDob.year }
                   : null,
-              country: addr?.country,
             },
             this.opts.config.identityFingerprintSecret,
           )
         : [];
+    const personKeysUnavailable = outcome === 'VERIFIED' && !documentNumber;
 
     return {
       sessionId: session.id,
@@ -412,6 +443,7 @@ export class StripeService implements PaymentService, PayerService {
             }
           : null,
       identityFingerprints: fingerprints,
+      ...(personKeysUnavailable ? { personKeysUnavailable: true } : {}),
     };
   }
 

@@ -39,6 +39,7 @@ import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identi
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { pushVerifiedIdentityToConnect } from '@/lib/identity/pushVerifiedIdentity';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
+import { disclosedLegalName } from '@/domain/orchestrator/merchantOnboarding';
 import {
   DEFAULT_IDENTITY_RETURN_PATH,
   IDENTITY_RETURN_COOKIE,
@@ -159,7 +160,7 @@ export const getCounterpartyIdentity = withActionLog('identity.getCounterpartyId
   const { data } = await admin
     .from('profiles')
     .select(
-      'identity_check_status, identity_check_name, identity_check_verified_at, merchant_legal_entity_name, merchant_identity_verified_at',
+      'identity_check_status, identity_check_name, identity_check_verified_at, merchant_legal_entity_name, merchant_identity_verified_at, identity_grandfathered_at',
     )
     .eq('id', counterpartyId)
     .maybeSingle();
@@ -176,10 +177,14 @@ export const getCounterpartyIdentity = withActionLog('identity.getCounterpartyId
   // a null disclosure blocks the buy path entirely, so a grandfathered seller must
   // keep the name they were already disclosed under.
   return ok({
+    // ESC-25: the same rule as the buy-path disclosure (`disclosedLegalName`): the
+    // Connect name only for a member 0069 grandfathered.
     legalName: verified
-      ? ((data.identity_check_name as string | null) ??
-         (data.merchant_legal_entity_name as string | null) ??
-         null)
+      ? disclosedLegalName({
+          identityCheckName: data.identity_check_name as string | null,
+          connectLegalName: data.merchant_legal_entity_name as string | null,
+          identityGrandfatheredAt: (data as { identity_grandfathered_at?: string | null }).identity_grandfathered_at ?? null,
+        })
       : null,
     verifiedAt: verified
       ? ((data.identity_check_verified_at as string | null) ??

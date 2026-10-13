@@ -22,6 +22,8 @@
 // `authenticated`, so a User cannot mark themselves settlement-enabled.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { applyPayeeNameCheck } from '@/lib/identity/payeeCheck';
+import { recordRiskSignal } from '@/lib/risk/signals';
 import { z } from 'zod';
 
 import { createClient } from '@/lib/supabase/server';
@@ -470,6 +472,11 @@ export const refreshPayoutStatus = withActionLog('merchant.refreshPayoutStatus',
     notes: merchant.notes,
     legalName: merchant.legalName ?? undefined,
   });
+
+  // ESC-25: the payout account must belong to the person whose ID was verified.
+  // ESC-03 layer 3: remember the payout account (as an HMAC) for related accounts.
+  await applyPayeeNameCheck(user.id, merchant.individualName);
+  await recordRiskSignal(user.id, 'PAYOUT_ACCOUNT_FINGERPRINT', merchant.payoutAccountFingerprint);
 
   if (!applied.ok) return getMerchantState();
   return getMerchantState();

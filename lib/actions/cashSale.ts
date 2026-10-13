@@ -64,7 +64,9 @@ export type CashSaleActionError =
   /** ESC-03 layer 3: refused, generic copy. */
   | 'related-accounts'
   /** ESC-14: the card is blocked. */
-  | 'card-blocked';
+  | 'card-blocked'
+  /** ESC-25: the payout account name does not match the verified ID. */
+  | 'payee-identity-mismatch';
 
 export type CashSaleActionResult =
   | {
@@ -181,6 +183,7 @@ function mapError(error: CashSaleError): CashSaleActionError {
     SELLER_EXPOSURE_LIMIT: 'seller-exposure-limit',
     RELATED_ACCOUNTS: 'related-accounts',
     CARD_BLOCKED: 'card-blocked',
+    PAYEE_IDENTITY_MISMATCH: 'payee-identity-mismatch',
     // ESC-37: only the webhook settles against a provider ref, so a member never
     // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
     SETTLEMENT_MISMATCH: 'invalid-state',

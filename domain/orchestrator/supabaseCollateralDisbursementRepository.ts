@@ -117,7 +117,7 @@ export function createSupabaseCollateralDisbursementRepository(
       const { data, error } = await client
         .from('profiles')
         .select(
-          'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_live_enabled, merchant_transactions_enabled, fraud_banned_at',
+          'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_live_enabled, merchant_transactions_enabled, fraud_banned_at, payee_identity_mismatch_at, identity_grandfathered_at',
         )
         .eq('id', payeeId)
         .maybeSingle();
@@ -129,6 +129,8 @@ export function createSupabaseCollateralDisbursementRepository(
         merchant_live_enabled: boolean | null;
         merchant_transactions_enabled: boolean | null;
         fraud_banned_at: string | null;
+  payee_identity_mismatch_at?: string | null;
+  identity_grandfathered_at?: string | null;
       } | null;
       if (!row) return null;
       // `fraud_banned_at` is a payout fact `canReceiveFunds` reads; omitting it would
@@ -141,6 +143,8 @@ export function createSupabaseCollateralDisbursementRepository(
         transactionsEnabled: Boolean(row.merchant_transactions_enabled),
         settlementsEnabled: Boolean(row.merchant_settlements_enabled),
         fraudBannedAt: row.fraud_banned_at,
+        payeeIdentityMismatchAt: (row as { payee_identity_mismatch_at?: string | null }).payee_identity_mismatch_at ?? null,
+        identityGrandfatheredAt: (row as { identity_grandfathered_at?: string | null }).identity_grandfathered_at ?? null,
       };
     },
 

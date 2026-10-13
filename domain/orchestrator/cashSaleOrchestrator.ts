@@ -446,6 +446,8 @@ export type CashSaleError =
   | 'RELATED_ACCOUNTS'
   /** ESC-14: the buyer's card is blocked after a lost fraud chargeback. Expected. */
   | 'CARD_BLOCKED'
+  /** ESC-25: the payout account name does not match the verified ID. Expected. */
+  | 'PAYEE_IDENTITY_MISMATCH'
   /**
    * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
    * this sale's shipment (the stale-number attack). Expected; nothing is written.
@@ -2392,7 +2394,11 @@ export async function payoutCashSaleSeller(
         }),
       );
     }
-    return { ok: false, error: 'SELLER_NOT_PAYABLE' };
+    // ESC-25: named distinctly so the seller is told what to fix.
+    return {
+      ok: false,
+      error: payee?.payeeIdentityMismatchAt ? 'PAYEE_IDENTITY_MISMATCH' : 'SELLER_NOT_PAYABLE',
+    };
   }
 
   // ESC-03 / ESC-14: the HOLDBACK. Money leaves the platform balance only when the

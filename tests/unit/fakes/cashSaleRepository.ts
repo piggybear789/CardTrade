@@ -69,6 +69,9 @@ export const APPROVED_SELLER: MerchantRecord = {
   // disclosed and to sell at all, and the `merchant_*` fields above to be paid.
   identityCheckStatus: 'VERIFIED',
   identityCheckVerifiedAt: IDENTITY.verifiedAt,
+  // The document-backed name (ESC-25): since the Connect fallback is limited to
+  // grandfathered members, a fully verified seller carries its Identity name.
+  identityCheckName: IDENTITY.legalEntityName,
 };
 
 /**

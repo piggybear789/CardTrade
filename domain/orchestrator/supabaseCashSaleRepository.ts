@@ -248,7 +248,7 @@ export function createSupabaseCashSaleRepository(
       const { data } = await client
         .from('profiles')
         .select(
-          'id, merchant_ref, merchant_status, merchant_compliance_status, merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled, merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, merchant_organisation_type, merchant_identity_version, merchant_identity_disclosure_consented_at, merchant_identity_verified_at, identity_check_status, identity_check_name, identity_check_verified_at, fraud_banned_at',
+          'id, merchant_ref, merchant_status, merchant_compliance_status, merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled, merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, merchant_organisation_type, merchant_identity_version, merchant_identity_disclosure_consented_at, merchant_identity_verified_at, identity_check_status, identity_check_name, identity_check_verified_at, fraud_banned_at, payee_identity_mismatch_at, identity_grandfathered_at',
         )
         .eq('id', sellerId)
         .maybeSingle();
@@ -272,6 +272,8 @@ export function createSupabaseCashSaleRepository(
         identityCheckName: data.identity_check_name,
         identityCheckVerifiedAt: data.identity_check_verified_at,
         fraudBannedAt: data.fraud_banned_at,
+        payeeIdentityMismatchAt: (data as { payee_identity_mismatch_at?: string | null }).payee_identity_mismatch_at ?? null,
+        identityGrandfatheredAt: (data as { identity_grandfathered_at?: string | null }).identity_grandfathered_at ?? null,
       };
     },
 

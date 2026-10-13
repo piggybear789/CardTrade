@@ -38,6 +38,7 @@ import { createLoggedDisputeOrchestrator } from '@/lib/trades/disputeOrchestrato
 import type { TradeDisputeOutcome } from '@/domain/orchestrator/disputeResolution';
 import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
+import { payeePairHash, splitFullName } from '@/domain/identity/payeeNameMatch';
 import {
   COLLECTED_SALE_STATUSES,
   reconcileCustody,
@@ -543,6 +544,53 @@ export const setExposureLimitOverride = withActionLog('admin.setExposureLimitOve
   if (!data) return { ok: false, error: 'not-found' };
   revalidatePath('/admin');
   return { ok: true, data: { id: profileId, limitMinor } };
+});
+
+/**
+ * Clear a payout-name mismatch staff have checked (ESC-25), e.g. "Bob" on the bank
+ * account for a "Robert" on the ID. Records an HMAC of the (identity, payee) name
+ * pair, never the names, so the clearance holds while the pair is unchanged and a
+ * DIFFERENT payee name is checked again.
+ */
+export const clearPayeeMismatch = withActionLog('admin.clearPayeeMismatch', async function clearPayeeMismatch(
+  profileId: string,
+): Promise<AdminActionResult<{ id: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  const admin = createAdminClient();
+  const { data: profile, error } = await admin
+    .from('profiles')
+    .select('id, identity_check_name, merchant_ref')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!profile?.merchant_ref) return { ok: false, error: 'not-found' };
+
+  const payments = getPaymentService(await regionForProfile(profileId));
+  const merchant = payments.getManagedMerchant
+    ? await payments.getManagedMerchant(profile.merchant_ref as string)
+    : null;
+  const identity = splitFullName(profile.identity_check_name as string | null);
+  const secret = process.env.IDENTITY_FINGERPRINT_SECRET?.trim() || process.env.STRIPE_SECRET_KEY?.trim() || '';
+  const pair =
+    identity && merchant?.individualName ? payeePairHash(identity, merchant.individualName, secret) : null;
+  if (!pair) {
+    return { ok: false, error: 'invalid-input', message: 'The two names could not be read, so there is nothing to clear.' };
+  }
+  const { error: writeError } = await admin
+    .from('profiles')
+    .update({
+      payee_identity_mismatch_at: null,
+      payee_mismatch_cleared_by: gate.ctx.userId,
+      payee_mismatch_cleared_at: new Date().toISOString(),
+      payee_mismatch_cleared_pair: pair,
+    })
+    .eq('id', profileId);
+  if (writeError) return { ok: false, error: 'persistence-error', message: writeError.message };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: profileId } };
 });
 
 /**

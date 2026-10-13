@@ -1558,6 +1558,12 @@ function fromV2Account(account: unknown): ManagedMerchant {
     transactionsEnabled: canSettle,
     settlementsEnabled: canSettle,
     legalName,
+    // ESC-25: the payee's own name parts, compared with the verified ID. Null when
+    // the account does not expose them, which is NOT a mismatch.
+    individualName:
+      individual?.given_name && individual?.surname
+        ? { given: individual.given_name, family: individual.surname }
+        : null,
     ...(outstanding.length ? { notes: `Outstanding: ${outstanding.join('; ')}` } : {}),
   };
 }

@@ -34,6 +34,12 @@ export interface PendingLabelProps {
   pendingLabel?: ReactNode;
   /** Prepend the spinning glyph in the pending state. Default true. */
   spinner?: boolean;
+  /**
+   * Where the shorter label sits inside the reserved width. `center` suits a button;
+   * `start` suits a left-aligned menu row, where centring pushed the text away from
+   * its icon by half the difference between the two labels.
+   */
+  align?: 'center' | 'start';
 }
 
 /** Width-stable label for a button that has a pending state. */
@@ -42,8 +48,12 @@ export function PendingLabel({
   children,
   pendingLabel,
   spinner = true,
+  align = 'center',
 }: PendingLabelProps) {
-  const cell = 'col-start-1 row-start-1 inline-flex items-center justify-center gap-1.5';
+  const cell = cn(
+    'col-start-1 row-start-1 inline-flex items-center gap-1.5',
+    align === 'start' ? 'justify-start' : 'justify-center',
+  );
   return (
     <span className="inline-grid">
       <span className={cn(cell, pending && 'invisible')} aria-hidden={pending || undefined}>

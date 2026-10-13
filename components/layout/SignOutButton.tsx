@@ -16,7 +16,14 @@ import { signOut } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
 
-export function SignOutButton({ className }: { className?: string }) {
+export function SignOutButton({
+  className,
+  align = 'center',
+}: {
+  className?: string;
+  /** `start` in a left-aligned menu, so the label sits beside its icon like the rows above. */
+  align?: 'center' | 'start';
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -40,7 +47,7 @@ export function SignOutButton({ className }: { className?: string }) {
       className={className}
     >
       <HugeiconsIcon icon={LogOutIcon} className="size-4" aria-hidden />
-      <PendingLabel pending={isPending} spinner={false} pendingLabel="Signing out…">
+      <PendingLabel pending={isPending} spinner={false} pendingLabel="Signing out…" align={align}>
         Sign out
       </PendingLabel>
     </Button>

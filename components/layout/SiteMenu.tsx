@@ -302,7 +302,7 @@ export function SiteMenu({
                     `sm` size collapses to 24px from `md` inside a media query,
                     which an unprefixed `h-9` cannot override. A 24px row in a
                     menu you point at is too small to hit comfortably. */}
-                <SignOutButton className="!h-9 w-full justify-start" />
+                <SignOutButton className="!h-9 w-full justify-start" align="start" />
               </>
             )}
           </nav>

@@ -69,7 +69,7 @@ void main() {
   });
 
   group('Money.platformFee()', () {
-    test('calculates 5% above the AUD minimum — 10000 cents → 500 cents', () {
+    test('calculates 5% — 10000 cents → 500 cents', () {
       expect(Money.platformFee(10000, currency: 'aud'), equals(500));
     });
 
@@ -78,35 +78,36 @@ void main() {
       expect(Money.platformFee(7777, currency: 'aud'), equals(389));
     });
 
-    test('applies the AUD \$1.50 minimum below \$30', () {
-      expect(Money.platformFee(1000, currency: 'aud'), equals(150));
-      expect(Money.platformFee(2000, currency: 'aud'), equals(150));
-      expect(Money.platformFee(1, currency: 'aud'), equals(150));
+    test('has no minimum — small sales pay the plain 5%', () {
+      expect(Money.platformFee(1000, currency: 'aud'), equals(50));
+      expect(Money.platformFee(2000, currency: 'aud'), equals(100));
+      expect(Money.platformFee(1, currency: 'aud'), equals(0));
     });
 
-    test('the percentage takes over exactly at the crossover', () {
-      expect(Money.platformFee(3000, currency: 'aud'), equals(150));
-      expect(Money.platformFee(3020, currency: 'aud'), equals(151));
-    });
-
-    test('a currency with no floor gets the plain percentage', () {
+    test('every currency gets the same plain percentage', () {
+      expect(Money.platformFee(1000, currency: 'aud'), equals(50));
       expect(Money.platformFee(1000, currency: 'usd'), equals(50));
       expect(Money.platformFee(1999, currency: 'usd'), equals(100));
       expect(Money.platformFee(1000, currency: null), equals(50));
     });
 
-    test('zero price → zero fee, never the minimum', () {
+    test('zero price → zero fee', () {
       expect(Money.platformFee(0, currency: 'aud'), equals(0));
+    });
+
+    test('rate labels name no minimum', () {
+      expect(Money.platformFeeRateLabel('aud'), equals('5%'));
+      expect(Money.tradeFeeRateLabel('aud'), equals('5%'));
     });
   });
 
   group('Money.tradeFee()', () {
-    test('calculates 5% above the AUD minimum', () {
+    test('calculates 5%', () {
       expect(Money.tradeFee(10000, currency: 'aud'), equals(500));
     });
 
-    test('applies the AUD \$1.00 per-trader minimum', () {
-      expect(Money.tradeFee(1000, currency: 'aud'), equals(100));
+    test('has no per-trader minimum', () {
+      expect(Money.tradeFee(1000, currency: 'aud'), equals(50));
       expect(Money.tradeFee(0, currency: 'aud'), equals(0));
     });
   });
@@ -122,14 +123,14 @@ void main() {
       expect(total, equals(10700));
     });
 
-    test('includes the minimum fee on a small sale', () {
+    test('adds the plain 5% fee on a small sale', () {
       final total = Money.cashSaleTotal(
         priceCents: 1000,
         shippingCents: 0,
         currency: 'aud',
       );
-      // 1000 + 0 + 150 = 1150
-      expect(total, equals(1150));
+      // 1000 + 0 + 50 = 1050
+      expect(total, equals(1050));
     });
   });
 

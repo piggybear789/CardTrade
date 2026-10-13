@@ -229,8 +229,8 @@ describe('Cash_Sale lifecycle is identical in every trading region', () => {
 
   it('charges the same percentage fee whatever the currency', async () => {
     // PLATFORM_FEE_BPS is a proportion, so it is currency-agnostic by construction.
-    // The per-currency MINIMUM is not, and this fixture's price sits above every
-    // floor on file, so the fee is the plain percentage in all four worlds.
+    // There is no per-currency minimum, so the fee is the plain percentage in all
+    // four worlds.
     for (const currency of ['aud', 'usd', 'gbp', 'jpy']) {
       const run = await runLifecycle(currency);
       expect(run.platformFeeCents).toBe(

@@ -1,10 +1,11 @@
 // tests/unit/tradeFee.test.ts
 //
 // The Trade_Fee policy: 5% from each trader, charged on the value that trader
-// RECEIVES, floored per trader by the currency's minimum. Pure arithmetic, so it is
-// tested without a database or a provider.
+// RECEIVES, with no minimum. Pure arithmetic, so it is tested without a database or
+// a provider.
 
 import { describe, expect, it } from 'vitest';
+import fc from 'fast-check';
 
 import {
   TRADE_FEE_BPS,
@@ -12,7 +13,6 @@ import {
   resolveTradeFees,
   tradeFeeCentsFor,
 } from '@/domain/trade/tradeFee';
-import { TRADE_FEE_MINIMUM_MINOR } from '@/domain/fees/feeMinimums';
 
 describe('tradeFeeCentsFor', () => {
   it('charges 5% by default', () => {
@@ -35,26 +35,36 @@ describe('tradeFeeCentsFor', () => {
 
   it('honours an overridden rate, so the cut can be tuned without a code change', () => {
     expect(tradeFeeCentsFor(100_000, 'aud', 250)).toBe(2_500); // 2.5%
-    // A zero rate switches the fee off entirely, minimum included.
+    // A zero rate switches the fee off entirely.
     expect(tradeFeeCentsFor(100_000, 'aud', 0)).toBe(0);
   });
 
-  it('floors each trader at $1.00 in AUD, so a small swap covers its card charge', () => {
-    expect(TRADE_FEE_MINIMUM_MINOR.aud).toBe(100);
-    expect(tradeFeeCentsFor(1_000, 'aud')).toBe(100); // 5% would be 50c
-    expect(tradeFeeCentsFor(1, 'aud')).toBe(100);
-    // The crossover: 5% of $20 is exactly the minimum, and above it the rate wins.
+  it('has no per-trader minimum', () => {
+    expect(tradeFeeCentsFor(1_000, 'aud')).toBe(50);
+    expect(tradeFeeCentsFor(1, 'aud')).toBe(0);
     expect(tradeFeeCentsFor(2_000, 'aud')).toBe(100);
     expect(tradeFeeCentsFor(2_020, 'aud')).toBe(101);
   });
 
-  it('applies no floor in a currency that has none on file', () => {
-    expect(tradeFeeCentsFor(1_000, 'usd')).toBe(50);
-    expect(tradeFeeCentsFor(1_000, null)).toBe(50);
+  it('is the same in every currency', () => {
+    for (const currency of ['aud', 'AUD', 'usd', null]) {
+      expect(tradeFeeCentsFor(1_000, currency)).toBe(50);
+    }
   });
 
-  it('reads the currency case-insensitively', () => {
-    expect(tradeFeeCentsFor(1_000, 'AUD')).toBe(100);
+  it('is exactly Math.round(value * 500 / 10_000), with no floor (property)', () => {
+    expect(TRADE_FEE_BPS).toBe(500);
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 100_000_000 }),
+        fc.constantFrom('aud', 'usd', 'jpy', null),
+        (value, currency) => {
+          expect(tradeFeeCentsFor(value, currency)).toBe(
+            Math.round((value * TRADE_FEE_BPS) / 10_000),
+          );
+        },
+      ),
+    );
   });
 });
 
@@ -66,7 +76,6 @@ describe('resolveTradeFees', () => {
       resolveTradeFees({
         initiatorReceivesCents: 126_000,
         counterpartReceivesCents: 126_000,
-        currency: 'aud',
       }),
     ).toEqual({ initiatorFeeCents: 6_300, counterpartFeeCents: 6_300 });
 
@@ -76,19 +85,34 @@ describe('resolveTradeFees', () => {
       resolveTradeFees({
         initiatorReceivesCents: 126_000,
         counterpartReceivesCents: 111_000,
-        currency: 'aud',
       }),
     ).toEqual({ initiatorFeeCents: 6_300, counterpartFeeCents: 5_550 });
   });
 
-  it('floors each side independently', () => {
+  it('charges each side independently, with no minimum', () => {
     expect(
       resolveTradeFees({
         initiatorReceivesCents: 1_000,
         counterpartReceivesCents: 50_000,
-        currency: 'aud',
       }),
-    ).toEqual({ initiatorFeeCents: 100, counterpartFeeCents: 2_500 });
+    ).toEqual({ initiatorFeeCents: 50, counterpartFeeCents: 2_500 });
+  });
+
+  it('is the plain percentage of each side (property)', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 100_000_000 }),
+        fc.integer({ min: 0, max: 100_000_000 }),
+        (a, b) => {
+          expect(
+            resolveTradeFees({ initiatorReceivesCents: a, counterpartReceivesCents: b }),
+          ).toEqual({
+            initiatorFeeCents: Math.round((a * 500) / 10_000),
+            counterpartFeeCents: Math.round((b * 500) / 10_000),
+          });
+        },
+      ),
+    );
   });
 
   it('bills nothing on a valueless exchange', () => {
@@ -96,7 +120,6 @@ describe('resolveTradeFees', () => {
       resolveTradeFees({
         initiatorReceivesCents: 0,
         counterpartReceivesCents: 0,
-        currency: 'aud',
       }),
     ).toEqual({ initiatorFeeCents: 0, counterpartFeeCents: 0 });
   });

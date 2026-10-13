@@ -197,16 +197,16 @@ void main() {
       expect(tradeFee(10000, currency: 'aud'), 500); // 5% of $100
       // 5% of $39.99 = $1.9995 → $2.00, matching `Math.round` in tradeFee.ts.
       expect(tradeFee(3999, currency: 'aud'), 200);
-      // No floor for a currency without one: 5% of $19.99 → $1.00 (rounded).
+      // Any currency: 5% of $19.99 → $1.00 (rounded).
       expect(tradeFee(1999, currency: 'usd'), 100);
     });
 
-    test('applies the AUD \$1.00 per-trader minimum', () {
-      expect(tradeFee(100, currency: 'aud'), 100); // 5% of $1.00 is 5c
+    test('has no per-trader minimum', () {
+      expect(tradeFee(100, currency: 'aud'), 5); // 5% of $1.00 is 5c
       expect(tradeFee(1999, currency: 'aud'), 100);
     });
 
-    test('zero and negative values return 0, never the minimum', () {
+    test('zero and negative values return 0', () {
       expect(tradeFee(0, currency: 'aud'), 0);
       expect(tradeFee(-1000, currency: 'aud'), 0);
     });

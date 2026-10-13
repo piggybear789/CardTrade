@@ -464,8 +464,7 @@ export function createSupabaseCashSaleRepository(
     async updateAgreedPrice({ cashSaleId, expectedTermsVersion, agreedPriceCents }) {
       const current = await selectSale(client, cashSaleId);
       if (!current || current.status !== 'AGREEMENT') return null;
-      // The Platform_Fee is a percentage of the item price (with a per-currency
-      // floor), so a renegotiated price must re-derive it. Carrying the old fee
+      // The Platform_Fee is a percentage of the item price, so a renegotiated price must re-derive it. Carrying the old fee
       // forward would bill the buyer a percentage of a price that no longer exists
       // and would break the `amount = price + fee + shipping` constraint's intent.
       const feeCents = platformFeeCentsFor(agreedPriceCents, current.currency);

@@ -12,8 +12,8 @@ describe('listedPriceCents', () => {
     expect(listedPriceCents(350_000, 'aud', true)).toBe(350_000);
   });
 
-  it('applies the currency minimum fee on cheap singles', () => {
-    expect(listedPriceCents(500, 'aud', false)).toBe(500 + 150);
+  it('adds the plain 5% fee on cheap singles, with no minimum', () => {
+    expect(listedPriceCents(500, 'aud', false)).toBe(525);
   });
 });
 

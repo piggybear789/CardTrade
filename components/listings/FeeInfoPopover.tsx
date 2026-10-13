@@ -23,7 +23,7 @@ export function FeeInfoPopover({
   feeText: string;
   /** Price plus fee, formatted: the headline figure. */
   totalText: string;
-  /** The rate as members read it, e.g. "5%, min $1.50". */
+  /** The rate as members read it, e.g. "5%". */
   rateLabel: string;
 }) {
   return (

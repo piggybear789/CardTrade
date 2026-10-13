@@ -54,7 +54,7 @@ export function ListingDetailStack({
   title: string;
   description: string;
   priceCents: number;
-  /** `items.currency`, which selects the fee minimum folded into the headline. */
+  /** `items.currency`, the currency the fee-inclusive headline is shown in. */
   currency: string;
   condition: string;
   category: string | null;

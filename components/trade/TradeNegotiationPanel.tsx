@@ -105,9 +105,8 @@ export interface TradeNegotiationPanelProps {
     /** Trade fee taken from the card the moment the last accept lands. */
     feeText: string;
     /**
-     * The rate as members read it, e.g. "5%, min $1.00", from `tradeFeeRateLabel`.
-     * Passed in because it depends on the trade's currency, which this panel does not
-     * hold. Falls back to the bare percentage.
+     * The rate as members read it, e.g. "5%", from `tradeFeeRateLabel`, so the label
+     * has one source. Falls back to the bare percentage.
      */
     feeRateLabel?: string;
     /** Collateral authorised against the card. Held, never charged. */

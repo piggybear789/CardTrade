@@ -26,18 +26,13 @@
 // is what each one is getting out of the exchange. The two fees are unequal
 // whenever the sides differ in value — that is correct, not a rounding fault.
 //
-// MINIMUM. The percentage is floored per trader by `TRADE_FEE_MINIMUM_MINOR`
-// (`domain/fees/feeMinimums.ts`), because each fee is a separate card charge with a
-// fixed provider cost.
+// NO MINIMUM. Each trader pays a plain percentage of what they receive. A per-trader
+// floor existed briefly and was removed deliberately (`domain/fees/percentageFee.ts`).
 //
 // Pure module: no I/O, no provider types. All amounts are integer minor units of the
 // trade's currency.
 
-import {
-  feeMinimumMinor,
-  percentageFeeWithMinimum,
-  TRADE_FEE_MINIMUM_MINOR,
-} from '../fees/feeMinimums';
+import { percentageFeeMinor } from '../fees/percentageFee';
 
 /**
  * Trade fee rate per trader, in basis points (1 bp = 0.01%), so 500 bp = 5% each.
@@ -50,28 +45,21 @@ export const TRADE_FEE_BPS = 500;
 /**
  * The fee one Trader owes, in the trade currency's minor units.
  *
- * `rateBps` of the value received, raised to the currency's per-trader minimum
- * (`TRADE_FEE_MINIMUM_MINOR`, $1.00 in AUD). Each trader's fee is its own card
- * charge with a fixed provider cost, so without a floor a small swap cost more to
- * collect than it earned. A side receiving nothing still owes nothing, and a
- * currency with no floor on file gets the plain percentage.
+ * `rateBps` of the value received, rounded to the nearest minor unit, with no
+ * minimum. A side receiving nothing owes nothing.
  *
  * @param valueReceivedCents total Trade_Side_Value this Trader receives, which
  *   includes any cash coming their way — a trader receiving $1,000 of card plus
  *   $150 cash has received $1,150 of value and is charged on all of it.
- * @param currency the trade's ISO 4217 code (`trades.currency`). Required rather
- *   than defaulted, because the floor is a money amount in that currency.
+ * @param _currency the trade's ISO 4217 code. It does not affect the result and is
+ *   kept so callers keep their signature.
  */
 export function tradeFeeCentsFor(
   valueReceivedCents: number,
-  currency: string | null,
+  _currency: string | null,
   rateBps: number = TRADE_FEE_BPS,
 ): number {
-  return percentageFeeWithMinimum(
-    valueReceivedCents,
-    rateBps,
-    feeMinimumMinor(TRADE_FEE_MINIMUM_MINOR, currency),
-  );
+  return percentageFeeMinor(valueReceivedCents, rateBps);
 }
 
 /** What each side of a trade owes the platform. */
@@ -90,14 +78,12 @@ export interface TradeFeeSplit {
 export function resolveTradeFees(params: {
   initiatorReceivesCents: number;
   counterpartReceivesCents: number;
-  /** The trade's ISO 4217 code, which selects the per-trader minimum. */
-  currency: string | null;
   rateBps?: number;
 }): TradeFeeSplit {
   const rate = params.rateBps ?? TRADE_FEE_BPS;
   return {
-    initiatorFeeCents: tradeFeeCentsFor(params.initiatorReceivesCents, params.currency, rate),
-    counterpartFeeCents: tradeFeeCentsFor(params.counterpartReceivesCents, params.currency, rate),
+    initiatorFeeCents: tradeFeeCentsFor(params.initiatorReceivesCents, null, rate),
+    counterpartFeeCents: tradeFeeCentsFor(params.counterpartReceivesCents, null, rate),
   };
 }
 

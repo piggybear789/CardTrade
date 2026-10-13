@@ -61,18 +61,9 @@ export async function chargeTradeFees(params: {
   // would not find the payer at all.
   const payments = getPaymentService(await regionForTrade(params.tradeId));
 
-  // The fee minimum is a money amount, so it is read in the trade's own frozen
-  // currency — the same `trades.currency` the trade room discloses the fee in.
-  const { data: tradeRow } = await admin
-    .from('trades')
-    .select('currency')
-    .eq('id', params.tradeId)
-    .maybeSingle();
-
   const { initiatorFeeCents, counterpartFeeCents } = resolveTradeFees({
     initiatorReceivesCents: params.initiatorReceivesCents,
     counterpartReceivesCents: params.counterpartReceivesCents,
-    currency: (tradeRow?.currency as string | null | undefined) ?? null,
   });
 
   const owed = [

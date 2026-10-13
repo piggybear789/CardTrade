@@ -53,7 +53,9 @@ export type CashSaleActionError =
   | 'invalid-refund-amount'
   | 'nothing-to-refund'
   /** ESC-02: the tracking was scanned before the buyer paid, so it is not this parcel. */
-  | 'tracking-predates-payment';
+  | 'tracking-predates-payment'
+  /** ESC-03: the seller payout is deferred by the holdback; it is released later. */
+  | 'payout-held';
 
 export type CashSaleActionResult =
   | {
@@ -161,6 +163,7 @@ function mapError(error: CashSaleError): CashSaleActionError {
     NOT_SUPPORTED: 'not-supported',
     INVALID_STATE: 'invalid-state',
     TRACKING_PREDATES_PAYMENT: 'tracking-predates-payment',
+    PAYOUT_HELD: 'payout-held',
     // Reuses the transfer-failed surface: from a participant's point of view the
     // distinction between "collection failed" and "release failed" is not
     // actionable. The queued retry and the operator alert carry the detail.

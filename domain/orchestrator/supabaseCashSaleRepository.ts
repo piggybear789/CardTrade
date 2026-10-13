@@ -28,6 +28,8 @@ import {
 } from './cashSaleOrchestrator';
 import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import type { MerchantRecord } from './merchantOnboarding';
+import { countQualifyingSales, type CompletedSaleFact } from '@/domain/payouts/releasePolicy';
+import { IN_PERSON_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type CashSaleRow = Tables<'cash_sales'>;
@@ -542,6 +544,67 @@ export function createSupabaseCashSaleRepository(
       });
     },
 
+    async loadReleaseFacts(cashSaleId) {
+      // ESC-03 / ESC-14: everything `decideRelease` reads, in one place. Every read
+      // checks its error: guessing "release now" on a failed read would pay out the
+      // exact sale the holdback exists to stop.
+      const { data: sale, error } = await client
+        .from('cash_sales')
+        .select('id, seller_id, currency, payment_settled_at, fulfillment_method, buyer_handover_confirmed_at, seller_handover_confirmed_at, seller_payout_hold_reason, fraud_warning_received_at')
+        .eq('id', cashSaleId)
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] loadReleaseFacts: ${error.message}`);
+      if (!sale) return null;
+      const { data: completed, error: completedError } = await client
+        .from('cash_sales')
+        .select('id, buyer_id, agreed_price_cents, currency, payment_settled_at')
+        .eq('seller_id', sale.seller_id)
+        .eq('status', 'COMPLETED')
+        .neq('id', cashSaleId)
+        .limit(200);
+      if (completedError) throw new Error(`[cash sale] loadReleaseFacts history: ${completedError.message}`);
+      const saleIds = [cashSaleId, ...(completed ?? []).map((row) => row.id as string)];
+      const { data: disputes, error: disputeError } = await client
+        .from('charge_disputes')
+        .select('cash_sale_id, closed_at')
+        .in('cash_sale_id', saleIds);
+      if (disputeError) throw new Error(`[cash sale] loadReleaseFacts disputes: ${disputeError.message}`);
+      const disputed = new Set((disputes ?? []).map((row) => row.cash_sale_id as string));
+      const openOnThis = (disputes ?? []).some((row) => row.cash_sale_id === cashSaleId && !row.closed_at);
+      const facts: CompletedSaleFact[] = (completed ?? [])
+        .filter((row) => row.payment_settled_at)
+        .map((row) => ({
+          buyerId: row.buyer_id as string,
+          agreedPriceMinor: Number(row.agreed_price_cents ?? 0),
+          currency: String(row.currency ?? 'aud'),
+          paymentSettledAt: row.payment_settled_at as string,
+          chargeDisputed: disputed.has(row.id as string),
+          buyerRelated: false,
+        }));
+      const inPerson = sale.fulfillment_method === 'IN_PERSON';
+      const confirmations = [sale.buyer_handover_confirmed_at, sale.seller_handover_confirmed_at]
+        .filter((iso): iso is string => typeof iso === 'string' && iso.length > 0)
+        .sort();
+      return {
+        source: 'CASH_SALE',
+        currency: String(sale.currency ?? 'aud'),
+        qualifyingCompletedSales: countQualifyingSales(facts, new Date()),
+        paymentSettledAt: (sale.payment_settled_at as string | null) ?? null,
+        inPersonConfirmedAt: inPerson ? (confirmations[confirmations.length - 1] ?? null) : null,
+        openChargeDispute: openOnThis || sale.seller_payout_hold_reason === 'CHARGE_DISPUTE',
+        openFraudWarning: Boolean(sale.fraud_warning_received_at) || sale.seller_payout_hold_reason === 'FRAUD_WARNING',
+        staffHold: sale.seller_payout_hold_reason === 'STAFF',
+      };
+    },
+
+    async recordPayoutDeferral({ cashSaleId, releaseAt, holdReason }) {
+      const { error } = await client
+        .from('cash_sales')
+        .update({ seller_payout_release_at: releaseAt, seller_payout_hold_reason: holdReason })
+        .eq('id', cashSaleId);
+      if (error) throw new Error(`[cash sale] recordPayoutDeferral: ${error.message}`);
+    },
+
     async flagTracking({ cashSaleId, reason, at }) {
       // ESC-02. Only once and only in transit; the 0134 function refuses to advance a
       // flagged, unresolved sale, so no later tracking update can start a clock.
@@ -633,12 +696,19 @@ export function createSupabaseCashSaleRepository(
         return toCashSale(row);
       }
 
-      const completed = await guardedUpdate(client, cashSaleId, 'HANDOVER', {
-        status: 'COMPLETED',
-        completed_at: confirmedAt,
+      // ESC-20: the second confirmation opens a short buyer INSPECTION instead of
+      // completing (and paying out) on the spot. "We met and swapped" is not "I am
+      // satisfied": a buyer handed a fake, or pressured into tapping, needs a window
+      // to raise a problem before the seller is paid. pg_cron completes it after.
+      const inspection = await guardedUpdate(client, cashSaleId, 'HANDOVER', {
+        status: 'INSPECTION',
+        received_at: confirmedAt,
+        inspection_deadline_at: new Date(
+          Date.parse(confirmedAt) + IN_PERSON_INSPECTION_HOURS * 3_600_000,
+        ).toISOString(),
         updated_at: confirmedAt,
       });
-      if (completed) return completed;
+      if (inspection) return inspection;
 
       // A concurrent confirm already completed the row — re-read so payout
       // still sees COMPLETED rather than a stale HANDOVER snapshot.
@@ -752,7 +822,11 @@ export function createSupabaseCashSaleRepository(
         .select('id')
         .eq('status', 'COMPLETED')
         .in('seller_payout_status', ['PENDING', 'FAILED'])
-        .lt('seller_payout_attempts', maxAttempts);
+        .lt('seller_payout_attempts', maxAttempts)
+        // ESC-03 / ESC-14 (0138): a held payout waits for staff or the dispute to
+        // close; a deferred one waits for its release instant.
+        .is('seller_payout_hold_reason', null)
+        .or(`seller_payout_release_at.is.null,seller_payout_release_at.lte.${new Date().toISOString()}`);
 
       // Scoped so a drain pass only sees contracts the platform account it holds can
       // actually settle (0068). Attempting another region's contract would fail as a

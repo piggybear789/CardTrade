@@ -358,8 +358,9 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
           : undefined,
     });
   } else {
-    // 4b. In-person cash sale: both parties confirm the meetup. The sale
-    // completes and the seller is paid on the second confirmation.
+    // 4b. In-person cash sale: both parties confirm the meetup. Since ESC-20 the
+    // second confirmation opens a 24-hour buyer inspection (step 5); it no longer
+    // completes the sale or pays the seller on the spot.
     const bothConfirmed =
       (myHandoverConfirmed && theirHandoverConfirmed) || status === 'COMPLETED';
     drafts.push({
@@ -369,13 +370,13 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       label: 'Both confirm the handover',
       detail: bothConfirmed
         ? viewerRole === 'SELLER'
-          ? 'Handover confirmed. Your payout is being processed.'
-          : 'Handover confirmed. The seller payout is being processed.'
+          ? 'Handover confirmed. The buyer has a day to raise a problem before you are paid.'
+          : 'Handover confirmed. You have a day to check the item before the seller is paid.'
         : myHandoverConfirmed
           ? `You confirmed. Waiting for ${counterpartyName} to confirm.`
           : theirHandoverConfirmed
             ? `${counterpartyName} confirmed. Confirm after you meet.`
-            : 'Confirm after the item changes hands. The sale completes when you both do.',
+            : 'Confirm after the item changes hands. The buyer then has a day to check it.',
       owner: bothConfirmed
         ? 'both'
         : myHandoverConfirmed
@@ -395,10 +396,10 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     });
   }
 
-  // 5. Delivered purchases retain an inspection window. In-person sales complete
-  // when both parties confirm the handover, so adding another acceptance step
-  // would imply payment is still held when it has already been released.
-  if (isDelivery) {
+  // 5. Every purchase has an inspection window before the seller is paid: posted
+  // ones from carrier delivery (7 days), in-person ones from the second handover
+  // confirmation (24 hours, ESC-20).
+  {
     drafts.push({
       id: 'inspect',
       short: '',

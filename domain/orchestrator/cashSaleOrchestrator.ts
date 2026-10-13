@@ -8,6 +8,7 @@
 import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
 import type { CashSaleEventCode } from './cashSaleEvents';
+import { decideRelease, type ReleaseFacts } from '../payouts/releasePolicy';
 import {
   checkRegionCompatibility,
   regionCurrency,
@@ -421,6 +422,11 @@ export type CashSaleError =
   /** The terms write failed operationally; it was not a concurrent edit. */
   | 'TERMS_UPDATE_FAILED'
   /**
+   * ESC-03 / ESC-14: the release policy deferred the seller payout (new-seller or
+   * in-person holdback, or an open chargeback / fraud warning). Expected; retried.
+   */
+  | 'PAYOUT_HELD'
+  /**
    * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
    * this sale's shipment (the stale-number attack). Expected; nothing is written.
    */
@@ -795,6 +801,17 @@ export interface CashSaleRepository {
     disputedAt: string;
   }): Promise<CashSaleRecord | null>;
   setItemStatus(params: { itemId: string; status: ItemStatus }): Promise<void>;
+  /**
+   * ESC-03 / ESC-14: the facts the release policy reads for one COMPLETED sale. Null
+   * means "no policy input" (release now). Optional so a test fake may omit it.
+   */
+  loadReleaseFacts?(cashSaleId: string): Promise<ReleaseFacts | null>;
+  /** Record WHEN (or why not) a deferred payout may move. Spends no attempt. */
+  recordPayoutDeferral?(params: {
+    cashSaleId: string;
+    releaseAt: string | null;
+    holdReason: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+  }): Promise<void>;
   /**
    * ESC-02: flag the outbound tracking for staff. Only from IN_TRANSIT and only once;
    * returns null when nothing was flagged.
@@ -1966,6 +1983,30 @@ export async function payoutCashSaleSeller(
     return { ok: false, error: 'SELLER_NOT_PAYABLE' };
   }
 
+  // ESC-03 / ESC-14: the HOLDBACK. Money leaves the platform balance only when the
+  // one release policy says so. A new seller's proceeds wait out the card-fraud
+  // window from collection; an in-person deal waits at least a day after the handover;
+  // an open chargeback or early-fraud warning holds it outright. A deferral is not a
+  // failure: no attempt is spent and nobody is told the payout failed.
+  if (deps.repository.loadReleaseFacts) {
+    const facts = await deps.repository.loadReleaseFacts(sale.id);
+    if (facts) {
+      const decision = decideRelease(facts, new Date(currentIso(deps)));
+      if (decision.kind !== 'RELEASE_NOW') {
+        await deps.repository.recordPayoutDeferral?.({
+          cashSaleId: sale.id,
+          releaseAt: decision.kind === 'RELEASE_AT' ? decision.at : null,
+          holdReason: decision.kind === 'HELD' ? decision.reason : null,
+        });
+        return {
+          ok: false,
+          error: 'PAYOUT_HELD',
+          detail: decision.kind === 'RELEASE_AT' ? `${decision.reason}:${decision.at}` : decision.reason,
+        };
+      }
+    }
+  }
+
   // The Seller receives everything except the Platform_Fee and anything already
   // refunded to the Buyer. Shipping is a pass-through cost to the carrier, so it
   // belongs to the Seller, and the fee is computed on the item price alone.
@@ -2901,7 +2942,8 @@ export async function processDueCashSalePayouts(
     try {
       const result = await payoutCashSaleSeller(deps, { cashSaleId });
       if (result.ok && result.sale.sellerPayoutStatus === 'SETTLED') settled += 1;
-      if (!result.ok) {
+      // A holdback deferral (ESC-03) is the policy working, not a drain failure.
+      if (!result.ok && result.error !== 'PAYOUT_HELD') {
         deps.onDrainFailure?.({
           cashSaleId,
           kind: 'payout',

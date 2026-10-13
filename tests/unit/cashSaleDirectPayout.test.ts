@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   acceptCashSaleTerms,
+  acceptCashSaleInspection,
   confirmCashSaleHandover,
   initiateCashSale,
   MAX_PAYOUT_ATTEMPTS,
@@ -134,10 +135,14 @@ describe('cash sale — direct payout mode', () => {
     expect(first.ok && first.sale.status).toBe('HANDOVER');
     expect(calls.payouts).toHaveLength(0);
 
-    const completed = await confirmCashSaleHandover(deps, {
+    // ESC-20: the second confirmation opens a 24h buyer inspection; accepting it
+    // completes the sale and releases the payout.
+    const handedOver = await confirmCashSaleHandover(deps, {
       actorId: ITEM.ownerId,
       cashSaleId,
     });
+    expect(handedOver.ok && handedOver.sale.status).toBe('INSPECTION');
+    const completed = await acceptCashSaleInspection(deps, { actorId: BUYER.profileId, cashSaleId });
 
     expect(completed.ok).toBe(true);
     expect(completed.ok && completed.sale.status).toBe('COMPLETED');
@@ -170,10 +175,14 @@ describe('cash sale — direct payout mode', () => {
       actorId: BUYER.profileId,
       cashSaleId,
     });
-    const completed = await confirmCashSaleHandover(deps, {
+    // ESC-20: the second confirmation opens a 24h buyer inspection; accepting it
+    // completes the sale and releases the payout.
+    const handedOver = await confirmCashSaleHandover(deps, {
       actorId: ITEM.ownerId,
       cashSaleId,
     });
+    expect(handedOver.ok && handedOver.sale.status).toBe('INSPECTION');
+    const completed = await acceptCashSaleInspection(deps, { actorId: BUYER.profileId, cashSaleId });
 
     // The sale still completed for the participants — a failed release is an
     // operator problem, not something to block the Buyer's purchase on.
@@ -193,6 +202,7 @@ describe('cash sale — direct payout mode', () => {
 
     await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
     await confirmCashSaleHandover(deps, { actorId: ITEM.ownerId, cashSaleId });
+    await acceptCashSaleInspection(deps, { actorId: BUYER.profileId, cashSaleId });
     expect(calls.payouts).toHaveLength(1);
 
     // The queue still lists it, so the money is not stranded.
@@ -241,10 +251,8 @@ describe('cash sale — direct payout mode', () => {
       },
     };
 
-    const completed = await confirmCashSaleHandover(failing, {
-      actorId: ITEM.ownerId,
-      cashSaleId,
-    });
+    await confirmCashSaleHandover(deps, { actorId: ITEM.ownerId, cashSaleId });
+    const completed = await acceptCashSaleInspection(failing, { actorId: BUYER.profileId, cashSaleId });
 
     // The sale itself still completes for the participants.
     expect(completed.ok).toBe(true);
@@ -259,6 +267,7 @@ describe('cash sale — direct payout mode', () => {
     const cashSaleId = created.sale.id;
     await confirmCashSaleHandover(deps, { actorId: BUYER.profileId, cashSaleId });
     await confirmCashSaleHandover(deps, { actorId: ITEM.ownerId, cashSaleId });
+    await acceptCashSaleInspection(deps, { actorId: BUYER.profileId, cashSaleId });
 
     const reported: string[] = [];
     const drained = await processDueCashSalePayouts(

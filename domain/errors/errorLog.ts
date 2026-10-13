@@ -203,6 +203,9 @@ const EXPECTED_CODES = new Set([
   'proposal-open',
   // ESC-04: the 0133 trigger refused a handover edit after the placement cutoff.
   'handover-locked',
+  // ESC-14 / ESC-21: a payout deferred by the release policy (holdback window,
+  // chargeback, fraud warning). The money is safe in the platform balance.
+  'payout-held',
 ]);
 
 /**

@@ -921,6 +921,10 @@ export type Database = {
           tracking_flag_reason: 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null;
           tracking_flag_resolved_at: string | null;
           tracking_flag_resolved_by: string | null;
+          /** ESC-03/14 (0138): payout holdback. */
+          seller_payout_release_at: string | null;
+          seller_payout_hold_reason: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          fraud_warning_received_at: string | null;
           /** Return-conditional refund leg (0088). Separate from the outbound
               columns above so a return event cannot overwrite the original
               delivery record that inspection and arbitration depend on. */
@@ -1043,6 +1047,10 @@ export type Database = {
           tracking_flag_reason?: 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null;
           tracking_flag_resolved_at?: string | null;
           tracking_flag_resolved_by?: string | null;
+          /** ESC-03/14 (0138): payout holdback. */
+          seller_payout_release_at?: string | null;
+          seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          fraud_warning_received_at?: string | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;
@@ -1143,6 +1151,10 @@ export type Database = {
           tracking_flag_reason?: 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null;
           tracking_flag_resolved_at?: string | null;
           tracking_flag_resolved_by?: string | null;
+          /** ESC-03/14 (0138): payout holdback. */
+          seller_payout_release_at?: string | null;
+          seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          fraud_warning_received_at?: string | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;

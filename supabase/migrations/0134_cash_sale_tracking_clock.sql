@@ -430,3 +430,6 @@ revoke all on function cardtrade.apply_cash_sale_tracking(uuid, text, timestampt
   from public, anon, authenticated;
 grant execute on function cardtrade.apply_cash_sale_tracking(uuid, text, timestamptz)
   to service_role;
+-- Members read cash_sales through column grants; the room reads the flag through
+-- CASH_SALE_PUBLIC_SELECT, so both parties can see that support is checking it.
+grant select (tracking_flagged_at, tracking_flag_reason, tracking_flag_resolved_at) on cardtrade.cash_sales to authenticated;

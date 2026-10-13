@@ -667,8 +667,12 @@ export function makeCashSaleRepository(options: {
           actor === 'BUYER' ? confirmedAt : sale.buyerHandoverConfirmedAt,
         sellerHandoverConfirmedAt:
           actor === 'SELLER' ? confirmedAt : sale.sellerHandoverConfirmedAt,
-        status: completes ? 'COMPLETED' : 'HANDOVER',
-        completedAt: completes ? confirmedAt : sale.completedAt,
+        // ESC-20: the second confirmation opens a 24h buyer inspection.
+        status: completes ? 'INSPECTION' : 'HANDOVER',
+        receivedAt: completes ? confirmedAt : sale.receivedAt,
+        inspectionDeadlineAt: completes
+          ? new Date(Date.parse(confirmedAt) + 24 * 3_600_000).toISOString()
+          : sale.inspectionDeadlineAt,
       };
       return state.sale;
     },

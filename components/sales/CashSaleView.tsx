@@ -1679,8 +1679,8 @@ function CashSaleRoom({
         title="Confirm the handover happened?"
         description={
           theirHandoverConfirmed
-            ? `${them.name} has already confirmed. Your confirmation completes the sale and pays the seller. Only confirm if you met and the item actually changed hands.`
-            : 'Only confirm if you met and the item actually changed hands. The sale completes and the seller is paid when you both confirm — one confirmation is not enough.'
+            ? `${them.name} has already confirmed. Your confirmation starts a 24-hour window for the buyer to raise a problem, after which the seller is paid. Only confirm if you met and the item actually changed hands.`
+            : 'Only confirm if you met and the item actually changed hands. When you both confirm, the buyer has 24 hours to raise a problem before the seller is paid — one confirmation is not enough.'
         }
         confirmLabel={
           iAmBuyer ? 'We met and I have the item' : 'We met and I handed it over'

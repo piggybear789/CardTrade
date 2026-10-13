@@ -17,7 +17,7 @@ import {
   TRADE_INSPECTION_FLOOR_HOURS,
   TRADE_INSPECTION_HOURS,
 } from '@/domain/fulfilment';
-import { CASH_SALE_INSPECTION_DAYS } from '@/domain/fulfilment/inspection';
+import { CASH_SALE_INSPECTION_DAYS, IN_PERSON_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 import { sqlFunctions } from '@/scripts/lib/mobileContract';
 import { pinnedIntegerFunction } from '@/scripts/lib/migrationText';
 
@@ -28,6 +28,8 @@ const PINNED: Array<[sqlName: string, tsName: string, tsValue: number]> = [
   ['bond_placement_lead_hours', 'BOND_PLACEMENT_LEAD_HOURS', BOND_PLACEMENT_LEAD_HOURS],
   // ESC-02: staff START_CLOCK computes the cash-sale deadline in TypeScript.
   ['cash_sale_inspection_days', 'CASH_SALE_INSPECTION_DAYS', CASH_SALE_INSPECTION_DAYS],
+  // ESC-20: the in-person buyer inspection.
+  ['in_person_inspection_hours', 'IN_PERSON_INSPECTION_HOURS', IN_PERSON_INSPECTION_HOURS],
 ];
 
 describe('SQL trade clocks agree with the TypeScript constants', () => {

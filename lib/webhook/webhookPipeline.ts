@@ -59,6 +59,52 @@ import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
+/**
+ * Hold (OPEN) or release (CLOSED + won) the seller payout of the sale a chargeback is
+ * against (ESC-14). Only an UNRELEASED payout is touched; the drain skips a held one
+ * (`listDuePayouts`) and the release policy reads the same column. Failures are
+ * logged, never thrown: the dispute itself is already recorded.
+ */
+async function applyChargeDisputePayoutHold(
+  client: AdminClient,
+  params: { disputeRef: string; cashSaleId: string | null; phase: 'OPENED' | 'CLOSED'; outcome: string | null },
+): Promise<void> {
+  try {
+    let cashSaleId = params.cashSaleId;
+    if (!cashSaleId) {
+      const { data } = await client
+        .from('charge_disputes')
+        .select('cash_sale_id')
+        .eq('dispute_ref', params.disputeRef)
+        .maybeSingle();
+      cashSaleId = (data as { cash_sale_id: string | null } | null)?.cash_sale_id ?? null;
+    }
+    if (!cashSaleId) return;
+    if (params.phase === 'OPENED') {
+      const { error } = await client
+        .from('cash_sales')
+        .update({ seller_payout_hold_reason: 'CHARGE_DISPUTE' })
+        .eq('id', cashSaleId)
+        .neq('seller_payout_status', 'SETTLED');
+      if (error) throw new Error(error.message);
+    } else if (params.outcome === 'won' || params.outcome === 'warning_closed') {
+      const { error } = await client
+        .from('cash_sales')
+        .update({ seller_payout_hold_reason: null })
+        .eq('id', cashSaleId)
+        .eq('seller_payout_hold_reason', 'CHARGE_DISPUTE');
+      if (error) throw new Error(error.message);
+    }
+  } catch (error) {
+    await logBackgroundFailure({
+      name: 'payout.chargeback_hold',
+      errorCode: 'WRITE_FAILED',
+      error,
+      context: { cashSaleId: params.cashSaleId ?? undefined },
+    });
+  }
+}
+
 /** `code: detail` for an orchestrator failure, which is all the error log needs. */
 function failureDetail(result: { error?: unknown; detail?: unknown }): string {
   const code = typeof result.error === 'string' ? result.error : 'FAILED';
@@ -425,6 +471,18 @@ async function dispatchEvent(
         // Only a closed dispute carries a terminal outcome.
         p_outcome: action.phase === 'CLOSED' ? (event.payload.disputeOutcome ?? 'other') : null,
       });
+      if (!error) {
+        // ESC-14: a chargeback used to be recorded and nothing else — the seller was
+        // still paid on the next drain, and the platform (losses_collector) ate both.
+        // An OPEN dispute now holds an unreleased payout; a WON one clears that hold.
+        // A payout that already left is staff's to recover (it shows in arbitration).
+        await applyChargeDisputePayoutHold(admin, {
+          disputeRef,
+          cashSaleId: event.payload.cashSaleId ?? null,
+          phase: action.phase,
+          outcome: event.payload.disputeOutcome ?? null,
+        });
+      }
 
       return {
         outcome: error ? 'FAILURE' : 'SUCCESS',

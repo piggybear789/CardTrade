@@ -575,14 +575,20 @@ describe('cash sale — fulfillment', () => {
     });
     expect(buyerConfirm.ok).toBe(true);
     if (!buyerConfirm.ok) return;
-    expect(buyerConfirm.sale.status).toBe('COMPLETED');
-    expect(state.item.status).toBe('SOLD');
+    // ESC-20: the second confirmation opens a 24h buyer inspection instead of
+    // completing on the spot; nothing is paid out yet.
+    expect(buyerConfirm.sale.status).toBe('INSPECTION');
+    expect(buyerConfirm.sale.inspectionDeadlineAt).toBeTruthy();
 
     const repeat = await confirmCashSaleHandover(deps, {
       actorId: BUYER.profileId,
       cashSaleId: saleId,
     });
     expect(repeat).toMatchObject({ ok: false, error: 'INVALID_STATE' });
+
+    const accepted = await acceptCashSaleInspection(deps, { actorId: BUYER.profileId, cashSaleId: saleId });
+    expect(accepted.ok && accepted.sale.status).toBe('COMPLETED');
+    expect(state.item.status).toBe('SOLD');
   });
 });
 

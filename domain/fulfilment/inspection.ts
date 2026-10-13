@@ -57,6 +57,13 @@ export const BOND_PLACEMENT_LEAD_HOURS = 24;
 export const CASH_SALE_INSPECTION_DAYS = 7;
 
 /**
+ * The in-person Cash_Sale buyer inspection, in hours (ESC-20). The second handover
+ * confirmation opens it instead of completing on the spot. Matches
+ * `cardtrade.in_person_inspection_hours()` (0138), pinned by tradeClockAgreement.
+ */
+export const IN_PERSON_INSPECTION_HOURS = 24;
+
+/**
  * The handover methods a Trade offers. Face-to-face only.
  *
  * Not a preference. Collateral is a card authorisation that lapses in about a week and

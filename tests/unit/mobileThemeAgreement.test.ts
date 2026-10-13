@@ -733,9 +733,9 @@ const ADVISORY_PORTS = [
  *  - `tryTransition`, `isTerminal`, `validEvents` read the same `TRANSITIONS` table the
  *    TypeScript exports; `TERMINAL_STATES` lives in `types.ts` beside it.
  *  - `canCancel` reads the transition table for the cancel edge.
- *  - `cashSaleInspectionDays` is the ONE genuine gap: the 7-day cash-sale window is a
- *    web constant that does not live in `domain/fulfilment/`. It is recorded rather
- *    than fixed here, because moving a constant is not a presentation change.
+ *  - `cashSaleInspectionDays` WAS the one genuine gap; escrow hardening (ESC-02) added
+ *    `CASH_SALE_INSPECTION_DAYS` to `domain/fulfilment/inspection.ts`, pinned to SQL,
+ *    so it is no longer surplus.
  */
 const RECORDED_SURPLUS_SYMBOLS = [
   'flutter_app/lib/domain/bond/bond_policy.dart isCashSaleBondExempt',
@@ -744,7 +744,6 @@ const RECORDED_SURPLUS_SYMBOLS = [
   'flutter_app/lib/domain/fulfilment/validation.dart FulfilmentError',
   'flutter_app/lib/domain/fulfilment/validation.dart FulfilmentInvalid',
   'flutter_app/lib/domain/fulfilment/validation.dart FulfilmentValid',
-  'flutter_app/lib/domain/fulfilment/validation.dart cashSaleInspectionDays',
   'flutter_app/lib/domain/region/regions.dart RegionMismatchReason',
   'flutter_app/lib/domain/region/regions.dart allRegions',
   'flutter_app/lib/domain/state_machine/machine.dart isTerminal',

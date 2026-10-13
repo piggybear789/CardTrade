@@ -11,6 +11,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  cashBySide,
+  minTradeSideValueMinor,
   resolveTradeSideValues,
   tradeSidesAreValued,
 } from '@/domain/trade/tradeSideValues';
@@ -98,5 +100,68 @@ describe('agreement with the SQL guards in 0081', () => {
     });
     expect(sides.initiatorSideCents).toBe(25_000);
     expect(tradeSidesAreValued(sides)).toBe(true);
+  });
+});
+
+// ESC-09: binder plus cash, and the minimum side.
+
+describe('binder plus cash (ESC-09)', () => {
+  it('a binder side includes the cash the initiator adds', () => {
+    expect(
+      resolveTradeSideValues({
+        initiatorGoodsCents: 10_000,
+        counterpartGoodsCents: 999_999,
+        counterpartIsShopfront: true,
+        cashFromInitiatorCents: 5_000,
+      }).counterpartSideCents,
+    ).toBe(15_000);
+  });
+
+  it('cash the binder owner pays comes off it, never below zero', () => {
+    const sides = resolveTradeSideValues({
+      initiatorGoodsCents: 10_000,
+      counterpartGoodsCents: 0,
+      counterpartIsShopfront: true,
+      cashFromCounterpartCents: 4_000,
+    });
+    expect(sides.counterpartSideCents).toBe(6_000);
+    expect(
+      resolveTradeSideValues({
+        initiatorGoodsCents: 1_000,
+        counterpartGoodsCents: 0,
+        counterpartIsShopfront: true,
+        cashFromCounterpartCents: 4_000,
+      }).counterpartSideCents,
+    ).toBe(0);
+  });
+
+  it('cash does not change an ordinary trade', () => {
+    expect(
+      resolveTradeSideValues({
+        initiatorGoodsCents: 10_000,
+        counterpartGoodsCents: 12_000,
+        counterpartIsShopfront: false,
+        cashFromInitiatorCents: 2_000,
+      }),
+    ).toEqual({ initiatorSideCents: 10_000, counterpartSideCents: 12_000 });
+  });
+
+  it('cashBySide splits by direction', () => {
+    expect(cashBySide({ cashAmountCents: 500, cashDirection: 'PROPOSER_PAYS' })).toEqual({
+      cashFromInitiatorCents: 500,
+      cashFromCounterpartCents: 0,
+    });
+    expect(cashBySide({ cashAmountCents: 500, cashDirection: 'COUNTERPART_PAYS' })).toEqual({
+      cashFromInitiatorCents: 0,
+      cashFromCounterpartCents: 500,
+    });
+  });
+
+  it('refuses a side below the currency minimum', () => {
+    const min = minTradeSideValueMinor('aud');
+    expect(min).toBe(500);
+    expect(tradeSidesAreValued({ initiatorSideCents: min - 1, counterpartSideCents: 10_000 }, 'aud')).toBe(false);
+    expect(tradeSidesAreValued({ initiatorSideCents: min, counterpartSideCents: min }, 'aud')).toBe(true);
+    expect(minTradeSideValueMinor('gbp')).toBe(1);
   });
 });

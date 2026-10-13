@@ -413,6 +413,17 @@ export interface AgreedTradeBundles {
   initiatorItemIds: string[];
   /** Items the INITIATOR receives, so they size the initiator's bond. */
   counterpartItemIds: string[];
+  /** ESC-09: the cash leg by direction, so a binder side is valued with it. */
+  cashFromInitiatorCents?: number;
+  cashFromCounterpartCents?: number;
+  /** ESC-09: the trade's currency, for the minimum side value. */
+  currency?: string | null;
+  /**
+   * ESC-18 (WP3): side values frozen at TERMS_AGREED. When present they are used
+   * as-is and live `fmv_cents` is never read, so an edit after agreement cannot
+   * shrink the collateral.
+   */
+  frozenSides?: { initiatorSideCents: number; counterpartSideCents: number } | null;
 }
 
 export type PlaceAgreedBondsResult =
@@ -483,15 +494,20 @@ export async function placeBondsForAgreedTrade(
     return { ok: false, error: 'item-not-found' };
   }
 
-  const sides = resolveTradeSideValues({
-    initiatorGoodsCents: initiatorSide.goodsCents,
-    counterpartGoodsCents: counterpartSide.goodsCents,
-    counterpartIsShopfront: counterpartSide.hasShopfront,
-  });
+  const sides =
+    params.frozenSides ??
+    resolveTradeSideValues({
+      initiatorGoodsCents: initiatorSide.goodsCents,
+      counterpartGoodsCents: counterpartSide.goodsCents,
+      counterpartIsShopfront: counterpartSide.hasShopfront,
+      cashFromInitiatorCents: params.cashFromInitiatorCents,
+      cashFromCounterpartCents: params.cashFromCounterpartCents,
+    });
   // A binder side inherits its value from the other side, so a bundle worth nothing
   // would collateralise a trade at zero — escrow with nothing behind it. Refused
   // rather than confirmed as "no bond needed".
-  if (!tradeSidesAreValued(sides)) {
+  // ESC-09: and below the currency's minimum side value.
+  if (!tradeSidesAreValued(sides, params.currency ?? undefined)) {
     return { ok: false, error: 'side-unvalued' };
   }
   const { initiatorSideCents, counterpartSideCents } = sides;

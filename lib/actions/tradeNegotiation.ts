@@ -31,7 +31,7 @@ import { operationalRegions } from '@/domain/services';
 import { currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
 import { currentHoldsCoverTraders } from '@/domain/bond/currentHolds';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
-import { placeTradeCollateral } from '@/lib/trades/collateralPlacement';
+import { freezeTradeSideValues, placeTradeCollateral } from '@/lib/trades/collateralPlacement';
 import {
   MAX_MEETING_LEAD_HOURS,
   TRADE_HANDOVER_METHODS,
@@ -436,9 +436,34 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
     p_actor_id: userId,
   });
   const started = (startedData as TradeRow[] | null)?.[0];
+  // ESC-19 (0141): a card another contract already holds. The transition rolled back,
+  // so the trade is still NEGOTIATING; say why instead of pretending it started.
+  if (startError?.message.includes('short-reservation')) {
+    revalidatePath(`/trades/${tradeId}`);
+    return {
+      ok: false,
+      error: 'rejected',
+      message: 'One of the cards in this trade is no longer available, so the trade could not start.',
+    };
+  }
+  if (startError?.message.includes('terms-incomplete')) {
+    return { ok: false, error: 'terms-incomplete', message: 'Set a meeting place and time before accepting.' };
+  }
   if (startError || !started) {
     revalidatePath(`/trades/${tradeId}`);
     return { ok: true, trade: accepted, collateralStarted: false };
+  }
+
+  // ESC-18: freeze what each side is worth NOW, so a price edit after agreement
+  // cannot shrink the collateral or the fee. A failed write is logged; placement
+  // freezes the values itself if they are still missing.
+  if (!(await freezeTradeSideValues(started, admin))) {
+    await logBackgroundFailure({
+      name: 'trade.side_values',
+      errorCode: 'WRITE_FAILED',
+      message: 'Side values could not be frozen at TERMS_AGREED.',
+      context: { tradeId },
+    });
   }
 
   // COLLATERAL IS NO LONGER PLACED HERE. It is authorised a day before the meeting by
@@ -922,6 +947,14 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
         ok: false,
         error: 'item-unavailable',
         message: 'That listing is no longer available to trade for.',
+      };
+    }
+    // ESC-19 (0141): a card already reserved or sold cannot be offered.
+    if (error.message.includes('initiator-item-unavailable')) {
+      return {
+        ok: false,
+        error: 'item-unavailable',
+        message: 'One of the cards you offered is no longer available. Remove it and try again.',
       };
     }
     return {

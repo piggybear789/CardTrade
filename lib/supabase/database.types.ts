@@ -427,6 +427,8 @@ export type Database = {
           listing_kind: Database['cardtrade']['Enums']['listing_kind'];
           /** When the owner closed a SHOPFRONT. SINGLE listings use status. */
           closed_at: string | null;
+          /** ESC-19 (0141): the trade whose reservation this is. */
+          reserved_by_trade_id: string | null;
           image_paths: string[];
           /**
            * Intrinsic pixel size per photo, index-aligned with `image_paths`
@@ -495,6 +497,7 @@ export type Database = {
           status?: Database['cardtrade']['Enums']['item_status'];
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
+          reserved_by_trade_id?: string | null;
           image_paths: string[];
           image_dims?: Json | null;
           hidden?: boolean;
@@ -525,6 +528,7 @@ export type Database = {
           status?: Database['cardtrade']['Enums']['item_status'];
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
+          reserved_by_trade_id?: string | null;
           image_paths?: string[];
           image_dims?: Json | null;
           hidden?: boolean;
@@ -691,6 +695,9 @@ export type Database = {
            * terms: revising it voids both acceptances.
            */
           counterpart_goods_description: string | null;
+          /** ESC-18 (0141): side values frozen at TERMS_AGREED. */
+          initiator_side_minor: number | null;
+          counterpart_side_minor: number | null;
           cancelled_by: string | null;
           cancel_reason: string | null;
           cancelled_at: string | null;
@@ -712,6 +719,8 @@ export type Database = {
           offer_message?: string | null;
           declared_value_cents?: number | null;
           counterpart_goods_description?: string | null;
+          initiator_side_minor?: number | null;
+          counterpart_side_minor?: number | null;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
@@ -809,6 +818,8 @@ export type Database = {
           offer_message?: string | null;
           declared_value_cents?: number | null;
           counterpart_goods_description?: string | null;
+          initiator_side_minor?: number | null;
+          counterpart_side_minor?: number | null;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;

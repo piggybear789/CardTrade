@@ -32,7 +32,7 @@ import {
   currentHoldsSeekFailed,
 } from '@/domain/orchestrator/tradeProposal';
 import { currentHoldsCoverTraders } from '@/domain/bond/currentHolds';
-import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
+import { cashBySide, resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createLoggedTradeOrchestrator } from './tradeOrchestrator';
@@ -88,15 +88,26 @@ export async function itemIdsFor(tradeId: string, traderId: string): Promise<str
  * Never called before {@link placeTradeCollateral} has a live hold, which is the
  * whole of "no exchange, no fee".
  */
-async function chargeFeesForAgreedTrade(trade: TradeRow): Promise<void> {
+/**
+ * Each side's value for a trade (ESC-09, ESC-18): the values FROZEN at TERMS_AGREED
+ * when present, otherwise computed from the goods and the cash leg through the one
+ * rule. Never live `fmv_cents` once frozen.
+ */
+async function sideValuesFor(
+  trade: TradeRow,
+): Promise<{ initiatorSideCents: number; counterpartSideCents: number }> {
+  const frozen = trade as TradeRow & { initiator_side_minor?: number | null; counterpart_side_minor?: number | null };
+  if (frozen.initiator_side_minor != null && frozen.counterpart_side_minor != null) {
+    return {
+      initiatorSideCents: Number(frozen.initiator_side_minor),
+      counterpartSideCents: Number(frozen.counterpart_side_minor),
+    };
+  }
   const admin = createAdminClient();
   const sideGoods = async (traderId: string) => {
     const ids = await itemIdsFor(trade.id, traderId);
     if (ids.length === 0) return { goodsCents: 0, hasShopfront: false };
-    const { data } = await admin
-      .from('items')
-      .select('fmv_cents, listing_kind')
-      .in('id', ids);
+    const { data } = await admin.from('items').select('fmv_cents, listing_kind').in('id', ids);
     const rows = (data ?? []) as { fmv_cents: number | null; listing_kind: string }[];
     return {
       goodsCents: rows.reduce((sum, row) => sum + Number(row.fmv_cents ?? 0), 0),
@@ -107,12 +118,34 @@ async function chargeFeesForAgreedTrade(trade: TradeRow): Promise<void> {
     sideGoods(trade.initiator_id),
     sideGoods(trade.counterpart_id),
   ]);
+  return resolveTradeSideValues({
+    initiatorGoodsCents: initiatorSide.goodsCents,
+    counterpartGoodsCents: counterpartSide.goodsCents,
+    counterpartIsShopfront: counterpartSide.hasShopfront,
+    ...cashBySide({ cashAmountCents: trade.cash_amount_cents, cashDirection: trade.cash_direction }),
+  });
+}
+
+/**
+ * Freeze each side's value on the trade (ESC-18). Written once (`is null` guard), so
+ * a retry can never move a frozen figure. Returns false on a failed write.
+ */
+export async function freezeTradeSideValues(
+  trade: TradeRow,
+  client: ReturnType<typeof createAdminClient> = createAdminClient(),
+): Promise<boolean> {
+  const sides = await sideValuesFor(trade);
+  const { error } = await client
+    .from('trades')
+    .update({ initiator_side_minor: sides.initiatorSideCents, counterpart_side_minor: sides.counterpartSideCents })
+    .eq('id', trade.id)
+    .is('initiator_side_minor', null);
+  return !error;
+}
+
+async function chargeFeesForAgreedTrade(trade: TradeRow): Promise<void> {
   const { initiatorSideCents: initiatorGives, counterpartSideCents: counterpartGives } =
-    resolveTradeSideValues({
-      initiatorGoodsCents: initiatorSide.goodsCents,
-      counterpartGoodsCents: counterpartSide.goodsCents,
-      counterpartIsShopfront: counterpartSide.hasShopfront,
-    });
+    await sideValuesFor(trade);
   const cash = Number(trade.cash_amount_cents ?? 0);
   const initiatorPaysCash = trade.cash_direction === 'PROPOSER_PAYS';
   const fees = await chargeTradeFees({
@@ -264,6 +297,16 @@ export async function placeTradeCollateral(params: {
   const counterpartItemIds = await itemIdsFor(tradeId, trade.counterpart_id);
   await repository.reserveItems([...initiatorItemIds, ...counterpartItemIds]);
 
+  // ESC-18: size the bonds from the values frozen at TERMS_AGREED, freezing them now
+  // for a trade agreed before 0141. Re-read so the frozen figures are the ones used.
+  await freezeTradeSideValues(trade, admin);
+  const { data: frozenRow } = await admin
+    .from('trades')
+    .select('initiator_side_minor, counterpart_side_minor')
+    .eq('id', tradeId)
+    .maybeSingle();
+  const frozen = frozenRow as { initiator_side_minor: number | null; counterpart_side_minor: number | null } | null;
+
   const bonds = await placeBondsForAgreedTrade(
     { repository, payments },
     {
@@ -272,6 +315,15 @@ export async function placeTradeCollateral(params: {
       counterpartId: trade.counterpart_id,
       initiatorItemIds,
       counterpartItemIds,
+      ...cashBySide({ cashAmountCents: trade.cash_amount_cents, cashDirection: trade.cash_direction }),
+      currency: trade.currency,
+      frozenSides:
+        frozen?.initiator_side_minor != null && frozen.counterpart_side_minor != null
+          ? {
+              initiatorSideCents: Number(frozen.initiator_side_minor),
+              counterpartSideCents: Number(frozen.counterpart_side_minor),
+            }
+          : null,
     },
   );
 

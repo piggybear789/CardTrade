@@ -40,6 +40,14 @@ export function resolveTradeSideValues(params: {
   counterpartGoodsCents: number;
   /** True when the listing the trade was opened against is a SHOPFRONT (0064). */
   counterpartIsShopfront: boolean;
+  /**
+   * ESC-09: the cash leg, by who pays it. A binder side is worth what is offered
+   * against it, and the cash is part of that offer: "my card plus $50 for cards out
+   * of your binder" means the binder owner hands over goods worth the card PLUS $50.
+   * Ignoring it under-sized the bond on exactly the trades where cash moves.
+   */
+  cashFromInitiatorCents?: number;
+  cashFromCounterpartCents?: number;
 }): { initiatorSideCents: number; counterpartSideCents: number } {
   const initiatorSideCents = Math.max(Math.trunc(params.initiatorGoodsCents), 0);
   if (!params.counterpartIsShopfront) {
@@ -48,7 +56,30 @@ export function resolveTradeSideValues(params: {
       counterpartSideCents: Math.max(Math.trunc(params.counterpartGoodsCents), 0),
     };
   }
-  return { initiatorSideCents, counterpartSideCents: initiatorSideCents };
+  const plus = Math.max(Math.trunc(params.cashFromInitiatorCents ?? 0), 0);
+  const minus = Math.max(Math.trunc(params.cashFromCounterpartCents ?? 0), 0);
+  return { initiatorSideCents, counterpartSideCents: Math.max(initiatorSideCents + plus - minus, 0) };
+}
+
+/**
+ * ESC-09: the smallest a side may be worth, per currency (minor units). A $0.01 side
+ * would size a bond of a cent: collateral in name only. Unlisted currency: 1.
+ */
+export const MIN_TRADE_SIDE_VALUE_MINOR: Readonly<Record<string, number>> = { aud: 500, usd: 500 };
+
+export function minTradeSideValueMinor(currency: string | null | undefined): number {
+  return MIN_TRADE_SIDE_VALUE_MINOR[(currency ?? '').toLowerCase()] ?? 1;
+}
+
+/** Split a trade's cash leg into the two directions the side values read. */
+export function cashBySide(params: {
+  cashAmountCents: number | null | undefined;
+  cashDirection: string | null | undefined;
+}): { cashFromInitiatorCents: number; cashFromCounterpartCents: number } {
+  const cash = Math.max(Math.trunc(Number(params.cashAmountCents ?? 0)), 0);
+  return params.cashDirection === 'COUNTERPART_PAYS'
+    ? { cashFromInitiatorCents: 0, cashFromCounterpartCents: cash }
+    : { cashFromInitiatorCents: cash, cashFromCounterpartCents: 0 };
 }
 
 /**
@@ -99,9 +130,14 @@ export function tradeAgreedValueCents(params: {
   return goodsCents + Math.max(Math.trunc(params.cashAmountCents), 0);
 }
 
-export function tradeSidesAreValued(sides: {
-  initiatorSideCents: number;
-  counterpartSideCents: number;
-}): boolean {
-  return sides.initiatorSideCents > 0 && sides.counterpartSideCents > 0;
+export function tradeSidesAreValued(
+  sides: {
+    initiatorSideCents: number;
+    counterpartSideCents: number;
+  },
+  /** ESC-09: refuse a side below the currency's minimum. Absent: only zero refuses. */
+  currency?: string | null,
+): boolean {
+  const floor = currency === undefined ? 1 : minTradeSideValueMinor(currency);
+  return sides.initiatorSideCents >= floor && sides.counterpartSideCents >= floor;
 }

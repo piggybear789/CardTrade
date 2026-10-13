@@ -17,6 +17,8 @@
 // (type exports are erased and permitted in a 'use server' module).
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { offPlatformSignals } from '@/domain/messages/offPlatformSignals';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -706,7 +708,8 @@ export interface MessageAttachmentInput {
 
 /** Result of {@link sendMessage}. */
 export type SendMessageResult =
-  | { ok: true; message: MessageRow }
+  /** `warning`: the message looked like an off-platform lure (ESC-27). */
+  | { ok: true; message: MessageRow; warning?: true }
   | ActionFailure<SendMessageError>;
 
 /**
@@ -822,6 +825,31 @@ export const sendMessage = withActionLog('messages.sendMessage', async function 
     link: `/messages/${conversationId}`,
     context: listingContext({ itemId: conversation.item_id, actorId: me }),
   });
+
+  // ESC-27: a message that tries to take the deal off the platform is flagged for
+  // staff and the sender is warned. Never blocked: a false positive costs a warning.
+  const signals = offPlatformSignals(trimmed);
+  if (signals.length > 0) {
+    try {
+      const { error: flagError } = await createAdminClient().from('message_risk_flags').insert({
+        message_id: (message as MessageRow).id,
+        conversation_id: conversationId,
+        sender_id: me,
+        signals,
+      });
+      if (flagError) {
+        await logBackgroundFailure({
+          name: 'messages.risk_flag',
+          errorCode: flagError.code || 'INSERT_ERROR',
+          message: flagError.message,
+          context: { conversationId },
+        });
+      }
+    } catch (err: unknown) {
+      await logBackgroundFailure({ name: 'messages.risk_flag', errorCode: 'THREW', error: err, context: { conversationId } });
+    }
+    return { ok: true, message: message as MessageRow, warning: true };
+  }
 
   return { ok: true, message: message as MessageRow };
 });

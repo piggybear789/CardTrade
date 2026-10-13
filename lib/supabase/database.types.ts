@@ -2750,6 +2750,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      /** ESC-27 (0148): off-platform lure flags. Staff read; service role writes. */
+      message_risk_flags: {
+        Row: {
+          id: string;
+          message_id: string;
+          conversation_id: string;
+          sender_id: string;
+          signals: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          message_id: string;
+          conversation_id: string;
+          sender_id: string;
+          signals: string[];
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          message_id?: string;
+          conversation_id?: string;
+          sender_id?: string;
+          signals?: string[];
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       messages: {
         Row: {
           id: string;

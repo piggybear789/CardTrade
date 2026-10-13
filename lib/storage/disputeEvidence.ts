@@ -111,12 +111,18 @@ export async function createSignedEvidenceUploads(
  * either is dropped rather than throwing — the statement is the substance and is worth
  * keeping even if an attachment did not land.
  */
+/** Most files one evidence submission may carry. Pinned to 0146 by a test. */
+export const MAX_EVIDENCE_FILES = 10;
+
 export async function verifyEvidencePaths(
   admin: AdminClient,
   authorId: string,
   paths: string[],
 ): Promise<string[]> {
-  const owned = paths.filter((path) => path.startsWith(`${authorId}/`));
+  // ESC-36: capped, and never a traversal. The same rule is a trigger in 0146.
+  const owned = paths
+    .filter((path) => path.startsWith(`${authorId}/`) && !path.includes('..'))
+    .slice(0, MAX_EVIDENCE_FILES);
   if (owned.length === 0) return [];
 
   const verified: string[] = [];

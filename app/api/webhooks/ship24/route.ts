@@ -53,8 +53,17 @@ function secretMatches(provided: string, expected: string): boolean {
  * configure; the header is the tidier option where it is available.
  */
 function presentedToken(request: Request): string | null {
+  // ESC-39: Authorization: Bearer first. A secret in a URL ends up in access logs,
+  // proxies and the Ship24 dashboard, so the query string is accepted only while
+  // `SHIP24_WEBHOOK_ALLOW_QUERY_SECRET=true` (the migration period).
+  const auth = request.headers.get('authorization')?.trim();
+  if (auth && /^bearer\s+/i.test(auth)) {
+    const bearer = auth.replace(/^bearer\s+/i, '').trim();
+    if (bearer) return bearer;
+  }
   const fromHeader = request.headers.get('x-webhook-token')?.trim();
   if (fromHeader) return fromHeader;
+  if (process.env.SHIP24_WEBHOOK_ALLOW_QUERY_SECRET?.trim().toLowerCase() !== 'true') return null;
   try {
     const token = new URL(request.url).searchParams.get('token')?.trim();
     return token || null;

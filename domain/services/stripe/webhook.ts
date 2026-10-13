@@ -31,6 +31,22 @@ export const STRIPE_SIGNATURE_HEADER = 'stripe-signature';
 /** Stripe's own default replay window, in seconds. */
 export const DEFAULT_TOLERANCE_SECONDS = 300;
 
+/** The widest replay window `STRIPE_WEBHOOK_TOLERANCE_SECONDS` may set (ESC-39). */
+export const MAX_TOLERANCE_SECONDS = 600;
+
+/**
+ * ESC-39: the replay window to verify with, in SECONDS, from
+ * `STRIPE_WEBHOOK_TOLERANCE_SECONDS`. Bounded to 1–600 so a typo (or a value in
+ * milliseconds) cannot silently widen it to days; anything else is the default.
+ */
+export function webhookToleranceSeconds(raw: string | undefined | null): number {
+  const value = Number.parseInt(raw?.trim() ?? '', 10);
+  if (!Number.isFinite(value) || value < 1 || value > MAX_TOLERANCE_SECONDS) {
+    return DEFAULT_TOLERANCE_SECONDS;
+  }
+  return value;
+}
+
 /**
  * Verify a delivery and return the parsed Stripe event.
  *

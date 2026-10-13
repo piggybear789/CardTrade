@@ -35,6 +35,8 @@ export {
 } from './metadata';
 export {
   DEFAULT_TOLERANCE_SECONDS,
+  MAX_TOLERANCE_SECONDS,
+  webhookToleranceSeconds,
   STRIPE_SIGNATURE_HEADER,
   translateStripeEvent,
   verifyStripeSignature,

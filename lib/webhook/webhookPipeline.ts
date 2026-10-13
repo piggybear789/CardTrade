@@ -44,6 +44,7 @@ import {
   STRIPE_SIGNATURE_HEADER,
   translateStripeEvent,
   verifyStripeSignature,
+  webhookToleranceSeconds,
 } from '@/domain/services/stripe';
 import type { WebhookEvent } from '@/domain/services/types';
 import { mapEventToAction } from '@/domain/webhook/mapEventToAction';
@@ -752,7 +753,14 @@ function authenticate(
     const client = createStripeClient();
     let event: Stripe.Event | null = null;
     for (const secret of secrets) {
-      event = verifyStripeSignature({ client, rawBody, header: stripeSignature, secret });
+      event = verifyStripeSignature({
+        client,
+        rawBody,
+        header: stripeSignature,
+        secret,
+        // ESC-39: the configured window is honoured, bounded to 1-600 seconds.
+        toleranceSeconds: webhookToleranceSeconds(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS),
+      });
       if (event) break;
     }
     if (!event) {

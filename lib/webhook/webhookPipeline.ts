@@ -30,7 +30,7 @@ import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database, Json } from '@/lib/supabase/database.types';
-import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
+import { acceptsMockWebhooks, getPaymentService } from '@/domain/services';
 import { regionForCashSale, regionForMerchantRef, regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import {
   MOCK_SIGNATURE_HEADER,
@@ -44,19 +44,178 @@ import {
   STRIPE_SIGNATURE_HEADER,
   translateStripeEvent,
   verifyStripeSignature,
+  webhookToleranceSeconds,
 } from '@/domain/services/stripe';
 import type { WebhookEvent } from '@/domain/services/types';
 import { mapEventToAction } from '@/domain/webhook/mapEventToAction';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
+import { createLoggedTradeOrchestrator } from '@/lib/trades/tradeOrchestrator';
 import { createSupabaseCollateralSideEffects } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrator/supabaseMerchantRepository';
-import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
+import { pushVerifiedIdentityToConnect } from '@/lib/identity/pushVerifiedIdentity';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
-import { notifyCashSaleSettled, notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
+import { notifyCashSaleSettled } from '@/lib/notifications/settlementNotifier';
+import { reconcileTradeHoldStatus } from '@/lib/trades/collateralLock';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { blockMemberCards } from '@/lib/risk/signals';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
+
+/**
+ * Hold (OPEN) or release (CLOSED + won) the seller payout of the sale a chargeback is
+ * against (ESC-14). Only an UNRELEASED payout is touched; the drain skips a held one
+ * (`listDuePayouts`) and the release policy reads the same column. Failures are
+ * logged, never thrown: the dispute itself is already recorded.
+ */
+/**
+ * ESC-14: stage the contract's own evidence on the provider dispute, NOT submitted.
+ * Staff review and submit from the Dashboard. Only what the contract says and the
+ * carrier reported: never an address, a name, or any identity data.
+ */
+async function stageCashSaleDisputeEvidence(
+  client: AdminClient,
+  disputeRef: string,
+  cashSaleId: string,
+): Promise<void> {
+  const { data } = await client
+    .from('cash_sales')
+    .select('item_title, fulfillment_method, tracking_carrier, tracking_number, shipped_at, carrier_delivered_at, inspection_accepted_at, completed_at')
+    .eq('id', cashSaleId)
+    .maybeSingle();
+  const sale = data as Record<string, string | null> | null;
+  if (!sale) return;
+  const payments = getPaymentService(await regionForCashSale(cashSaleId));
+  if (!payments.submitDisputeEvidence) return;
+  const lines = [
+    `NoDitto contract ${cashSaleId}.`,
+    sale.fulfillment_method ? `Fulfilment: ${sale.fulfillment_method}.` : null,
+    sale.shipped_at ? `Shipped: ${sale.shipped_at}.` : null,
+    sale.carrier_delivered_at ? `Carrier-confirmed delivery: ${sale.carrier_delivered_at}.` : null,
+    sale.inspection_accepted_at ? `Buyer accepted the goods: ${sale.inspection_accepted_at}.` : null,
+    sale.completed_at ? `Contract completed: ${sale.completed_at}.` : null,
+  ].filter(Boolean);
+  const staged = await payments.submitDisputeEvidence({
+    disputeRef,
+    submit: false,
+    evidence: {
+      productDescription: sale.item_title ?? undefined,
+      uncategorizedText: lines.join(' '),
+      ...(sale.tracking_carrier ? { shippingCarrier: sale.tracking_carrier } : {}),
+      ...(sale.tracking_number ? { shippingTrackingNumber: sale.tracking_number } : {}),
+      ...(sale.shipped_at ? { shippingDate: sale.shipped_at.slice(0, 10) } : {}),
+    },
+  });
+  if (staged.status !== 'STAGED') {
+    await logBackgroundFailure({
+      name: 'webhook.dispute_evidence',
+      errorCode: 'STAGE_FAILED',
+      message: staged.reason ?? 'Dispute evidence could not be staged.',
+      context: { cashSaleId },
+    });
+  }
+}
+
+async function applyChargeDisputePayoutHold(
+  client: AdminClient,
+  params: {
+    disputeRef: string;
+    cashSaleId: string | null;
+    tradeId?: string | null;
+    profileId?: string | null;
+    reason?: string | null;
+    phase: 'OPENED' | 'CLOSED';
+    outcome: string | null;
+  },
+): Promise<void> {
+  try {
+    let cashSaleId = params.cashSaleId;
+    let tradeId = params.tradeId ?? null;
+    let profileId = params.profileId ?? null;
+    if (!cashSaleId || !tradeId || !profileId) {
+      const { data } = await client
+        .from('charge_disputes')
+        .select('cash_sale_id, trade_id, profile_id')
+        .eq('dispute_ref', params.disputeRef)
+        .maybeSingle();
+      const row = data as { cash_sale_id: string | null; trade_id: string | null; profile_id: string | null } | null;
+      cashSaleId = cashSaleId ?? row?.cash_sale_id ?? null;
+      tradeId = tradeId ?? row?.trade_id ?? null;
+      profileId = profileId ?? row?.profile_id ?? null;
+    }
+
+    // ESC-14: the same hold on a trade's money — its cash leg and any payout out of
+    // captured collateral — that a cash sale's payout gets.
+    if (tradeId) {
+      if (params.phase === 'OPENED') {
+        const cash = await client
+          .from('trade_cash_settlements')
+          .update({ hold_reason: 'CHARGE_DISPUTE' })
+          .eq('trade_id', tradeId)
+          .in('status', ['COLLECTED', 'RELEASE_PENDING']);
+        if (cash.error) throw new Error(cash.error.message);
+        const disbursed = await client
+          .from('collateral_disbursements')
+          .update({ hold_reason: 'CHARGE_DISPUTE' })
+          .eq('trade_id', tradeId)
+          .neq('status', 'SETTLED');
+        if (disbursed.error) throw new Error(disbursed.error.message);
+      } else if (params.outcome === 'won' || params.outcome === 'warning_closed') {
+        const cash = await client
+          .from('trade_cash_settlements')
+          .update({ hold_reason: null })
+          .eq('trade_id', tradeId)
+          .eq('hold_reason', 'CHARGE_DISPUTE');
+        if (cash.error) throw new Error(cash.error.message);
+        const disbursed = await client
+          .from('collateral_disbursements')
+          .update({ hold_reason: null })
+          .eq('trade_id', tradeId)
+          .eq('hold_reason', 'CHARGE_DISPUTE');
+        if (disbursed.error) throw new Error(disbursed.error.message);
+      }
+    }
+
+    // ESC-14: a dispute LOST as fraud or non-receipt blocks the paying member's cards
+    // and flags them, so the same card cannot be cycled through a new account.
+    if (
+      params.phase === 'CLOSED' &&
+      params.outcome === 'lost' &&
+      (params.reason === 'fraudulent' || params.reason === 'product_not_received')
+    ) {
+      let payer = profileId;
+      if (!payer && cashSaleId) {
+        const { data } = await client.from('cash_sales').select('buyer_id').eq('id', cashSaleId).maybeSingle();
+        payer = (data as { buyer_id: string } | null)?.buyer_id ?? null;
+      }
+      if (payer) await blockMemberCards(payer, params.disputeRef, params.reason, client);
+    }
+
+    if (!cashSaleId) return;
+    if (params.phase === 'OPENED') {
+      await stageCashSaleDisputeEvidence(client, params.disputeRef, cashSaleId);
+      const { error } = await client
+        .from('cash_sales')
+        .update({ seller_payout_hold_reason: 'CHARGE_DISPUTE' })
+        .eq('id', cashSaleId)
+        .neq('seller_payout_status', 'SETTLED');
+      if (error) throw new Error(error.message);
+    } else if (params.outcome === 'won' || params.outcome === 'warning_closed') {
+      const { error } = await client
+        .from('cash_sales')
+        .update({ seller_payout_hold_reason: null })
+        .eq('id', cashSaleId)
+        .eq('seller_payout_hold_reason', 'CHARGE_DISPUTE');
+      if (error) throw new Error(error.message);
+    }
+  } catch (error) {
+    await logBackgroundFailure({
+      name: 'payout.chargeback_hold',
+      errorCode: 'WRITE_FAILED',
+      error,
+      context: { cashSaleId: params.cashSaleId ?? undefined },
+    });
+  }
+}
 
 /** `code: detail` for an orchestrator failure, which is all the error log needs. */
 function failureDetail(result: { error?: unknown; detail?: unknown }): string {
@@ -64,14 +223,6 @@ function failureDetail(result: { error?: unknown; detail?: unknown }): string {
   return typeof result.detail === 'string' && result.detail ? `${code}: ${result.detail}` : code;
 }
 type WebhookOutcome = Database['cardtrade']['Enums']['webhook_outcome'];
-
-/**
- * Shared secret used to verify MockService webhook signatures. Read from
- * `WEBHOOK_SECRET` with the same local default the emitter
- * (`domain/services/index.ts`) uses, so the signature path works end-to-end in
- * local demos while production supplies a real secret.
- */
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET ?? 'dev-mock-webhook-secret';
 
 /**
  * Constant-time comparison of two hex signature strings. Returns `false` on any
@@ -161,6 +312,36 @@ async function dispatchEvent(
   const action = mapEventToAction(event);
 
   switch (action.kind) {
+    case 'HOLD_STATUS': {
+      // ESC-08: a statement about ONE hold. Reconciled onto that row only when it is
+      // the trader's current attempt; the trade locks only when every trader's current
+      // hold is ACTIVE, through the same rule every other lock path uses, which also
+      // sends the "collateral locked" notification exactly once.
+      const tradeId = action.tradeId ?? (await resolveTradeId(client, event));
+      if (!tradeId) return { outcome: 'NO_OP', tradeId: null };
+      const { data: tradeRow } = await client
+        .from('trades')
+        .select('initiator_id')
+        .eq('id', tradeId)
+        .maybeSingle();
+      const actorId = (tradeRow as { initiator_id: string } | null)?.initiator_id;
+      if (!actorId) return { outcome: 'NO_OP', tradeId };
+      const reconciled = await reconcileTradeHoldStatus({
+        tradeId,
+        holdId: action.holdId,
+        status: action.status,
+        actorId,
+        client,
+      });
+      if (reconciled.kind === 'NO_OP') {
+        return { outcome: 'NO_OP', tradeId, detail: reconciled.reason };
+      }
+      if (reconciled.confirm?.kind === 'FAILED') {
+        return { outcome: 'FAILURE', tradeId, detail: reconciled.confirm.error };
+      }
+      return { outcome: 'SUCCESS', tradeId };
+    }
+
     case 'TRADE_EVENT': {
       const tradeId = await resolveTradeId(client, event);
       if (!tradeId) {
@@ -191,7 +372,7 @@ async function dispatchEvent(
       // active authorisations, and an authorisation belongs to the Stripe account
       // that created it. Through the wrong client the void silently finds nothing and
       // real collateral stays held.
-      const orchestrator = createDefaultTradeOrchestrator({
+      const orchestrator = createLoggedTradeOrchestrator({
         payments: getPaymentService(await regionForTrade(tradeId)),
         runSideEffects: createSupabaseCollateralSideEffects(client),
       });
@@ -201,23 +382,9 @@ async function dispatchEvent(
         actorId,
       });
 
-      // Collateral locking is the trade equivalent of a purchase clearing, and it
-      // emitted nothing (FEAT-002). Notify BOTH traders when this event actually
-      // moved the trade INTO COLLATERAL_LOCKED. Guarded on the resulting state so
-      // an unrelated trade event never notifies, and on the transition itself so a
-      // trade already locked (the synchronous placement path having driven
-      // HOLDS_CONFIRMED inline) is not announced twice: that path reports the
-      // trade already in COLLATERAL_LOCKED, so applyEvent here is a self-loop that
-      // does not re-enter the state. The pipeline's alreadyProcessed guard also
-      // stops a redelivered webhook re-running this. Best-effort, after the
-      // outcome is decided, so a failed notification never makes Stripe retry.
-      if (result.ok && result.trade.state === 'COLLATERAL_LOCKED' && action.tradeEvent === 'HOLDS_CONFIRMED') {
-        const initiatorId = (result.trade as { initiator_id?: string }).initiator_id;
-        const counterpartId = (result.trade as { counterpart_id?: string }).counterpart_id;
-        if (initiatorId && counterpartId) {
-          await notifyTradeCollateralLocked({ initiatorId, counterpartId, tradeId });
-        }
-      }
+      // The "collateral locked" notification moved into `confirmCollateralIfComplete`
+      // (ESC-08): no webhook produces HOLDS_CONFIRMED any more, and every lock path
+      // now announces itself exactly once through that one rule.
 
       // A rejected transition records FAILURE and preserves the current state
       // (Req 10.8); a committed transition records SUCCESS (Req 10.4).
@@ -236,7 +403,13 @@ async function dispatchEvent(
       });
       const result =
         action.kind === 'CASH_SALE_SETTLE'
-          ? await cashSales.settleCashSale({ cashSaleId })
+          ? // ESC-37: bound to the PaymentIntent that cleared and what it collected.
+            // A payload missing either cannot be bound, so it reads as a mismatch.
+            await cashSales.settleCashSale({
+              cashSaleId,
+              paymentRef: event.payload.transferId ?? '',
+              amountReceived: event.payload.amount ?? -1,
+            })
           : await cashSales.failCashSale({ cashSaleId });
 
       // Settlement completing is the purchase going through, so notify both
@@ -259,6 +432,39 @@ async function dispatchEvent(
       return result.ok
         ? { outcome: 'SUCCESS', tradeId: null }
         : { outcome: 'FAILURE', tradeId: null, detail: failureDetail(result) };
+    }
+
+    // ESC-05: the backstop for a trade cash collection. Bound to the recorded intent
+    // AND the amount (the ESC-37 rule), guarded on COLLECTING; the 0139 trigger
+    // refunds it if the trade ended while the payment was in flight.
+    case 'TRADE_CASH_SETTLE': {
+      const tradeId = event.payload.tradeId;
+      const transferId = event.payload.transferId;
+      if (!tradeId || !transferId) return { outcome: 'NO_OP', tradeId: tradeId ?? null };
+      const { data: row, error: readError } = await client
+        .from('trade_cash_settlements')
+        .select('status, collection_ref, amount_minor')
+        .eq('trade_id', tradeId)
+        .maybeSingle();
+      if (readError) {
+        return { outcome: 'FAILURE', tradeId, detail: `trade_cash_settlements read: ${readError.message}` };
+      }
+      const leg = row as { status: string; collection_ref: string | null; amount_minor: number } | null;
+      if (!leg || leg.status !== 'COLLECTING' || leg.collection_ref !== transferId) {
+        return { outcome: 'NO_OP', tradeId };
+      }
+      if (Number(leg.amount_minor) !== Number(event.payload.amount ?? -1)) {
+        return { outcome: 'FAILURE', tradeId, detail: 'SETTLEMENT_MISMATCH: trade cash amount' };
+      }
+      const { error } = await client
+        .from('trade_cash_settlements')
+        .update({ status: 'COLLECTED', collected_at: new Date().toISOString() })
+        .eq('trade_id', tradeId)
+        .eq('status', 'COLLECTING')
+        .eq('collection_ref', transferId);
+      return error
+        ? { outcome: 'FAILURE', tradeId, detail: `trade_cash_settlements update: ${error.message}` }
+        : { outcome: 'SUCCESS', tradeId };
     }
 
     case 'CASH_SALE_REFUND_FAILED': {
@@ -416,12 +622,86 @@ async function dispatchEvent(
         // Only a closed dispute carries a terminal outcome.
         p_outcome: action.phase === 'CLOSED' ? (event.payload.disputeOutcome ?? 'other') : null,
       });
+      if (!error) {
+        // ESC-14: a chargeback used to be recorded and nothing else — the seller was
+        // still paid on the next drain, and the platform (losses_collector) ate both.
+        // An OPEN dispute now holds an unreleased payout; a WON one clears that hold.
+        // A payout that already left is staff's to recover (it shows in arbitration).
+        await applyChargeDisputePayoutHold(admin, {
+          disputeRef,
+          cashSaleId: event.payload.cashSaleId ?? null,
+          tradeId: event.payload.tradeId ?? null,
+          profileId: event.payload.profileId ?? null,
+          reason: event.payload.reason ?? null,
+          phase: action.phase,
+          outcome: event.payload.disputeOutcome ?? null,
+        });
+      }
 
       return {
         outcome: error ? 'FAILURE' : 'SUCCESS',
         tradeId: event.payload.tradeId ?? null,
         ...(error ? { detail: `record_charge_dispute: ${error.message}` } : {}),
       };
+    }
+
+    // ESC-14: an early fraud warning. Located by PaymentIntent: a cash sale's
+    // collection (refunded before shipment, held after), a trade cash leg (held), or
+    // a captured collateral hold (its disbursements held).
+    case 'FRAUD_WARNING': {
+      const paymentRef = event.payload.paymentRef;
+      if (!paymentRef) return { outcome: 'NO_OP', tradeId: null };
+
+      const { data: sale } = await client
+        .from('cash_sales')
+        .select('id')
+        .eq('transfer_id', paymentRef)
+        .maybeSingle();
+      if (sale) {
+        const cashSaleId = (sale as { id: string }).id;
+        const cashSales = createDefaultCashSaleOrchestrator({
+          payments: getPaymentService(await regionForCashSale(cashSaleId)),
+        });
+        const outcome = await cashSales.refundOnFraudWarning({ cashSaleId });
+        return outcome === 'REFUND_FAILED'
+          ? { outcome: 'FAILURE', tradeId: null, detail: 'fraud-warning refund failed; payout held' }
+          : { outcome: outcome === 'NOT_APPLICABLE' ? 'NO_OP' : 'SUCCESS', tradeId: null };
+      }
+
+      const { data: leg } = await client
+        .from('trade_cash_settlements')
+        .select('trade_id')
+        .eq('collection_ref', paymentRef)
+        .maybeSingle();
+      if (leg) {
+        const tradeId = (leg as { trade_id: string }).trade_id;
+        const { error } = await client
+          .from('trade_cash_settlements')
+          .update({ hold_reason: 'FRAUD_WARNING' })
+          .eq('trade_id', tradeId)
+          .in('status', ['COLLECTING', 'COLLECTED', 'RELEASE_PENDING']);
+        return error
+          ? { outcome: 'FAILURE', tradeId, detail: `trade cash hold: ${error.message}` }
+          : { outcome: 'SUCCESS', tradeId };
+      }
+
+      const { data: hold } = await client
+        .from('pre_auth_holds')
+        .select('trade_id')
+        .eq('hold_ref', paymentRef)
+        .maybeSingle();
+      if (hold) {
+        const tradeId = (hold as { trade_id: string }).trade_id;
+        const { error } = await client
+          .from('collateral_disbursements')
+          .update({ hold_reason: 'FRAUD_WARNING' })
+          .eq('hold_ref', paymentRef)
+          .neq('status', 'SETTLED');
+        return error
+          ? { outcome: 'FAILURE', tradeId, detail: `collateral hold: ${error.message}` }
+          : { outcome: 'SUCCESS', tradeId };
+      }
+      return { outcome: 'NO_OP', tradeId: null };
     }
 
     case 'NO_OP':
@@ -473,7 +753,14 @@ function authenticate(
     const client = createStripeClient();
     let event: Stripe.Event | null = null;
     for (const secret of secrets) {
-      event = verifyStripeSignature({ client, rawBody, header: stripeSignature, secret });
+      event = verifyStripeSignature({
+        client,
+        rawBody,
+        header: stripeSignature,
+        secret,
+        // ESC-39: the configured window is honoured, bounded to 1-600 seconds.
+        toleranceSeconds: webhookToleranceSeconds(process.env.STRIPE_WEBHOOK_TOLERANCE_SECONDS),
+      });
       if (event) break;
     }
     if (!event) {
@@ -487,17 +774,19 @@ function authenticate(
   }
 
   // --- MockService delivery ------------------------------------------------
-  // Reject mock-signed envelopes when a real provider is active so demo buttons
-  // cannot advance real money flows without a provider signature.
-  if (isLivePaymentsProvider()) {
+  // ESC-16: accepted ONLY while the mock is the active provider AND a WEBHOOK_SECRET
+  // is configured. The old default secret was committed to the repo, so with it any
+  // caller could sign a delivery whenever this path was reachable — including a
+  // production deployment that had silently fallen back to the mock.
+  if (!acceptsMockWebhooks()) {
     return NextResponse.json(
-      { ok: false, error: 'mock webhooks disabled while a real provider is active' },
+      { ok: false, error: 'mock webhooks are disabled' },
       { status: 401 },
     );
   }
 
   const providedSignature = headers.get(MOCK_SIGNATURE_HEADER);
-  const expectedSignature = signWebhookBody(rawBody, WEBHOOK_SECRET);
+  const expectedSignature = signWebhookBody(rawBody, (process.env.WEBHOOK_SECRET ?? '').trim());
   if (!providedSignature || !signaturesMatch(expectedSignature, providedSignature)) {
     return NextResponse.json({ ok: false, error: 'invalid signature' }, { status: 401 });
   }

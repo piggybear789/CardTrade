@@ -27,6 +27,9 @@ import { withActionLog } from '@/lib/errors/withActionLog';
 import { createClient } from '@/lib/supabase/server';
 import { isPaymentDemoEnabled } from '@/domain/services';
 import { MockService } from '@/domain/services/mock/MockService';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
+import { demoHoldEvents } from '@/lib/trades/demoHoldEvents';
 import {
   MOCK_EVENT_ID_HEADER,
   MOCK_SIGNATURE_HEADER,
@@ -45,8 +48,10 @@ import type {
  * shipping/receipt/acceptance/dispute/fraud are real user actions in the
  * ActionBar, so the panel only simulates the PAYMENT/COLLATERAL webhooks Stripe
  * would otherwise send.
- *   - `confirm-holds` -> `hold.active`  -> HOLDS_CONFIRMED (Req 5.5)
- *   - `fail-holds`    -> `hold.failed`  -> HOLDS_FAILED    (Req 5.6)
+ *   - `confirm-holds` -> `hold.active` (per trader, current holdRef) -> HOLD_STATUS
+ *                        -> confirmCollateralIfComplete (Req 5.5, ESC-08)
+ *   - `fail-holds`    -> `hold.failed` (per trader, current holdRef) -> HOLD_STATUS
+ *                        -> HOLDS_FAILED (Req 5.6)
  */
 export type DemoWebhookKind = 'confirm-holds' | 'fail-holds';
 
@@ -67,11 +72,7 @@ export type FireTradeWebhookResult =
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/** The webhook event type each demo control maps to. */
-const EVENT_TYPE_BY_KIND: Record<DemoWebhookKind, WebhookEventType> = {
-  'confirm-holds': 'hold.active',
-  'fail-holds': 'hold.failed',
-};
+
 
 /**
  * Webhook wiring, read with the same local defaults the emitter
@@ -83,7 +84,8 @@ function readWebhookConfig(): { webhookUrl: string; secret: string } {
   return {
     webhookUrl:
       process.env.WEBHOOK_URL ?? 'http://localhost:3000/api/webhooks/stripe',
-    secret: process.env.WEBHOOK_SECRET ?? 'dev-mock-webhook-secret',
+    // No default (ESC-16): unset, deliveries are refused by the pipeline.
+    secret: (process.env.WEBHOOK_SECRET ?? '').trim(),
   };
 }
 
@@ -96,7 +98,10 @@ function readWebhookConfig(): { webhookUrl: string; secret: string } {
  */
 async function requireParticipant(
   tradeId: string,
-): Promise<{ ok: true } | { ok: false; error: 'unauthenticated' | 'not-participant' }> {
+): Promise<
+  | { ok: true }
+  | { ok: false; error: 'unauthenticated' | 'not-participant' }
+> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -152,21 +157,49 @@ export const fireTradeWebhook = withActionLog('demo.fireTradeWebhook', async fun
 
   const { webhookUrl, secret } = readWebhookConfig();
 
-  const event: WebhookEvent = {
-    // Stable per (trade, kind) -> idempotent re-fires (Req 10.5).
-    eventId: `evt_demo_${kind}_${tradeId}`,
-    type: EVENT_TYPE_BY_KIND[kind],
-    occurredAt: new Date().toISOString(),
-    payload: {
-      tradeId,
-      status: kind === 'confirm-holds' ? 'ACTIVE' : 'FAILED',
-      ...(kind === 'fail-holds' ? { reason: 'Simulated pre-auth hold failure' } : {}),
-    },
-  };
+  // One event per trader, each naming that trader's CURRENT hold (ESC-08). A
+  // status-only event would be an unroutable NO_OP now that a hold event is a
+  // statement about one row rather than a trade event.
+  const admin = createAdminClient();
+  const { data: parties } = await admin
+    .from('trades')
+    .select('initiator_id, counterpart_id')
+    .eq('id', tradeId)
+    .maybeSingle();
+  const holds = await createSupabaseTradeProposalRepository(admin).getHolds(tradeId);
+  const events = demoHoldEvents({
+    tradeId,
+    kind,
+    traderIds: parties ? [parties.initiator_id as string, parties.counterpart_id as string] : [],
+    holds,
+  });
+  if (events.length === 0) {
+    return { ok: false, error: 'rejected', detail: 'No collateral hold has been placed on this trade yet.' };
+  }
 
   // Reuse the MockService signing contract to produce the exact signed body +
   // header values the handler recomputes and verifies.
   const mock = new MockService({ webhookUrl, secret });
+  let outcome = 'SUCCESS';
+  let deduped = true;
+  for (const event of events) {
+    const delivered = await deliverDemoEvent(mock, webhookUrl, event);
+    if (!delivered.ok) return delivered;
+    outcome = delivered.outcome;
+    deduped = deduped && delivered.deduped;
+  }
+  return { ok: true, kind, outcome, deduped };
+});
+
+/** Sign and POST one simulated event; map the handler's answer to a result. */
+async function deliverDemoEvent(
+  mock: MockService,
+  webhookUrl: string,
+  event: WebhookEvent,
+): Promise<
+  | { ok: true; outcome: string; deduped: boolean }
+  | { ok: false; error: FireTradeWebhookError; detail?: string }
+> {
   const envelope = mock.buildEnvelope(event);
 
   let response: Response;
@@ -207,13 +240,8 @@ export const fireTradeWebhook = withActionLog('demo.fireTradeWebhook', async fun
     return { ok: false, error: 'rejected', detail: 'The trade could not accept this event in its current state.' };
   }
 
-  return {
-    ok: true,
-    kind,
-    outcome: body?.outcome ?? 'SUCCESS',
-    deduped: body?.deduped === true,
-  };
-});
+  return { ok: true, outcome: body?.outcome ?? 'SUCCESS', deduped: body?.deduped === true };
+}
 
 // ---------------------------------------------------------------------------
 // Cash Sale — simulated payment settlement / failure
@@ -250,7 +278,10 @@ const CASH_SALE_EVENT_TYPE_BY_KIND: Record<DemoCashSaleWebhookKind, WebhookEvent
  */
 async function requireCashSaleParticipant(
   cashSaleId: string,
-): Promise<{ ok: true } | { ok: false; error: 'unauthenticated' | 'not-participant' }> {
+): Promise<
+  | { ok: true; transferId: string | null; amountCents: number }
+  | { ok: false; error: 'unauthenticated' | 'not-participant' }
+> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -259,14 +290,14 @@ async function requireCashSaleParticipant(
 
   const { data: sale } = await supabase
     .from('cash_sales')
-    .select('id, buyer_id, seller_id')
+    .select('id, buyer_id, seller_id, transfer_id, amount_cents')
     .eq('id', cashSaleId)
     .maybeSingle();
   if (!sale) return { ok: false, error: 'not-participant' };
   if (sale.buyer_id !== user.id && sale.seller_id !== user.id) {
     return { ok: false, error: 'not-participant' };
   }
-  return { ok: true };
+  return { ok: true, transferId: sale.transfer_id, amountCents: sale.amount_cents };
 }
 
 /**
@@ -300,6 +331,10 @@ export const fireCashSaleWebhook = withActionLog('demo.fireCashSaleWebhook', asy
     occurredAt: new Date().toISOString(),
     payload: {
       cashSaleId,
+      // ESC-37: a settlement is bound to the sale's own collection, so the demo
+      // reports the recorded PaymentIntent and the contract amount.
+      ...(guard.transferId ? { transferId: guard.transferId } : {}),
+      amount: guard.amountCents,
       status: kind === 'settle-payment' ? 'SETTLED' : 'FAILED',
       ...(kind === 'fail-payment' ? { reason: 'Simulated payment failure' } : {}),
     },

@@ -57,9 +57,36 @@ export type TradeEvent =
   | 'HANDOVER_FAILED' // the exchange did not happen; freeze WITHOUT capturing
   | 'BOTH_ACCEPTED' // both traders accepted what they received
   | 'INSPECTION_EXPIRED' // the inspection window closed untouched
-  | 'CONDITION_DISPUTE' // Req 7.1
-  | 'DISPUTE_RESOLVED' // disputed item returned (Req 7.5)
-  | 'FRAUD_CONFIRMED'; // Req 8.1
+  | 'CONDITION_DISPUTE' // Req 7.1 — captures nothing (ESC-01)
+  | 'DISPUTE_RESOLVED' // staff resolved the dispute; the outcome rides in the parameters
+  | 'FRAUD_CONFIRMED' // Req 8.1 — a staff finding, never a member claim
+  /**
+   * A MEMBER's fraud claim (ESC-01, ESC-04). Freezes the trade for review and captures
+   * nothing; only a staff `FRAUD_CONFIRMED` moves money. Allowed from COLLATERAL_LOCKED
+   * as well as INSPECTION, because a fake handed over at the meeting is reported before
+   * anyone confirms a handover.
+   */
+  | 'FRAUD_CLAIMED'
+  /** A COLLATERAL_PENDING trade that could not be locked before the meeting ends here. */
+  | 'COLLATERAL_ABANDONED'
+  /**
+   * Staff outcome NO_EXCHANGE: the handover never happened, so the trade is undone
+   * rather than completed. Valid only on a trade that never reached INSPECTION — an
+   * orchestrator guard, because the transition table cannot see history.
+   */
+  | 'DISPUTE_UNWOUND';
+
+/**
+ * Audit-only codes written to `trade_state_transitions` as SELF-LOOP rows
+ * (`from_state = to_state`). Not transitions: they are not in {@link TradeEvent}, not
+ * in the transition table and not in the Dart vocabulary.
+ *
+ * The code itself is member-visible (the table is participant-readable and the chat
+ * mirror copies it), so it never carries a reason a party must not see (§1.13). A
+ * custody capture writes the same neutral code whether it was the expiry backstop or a
+ * pending fraud finding.
+ */
+export type TradeAuditEvent = 'COLLATERAL_TAKEN_INTO_CUSTODY';
 
 /**
  * States from which no further transition is permitted (Req 9.1).

@@ -65,6 +65,8 @@ export const metadata = {
 const PRIORITY_REASON_LABEL: Record<PriorityReason, string> = {
   EVIDENCE_DEADLINE:
     'Top of the queue: the evidence deadline is close, and once it passes the money is forfeited automatically.',
+  HOLD_EXPIRING:
+    'Top of the queue: a card hold behind this trade lapses within two days, and after that there is nothing to capture.',
   FRAUD_ALLEGED:
     'Raised: fraud is alleged, and the collateral behind the remedy expires in about a week.',
   PAST_SLA: `Raised: nobody has answered this in ${ARBITRATION_SLA_HOURS} hours.`,

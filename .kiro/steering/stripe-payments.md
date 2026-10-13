@@ -51,11 +51,35 @@ trader's account — Stripe exposes the primitives directly:
 `placeHold` moves NO funds. Verify with `scripts/smoke-stripe-test.ts`, which
 asserts `amount_received === 0` on an active hold.
 
-**Authorisations expire.** Online card auths last about 7 days. Every hold reports
-`expiresAt`, read from the charge's `capture_before`. After it passes, the
-provider releases the funds itself and `voidHold` / `partialCapture` will fail.
-A Trade must resolve inside that window, or the collateral must be re-authorised
-before it. Do not treat `expiresAt` as advisory.
+**Authorisations expire, and the budget is 114 hours, not 7 days (ESC-17a).** A
+merchant-initiated (off-session) card auth lasts about 4 days 18 hours on the shortest
+common brand. Every hold reports `expiresAt`, read from the charge's `capture_before`;
+the fallback with no `capture_before` is `created + CARD_AUTHORISATION_HOURS` (114).
+The trade clock is planned inside it: placement lead 24h + inspection 72h + margin
+18h = 114h, pinned by `tests/unit/tradeClockAgreement.test.ts`. `readHoldExpiry` re-reads
+the provider's real expiry for rows still carrying the old 7-day estimate
+(`expires_at_estimated`, 0133). There is no re-authorisation: a DISPUTED trade's hold is
+captured into custody before it lapses instead (see product.md). Do not treat
+`expiresAt` as advisory.
+
+**Single capture (ESC-01/07).** An authorisation is captured at most once: a partial
+capture makes Stripe release the remainder, and a second capture fails. `fullCapture`
+and `partialCapture` retrieve the intent first and return FAILED unless it is
+`requires_capture`. `InMemoryService` and `MockService` model this exactly, with bounded
+refunds, so a test cannot pass on a capture real Stripe would refuse. Every capture
+targets `currentLiveHold` (`domain/bond/currentHolds.ts`), never "the first hold row".
+
+**Hold events no longer drive transitions (ESC-08).** `hold.active` / `hold.failed`
+map to `HOLD_STATUS`, a statement about ONE hold. The trade locks only through
+`confirmCollateralIfComplete` (`domain/orchestrator/collateralReconcile.ts`), when
+EVERY trader's current hold is ACTIVE; it sends the "collateral locked" notification
+exactly once.
+
+**Fail closed (ESC-16).** In production, a missing Stripe key resolves to
+`unconfigured` and `getPaymentService` throws `PaymentsUnconfiguredError`; the mock
+needs `PAYMENTS_PROVIDER=mock` AND `ALLOW_MOCK_PAYMENTS_IN_PRODUCTION=true`. There is no
+default `WEBHOOK_SECRET`; mock-signed webhooks are accepted only while the mock is the
+active provider and a secret is set (`acceptsMockWebhooks`).
 
 Holds, captures and transfers report failure through their `status` field rather
 than throwing, so the compensating logic (Req 4.4, 5.6, 7.6, 8.6) still runs.
@@ -92,6 +116,35 @@ Every write in `StripeService` carries an explicit `idempotencyKey`:
 
 The SDK is configured with `maxNetworkRetries: 2`, which is safe precisely
 because every write is keyed.
+
+A collection the payer can RETRY gets one key per ATTEMPT, never one per contract:
+cash sales use `cash-sale:<id>:terms:<v>:attempt:<n>` (`cash_sales.payment_attempt`,
+0138) and trade cash uses `trade-cash:collect:<tradeId>:<n>`. A fixed key made a
+re-pay after an abandoned 3-D Secure check replay Stripe's cached, cancelled intent.
+A crash-retry of the SAME attempt still reuses its persisted nonce.
+
+## Buyer-present collection (ESC-03, ESC-05)
+
+Money a member PAYS (a cash sale, a trade's cash leg) is collected with the payer
+present: `requestTransfer({ presence: { kind: 'BUYER_PRESENT', threeDS } })` omits
+`off_session`, sets `payment_method_options.card.request_three_d_secure` from
+`domain/payments/scaPolicy.ts`, and passes `use_stripe_sdk` so the browser's
+`stripe.handleNextAction` can run the check in place. `requires_action` comes back as
+`REQUIRES_ACTION` with the client secret (never persisted or logged); the room runs the
+check and then a read-back action (`confirmCashSalePayment`, `confirmTradeCashPayment`)
+decides through `readCollection`. A secret is re-read from Stripe for "Complete
+payment", so a reload or a second device can finish it. Off-session is for collateral
+holds and the Trade_Fee only.
+
+`cancelCollection` treats a refusal on a succeeded intent as `ALREADY_SETTLED`. The
+`:47` job cancels a check left unfinished for 30 minutes (cash sale back to AGREEMENT,
+trade cash back to NOT_COLLECTED) or settles it if it finished meanwhile.
+
+Settlement is BOUND to the sale's own collection (ESC-37): `settleCashSale` requires the
+webhook's PaymentIntent to be the recorded `transfer_id` and its `amount_received` to be
+the contract amount, else `SETTLEMENT_MISMATCH` (unexpected). `translateStripeEvent`
+drops `payment_intent.*`, `charge.*` and `identity.*` events carrying `event.account`:
+those happened inside a member's own connected account.
 
 ## Webhooks
 
@@ -228,6 +281,41 @@ Separate charges and transfers, not destination charges. Required because the
 platform must hold funds before release AND, on Objective_Fraud, pay captured
 collateral to the VICTIM rather than to whoever paid (Req 8.3).
 
+**Every release goes through `domain/payouts/releasePolicy.ts`** (ESC-03, ESC-14): a
+new seller's cash-sale proceeds and trade cash wait out the holdback from collection,
+an open chargeback or early fraud warning holds them outright, and a deferral spends no
+attempt. A chargeback OPENED holds an unreleased payout (cash sale, trade cash leg,
+collateral disbursement) and stages evidence with `submitDisputeEvidence({ submit:
+false })`; WON clears the hold; LOST as `fraudulent` / `product_not_received` blocks the
+payer's saved cards (`blocked_payment_fingerprints`, 0140). An early fraud warning
+(`radar.early_fraud_warning.created`, subscribe the platform endpoint to it) refunds a
+sale that has not shipped and holds one that has. A payout that already left is only
+ever clawed back by staff (`reverseCashSalePayout`), never automatically.
+
+**Trade cash is held, not forwarded** (ESC-05/06, `trade_cash_settlements`, 0139): the
+payer pays buyer-present before any collateral hold, the platform holds it, completion
+queues a release that the `:47` drain pays with `payoutToMerchant(sourcePaymentRef)`,
+and every outcome routes it (NO_EXCHANGE and abandon refund; FRAUD goes to the wronged
+side). `PAYOUT_MODE` plays no part. `settleTradeCash` survives only for trades agreed
+before the switch (no settlement row).
+
+**Off-session means holds and the Trade_Fee, nothing else** (ESC-29). Every binding
+refuses `requestTransfer` with a `merchantRef` and no `presence` before any API call;
+the only exception is `legacyOffSessionToMember`, set by `settleTradeCash` alone (a
+source-scan test pins that). The Trade_Fee is charged after the holds and is a LOCK
+PRECONDITION: a decline is handled as that trader's hold failure, and every fee
+attempt has its own key (`tradefee:<trade>:<trader>:<n>`).
+
+**Orphan authorisations** (ESC-34): `listUncapturedHolds` (Stripe Search on
+`requires_capture` plus the HOLD metadata kind) feeds a daily 03 UTC sweep in the `:17`
+job that voids provider holds with no ACTIVE `pre_auth_holds` row. A region whose search
+fails is skipped and logged; a failed row read is never read as "nothing live". Every
+`voidHold` result is honoured: a non-VOIDED void keeps the row and flags the trade.
+
+**Inspection never outlives collateral** (ESC-17b): the inspection deadline is clamped to
+the earliest live hold expiry minus `collateral_margin_hours()`, and the clamp beats the
+24-hour floor (0142, mirrored in `deriveTradeInspectionDeadline`).
+
 **Do not "improve" this by moving to destination charges with delayed payouts.**
 This has been proposed and rejected twice, and the second time only after checking
 Stripe's own documentation, so here is the reasoning in full:
@@ -320,6 +408,30 @@ the hosted flow will not wait for a delayed delivery before deciding the app is 
 
 `createIdentityCheck` throws rather than returning a status, matching `createPayer`, so a
 provider failure leaves verification state untouched (Req 2.6).
+
+**Person keys need the restricted Identity key** (ESC-15). The fraud blocklist matches a
+banned PERSON by HMAC keys built from the document. Stripe returns a session's document
+number and date of birth only to a restricted key with Identity "read verification
+results", only when expanded explicitly (`IDENTITY_SENSITIVE_EXPANDS`, including
+`last_verification_report.document.number`), and only for 48 hours. Read with the normal
+secret key they are null and the keys were silently empty. Set
+`STRIPE_IDENTITY_RESTRICTED_KEY[_<REGION>]`; without it verification still proceeds, but
+`PERSON_KEYS_UNAVAILABLE` is logged and `identity_keys_missing_at` is set for the `:17`
+backfill. Keys are `doc:<issuingCountry>:<number>` and `namedob:<family>:<firstGiven>:<dob>`,
+never the address country.
+
+**One person, one live account** (ESC-24): a VERIFIED session whose person key belongs to
+another live account is held PENDING with `identity_duplicate_of` for staff
+(`resolveDuplicateIdentity`; approve only once the older account is closed).
+
+**The payee is the verified person** (ESC-25): every payout read-back compares the Connect
+account's individual name with the Identity name (`domain/identity/payeeNameMatch.ts`). A
+mismatch sets `payee_identity_mismatch_at` and `canReceiveFunds` turns false; staff clear a
+legitimate short form with `clearPayeeMismatch` (an HMAC of the name pair, never the
+names). An unexposed payee name is logged once and never flags. The disclosure falls back
+to `merchant_legal_entity_name` ONLY for members 0069 grandfathered
+(`identity_grandfathered_at`), through `disclosedLegalName` in both places that disclose a
+name.
 
 Verified identity data is sensitive: server-only, never logged, never returned to a client
 component. The disclosure is a name and nothing else — never document numbers, address, or

@@ -102,9 +102,12 @@ import {
 } from '@/components/fulfilment';
 import { asFulfilmentTrackingState } from '@/domain/fulfilment';
 import type { CashSaleDeliveryAddress } from './types';
+import { completePaymentChallenge } from './paymentChallenge';
 import {
   acceptCashSaleInspection,
   acceptCashSaleTerms,
+  confirmCashSalePayment,
+  getCashSalePaymentAction,
   updateCashSaleTerms,
   cancelCashSaleAgreement,
   confirmCashSaleHandover,
@@ -481,6 +484,19 @@ function CashSaleRoom({
   const [confirming, setConfirming] = useState<
     'cancel' | 'dispute' | 'pay' | 'receive' | 'handover' | null
   >(null);
+  // ESC-31: the terms version and total the Pay dialog showed when it opened. A
+  // Realtime change underneath it closes the dialog rather than charging a figure the
+  // buyer never saw; the server refuses a mismatch too.
+  const paySnapshot = useRef<{ termsVersion: number; amountCents: number } | null>(null);
+  useEffect(() => {
+    const shown = paySnapshot.current;
+    if (confirming !== 'pay' || !shown) return;
+    if (shown.termsVersion !== sale.terms_version || shown.amountCents !== sale.amount_cents) {
+      paySnapshot.current = null;
+      setConfirming(null);
+      toast.error('The seller changed the terms. Review them before paying.');
+    }
+  }, [confirming, sale.terms_version, sale.amount_cents]);
   // Which method the selector picked while its required details are still missing.
   const [detailsFor, setDetailsFor] = useState<'DELIVERY' | 'IN_PERSON' | null>(
     null,
@@ -894,6 +910,15 @@ function CashSaleRoom({
                   note={
                     verificationNote ??
                     shipByNote ??
+                    // ESC-02: tracking that cannot be this sale's parcel as recorded.
+                    // No inspection clock runs until support confirms it.
+                    (sale.status === 'IN_TRANSIT' && sale.tracking_flagged_at && !sale.tracking_flag_resolved_at ? (
+                      iAmBuyer ? (
+                        <>The seller&apos;s tracking shows delivered. Support is checking it, and you can report a problem from here.</>
+                      ) : (
+                        <>Your tracking shows this parcel was already delivered, so support will confirm the delivery before the buyer&apos;s inspection starts.</>
+                      )
+                    ) : undefined) ??
                     (sale.tracking_number && sale.status === 'IN_TRANSIT' ? (
                       <>
                         {sale.tracking_carrier} · {sale.tracking_number}
@@ -998,7 +1023,14 @@ function CashSaleRoom({
                           size="sm"
                           disabled={isPending || !deliveryReady || payBlocked}
                           aria-busy={busy('accept')}
-                          onClick={() => setConfirming('pay')}
+                          onClick={() => {
+                            // ESC-31: freeze what the buyer is shown.
+                            paySnapshot.current = {
+                              termsVersion: sale.terms_version,
+                              amountCents: sale.amount_cents,
+                            };
+                            setConfirming('pay');
+                          }}
                         >
                           <PendingLabel pending={busy('accept')}>
                             Accept terms and pay
@@ -1030,6 +1062,32 @@ function CashSaleRoom({
                       onClick={() => setShipOpen(true)}
                     >
                       Add tracking
+                    </Button>
+                  ) : null}
+
+                  {/* ESC-03: a bank check is outstanding. The secret is read back from
+                      the provider each time, so this works after a reload or on
+                      another device, and does nothing once the check is finished. */}
+                  {sale.status === 'PAYMENT_PENDING' && iAmBuyer && sale.transfer_id ? (
+                    <Button
+                      type="button"
+                      variant="action"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() =>
+                        run('complete-payment', async () => {
+                          const action = await getCashSalePaymentAction(sale.id);
+                          if (action.ok && action.clientSecret) {
+                            return completePaymentChallenge(sale.id, {
+                              clientSecret: action.clientSecret,
+                              ...(action.publishableKey ? { publishableKey: action.publishableKey } : {}),
+                            });
+                          }
+                          return confirmCashSalePayment(sale.id);
+                        })
+                      }
+                    >
+                      {busy('complete-payment') ? 'Checking…' : 'Complete payment'}
                     </Button>
                   ) : null}
 
@@ -1561,6 +1619,8 @@ function CashSaleRoom({
                 returnDisputedAt={sale.return_disputed_at}
                 returnDisputeReason={sale.return_dispute_reason}
                 returnLapsedAt={sale.return_lapsed_at}
+                returnCarrierDeliveredAt={sale.return_carrier_delivered_at}
+                returnInspectionDeadlineAt={sale.return_inspection_deadline_at ?? null}
                 counterpartyName={them.name}
               />
             </ContractDetailRow>
@@ -1663,9 +1723,24 @@ function CashSaleRoom({
         onConfirm={() => {
           setConfirming(null);
           setConfirmedSeller(false);
-          run('accept', () =>
-            acceptCashSaleTerms(sale.id, sale.terms_version, pendingSellerIdentity?.version),
-          );
+          run('accept', async () => {
+            // ESC-31: pay exactly what the dialog showed, on the version it showed.
+            const shown = paySnapshot.current ?? {
+              termsVersion: sale.terms_version,
+              amountCents: sale.amount_cents,
+            };
+            const paid = await acceptCashSaleTerms(
+              sale.id,
+              shown.termsVersion,
+              pendingSellerIdentity?.version,
+              shown.amountCents,
+            );
+            // ESC-03: the bank asked to check the payment. Run it in place, then
+            // read the payment back; the server read decides the outcome.
+            return paid.ok && paid.nextAction
+              ? completePaymentChallenge(sale.id, paid.nextAction)
+              : paid;
+          });
         }}
       >
         {pendingSellerIdentity ? (
@@ -1738,8 +1813,8 @@ function CashSaleRoom({
         title="Confirm the handover happened?"
         description={
           theirHandoverConfirmed
-            ? `${them.name} has already confirmed. Your confirmation completes the sale and pays the seller. Only confirm if you met and the item actually changed hands.`
-            : 'Only confirm if you met and the item actually changed hands. The sale completes and the seller is paid when you both confirm — one confirmation is not enough.'
+            ? `${them.name} has already confirmed. Your confirmation starts a 24-hour window for the buyer to raise a problem, after which the seller is paid. Only confirm if you met and the item actually changed hands.`
+            : 'Only confirm if you met and the item actually changed hands. When you both confirm, the buyer has 24 hours to raise a problem before the seller is paid — one confirmation is not enough.'
         }
         confirmLabel={
           iAmBuyer ? 'We met and I have the item' : 'We met and I handed it over'

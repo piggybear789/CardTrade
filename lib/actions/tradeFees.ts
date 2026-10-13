@@ -41,10 +41,11 @@ export interface TradeFeeOutcome {
 /**
  * Charge both traders their fee for an agreed trade.
  *
- * Never throws and never blocks the trade. A fee that fails is recorded FAILED for
- * the drain job to retry: refusing to let an agreed exchange proceed because the
- * platform could not take its cut would punish the traders for our collection
- * problem, and the goods are the point of the contract.
+ * Never throws. Since ESC-29 the fee IS a lock precondition: placement charges it
+ * after the holds, and a trade does not lock until every trader's fee is SETTLED
+ * (`areFeesSettled` in `lib/trades/collateralLock.ts`). A declined fee is handled as
+ * that trader's hold failure, so they can switch card and retry; letting a trade lock
+ * with its fee unpaid left the platform carrying the exchange for nothing.
  */
 export async function chargeTradeFees(params: {
   tradeId: string;
@@ -80,7 +81,27 @@ export async function chargeTradeFees(params: {
   let anyFailed = false;
 
   for (const entry of owed) {
-    const nonce = feeNonce(params.tradeId, entry.traderId);
+    // ESC-29: one key per ATTEMPT. A retry after a decline under the same key would
+    // replay Stripe's cached decline for 24 hours however good the new card is. An
+    // already SETTLED fee is never charged again; a PENDING one (an ambiguous result)
+    // keeps its key so a lost success is replayed, not doubled.
+    const { data: existing } = await admin
+      .from('trade_fees')
+      .select('status, nonce, attempts, amount_cents')
+      .eq('trade_id', params.tradeId)
+      .eq('trader_id', entry.traderId)
+      .maybeSingle();
+    const prior = existing as { status: TradeFeeStatus; nonce: string; attempts: number; amount_cents: number } | null;
+    if (prior?.status === 'SETTLED') {
+      collectedCents += Number(prior.amount_cents ?? 0);
+      continue;
+    }
+    const nonce =
+      prior?.status === 'PENDING'
+        ? prior.nonce
+        : prior
+          ? `${feeNonce(params.tradeId, entry.traderId)}:${Number(prior.attempts ?? 0) + 1}`
+          : feeNonce(params.tradeId, entry.traderId);
 
     // Idempotent by construction: the primary key is (trade_id, trader_id), so a
     // replay updates the amount rather than inserting a second obligation.
@@ -345,6 +366,29 @@ export async function drainFailedTradeFees(
         continue;
       }
 
+      // ESC-29: a trade still waiting for collateral retries its fee through placement,
+      // where a decline is a lock failure the trader can fix. The drain only covers
+      // trades that locked before the fee became a precondition.
+      const { data: tradeState } = await admin
+        .from('trades')
+        .select('state')
+        .eq('id', row.trade_id)
+        .maybeSingle();
+      if ((tradeState as { state?: string } | null)?.state === 'COLLATERAL_PENDING') {
+        result.attempted -= 1;
+        continue;
+      }
+
+      // A fresh key per attempt: a decline replayed from the provider's cache for a
+      // day is not a retry.
+      const nonce = `${feeNonce(row.trade_id, row.trader_id)}:${Number(row.attempts ?? 0) + 1}`;
+      await admin
+        .from('trade_fees')
+        .update({ nonce })
+        .eq('trade_id', row.trade_id)
+        .eq('trader_id', row.trader_id)
+        .eq('status', 'FAILED');
+
       const payments = getPaymentService(await regionForTrade(row.trade_id));
       const feeCurrency = await currencyForTrade(row.trade_id);
       const charge = await payments.requestTransfer({
@@ -352,8 +396,7 @@ export async function drainFailedTradeFees(
         amount: row.amount_cents,
         ...(feeCurrency ? { currency: feeCurrency } : {}),
         ref: `tradefee:${row.trade_id}`,
-        // The persisted key, reused exactly.
-        nonce: row.nonce,
+        nonce,
       });
 
       if (charge.status === 'SETTLED') {

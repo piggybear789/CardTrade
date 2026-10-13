@@ -30,14 +30,14 @@ describe('stepForField', () => {
   it.each([
     ['title', 1],
     ['description', 1],
-    ['category', 1],
-    ['condition', 1],
-    ['grader', 1],
-    ['grade', 1],
-    ['certNumber', 1],
+    ['category', 2],
+    ['condition', 2],
+    ['grader', 2],
+    ['grade', 2],
+    ['certNumber', 2],
     ['images', 2],
-    ['fmvCents', 3],
-    ['location', 3],
+    ['fmvCents', 1],
+    ['location', 2],
   ] as const)('%s is on step %i', (field, step) => {
     expect(stepForField(field)).toBe(step);
   });
@@ -60,26 +60,18 @@ describe('itemFormStepProblem, step 1', () => {
     expect(itemFormStepProblem(1, { ...valid, description: '   ', game: '' })?.field).toBe(
       'description',
     );
-    expect(itemFormStepProblem(1, { ...valid, game: '', condition: '' })).toEqual({
+    expect(itemFormStepProblem(2, { ...valid, game: '', condition: '' })).toEqual({
       field: 'category',
       message: 'Select the card game.',
     });
-    expect(itemFormStepProblem(1, { ...valid, condition: '' })?.field).toBe('condition');
-    expect(itemFormStepProblem(1, { ...graded, grader: '', grade: '' })).toEqual({
-      field: 'grader',
-      message: 'Choose who graded the card.',
-    });
-    expect(itemFormStepProblem(1, { ...graded, grade: '' })).toEqual({
-      field: 'grade',
-      message: 'Enter the grade on the label.',
-    });
-    expect(itemFormStepProblem(1, { ...graded, certNumber: '!!' })?.field).toBe('certNumber');
-    expect(itemFormStepProblem(1, graded)).toBeNull();
+    expect(itemFormStepProblem(2, { ...valid, condition: '' })?.field).toBe('condition');
+    // No slab-details question any more: Graded is one condition entry.
+    expect(itemFormStepProblem(2, graded)).toBeNull();
   });
 
   it('asks a binder or bulk listing for no slab details', () => {
     expect(
-      itemFormStepProblem(1, { ...valid, listingKind: 'SHOPFRONT', condition: 'Graded' }),
+      itemFormStepProblem(2, { ...valid, listingKind: 'SHOPFRONT', condition: 'Graded' }),
     ).toBeNull();
   });
 });
@@ -99,13 +91,13 @@ describe('itemFormStepProblem, step 2', () => {
 
 describe('itemFormStepProblem, step 3', () => {
   it('needs a price that parses', () => {
-    expect(itemFormStepProblem(3, { ...valid, fmvDollars: '' })?.field).toBe('fmvCents');
-    expect(itemFormStepProblem(3, { ...valid, fmvDollars: 'abc' })?.field).toBe('fmvCents');
+    expect(itemFormStepProblem(1, { ...valid, fmvDollars: '' })?.field).toBe('fmvCents');
+    expect(itemFormStepProblem(1, { ...valid, fmvDollars: 'abc' })?.field).toBe('fmvCents');
   });
 
   it('needs a place', () => {
-    expect(itemFormStepProblem(3, { ...valid, locationLabel: null })?.field).toBe('location');
-    expect(itemFormStepProblem(3, { ...valid, locationLabel: '  ' })?.field).toBe('location');
+    expect(itemFormStepProblem(2, { ...valid, locationLabel: null })?.field).toBe('location');
+    expect(itemFormStepProblem(2, { ...valid, locationLabel: '  ' })?.field).toBe('location');
   });
 });
 
@@ -116,7 +108,7 @@ describe('firstIncompleteStep', () => {
 
   it('names the first broken step', () => {
     expect(firstIncompleteStep({ ...valid, totalImages: 0 })).toBe(2);
-    expect(firstIncompleteStep({ ...valid, totalImages: 0, game: '' })).toBe(1);
+    expect(firstIncompleteStep({ ...valid, totalImages: 0, fmvDollars: '' })).toBe(1);
   });
 });
 

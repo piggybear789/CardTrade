@@ -369,8 +369,6 @@ function invalidateCatalogCache(): void {
 export const createItem = withActionLog('listings.createItem', async function createItem(
   input: CreateItemInput,
 ): Promise<ListingActionResult<ItemRow>> {
-  const supabase = await createClient();
-
   const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
@@ -492,8 +490,10 @@ export const createItem = withActionLog('listings.createItem', async function cr
     return { ok: false, error: 'validation-error', field: grading.field, message: grading.message };
   }
 
-  // Insert via the cookie-bound client so RLS enforces owner_id = auth.uid().
-  const { data, error } = await supabase
+  // ESC-26: members no longer hold INSERT on items (0136), because a direct PostgREST
+  // insert skipped `readListingGate` above. The gate is the authority; the service
+  // role writes, with the SESSION user as owner — never a value from input.
+  const { data, error } = await admin
     .from('items')
     .insert({
       owner_id: userId,
@@ -542,8 +542,6 @@ export const createItem = withActionLog('listings.createItem', async function cr
 export const createPrivateTradeItem = withActionLog('listings.createPrivateTradeItem', async function createPrivateTradeItem(
   input: CreateItemInput,
 ): Promise<ListingActionResult<ItemRow>> {
-  const supabase = await createClient();
-
   const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
@@ -622,7 +620,11 @@ export const createPrivateTradeItem = withActionLog('listings.createPrivateTrade
     };
   }
 
-  const { data, error } = await supabase
+  // ESC-26: service role (0136). Deliberately UNGATED (product.md: identity is not
+  // asked for to create or join an invite; it is required where money or a hold
+  // moves), so the fields that keep it out of the catalog are forced here and never
+  // read from input: hidden, AVAILABLE, a SINGLE listing, the session owner.
+  const { data, error } = await admin
     .from('items')
     .insert({
       owner_id: userId,
@@ -634,6 +636,7 @@ export const createPrivateTradeItem = withActionLog('listings.createPrivateTrade
       image_paths: validated.value.images,
       image_dims: imageDims,
       status: 'AVAILABLE',
+      listing_kind: 'SINGLE',
       hidden: true,
     })
     .select('*')
@@ -1455,12 +1458,14 @@ export const searchCatalog = withActionLog('listings.searchCatalog', async funct
       );
     }
 
-    // No verified-seller filter. Publishing requires the Identity_Gate, so every
-    // catalog item already has a verified owner and the predicate was a tautology.
-    // `items.seller_identity_verified` is still maintained by the 0041 triggers as the
-    // denormalised gate, ready for a query that needs it; it is simply not a filter, and
-    // the per-card badge reads the seller join rather than the item column. The duplicate
-    // `items.seller_verified` was dropped in 0049.
+    // Verified sellers only (ESC-26). This used to be omitted as a tautology because
+    // "publishing requires the Identity_Gate" — but members could insert items directly
+    // through PostgREST, so it was not. 0136 closed that door; this filter is the
+    // second lock, keeping any row from an unverified owner (including one inserted
+    // before 0136) out of browse. `items.seller_identity_verified` is the denormalised
+    // gate the 0041 triggers maintain; the duplicate `items.seller_verified` was
+    // dropped in 0049.
+    query = query.eq('seller_identity_verified', true);
 
     // Sorting. `rating` orders by the denormalized `seller_rating` column (kept in
     // sync with each seller's profile rating by DB triggers), so the ordering is

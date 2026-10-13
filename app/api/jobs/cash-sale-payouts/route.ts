@@ -19,8 +19,14 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
+import { createDefaultCollateralDisbursementDrain } from '@/domain/orchestrator/supabaseCollateralDisbursementRepository';
+import { drainTradeCash } from '@/domain/orchestrator/tradeCashSettlement';
+import { createDefaultTradeCashDeps } from '@/domain/orchestrator/supabaseTradeCashSettlementRepository';
 import { getPaymentService, operationalPlatforms } from '@/domain/services';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { regionForCashSale } from '@/lib/regionBinding';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { checkCashSaleReturnLeg } from '@/lib/tracking/refreshOnRead';
 
 /** Payouts must not be prerendered or cached. */
 export const dynamic = 'force-dynamic';
@@ -42,6 +48,39 @@ function bearerToken(request: Request): string | null {
   if (scheme.toLowerCase() !== 'bearer') return null;
   const token = rest.join(' ').trim();
   return token || null;
+}
+
+/** A return not read back from the carrier for this long is re-checked (ESC-30). */
+const RETURN_SYNC_TTL_MINUTES = 6 * 60;
+/** A return still in transit after this many days is surfaced to staff. */
+const STALE_RETURN_DAYS = 14;
+
+/**
+ * Read back every in-flight return the carrier has not been asked about in six hours,
+ * so a missed webhook cannot strand a buyer's refund (ESC-30). Returns the number
+ * checked and the sales that have been in transit for over two weeks.
+ */
+async function syncStaleReturns(): Promise<{ checked: number; stale: string[] }> {
+  const admin = createAdminClient();
+  const before = new Date(Date.now() - RETURN_SYNC_TTL_MINUTES * 60_000).toISOString();
+  const { data, error } = await admin
+    .from('cash_sales')
+    .select('id, return_shipped_at')
+    .eq('status', 'RETURN_IN_TRANSIT')
+    .is('return_carrier_delivered_at', null)
+    .or(`return_tracking_checked_at.is.null,return_tracking_checked_at.lt.${before}`)
+    .limit(100);
+  if (error) throw new Error(`syncStaleReturns: ${error.message}`);
+
+  const staleCutoff = Date.now() - STALE_RETURN_DAYS * 86_400_000;
+  let checked = 0;
+  const stale: string[] = [];
+  for (const row of data ?? []) {
+    if (await checkCashSaleReturnLeg(row.id, { ttlMinutes: RETURN_SYNC_TTL_MINUTES })) checked += 1;
+    const shipped = row.return_shipped_at ? Date.parse(row.return_shipped_at) : NaN;
+    if (Number.isFinite(shipped) && shipped < staleCutoff) stale.push(row.id);
+  }
+  return { checked, stale };
 }
 
 /** Authenticate, run one pass, and report the outcome. Shared by GET and POST. */
@@ -79,6 +118,8 @@ async function runPayoutPass(request: Request): Promise<Response> {
     // seller release — money the platform holds that belongs to a member — and until
     // now nothing retried one that failed, which for a partial refund meant never.
     const refunds = { considered: 0, settled: 0, stillOwed: 0 };
+    const collateral = { considered: 0, settled: 0, deferred: 0, failed: 0 };
+    const tradeCash = { released: 0, refunded: 0, deferred: 0, failed: 0 };
     const failures: string[] = [];
 
     // Every per-sale failure the drains report, written to the error log (0123) once
@@ -135,6 +176,84 @@ async function runPayoutPass(request: Request): Promise<Response> {
             context: { region },
           });
         }
+
+        // ESC-03: buyer-present payments left unfinished for 30 min (an abandoned
+        // 3-D Secure check) are cancelled and returned to AGREEMENT, or settled when
+        // the check finished meanwhile. A read against another region's account
+        // reports PENDING and is simply skipped, so per-region passes are safe.
+        try {
+          const swept = await orchestrator.sweepAbandonedPayments();
+          if (swept.abandoned + swept.settled + swept.failed > 0) {
+            console.info(`[jobs] abandoned payments (${region})`, swept);
+          }
+        } catch (error) {
+          drainReports.push({
+            name: 'job.cash-sale-payouts.abandoned-payments',
+            errorCode: 'THREW',
+            error,
+            context: { region },
+          });
+        }
+
+        // ESC-05 / ESC-06: trade cash legs the platform holds. Releases to the
+        // receiver through the release policy, refunds to the payer, and unfinished
+        // 3-D Secure checks older than 30 minutes cancelled. Isolated like the rest.
+        try {
+          const cash = await drainTradeCash(createDefaultTradeCashDeps(getPaymentService(platform)), {
+            currency,
+            onFailure: ({ tradeId, error, detail }) => {
+              drainReports.push({
+                name: error === 'REFUND_FAILED' ? 'trade_cash.refund' : 'trade_cash.release',
+                errorCode: error,
+                message: detail ?? `Trade cash ${error}`,
+                context: { tradeId, region },
+              });
+            },
+          });
+          tradeCash.released += cash.released;
+          tradeCash.refunded += cash.refunded;
+          tradeCash.deferred += cash.deferred;
+          tradeCash.failed += cash.failed;
+        } catch (error) {
+          drainReports.push({
+            name: 'trade_cash.drain',
+            errorCode: 'THREW',
+            error,
+            context: { region },
+          });
+        }
+
+        // Money leaving CAPTURED trade collateral (0133): refunds to the hold's owner
+        // and payouts to a wronged trader, each through releasePolicy. Isolated like
+        // the refunds above.
+        if (currency) {
+          try {
+            const disbursed = await createDefaultCollateralDisbursementDrain({
+              payments: getPaymentService(platform),
+              currency,
+              onFailure: ({ disbursementId, tradeId, error }) => {
+                drainReports.push({
+                  name: 'collateral.disbursement',
+                  errorCode: error,
+                  message: `Collateral disbursement failed: ${error}`,
+                  context: { disbursementId, tradeId, region },
+                });
+              },
+            }).run();
+            collateral.considered += disbursed.considered;
+            collateral.settled += disbursed.settled;
+            collateral.deferred += disbursed.deferred;
+            collateral.failed += disbursed.failed;
+          } catch (error) {
+            console.error(`[jobs] collateral disbursement drain failed for region ${region}`, error);
+            drainReports.push({
+              name: 'collateral.disbursement',
+              errorCode: 'THREW',
+              error,
+              context: { region },
+            });
+          }
+        }
       } catch (error) {
         console.error(`[jobs] cash-sale-payouts failed for region ${region}`, error);
         failures.push(region);
@@ -144,6 +263,45 @@ async function runPayoutPass(request: Request): Promise<Response> {
           context: { region },
         });
       }
+    }
+
+    // RETURNS (ESC-11, ESC-30, ESC-38). Once per pass, NOT per region: a return's
+    // refund goes back through the region of the SALE, resolved per sale from its
+    // frozen currency, so a regional loop would only add ways to pick the wrong one.
+    const returns = { synced: 0, stale: 0, refunded: 0, failed: 0 };
+    try {
+      const synced = await syncStaleReturns();
+      returns.synced = synced.checked;
+      returns.stale = synced.stale.length;
+      for (const cashSaleId of synced.stale) {
+        drainReports.push({
+          name: 'returns.stale',
+          errorCode: 'RETURN_STALE',
+          message: `Return in transit for over ${STALE_RETURN_DAYS} days with no carrier delivery.`,
+          context: { cashSaleId },
+        });
+      }
+    } catch (error) {
+      drainReports.push({ name: 'returns.sync', errorCode: 'THREW', error });
+    }
+    try {
+      const released = await createDefaultCashSaleOrchestrator({
+        payments: getPaymentService(),
+      }).releaseDueReturnRefunds({
+        paymentsFor: async (cashSaleId) => getPaymentService(await regionForCashSale(cashSaleId)),
+      });
+      returns.refunded = released.refunded.length;
+      returns.failed = released.failed.length;
+      for (const failure of released.failed) {
+        drainReports.push({
+          name: 'refund.return',
+          errorCode: failure.error,
+          message: failure.detail ?? `Return refund failed: ${failure.error}`,
+          context: { cashSaleId: failure.cashSaleId },
+        });
+      }
+    } catch (error) {
+      drainReports.push({ name: 'refund.return', errorCode: 'THREW', error });
     }
 
     await Promise.all(drainReports.map((report) => logBackgroundFailure(report)));
@@ -161,6 +319,9 @@ async function runPayoutPass(request: Request): Promise<Response> {
       ok: true,
       ...totals,
       refunds,
+      collateral,
+      tradeCash,
+      returns,
       ...(failures.length > 0 ? { failedRegions: failures } : {}),
     });
   } catch (error) {

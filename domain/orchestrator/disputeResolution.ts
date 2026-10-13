@@ -1,72 +1,58 @@
 // domain/orchestrator/disputeResolution.ts
 //
-// Condition-dispute (Req 7) and objective-fraud (Req 8) resolution for the
-// 2-Way Trade escrow.
+// Trade disputes: raising a claim, the custody backstop, and the staff decision
+// (design §1.2; ESC-01, ESC-07, ESC-10, ESC-23 ordering).
 //
-// Like the other orchestration modules, this is a pure/injectable coordination
-// layer: it depends only on *interfaces* — a bound `TradeOrchestrator` (for the
-// guarded state-machine transition), a `DisputeResolutionRepository` (for the
-// dispute/fraud-specific reads/writes) and the `PaymentService` (captures/voids/
-// transfers). The concrete Supabase admin binding lives in
-// `supabaseDisputeResolutionRepository.ts`, which is the only file that pulls in
-// `server-only`.
+// NOTHING IS CAPTURED WHEN A PROBLEM IS RAISED. The previous version partially
+// captured $20 from the accused the moment a condition dispute was raised, and a
+// PaymentIntent can be captured only once: Stripe released the rest of the hold with
+// that first capture, so a later fraud finding had nothing left to take. A dispute
+// destroyed the collateral it existed to protect. Now:
 //
-// This module deliberately takes NO KYC dependency. It previously read verified
-// identity data to build a "Police_Evidence_Pack" PDF; that has been removed
-// (see the note in `resolveObjectiveFraud`), so identity verification is now
-// pass/fail only and no verified identity field is ever read.
+//   * `raiseConditionDispute` / `raiseFraudClaim` freeze the trade and record who
+//     said what. No money moves.
+//   * `custodyCaptureHold` full-captures a live hold INTO THE PLATFORM BALANCE when
+//     it is about to lapse with the case still open (the backstop sweep), so a slow
+//     decision cannot destroy the remedy either.
+//   * `resolveTradeDispute` is the staff decision, with four outcomes, in the order
+//     validate -> locate live holds -> move money -> commit. The old fraud path
+//     committed FRAUD_RESOLVED before it checked the victim was even a participant
+//     (ESC-23); a refused decision now touches nothing.
 //
-// Why a coordinator (functions) rather than a pre-commit `RunSideEffects` hook:
-// neither a Condition_Dispute nor an Objective_Fraud is *gated* by its payment
-// outcome — the Trade transitions to DISPUTED / FRAUD_RESOLVED regardless (Req
-// 7.1, 8.1), and a Friction_Tax or Full_Capture failure is recorded as an
-// *indication* without rolling the state back (Req 7.6, 8.6). So the transition
-// is committed first via `TradeOrchestrator.applyEvent`, then the post-transition
-// side effects run against the freshly committed Trade.
+// Money paid OUT of a captured hold is never paid inline. It is queued in
+// `collateral_disbursements` and released by the hourly drain through
+// `releasePolicy`, so a "victim" who is the fraudster's second account cannot cash
+// out before anyone looks twice.
 //
-// All monetary amounts are integer AUD cents.
+// Pure: the trade orchestrator, repository, payment service, cash-leg port, fee
+// refund and notifier are all injected. The Supabase binding is
+// `supabaseDisputeResolutionRepository.ts`. Nothing here logs; failures come back
+// as typed results for the lib caller to report.
+//
+// All amounts are integer minor units of the trade's currency.
 
-import type { Cents, PaymentService, PreAuthHold } from '../services/types';
-// Only the two helpers are USED here. The three amount constants are still re-exported
-// further down for existing importers, but this module no longer reads them directly —
-// the capped amount and the derived split are the only correct way to reach them now.
-import {
-  allocateFrictionTax,
-  frictionTaxChargeableCents,
-} from '../dispute/frictionTax';
-import { canReceiveFunds, type MerchantRecord } from './merchantOnboarding';
-
-/** The trade row's frozen currency (0068), carried on the record's index signature. */
-function tradeCurrency(trade: { [column: string]: unknown }): string | undefined {
-  return typeof trade.currency === 'string' && trade.currency ? trade.currency : undefined;
-}
+import type { Cents, PaymentService } from '../services/types';
+import { frictionTaxPlatformFeeFor } from '../dispute/frictionTax';
+import { currentHold, currentLiveHold } from '../bond/currentHolds';
+import type { TradeCashLegPort, TradeDisputeOutcomeKind } from './tradeCashLeg';
 import type { OrchestratorError, TradeOrchestrator, TradeRecord } from './tradeOrchestrator';
 
-// ---------------------------------------------------------------------------
-// Constants (Req 7.2, 7.3, 8.6)
-// ---------------------------------------------------------------------------
-
-// The Friction_Tax amounts now live in `domain/dispute/frictionTax.ts` and are
-// re-exported here so existing importers are unaffected. They were declared
-// independently in three modules; see that file for why one source matters.
+// The Friction_Tax amounts and the old return window are re-exported for existing
+// importers. Nothing in this module reads the fixed amounts any more: the platform
+// share is per currency (`frictionTaxPlatformFeeFor`) and the compensation is staff's.
 export {
   FRICTION_TAX_CENTS,
   FRICTION_TAX_RETURN_SHIPPING_CENTS,
   FRICTION_TAX_PLATFORM_FEE_CENTS,
 } from '../dispute/frictionTax';
-
-// The return window moved to `domain/dispute/returnWindow.ts` and is re-exported
-// here so existing importers are unaffected — the same consolidation the
-// Friction_Tax amounts got above, and for the same reason. It lived here as a bare
-// number that nothing read, which made it look like an enforced right; the
-// arithmetic that decides whether the collateral behind it survives that long now
-// sits beside it.
 export { DISPUTE_RETURN_WINDOW_DAYS } from '../dispute/returnWindow';
 
 /**
- * The maximum number of Full_Capture attempts on Objective_Fraud before the
- * Trade is flagged for manual reconciliation (Req 8.6, "retry up to 3 times").
- * Overridable via {@link DisputeResolutionDeps.maxFullCaptureAttempts}.
+ * Full-capture attempts before the trade is left DISPUTED for an operator.
+ *
+ * Every attempt sends the same idempotency key (`capture:full:<holdId>`), so this
+ * recovers a transport failure, not a definite rejection. Do not vary the key: that
+ * trades an operator task for the possibility of capturing a trader twice.
  */
 export const MAX_FULL_CAPTURE_ATTEMPTS = 3;
 
@@ -74,705 +60,793 @@ export const MAX_FULL_CAPTURE_ATTEMPTS = 3;
 // Data-access seam
 // ---------------------------------------------------------------------------
 
-/** A Pre_Auth_Hold as read for dispute/fraud handling. */
+/** A Pre_Auth_Hold as read for dispute handling. */
 export interface DisputeHold {
   traderId: string;
   holdRef: string;
   amountCents: Cents;
   capturedCents: Cents;
-  status: PreAuthHold['status'];
+  status: 'ACTIVE' | 'VOIDED' | 'PARTIALLY_CAPTURED' | 'FULLY_CAPTURED' | 'FAILED' | 'EXPIRED';
+  /** Insertion instant; orders a trader's attempts (ESC-07). */
+  createdAt?: string | null;
+  /** Set when the hold was captured into custody (the backstop, or a resolution). */
+  custodyCapturedAt?: string | null;
 }
 
-/** The Friction_Tax allocation recorded when the partial capture settles (Req 7.3). */
-export interface FrictionTaxAllocation {
-  returnShippingCents: Cents;
-  platformFeeCents: Cents;
+/** One money movement to queue out of a captured hold. */
+export interface NewCollateralDisbursement {
+  tradeId: string;
+  holdRef: string;
+  kind: 'REFUND' | 'PAYOUT' | 'PLATFORM_RETAINED';
+  payeeId: string | null;
+  amountMinor: Cents;
+  currency: string;
+  /** Deterministic, so a retried resolution queues nothing twice. */
+  nonce: string;
+  /** A hold reason set at queue time (the `acknowledgeNoCollateral` placeholder). */
+  holdReason?: 'STAFF' | null;
 }
 
 /**
- * Data-access seam for dispute/fraud resolution. Backed by the Supabase admin
- * client in production (`supabaseDisputeResolutionRepository.ts`) and by an
- * in-memory fake in tests. Every write goes through the trusted service-role
- * path because a valid resolution must mutate the Trade and its holds together.
+ * Data access for dispute handling. Every write goes through the trusted
+ * service-role path; the Supabase binding checks each returned `{ error }`.
  */
 export interface DisputeResolutionRepository {
-  /** Read all Pre_Auth_Holds for a Trade. */
+  loadTrade(tradeId: string): Promise<TradeRecord | null>;
+  /** Every hold on the trade, oldest first. */
   getHolds(tradeId: string): Promise<DisputeHold[]>;
-
   /**
-   * Read a Trader's PAYOUT destination — their Connect state — used when paying
-   * captured fraud collateral to the victim (Req 8.3). `null` when the Trader has
-   * no merchant record at all.
-   *
-   * THIS REPLACED `getTraderPayerId`, AND THE DIFFERENCE IS THE WHOLE BUG. A payer
-   * reference is a saved CARD: it is where money is collected FROM. Paying a victim
-   * needs a destination to send money TO, which is a connected account. Reading the
-   * payer here is what let the fraud path charge the victim the collateral it was
-   * supposed to award them.
+   * Whether the trade EVER reached INSPECTION (R4-M1): `inspection_deadline_at` is set,
+   * or an audit row moved it into INSPECTION. Either alone proves a handover was
+   * confirmed or assumed, so an audit row lost to a failed insert cannot reopen
+   * NO_EXCHANGE. Throws on a read error; the caller refuses rather than guessing.
    */
-  getTraderPayee(traderId: string): Promise<MerchantRecord | null>;
+  hasReachedInspection(tradeId: string): Promise<boolean>;
+  /** SETTLED + queued disbursements already drawn from a hold, by status. */
+  disbursedFromHold(holdRef: string): Promise<{ settledCents: Cents; queuedCents: Cents }>;
 
-  /** Req 7.1: record the raising Trader and the disputed-against Trader. */
+  /** Record the raising trader, the accused, and the raiser's own words (0083). */
   recordDisputeParticipants(params: {
     tradeId: string;
     raisedBy: string;
     disputedAgainst: string;
     at: Date;
-    /**
-     * The raiser's own account of what went wrong (0083).
-     *
-     * Optional so a caller that predates the column still compiles, and null when the
-     * dispute was raised without one. It reaches the arbitration case as "the claim",
-     * which is the only thing a trade dispute previously could not supply.
-     */
     reason?: string | null;
   }): Promise<void>;
+  /** Record a member's fraud CLAIM (0046 columns). First claim wins. */
+  recordFraudClaim(params: { tradeId: string; claimantId: string; reason: string }): Promise<boolean>;
 
-  /**
-   * Req 7.2/7.3: record a settled Friction_Tax against the disputed-against
-   * hold — increment its captured amount, mark it PARTIALLY_CAPTURED, and store
-   * the $10/$10 allocation on the Trade.
-   */
-  recordFrictionTaxCapture(params: {
-    tradeId: string;
+  /** Stamp a capture on a hold. A resolution capture is custody too: money held for members. */
+  recordHoldCapture(params: {
     holdRef: string;
     capturedCents: Cents;
-    allocation: FrictionTaxAllocation;
+    status: 'PARTIALLY_CAPTURED' | 'FULLY_CAPTURED';
+    custodyCapturedAt: Date;
   }): Promise<void>;
-
-  /** Req 7.6: record that the Friction_Tax Partial_Capture failed to settle. */
-  recordPartialCaptureFailure(params: { tradeId: string }): Promise<void>;
-
-  /**
-   * Req 7.3: record the outcome of paying the return-shipping share out to the trader
-   * who raised the dispute. Persists the idempotency nonce so a retry reuses it.
-   */
-  recordFrictionTaxReturnResult(params: {
-    tradeId: string;
-    nonce: string;
-    paid: boolean;
-    error?: string;
-  }): Promise<void>;
-
-  /** Req 7.7: record that the disputed Item was not returned within the window. */
-  recordReturnOverdue(params: { tradeId: string }): Promise<void>;
-
-  /** Req 7.5/8.5: mark a hold VOIDED after a $0 Hold_Void. */
   markHoldVoided(holdRef: string): Promise<void>;
+  /** Queue disbursements, ignoring any whose nonce is already queued. */
+  queueDisbursements(rows: NewCollateralDisbursement[]): Promise<void>;
+  /** Self-loop audit row `COLLATERAL_TAKEN_INTO_CUSTODY` (DISPUTED -> DISPUTED). */
+  insertCustodyAudit(params: { tradeId: string; actorId: string | null; at: Date }): Promise<void>;
 
-  /** Req 8.1: record the fraud victim (and the offending Trader). */
-  recordFraudParticipants(params: {
+  /** Write the outcome and the attestation in ONE update. */
+  recordOutcome(params: {
     tradeId: string;
-    victimId: string;
-    offendingId: string;
+    outcome: TradeDisputeOutcomeKind;
+    attestedBy: string | null;
+    at: Date;
+    cancelled: boolean;
   }): Promise<void>;
+  recordFraudParticipants(params: { tradeId: string; victimId: string; offendingId: string }): Promise<void>;
+  incrementUnfoundedDisputeCount(profileId: string): Promise<void>;
+  flagManualReconciliation(params: { tradeId: string; fullCaptureFailed?: boolean }): Promise<void>;
+  /** The filtered restore (0133). Returns the ids put back on sale. */
+  restoreTradeItemsIfUnclaimed(tradeId: string): Promise<string[]>;
+}
 
-  /** Req 8.2/8.3: record a settled Full_Capture against the offending hold. */
-  recordFullCapture(params: { holdRef: string; capturedCents: Cents }): Promise<void>;
-
-  /**
-   * Req 8.6: the Full_Capture failed after exhausting all retries — preserve the
-   * offending hold and flag the Trade for manual reconciliation.
-   */
-  flagManualReconciliation(params: { tradeId: string }): Promise<void>;
+/** Best-effort member notifications. Implementations must never throw. */
+export interface DisputeNotifier {
+  custodyCaptured(params: {
+    tradeId: string;
+    ownerId: string;
+    otherId: string;
+    amountCents: Cents;
+    currency: string;
+  }): Promise<void>;
+  tradeUnwound(params: { tradeId: string; traderIds: string[]; cashRefunded: boolean }): Promise<void>;
+  listingsRestored(params: { tradeId: string; itemIds: string[] }): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
-// Dependencies + shared result types
+// Dependencies + result types
 // ---------------------------------------------------------------------------
 
-/** Dependencies injected into the dispute/fraud resolution coordinator. */
+/** Dependencies injected into the dispute coordinator. */
 export interface DisputeResolutionDeps {
-  /** Bound Trade Orchestrator used to commit the guarded state transition. */
   orchestrator: TradeOrchestrator;
   repository: DisputeResolutionRepository;
-  /** Payment provider for captures, voids, and the victim transfer. */
   payments: PaymentService;
-  /** Clock seam for deterministic timestamps in tests; defaults to `Date`. */
+  /** What an outcome does to the cash leg (WP1: the legacy binding). */
+  cashLeg?: TradeCashLegPort;
+  /** Refund both Trade_Fees on NO_EXCHANGE (bound to `refundTradeFees`). */
+  refundFees?: (tradeId: string) => Promise<{ ok: boolean; detail?: string }>;
+  notifier?: DisputeNotifier;
   now?: () => Date;
-  /** Override the bounded Full_Capture attempt count (Req 8.6). */
   maxFullCaptureAttempts?: number;
 }
 
 /**
- * Failure codes surfaced when an operation cannot even begin. The guarded
- * transition's own failures (`INVALID_TRANSITION`, `CONCURRENT_MODIFICATION`,
- * `TRADE_NOT_FOUND`) are passed through unchanged; `NOT_PARTICIPANT` is raised
- * when the actor is neither Trader on the Trade.
+ * Typed failures.
+ * - `NOT_PARTICIPANT`            the actor is not on the trade.
+ * - `INVALID_OUTCOME`            the requested decision is not allowed here; nothing touched.
+ * - `HOLD_NOT_FOUND`             the accused has no live hold; DISPUTED + manual flag.
+ * - `CAPTURE_FAILED`             a capture failed; DISPUTED + manual flag.
+ * - `HOLD_RELEASE_FAILED`        a void failed after money moved; DISPUTED + manual flag.
+ * - `DISPUTE_HISTORY_UNAVAILABLE` the inspection history could not be read; nothing touched.
+ * - `CUSTODY_CAPTURE_FAILED`     the backstop capture failed; flagged, retried next hour.
  */
-export type DisputeResolutionError = OrchestratorError | 'NOT_PARTICIPANT';
+export type DisputeResolutionError =
+  | OrchestratorError
+  | 'NOT_PARTICIPANT'
+  | 'INVALID_OUTCOME'
+  | 'HOLD_NOT_FOUND'
+  | 'CAPTURE_FAILED'
+  | 'HOLD_RELEASE_FAILED'
+  | 'DISPUTE_HISTORY_UNAVAILABLE'
+  | 'CUSTODY_CAPTURE_FAILED';
+
+export type DisputeFailure = { ok: false; error: DisputeResolutionError; detail?: string };
+
+/** The four staff outcomes (design §1.2). */
+export type TradeDisputeOutcome =
+  | { kind: 'UNFOUNDED'; goodsChangedHands?: boolean }
+  | { kind: 'CONDITION'; wrongedTraderId: string; compensationMinor: Cents; goodsChangedHands?: boolean }
+  | { kind: 'FRAUD'; victimId: string; acknowledgeNoCollateral?: boolean }
+  | { kind: 'NO_EXCHANGE' };
+
+/** What a resolution did. */
+export interface TradeDisputeResolution {
+  trade: TradeRecord;
+  outcome: TradeDisputeOutcomeKind;
+  /** The FRAUD offender (to ban), or the CONDITION accused. */
+  offendingTraderId: string | null;
+  disbursements: NewCollateralDisbursement[];
+  voidedHoldRefs: string[];
+  capturedHoldRefs: string[];
+  manualReconciliation: boolean;
+  /** NO_EXCHANGE only: the item ids put back on sale. */
+  restoredItemIds: string[];
+  /** NO_EXCHANGE only: whether refunding the Trade_Fees failed (the caller logs it). */
+  feeRefundFailed: boolean;
+}
+
+export type ResolveTradeDisputeResult = { ok: true; resolution: TradeDisputeResolution } | DisputeFailure;
+
+export type RaiseConditionDisputeResult =
+  | { ok: true; trade: TradeRecord; disputedAgainst: string }
+  | DisputeFailure;
+
+export type RaiseFraudClaimResult =
+  | { ok: true; trade: TradeRecord; accusedId: string; transitioned: boolean }
+  | DisputeFailure;
+
+export type CustodyCaptureReason = 'EXPIRY_BACKSTOP' | 'FRAUD_PROPOSAL';
+
+export type CustodyCaptureResult =
+  | { ok: true; alreadyCaptured: boolean; capturedCents: Cents }
+  | DisputeFailure;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Resolve the Counterpart of `actorId` on a Trade, or `null` if not a participant. */
-function counterpartOf(trade: TradeRecord, actorId: string): string | null {
-  const initiator = trade.initiator_id as string | undefined;
-  const counterpart = trade.counterpart_id as string | undefined;
-  if (actorId === initiator) return counterpart ?? null;
-  if (actorId === counterpart) return initiator ?? null;
+function participants(trade: TradeRecord): [string, string] {
+  return [String(trade.initiator_id ?? ''), String(trade.counterpart_id ?? '')];
+}
+
+/** The other trader, or null if `traderId` is not on the trade. */
+function otherOf(trade: TradeRecord, traderId: string): string | null {
+  const [a, b] = participants(trade);
+  if (traderId === a) return b || null;
+  if (traderId === b) return a || null;
   return null;
 }
 
-/** Find a Trader's hold on a Trade. */
-function holdForTrader(holds: DisputeHold[], traderId: string): DisputeHold | undefined {
-  return holds.find((hold) => hold.traderId === traderId);
+/** How a live hold is held, which decides what can still be done with it. */
+export type HoldMode = 'ACTIVE' | 'CUSTODY' | 'LEGACY_PARTIAL';
+
+function modeOf(hold: DisputeHold): HoldMode | null {
+  if (hold.status === 'ACTIVE') return 'ACTIVE';
+  if (hold.custodyCapturedAt && (hold.status === 'FULLY_CAPTURED' || hold.status === 'PARTIALLY_CAPTURED')) {
+    return 'CUSTODY';
+  }
+  // Captured at RAISE by the pre-fix code. Stripe released the rest of the hold.
+  if (hold.status === 'PARTIALLY_CAPTURED') return 'LEGACY_PARTIAL';
+  return null;
+}
+
+/** The legacy $10 return share already paid out of a legacy partial capture. */
+function legacyReturnPaid(trade: TradeRecord): Cents {
+  return trade.friction_tax_return_paid_at ? Number(trade.friction_tax_return_cents ?? 0) : 0;
+}
+
+/**
+ * `remainingFor(hold)`: what is still payable from a live hold (design §1.2 step 3).
+ * - ACTIVE: the authorised amount.
+ * - CUSTODY: captured minus disbursements that already SETTLED.
+ * - LEGACY_PARTIAL: captured minus the legacy return share already paid, minus any
+ *   disbursement already settled from it.
+ */
+async function remainingFor(
+  deps: DisputeResolutionDeps,
+  trade: TradeRecord,
+  hold: DisputeHold,
+): Promise<Cents> {
+  const mode = modeOf(hold);
+  if (mode === 'ACTIVE') return hold.amountCents;
+  if (mode === null) return 0;
+  const { settledCents } = await deps.repository.disbursedFromHold(hold.holdRef);
+  return remainingFromFacts(hold, legacyReturnPaid(trade), settledCents);
+}
+
+/**
+ * The pure core of `remainingFor`, exported so the arbitration console quotes the SAME
+ * ceiling the resolution enforces (ESC-10) rather than restating the rule.
+ */
+export function remainingFromFacts(
+  hold: DisputeHold,
+  legacyReturnPaidCents: Cents,
+  settledCents: Cents,
+): Cents {
+  const mode = modeOf(hold);
+  if (mode === 'ACTIVE') return hold.amountCents;
+  if (mode === null) return 0;
+  const base = mode === 'LEGACY_PARTIAL' ? hold.capturedCents - legacyReturnPaidCents : hold.capturedCents;
+  return Math.max(base - settledCents, 0);
+}
+
+/** How a hold stands behind a dispute: open, in custody, legacy partial, or not at all. */
+export function disputeHoldMode(hold: DisputeHold): HoldMode | null {
+  return modeOf(hold);
+}
+
+function nonceFor(tradeId: string, holdRef: string, kind: string, payee: string | null): string {
+  return `collateral:${tradeId}:${holdRef}:${kind}:${payee ?? 'platform'}`;
+}
+
+function currencyOf(trade: TradeRecord): string {
+  return String(trade.currency ?? 'aud').toLowerCase();
 }
 
 // ---------------------------------------------------------------------------
-// Condition Dispute (Req 7)
+// Raising (no money moves)
 // ---------------------------------------------------------------------------
 
-/** Result of raising a Condition_Dispute (Req 7.1, 7.2, 7.3, 7.6). */
-export type RaiseConditionDisputeResult =
-  | {
-      ok: true;
-      trade: TradeRecord;
-      /** The disputed-against Trader (Counterpart of the raiser). */
-      disputedAgainst: string;
-      /** Whether the Friction_Tax Partial_Capture settled (Req 7.3 vs 7.6). */
-      frictionTaxSettled: boolean;
-      /** The $10/$10 allocation, present only when the capture settled (Req 7.3). */
-      allocation?: FrictionTaxAllocation;
-      /**
-       * Whether the return-shipping share actually reached the raising Trader.
-       *
-       * `false` with `frictionTaxSettled: true` means the $20 was captured but the $10
-       * is still in the platform balance — owed, recorded, and flagged for an operator.
-       */
-      returnShippingPaid?: boolean;
-    }
-  | { ok: false; error: DisputeResolutionError | 'HOLD_NOT_FOUND'; detail?: string };
-
 /**
- * Raise a Condition_Dispute during INSPECTION (Req 7.1, 7.2, 7.3, 7.6).
- *
- * 1. Guard the actor is a participant, then commit INSPECTION -> DISPUTED via
- *    the guarded transition core.
- * 2. Record the raising Trader and the disputed-against Trader — the Counterpart
- *    of the raiser (Req 7.1).
- * 3. Request a $20.00 Friction_Tax Partial_Capture from the disputed-against
- *    Trader's hold (Req 7.2).
- * 4. If it settles, allocate $10.00 to the Counterpart and $10.00 to the
- *    Platform_Fee (Req 7.3). If it fails to settle, keep the Trade DISPUTED with
- *    all holds locked and record a Partial_Capture failure indication (Req 7.6)
- *    — this is NOT a transition failure, so the result is still `ok: true`.
+ * Raise a condition dispute during INSPECTION (Req 7.1). Records the raiser, the
+ * accused (the other trader) and the raiser's account, and freezes the trade.
+ * Captures NOTHING (ESC-01).
  */
 export async function raiseConditionDispute(
   deps: DisputeResolutionDeps,
   params: { tradeId: string; actorId: string; reason?: string | null },
 ): Promise<RaiseConditionDisputeResult> {
-  const { orchestrator, repository, payments } = deps;
   const now = deps.now ?? (() => new Date());
+  const trade = await deps.repository.loadTrade(params.tradeId);
+  if (!trade) return { ok: false, error: 'TRADE_NOT_FOUND' };
+  const disputedAgainst = otherOf(trade, params.actorId);
+  if (!disputedAgainst) return { ok: false, error: 'NOT_PARTICIPANT' };
 
-  // 1. Commit the transition to DISPUTED (Req 7.1).
-  const transitioned = await orchestrator.applyEvent({
+  const transitioned = await deps.orchestrator.applyEvent({
     tradeId: params.tradeId,
     event: 'CONDITION_DISPUTE',
     actorId: params.actorId,
   });
-  if (!transitioned.ok) {
-    return { ok: false, error: transitioned.error, detail: transitioned.detail };
-  }
-  const trade = transitioned.trade;
+  if (!transitioned.ok) return { ok: false, error: transitioned.error, detail: transitioned.detail };
 
-  // The disputed-against Trader is the Counterpart of the raiser (Req 7.1).
-  const disputedAgainst = counterpartOf(trade, params.actorId);
-  if (!disputedAgainst) {
-    return { ok: false, error: 'NOT_PARTICIPANT' };
-  }
-
-  // 2. Record dispute participants (Req 7.1) and the raiser's own account (0083).
-  await repository.recordDisputeParticipants({
-    tradeId: trade.id,
+  await deps.repository.recordDisputeParticipants({
+    tradeId: params.tradeId,
     raisedBy: params.actorId,
     disputedAgainst,
     at: now(),
     reason: params.reason ?? null,
   });
+  return { ok: true, trade: transitioned.trade, disputedAgainst };
+}
 
-  // 3. Request the $20.00 Friction_Tax from the disputed-against Trader's hold (Req 7.2).
-  const holds = await repository.getHolds(trade.id);
-  const disputedHold = holdForTrader(holds, disputedAgainst);
-  if (!disputedHold) {
-    return { ok: false, error: 'HOLD_NOT_FOUND', detail: disputedAgainst };
+/**
+ * A member's fraud CLAIM (ESC-01, ESC-04). From COLLATERAL_LOCKED or INSPECTION it
+ * applies `FRAUD_CLAIMED`; from DISPUTED it records the claim with no transition.
+ * Captures nothing. Only staff decide fraud.
+ */
+export async function raiseFraudClaim(
+  deps: DisputeResolutionDeps,
+  params: { tradeId: string; actorId: string; reason: string },
+): Promise<RaiseFraudClaimResult> {
+  const now = deps.now ?? (() => new Date());
+  const trade = await deps.repository.loadTrade(params.tradeId);
+  if (!trade) return { ok: false, error: 'TRADE_NOT_FOUND' };
+  const accusedId = otherOf(trade, params.actorId);
+  if (!accusedId) return { ok: false, error: 'NOT_PARTICIPANT' };
+
+  let current = trade;
+  let transitioned = false;
+  if (trade.state === 'COLLATERAL_LOCKED' || trade.state === 'INSPECTION') {
+    const applied = await deps.orchestrator.applyEvent({
+      tradeId: params.tradeId,
+      event: 'FRAUD_CLAIMED',
+      actorId: params.actorId,
+    });
+    if (!applied.ok) return { ok: false, error: applied.error, detail: applied.detail };
+    current = applied.trade;
+    transitioned = true;
+    await deps.repository.recordDisputeParticipants({
+      tradeId: params.tradeId,
+      raisedBy: params.actorId,
+      disputedAgainst: accusedId,
+      at: now(),
+      reason: params.reason,
+    });
+  } else if (trade.state !== 'DISPUTED') {
+    return { ok: false, error: 'INVALID_TRANSITION' };
   }
 
-  // CAPPED AT WHAT WAS AUTHORISED. A trade on a $5 item holds $5, and requesting the
-  // full $20 made Stripe refuse the capture outright — so every dispute on a low-value
-  // trade failed, froze, and looked transient. See `frictionTaxChargeableCents`.
-  const currency = tradeCurrency(trade);
-  const chargeable = frictionTaxChargeableCents(disputedHold.amountCents, currency);
-  if (chargeable <= 0) {
-    // No collateral to take from at all. The dispute still stands — it is a claim about
-    // goods, not a payment — but there is nothing to capture and pretending otherwise
-    // would record a settled tax that never moved.
-    await repository.recordPartialCaptureFailure({ tradeId: trade.id });
-    return { ok: true, trade, disputedAgainst, frictionTaxSettled: false };
-  }
-
-  const capture = await payments.partialCapture({
-    holdId: disputedHold.holdRef,
-    amount: chargeable,
+  await deps.repository.recordFraudClaim({
+    tradeId: params.tradeId,
+    claimantId: params.actorId,
+    reason: params.reason,
   });
+  return { ok: true, trade: current, accusedId, transitioned };
+}
 
-  // 4a. Failed to settle -> keep DISPUTED, holds locked, record indication (Req 7.6).
+// ---------------------------------------------------------------------------
+// Custody (the backstop and a pending fraud finding)
+// ---------------------------------------------------------------------------
+
+/**
+ * Full-capture a live hold INTO THE PLATFORM BALANCE while a dispute is open.
+ *
+ * DISPUTED only, and only a participant's current live ACTIVE hold. A hold already
+ * in custody is an idempotent no-op, so the backstop and a fraud proposal racing on
+ * one hold cannot capture twice. The audit row carries the neutral code
+ * `COLLATERAL_TAKEN_INTO_CUSTODY` whatever the reason: the code is member-visible,
+ * and a reason would tell the accused a fraud finding is pending.
+ */
+export async function custodyCaptureHold(
+  deps: DisputeResolutionDeps,
+  params: { tradeId: string; holdRef: string; reason: CustodyCaptureReason; actorId?: string | null },
+): Promise<CustodyCaptureResult> {
+  const now = deps.now ?? (() => new Date());
+  const trade = await deps.repository.loadTrade(params.tradeId);
+  if (!trade) return { ok: false, error: 'TRADE_NOT_FOUND' };
+  if (trade.state !== 'DISPUTED') {
+    return { ok: false, error: 'INVALID_OUTCOME', detail: 'Only a disputed trade has collateral taken into custody.' };
+  }
+
+  const holds = await deps.repository.getHolds(params.tradeId);
+  const hold = holds.find((h) => h.holdRef === params.holdRef);
+  const owner = hold?.traderId ?? '';
+  const other = otherOf(trade, owner);
+  if (!hold || !other || currentLiveHold(holds, owner)?.holdRef !== params.holdRef) {
+    return { ok: false, error: 'INVALID_OUTCOME', detail: 'That is not a trader’s current hold.' };
+  }
+  if (modeOf(hold) === 'CUSTODY') {
+    return { ok: true, alreadyCaptured: true, capturedCents: hold.capturedCents };
+  }
+  if (hold.status !== 'ACTIVE') {
+    return { ok: false, error: 'INVALID_OUTCOME', detail: 'That hold is no longer an open authorisation.' };
+  }
+
+  const capture = await deps.payments.fullCapture(hold.holdRef);
   if (capture.status !== 'SETTLED') {
-    await repository.recordPartialCaptureFailure({ tradeId: trade.id });
-    return { ok: true, trade, disputedAgainst, frictionTaxSettled: false };
+    await deps.repository.flagManualReconciliation({ tradeId: params.tradeId });
+    return { ok: false, error: 'CUSTODY_CAPTURE_FAILED', detail: params.reason };
   }
 
-  // 4b. Allocate return shipping first, then the platform fee (Req 7.3).
-  //
-  // Derived from `capture.amount` — what the provider ACTUALLY took — not from the
-  // constants. On a short capture the shares must still sum to the money collected, or
-  // step 4c pays out more than was ever received.
-  const allocation: FrictionTaxAllocation = allocateFrictionTax(capture.amount, currency);
-  await repository.recordFrictionTaxCapture({
-    tradeId: trade.id,
-    holdRef: disputedHold.holdRef,
+  const at = now();
+  await deps.repository.recordHoldCapture({
+    holdRef: hold.holdRef,
     capturedCents: capture.amount,
-    allocation,
+    status: 'FULLY_CAPTURED',
+    custodyCapturedAt: at,
   });
-
-  // 4c. PAY the return-shipping share to the trader who raised the dispute (Req 7.3).
-  //
-  // This step did not exist. The allocation was written to the trade and read back only
-  // for display, so the platform captured $20 and kept all of it, while the trader who
-  // has to post the item back was under-compensated by the $10 the requirement gives
-  // them. "Allocated" is not "paid": nothing moved the money.
-  //
-  // The RAISING trader is the payee because they are the one returning the goods — the
-  // dispute is theirs, the item came to them, and the return postage is theirs to
-  // cover. The other $10 is the platform's fee and correctly stays put.
-  const returnShippingPaid = await payReturnShippingShare(deps, {
-    tradeId: trade.id,
-    payeeTraderId: params.actorId,
-    amountCents: allocation.returnShippingCents,
-    currency,
+  await deps.repository.insertCustodyAudit({ tradeId: params.tradeId, actorId: params.actorId ?? null, at });
+  await deps.notifier?.custodyCaptured({
+    tradeId: params.tradeId,
+    ownerId: owner,
+    otherId: other,
+    amountCents: capture.amount,
+    currency: currencyOf(trade),
   });
+  return { ok: true, alreadyCaptured: false, capturedCents: capture.amount };
+}
 
-  return {
-    ok: true,
-    trade,
-    disputedAgainst,
-    frictionTaxSettled: true,
-    allocation,
-    returnShippingPaid,
-  };
+// ---------------------------------------------------------------------------
+// The staff decision
+// ---------------------------------------------------------------------------
+
+interface MoneyPlan {
+  /** ACTIVE holds to capture: amount, or 'FULL'. */
+  captures: Array<{ hold: DisputeHold; amount: Cents | 'FULL' }>;
+  /** ACTIVE holds to void. */
+  voids: DisputeHold[];
+  /** Disbursements whose amounts do not depend on a capture result. */
+  disbursements: NewCollateralDisbursement[];
+  /** FRAUD on an ACTIVE offender hold: pay the captured amount to the victim. */
+  payCaptureTo?: { holdRef: string; payeeId: string };
+  /** CONDITION on an ACTIVE accused hold: split the capture. */
+  splitCapture?: { holdRef: string; wrongedId: string; compensation: Cents; platformShare: Cents };
+}
+
+/** Plan the release of one trader's own live hold (they are owed it back in full). */
+async function releaseInFull(
+  deps: DisputeResolutionDeps,
+  trade: TradeRecord,
+  hold: DisputeHold | undefined,
+  plan: MoneyPlan,
+): Promise<void> {
+  if (!hold) return;
+  const mode = modeOf(hold);
+  if (mode === 'ACTIVE') {
+    plan.voids.push(hold);
+    return;
+  }
+  const remaining = await remainingFor(deps, trade, hold);
+  if (remaining > 0) {
+    plan.disbursements.push({
+      tradeId: trade.id,
+      holdRef: hold.holdRef,
+      kind: 'REFUND',
+      payeeId: hold.traderId,
+      amountMinor: remaining,
+      currency: currencyOf(trade),
+      nonce: nonceFor(trade.id, hold.holdRef, 'REFUND', hold.traderId),
+    });
+  }
 }
 
 /**
- * Pay the captured return-shipping share out to the trader who raised the dispute.
+ * Resolve a DISPUTED trade with a staff-chosen outcome (design §1.2, steps 1–6).
  *
- * `payoutToMerchant`, never `requestTransfer`: the $10 is already in the platform
- * balance because it was just captured from the other trader's collateral, so this
- * releases money we hold. Charging the recipient instead is the mistake the fraud path
- * shipped, and it is the same shape of call.
- *
- * Never throws, and never rolls the dispute back — the dispute is valid whether or not
- * the small compensating payment lands. A failure is recorded and flagged so it is owed
- * visibly rather than silently.
+ * Order: validate -> locate live holds -> move money -> commit. A refusal at any
+ * step before the money moves touches nothing; a money failure leaves the trade
+ * DISPUTED with `manual_reconciliation`, never terminal over a live hold (ESC-07).
  */
-async function payReturnShippingShare(
+export async function resolveTradeDispute(
   deps: DisputeResolutionDeps,
-  params: { tradeId: string; payeeTraderId: string; amountCents: Cents; currency?: string },
-): Promise<boolean> {
+  params: { tradeId: string; actorId: string; outcome: TradeDisputeOutcome },
+): Promise<ResolveTradeDisputeResult> {
   const { repository, payments } = deps;
-  if (params.amountCents <= 0) return true;
+  const now = deps.now ?? (() => new Date());
+  const maxAttempts = deps.maxFullCaptureAttempts ?? MAX_FULL_CAPTURE_ATTEMPTS;
+  const { outcome } = params;
 
-  const nonce = `friction-return:${params.tradeId}`;
-  const payee = await repository.getTraderPayee(params.payeeTraderId);
+  // ---- 1. Validate -------------------------------------------------------
+  const trade = await repository.loadTrade(params.tradeId);
+  if (!trade) return { ok: false, error: 'TRADE_NOT_FOUND' };
+  if (trade.state !== 'DISPUTED') {
+    return { ok: false, error: 'INVALID_OUTCOME', detail: 'Only a disputed trade can be resolved.' };
+  }
+  const [initiatorId, counterpartId] = participants(trade);
 
-  if (!canReceiveFunds(payee)) {
-    await repository.recordFrictionTaxReturnResult({
-      tradeId: params.tradeId,
-      nonce,
-      paid: false,
-      error: 'The trader has no payout account that can receive the return-shipping share.',
+  let accusedId: string | null = null;
+  if (outcome.kind === 'CONDITION') {
+    accusedId = otherOf(trade, outcome.wrongedTraderId);
+    if (!accusedId) return { ok: false, error: 'INVALID_OUTCOME', detail: 'The wronged trader is not on this trade.' };
+    if (!Number.isInteger(outcome.compensationMinor) || outcome.compensationMinor < 0) {
+      return { ok: false, error: 'INVALID_OUTCOME', detail: 'Compensation must be a whole amount of at least 0.' };
+    }
+  }
+  if (outcome.kind === 'FRAUD') {
+    accusedId = otherOf(trade, outcome.victimId);
+    if (!accusedId) return { ok: false, error: 'INVALID_OUTCOME', detail: 'The victim is not on this trade.' };
+  }
+
+  let inspected: boolean;
+  try {
+    inspected = await repository.hasReachedInspection(params.tradeId);
+  } catch (error) {
+    return {
+      ok: false,
+      error: 'DISPUTE_HISTORY_UNAVAILABLE',
+      detail: error instanceof Error ? error.message : undefined,
+    };
+  }
+
+  if (outcome.kind === 'NO_EXCHANGE' && inspected) {
+    return {
+      ok: false,
+      error: 'INVALID_OUTCOME',
+      detail: 'Both traders confirmed or passed the handover, so the trade cannot be undone.',
+    };
+  }
+  const attests = (outcome.kind === 'UNFOUNDED' || outcome.kind === 'CONDITION') && !inspected;
+  if (attests && outcome.goodsChangedHands !== true) {
+    return {
+      ok: false,
+      error: 'INVALID_OUTCOME',
+      detail:
+        "Nothing shows the cards changed hands. Choose 'The exchange didn't happen', or confirm the goods did change hands.",
+    };
+  }
+
+  // ---- 2. Locate live holds ---------------------------------------------
+  const holds = await repository.getHolds(params.tradeId);
+  const liveOf = (traderId: string) => currentLiveHold(holds, traderId);
+  const currency = currencyOf(trade);
+  const plan: MoneyPlan = { captures: [], voids: [], disbursements: [] };
+
+  if (outcome.kind === 'UNFOUNDED' || outcome.kind === 'NO_EXCHANGE') {
+    await releaseInFull(deps, trade, liveOf(initiatorId), plan);
+    await releaseInFull(deps, trade, liveOf(counterpartId), plan);
+  }
+
+  if (outcome.kind === 'CONDITION' && accusedId) {
+    const accusedHold = liveOf(accusedId);
+    if (!accusedHold) {
+      await repository.flagManualReconciliation({ tradeId: params.tradeId });
+      return { ok: false, error: 'HOLD_NOT_FOUND', detail: accusedId };
+    }
+    const mode = modeOf(accusedHold)!;
+    const remaining = await remainingFor(deps, trade, accusedHold);
+    const X = outcome.compensationMinor;
+    let platformShare: Cents;
+    if (mode === 'LEGACY_PARTIAL') {
+      // The platform share was already captured at raise by the pre-fix code.
+      platformShare = Math.min(Number(trade.friction_tax_platform_cents ?? 0), remaining);
+      if (X > remaining - platformShare) {
+        return { ok: false, error: 'INVALID_OUTCOME', detail: `Compensation can be at most ${remaining - platformShare}.` };
+      }
+    } else {
+      if (X > remaining) {
+        return { ok: false, error: 'INVALID_OUTCOME', detail: `Compensation can be at most ${remaining}.` };
+      }
+      platformShare = Math.min(frictionTaxPlatformFeeFor(currency), remaining - X);
+    }
+
+    if (mode === 'ACTIVE') {
+      if (X + platformShare === 0) {
+        // Stripe refuses a zero capture; nothing is owed, so release the hold.
+        plan.voids.push(accusedHold);
+      } else {
+        plan.captures.push({ hold: accusedHold, amount: X + platformShare });
+        plan.splitCapture = { holdRef: accusedHold.holdRef, wrongedId: outcome.wrongedTraderId, compensation: X, platformShare };
+      }
+    } else {
+      const refundRest = remaining - X - platformShare;
+      if (X > 0) {
+        plan.disbursements.push({
+          tradeId: trade.id, holdRef: accusedHold.holdRef, kind: 'PAYOUT', payeeId: outcome.wrongedTraderId,
+          amountMinor: X, currency, nonce: nonceFor(trade.id, accusedHold.holdRef, 'PAYOUT', outcome.wrongedTraderId),
+        });
+      }
+      // A legacy hold's platform share is already the platform's (it was captured as
+      // such), so only a custody hold queues it explicitly.
+      if (mode === 'CUSTODY' && platformShare > 0) {
+        plan.disbursements.push({
+          tradeId: trade.id, holdRef: accusedHold.holdRef, kind: 'PLATFORM_RETAINED', payeeId: null,
+          amountMinor: platformShare, currency, nonce: nonceFor(trade.id, accusedHold.holdRef, 'PLATFORM_RETAINED', null),
+        });
+      }
+      if (refundRest > 0) {
+        plan.disbursements.push({
+          tradeId: trade.id, holdRef: accusedHold.holdRef, kind: 'REFUND', payeeId: accusedId,
+          amountMinor: refundRest, currency, nonce: nonceFor(trade.id, accusedHold.holdRef, 'REFUND', accusedId),
+        });
+      }
+    }
+    await releaseInFull(deps, trade, liveOf(outcome.wrongedTraderId), plan);
+  }
+
+  let acknowledgedNoCollateral = false;
+  if (outcome.kind === 'FRAUD' && accusedId) {
+    const offenderHolds = holds.filter((h) => h.traderId === accusedId);
+    const offenderBacked = offenderHolds.some((h) => {
+      const mode = modeOf(h);
+      return mode === 'ACTIVE' || mode === 'CUSTODY';
     });
-    await repository.flagManualReconciliation({ tradeId: params.tradeId });
-    return false;
+    const offenderLive = liveOf(accusedId);
+
+    if (outcome.acknowledgeNoCollateral) {
+      // Accepted only when there is genuinely nothing capturable left (2a).
+      if (offenderBacked) {
+        return {
+          ok: false,
+          error: 'INVALID_OUTCOME',
+          detail: 'The offender still has live collateral, so there is no need to override.',
+        };
+      }
+      acknowledgedNoCollateral = true;
+      const legacyRemaining =
+        offenderLive && modeOf(offenderLive) === 'LEGACY_PARTIAL' ? await remainingFor(deps, trade, offenderLive) : 0;
+      if (offenderLive && legacyRemaining > 0) {
+        plan.disbursements.push({
+          tradeId: trade.id, holdRef: offenderLive.holdRef, kind: 'PAYOUT', payeeId: outcome.victimId,
+          amountMinor: legacyRemaining, currency,
+          nonce: nonceFor(trade.id, offenderLive.holdRef, 'PAYOUT', outcome.victimId),
+        });
+      } else {
+        // The placeholder for any platform-funded goodwill staff decide later.
+        const ref = currentHold(holds, accusedId)?.holdRef ?? `none:${trade.id}`;
+        plan.disbursements.push({
+          tradeId: trade.id, holdRef: ref, kind: 'PAYOUT', payeeId: outcome.victimId, amountMinor: 0, currency,
+          nonce: nonceFor(trade.id, ref, 'PAYOUT', outcome.victimId), holdReason: 'STAFF',
+        });
+      }
+    } else {
+      if (!offenderLive) {
+        await repository.flagManualReconciliation({ tradeId: params.tradeId });
+        return { ok: false, error: 'HOLD_NOT_FOUND', detail: accusedId };
+      }
+      const mode = modeOf(offenderLive)!;
+      if (mode === 'ACTIVE') {
+        plan.captures.push({ hold: offenderLive, amount: 'FULL' });
+        plan.payCaptureTo = { holdRef: offenderLive.holdRef, payeeId: outcome.victimId };
+      } else {
+        // Custody or legacy: pay what is left to the victim. On a legacy hold the
+        // platform waives its share on a fraud finding.
+        const remaining = await remainingFor(deps, trade, offenderLive);
+        if (remaining > 0) {
+          plan.disbursements.push({
+            tradeId: trade.id, holdRef: offenderLive.holdRef, kind: 'PAYOUT', payeeId: outcome.victimId,
+            amountMinor: remaining, currency, nonce: nonceFor(trade.id, offenderLive.holdRef, 'PAYOUT', outcome.victimId),
+          });
+        }
+      }
+    }
+    await releaseInFull(deps, trade, liveOf(outcome.victimId), plan);
   }
 
-  const payout = await payments.payoutToMerchant({
-    merchantRef: payee!.merchantRef!,
-    amount: params.amountCents,
-    ...(params.currency ? { currency: params.currency } : {}),
-    ref: `friction-return:${params.tradeId}`,
-    // Persisted, and reused verbatim on any retry.
-    nonce,
-  });
+  // Any other still-ACTIVE row (a stray earlier attempt) is released too, so the trade
+  // never ends over an open authorisation. Terminal rows are skipped (ESC-10 noise).
+  const planned = new Set([...plan.captures.map((c) => c.hold.holdRef), ...plan.voids.map((h) => h.holdRef)]);
+  for (const hold of holds) {
+    if (hold.status === 'ACTIVE' && !planned.has(hold.holdRef)) plan.voids.push(hold);
+  }
 
-  if (payout.status !== 'SETTLED') {
-    await repository.recordFrictionTaxReturnResult({
-      tradeId: params.tradeId,
-      nonce,
-      paid: false,
-      error: 'The provider declined the return-shipping payout.',
+  // ---- 3. Move money ----------------------------------------------------
+  const capturedHoldRefs: string[] = [];
+  const disbursements = [...plan.disbursements];
+  for (const { hold, amount } of plan.captures) {
+    let settledAmount: Cents | null = null;
+    if (amount === 'FULL') {
+      for (let attempt = 0; attempt < maxAttempts && settledAmount === null; attempt += 1) {
+        const capture = await payments.fullCapture(hold.holdRef);
+        if (capture.status === 'SETTLED') settledAmount = capture.amount;
+      }
+    } else {
+      const capture = await payments.partialCapture({ holdId: hold.holdRef, amount });
+      if (capture.status === 'SETTLED') settledAmount = capture.amount;
+    }
+    if (settledAmount === null) {
+      await repository.flagManualReconciliation({ tradeId: params.tradeId, fullCaptureFailed: amount === 'FULL' });
+      return { ok: false, error: 'CAPTURE_FAILED', detail: hold.holdRef };
+    }
+    // Stamped as custody: the money is held for members until its disbursements
+    // settle, and a retried resolution then reads it as captured, not as an open hold.
+    await repository.recordHoldCapture({
+      holdRef: hold.holdRef,
+      capturedCents: settledAmount,
+      status: amount === 'FULL' ? 'FULLY_CAPTURED' : 'PARTIALLY_CAPTURED',
+      custodyCapturedAt: now(),
     });
-    await repository.flagManualReconciliation({ tradeId: params.tradeId });
-    return false;
+    capturedHoldRefs.push(hold.holdRef);
+
+    if (plan.payCaptureTo?.holdRef === hold.holdRef && settledAmount > 0) {
+      disbursements.push({
+        tradeId: trade.id, holdRef: hold.holdRef, kind: 'PAYOUT', payeeId: plan.payCaptureTo.payeeId,
+        amountMinor: settledAmount, currency, nonce: nonceFor(trade.id, hold.holdRef, 'PAYOUT', plan.payCaptureTo.payeeId),
+      });
+    }
+    if (plan.splitCapture?.holdRef === hold.holdRef) {
+      const { wrongedId, compensation, platformShare } = plan.splitCapture;
+      // Never more than the provider actually took: compensation first, then the
+      // platform's share.
+      const paid = Math.min(compensation, settledAmount);
+      const kept = Math.min(platformShare, settledAmount - paid);
+      if (paid > 0) {
+        disbursements.push({
+          tradeId: trade.id, holdRef: hold.holdRef, kind: 'PAYOUT', payeeId: wrongedId, amountMinor: paid, currency,
+          nonce: nonceFor(trade.id, hold.holdRef, 'PAYOUT', wrongedId),
+        });
+      }
+      if (kept > 0) {
+        disbursements.push({
+          tradeId: trade.id, holdRef: hold.holdRef, kind: 'PLATFORM_RETAINED', payeeId: null, amountMinor: kept, currency,
+          nonce: nonceFor(trade.id, hold.holdRef, 'PLATFORM_RETAINED', null),
+        });
+      }
+    }
   }
-
-  await repository.recordFrictionTaxReturnResult({
-    tradeId: params.tradeId,
-    nonce,
-    paid: true,
-  });
-  return true;
-}
-
-/** Result of resolving a Condition_Dispute by recorded return (Req 7.5). */
-export type ResolveConditionDisputeResult =
-  | { ok: true; trade: TradeRecord; voidedHoldRefs: string[] }
-  | { ok: false; error: DisputeResolutionError; detail?: string };
-
-/**
- * Resolve a Condition_Dispute when the disputed Item is recorded returned within
- * the 14-day window (Req 7.5): commit DISPUTED -> COMPLETED, then request a $0
- * Hold_Void for the remaining hold of the disputed-against Trader and for the
- * raising Trader's hold.
- *
- * The remaining hold amounts stay locked up to this point (Req 7.4); this is the
- * step that releases them.
- */
-export async function resolveConditionDispute(
-  deps: DisputeResolutionDeps,
-  params: { tradeId: string; actorId: string },
-): Promise<ResolveConditionDisputeResult> {
-  const { orchestrator, repository, payments } = deps;
-
-  const transitioned = await orchestrator.applyEvent({
-    tradeId: params.tradeId,
-    event: 'DISPUTE_RESOLVED',
-    actorId: params.actorId,
-  });
-  if (!transitioned.ok) {
-    return { ok: false, error: transitioned.error, detail: transitioned.detail };
-  }
-  const trade = transitioned.trade;
-
-  // Void the disputed-against Trader's remaining hold and the raising Trader's
-  // hold (Req 7.5). Prefer the recorded participants; fall back to voiding every
-  // still-live hold on the Trade so no collateral is left stranded.
-  const raisedBy = trade.dispute_raised_by as string | undefined;
-  const disputedAgainst = trade.disputed_against as string | undefined;
-  const targetTraders = [raisedBy, disputedAgainst].filter(
-    (id): id is string => typeof id === 'string' && id.length > 0,
-  );
-
-  const holds = await repository.getHolds(trade.id);
-  const toVoid =
-    targetTraders.length > 0
-      ? holds.filter((hold) => targetTraders.includes(hold.traderId))
-      : holds;
 
   const voidedHoldRefs: string[] = [];
-  for (const hold of toVoid) {
-    if (hold.status === 'VOIDED' || hold.status === 'FULLY_CAPTURED') continue;
-    // The RETURNED STATUS DECIDES. `voidHold` reports failure through `status`
-    // rather than throwing, and this loop used to discard it and mark the row
-    // VOIDED regardless — so a trader's collateral could stay a live authorisation
-    // against their card while the system said it had been released. The expiry
-    // reconciler only sweeps holds still marked ACTIVE, so it could not find one
-    // either: the encumbrance became invisible until the authorisation lapsed.
+  for (const hold of plan.voids) {
     const released = await payments.voidHold(hold.holdRef);
     if (released.status !== 'VOIDED') {
-      // Left ACTIVE deliberately, so `expire_lapsed_holds` still owns it and the
-      // trader is warned before it lapses.
-      await repository.flagManualReconciliation({ tradeId: trade.id });
-      continue;
+      // Left ACTIVE so `expire_lapsed_holds` still owns it; the trade stays DISPUTED.
+      await repository.flagManualReconciliation({ tradeId: params.tradeId });
+      return { ok: false, error: 'HOLD_RELEASE_FAILED', detail: hold.holdRef };
     }
     await repository.markHoldVoided(hold.holdRef);
     voidedHoldRefs.push(hold.holdRef);
   }
 
-  return { ok: true, trade, voidedHoldRefs };
-}
+  if (disbursements.length > 0) await repository.queueDisbursements(disbursements);
 
-/**
- * Record a return-overdue indication when the disputed Item is not returned
- * within 14 calendar days of the transition to DISPUTED (Req 7.7). The Trade
- * stays DISPUTED and all remaining hold amounts stay locked; only the indication
- * is recorded. Takes no state transition because it is meant to be driven by a
- * scheduled check.
- *
- * NOTHING SCHEDULES IT YET. There is no `return_deadline_at` on `trades` and no
- * sweep that calls this, so `trades.return_overdue` is never set in production and
- * the fourteen days are not enforced against anyone. Use
- * `disputeReturnOverdue` from `domain/dispute/returnWindow` for the predicate; the
- * missing pieces are the column and a pass in the hourly trade-inspections job.
- *
- * "All remaining hold amounts stay locked" is also optimistic, and worth reading
- * with `disputeCollateralRisk`: the authorisation behind them lapses in about seven
- * days, so by the time a return is overdue there is usually nothing left to lock.
- * `expire_lapsed_holds` (0109) hands that case to an operator.
- */
-export async function markDisputeReturnOverdue(
-  deps: DisputeResolutionDeps,
-  params: { tradeId: string },
-): Promise<{ ok: true }> {
-  await deps.repository.recordReturnOverdue({ tradeId: params.tradeId });
-  return { ok: true };
-}
+  // ---- 4. Commit --------------------------------------------------------
+  const event =
+    outcome.kind === 'NO_EXCHANGE' ? 'DISPUTE_UNWOUND' : outcome.kind === 'FRAUD' ? 'FRAUD_CONFIRMED' : 'DISPUTE_RESOLVED';
+  const committed = await deps.orchestrator.applyEvent({ tradeId: params.tradeId, event, actorId: params.actorId });
+  if (!committed.ok) return { ok: false, error: committed.error, detail: committed.detail };
 
-// ---------------------------------------------------------------------------
-// Objective Fraud (Req 8)
-// ---------------------------------------------------------------------------
-
-/** An error indication surfaced by fraud resolution (Req 8.6, 8.7). */
-/**
- * Error indications surfaced from a fraud resolution without rolling the
- * transition back (Req 8.6).
- *
- * `MISSING_IDENTITY_DATA` is gone along with the identity-disclosure step it
- * described — there is no longer any identity data to be missing.
- */
-export type FraudIndication =
-  | 'FULL_CAPTURE_FAILED'
-  /**
-   * The collateral was captured but the victim has no Connect destination that can
-   * receive it, so it stays in the platform balance pending their payout setup.
-   */
-  | 'VICTIM_NOT_PAYABLE'
-  /** The payout to the victim was attempted and the provider refused it. */
-  | 'VICTIM_TRANSFER_FAILED'
-  /** A hold that should have been released reported a failed void (Req 8.5). */
-  | 'HOLD_VOID_FAILED';
-
-/** The aggregate outcome of resolving Objective_Fraud (Req 8.2-8.7). */
-export interface FraudResolutionOutcome {
-  trade: TradeRecord;
-  /** The offending Trader whose collateral is captured (Counterpart of the reporter). */
-  offendingTraderId: string;
-  /** The victim Trader (the reporter) who receives the captured funds. */
-  victimTraderId: string;
-  /** Whether the Full_Capture settled within the bounded retries (Req 8.2, 8.6). */
-  fullCaptureSettled: boolean;
-  /** Number of Full_Capture attempts made (Req 8.6). */
-  fullCaptureAttempts: number;
-  /** Whether the captured funds were transferred to the victim (Req 8.3). */
-  transferSettled: boolean;
-  /** Whether the victim's hold was voided (Req 8.5). */
-  victimHoldVoided: boolean;
-  /** Whether the Trade was flagged for manual reconciliation (Req 8.6). */
-  manualReconciliation: boolean;
-  /** Error indications to surface to the caller (Req 8.6, 8.7). */
-  indications: FraudIndication[];
-}
-
-/** Result of reporting Objective_Fraud. */
-export type ReportFraudResult =
-  | { ok: true; outcome: FraudResolutionOutcome }
-  | { ok: false; error: DisputeResolutionError | 'HOLD_NOT_FOUND'; detail?: string };
-
-/**
- * Report Objective_Fraud from INSPECTION or DISPUTED (Req 8.1-8.7).
- *
- * The reporter (`actorId`) is the victim; the offending Trader is the
- * Counterpart. The Trade transitions to FRAUD_RESOLVED first (Req 8.1); the
- * post-transition side effects then run and NEVER roll the state back — failures
- * are recorded as indications:
- *
- * - Full_Capture of 100% of the offending hold, retried up to the bounded limit
- *   (Req 8.2, 8.6). On exhaustion: preserve the offending hold, flag the Trade
- *   for manual reconciliation, and surface `FULL_CAPTURE_FAILED`.
- * - On a settled capture, transfer the captured funds to the victim (Req 8.3).
- * - Void the victim's hold at $0 (Req 8.5).
- *
- * Req 8.4/8.7 (generate a Police_Evidence_Pack from the offending Trader's
- * verified identity) is NOT implemented and has been deliberately withdrawn — see
- * the note at the former step 5. The requirement itself needs amending.
- */
-export async function reportObjectiveFraud(
-  deps: DisputeResolutionDeps,
-  params: {
-    tradeId: string;
-    /** The OPERATOR making the determination. Recorded for audit only. */
-    actorId: string;
-    /**
-     * The trader the operator determined was defrauded. Their counterpart's
-     * collateral is captured and paid to them.
-     *
-     * REQUIRED, and deliberately not derived from `actorId`. This function used to
-     * treat its caller as the victim, and the caller was any participant — so a
-     * trader could name themselves the victim and take the other side's collateral
-     * with no review. The victim is now an operator's finding, and `actorId` is the
-     * operator, who is not a party to the trade at all.
-     */
-    victimId: string;
-  },
-): Promise<ReportFraudResult> {
-  const { orchestrator, repository, payments } = deps;
-  const maxAttempts = deps.maxFullCaptureAttempts ?? MAX_FULL_CAPTURE_ATTEMPTS;
-  // No clock seam here: fraud resolution records no timestamp of its own. Every
-  // instant it cares about is written by the repository or the state machine.
-
-  // 1. Commit the transition to FRAUD_RESOLVED (Req 8.1).
-  const transitioned = await orchestrator.applyEvent({
+  const at = now();
+  await repository.recordOutcome({
     tradeId: params.tradeId,
-    event: 'FRAUD_CONFIRMED',
-    actorId: params.actorId,
-  });
-  if (!transitioned.ok) {
-    return { ok: false, error: transitioned.error, detail: transitioned.detail };
-  }
-  const trade = transitioned.trade;
-
-  // The victim must be a party to the trade; the offender is whoever they are not.
-  // Validated against the trade rather than assumed, so an operator cannot name an
-  // unrelated account as the beneficiary of a capture.
-  const offendingTraderId = counterpartOf(trade, params.victimId);
-  if (!offendingTraderId) {
-    return { ok: false, error: 'NOT_PARTICIPANT' };
-  }
-  const victimTraderId = params.victimId;
-
-  await repository.recordFraudParticipants({
-    tradeId: trade.id,
-    victimId: victimTraderId,
-    offendingId: offendingTraderId,
+    outcome: outcome.kind,
+    attestedBy: attests ? params.actorId : null,
+    at,
+    cancelled: outcome.kind === 'NO_EXCHANGE',
   });
 
-  const holds = await repository.getHolds(trade.id);
-  const offendingHold = holdForTrader(holds, offendingTraderId);
-  const victimHold = holdForTrader(holds, victimTraderId);
-  if (!offendingHold) {
-    return { ok: false, error: 'HOLD_NOT_FOUND', detail: offendingTraderId };
-  }
-
-  const indications: FraudIndication[] = [];
-
-  // 2. Full_Capture 100% of the offending hold, bounded retry (Req 8.2, 8.6).
-  //
-  // WHAT THIS LOOP CAN AND CANNOT RECOVER, because it is easy to over-read.
-  //
-  // Every attempt sends the SAME idempotency key (`capture:full:<holdId>`), which is
-  // deliberate — a capture must never be able to run twice. The consequence is that it
-  // only helps against a failure where NOTHING reached the provider (a thrown transport
-  // error, which the binding converts to a FAILED status). Where the provider returned a
-  // definite rejection, that response is cached against the key and attempts 2 and 3
-  // replay the same rejection immediately.
-  //
-  // So this is a transport retry, not a "try until it works" loop, and exhausting it
-  // flags manual reconciliation rather than implying the money is unrecoverable. Do not
-  // "improve" it by varying the key per attempt: that trades a recoverable operator task
-  // for the possibility of capturing a trader's collateral twice.
-  let fullCaptureSettled = false;
-  let capturedCents = 0;
-  let attempts = 0;
-  while (attempts < maxAttempts && !fullCaptureSettled) {
-    attempts += 1;
-    const capture = await payments.fullCapture(offendingHold.holdRef);
-    if (capture.status === 'SETTLED') {
-      fullCaptureSettled = true;
-      capturedCents = capture.amount;
-    }
-  }
-
-  let transferSettled = false;
   let manualReconciliation = false;
-  if (fullCaptureSettled) {
-    await repository.recordFullCapture({
-      holdRef: offendingHold.holdRef,
-      capturedCents,
+  if (outcome.kind === 'FRAUD' && accusedId) {
+    await repository.recordFraudParticipants({ tradeId: params.tradeId, victimId: outcome.victimId, offendingId: accusedId });
+    if (acknowledgedNoCollateral) {
+      manualReconciliation = true;
+      await repository.flagManualReconciliation({ tradeId: params.tradeId, fullCaptureFailed: true });
+    }
+  }
+  if (outcome.kind === 'UNFOUNDED' && trade.dispute_raised_by) {
+    await repository.incrementUnfoundedDisputeCount(String(trade.dispute_raised_by));
+  }
+
+  // ---- 5. The cash leg ---------------------------------------------------
+  const hasCash = Number(trade.cash_amount_cents ?? 0) > 0;
+  if (hasCash && deps.cashLeg) {
+    const cash = await deps.cashLeg.settleForOutcome(
+      params.tradeId,
+      outcome.kind,
+      // ESC-06: on FRAUD the collected cash goes to whichever side was wronged.
+      outcome.kind === 'FRAUD' ? { victimId: outcome.victimId } : undefined,
+    );
+    if (cash.manualReconciliation) {
+      manualReconciliation = true;
+      await repository.flagManualReconciliation({ tradeId: params.tradeId });
+    }
+  }
+
+  // ---- 6. NO_EXCHANGE: restore what nothing else claims, refund the fees ----
+  let restoredItemIds: string[] = [];
+  let feeRefundFailed = false;
+  if (outcome.kind === 'NO_EXCHANGE') {
+    restoredItemIds = await repository.restoreTradeItemsIfUnclaimed(params.tradeId);
+    if (deps.refundFees) {
+      const refunded = await deps.refundFees(params.tradeId);
+      feeRefundFailed = !refunded.ok;
+    }
+    if (restoredItemIds.length > 0) {
+      await deps.notifier?.listingsRestored({ tradeId: params.tradeId, itemIds: restoredItemIds });
+    }
+    await deps.notifier?.tradeUnwound({
+      tradeId: params.tradeId,
+      traderIds: [initiatorId, counterpartId],
+      // The legacy cash leg was never collected, so nothing is refunded in WP1.
+      cashRefunded: false,
     });
-
-    // 3. Pay the captured funds OUT to the victim (Req 8.3).
-    //
-    // `payoutToMerchant`, NOT `requestTransfer`. This previously called
-    // `requestTransfer({ payerId: victimPayerId, ... })`, which is a COLLECTION
-    // primitive: it creates a PaymentIntent against the given customer's saved card
-    // and, with no `merchantRef`, returns SETTLED once that charge succeeds. So a
-    // confirmed fraud finding captured the offender's collateral and then DEBITED
-    // THE VICTIM for the same amount, reported success, and left the platform
-    // holding both sides. It is the exact mistake `payoutCashSaleSeller` documents
-    // at its own call site.
-    //
-    // The captured collateral is already in the platform balance, so releasing it
-    // is a payout of money we hold — never a fresh charge.
-    const victimPayee = await repository.getTraderPayee(victimTraderId);
-    if (!canReceiveFunds(victimPayee)) {
-      // Recoverable and deliberately not a silent success: the funds stay in the
-      // platform balance and the case is flagged, so a victim who has not finished
-      // payout onboarding is paid once they do rather than being charged now.
-      manualReconciliation = true;
-      indications.push('VICTIM_NOT_PAYABLE');
-      await repository.flagManualReconciliation({ tradeId: trade.id });
-    } else {
-      const payout = await payments.payoutToMerchant({
-        merchantRef: victimPayee!.merchantRef!,
-        amount: capturedCents,
-        // Captured in the trade's currency, so owed to the victim in it.
-        ...(tradeCurrency(trade) ? { currency: tradeCurrency(trade) } : {}),
-        ref: `fraud-payout:${trade.id}`,
-        nonce: `fraud-payout:${trade.id}`,
-      });
-      transferSettled = payout.status === 'SETTLED';
-      if (!transferSettled) {
-        // Payouts report failure through `status` rather than throwing (Req 8.6),
-        // so an unchecked call here would have recorded a payment that never landed.
-        manualReconciliation = true;
-        indications.push('VICTIM_TRANSFER_FAILED');
-        await repository.flagManualReconciliation({ tradeId: trade.id });
-      }
-    }
-  } else {
-    // Exhausted all retries -> preserve the offending hold, flag manual
-    // reconciliation, surface the error indication (Req 8.6).
-    manualReconciliation = true;
-    indications.push('FULL_CAPTURE_FAILED');
-    await repository.flagManualReconciliation({ tradeId: trade.id });
   }
-
-  // 4. Void the victim's hold at $0 (Req 8.5).
-  //
-  // The victim has already been defrauded; leaving their collateral authorised
-  // while telling them it was released is the last thing this flow should do, so
-  // the returned status is checked rather than assumed. See the same fix in
-  // `resolveConditionDispute`.
-  let victimHoldVoided = false;
-  if (victimHold && victimHold.status !== 'VOIDED') {
-    const released = await payments.voidHold(victimHold.holdRef);
-    if (released.status === 'VOIDED') {
-      await repository.markHoldVoided(victimHold.holdRef);
-      victimHoldVoided = true;
-    } else {
-      manualReconciliation = true;
-      indications.push('HOLD_VOID_FAILED');
-      await repository.flagManualReconciliation({ tradeId: trade.id });
-    }
-  }
-
-  // NOTE: there is deliberately no identity-disclosure step here.
-  //
-  // This flow previously generated a "Police_Evidence_Pack" — a PDF carrying the
-  // accused Trader's legal name, date of birth and government document number —
-  // and `downloadEvidencePack` exposed it to any trade PARTICIPANT. That meant a
-  // victim could obtain the accused's identity documents on the strength of an
-  // in-app fraud determination, with no court order and no appeal. Harmless while
-  // the identity data was simulated; a real disclosure problem once provider
-  // identity verification made it genuine.
-  //
-  // Removed rather than restricted, so the platform never reads verified identity
-  // fields at all: identity verification is now pass/fail only. If a lawful
-  // request for identity data arrives, it should be served by a human out of band,
-  // not by a download button.
 
   return {
     ok: true,
-    outcome: {
-      trade,
-      offendingTraderId,
-      victimTraderId,
-      fullCaptureSettled,
-      fullCaptureAttempts: attempts,
-      transferSettled,
-      victimHoldVoided,
+    resolution: {
+      trade: committed.trade,
+      outcome: outcome.kind,
+      offendingTraderId: accusedId,
+      disbursements,
+      voidedHoldRefs,
+      capturedHoldRefs,
       manualReconciliation,
-      indications,
+      restoredItemIds,
+      feeRefundFailed,
     },
   };
 }
@@ -781,41 +855,25 @@ export async function reportObjectiveFraud(
 // Bound coordinator
 // ---------------------------------------------------------------------------
 
-/** A dispute/fraud resolution coordinator with its dependencies pre-wired. */
+/** The dispute coordinator with its dependencies pre-wired. */
 export interface DisputeResolutionOrchestrator {
-  raiseConditionDispute(params: {
+  raiseConditionDispute(params: { tradeId: string; actorId: string; reason?: string | null }): Promise<RaiseConditionDisputeResult>;
+  raiseFraudClaim(params: { tradeId: string; actorId: string; reason: string }): Promise<RaiseFraudClaimResult>;
+  resolveTradeDispute(params: { tradeId: string; actorId: string; outcome: TradeDisputeOutcome }): Promise<ResolveTradeDisputeResult>;
+  custodyCaptureHold(params: {
     tradeId: string;
-    actorId: string;
-    /** The raiser's own account of what went wrong (0083). */
-    reason?: string | null;
-  }): Promise<RaiseConditionDisputeResult>;
-  resolveConditionDispute(params: {
-    tradeId: string;
-    actorId: string;
-  }): Promise<ResolveConditionDisputeResult>;
-  markDisputeReturnOverdue(params: { tradeId: string }): Promise<{ ok: true }>;
-  reportObjectiveFraud(params: {
-    tradeId: string;
-    /** The operator making the determination. */
-    actorId: string;
-    /** The trader the operator found was defrauded. Never inferred from the caller. */
-    victimId: string;
-  }): Promise<ReportFraudResult>;
+    holdRef: string;
+    reason: CustodyCaptureReason;
+    actorId?: string | null;
+  }): Promise<CustodyCaptureResult>;
 }
 
-/**
- * Bind the dispute/fraud resolution operations to a set of dependencies. Tests
- * wire an in-memory fake repository + fake payment/KYC service + in-memory
- * evidence-pack generator here; production wires the Supabase admin binding (see
- * `supabaseDisputeResolutionRepository.ts`).
- */
-export function createDisputeResolutionOrchestrator(
-  deps: DisputeResolutionDeps,
-): DisputeResolutionOrchestrator {
+/** Bind the dispute operations to a set of dependencies. */
+export function createDisputeResolutionOrchestrator(deps: DisputeResolutionDeps): DisputeResolutionOrchestrator {
   return {
     raiseConditionDispute: (params) => raiseConditionDispute(deps, params),
-    resolveConditionDispute: (params) => resolveConditionDispute(deps, params),
-    markDisputeReturnOverdue: (params) => markDisputeReturnOverdue(deps, params),
-    reportObjectiveFraud: (params) => reportObjectiveFraud(deps, params),
+    raiseFraudClaim: (params) => raiseFraudClaim(deps, params),
+    resolveTradeDispute: (params) => resolveTradeDispute(deps, params),
+    custodyCaptureHold: (params) => custodyCaptureHold(deps, params),
   };
 }

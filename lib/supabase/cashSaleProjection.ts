@@ -18,6 +18,10 @@ export const CASH_SALE_PUBLIC_SELECT = [
   // the tech steering doc calls out for exactly this list.
   'tracking_checked_at',
   'inspection_accepted_at', 'carrier_delivered_at', 'inspection_deadline_at',
+  // ESC-02 (0134): both parties are told when tracking is under review.
+  'tracking_flagged_at', 'tracking_flag_reason', 'tracking_flag_resolved_at',
+  // ESC-03 (0138): when the seller is paid, and why a payout is on hold.
+  'seller_payout_release_at', 'seller_payout_hold_reason',
   'auto_completed', 'buyer_handover_confirmed_at', 'seller_handover_confirmed_at',
   'completed_at', 'cancelled_at', 'cancelled_by', 'cancel_reason', 'disputed_at',
   'disputed_by', 'dispute_reason', 'conversation_id',
@@ -38,6 +42,8 @@ export const CASH_SALE_PUBLIC_SELECT = [
   'return_tracking_url', 'return_carrier_delivered_at', 'return_shipped_at',
   'return_deadline_at', 'return_warned_at', 'return_disputed_at',
   'return_dispute_reason', 'return_lapsed_at',
+  // 0143 (ESC-11). The seller's return inspection deadline, shown in the room.
+  'return_inspection_deadline_at',
   // 0132. The seller's ship-by date, shown on the posting step, and whether it lapsed.
   'ship_by_at', 'ship_lapsed_at',
   // 0064. Drives the contract room's whole reading of itself: a shopfront

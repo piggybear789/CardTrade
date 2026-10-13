@@ -25,13 +25,14 @@
 import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
+import { createLoggedTradeOrchestrator } from './tradeOrchestrator';
 import { getPaymentService } from '@/domain/services';
 import { regionForCurrency } from '@/lib/regionBinding';
 import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment';
 import { finalizeCompletedTrade, type TradeRow } from './completion';
 import { emailNotify } from '@/lib/email';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { abandonCollateralPendingTrade } from './collateralPlacement';
 
 /** How long before the deadline both traders are nudged, in hours. */
 const WARNING_LEAD_HOURS = 24;
@@ -128,12 +129,12 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
   // authorisation lapsed, which is the failure the inspection clock exists to
   // prevent. Cached rather than rebuilt per trade because a batch is usually one
   // region and constructing a client per row is wasteful.
-  const byRegion = new Map<string, ReturnType<typeof createDefaultTradeOrchestrator>>();
+  const byRegion = new Map<string, ReturnType<typeof createLoggedTradeOrchestrator>>();
   const orchestratorFor = (currency: string | null) => {
     const region = regionForCurrency(currency);
     const existing = byRegion.get(region);
     if (existing) return existing;
-    const built = createDefaultTradeOrchestrator({ payments: getPaymentService(region) });
+    const built = createLoggedTradeOrchestrator({ payments: getPaymentService(region) });
     byRegion.set(region, built);
     return built;
   };
@@ -300,18 +301,45 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
  *
  * Called from the same hourly job, so this adds no new schedule.
  */
-export async function flagStaleCollateralTrades(): Promise<{ flagged: number }> {
+export async function flagStaleCollateralTrades(): Promise<{ flagged: number; abandoned: number }> {
   const admin = createAdminClient();
 
+  // ESC-04: a COLLATERAL_PENDING trade whose meeting PASSED without locking is ENDED,
+  // not merely flagged: nothing protects either trader, the items are off the market,
+  // and fees may have been charged. One abandon operation does it in a safe order.
+  const { data: passed } = await admin
+    .from('trades')
+    .select('id')
+    .eq('state', 'COLLATERAL_PENDING')
+    .not('meeting_at', 'is', null)
+    .lt('meeting_at', new Date().toISOString())
+    .limit(MAX_TRADES_PER_PASS);
+
+  let abandoned = 0;
+  for (const row of (passed ?? []) as Array<{ id: string }>) {
+    try {
+      const result = await abandonCollateralPendingTrade(row.id, 'MEETING_PASSED_UNLOCKED');
+      if (result.ok && result.abandoned) abandoned += 1;
+      // A VOID_FAILED result already flagged the trade and logged; retried next hour.
+    } catch (err) {
+      await logBackgroundFailure({
+        name: 'trade.collateral_abandon',
+        errorCode: 'THREW',
+        error: err,
+        context: { tradeId: row.id },
+      });
+    }
+  }
+
+  // A COLLATERAL_PENDING trade with NO meeting on file can never be placed (ESC-04:
+  // `acceptTradeTerms` now refuses that, so these are pre-fix rows). Flag them for a
+  // human rather than guess a cancellation.
   const { data: stale } = await admin
     .from('trades')
     .select('id')
     .eq('state', 'COLLATERAL_PENDING')
     .eq('manual_reconciliation', false)
-    // Past its own meeting time and still unauthorised. A trade whose meeting is
-    // tomorrow is not stuck; it is waiting, which is now the normal state.
-    .not('meeting_at', 'is', null)
-    .lt('meeting_at', new Date().toISOString())
+    .is('meeting_at', null)
     .limit(MAX_TRADES_PER_PASS);
 
   let flagged = 0;
@@ -337,5 +365,5 @@ export async function flagStaleCollateralTrades(): Promise<{ flagged: number }> 
     }
   }
 
-  return { flagged };
+  return { flagged, abandoned };
 }

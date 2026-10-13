@@ -241,6 +241,8 @@ export async function cashSaleStepPlan(
     disputeRaisedByMe: sale.disputed_by === userId,
     hasReturnTracking: Boolean(sale.return_tracking_number),
     returnDisputed: Boolean(sale.return_disputed_at),
+    returnCarrierDeliveredAt: sale.return_carrier_delivered_at ?? null,
+    returnInspectionDeadlineAt: sale.return_inspection_deadline_at ?? null,
     haltedAt,
   });
 

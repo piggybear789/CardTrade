@@ -78,6 +78,12 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `region/regions.ts` — the trading-region registry and the ONE place two parties' regions are compared (`checkRegionCompatibility`). Pure, so the orchestrator guard and the browse UI share it. The request-scoped half — IP header, cookie, profile — is `lib/location/resolveRegion.ts`, which is `server-only` and is the only place `x-vercel-ip-country` is read.
 - `arbitration/arbitrationCase.ts` — the triage model over disputed sales, trades and chargebacks. Priority is derived from deadlines, fraud allegations and SLA, deliberately **not** from amount, because weighting by money parks small disputes forever.
 - `payouts/payoutReadModel.ts` — what a seller is owed and what has landed. `custodyReconciliation.ts` — platform balance health check.
+- `payouts/releasePolicy.ts` — the ONE holdback rule (ESC-03/ESC-01): when any money leaving the platform balance may move (`decideRelease`), new-seller exposure, qualifying sales. Every payout and collateral disbursement asks it.
+- `bond/currentHolds.ts` — which hold row counts (`currentHold`, `currentLiveHold`, `currentHoldsCoverTraders`). Never pick "the" hold with `find`.
+- `dispute/custodyEscalation.ts` — which disputed holds the custody backstop captures, and when.
+- `orchestrator/collateralReconcile.ts` — the one lock rule (ESC-08). `orchestrator/collateralDisbursement.ts` — the drain that refunds/pays captured collateral. `orchestrator/tradeCashLeg.ts` — the cash-leg port a dispute outcome settles through. `orchestrator/cashSaleEvents.ts` — every cash-sale event code TS writes.
+- `fulfilment/handoverEdits.ts` — when trade meeting terms may change (ESC-04). `offers/offerTransitions.ts` — the one Offer status rule (ESC-22). `env/isProduction.ts` — the one production predicate.
+- `lib/trades/`: `collateralLock.ts` (binding of the lock rule), `handoverChanges.ts` (meeting proposals), `custodyEscalationSweep.ts`, `holdExpiryReestimate.ts`, `tradeInspectionJob.ts` (the ordered `:17` passes), `disputeOrchestrator.ts` / `tradeOrchestrator.ts` (logged factories). `lib/identity/pushVerifiedIdentity.ts` is `server-only` (ESC-35).
 
 ## lib/
 

@@ -8,6 +8,7 @@
 // and this can be tested in the Node-only Vitest project.
 
 import type { CashSaleStatus } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { RETURN_INSPECTION_LABEL, returnInspectionOpen } from '@/domain/fulfilment/inspection';
 import {
   sequenceHaltedSteps,
   sequenceSteps,
@@ -60,6 +61,9 @@ export interface CashSaleStepFacts {
   hasReturnTracking?: boolean;
   /** True when the seller has contested the return (0088). */
   returnDisputed?: boolean;
+  /** Carrier delivery of the return, and the seller's window to check it (ESC-11). */
+  returnCarrierDeliveredAt?: string | null;
+  returnInspectionDeadlineAt?: string | null;
   /**
    * For a closed sale: the status it was in immediately before it went terminal,
    * i.e. `from_status` on the event that closed it.
@@ -358,8 +362,9 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
           : undefined,
     });
   } else {
-    // 4b. In-person cash sale: both parties confirm the meetup. The sale
-    // completes and the seller is paid on the second confirmation.
+    // 4b. In-person cash sale: both parties confirm the meetup. Since ESC-20 the
+    // second confirmation opens a 24-hour buyer inspection (step 5); it no longer
+    // completes the sale or pays the seller on the spot.
     const bothConfirmed =
       (myHandoverConfirmed && theirHandoverConfirmed) || status === 'COMPLETED';
     drafts.push({
@@ -369,13 +374,13 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       label: 'Both confirm the handover',
       detail: bothConfirmed
         ? viewerRole === 'SELLER'
-          ? 'Handover confirmed. Your payout is being processed.'
-          : 'Handover confirmed. The seller payout is being processed.'
+          ? 'Handover confirmed. The buyer has a day to raise a problem before you are paid.'
+          : 'Handover confirmed. You have a day to check the item before the seller is paid.'
         : myHandoverConfirmed
           ? `You confirmed. Waiting for ${counterpartyName} to confirm.`
           : theirHandoverConfirmed
             ? `${counterpartyName} confirmed. Confirm after you meet.`
-            : 'Confirm after the item changes hands. The sale completes when you both do.',
+            : 'Confirm after the item changes hands. The buyer then has a day to check it.',
       owner: bothConfirmed
         ? 'both'
         : myHandoverConfirmed
@@ -395,10 +400,10 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     });
   }
 
-  // 5. Delivered purchases retain an inspection window. In-person sales complete
-  // when both parties confirm the handover, so adding another acceptance step
-  // would imply payment is still held when it has already been released.
-  if (isDelivery) {
+  // 5. Every purchase has an inspection window before the seller is paid: posted
+  // ones from carrier delivery (7 days), in-person ones from the second handover
+  // confirmation (24 hours, ESC-20).
+  {
     drafts.push({
       id: 'inspect',
       short: '',
@@ -449,12 +454,32 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
           : undefined,
     });
 
+    // ESC-11: delivery opens the seller's window to check the parcel.
+    const returnFacts = {
+      status,
+      returnCarrierDeliveredAt: facts.returnCarrierDeliveredAt ?? null,
+      returnInspectionDeadlineAt: facts.returnInspectionDeadlineAt ?? null,
+      returnDisputedAt: returnDisputedNow ? 'contested' : null,
+    };
+    const returnDelivered = Boolean(facts.returnCarrierDeliveredAt);
+    drafts.push({
+      id: 'return-inspect',
+      short: '',
+      label:
+        viewerRole === 'SELLER' ? 'Check the return' : `${counterpartyName} checks the return`,
+      detail:
+        viewerRole === 'SELLER'
+          ? `You have ${RETURN_INSPECTION_LABEL} after delivery to report a problem. After that the buyer is refunded automatically.`
+          : `${counterpartyName} has ${RETURN_INSPECTION_LABEL} after delivery to check it.`,
+      owner: returnDisputedNow ? 'platform' : ownerFor('SELLER', viewerRole),
+      done: returnDelivered && !returnInspectionOpen(returnFacts),
+    });
+
     drafts.push({
       id: 'return-refund',
       short: '',
       label: 'Refund released',
-      detail:
-        'The refund releases once a carrier confirms the return arrived.',
+      detail: `The refund releases automatically ${RETURN_INSPECTION_LABEL} after the carrier confirms the return arrived.`,
       owner: 'platform',
       done: false,
     });

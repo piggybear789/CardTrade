@@ -134,6 +134,9 @@ describe('sellerIdentityDisclosure', () => {
       // WHO this is, which is what the Identity check answers — the `merchant_*`
       // fields above only establish that they can be paid.
       identityCheckStatus: 'VERIFIED',
+      // No Identity name here, so this fixture is a member 0069 grandfathered: the
+      // only kind whose disclosure may use the Connect name (ESC-25).
+      identityGrandfatheredAt: '2026-07-25T00:00:00.000Z',
       ...overrides,
     });
   }

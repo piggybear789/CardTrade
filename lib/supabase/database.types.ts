@@ -26,6 +26,17 @@
 // Insert marks columns optional when they have a default or are nullable.
 // Update marks every column optional.
 
+/** `trade_cash_settlements.status` (0139). */
+export type TradeCashSettlementStatus =
+  | 'NOT_COLLECTED'
+  | 'COLLECTING'
+  | 'COLLECTED'
+  | 'RELEASE_PENDING'
+  | 'RELEASED'
+  | 'REFUND_PENDING'
+  | 'REFUNDED'
+  | 'FAILED';
+
 export type Json =
   | string
   | number
@@ -150,6 +161,22 @@ export type Database = {
           email_deal_requests: boolean;
           email_shipping_updates: boolean;
           email_payouts: boolean;
+          /** Disputes this member raised that staff found UNFOUNDED (0133). Service-role write. */
+          unfounded_dispute_count: number;
+          /** ESC-03 / ESC-14 (0138). Service-role only; no member grant. */
+          exposure_limit_override_minor: number | null;
+          buyer_risk_flagged_at: string | null;
+          /** ESC-15 / ESC-24 / ESC-25 review columns (0140). Service role only. */
+          identity_duplicate_of: string | null;
+          identity_duplicate_approved_by: string | null;
+          identity_duplicate_approved_at: string | null;
+          payee_identity_mismatch_at: string | null;
+          payee_mismatch_cleared_by: string | null;
+          payee_mismatch_cleared_at: string | null;
+          payee_mismatch_cleared_pair: string | null;
+          payee_name_unavailable_logged_at: string | null;
+          identity_keys_missing_at: string | null;
+          identity_grandfathered_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -203,6 +230,19 @@ export type Database = {
           email_deal_requests?: boolean;
           email_shipping_updates?: boolean;
           email_payouts?: boolean;
+          unfounded_dispute_count?: number;
+          exposure_limit_override_minor?: number | null;
+          buyer_risk_flagged_at?: string | null;
+          identity_duplicate_of?: string | null;
+          identity_duplicate_approved_by?: string | null;
+          identity_duplicate_approved_at?: string | null;
+          payee_identity_mismatch_at?: string | null;
+          payee_mismatch_cleared_by?: string | null;
+          payee_mismatch_cleared_at?: string | null;
+          payee_mismatch_cleared_pair?: string | null;
+          payee_name_unavailable_logged_at?: string | null;
+          identity_keys_missing_at?: string | null;
+          identity_grandfathered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -256,6 +296,19 @@ export type Database = {
           email_deal_requests?: boolean;
           email_shipping_updates?: boolean;
           email_payouts?: boolean;
+          unfounded_dispute_count?: number;
+          exposure_limit_override_minor?: number | null;
+          buyer_risk_flagged_at?: string | null;
+          identity_duplicate_of?: string | null;
+          identity_duplicate_approved_by?: string | null;
+          identity_duplicate_approved_at?: string | null;
+          payee_identity_mismatch_at?: string | null;
+          payee_mismatch_cleared_by?: string | null;
+          payee_mismatch_cleared_at?: string | null;
+          payee_mismatch_cleared_pair?: string | null;
+          payee_name_unavailable_logged_at?: string | null;
+          identity_keys_missing_at?: string | null;
+          identity_grandfathered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -374,6 +427,8 @@ export type Database = {
           listing_kind: Database['cardtrade']['Enums']['listing_kind'];
           /** When the owner closed a SHOPFRONT. SINGLE listings use status. */
           closed_at: string | null;
+          /** ESC-19 (0141): the trade whose reservation this is. */
+          reserved_by_trade_id: string | null;
           image_paths: string[];
           /**
            * Intrinsic pixel size per photo, index-aligned with `image_paths`
@@ -442,6 +497,7 @@ export type Database = {
           status?: Database['cardtrade']['Enums']['item_status'];
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
+          reserved_by_trade_id?: string | null;
           image_paths: string[];
           image_dims?: Json | null;
           hidden?: boolean;
@@ -472,6 +528,7 @@ export type Database = {
           status?: Database['cardtrade']['Enums']['item_status'];
           listing_kind?: Database['cardtrade']['Enums']['listing_kind'];
           closed_at?: string | null;
+          reserved_by_trade_id?: string | null;
           image_paths?: string[];
           image_dims?: Json | null;
           hidden?: boolean;
@@ -602,6 +659,14 @@ export type Database = {
           return_overdue: boolean;
           full_capture_failed: boolean;
           manual_reconciliation: boolean;
+          /** The staff outcome that closed the dispute (0133). */
+          dispute_outcome: 'UNFOUNDED' | 'CONDITION' | 'FRAUD' | 'NO_EXCHANGE' | null;
+          /** Which holds the custody backstop may take (0133). Only staff narrow it. */
+          custody_scope: 'ALL' | 'ACCUSED_ONLY';
+          custody_accused_id: string | null;
+          /** Staff attestation that goods changed hands on a never-inspected trade (0133). */
+          dispute_goods_exchanged_attested_by: string | null;
+          dispute_goods_exchanged_attested_at: string | null;
           created_at: string;
           updated_at: string;
           conversation_id: string | null;
@@ -630,6 +695,9 @@ export type Database = {
            * terms: revising it voids both acceptances.
            */
           counterpart_goods_description: string | null;
+          /** ESC-18 (0141): side values frozen at TERMS_AGREED. */
+          initiator_side_minor: number | null;
+          counterpart_side_minor: number | null;
           cancelled_by: string | null;
           cancel_reason: string | null;
           cancelled_at: string | null;
@@ -651,6 +719,8 @@ export type Database = {
           offer_message?: string | null;
           declared_value_cents?: number | null;
           counterpart_goods_description?: string | null;
+          initiator_side_minor?: number | null;
+          counterpart_side_minor?: number | null;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
@@ -711,6 +781,11 @@ export type Database = {
           return_overdue?: boolean;
           full_capture_failed?: boolean;
           manual_reconciliation?: boolean;
+          dispute_outcome?: 'UNFOUNDED' | 'CONDITION' | 'FRAUD' | 'NO_EXCHANGE' | null;
+          custody_scope?: 'ALL' | 'ACCUSED_ONLY';
+          custody_accused_id?: string | null;
+          dispute_goods_exchanged_attested_by?: string | null;
+          dispute_goods_exchanged_attested_at?: string | null;
           created_at?: string;
           updated_at?: string;
           conversation_id?: string | null;
@@ -743,6 +818,8 @@ export type Database = {
           offer_message?: string | null;
           declared_value_cents?: number | null;
           counterpart_goods_description?: string | null;
+          initiator_side_minor?: number | null;
+          counterpart_side_minor?: number | null;
           cancelled_by?: string | null;
           cancel_reason?: string | null;
           cancelled_at?: string | null;
@@ -793,6 +870,11 @@ export type Database = {
           return_overdue?: boolean;
           full_capture_failed?: boolean;
           manual_reconciliation?: boolean;
+          dispute_outcome?: 'UNFOUNDED' | 'CONDITION' | 'FRAUD' | 'NO_EXCHANGE' | null;
+          custody_scope?: 'ALL' | 'ACCUSED_ONLY';
+          custody_accused_id?: string | null;
+          dispute_goods_exchanged_attested_by?: string | null;
+          dispute_goods_exchanged_attested_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -894,6 +976,17 @@ export type Database = {
           inspection_accepted_at: string | null;
           inspection_warned_at: string | null;
           carrier_delivered_at: string | null;
+          /** ESC-02 (0134): tracking that cannot be this sale's parcel. */
+          tracking_flagged_at: string | null;
+          tracking_flag_reason: 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null;
+          tracking_flag_resolved_at: string | null;
+          tracking_flag_resolved_by: string | null;
+          /** ESC-03/14 (0138): payout holdback. */
+          seller_payout_release_at: string | null;
+          seller_payout_hold_reason: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          fraud_warning_received_at: string | null;
+          /** ESC-03: per-attempt payment idempotency (0138). Server-only. */
+          payment_attempt: number;
           /** Return-conditional refund leg (0088). Separate from the outbound
               columns above so a return event cannot overwrite the original
               delivery record that inspection and arbitration depend on. */
@@ -905,6 +998,9 @@ export type Database = {
           return_shipped_at: string | null;
           return_deadline_at: string | null;
           return_lapsed_at: string | null;
+          /** Seller's return inspection window and the return leg's last read-back (0143). */
+          return_inspection_deadline_at: string | null;
+          return_tracking_checked_at: string | null;
           /** Ship-by date for a posted sale, and its warning and lapse stamps (0132). */
           ship_by_at: string | null;
           ship_warned_at: string | null;
@@ -1017,6 +1113,15 @@ export type Database = {
           inspection_accepted_at?: string | null;
           inspection_warned_at?: string | null;
           carrier_delivered_at?: string | null;
+          tracking_flagged_at?: string | null;
+          tracking_flag_reason?: 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null;
+          tracking_flag_resolved_at?: string | null;
+          tracking_flag_resolved_by?: string | null;
+          /** ESC-03/14 (0138): payout holdback. */
+          seller_payout_release_at?: string | null;
+          seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          fraud_warning_received_at?: string | null;
+          payment_attempt?: number;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;
@@ -1025,6 +1130,8 @@ export type Database = {
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
           return_lapsed_at?: string | null;
+          return_inspection_deadline_at?: string | null;
+          return_tracking_checked_at?: string | null;
           ship_by_at?: string | null;
           ship_warned_at?: string | null;
           ship_lapsed_at?: string | null;
@@ -1116,6 +1223,15 @@ export type Database = {
           inspection_accepted_at?: string | null;
           inspection_warned_at?: string | null;
           carrier_delivered_at?: string | null;
+          tracking_flagged_at?: string | null;
+          tracking_flag_reason?: 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null;
+          tracking_flag_resolved_at?: string | null;
+          tracking_flag_resolved_by?: string | null;
+          /** ESC-03/14 (0138): payout holdback. */
+          seller_payout_release_at?: string | null;
+          seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          fraud_warning_received_at?: string | null;
+          payment_attempt?: number;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;
@@ -1124,6 +1240,8 @@ export type Database = {
           return_shipped_at?: string | null;
           return_deadline_at?: string | null;
           return_lapsed_at?: string | null;
+          return_inspection_deadline_at?: string | null;
+          return_tracking_checked_at?: string | null;
           ship_by_at?: string | null;
           ship_warned_at?: string | null;
           ship_lapsed_at?: string | null;
@@ -1593,6 +1711,12 @@ export type Database = {
           expires_at: string | null;
           /** When the pre-expiry warning was sent (0035). Null until warned. */
           expiry_warned_at: string | null;
+          /** When the custody backstop captured this hold into the platform balance (0133). */
+          custody_captured_at: string | null;
+          /** When both traders were warned of an upcoming custody capture (0133). */
+          custody_warned_at: string | null;
+          /** `expires_at` is a planning estimate awaiting the provider read-back (0133, R4-M5). */
+          expires_at_estimated: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -1606,6 +1730,9 @@ export type Database = {
           status?: Database['cardtrade']['Enums']['hold_status'];
           expires_at?: string | null;
           expiry_warned_at?: string | null;
+          custody_captured_at?: string | null;
+          custody_warned_at?: string | null;
+          expires_at_estimated?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -1619,6 +1746,9 @@ export type Database = {
           status?: Database['cardtrade']['Enums']['hold_status'];
           expires_at?: string | null;
           expiry_warned_at?: string | null;
+          custody_captured_at?: string | null;
+          custody_warned_at?: string | null;
+          expires_at_estimated?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -1716,6 +1846,8 @@ export type Database = {
           settled_at?: string | null;
           refunded_at?: string | null;
           updated_at?: string;
+          /** ESC-29: a fresh per-attempt key is written before each retry. */
+          nonce?: string;
         };
         Relationships: [
           {
@@ -1768,6 +1900,246 @@ export type Database = {
             columns: ['requested_by'];
             isOneToOne: false;
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      /**
+       * A trade's cash leg (0139, ESC-05/06): collected buyer-present before any
+       * collateral hold, held by the platform, released or refunded by the outcome.
+       * Service-role writes; participants and staff may read.
+       */
+      /** ESC-03 layer 3 (0140): HMAC'd card / payout-account fingerprints. Service role only. */
+      member_risk_signals: {
+        Row: {
+          id: string;
+          profile_id: string;
+          kind: 'CARD_FINGERPRINT' | 'PAYOUT_ACCOUNT_FINGERPRINT';
+          value_hash: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          kind: 'CARD_FINGERPRINT' | 'PAYOUT_ACCOUNT_FINGERPRINT';
+          value_hash: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          kind?: 'CARD_FINGERPRINT' | 'PAYOUT_ACCOUNT_FINGERPRINT';
+          value_hash?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      /** ESC-14 (0140): cards blocked after a lost fraud chargeback. Service role only. */
+      blocked_payment_fingerprints: {
+        Row: { value_hash: string; reason: string; source_dispute_ref: string | null; created_at: string };
+        Insert: { value_hash: string; reason: string; source_dispute_ref?: string | null; created_at?: string };
+        Update: { value_hash?: string; reason?: string; source_dispute_ref?: string | null; created_at?: string };
+        Relationships: [];
+      };
+      /** ESC-03 layer 4 (0140). Written only through `consume_rate_limit`. */
+      rate_limit_hits: {
+        Row: { key: string; window_start: string; count: number };
+        Insert: { key: string; window_start: string; count?: number };
+        Update: { key?: string; window_start?: string; count?: number };
+        Relationships: [];
+      };
+      trade_cash_settlements: {
+        Row: {
+          trade_id: string;
+          payer_id: string;
+          receiver_id: string;
+          amount_minor: number;
+          currency: string;
+          status: TradeCashSettlementStatus;
+          collection_attempt: number;
+          collection_ref: string | null;
+          collection_requested_at: string | null;
+          collected_at: string | null;
+          pay_by: string;
+          release_nonce: string | null;
+          release_ref: string | null;
+          release_at: string | null;
+          hold_reason: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          refund_nonce: string | null;
+          refund_ref: string | null;
+          cancel_failures: number;
+          attempts: number;
+          last_error: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          trade_id: string;
+          payer_id: string;
+          receiver_id: string;
+          amount_minor: number;
+          currency: string;
+          status?: TradeCashSettlementStatus;
+          collection_attempt?: number;
+          collection_ref?: string | null;
+          collection_requested_at?: string | null;
+          collected_at?: string | null;
+          pay_by: string;
+          release_nonce?: string | null;
+          release_ref?: string | null;
+          release_at?: string | null;
+          hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          refund_nonce?: string | null;
+          refund_ref?: string | null;
+          cancel_failures?: number;
+          attempts?: number;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          trade_id?: string;
+          payer_id?: string;
+          receiver_id?: string;
+          amount_minor?: number;
+          currency?: string;
+          status?: TradeCashSettlementStatus;
+          collection_attempt?: number;
+          collection_ref?: string | null;
+          collection_requested_at?: string | null;
+          collected_at?: string | null;
+          pay_by?: string;
+          release_nonce?: string | null;
+          release_ref?: string | null;
+          release_at?: string | null;
+          hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+          refund_nonce?: string | null;
+          refund_ref?: string | null;
+          cancel_failures?: number;
+          attempts?: number;
+          last_error?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /**
+       * Every movement out of a captured trade hold (0133): refund, payout to a
+       * wronged trader, or the platform share. Service-role writes; participants
+       * and staff may read.
+       */
+      collateral_disbursements: {
+        Row: {
+          id: string;
+          trade_id: string;
+          hold_ref: string;
+          kind: 'REFUND' | 'PAYOUT' | 'PLATFORM_RETAINED';
+          payee_id: string | null;
+          amount_minor: number;
+          currency: string;
+          nonce: string;
+          status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          provider_ref: string | null;
+          release_at: string | null;
+          hold_reason: string | null;
+          attempts: number;
+          last_error: string | null;
+          failure_notified_at: string | null;
+          settled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          trade_id: string;
+          hold_ref: string;
+          kind: 'REFUND' | 'PAYOUT' | 'PLATFORM_RETAINED';
+          payee_id?: string | null;
+          amount_minor: number;
+          currency: string;
+          nonce: string;
+          status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          provider_ref?: string | null;
+          release_at?: string | null;
+          hold_reason?: string | null;
+          attempts?: number;
+          last_error?: string | null;
+          failure_notified_at?: string | null;
+          settled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          trade_id?: string;
+          hold_ref?: string;
+          kind?: 'REFUND' | 'PAYOUT' | 'PLATFORM_RETAINED';
+          payee_id?: string | null;
+          amount_minor?: number;
+          currency?: string;
+          nonce?: string;
+          status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
+          provider_ref?: string | null;
+          release_at?: string | null;
+          hold_reason?: string | null;
+          attempts?: number;
+          last_error?: string | null;
+          failure_notified_at?: string | null;
+          settled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'collateral_disbursements_trade_id_fkey';
+            columns: ['trade_id'];
+            isOneToOne: false;
+            referencedRelation: 'trades';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      /** Handover change proposals on a COLLATERAL_PENDING trade (0133). Service-role writes. */
+      trade_handover_changes: {
+        Row: {
+          id: string;
+          trade_id: string;
+          proposed_by: string;
+          terms: Record<string, unknown>;
+          created_at: string;
+          expires_at: string;
+          decided_at: string | null;
+          decided_by: string | null;
+          decision: 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'WITHDRAWN' | null;
+        };
+        Insert: {
+          id?: string;
+          trade_id: string;
+          proposed_by: string;
+          terms: Record<string, unknown>;
+          created_at?: string;
+          expires_at: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision?: 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'WITHDRAWN' | null;
+        };
+        Update: {
+          id?: string;
+          trade_id?: string;
+          proposed_by?: string;
+          terms?: Record<string, unknown>;
+          created_at?: string;
+          expires_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision?: 'ACCEPTED' | 'DECLINED' | 'EXPIRED' | 'WITHDRAWN' | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'trade_handover_changes_trade_id_fkey';
+            columns: ['trade_id'];
+            isOneToOne: false;
+            referencedRelation: 'trades';
             referencedColumns: ['id'];
           },
         ];
@@ -2391,6 +2763,34 @@ export type Database = {
         };
         Relationships: [];
       };
+      /** ESC-27 (0148): off-platform lure flags. Staff read; service role writes. */
+      message_risk_flags: {
+        Row: {
+          id: string;
+          message_id: string;
+          conversation_id: string;
+          sender_id: string;
+          signals: string[];
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          message_id: string;
+          conversation_id: string;
+          sender_id: string;
+          signals: string[];
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          message_id?: string;
+          conversation_id?: string;
+          sender_id?: string;
+          signals?: string[];
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       messages: {
         Row: {
           id: string;
@@ -2753,6 +3153,11 @@ export type Database = {
       };
     };
     Functions: {
+      /** ESC-03 layer 4 (0140). Service role only; true while within the limit. */
+      consume_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number };
+        Returns: boolean;
+      };
       create_cash_sale_agreement: {
         Args: {
           p_item_id: string;
@@ -2945,6 +3350,17 @@ export type Database = {
         };
         Returns: Database['cardtrade']['Tables']['trades']['Row'][];
       };
+      /**
+       * Returns a trade's reserved SINGLE items to AVAILABLE only where no live cash
+       * sale or other live trade claims them (0133). Returns the restored item ids.
+       * Never un-sells. Service role only.
+       */
+      restore_trade_items_if_unclaimed: {
+        Args: {
+          p_trade_id: string;
+        };
+        Returns: string[];
+      };
       apply_cash_sale_tracking: {
         Args: {
           p_cash_sale_id: string;
@@ -2959,9 +3375,9 @@ export type Database = {
        *
        * Distinct from `apply_cash_sale_tracking` on purpose: it writes only the
        * `return_*` columns, so a return event can never overwrite the outbound
-       * delivery record the original inspection and any arbitration read. A
-       * DELIVERED status queues the refund; it is monotonic, so a duplicate carrier
-       * event cannot queue it twice.
+       * delivery record the original inspection and any arbitration read. Since
+       * 0143 a DELIVERED status opens the seller's return inspection window and no
+       * longer queues the refund (ESC-11); it is monotonic.
        */
       apply_cash_sale_return_tracking: {
         Args: {

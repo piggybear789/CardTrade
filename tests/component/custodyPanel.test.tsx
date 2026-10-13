@@ -94,10 +94,22 @@ describe('CustodyPanel', () => {
 
   it('pluralises the sale count', () => {
     const { unmount } = render(<CustodyPanel position={report({ saleCount: 1 })} />);
-    expect(screen.getByText(/Across 1 sale\b/)).toBeInTheDocument();
+    expect(screen.getByText(/across 1 sale\b/)).toBeInTheDocument();
     unmount();
 
     render(<CustodyPanel position={report({ saleCount: 3 })} />);
-    expect(screen.getByText(/Across 3 sales/)).toBeInTheDocument();
+    expect(screen.getByText(/across 3 sales/)).toBeInTheDocument();
+  });
+
+  it('breaks what is owed down by source, including captured collateral (ESC-01)', () => {
+    render(
+      <CustodyPanel
+        position={report({ heldForSalesCents: 10_000, heldForCollateralCents: 5_000, collateralCount: 2, heldForTradeCashCents: 0, tradeCashCount: 0 })}
+      />,
+    );
+    // The amount may render in its own element (currency formatting), so match the row.
+    const row = (re: RegExp) => (_: string, el: Element | null) => el?.tagName === 'LI' && re.test((el.textContent ?? '').replace(/\s+/g, ' '));
+    expect(screen.getByText(row(/Captured trade collateral:.*50\.00.*across\s*2\s*holds/))).toBeInTheDocument();
+    expect(screen.getByText(row(/Trade cash:.*across\s*0\s*trades?/))).toBeInTheDocument();
   });
 });

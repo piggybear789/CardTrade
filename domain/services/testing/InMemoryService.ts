@@ -18,10 +18,18 @@
 //     plain Map/array a test can read to assert side effects.
 //   * Explicit, deterministic failure forcing keyed by operation `ref`/`holdId`,
 //     plus a KYC outcome switch — no randomness, ever.
+//   * PROVIDER SEMANTICS THAT MATTER FOR MONEY ARE MODELLED, not waved through
+//     (ESC-01): a hold is captured at most once and only while ACTIVE, refunds and
+//     sourced payouts are bounded by what was actually collected or captured, and a
+//     repeated idempotency key returns the first result. A double that accepted any
+//     capture or any refund is what let the capture-at-raise bug pass its tests.
 
 import type {
   CaptureResult,
   Cents,
+  CollectionCancel,
+  CollectionStatus,
+  PaymentPresence,
   Payer,
   PayerService,
   PayerDetails,
@@ -37,6 +45,7 @@ import type {
   IdentityCheckOutcome,
   IdentityCheckProgress,
 } from '../types';
+import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 
 /** A forced outcome for a simulated payment operation. */
 export type InMemoryOutcome = 'SUCCESS' | 'FAILURE';
@@ -56,6 +65,8 @@ export interface InMemoryServiceOptions {
   kycOutcome?: 'VERIFIED' | 'REJECTED';
   /** Reason recorded on a rejected KYC outcome (Req 2.3). */
   kycReason?: string;
+  /** Clock for hold expiries. Defaults to real time. */
+  clock?: () => Date;
 }
 
 /** An immutable record of a settled/failed capture, retained for test assertions. */
@@ -73,7 +84,7 @@ export interface InMemoryTransfer {
   payerId: string;
   amount: Cents;
   ref: string;
-  status: 'SETTLED' | 'FAILED';
+  status: TransferResult['status'];
 }
 
 /**
@@ -86,7 +97,7 @@ export interface InMemoryPayout {
   merchantRef: string;
   amount: Cents;
   ref: string;
-  status: 'SETTLED' | 'FAILED';
+  status: TransferResult['status'];
 }
 
 /**
@@ -145,6 +156,16 @@ export class InMemoryService
   readonly refunds: InMemoryRefund[] = [];
   /** Every event handed to `emit`, in order. */
   readonly emittedEvents: WebhookEvent[] = [];
+
+  /**
+   * Money held per collection or captured hold, keyed by `transferId` / `holdId`.
+   * `spentCents` is what has gone back out through refunds and sourced payouts.
+   */
+  private readonly ledger = new Map<string, { collectedCents: Cents; spentCents: Cents }>();
+  /** First result per idempotency key, so a reused nonce is observable in tests. */
+  private readonly nonceResults = new Map<string, TransferResult>();
+  /** Test overrides for {@link readHoldExpiry}. */
+  private readonly expiryOverrides = new Map<string, string | null>();
 
   /** Monotonic counter backing deterministic id generation. */
   private seq = 0;
@@ -274,13 +295,59 @@ export class InMemoryService
   // PaymentService
   // -------------------------------------------------------------------------
 
+  /**
+   * Test control (ESC-03): the next BUYER_PRESENT collections ask for a 3-D Secure
+   * challenge instead of settling. Off-session calls are never affected, matching
+   * Stripe, where only an on-session confirm can return `requires_action`.
+   */
+  forceRequiresAction = false;
+
+  /** Collections awaiting a challenge, by transfer id. */
+  private readonly challenges = new Map<
+    string,
+    { amount: Cents; status: 'REQUIRES_ACTION' | 'SETTLED' | 'FAILED' | 'CANCELLED' }
+  >();
+
+  /** Test control: the buyer finished (or failed) the challenge in the browser. */
+  completeChallenge(transferId: string, outcome: 'SETTLED' | 'FAILED'): void {
+    const challenge = this.challenges.get(transferId);
+    if (!challenge || challenge.status !== 'REQUIRES_ACTION') return;
+    challenge.status = outcome;
+    if (outcome === 'SETTLED') {
+      this.ledger.set(transferId, { collectedCents: challenge.amount, spentCents: 0 });
+    }
+  }
+
   /** Request a bank-to-bank transfer of `amount` (Req 4.2, 8.3). */
   async requestTransfer(params: {
     payerId: string;
     amount: Cents;
     ref: string;
     nonce: string;
+    merchantRef?: string;
+    presence?: PaymentPresence;
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult> {
+    // ESC-29: the same off-session boundary as the real binding.
+    if (params.merchantRef && !params.presence && !params.legacyOffSessionToMember) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+    const cached = this.cachedByNonce(`transfer:${params.nonce}`);
+    if (cached) return cached;
+
+    if (params.presence && this.forceRequiresAction) {
+      const transferId = `transfer_${this.nextId()}`;
+      const challenged: TransferResult = {
+        transferId,
+        amount: params.amount,
+        status: 'REQUIRES_ACTION',
+        clientSecret: `${transferId}_secret`,
+      };
+      this.challenges.set(transferId, { amount: params.amount, status: 'REQUIRES_ACTION' });
+      this.nonceResults.set(`transfer:${params.nonce}`, challenged);
+      return { ...challenged };
+    }
+
     const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
     const result: TransferResult = {
       transferId: `transfer_${this.nextId()}`,
@@ -294,6 +361,9 @@ export class InMemoryService
       ref: params.ref,
       status: result.status,
     });
+    // Collected money is what a later refund or sourced payout is bounded by.
+    if (ok) this.ledger.set(result.transferId, { collectedCents: params.amount, spentCents: 0 });
+    this.nonceResults.set(`transfer:${params.nonce}`, result);
     return result;
   }
 
@@ -311,7 +381,19 @@ export class InMemoryService
     nonce: string;
     sourcePaymentRef?: string;
   }): Promise<TransferResult> {
-    const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
+    const cached = this.cachedByNonce(`payout:${params.nonce}`);
+    if (cached) return cached;
+
+    // BOUNDED BY ITS SOURCE (ESC-01 property c). A payout tied to a collection or a
+    // captured hold can never pay out more than that charge still has unspent.
+    const source = params.sourcePaymentRef ? this.ledger.get(params.sourcePaymentRef) : undefined;
+    const withinSource =
+      !params.sourcePaymentRef ||
+      (source !== undefined &&
+        params.amount > 0 &&
+        source.spentCents + params.amount <= source.collectedCents);
+
+    const ok = withinSource && this.resolveOutcome(params.ref) === 'SUCCESS';
     const result: TransferResult = {
       transferId: `payout_${this.nextId()}`,
       amount: params.amount,
@@ -324,7 +406,77 @@ export class InMemoryService
       ref: params.ref,
       status: result.status,
     });
+    if (ok && source) source.spentCents += params.amount;
+    this.nonceResults.set(`payout:${params.nonce}`, result);
     return result;
+  }
+
+  /** ESC-34: open holds, for the orphan sweep. Test control: `failListUncaptured`. */
+  failListUncaptured = false;
+
+  async listUncapturedHolds(): Promise<Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>> {
+    if (this.failListUncaptured) throw new Error('search unavailable');
+    return [...this.holds.values()]
+      .filter((hold) => hold.status === 'ACTIVE')
+      .map((hold) => ({ holdId: hold.holdId, ref: null, amount: hold.amount, createdAt: new Date(0).toISOString() }));
+  }
+
+  /** Read a collection back (ESC-03, ESC-37). */
+  async readCollection(paymentRef: string): Promise<CollectionStatus> {
+    const challenge = this.challenges.get(paymentRef);
+    if (challenge) {
+      if (challenge.status === 'REQUIRES_ACTION') {
+        return { status: 'REQUIRES_ACTION', amountReceived: 0, clientSecret: `${paymentRef}_secret` };
+      }
+      if (challenge.status === 'SETTLED') return { status: 'SETTLED', amountReceived: challenge.amount };
+      return { status: 'FAILED', amountReceived: 0 };
+    }
+    const transfer = this.transfers.find((t) => t.transferId === paymentRef);
+    if (!transfer) return { status: 'FAILED', amountReceived: 0 };
+    return transfer.status === 'SETTLED'
+      ? { status: 'SETTLED', amountReceived: transfer.amount }
+      : { status: 'FAILED', amountReceived: 0 };
+  }
+
+  /** Cancel an uncompleted collection (ESC-03, ESC-05). */
+  async cancelCollection(paymentRef: string): Promise<CollectionCancel> {
+    const challenge = this.challenges.get(paymentRef);
+    if (challenge) {
+      if (challenge.status === 'SETTLED') return { status: 'ALREADY_SETTLED' };
+      challenge.status = 'CANCELLED';
+      return { status: 'CANCELLED' };
+    }
+    const transfer = this.transfers.find((t) => t.transferId === paymentRef);
+    if (transfer?.status === 'SETTLED') return { status: 'ALREADY_SETTLED' };
+    return { status: transfer ? 'CANCELLED' : 'FAILED' };
+  }
+
+  /** Reversals recorded for assertions (ESC-14). */
+  readonly reversals: { transferId: string; amount: Cents; nonce: string }[] = [];
+
+  async reversePayout(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult> {
+    const cached = this.cachedByNonce(`reverse:${params.nonce}`);
+    if (cached) return cached;
+    this.reversals.push({ ...params });
+    const result: TransferResult = {
+      transferId: `reversal_${this.nextId()}`,
+      amount: params.amount,
+      status: 'SETTLED',
+    };
+    this.nonceResults.set(`reverse:${params.nonce}`, result);
+    return result;
+  }
+
+  /** Evidence staged for assertions (ESC-14). */
+  readonly stagedEvidence: { disputeRef: string }[] = [];
+
+  async submitDisputeEvidence(params: {
+    disputeRef: string;
+    evidence: Record<string, string | undefined>;
+    submit: false;
+  }): Promise<{ status: 'STAGED' | 'FAILED' }> {
+    this.stagedEvidence.push({ disputeRef: params.disputeRef });
+    return { status: 'STAGED' };
   }
 
   /**
@@ -361,7 +513,6 @@ export class InMemoryService
     ref?: string;
   }): Promise<RefundResult> {
     const label = params.ref ?? params.paymentRef;
-    const ok = this.resolveOutcome(label) === 'SUCCESS';
 
     // Idempotent on nonce, mirroring the provider contract: a retry returns the
     // first result instead of refunding again.
@@ -370,11 +521,22 @@ export class InMemoryService
       return { refundId: seen.refundId, amount: seen.amount, status: seen.status };
     }
 
+    // BOUNDED REFUNDS (ESC-01 review #11). Only money that was actually collected or
+    // captured can go back, and never more than is left of it. An omitted amount is
+    // "everything still refundable"; a zero remainder is a failure, not a no-op.
+    const entry = this.ledger.get(params.paymentRef);
+    const remaining = entry ? entry.collectedCents - entry.spentCents : 0;
+    const amount = params.amount ?? remaining;
+    const bounded = entry !== undefined && amount > 0 && amount <= remaining;
+
+    const ok = bounded && this.resolveOutcome(label) === 'SUCCESS';
+    if (ok && entry) entry.spentCents += amount;
+
     const result: RefundResult = {
       refundId: ok ? `re_${this.nextId()}` : '',
-      amount: params.amount ?? 0,
+      amount: ok ? amount : params.amount ?? 0,
       status: ok ? 'SETTLED' : 'FAILED',
-      ...(ok ? {} : { reason: 'Refund failed to settle' }),
+      ...(ok ? {} : { reason: bounded ? 'Refund failed to settle' : 'Nothing refundable on this payment' }),
     };
     this.refunds.push({
       refundId: result.refundId,
@@ -395,51 +557,118 @@ export class InMemoryService
       payerId: params.payerId,
       amount: params.amount,
       status: ok ? 'ACTIVE' : 'FAILED',
+      // The same planning figure the Stripe binding falls back to (ESC-17a).
+      ...(ok
+        ? { expiresAt: new Date(this.now().getTime() + CARD_AUTHORISATION_HOURS * 3_600_000).toISOString() }
+        : {}),
     };
     this.holds.set(hold.holdId, hold);
     return hold;
   }
 
-  /** Release a hold at $0 cost (Req 6.7, 7.5, 8.5). Voids always succeed. */
+  /**
+   * Release a hold at $0 cost (Req 6.7, 7.5, 8.5).
+   *
+   * A captured hold cannot be voided (the provider refuses to cancel a succeeded
+   * intent), so that is FAILED. An unknown or already-voided hold voids.
+   */
   async voidHold(holdId: string): Promise<PreAuthHold> {
     const existing = this.holds.get(holdId);
+    const captured =
+      existing?.status === 'PARTIALLY_CAPTURED' || existing?.status === 'FULLY_CAPTURED';
     const hold: PreAuthHold = {
       holdId,
       payerId: existing?.payerId ?? '',
       amount: existing?.amount ?? 0,
-      status: 'VOIDED',
+      status: captured ? 'FAILED' : 'VOIDED',
     };
-    this.holds.set(holdId, hold);
+    if (!captured) this.holds.set(holdId, { ...hold, ...(existing?.expiresAt ? { expiresAt: existing.expiresAt } : {}) });
     return hold;
   }
 
-  /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */
+  /**
+   * Capture a fixed portion of a hold.
+   *
+   * SINGLE CAPTURE (ESC-01): FAILED unless the hold is ACTIVE. On success the hold is
+   * PARTIALLY_CAPTURED and the remainder is released, exactly as Stripe does, so
+   * nothing more can ever be captured from it.
+   */
   async partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult> {
-    const ok = this.resolveOutcome(params.holdId) === 'SUCCESS';
+    const hold = this.holds.get(params.holdId);
+    const capturable =
+      hold?.status === 'ACTIVE' && params.amount > 0 && params.amount <= hold.amount;
+    const ok = capturable && this.resolveOutcome(params.holdId) === 'SUCCESS';
     const result: CaptureResult = {
-      captureId: `capture_${this.nextId()}`,
+      captureId: ok ? `capture_${this.nextId()}` : '',
       holdId: params.holdId,
-      amount: params.amount,
+      amount: ok ? params.amount : 0,
       status: ok ? 'SETTLED' : 'FAILED',
     };
-    if (ok) this.markHold(params.holdId, 'PARTIALLY_CAPTURED');
+    if (ok) {
+      this.markHold(params.holdId, 'PARTIALLY_CAPTURED');
+      this.ledger.set(params.holdId, { collectedCents: params.amount, spentCents: 0 });
+    }
     this.captures.push({ ...result, kind: 'PARTIAL' });
     return result;
   }
 
-  /** Capture the entire hold amount on Objective_Fraud (Req 8.2). */
+  /** Capture the entire hold. FAILED unless the hold is ACTIVE (ESC-01). */
   async fullCapture(holdId: string): Promise<CaptureResult> {
-    const ok = this.resolveOutcome(holdId) === 'SUCCESS';
-    const amount = this.holds.get(holdId)?.amount ?? 0;
+    const hold = this.holds.get(holdId);
+    const ok = hold?.status === 'ACTIVE' && this.resolveOutcome(holdId) === 'SUCCESS';
+    const amount = ok && hold ? hold.amount : 0;
     const result: CaptureResult = {
-      captureId: `capture_${this.nextId()}`,
+      captureId: ok ? `capture_${this.nextId()}` : '',
       holdId,
       amount,
       status: ok ? 'SETTLED' : 'FAILED',
     };
-    if (ok) this.markHold(holdId, 'FULLY_CAPTURED');
+    if (ok) {
+      this.markHold(holdId, 'FULLY_CAPTURED');
+      this.ledger.set(holdId, { collectedCents: amount, spentCents: 0 });
+    }
     this.captures.push({ ...result, kind: 'FULL' });
     return result;
+  }
+
+  /** The recorded expiry of a hold (R4-M5); `null` when none is known. */
+  async readHoldExpiry(holdId: string): Promise<{ expiresAt: string | null }> {
+    if (this.expiryOverrides.has(holdId)) {
+      return { expiresAt: this.expiryOverrides.get(holdId) ?? null };
+    }
+    return { expiresAt: this.holds.get(holdId)?.expiresAt ?? null };
+  }
+
+  /**
+   * Test control: what {@link readHoldExpiry} reports for a hold, as the provider's
+   * `capture_before` would. `null` simulates a provider that reports no deadline.
+   */
+  setHoldExpiry(holdId: string, iso: string | null): void {
+    this.expiryOverrides.set(holdId, iso);
+  }
+
+  /**
+   * Test control: put a hold in the ledger as if the provider already had it, e.g. a
+   * legacy PARTIALLY_CAPTURED hold from before the capture-free raise. `capturedCents`
+   * (with `spentCents` already paid out of it) makes it refundable.
+   */
+  seedHold(hold: PreAuthHold, captured?: { capturedCents: Cents; spentCents?: Cents }): void {
+    this.holds.set(hold.holdId, { ...hold });
+    if (captured) {
+      this.ledger.set(hold.holdId, {
+        collectedCents: captured.capturedCents,
+        spentCents: captured.spentCents ?? 0,
+      });
+    }
+  }
+
+  /**
+   * What is still unspent on a collection or captured hold: collected or captured
+   * minus refunds and sourced payouts. `undefined` for a ref that never held money.
+   */
+  remainingOn(ref: string): Cents | undefined {
+    const entry = this.ledger.get(ref);
+    return entry ? entry.collectedCents - entry.spentCents : undefined;
   }
 
   // -------------------------------------------------------------------------
@@ -467,6 +696,16 @@ export class InMemoryService
     if (existing) this.holds.set(holdId, { ...existing, status });
   }
 
+  /** The first result recorded for an idempotency key, if any. */
+  private cachedByNonce(key: string): TransferResult | undefined {
+    const seen = this.nonceResults.get(key);
+    return seen ? { ...seen } : undefined;
+  }
+
+  /** The injected clock, or real time. */
+  private now(): Date {
+    return this.opts.clock ? this.opts.clock() : new Date();
+  }
 
   /** Monotonic, deterministic id fragment. */
   private nextId(): string {

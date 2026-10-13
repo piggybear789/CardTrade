@@ -16,9 +16,13 @@
 //   fullCapture      -> paymentIntents.capture()                  (Req 8.2)
 //   requestTransfer  -> PaymentIntent (+ Transfer when settling to a Seller)
 //
-// The cost of a real authorisation is that it EXPIRES: online card auths last
-// about 7 days. Every hold therefore reports `expiresAt`, read from the charge's
-// `capture_before`, so callers can surface the deadline and/or re-authorise.
+// The cost of a real authorisation is that it EXPIRES: an off-session (merchant-
+// initiated) Visa auth lasts about 4 days 18 hours, others up to 7 days. Every hold
+// therefore reports `expiresAt`, read from the charge's `capture_before`, with
+// CARD_AUTHORISATION_HOURS as the fallback when the provider reports none.
+//
+// A PaymentIntent is captured ONCE. Both capture methods read the intent first and
+// refuse with no write unless it is still `requires_capture` (ESC-01/07).
 //
 // Failure is reported through the `status` field rather than thrown, so the
 // existing compensating logic still runs (Req 4.4, 5.6, 7.6, 8.6). `createPayer`
@@ -37,12 +41,14 @@ import type Stripe from 'stripe';
 // The authorisation length is shared with the inspection clock, which derives the
 // inspection window, the collateral margin and the meeting-lead cap from it. Keeping
 // a private copy here — as this file used to — is what lets those drift apart.
-import { CARD_AUTHORISATION_DAYS } from '../../fulfilment/inspection';
+import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 import { regionCurrency } from '../../region/regions';
 
 import type {
   CaptureResult,
   Cents,
+  CollectionCancel,
+  CollectionStatus,
   EmbeddedClientSecret,
   InstrumentSetup,
   ManagedMerchant,
@@ -54,6 +60,7 @@ import type {
   PayerCreateOptions,
   PayerDetails,
   PayerService,
+  PaymentPresence,
   PaymentService,
   PlatformBalance,
   PreAuthHold,
@@ -90,8 +97,24 @@ const FX_QUOTE_API_VERSION = '2026-09-30.preview';
 
 export interface StripeServiceOptions {
   client: Stripe;
+  /** ESC-15: built from `STRIPE_IDENTITY_RESTRICTED_KEY[_<REGION>]`; reads only. */
+  identityClient?: Stripe;
   config: StripeConfig;
 }
+
+/**
+ * The exact expansions a restricted-key read needs (ESC-15). `document.number` and
+ * `document.dob` on the report are sensitive and returned only when named here;
+ * expanding the report alone yields a null number and silently empties the keys.
+ */
+export const IDENTITY_SENSITIVE_EXPANDS = [
+  'verified_outputs',
+  'verified_outputs.dob',
+  'verified_outputs.id_number',
+  'last_verification_report',
+  'last_verification_report.document.number',
+  'last_verification_report.document.dob',
+] as const;
 
 /** A hold/transfer failure that carries no provider id. */
 function failedHold(payerId: string, amount: Cents): PreAuthHold {
@@ -316,8 +339,12 @@ export class StripeService implements PaymentService, PayerService {
    * carries the document-backed name that becomes the buyer-facing disclosure.
    */
   async readIdentityCheck(sessionId: string): Promise<IdentityCheck> {
-    const session = await this.stripe.identity.verificationSessions.retrieve(sessionId, {
-      expand: ['verified_outputs'],
+    // ESC-15: with the restricted key, read the document number and DOB so the person
+    // keys exist. Without it the check still proceeds (honest members are not blocked
+    // by our configuration) and the caller is told the keys are unavailable.
+    const restricted = this.opts.identityClient;
+    const session = await (restricted ?? this.stripe).identity.verificationSessions.retrieve(sessionId, {
+      expand: restricted ? [...IDENTITY_SENSITIVE_EXPANDS] : ['verified_outputs'],
     });
     return this.toIdentityCheck(session);
   }
@@ -364,23 +391,34 @@ export class StripeService implements PaymentService, PayerService {
     const dob = verified?.dob ?? null;
     const addr = verified?.address ?? null;
 
-    // Hash immediately; the raw ID number never sits on IdentityCheck.
+    // Hash immediately; the raw document number never sits on IdentityCheck (ESC-15).
+    // The document number comes from the verification REPORT (only with the
+    // restricted key and its explicit expands) and is keyed by the document's own
+    // issuing country, never the address country.
+    const report =
+      session.last_verification_report && typeof session.last_verification_report === 'object'
+        ? (session.last_verification_report as Stripe.Identity.VerificationReport)
+        : null;
+    const documentNumber = report?.document?.number ?? verified?.id_number ?? null;
+    const reportDob = report?.document?.dob ?? null;
+    const keyDob = dob ?? reportDob;
     const fingerprints =
       outcome === 'VERIFIED'
         ? identityFingerprints(
             {
-              idNumber: verified?.id_number,
-              firstName: verified?.first_name,
-              lastName: verified?.last_name,
+              idNumber: documentNumber,
+              issuingCountry: report?.document?.issuing_country ?? null,
+              firstName: verified?.first_name ?? report?.document?.first_name,
+              lastName: verified?.last_name ?? report?.document?.last_name,
               dob:
-                dob && dob.day && dob.month && dob.year
-                  ? { day: dob.day, month: dob.month, year: dob.year }
+                keyDob && keyDob.day && keyDob.month && keyDob.year
+                  ? { day: keyDob.day, month: keyDob.month, year: keyDob.year }
                   : null,
-              country: addr?.country,
             },
             this.opts.config.identityFingerprintSecret,
           )
         : [];
+    const personKeysUnavailable = outcome === 'VERIFIED' && !documentNumber;
 
     return {
       sessionId: session.id,
@@ -413,6 +451,7 @@ export class StripeService implements PaymentService, PayerService {
             }
           : null,
       identityFingerprints: fingerprints,
+      ...(personKeysUnavailable ? { personKeysUnavailable: true } : {}),
     };
   }
 
@@ -523,6 +562,8 @@ export class StripeService implements PaymentService, PayerService {
       sourceId: method.id,
       brand: method.card?.brand,
       last4: method.card?.last4,
+      // ESC-03/14: opaque, the same for one physical card across customers.
+      ...(method.card?.fingerprint ? { fingerprint: method.card.fingerprint } : {}),
     };
   }
 
@@ -682,6 +723,13 @@ export class StripeService implements PaymentService, PayerService {
    */
   async partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult> {
     try {
+      // SINGLE CAPTURE (ESC-01/07). A PaymentIntent can be captured once; after that
+      // Stripe has released the remainder and nothing is left to take. Read first and
+      // refuse with no write unless the authorisation is still open, so a second
+      // capture surfaces as FAILED rather than as an API error mid-resolution.
+      if (!(await this.isCapturable(params.holdId))) {
+        return { captureId: '', holdId: params.holdId, amount: 0, status: 'FAILED' };
+      }
       const intent = await this.stripe.paymentIntents.capture(
         params.holdId,
         { amount_to_capture: params.amount },
@@ -707,6 +755,12 @@ export class StripeService implements PaymentService, PayerService {
   /** Capture the entire authorisation on Objective_Fraud (Req 8.2). */
   async fullCapture(holdId: string): Promise<CaptureResult> {
     try {
+      // Retrieve-first guard (ESC-01/07), as in `partialCapture`. It also turns a
+      // genuinely lapsed authorisation into FAILED for the custody backstop, which
+      // logs CUSTODY_CAPTURE_FAILED instead of the hold being silently stamped.
+      if (!(await this.isCapturable(holdId))) {
+        return { captureId: '', holdId, amount: 0, status: 'FAILED' };
+      }
       const intent = await this.stripe.paymentIntents.capture(
         holdId,
         {},
@@ -725,6 +779,29 @@ export class StripeService implements PaymentService, PayerService {
       this.warn('fullCapture', holdId, err);
       return { captureId: '', holdId, amount: 0, status: 'FAILED' };
     }
+  }
+
+  /**
+   * Re-read a hold's real `capture_before` (R4-M5).
+   *
+   * Used by the hourly re-estimate for rows whose `expires_at` was the old seven-day
+   * planning figure. `null` when the provider reports no deadline; the caller then
+   * keeps a floored estimate rather than inventing a provider date.
+   */
+  async readHoldExpiry(holdId: string): Promise<{ expiresAt: string | null }> {
+    const intent = await this.stripe.paymentIntents.retrieve(holdId, {
+      expand: ['latest_charge'],
+    });
+    const seconds = latestCharge(intent)?.payment_method_details?.card?.capture_before;
+    return {
+      expiresAt: typeof seconds === 'number' ? new Date(seconds * 1000).toISOString() : null,
+    };
+  }
+
+  /** True only while the authorisation can still be captured. */
+  private async isCapturable(holdId: string): Promise<boolean> {
+    const current = await this.stripe.paymentIntents.retrieve(holdId);
+    return current.status === 'requires_capture';
   }
 
   // --- Transfers -----------------------------------------------------------
@@ -751,11 +828,30 @@ export class StripeService implements PaymentService, PayerService {
     merchantRef?: string;
     applicationFee?: Cents;
     currency?: string;
+    presence?: PaymentPresence;
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult> {
+    // ESC-29: off-session is for collateral holds and the Trade_Fee. Money forwarded
+    // to a member must be paid by a buyer who is present. Refused before any call.
+    if (offSessionToMemberRefused(params)) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
     const currency = this.contractCurrency(params.currency);
     try {
       const paymentMethod = await this.defaultPaymentMethod(params.payerId);
       if (!paymentMethod) return { transferId: '', amount: params.amount, status: 'FAILED' };
+
+      // ESC-03: a BUYER_PRESENT collection is on-session, so the issuer may
+      // challenge it (3-D Secure). `use_stripe_sdk` makes the next action one the
+      // browser's `stripe.handleNextAction` can run in place, with no redirect URL.
+      const presenceParams = params.presence
+        ? {
+            use_stripe_sdk: true,
+            payment_method_options: {
+              card: { request_three_d_secure: params.presence.threeDS },
+            },
+          }
+        : { off_session: true };
 
       const intent = await this.stripe.paymentIntents.create(
         {
@@ -765,7 +861,7 @@ export class StripeService implements PaymentService, PayerService {
           payment_method: paymentMethod,
           payment_method_types: CARD_ONLY,
           confirm: true,
-          off_session: true,
+          ...presenceParams,
           description: 'NoDitto payment',
           metadata: metadataFor('TRANSFER', params.ref),
           expand: ['latest_charge'],
@@ -773,6 +869,18 @@ export class StripeService implements PaymentService, PayerService {
         // The persisted nonce, reused verbatim on retry (never regenerated).
         { idempotencyKey: params.nonce },
       );
+
+      if (intent.status === 'requires_action' && params.presence && intent.client_secret) {
+        return {
+          transferId: intent.id,
+          amount: params.amount,
+          status: 'REQUIRES_ACTION',
+          clientSecret: intent.client_secret,
+          ...(this.opts.config.publishableKey
+            ? { publishableKey: this.opts.config.publishableKey }
+            : {}),
+        };
+      }
 
       if (intent.status !== 'succeeded') {
         return { transferId: intent.id, amount: params.amount, status: 'FAILED' };
@@ -997,6 +1105,136 @@ export class StripeService implements PaymentService, PayerService {
     } catch (err) {
       this.warn('settledAmountOf', intent.id, err);
       return undefined;
+    }
+  }
+
+  /**
+   * Read a collection back (ESC-03 resume, ESC-37). The client secret is returned
+   * only while a challenge is outstanding, so a finished intent never hands one out.
+   * A read failure is PENDING: "could not tell" must never read as "failed" and
+   * relist goods the buyer may have paid for.
+   */
+  async readCollection(paymentRef: string): Promise<CollectionStatus> {
+    try {
+      const intent = await this.stripe.paymentIntents.retrieve(paymentRef);
+      const status = collectionStatusOf(intent);
+      return status.status === 'REQUIRES_ACTION' && this.opts.config.publishableKey
+        ? { ...status, publishableKey: this.opts.config.publishableKey }
+        : status;
+    } catch (err) {
+      this.warn('readCollection', paymentRef, err);
+      return { status: 'PENDING', amountReceived: 0 };
+    }
+  }
+
+  /**
+   * Cancel an uncompleted collection (ESC-03, ESC-05). Stripe refuses to cancel a
+   * succeeded intent, so a refusal is checked against a fresh read: succeeded means
+   * the challenge finished first and the money WAS collected.
+   */
+  async cancelCollection(paymentRef: string): Promise<CollectionCancel> {
+    try {
+      const intent = await this.stripe.paymentIntents.cancel(paymentRef, {
+        cancellation_reason: 'abandoned',
+      });
+      return intent.status === 'canceled'
+        ? { status: 'CANCELLED' }
+        : { status: 'FAILED', reason: intent.status };
+    } catch (err) {
+      try {
+        const intent = await this.stripe.paymentIntents.retrieve(paymentRef);
+        if (intent.status === 'succeeded') return { status: 'ALREADY_SETTLED' };
+        if (intent.status === 'canceled') return { status: 'CANCELLED' };
+      } catch {
+        // Fall through to FAILED: the caller retries next sweep.
+      }
+      this.warn('cancelCollection', paymentRef, err);
+      return { status: 'FAILED', reason: err instanceof Error ? err.message : 'cancel failed' };
+    }
+  }
+
+  /**
+   * ESC-34: uncaptured collateral holds on this platform account. Search is
+   * eventually consistent and may lag by a minute, which is why the sweep only looks
+   * at holds older than an hour. Throws on a provider error.
+   */
+  async listUncapturedHolds(params: { olderThan: string }): Promise<
+    Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>
+  > {
+    const before = Math.floor(Date.parse(params.olderThan) / 1000);
+    const out: Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }> = [];
+    let page: string | undefined;
+    for (let i = 0; i < 20; i += 1) {
+      const result = await this.stripe.paymentIntents.search({
+        query: `status:'requires_capture' AND metadata['cardtrade_kind']:'HOLD' AND created<${before}`,
+        limit: 100,
+        ...(page ? { page } : {}),
+      });
+      for (const intent of result.data) {
+        out.push({
+          holdId: intent.id,
+          ref: intent.metadata?.cardtrade_ref ?? null,
+          amount: intent.amount,
+          createdAt: new Date(intent.created * 1000).toISOString(),
+        });
+      }
+      if (!result.has_more || !result.next_page) break;
+      page = result.next_page;
+    }
+    return out;
+  }
+
+  /** Claw a payout back (ESC-14). Staff-initiated; keyed so a retry cannot double-reverse. */
+  async reversePayout(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult> {
+    try {
+      const reversal = await this.stripe.transfers.createReversal(
+        params.transferId,
+        { amount: params.amount },
+        { idempotencyKey: `reverse:${params.nonce}` },
+      );
+      return { transferId: reversal.id, amount: reversal.amount, status: 'SETTLED' };
+    } catch (err) {
+      this.warn('reversePayout', params.transferId, err);
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+  }
+
+  /**
+   * Stage chargeback evidence WITHOUT submitting (ESC-14). Staff submit from the
+   * Dashboard after review, because a submission is final.
+   */
+  async submitDisputeEvidence(params: {
+    disputeRef: string;
+    evidence: {
+      productDescription?: string;
+      uncategorizedText?: string;
+      shippingCarrier?: string;
+      shippingTrackingNumber?: string;
+      shippingDate?: string;
+    };
+    submit: false;
+  }): Promise<{ status: 'STAGED' | 'FAILED'; reason?: string }> {
+    try {
+      await this.stripe.disputes.update(params.disputeRef, {
+        submit: false,
+        evidence: {
+          ...(params.evidence.productDescription
+            ? { product_description: params.evidence.productDescription }
+            : {}),
+          ...(params.evidence.uncategorizedText
+            ? { uncategorized_text: params.evidence.uncategorizedText }
+            : {}),
+          ...(params.evidence.shippingCarrier ? { shipping_carrier: params.evidence.shippingCarrier } : {}),
+          ...(params.evidence.shippingTrackingNumber
+            ? { shipping_tracking_number: params.evidence.shippingTrackingNumber }
+            : {}),
+          ...(params.evidence.shippingDate ? { shipping_date: params.evidence.shippingDate } : {}),
+        },
+      });
+      return { status: 'STAGED' };
+    } catch (err) {
+      this.warn('submitDisputeEvidence', params.disputeRef, err);
+      return { status: 'FAILED', reason: err instanceof Error ? err.message : 'update failed' };
     }
   }
 
@@ -1470,6 +1708,41 @@ function resolveAccountCountry(
  * part of an idempotency key). The hashed body may include identity fields that
  * must never be logged in the clear.
  */
+/** ESC-29: a charge forwarded to a member without the payer present. */
+function offSessionToMemberRefused(params: {
+  merchantRef?: string;
+  presence?: PaymentPresence;
+  legacyOffSessionToMember?: boolean;
+}): boolean {
+  return Boolean(params.merchantRef) && !params.presence && !params.legacyOffSessionToMember;
+}
+
+/**
+ * The §1.9 mapping from a PaymentIntent to a {@link CollectionStatus}. Exported for
+ * tests; never leaks a Stripe type to callers.
+ */
+export function collectionStatusOf(intent: Stripe.PaymentIntent): CollectionStatus {
+  switch (intent.status) {
+    case 'succeeded':
+      return { status: 'SETTLED', amountReceived: intent.amount_received };
+    case 'requires_action':
+      return {
+        status: 'REQUIRES_ACTION',
+        amountReceived: 0,
+        ...(intent.client_secret ? { clientSecret: intent.client_secret } : {}),
+      };
+    case 'processing':
+    case 'requires_confirmation':
+      return { status: 'PENDING', amountReceived: 0 };
+    case 'canceled':
+    case 'requires_payment_method':
+      return { status: 'FAILED', amountReceived: 0 };
+    default:
+      // `requires_capture` is a manual-capture HOLD, never a collection.
+      return { status: 'PENDING', amountReceived: 0 };
+  }
+}
+
 function fingerprint(body: unknown): string {
   const canonical = JSON.stringify(body, (_key, value) =>
     value && typeof value === 'object' && !Array.isArray(value)
@@ -1525,6 +1798,12 @@ function fromV2Account(account: unknown): ManagedMerchant {
     transactionsEnabled: canSettle,
     settlementsEnabled: canSettle,
     legalName,
+    // ESC-25: the payee's own name parts, compared with the verified ID. Null when
+    // the account does not expose them, which is NOT a mismatch.
+    individualName:
+      individual?.given_name && individual?.surname
+        ? { given: individual.given_name, family: individual.surname }
+        : null,
     ...(outstanding.length ? { notes: `Outstanding: ${outstanding.join('; ')}` } : {}),
   };
 }
@@ -1572,5 +1851,5 @@ function captureBefore(intent: Stripe.PaymentIntent): string | undefined {
   if (intent.status !== 'requires_capture') return undefined;
 
   const created = typeof intent.created === 'number' ? intent.created * 1000 : Date.now();
-  return new Date(created + CARD_AUTHORISATION_DAYS * 86_400_000).toISOString();
+  return new Date(created + CARD_AUTHORISATION_HOURS * 3_600_000).toISOString();
 }

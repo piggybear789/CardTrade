@@ -18,6 +18,7 @@ import { notFound, redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { TradeContract } from '@/components/trade/TradeContract';
+import type { TradeCashLegView } from '@/components/trade/TradeCashLeg';
 import { scheduleTradeTrackingCheck } from '@/lib/tracking/refreshOnRead';
 import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -224,6 +225,25 @@ export default async function TradePage({
     cashReceiverPayoutReady = canReceiveFunds(receiver);
   }
 
+  // ESC-05 / ESC-06: the cash leg the platform holds, read under RLS (participants
+  // only). Null for a trade with no cash, or one agreed before the switch.
+  let cashLeg: TradeCashLegView | null = null;
+  if (goods.cashAmountCents > 0) {
+    const { data: leg } = await supabase
+      .from('trade_cash_settlements')
+      .select('status, pay_by, hold_reason, release_at')
+      .eq('trade_id', trade.id)
+      .maybeSingle();
+    if (leg) {
+      cashLeg = {
+        status: leg.status,
+        payBy: leg.pay_by,
+        holdReason: leg.hold_reason,
+        releaseAt: leg.release_at,
+      };
+    }
+  }
+
   // Participant evidence (0082). Only fetched for a trade that has actually been
   // disputed — every other trade would pay for a query guaranteed to return nothing.
   const disputeEvidence =
@@ -269,10 +289,31 @@ export default async function TradePage({
     );
   }
 
-  const [paymentMethodResult, initialAddresses] = await Promise.all([
+  // An undecided meeting-change proposal (ESC-04), read under RLS: participants only.
+  // Only a COLLATERAL_PENDING trade can carry one.
+  const handoverChangePromise =
+    trade.state === 'COLLATERAL_PENDING'
+      ? supabase
+          .from('trade_handover_changes')
+          .select('id, proposed_by, terms, expires_at')
+          .eq('trade_id', trade.id)
+          .is('decided_at', null)
+          .maybeSingle()
+      : Promise.resolve({ data: null });
+
+  const [paymentMethodResult, initialAddresses, { data: handoverChangeRow }] = await Promise.all([
     paymentMethodPromise,
     addressesPromise,
+    handoverChangePromise,
   ]);
+  const handoverChange = handoverChangeRow
+    ? {
+        id: handoverChangeRow.id as string,
+        proposedBy: handoverChangeRow.proposed_by as string,
+        terms: handoverChangeRow.terms as { meeting_location: string | null; meeting_at: string | null },
+        expiresAt: handoverChangeRow.expires_at as string,
+      }
+    : null;
 
   // Ask both carriers after this response is sent — see the matching note on the cash
   // sale route. A trade posts in both directions, so each side carries its own throttle
@@ -306,6 +347,8 @@ export default async function TradePage({
         paymentMethod={paymentMethodResult.ok ? paymentMethodResult.data : null}
         initialAddresses={initialAddresses}
         cashReceiverPayoutReady={cashReceiverPayoutReady}
+        cashLeg={cashLeg}
+        handoverChange={handoverChange}
         demoPanel={
           isPaymentDemoEnabled() ? <DemoPanel tradeId={trade.id} /> : null
         }

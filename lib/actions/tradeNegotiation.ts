@@ -24,22 +24,37 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { tradeContext } from '@/lib/notifications/notificationContext';
-import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
+import { confirmTradeCollateral } from '@/lib/trades/collateralLock';
 import { emailNotify } from '@/lib/email';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
-import { getPaymentService, operationalRegions } from '@/domain/services';
-import { currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
+import { operationalRegions } from '@/domain/services';
+import { currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
+import { currentHoldsCoverTraders } from '@/domain/bond/currentHolds';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
-import { placeTradeCollateral } from '@/lib/trades/collateralPlacement';
+import { freezeTradeSideValues, placeTradeCollateral } from '@/lib/trades/collateralPlacement';
 import {
   MAX_MEETING_LEAD_HOURS,
   TRADE_HANDOVER_METHODS,
   validateFulfilmentTerms,
 } from '@/domain/fulfilment';
-import { regionForTrade } from '@/lib/regionBinding';
 import { checkRegionCompatibility, regionMismatchMessage } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
+import { getPaymentService } from '@/domain/services';
+import { regionForTrade } from '@/lib/regionBinding';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { membersAreRelated } from '@/lib/risk/signals';
+import { RELATED_ACCOUNTS_MESSAGE } from '@/domain/risk/relatedAccounts';
+import {
+  confirmTradeCashPayment as confirmTradeCashPaymentCore,
+  getTradeCashPaymentAction as getTradeCashPaymentActionCore,
+  payTradeCash as payTradeCashCore,
+  type TradeCashError,
+  type TradeCashStatus,
+} from '@/domain/orchestrator/tradeCashSettlement';
+import {
+  createDefaultTradeCashDeps,
+  ensureTradeCashSettlement,
+} from '@/domain/orchestrator/supabaseTradeCashSettlementRepository';
 
 type TradeRow = Tables<'trades'>;
 
@@ -51,11 +66,40 @@ export type TradeNegotiationError =
   | 'not-permitted'
   | 'stale-terms'
   | 'invalid-terms'
+  /** No face-to-face meeting place and time on the terms (ESC-04). */
+  | 'terms-incomplete'
   | 'rejected'
-  | 'bond-failed';
+  | 'bond-failed'
+  /** ESC-05: the trade cash payment was declined; nothing was charged. */
+  | 'cash-declined'
+  /** ESC-05: the deadline to pay the trade cash has passed. */
+  | 'trade-cash-pay-by-passed'
+  /** ESC-05: a saved card is needed to pay the trade cash. */
+  | 'no-payment-method'
+  /** ESC-03 layer 3: the two traders are related accounts. Generic copy. */
+  | 'related-accounts';
 
 export type TradeNegotiationResult =
-  | { ok: true; trade: TradeRow; collateralStarted: boolean }
+  | {
+      ok: true;
+      trade: TradeRow;
+      collateralStarted: boolean;
+      /**
+       * ESC-05: the viewer is the trader who pays the cash leg, and it is unpaid.
+       * The room opens the pay step straight away.
+       */
+      nextAction?: { kind: 'PAY_TRADE_CASH' };
+    }
+  | { ok: false; error: TradeNegotiationError; message?: string };
+
+/** Result of paying (or confirming) the trade cash leg (ESC-05). */
+export type TradeCashActionResult =
+  | {
+      ok: true;
+      status: TradeCashStatus;
+      /** The issuer asked for a 3-D Secure check. Never persisted, never logged. */
+      nextAction?: { clientSecret: string; publishableKey?: string };
+    }
   | { ok: false; error: TradeNegotiationError; message?: string };
 
 /** Handover terms as the room's form submits them. */
@@ -328,6 +372,11 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
   const loaded = await loadParticipantTrade(tradeId, userId);
   if (!loaded.ok) return loaded;
 
+  // ESC-03 layer 3, again at the Commitment_Point: signals can arrive after opening.
+  if (await membersAreRelated(userId, loaded.counterpartyId)) {
+    return { ok: false, error: 'related-accounts', message: RELATED_ACCOUNTS_MESSAGE };
+  }
+
   for (const partyId of [userId, loaded.counterpartyId]) {
     const gate = await readIdentityGate(partyId);
     if (!gate.satisfied) {
@@ -340,6 +389,18 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
             : "The other trader hasn't verified with Stripe Identity yet.",
       };
     }
+  }
+
+  // ESC-04: collateral is placed a day before the MEETING, so terms with no meeting
+  // instant (or a non-face-to-face method) would leave a trade with no placement
+  // time, no inspection clock and no stale-sweep trigger. The SQL guard joins this
+  // when WP3's migration redefines `begin_trade_collateral`.
+  if (loaded.trade.handover_method !== 'IN_PERSON' || !loaded.trade.meeting_at) {
+    return {
+      ok: false,
+      error: 'terms-incomplete',
+      message: 'Set a meeting place and time before accepting.',
+    };
   }
 
   const admin = createAdminClient();
@@ -375,9 +436,34 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
     p_actor_id: userId,
   });
   const started = (startedData as TradeRow[] | null)?.[0];
+  // ESC-19 (0141): a card another contract already holds. The transition rolled back,
+  // so the trade is still NEGOTIATING; say why instead of pretending it started.
+  if (startError?.message.includes('short-reservation')) {
+    revalidatePath(`/trades/${tradeId}`);
+    return {
+      ok: false,
+      error: 'rejected',
+      message: 'One of the cards in this trade is no longer available, so the trade could not start.',
+    };
+  }
+  if (startError?.message.includes('terms-incomplete')) {
+    return { ok: false, error: 'terms-incomplete', message: 'Set a meeting place and time before accepting.' };
+  }
   if (startError || !started) {
     revalidatePath(`/trades/${tradeId}`);
     return { ok: true, trade: accepted, collateralStarted: false };
+  }
+
+  // ESC-18: freeze what each side is worth NOW, so a price edit after agreement
+  // cannot shrink the collateral or the fee. A failed write is logged; placement
+  // freezes the values itself if they are still missing.
+  if (!(await freezeTradeSideValues(started, admin))) {
+    await logBackgroundFailure({
+      name: 'trade.side_values',
+      errorCode: 'WRITE_FAILED',
+      message: 'Side values could not be frozen at TERMS_AGREED.',
+      context: { tradeId },
+    });
   }
 
   // COLLATERAL IS NO LONGER PLACED HERE. It is authorised a day before the meeting by
@@ -389,18 +475,123 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
   //
   // What this call still does is bind both sides and reserve the Items, which is what
   // COLLATERAL_PENDING now means: agreed, off the market, waiting for its hold.
+  //
+  // ESC-05: a cash leg is opened here, unpaid. The payer pays it buyer-present before
+  // any hold is placed; placement waits for it, and an unpaid leg at `pay_by` abandons
+  // the trade. A failed write is logged; placement re-creates the row on its own.
+  const hasCash = Number(started.cash_amount_cents ?? 0) > 0;
+  if (hasCash && !(await ensureTradeCashSettlement(started, admin))) {
+    await logBackgroundFailure({
+      name: 'trade_cash.create',
+      errorCode: 'WRITE_FAILED',
+      message: 'The trade cash leg row could not be created at TERMS_AGREED.',
+      context: { tradeId },
+    });
+  }
+  const payerId = hasCash
+    ? started.cash_direction === 'COUNTERPART_PAYS'
+      ? started.counterpart_id
+      : started.initiator_id
+    : null;
+
   await createNotification({
     userId: loaded.counterpartyId,
     type: 'TRADE',
     title: 'Trade terms agreed',
-    body: 'Both of you accepted the terms. The card holds go on the day before you meet.',
+    body:
+      payerId === loaded.counterpartyId
+        ? 'Both of you accepted the terms. Pay the agreed cash to lock the trade; the card holds go on the day before you meet.'
+        : 'Both of you accepted the terms. The card holds go on the day before you meet.',
     link: `/trades/${tradeId}`,
     context: tradeContext(tradeId, userId),
   });
 
   revalidatePath('/trades');
   revalidatePath(`/trades/${tradeId}`);
-  return { ok: true, trade: started, collateralStarted: true };
+  return {
+    ok: true,
+    trade: started,
+    collateralStarted: true,
+    ...(payerId === userId ? { nextAction: { kind: 'PAY_TRADE_CASH' as const } } : {}),
+  };
+});
+
+/** Member-facing code and copy for a trade-cash refusal (ESC-05). */
+function tradeCashFailure(error: TradeCashError, detail?: string): TradeCashActionResult {
+  switch (error) {
+    case 'NOT_FOUND':
+    case 'NOT_PAYER':
+      return { ok: false, error: 'not-participant' };
+    case 'TRADE_CASH_PAY_BY_PASSED':
+      return {
+        ok: false,
+        error: 'trade-cash-pay-by-passed',
+        message: 'The deadline to pay the cash for this trade has passed, so it cannot lock.',
+      };
+    case 'NO_PAYMENT_METHOD':
+      return { ok: false, error: 'no-payment-method', message: 'Add a card before you pay.' };
+    case 'CASH_DECLINED':
+      return {
+        ok: false,
+        error: 'cash-declined',
+        message: detail ?? 'The card was declined. Nothing was charged. Try another card.',
+      };
+    case 'ALREADY_PAID':
+      return { ok: false, error: 'not-permitted', message: 'The cash for this trade is already paid.' };
+    case 'CONCURRENT':
+      return { ok: false, error: 'not-permitted', message: detail ?? 'A payment is already in progress.' };
+    default:
+      return { ok: false, error: 'not-permitted', message: 'The trade is not waiting for this payment.' };
+  }
+}
+
+async function tradeCashDeps(tradeId: string) {
+  return createDefaultTradeCashDeps(getPaymentService(await regionForTrade(tradeId)));
+}
+
+/**
+ * The paying trader pays the agreed cash (ESC-05). Buyer-present, so the card issuer
+ * may ask for a 3-D Secure check, and BEFORE any collateral hold: the holds are placed
+ * only once this is collected. Held by the platform until the trade completes.
+ */
+export const payTradeCash = withActionLog('tradeNegotiation.payTradeCash', async function payTradeCash(
+  tradeId: string,
+): Promise<TradeCashActionResult> {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false, error: 'unauthenticated' };
+  const result = await payTradeCashCore(await tradeCashDeps(tradeId), { actorId: userId, tradeId });
+  if (!result.ok) return tradeCashFailure(result.error, result.detail);
+  revalidatePath(`/trades/${tradeId}`);
+  return {
+    ok: true,
+    status: result.record.status,
+    ...(result.nextAction ? { nextAction: result.nextAction } : {}),
+  };
+});
+
+/** Read the trade cash payment back after a 3-D Secure check (ESC-05). Payer only. */
+export const confirmTradeCashPayment = withActionLog('tradeNegotiation.confirmTradeCashPayment', async function confirmTradeCashPayment(
+  tradeId: string,
+): Promise<TradeCashActionResult> {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false, error: 'unauthenticated' };
+  const result = await confirmTradeCashPaymentCore(await tradeCashDeps(tradeId), { actorId: userId, tradeId });
+  if (!result.ok) return tradeCashFailure(result.error, result.detail);
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true, status: result.record.status };
+});
+
+/** The outstanding 3-D Secure secret for the trade cash, read back from the provider. */
+export const getTradeCashPaymentAction = withActionLog('tradeNegotiation.getTradeCashPaymentAction', async function getTradeCashPaymentAction(
+  tradeId: string,
+): Promise<
+  | { ok: true; clientSecret: string | null; publishableKey?: string }
+  | { ok: false; error: TradeNegotiationError }
+> {
+  const userId = await currentUserId();
+  if (!userId) return { ok: false, error: 'unauthenticated' };
+  const result = await getTradeCashPaymentActionCore(await tradeCashDeps(tradeId), { actorId: userId, tradeId });
+  return result.ok ? result : { ok: false, error: 'not-participant' };
 });
 
 // `itemIdsFor`, `chargeFeesForAgreedTrade` and `syncHolds` all moved to
@@ -452,24 +643,15 @@ export const retryTradeCollateral = withActionLog('tradeNegotiation.retryTradeCo
   }
 
   const repository = createSupabaseTradeProposalRepository(admin);
-  const payments = getPaymentService(await regionForTrade(tradeId));
   const existing = await repository.getHolds(tradeId);
 
   // A retry while the first placement is still in flight would race it. Only
   // continue once a seek has already failed, or both latest holds are already
   // ACTIVE and just need confirming (process died between place and sync).
-  if (currentHoldsAreActive(existing)) {
-    const orchestrator = createDefaultTradeOrchestrator({ payments });
-    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
-    // Both traders learn the collateral is locked and the swap is on (FEAT-002),
-    // but only when this dispatch actually moved the trade into COLLATERAL_LOCKED.
-    if (locked.ok && locked.trade.state === 'COLLATERAL_LOCKED') {
-      const initiatorId = (locked.trade as { initiator_id?: string }).initiator_id;
-      const counterpartId = (locked.trade as { counterpart_id?: string }).counterpart_id;
-      if (initiatorId && counterpartId) {
-        await notifyTradeCollateralLocked({ initiatorId, counterpartId, tradeId });
-      }
-    }
+  if (currentHoldsCoverTraders(existing, [trade.initiator_id, trade.counterpart_id])) {
+    // The one lock rule (ESC-08). It notifies both traders itself, exactly once, and
+    // only when it actually moved the trade into COLLATERAL_LOCKED (FEAT-002).
+    await confirmTradeCollateral({ tradeId, actorId: userId });
     revalidatePath(`/trades/${tradeId}`);
     return { ok: true, trade, collateralStarted: true };
   }
@@ -664,6 +846,10 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
       message: regionMismatchMessage(mismatch),
     };
   }
+  // ESC-03 layer 3: two accounts sharing a card, payout account or person.
+  if (await membersAreRelated(userId, target.owner_id, admin)) {
+    return { ok: false, error: 'related-accounts', message: RELATED_ACCOUNTS_MESSAGE };
+  }
   // A binder CAN be traded for since 0081, but the trade has to say what is coming
   // out of it — the listing cannot, and arbitration reads the contract and never the
   // listing. On a SINGLE listing the item IS that statement, so a second free-text
@@ -761,6 +947,14 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
         ok: false,
         error: 'item-unavailable',
         message: 'That listing is no longer available to trade for.',
+      };
+    }
+    // ESC-19 (0141): a card already reserved or sold cannot be offered.
+    if (error.message.includes('initiator-item-unavailable')) {
+      return {
+        ok: false,
+        error: 'item-unavailable',
+        message: 'One of the cards you offered is no longer available. Remove it and try again.',
       };
     }
     return {

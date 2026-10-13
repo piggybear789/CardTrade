@@ -69,7 +69,9 @@ function failedFee(index: number, overrides: Record<string, unknown> = {}) {
 function feeUpdates(recorded: FakeAdmin) {
   return recorded.writes
     .filter((write) => write.table === 'trade_fees' && write.op === 'update')
-    .map((write) => write.payload as { status: string; error?: string });
+    .map((write) => write.payload as { status?: string; error?: string })
+    // The nonce rotation is its own write; only outcome writes carry a status.
+    .filter((payload) => payload.status !== undefined) as { status: string; error?: string }[];
 }
 
 beforeEach(() => {
@@ -81,11 +83,13 @@ beforeEach(() => {
 });
 
 describe('drainFailedTradeFees', () => {
-  it('re-charges a failed fee reusing the PERSISTED nonce', async () => {
+  it('re-charges a failed fee under a fresh attempt key (ESC-29)', async () => {
     const row = failedFee(1);
     admin = createFakeAdmin({
       selects: { trade_fees: [{ data: [row] }] },
       defaults: {
+        // ESC-29: the drain only retries fees on trades past collateral placement.
+        trades: { data: { state: 'COLLATERAL_LOCKED' } },
         trade_fees: { data: { attempts: 1 } },
         profiles: { data: { payer_id: 'payer_1' } },
       },
@@ -101,7 +105,7 @@ describe('drainFailedTradeFees', () => {
     // second, independent charge against the same trader for the same trade.
     expect(requestTransfer).toHaveBeenCalledTimes(1);
     expect(requestTransfer.mock.calls[0]?.[0]).toMatchObject({
-      nonce: row.nonce,
+      nonce: `${row.nonce}:2`,
       amount: row.amount_cents,
       payerId: 'payer_1',
     });
@@ -115,6 +119,8 @@ describe('drainFailedTradeFees', () => {
     admin = createFakeAdmin({
       selects: { trade_fees: [{ data: [failedFee(1)] }] },
       defaults: {
+        // ESC-29: the drain only retries fees on trades past collateral placement.
+        trades: { data: { state: 'COLLATERAL_LOCKED' } },
         trade_fees: { data: { attempts: 1 } },
         profiles: { data: { payer_id: 'payer_1' } },
       },
@@ -131,7 +137,9 @@ describe('drainFailedTradeFees', () => {
         trade_fees: [{ data: [failedFee(1)] }],
         profiles: [{ data: null }],
       },
-      defaults: { trade_fees: { data: { attempts: 1 } } },
+      defaults: {
+        // ESC-29: the drain only retries fees on trades past collateral placement.
+        trades: { data: { state: 'COLLATERAL_LOCKED' } }, trade_fees: { data: { attempts: 1 } } },
     });
 
     const result = await drainFailedTradeFees();
@@ -148,6 +156,8 @@ describe('drainFailedTradeFees', () => {
     admin = createFakeAdmin({
       selects: { trade_fees: [{ data: [failedFee(1)] }] },
       defaults: {
+        // ESC-29: the drain only retries fees on trades past collateral placement.
+        trades: { data: { state: 'COLLATERAL_LOCKED' } },
         trade_fees: { data: { attempts: 1 } },
         profiles: { data: { payer_id: 'payer_1' } },
       },
@@ -172,6 +182,8 @@ describe('drainFailedTradeFees', () => {
     admin = createFakeAdmin({
       selects: { trade_fees: [{ data: rows }] },
       defaults: {
+        // ESC-29: the drain only retries fees on trades past collateral placement.
+        trades: { data: { state: 'COLLATERAL_LOCKED' } },
         trade_fees: { data: { attempts: 1 } },
         profiles: { data: { payer_id: 'payer_x' } },
       },
@@ -191,6 +203,8 @@ describe('drainFailedTradeFees', () => {
     admin = createFakeAdmin({
       selects: { trade_fees: [{ data: rows }] },
       defaults: {
+        // ESC-29: the drain only retries fees on trades past collateral placement.
+        trades: { data: { state: 'COLLATERAL_LOCKED' } },
         trade_fees: { data: { attempts: 1 } },
         profiles: { data: { payer_id: 'payer_x' } },
       },
@@ -210,7 +224,9 @@ describe('drainFailedTradeFees', () => {
   it('does nothing when no fee is owed', async () => {
     admin = createFakeAdmin({
       selects: { trade_fees: [{ data: [] }] },
-      defaults: { trade_fees: { count: 0 } },
+      defaults: {
+        // ESC-29: the drain only retries fees on trades past collateral placement.
+        trades: { data: { state: 'COLLATERAL_LOCKED' } }, trade_fees: { count: 0 } },
     });
 
     const result = await drainFailedTradeFees();

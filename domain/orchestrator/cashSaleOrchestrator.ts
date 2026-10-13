@@ -7,10 +7,16 @@
 
 import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
+import type { CashSaleEventCode } from './cashSaleEvents';
+import { decideRelease, exceedsNewSellerExposure, type ReleaseFacts } from '../payouts/releasePolicy';
+import { decideThreeDS } from '../payments/scaPolicy';
+import { returnInspectionOpen, returnRefundDue } from '../fulfilment/inspection';
+import { isPostageOutlier, postageCapMinor } from '../fees/postagePolicy';
 import {
   checkRegionCompatibility,
   regionCurrency,
   regionMismatchMessage,
+  tradingRegions,
   type RegionCode,
 } from '../region';
 import { percentageFeeMinor } from '../fees/percentageFee';
@@ -229,6 +235,11 @@ export interface CashSaleRecord {
   paymentNonce: string | null;
   paymentRequestedAt: string | null;
   paymentSettledAt: string | null;
+  /**
+   * ESC-03: how many payment attempts have been claimed (0138). Server-only; absent
+   * where the record came from a member-scoped read.
+   */
+  paymentAttempt?: number;
   fulfillmentMethod: FulfillmentMethod | null;
   shippingCostCents: Cents;
   shippingNotes: string | null;
@@ -256,6 +267,13 @@ export interface CashSaleRecord {
   /** When an untouched INSPECTION contract completes on its own. */
   inspectionDeadlineAt: string | null;
   /**
+   * ESC-02 (0134): set when the tracking cannot be this sale's parcel. While set and
+   * unresolved, no tracking update advances the sale; staff decide.
+   */
+  trackingFlaggedAt?: string | null;
+  trackingFlagReason?: TrackingFlagReason | null;
+  trackingFlagResolvedAt?: string | null;
+  /**
    * The RETURN leg of a return-conditional refund (0088).
    *
    * Kept entirely separate from the outbound `tracking*` fields above: a return event
@@ -277,6 +295,13 @@ export interface CashSaleRecord {
   returnDisputeReason: string | null;
   /** Set by the sweep when a dispatch deadline passed unposted (0089). Triage only. */
   returnLapsedAt: string | null;
+  /**
+   * When the Seller's window to inspect a delivered return closes (0143, ESC-11).
+   * Optional so older fixtures compile; absent means "derive from delivery".
+   */
+  returnInspectionDeadlineAt?: string | null;
+  /** When the return leg was last read back from the carrier (ESC-30). */
+  returnTrackingCheckedAt?: string | null;
   autoCompleted: boolean;
   buyerHandoverConfirmedAt: string | null;
   sellerHandoverConfirmedAt: string | null;
@@ -350,6 +375,12 @@ export interface CashSaleRecord {
  */
 export type CashSaleDisputeOutcome = 'REFUND_BUYER' | 'PARTIAL_REFUND' | 'RELEASE_SELLER';
 
+/** Why outbound tracking was flagged for staff (ESC-02, 0134 CHECK). */
+export type TrackingFlagReason = 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION';
+
+/** A staff decision on a tracking flag (ESC-02). */
+export type TrackingFlagDecision = 'START_CLOCK' | 'REFUND_BUYER';
+
 /**
  * How many times a Seller release is retried automatically before it is left for
  * an operator. Bounded for the same reason as the Full_Capture retries (Req 8.6):
@@ -389,6 +420,14 @@ export type CashSaleError =
   | 'INVALID_TERMS'
   | 'STALE_TERMS'
   | 'ALREADY_RECORDED'
+  // ESC-11: the Seller's return inspection window is still open / already closed.
+  | 'RETURN_INSPECTION_OPEN'
+  | 'RETURN_WINDOW_CLOSED'
+  // ESC-12: a tracking number bound to another contract, or one that cannot be this
+  // return's (delivered already, or scanned before the dispute was decided).
+  | 'TRACKING_IN_USE'
+  | 'TRACKING_ALREADY_DELIVERED'
+  | 'TRACKING_PREDATES_DISPUTE'
   | 'NOT_SUPPORTED'
   | 'INVALID_STATE'
   /** The Seller release could not be settled; platform is holding their funds. */
@@ -402,7 +441,35 @@ export type CashSaleError =
   /** Resolution needs a refund but nothing was ever collected from the Buyer. */
   | 'NOTHING_TO_REFUND'
   /** The terms write failed operationally; it was not a concurrent edit. */
-  | 'TERMS_UPDATE_FAILED';
+  | 'TERMS_UPDATE_FAILED'
+  /**
+   * ESC-03 / ESC-14: the release policy deferred the seller payout (new-seller or
+   * in-person holdback, or an open chargeback / fraud warning). Expected; retried.
+   */
+  | 'PAYOUT_HELD'
+  /**
+   * ESC-37: a provider settlement whose payment ref or amount does not match this
+   * sale's own collection. UNEXPECTED; the sale stays PAYMENT_PENDING.
+   */
+  | 'SETTLEMENT_MISMATCH'
+  /**
+   * ESC-03 layer 1: a new seller already holds as much collected-but-unreleased money
+   * as the platform will carry for them. Expected; clears as their sales complete.
+   */
+  | 'SELLER_EXPOSURE_LIMIT'
+  /** ESC-03 layer 3: the two parties are related accounts. Expected; generic copy. */
+  | 'RELATED_ACCOUNTS'
+  /** ESC-14: the buyer's card is blocked after a lost fraud chargeback. Expected. */
+  | 'CARD_BLOCKED'
+  /** ESC-25: the payout account name does not match the verified ID. Expected. */
+  | 'PAYEE_IDENTITY_MISMATCH'
+  /** ESC-20: confirming an in-person handover more than an hour before the meeting. */
+  | 'HANDOVER_TOO_EARLY'
+  /**
+   * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
+   * this sale's shipment (the stale-number attack). Expected; nothing is written.
+   */
+  | 'TRACKING_PREDATES_PAYMENT';
 
 export type CashSaleResult =
   | {
@@ -425,6 +492,17 @@ export type CashSaleResult =
        * terms edit, a cancellation, and the claim-race fallback).
        */
       settledNow?: boolean;
+      /**
+       * ESC-02: the shipment was recorded but its tracking already showed delivered,
+       * so it is flagged for staff before any inspection clock starts.
+       */
+      flagged?: boolean;
+      /**
+       * ESC-03: the issuer asked for a 3-D Secure challenge. The sale stays
+       * PAYMENT_PENDING; the browser runs `handleNextAction` with this secret and
+       * then calls `confirmCashSalePayment`. Never persisted, never logged.
+       */
+      nextAction?: { clientSecret: string; publishableKey?: string };
     }
   | { ok: false; error: CashSaleError; detail?: string };
 
@@ -568,7 +646,23 @@ export interface CashSaleRepository {
     termsVersion: number;
     nonce: string;
     requestedAt: string;
+    /** ESC-03: the attempt number this claim's nonce was built from. */
+    attempt?: number;
   }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-03: PAYMENT_PENDING back to AGREEMENT after an abandoned challenge was
+   * cancelled at the provider. Guarded on PAYMENT_PENDING; clears the nonce, the
+   * request time and the transfer id; leaves `payment_attempt` so the next claim
+   * uses a fresh key. Optional so older fakes compile.
+   */
+  abandonPayment?(params: { cashSaleId: string }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-03: PAYMENT_PENDING sales whose payment was requested before `before`, for
+   * the abandoned-payment sweep.
+   */
+  listStalePaymentPending?(params: { before: string; limit: number }): Promise<CashSaleRecord[]>;
+  /** ESC-03: the buyer's COMPLETED purchases, for the 3-D Secure policy. */
+  countCompletedPurchases?(buyerId: string): Promise<number>;
   recordPaymentSubmission(params: {
     cashSaleId: string;
     transferId: string;
@@ -771,11 +865,77 @@ export interface CashSaleRepository {
     reason: string;
     disputedAt: string;
   }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-11: uncontested RETURN_IN_TRANSIT sales whose Seller inspection window has
+   * closed (`return_inspection_deadline_at <= now`), oldest first. Optional so a fake
+   * may omit it; the release pass then does nothing.
+   */
+  listDueReturnRefunds?(params: { nowIso: string; limit: number }): Promise<string[]>;
+  /**
+   * ESC-12: the destination country of one leg, from its address row (delivery
+   * details for OUTBOUND, return details for RETURN). Null when no address carries one.
+   */
+  loadDestinationCountry?(params: { cashSaleId: string; leg: 'OUTBOUND' | 'RETURN' }): Promise<string | null>;
   setItemStatus(params: { itemId: string; status: ItemStatus }): Promise<void>;
+  /**
+   * ESC-03 / ESC-14: the facts the release policy reads for one COMPLETED sale. Null
+   * means "no policy input" (release now). Optional so a test fake may omit it.
+   */
+  loadReleaseFacts?(cashSaleId: string): Promise<ReleaseFacts | null>;
+  /** ESC-03 layer 3: do the two members share a card, payout account or person? */
+  areRelated?(a: string, b: string): Promise<boolean>;
+  /**
+   * ESC-14: stamp `fraud_warning_received_at` once. Null when it was already stamped,
+   * so a redelivered warning does nothing.
+   */
+  stampFraudWarning?(params: { cashSaleId: string; at: string }): Promise<CashSaleRecord | null>;
+  /** ESC-14: a pre-shipment sale refunded on a fraud warning. Guarded on `fromStatus`. */
+  markRefundedBeforeShipment?(params: {
+    cashSaleId: string;
+    fromStatus: CashSaleStatus;
+    refundCents: Cents;
+    refundNonce: string;
+    at: string;
+  }): Promise<CashSaleRecord | null>;
+  /** ESC-14: is any card this buyer saved on the blocklist? */
+  isBuyerCardBlocked?(buyerId: string): Promise<boolean>;
+  /**
+   * ESC-03 layer 1: what the new-seller exposure cap reads. Throws on a failed read
+   * rather than guessing zero. Optional so a test fake may omit it (no cap).
+   */
+  loadSellerExposure?(
+    sellerId: string,
+    excludeCashSaleId: string,
+  ): Promise<{ qualifyingCompletedSales: number; openCollectedMinor: number; overrideMinor: number | null }>;
+  /** Record WHEN (or why not) a deferred payout may move. Spends no attempt. */
+  recordPayoutDeferral?(params: {
+    cashSaleId: string;
+    releaseAt: string | null;
+    holdReason: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
+  }): Promise<void>;
+  /**
+   * ESC-02: flag the outbound tracking for staff. Only from IN_TRANSIT and only once;
+   * returns null when nothing was flagged.
+   */
+  flagTracking(params: { cashSaleId: string; reason: TrackingFlagReason; at: string }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-02: resolve a tracking flag. START_CLOCK moves IN_TRANSIT -> INSPECTION with
+   * the deadline from now; REFUND_BUYER only marks the flag resolved (the caller runs
+   * the existing full-refund path). Guarded on IN_TRANSIT + flagged + unresolved;
+   * returns null when the guard did not match.
+   */
+  resolveTrackingFlag(params: {
+    cashSaleId: string;
+    decision: TrackingFlagDecision;
+    staffId: string;
+    at: string;
+    inspectionDeadlineAt: string;
+  }): Promise<CashSaleRecord | null>;
   logEvent(params: {
     cashSaleId: string;
     actorId: string | null;
-    event: string;
+    /** Narrowed so every code written has chat copy (design §1.13). */
+    event: CashSaleEventCode;
     fromStatus: CashSaleStatus | null;
     toStatus: CashSaleStatus | null;
     detail?: string;
@@ -835,6 +995,11 @@ export interface PayoutNotifier {
     /** The contract's currency — see {@link PayoutNotifier.releaseSettled}. */
     currency: string;
   }): Promise<void>;
+  /**
+   * ESC-03: the buyer's unfinished payment was cancelled and nothing was charged.
+   * Optional so existing notifier doubles need no change.
+   */
+  paymentAbandoned?(params: { buyerId: string; cashSaleId: string; itemTitle: string }): Promise<void>;
 }
 
 export interface CashSaleOrchestratorDeps {
@@ -882,6 +1047,11 @@ export interface CashSaleOrchestratorDeps {
    * in a region with no Stripe account to pay the seller from.
    */
   operationalRegions?: ReadonlySet<RegionCode>;
+  /**
+   * ESC-12: a non-blocking tracking anomaly (the carrier's destination country is not
+   * the contract's). domain/ never logs; the caller records it.
+   */
+  onTrackingWarning?: (warning: { cashSaleId: string; code: 'DESTINATION_COUNTRY_MISMATCH'; detail: string }) => void;
   /**
    * The currency of the platform account {@link CashSaleOrchestratorDeps.payments}
    * is bound to, scoping the payout drain to contracts it can actually settle (0068).
@@ -1113,6 +1283,11 @@ async function openAgreement(
   const item = await deps.repository.loadItem(params.itemId);
   if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
   if (item.ownerId === params.buyerId) return { ok: false, error: 'SELF_PURCHASE' };
+  // ESC-03 layer 3: a buyer and seller who share a card, a payout account or a
+  // verified person are one party dealing with itself. The copy never says why.
+  if (await deps.repository.areRelated?.(params.buyerId, item.ownerId)) {
+    return { ok: false, error: 'RELATED_ACCOUNTS' };
+  }
 
   // Region precondition (0065). Checked here, at the point a contract is opened,
   // rather than relying on the catalog being region-scoped: a browse filter is
@@ -1421,6 +1596,16 @@ export async function updateCashSaleTerms(
         detail: 'Only the seller can set postage, because they choose the carrier.',
       };
     }
+    // ESC-28: postage is bounded by the item price (and an absolute cap), so it
+    // cannot carry the real price past the fee.
+    const postageCap = postageCapMinor(sale.agreedPriceCents);
+    if ((terms.shippingCostCents ?? 0) > postageCap) {
+      return {
+        ok: false,
+        error: 'INVALID_TERMS',
+        detail: `Postage can be at most ${(postageCap / 100).toFixed(2)} for this sale.`,
+      };
+    }
     if (
       params.actorId === sale.buyerId &&
       !terms.deliveryAddress &&
@@ -1478,6 +1663,21 @@ export async function updateCashSaleTerms(
         ? `shipping for ${formatCents(terms.shippingCostCents)}`
         : `meeting in person at ${terms.meetingLocation}`,
   });
+  // ESC-28: a postage figure out of proportion to the item is recorded for staff.
+  // Never a refusal; the mirror and participant policy keep it out of the room (0134).
+  if (
+    terms.fulfillmentMethod === 'DELIVERY' &&
+    isPostageOutlier(sale.agreedPriceCents, terms.shippingCostCents ?? 0)
+  ) {
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: null,
+      event: 'POSTAGE_OUTLIER',
+      fromStatus: updated.sale.status,
+      toStatus: updated.sale.status,
+      detail: `postage ${formatCents(terms.shippingCostCents)} on an item of ${formatCents(sale.agreedPriceCents)}`,
+    });
+  }
   return { ok: true, sale: updated.sale };
 }
 
@@ -1651,13 +1851,48 @@ async function submitClaimedPayment(
   // another currency. The buyer absorbs the conversion so the seller is paid exactly
   // the agreed figure; the Pay step disclosed this same number from the same function.
   const fxFeeCents = currencyConversionFeeFor(sale.amountCents, sale.currency);
+  //
+  // BUYER-PRESENT (ESC-03 layer 2). The buyer just pressed Pay, so the collection is
+  // on-session and the issuer may challenge it. A stolen card number alone then
+  // cannot pay, and a passed challenge moves the fraud liability to the issuer.
+  const completedPurchases = (await deps.repository.countCompletedPurchases?.(sale.buyerId)) ?? 0;
   const transfer = await deps.payments.requestTransfer({
     payerId: target.payerId,
     amount: sale.amountCents + fxFeeCents,
     currency: sale.currency,
     ref: `cash-sale:${sale.id}`,
     nonce: sale.paymentNonce,
+    presence: {
+      kind: 'BUYER_PRESENT',
+      threeDS: decideThreeDS({
+        completedPurchases,
+        amountMinor: sale.amountCents,
+        currency: sale.currency,
+      }),
+    },
   });
+
+  if (transfer.status === 'REQUIRES_ACTION') {
+    // Recorded so the challenge can be resumed from a reload or another device
+    // (`getCashSalePaymentAction` reads the intent back by this id) and so the
+    // abandoned-payment sweep can cancel it.
+    const pending = await deps.repository.recordPaymentSubmission({
+      cashSaleId: sale.id,
+      transferId: transfer.transferId,
+    });
+    return {
+      ok: true,
+      sale: pending ?? sale,
+      ...(transfer.clientSecret
+        ? {
+            nextAction: {
+              clientSecret: transfer.clientSecret,
+              ...(transfer.publishableKey ? { publishableKey: transfer.publishableKey } : {}),
+            },
+          }
+        : {}),
+    };
+  }
 
   if (transfer.status === 'FAILED') {
     const failed = await deps.repository.failPayment({
@@ -1688,7 +1923,11 @@ async function submitClaimedPayment(
   // Stripe realtime payments settle synchronously. Advance ESCROW_HELD here so
   // the sale does not wait on a webhook (or the mock Demo panel).
   if (transfer.status === 'SETTLED') {
-    return settleCashSale(deps, { cashSaleId: sale.id });
+    return settleCashSale(deps, {
+      cashSaleId: sale.id,
+      paymentRef: transfer.transferId,
+      amountReceived: transfer.amount,
+    });
   }
 
   return { ok: true, sale: submitted ?? sale };
@@ -1709,6 +1948,12 @@ export async function acceptCashSaleTerms(
      */
     sellerIdentityVersion?: string;
     buyerConfirmedSellerIdentity?: boolean;
+    /**
+     * ESC-31: the total the Buyer was shown when the Pay dialog opened. A charge
+     * for any other amount is refused as STALE_TERMS, even on the same terms
+     * version. Optional so the mobile client keeps working; the web always sends it.
+     */
+    expectedAmountCents?: Cents;
   },
 ): Promise<CashSaleResult> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
@@ -1720,6 +1965,13 @@ export async function acceptCashSaleTerms(
       ok: false,
       error: 'NOT_PERMITTED',
       detail: 'Only the buyer can start payment.',
+    };
+  }
+  if (params.expectedAmountCents !== undefined && params.expectedAmountCents !== sale.amountCents) {
+    return {
+      ok: false,
+      error: 'STALE_TERMS',
+      detail: 'The seller changed the terms. Review them before paying.',
     };
   }
   if (sale.status !== 'AGREEMENT') return { ok: false, error: 'INVALID_STATE' };
@@ -1776,6 +2028,35 @@ export async function acceptCashSaleTerms(
     };
   }
 
+  // ESC-03 layer 3 again at Pay (signals can arrive after the agreement opened), and
+  // ESC-14: a card blocked after a lost fraud chargeback cannot pay.
+  if (await deps.repository.areRelated?.(sale.buyerId, sale.sellerId)) {
+    return { ok: false, error: 'RELATED_ACCOUNTS' };
+  }
+  if (await deps.repository.isBuyerCardBlocked?.(sale.buyerId)) {
+    return { ok: false, error: 'CARD_BLOCKED' };
+  }
+
+  // NEW-SELLER EXPOSURE CAP (ESC-03 layer 1). A stolen-card cash-out needs volume
+  // through a fresh seller account; the holdback delays each payout, and this caps
+  // how much can pile up behind it. Checked before anything is frozen or collected.
+  const exposure = await deps.repository.loadSellerExposure?.(sale.sellerId, sale.id);
+  if (
+    exposure &&
+    exceedsNewSellerExposure({
+      ...exposure,
+      addMinor: sale.amountCents,
+      currency: sale.currency,
+    })
+  ) {
+    return {
+      ok: false,
+      error: 'SELLER_EXPOSURE_LIMIT',
+      detail:
+        'This seller has reached their limit for new sellers. Try again after their current sales complete.',
+    };
+  }
+
   if (pendingIdentity) {
     const recorded = await deps.repository.recordSellerIdentity({
       cashSaleId: sale.id,
@@ -1785,13 +2066,21 @@ export async function acceptCashSaleTerms(
     if (!recorded) return { ok: false, error: 'INVALID_STATE' };
   }
 
+  // ONE KEY PER ATTEMPT (ESC-03). A key fixed per terms version made a re-pay after
+  // an abandoned challenge replay the provider's cached, cancelled intent for 24h.
+  // `claimPayment` writes `attempt` in the same guarded UPDATE that writes the
+  // nonce, so two concurrent claims compute the same key and only one wins. A
+  // crash-retry of the SAME claim still reuses the persisted `payment_nonce`.
+  const attempt = (sale.paymentAttempt ?? 0) + 1;
   const nonce =
-    deps.createNonce?.() ?? `cash-sale:${sale.id}:terms:${sale.termsVersion}`;
+    deps.createNonce?.() ??
+    `cash-sale:${sale.id}:terms:${sale.termsVersion}:attempt:${attempt}`;
   const claimed = await deps.repository.claimPayment({
     cashSaleId: sale.id,
     termsVersion: sale.termsVersion,
     nonce,
     requestedAt: currentIso(deps),
+    attempt,
   });
   if (!claimed) {
     const current = await deps.repository.loadCashSale(sale.id);
@@ -1812,12 +2101,43 @@ export async function acceptCashSaleTerms(
 /** Provider settlement unlocks fulfillment; it does not complete the sale. */
 export async function settleCashSale(
   deps: CashSaleOrchestratorDeps,
-  params: { cashSaleId: string },
+  params: {
+    cashSaleId: string;
+    /**
+     * ESC-37: the provider payment that cleared, and how much it collected. A
+     * settlement is bound to THIS sale's own collection: the ref must be the
+     * `transferId` recorded at submission and the amount must be the contract
+     * amount. Without the binding, any succeeded PaymentIntent that names the
+     * sale in its metadata (a cheaper one, or one from another attempt) would
+     * release the goods. Both are required; the synchronous path passes the
+     * transfer it just made.
+     */
+    paymentRef: string;
+    amountReceived: number;
+  },
 ): Promise<CashSaleResult> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
   if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
   if (sale.status !== 'PAYMENT_PENDING') {
     return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+  // The submission has not been recorded yet: the webhook beat the synchronous
+  // path, which settles on its own. Not a mismatch, just early.
+  if (!sale.transferId) {
+    return { ok: false, error: 'INVALID_STATE', detail: 'transfer-not-recorded' };
+  }
+  // The buyer is charged the contract total PLUS any Currency_Conversion fee (0136),
+  // derived by the same function the charge used, so the binding compares like with like.
+  const expectedCollected = sale.amountCents + currencyConversionFeeFor(sale.amountCents, sale.currency);
+  if (params.paymentRef !== sale.transferId || params.amountReceived !== expectedCollected) {
+    return {
+      ok: false,
+      error: 'SETTLEMENT_MISMATCH',
+      detail:
+        params.paymentRef !== sale.transferId
+          ? 'The cleared payment is not this sale\'s collection.'
+          : `Collected ${params.amountReceived}, contract is ${sale.amountCents}.`,
+    };
   }
   const settled = await deps.repository.settlePayment({
     cashSaleId: sale.id,
@@ -1835,6 +2155,237 @@ export async function settleCashSale(
   // ESCROW_HELD/HANDOVER, so the action layer can announce the purchase exactly
   // once without re-notifying on a reloaded already-settled sale (FEAT-002).
   return { ok: true, sale: settled, settledNow: true };
+}
+
+/** Fail a PAYMENT_PENDING collection the provider reports as failed, and relist. */
+async function failCollectedPayment(
+  deps: CashSaleOrchestratorDeps,
+  sale: CashSaleRecord,
+): Promise<CashSaleResult> {
+  const failed = await deps.repository.failPayment({ cashSaleId: sale.id });
+  if (!failed) return { ok: false, error: 'INVALID_STATE' };
+  await syncListingStatus(deps, sale, 'AVAILABLE');
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: null,
+    event: 'PAYMENT_FAILED',
+    fromStatus: 'PAYMENT_PENDING',
+    toStatus: 'FAILED',
+  });
+  return { ok: false, error: 'TRANSFER_FAILED', detail: sale.id };
+}
+
+/**
+ * Read a buyer-present collection back after the browser finished a 3-D Secure
+ * challenge (ESC-03). Buyer only. The webhook remains the backstop; this is the
+ * reliable path, for the same reason `refreshPayoutStatus` is on the Connect side.
+ */
+export async function confirmCashSalePayment(
+  deps: CashSaleOrchestratorDeps,
+  params: { actorId: string; cashSaleId: string },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (participantRole(sale, params.actorId) !== 'BUYER') return { ok: false, error: 'NOT_PARTICIPANT' };
+  if (sale.status !== 'PAYMENT_PENDING' || !sale.transferId) return { ok: true, sale };
+  if (!deps.payments.readCollection) return { ok: true, sale };
+
+  const collection = await deps.payments.readCollection(sale.transferId);
+  if (collection.status === 'SETTLED') {
+    return settleCashSale(deps, {
+      cashSaleId: sale.id,
+      paymentRef: sale.transferId,
+      amountReceived: collection.amountReceived,
+    });
+  }
+  if (collection.status === 'FAILED') return failCollectedPayment(deps, sale);
+  return { ok: true, sale };
+}
+
+/**
+ * The challenge secret for a PAYMENT_PENDING sale, so a reload or a second device
+ * can finish it (ESC-03). The secret is never stored: it is read back from the
+ * provider each time, and returned only while a challenge is outstanding.
+ */
+export async function getCashSalePaymentAction(
+  deps: CashSaleOrchestratorDeps,
+  params: { actorId: string; cashSaleId: string },
+): Promise<
+  | { ok: true; clientSecret: string | null; publishableKey?: string }
+  | { ok: false; error: CashSaleError }
+> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (participantRole(sale, params.actorId) !== 'BUYER') return { ok: false, error: 'NOT_PARTICIPANT' };
+  if (sale.status !== 'PAYMENT_PENDING' || !sale.transferId || !deps.payments.readCollection) {
+    return { ok: true, clientSecret: null };
+  }
+  const collection = await deps.payments.readCollection(sale.transferId);
+  return {
+    ok: true,
+    clientSecret: collection.status === 'REQUIRES_ACTION' ? (collection.clientSecret ?? null) : null,
+    ...(collection.status === 'REQUIRES_ACTION' && collection.publishableKey
+      ? { publishableKey: collection.publishableKey }
+      : {}),
+  };
+}
+
+/** How long a buyer-present payment may sit unfinished before the sweep acts. */
+export const ABANDONED_PAYMENT_MINUTES = 30;
+
+/**
+ * The `:47` sweep over PAYMENT_PENDING sales older than {@link ABANDONED_PAYMENT_MINUTES}
+ * (ESC-03). A challenge the buyer walked away from is cancelled and the sale goes back
+ * to AGREEMENT with nothing charged; one that finished meanwhile is settled; a failure
+ * is failed; anything still PENDING is left for the next run. Never throws per sale.
+ */
+export async function sweepAbandonedPayments(
+  deps: CashSaleOrchestratorDeps,
+  params: { limit?: number } = {},
+): Promise<{ settled: number; abandoned: number; failed: number; skipped: number }> {
+  const tally = { settled: 0, abandoned: 0, failed: 0, skipped: 0 };
+  if (!deps.repository.listStalePaymentPending || !deps.payments.readCollection) return tally;
+  const before = new Date(
+    new Date(currentIso(deps)).getTime() - ABANDONED_PAYMENT_MINUTES * 60_000,
+  ).toISOString();
+  const stale = await deps.repository.listStalePaymentPending({ before, limit: params.limit ?? 50 });
+
+  for (const sale of stale) {
+    if (!sale.transferId) {
+      tally.skipped += 1;
+      continue;
+    }
+    const collection = await deps.payments.readCollection(sale.transferId);
+    if (collection.status === 'SETTLED') {
+      const result = await settleCashSale(deps, {
+        cashSaleId: sale.id,
+        paymentRef: sale.transferId,
+        amountReceived: collection.amountReceived,
+      });
+      tally[result.ok ? 'settled' : 'skipped'] += 1;
+      continue;
+    }
+    if (collection.status === 'FAILED') {
+      await failCollectedPayment(deps, sale);
+      tally.failed += 1;
+      continue;
+    }
+    if (collection.status === 'PENDING' || !deps.payments.cancelCollection) {
+      tally.skipped += 1;
+      continue;
+    }
+
+    const cancel = await deps.payments.cancelCollection(sale.transferId);
+    if (cancel.status === 'ALREADY_SETTLED') {
+      const reread = await deps.payments.readCollection(sale.transferId);
+      const result = await settleCashSale(deps, {
+        cashSaleId: sale.id,
+        paymentRef: sale.transferId,
+        amountReceived: reread.amountReceived,
+      });
+      tally[result.ok ? 'settled' : 'skipped'] += 1;
+      continue;
+    }
+    if (cancel.status !== 'CANCELLED' || !deps.repository.abandonPayment) {
+      tally.skipped += 1;
+      continue;
+    }
+    const abandoned = await deps.repository.abandonPayment({ cashSaleId: sale.id });
+    if (!abandoned) {
+      tally.skipped += 1;
+      continue;
+    }
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: null,
+      event: 'PAYMENT_ABANDONED',
+      fromStatus: 'PAYMENT_PENDING',
+      toStatus: 'AGREEMENT',
+    });
+    await notifyQuietly(deps, (notifier) =>
+      notifier.paymentAbandoned
+        ? notifier.paymentAbandoned({
+            buyerId: sale.buyerId,
+            cashSaleId: sale.id,
+            itemTitle: sale.itemTitle,
+          })
+        : Promise.resolve(),
+    );
+    tally.abandoned += 1;
+  }
+  return tally;
+}
+
+/** What an early fraud warning did to a sale (ESC-14). */
+export type FraudWarningOutcome = 'REFUNDED' | 'HELD' | 'ALREADY_HANDLED' | 'NOT_APPLICABLE' | 'REFUND_FAILED';
+
+/**
+ * React to an issuer's early fraud warning on a sale's charge (ESC-14).
+ *
+ * Before anything has left the seller (paid, not shipped, no handover confirmed) the
+ * buyer is refunded in full and the item goes back on sale, so the seller loses
+ * nothing and the chargeback that would follow has nothing to take. Later than that
+ * the seller's payout is HELD and staff decide. Idempotent: the warning is stamped
+ * first, under a guard, so a redelivery does nothing.
+ *
+ * The event and the copy are neutral on purpose (`REFUNDED_BEFORE_SHIPMENT`): the
+ * reason reaches neither party.
+ */
+export async function refundOnFraudWarning(
+  deps: CashSaleOrchestratorDeps,
+  params: { cashSaleId: string },
+): Promise<FraudWarningOutcome> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale || !sale.transferId) return 'NOT_APPLICABLE';
+  if (!deps.repository.stampFraudWarning) return 'NOT_APPLICABLE';
+
+  const preShipment =
+    (sale.status === 'ESCROW_HELD' || sale.status === 'HANDOVER') &&
+    !sale.shippedAt &&
+    !sale.buyerHandoverConfirmedAt &&
+    !sale.sellerHandoverConfirmedAt;
+
+  const stamped = await deps.repository.stampFraudWarning({
+    cashSaleId: sale.id,
+    at: currentIso(deps),
+  });
+  if (!stamped) return 'ALREADY_HANDLED';
+
+  if (!preShipment) {
+    // Too late to unwind cleanly: hold the money and let staff decide.
+    await deps.repository.recordPayoutDeferral?.({ cashSaleId: sale.id, releaseAt: null, holdReason: 'FRAUD_WARNING' });
+    return 'HELD';
+  }
+
+  const nonce = `cash-sale-refund:${sale.id}:fraud-warning`;
+  const refund = await deps.payments.refundPayment({
+    paymentRef: sale.transferId,
+    nonce,
+    ref: `cash-sale-refund:${sale.id}`,
+  });
+  if (refund.status !== 'SETTLED') {
+    // The stamp holds the payout (`openFraudWarning`), so nothing can leave while
+    // staff look at it.
+    await deps.repository.recordPayoutDeferral?.({ cashSaleId: sale.id, releaseAt: null, holdReason: 'FRAUD_WARNING' });
+    return 'REFUND_FAILED';
+  }
+  const refunded = await deps.repository.markRefundedBeforeShipment?.({
+    cashSaleId: sale.id,
+    fromStatus: sale.status,
+    refundCents: refund.amount,
+    refundNonce: nonce,
+    at: currentIso(deps),
+  });
+  if (!refunded) return 'REFUND_FAILED';
+  await syncListingStatus(deps, sale, 'AVAILABLE');
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: null,
+    event: 'REFUNDED_BEFORE_SHIPMENT',
+    fromStatus: sale.status,
+    toStatus: 'REFUNDED',
+  });
+  return 'REFUNDED';
 }
 
 /**
@@ -1928,7 +2479,35 @@ export async function payoutCashSaleSeller(
         }),
       );
     }
-    return { ok: false, error: 'SELLER_NOT_PAYABLE' };
+    // ESC-25: named distinctly so the seller is told what to fix.
+    return {
+      ok: false,
+      error: payee?.payeeIdentityMismatchAt ? 'PAYEE_IDENTITY_MISMATCH' : 'SELLER_NOT_PAYABLE',
+    };
+  }
+
+  // ESC-03 / ESC-14: the HOLDBACK. Money leaves the platform balance only when the
+  // one release policy says so. A new seller's proceeds wait out the card-fraud
+  // window from collection; an in-person deal waits at least a day after the handover;
+  // an open chargeback or early-fraud warning holds it outright. A deferral is not a
+  // failure: no attempt is spent and nobody is told the payout failed.
+  if (deps.repository.loadReleaseFacts) {
+    const facts = await deps.repository.loadReleaseFacts(sale.id);
+    if (facts) {
+      const decision = decideRelease(facts, new Date(currentIso(deps)));
+      if (decision.kind !== 'RELEASE_NOW') {
+        await deps.repository.recordPayoutDeferral?.({
+          cashSaleId: sale.id,
+          releaseAt: decision.kind === 'RELEASE_AT' ? decision.at : null,
+          holdReason: decision.kind === 'HELD' ? decision.reason : null,
+        });
+        return {
+          ok: false,
+          error: 'PAYOUT_HELD',
+          detail: decision.kind === 'RELEASE_AT' ? `${decision.reason}:${decision.at}` : decision.reason,
+        };
+      }
+    }
   }
 
   // The Seller receives everything except the Platform_Fee and anything already
@@ -2300,16 +2879,44 @@ export async function recordCashSaleReturnShipment(
     };
   }
 
-  const registered = await deps.tracking?.registerShipment({ carrier, trackingNumber });
+  const destinationCountryCode = await destinationFor(deps, sale, 'RETURN');
+  const registered = await deps.tracking?.registerShipment({ carrier, trackingNumber, destinationCountryCode });
+  if (registered) warnOnDestination(deps, sale.id, destinationCountryCode, registered.destinationCountryCode);
 
-  const updated = await deps.repository.recordReturnShipment({
-    cashSaleId: sale.id,
-    carrier: registered?.carrier ?? carrier,
-    trackingNumber: registered?.trackingNumber ?? trackingNumber,
-    trackingUrl: registered?.trackingUrl ?? null,
-    trackingStatus: registered?.status ?? null,
-    shippedAt: currentIso(deps),
-  });
+  // ESC-12: a number that is already delivered cannot be a return about to be posted,
+  // and a parcel scanned before the dispute was decided cannot be this return. A
+  // label printed earlier is not a scan, and no scan yet means no verdict.
+  if (registered?.status === 'DELIVERED') {
+    return {
+      ok: false,
+      error: 'TRACKING_ALREADY_DELIVERED',
+      detail: 'That tracking number already shows as delivered. Use the number for the parcel you are sending now.',
+    };
+  }
+  const firstScan = parseInstant(registered?.firstEventAt);
+  const decidedAt = parseInstant(sale.disputeResolvedAt);
+  if (firstScan !== null && decidedAt !== null && firstScan < decidedAt) {
+    return {
+      ok: false,
+      error: 'TRACKING_PREDATES_DISPUTE',
+      detail: 'That parcel was scanned before the dispute was decided, so it cannot be this return.',
+    };
+  }
+
+  let updated: CashSaleRecord | null;
+  try {
+    updated = await deps.repository.recordReturnShipment({
+      cashSaleId: sale.id,
+      carrier: registered?.carrier ?? carrier,
+      trackingNumber: registered?.trackingNumber ?? trackingNumber,
+      trackingUrl: registered?.trackingUrl ?? null,
+      trackingStatus: registered?.status ?? null,
+      shippedAt: currentIso(deps),
+    });
+  } catch (err: unknown) {
+    if (isTrackingInUse(err)) return trackingInUse();
+    throw err;
+  }
   // Null means the guarded update matched nothing: already recorded, or the status
   // moved on while this was in flight.
   if (!updated) return { ok: false, error: 'ALREADY_RECORDED' };
@@ -2360,6 +2967,11 @@ export async function finalizeReturnedCashSale(
   // The Seller contesting the return freezes the close; an operator decides instead.
   if (sale.returnDisputedAt) {
     return { ok: false, error: 'INVALID_STATE', detail: 'Return is contested' };
+  }
+  // ESC-11: NOT WHILE THE SELLER IS STILL INSPECTING. Delivery opens a window for the
+  // Seller to open the parcel; refunding on the scan itself refunded empty boxes.
+  if (!returnRefundDue(sale, deps.now?.() ?? new Date())) {
+    return { ok: false, error: 'RETURN_INSPECTION_OPEN' };
   }
 
   // ISSUE THE REFUND BEFORE MOVING THE STATE, and issue it HERE rather than trusting
@@ -2482,6 +3094,11 @@ export async function disputeCashSaleReturn(
   if (sale.status !== 'RETURN_IN_TRANSIT' && sale.status !== 'RETURN_PENDING') {
     return { ok: false, error: 'INVALID_STATE', detail: sale.status };
   }
+  // ESC-11: a contest belongs INSIDE the Seller's return inspection window. After it
+  // the Buyer's refund is due, and a late contest would take it back from them.
+  if (!returnInspectionOpen(sale, deps.now?.() ?? new Date())) {
+    return { ok: false, error: 'RETURN_WINDOW_CLOSED' };
+  }
 
   const reason = params.reason.trim();
   if (reason.length < 10) {
@@ -2509,6 +3126,64 @@ export async function disputeCashSaleReturn(
   });
 
   return { ok: true, sale: updated };
+}
+
+/** Options for {@link releaseDueReturnRefunds}. */
+export interface ReturnReleaseParams {
+  limit?: number;
+  /**
+   * ESC-38: the payment binding for ONE sale. A refund goes back through the region's
+   * own Stripe account, so the caller resolves it per sale. Absent, `deps.payments`.
+   */
+  paymentsFor?: (cashSaleId: string) => Promise<PaymentService>;
+}
+
+/** What one release pass did. */
+export interface ReturnReleaseSummary {
+  examined: number;
+  refunded: string[];
+  failed: Array<{ cashSaleId: string; error: CashSaleError; detail?: string }>;
+}
+
+/**
+ * ESC-11: release the refund on every delivered, uncontested return whose Seller
+ * inspection window has closed. Called by the `:47` job.
+ *
+ * Each sale goes through {@link finalizeReturnedCashSale}, which re-reads the row and
+ * re-checks every guard (status, carrier confirmation, contest, window), so a list
+ * that is stale by the time it is processed cannot refund the wrong sale. A failure on
+ * one sale never stops the pass.
+ */
+export async function releaseDueReturnRefunds(
+  deps: CashSaleOrchestratorDeps,
+  params: ReturnReleaseParams = {},
+): Promise<ReturnReleaseSummary> {
+  const summary: ReturnReleaseSummary = { examined: 0, refunded: [], failed: [] };
+  if (!deps.repository.listDueReturnRefunds) return summary;
+
+  const ids = await deps.repository.listDueReturnRefunds({
+    nowIso: currentIso(deps),
+    limit: Math.max(1, Math.min(params.limit ?? 50, 200)),
+  });
+
+  for (const cashSaleId of ids) {
+    summary.examined += 1;
+    try {
+      const saleDeps = params.paymentsFor
+        ? { ...deps, payments: await params.paymentsFor(cashSaleId) }
+        : deps;
+      const result = await finalizeReturnedCashSale(saleDeps, { cashSaleId });
+      if (result.ok) summary.refunded.push(cashSaleId);
+      else summary.failed.push({ cashSaleId, error: result.error, detail: result.detail });
+    } catch (err: unknown) {
+      summary.failed.push({
+        cashSaleId,
+        error: 'REFUND_FAILED',
+        detail: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+  return summary;
 }
 
 /**
@@ -2869,7 +3544,8 @@ export async function processDueCashSalePayouts(
     try {
       const result = await payoutCashSaleSeller(deps, { cashSaleId });
       if (result.ok && result.sale.sellerPayoutStatus === 'SETTLED') settled += 1;
-      if (!result.ok) {
+      // A holdback deferral (ESC-03) is the policy working, not a drain failure.
+      if (!result.ok && result.error !== 'PAYOUT_HELD') {
         deps.onDrainFailure?.({
           cashSaleId,
           kind: 'payout',
@@ -3024,15 +3700,39 @@ export async function recordCashSaleShipment(
   if (!params.shipment.carrier.trim() || params.shipment.trackingNumber.trim().length < 2) {
     return { ok: false, error: 'INVALID_TERMS', detail: 'Carrier and tracking number are required.' };
   }
-  const tracking = await deps.tracking.registerShipment(params.shipment);
-  const updated = await deps.repository.recordShipment({
-    cashSaleId: sale.id,
-    carrier: tracking.carrier,
-    trackingNumber: tracking.trackingNumber,
-    trackingUrl: tracking.trackingUrl,
-    trackingStatus: tracking.status,
-    shippedAt: currentIso(deps),
-  });
+  const destinationCountryCode = await destinationFor(deps, sale, 'OUTBOUND');
+  const tracking = await deps.tracking.registerShipment({ ...params.shipment, destinationCountryCode });
+  warnOnDestination(deps, sale.id, destinationCountryCode, tracking.destinationCountryCode);
+
+  // ESC-02, rule 1: a physical carrier scan BEFORE the buyer paid means this parcel
+  // cannot be this sale's shipment. That is the stale-number attack: enter any old
+  // delivered number and the clock used to start in the past. A label printed before
+  // payment does not count (it is not a scan), and no scan yet means no verdict.
+  const firstScan = parseInstant(tracking.firstEventAt);
+  const paidAt = parseInstant(sale.paymentSettledAt);
+  if (firstScan !== null && paidAt !== null && firstScan < paidAt) {
+    return {
+      ok: false,
+      error: 'TRACKING_PREDATES_PAYMENT',
+      detail: 'That tracking number was scanned by the carrier before this sale was paid for, so it cannot be this parcel.',
+    };
+  }
+
+  const now = currentIso(deps);
+  let updated: CashSaleRecord | null;
+  try {
+    updated = await deps.repository.recordShipment({
+      cashSaleId: sale.id,
+      carrier: tracking.carrier,
+      trackingNumber: tracking.trackingNumber,
+      trackingUrl: tracking.trackingUrl,
+      trackingStatus: tracking.status,
+      shippedAt: now,
+    });
+  } catch (err: unknown) {
+    if (isTrackingInUse(err)) return trackingInUse();
+    throw err;
+  }
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
   await deps.repository.logEvent({
     cashSaleId: sale.id,
@@ -3042,7 +3742,131 @@ export async function recordCashSaleShipment(
     toStatus: updated.status,
     detail: `${tracking.carrier} ${tracking.trackingNumber}`,
   });
+
+  // Rule 2: already delivered when entered. Record and FLAG, never refuse: an honest
+  // seller using a next-day courier may enter the number after delivery. No clock
+  // starts; staff confirm the delivery first (`resolveTrackingFlag`).
+  if (tracking.status === 'DELIVERED') {
+    const flagged = await deps.repository.flagTracking({
+      cashSaleId: sale.id,
+      reason: 'DELIVERED_AT_REGISTRATION',
+      at: now,
+    });
+    if (flagged) {
+      await deps.repository.logEvent({
+        cashSaleId: sale.id,
+        actorId: null,
+        event: 'TRACKING_FLAGGED',
+        fromStatus: flagged.status,
+        toStatus: flagged.status,
+        detail: 'DELIVERED_AT_REGISTRATION',
+      });
+      return { ok: true, sale: flagged, flagged: true };
+    }
+  }
   return { ok: true, sale: updated };
+}
+
+/** ESC-12: the 0144 trigger's refusal, surfaced by the repository as a thrown error. */
+function isTrackingInUse(err: unknown): boolean {
+  return err instanceof Error && err.message.includes('tracking-in-use');
+}
+
+function trackingInUse(): CashSaleResult {
+  return {
+    ok: false,
+    error: 'TRACKING_IN_USE',
+    detail: 'That tracking number is already on another contract. Check it and try again.',
+  };
+}
+
+/** ESC-12: where this leg is going: its address's country, else the sale's region. */
+async function destinationFor(
+  deps: CashSaleOrchestratorDeps,
+  sale: CashSaleRecord,
+  leg: 'OUTBOUND' | 'RETURN',
+): Promise<string | null> {
+  const fromAddress = await deps.repository.loadDestinationCountry?.({ cashSaleId: sale.id, leg });
+  if (fromAddress) return fromAddress;
+  const currency = (sale.currency ?? '').toLowerCase();
+  return tradingRegions().find((region) => region.currency === currency)?.code ?? null;
+}
+
+/** ESC-12: report, never refuse, a carrier destination that is not the contract's. */
+function warnOnDestination(
+  deps: CashSaleOrchestratorDeps,
+  cashSaleId: string,
+  expected: string | null,
+  reported: string | null | undefined,
+): void {
+  if (!expected || !reported || expected.toUpperCase() === reported.toUpperCase()) return;
+  deps.onTrackingWarning?.({
+    cashSaleId,
+    code: 'DESTINATION_COUNTRY_MISMATCH',
+    detail: `Carrier reports ${reported.toUpperCase()}; contract expects ${expected.toUpperCase()}`,
+  });
+}
+
+function parseInstant(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Staff decide a tracking flag (ESC-02). START_CLOCK opens the buyer's inspection
+ * window from NOW; REFUND_BUYER marks the flag resolved, and the caller runs the
+ * existing full-refund path (which relists the item). Both are guarded on IN_TRANSIT
+ * with an unresolved flag.
+ */
+export async function resolveTrackingFlag(
+  deps: CashSaleOrchestratorDeps,
+  params: { cashSaleId: string; staffId: string; decision: TrackingFlagDecision; inspectionDays: number },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (sale.status !== 'IN_TRANSIT' || !sale.trackingFlaggedAt || sale.trackingFlagResolvedAt) {
+    return { ok: false, error: 'INVALID_STATE', detail: 'There is no open tracking flag on this sale.' };
+  }
+  if (params.decision !== 'START_CLOCK' && params.decision !== 'REFUND_BUYER') {
+    return { ok: false, error: 'INVALID_TERMS' };
+  }
+  const nowIso = currentIso(deps);
+  const deadline = new Date(Date.parse(nowIso) + params.inspectionDays * 86_400_000).toISOString();
+  const resolved = await deps.repository.resolveTrackingFlag({
+    cashSaleId: sale.id,
+    decision: params.decision,
+    staffId: params.staffId,
+    at: nowIso,
+    inspectionDeadlineAt: deadline,
+  });
+  if (!resolved) return { ok: false, error: 'INVALID_STATE' };
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.staffId,
+    event: 'TRACKING_FLAG_RESOLVED',
+    fromStatus: sale.status,
+    toStatus: resolved.status,
+    detail: params.decision,
+  });
+  if (params.decision === 'START_CLOCK') return { ok: true, sale: resolved };
+
+  // REFUND_BUYER: the existing full-refund path, entered through a staff-raised
+  // dispute so it is recorded and refunded exactly like any other. No return is owed:
+  // staff found the parcel was not this sale's, so the buyer has nothing to send back.
+  const disputed = await deps.repository.raiseDispute({
+    cashSaleId: sale.id,
+    actorId: params.staffId,
+    reason: 'Support found the tracking was not for this sale and is refunding the buyer.',
+    disputedAt: nowIso,
+  });
+  if (!disputed) return { ok: false, error: 'INVALID_STATE' };
+  return resolveCashSaleDispute(deps, {
+    cashSaleId: sale.id,
+    actorId: params.staffId,
+    outcome: 'REFUND_BUYER',
+    requireReturn: false,
+  });
 }
 
 export async function recordCashSaleReceipt(
@@ -3172,6 +3996,18 @@ export async function confirmCashSaleHandover(
   if (alreadyConfirmed) {
     return { ok: false, error: 'ALREADY_RECORDED' };
   }
+  // ESC-20: a handover cannot be confirmed long before the meeting. Pre-confirming
+  // the night before is how a buyer is talked into "confirming" goods never seen.
+  if (sale.meetingAt) {
+    const earliest = Date.parse(sale.meetingAt) - HANDOVER_CONFIRM_LEAD_MINUTES * 60_000;
+    if (Number.isFinite(earliest) && new Date(currentIso(deps)).getTime() < earliest) {
+      return {
+        ok: false,
+        error: 'HANDOVER_TOO_EARLY',
+        detail: 'You can confirm the handover from an hour before the meeting.',
+      };
+    }
+  }
   const updated = await deps.repository.confirmHandover({
     cashSaleId: sale.id,
     actor,
@@ -3189,7 +4025,19 @@ export async function confirmCashSaleHandover(
     toStatus: updated.status,
   });
 
-  // Both parties confirmed the meetup, so the seller's payout is now owed (Req 4.3).
+  // ESC-20: the second confirmation opens the buyer's in-person inspection window.
+  // It never completes the sale or pays the seller here: the pg_cron auto-complete
+  // does that when the window lapses, and the drain pays through the release policy.
+  if (updated.status === 'INSPECTION') {
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: null,
+      event: 'IN_PERSON_INSPECTION_STARTED',
+      fromStatus: 'HANDOVER',
+      toStatus: 'INSPECTION',
+    });
+  }
+  // Defensive only: a repository that still completed on the second confirmation.
   if (updated.status === 'COMPLETED') {
     const released = await payoutCashSaleSeller(deps, { cashSaleId: sale.id });
     if (released.ok) return released;
@@ -3200,6 +4048,9 @@ export async function confirmCashSaleHandover(
   }
   return { ok: true, sale: updated };
 }
+/** ESC-20: how early before the meeting a handover may be confirmed. */
+export const HANDOVER_CONFIRM_LEAD_MINUTES = 60;
+
 /**
  * Ensure the contract has its participant chat (Req 4.2). Contracts opened
  * before the conversation link existed are repaired on first view.
@@ -3490,9 +4341,33 @@ export interface CashSaleOrchestrator {
     termsVersion: number;
     sellerIdentityVersion?: string;
     buyerConfirmedSellerIdentity?: boolean;
+    expectedAmountCents?: Cents;
   }): Promise<CashSaleResult>;
-  settleCashSale(params: { cashSaleId: string }): Promise<CashSaleResult>;
+  settleCashSale(params: {
+    cashSaleId: string;
+    paymentRef: string;
+    amountReceived: number;
+  }): Promise<CashSaleResult>;
   failCashSale(params: { cashSaleId: string }): Promise<CashSaleResult>;
+  /** ESC-03: read a buyer-present collection back after a 3-D Secure challenge. */
+  confirmPayment(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
+  /** ESC-03: the outstanding challenge secret, read back from the provider. */
+  getPaymentAction(params: {
+    actorId: string;
+    cashSaleId: string;
+  }): Promise<
+    | { ok: true; clientSecret: string | null; publishableKey?: string }
+    | { ok: false; error: CashSaleError }
+  >;
+  /** ESC-14: react to an issuer's early fraud warning on this sale's charge. */
+  refundOnFraudWarning(params: { cashSaleId: string }): Promise<FraudWarningOutcome>;
+  /** ESC-03: the `:47` abandoned-payment sweep. */
+  sweepAbandonedPayments(params?: { limit?: number }): Promise<{
+    settled: number;
+    abandoned: number;
+    failed: number;
+    skipped: number;
+  }>;
   /** Release escrowed proceeds to the Seller on a COMPLETED sale (Req 4.3). */
   payoutSeller(params: { cashSaleId: string }): Promise<CashSaleResult>;
   /** Resolve a disputed sale: refund, part-refund, or release (Req 4.15). */
@@ -3528,6 +4403,13 @@ export interface CashSaleOrchestrator {
     shipment: ShipmentInput;
   }): Promise<CashSaleResult>;
   recordReceipt(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
+  /** ESC-02: staff decide a tracking flag. Staff-gated by the caller. */
+  resolveTrackingFlag(params: {
+    cashSaleId: string;
+    staffId: string;
+    decision: TrackingFlagDecision;
+    inspectionDays: number;
+  }): Promise<CashSaleResult>;
   syncTracking(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
   acceptInspection(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
   confirmHandover(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
@@ -3582,6 +4464,9 @@ export interface CashSaleOrchestrator {
     reason: string;
   }): Promise<CashSaleResult>;
 
+  /** ESC-11: refund every return whose Seller inspection window closed uncontested. */
+  releaseDueReturnRefunds(params?: ReturnReleaseParams): Promise<ReturnReleaseSummary>;
+
   /**
    * Staff decide a STALLED return - contested or never posted (0088/0089).
    *
@@ -3610,12 +4495,17 @@ export function createCashSaleOrchestrator(
     acceptTerms: (params) => acceptCashSaleTerms(deps, params),
     settleCashSale: (params) => settleCashSale(deps, params),
     failCashSale: (params) => failCashSale(deps, params),
+    confirmPayment: (params) => confirmCashSalePayment(deps, params),
+    getPaymentAction: (params) => getCashSalePaymentAction(deps, params),
+    sweepAbandonedPayments: (params) => sweepAbandonedPayments(deps, params),
+    refundOnFraudWarning: (params) => refundOnFraudWarning(deps, params),
     payoutSeller: (params) => payoutCashSaleSeller(deps, params),
     resolveDispute: (params) => resolveCashSaleDispute(deps, params),
     processDuePayouts: (params) => processDueCashSalePayouts(deps, params),
     processDueRefunds: (params) => processDueCashSaleRefunds(deps, params),
     ensureConversation: (params) => ensureCashSaleConversation(deps, params),
     recordShipment: (params) => recordCashSaleShipment(deps, params),
+    resolveTrackingFlag: (params) => resolveTrackingFlag(deps, params),
     recordReceipt: (params) => recordCashSaleReceipt(deps, params),
     syncTracking: (params) => syncCashSaleTracking(deps, params),
     acceptInspection: (params) => acceptCashSaleInspection(deps, params),
@@ -3629,6 +4519,7 @@ export function createCashSaleOrchestrator(
     recordReturnShipment: (params) => recordCashSaleReturnShipment(deps, params),
     finalizeReturn: (params) => finalizeReturnedCashSale(deps, params),
     disputeReturn: (params) => disputeCashSaleReturn(deps, params),
+    releaseDueReturnRefunds: (params) => releaseDueReturnRefunds(deps, params),
     resolveReturnCase: (params) => resolveCashSaleReturnCase(deps, params),
   };
 }

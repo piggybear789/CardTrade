@@ -110,6 +110,7 @@ function caseOf(overrides: Partial<ArbitrationCase> = {}) {
 function cashResolution(overrides: Partial<CashResolution> = {}): CashResolution {
   return {
     kind: 'CASH_SALE',
+    trackingFlag: null,
     cashSaleId: 'sale-1',
     amountCents: 10_000,
     platformFeeCents: 0,
@@ -299,17 +300,21 @@ describe('Property 4: every other Decision card is unchanged', () => {
           resolution: {
             kind: 'TRADE',
             tradeId: 'trade-1',
-            initiator: { id: 'buyer-1', name: 'Bea', bondCents: 10_000 },
-            counterpart: { id: 'seller-1', name: 'Sam', bondCents: 10_000 },
+            initiator: { id: 'buyer-1', name: 'Bea', bondCents: 10_000, remainingCents: 10_000, holdState: 'HELD', holdExpiresAt: null, receivedAt: null },
+            counterpart: { id: 'seller-1', name: 'Sam', bondCents: 10_000, remainingCents: 10_000, holdState: 'HELD', holdExpiresAt: null, receivedAt: null },
             fraudClaimedById: null,
-            frictionTaxCents: 2_000,
+            inspected: true,
+            compensationDefaultCents: 1_000,
+            handoverMethod: 'IN_PERSON',
+            custodyAccusedId: null,
             counterpartGoodsDescription: null,
           },
           shipment: null,
         })}
       />,
     );
-    expect(screen.getByRole('button', { name: /Resolve as condition dispute/ })).toBeInTheDocument();
+    // The trade Decision card is the outcome form (ESC-01/ESC-23), with one Resolve button.
+    expect(screen.getByRole('button', { name: /^Resolve$/ })).toBeInTheDocument();
     expect(pageText()).not.toContain('Nothing to decide yet');
     cleanup();
 

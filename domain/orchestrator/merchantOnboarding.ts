@@ -72,6 +72,16 @@ export interface MerchantRecord {
    * are active — the money belongs to the victim or the platform, not them.
    */
   fraudBannedAt?: string | null;
+  /**
+   * ESC-25 (0140): set when the payout account's name does not match the verified
+   * ID. While set the member cannot be paid.
+   */
+  payeeIdentityMismatchAt?: string | null;
+  /**
+   * ESC-25 (0140): the member was carried over at 0069 on a Connect-reported name.
+   * The ONLY members whose disclosure may fall back to `legalEntityName`.
+   */
+  identityGrandfatheredAt?: string | null;
 }
 
 /**
@@ -125,6 +135,19 @@ export interface SellerIdentityDisclosure {
  * was stated in this docstring but MISSING from the code between 0060 and 0061, which
  * is how a shell account could front a cash sale.
  */
+/**
+ * The ONE rule for which legal name may be disclosed (ESC-25): the document name from
+ * Stripe Identity, else the Connect-reported name ONLY for a member 0069 grandfathered.
+ * Shared by the buy-path disclosure and the contract-room name so the two cannot drift.
+ */
+export function disclosedLegalName(params: {
+  identityCheckName?: string | null;
+  connectLegalName?: string | null;
+  identityGrandfatheredAt?: string | null;
+}): string | null {
+  return params.identityCheckName ?? (params.identityGrandfatheredAt ? (params.connectLegalName ?? null) : null);
+}
+
 export function sellerIdentityDisclosure(
   merchant: MerchantRecord | null,
 ): SellerIdentityDisclosure | null {
@@ -143,7 +166,15 @@ export function sellerIdentityDisclosure(
   // load-bearing rather than sloppy: a null disclosure blocks the entire buy path
   // (migration 0041 records that shipping), so a grandfathered seller must keep the
   // name they were already disclosed under.
-  const legalEntityName = merchant.identityCheckName ?? merchant.legalEntityName;
+  //
+  // ESC-25: the fallback is for the members 0069 actually grandfathered, recorded in
+  // `identity_grandfathered_at`, and nobody else. Without that, any member verified
+  // without a document name was disclosed under a Connect name they typed.
+  const legalEntityName = disclosedLegalName({
+    identityCheckName: merchant.identityCheckName,
+    connectLegalName: merchant.legalEntityName,
+    identityGrandfatheredAt: merchant.identityGrandfatheredAt,
+  });
   const verifiedAt = merchant.identityCheckVerifiedAt ?? merchant.identityVerifiedAt;
 
   if (!merchant.identityDisclosureConsentedAt || !verifiedAt || !legalEntityName) {
@@ -304,7 +335,9 @@ export function canReceiveFunds(merchant: MerchantRecord | null): boolean {
       merchant.merchantRef &&
       merchant.merchantStatus === 'APPROVED' &&
       merchant.settlementsEnabled &&
-      !merchant.fraudBannedAt,
+      !merchant.fraudBannedAt &&
+      // ESC-25: never pay an account whose name is not the verified person's.
+      !merchant.payeeIdentityMismatchAt,
   );
 }
 

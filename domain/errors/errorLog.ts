@@ -193,6 +193,79 @@ const EXPECTED_CODES = new Set([
   'seller-fraud-banned',
   'item-not-available',
   'region-mismatch',
+  // Escrow hardening (design §9). Each is a guard refusing an unsafe request.
+  // ESC-02: the tracking was scanned before the buyer paid.
+  'tracking-predates-payment',
+  // ESC-04: accepting terms with no meeting place and time. Listed explicitly
+  // because the `…-incomplete` pattern below would otherwise read it as a breakage.
+  'terms-incomplete',
+  // ESC-04: an undecided meeting-change proposal already exists.
+  'proposal-open',
+  // ESC-04: the 0133 trigger refused a handover edit after the placement cutoff.
+  'handover-locked',
+  // ESC-14 / ESC-21: a payout deferred by the release policy (holdback window,
+  // chargeback, fraud warning). The money is safe in the platform balance.
+  'payout-held',
+  // ESC-03 layer 1: a new seller at their open-sales limit.
+  'seller-exposure-limit',
+  // ESC-03 layer 3: the two members share a card, payout account or identity.
+  'related-accounts',
+  // ESC-14: a card fingerprint blocked after a lost fraud chargeback.
+  'card-blocked',
+  // ESC-25: the payout account name does not match the verified ID.
+  'payee-identity-mismatch',
+  // ESC-20: confirming an in-person handover long before the meeting.
+  'handover-too-early',
+  // ESC-11 / ESC-12: return window and tracking-number binding refusals.
+  'return-inspection-open',
+  'return-window-closed',
+  'tracking-in-use',
+  'tracking-already-delivered',
+  'tracking-predates-dispute',
+  // ESC-23: two-person rule outcomes. A proposal is the designed result, not a fault.
+  'approval-required',
+  'approval-invalid',
+  'SAME_STAFFER',
+  'COOLING_OFF',
+  'RECUSED',
+  // ESC-12: carrier destination differs from the contract. Logged, never refused.
+  'DESTINATION_COUNTRY_MISMATCH',
+  // ESC-24: staff approval refused while the duplicate account is live or banned.
+  'duplicate-still-live',
+  'duplicate-banned',
+  // ESC-05: the trade cash leg was declined, or not paid in time.
+  'cash-declined',
+  'trade-cash-pay-by-passed',
+  // WP3. ESC-18 / ESC-19: a price edit on a card in a live trade, an offered card
+  // already taken, a reservation another contract beat us to.
+  'item-in-live-trade',
+  'initiator-item-unavailable',
+  'short-reservation',
+  // ESC-29: a declined Trade_Fee, handled as a hold failure.
+  'fee-declined',
+  // ESC-34: the orphan sweep released a hold, or skipped a region it could not read.
+  'orphan-hold-voided',
+  'orphan-sweep-skipped',
+]);
+
+/**
+ * Codes that LOOK like refusals by the patterns below but are breakages (design §9).
+ * Checked first. A dispute whose accused has no hold left, or whose history cannot be
+ * read, means money or evidence is missing — that has to surface on the console, not
+ * file away with the guards.
+ */
+const UNEXPECTED_CODES = new Set([
+  'hold-not-found',
+  'dispute-history-unavailable',
+  // ESC-37: a provider settlement that is not this sale's collection. Would read as
+  // a refusal by the `-mismatch` pattern; it is a payment that cannot be matched.
+  'settlement-mismatch',
+  // ESC-15 / ESC-25: a provider stopped returning what a check depends on. Would read
+  // as refusals by the `-unavailable` pattern; they are gaps in a safety control.
+  'person-keys-unavailable',
+  // ESC-03 layer 4: the cross-instance limiter could not count (it fails open).
+  'rate-limit-unavailable',
+  'payee-name-unavailable',
 ]);
 
 /**
@@ -208,6 +281,7 @@ const EXPECTED_CODES = new Set([
 export function isExpectedFailureCode(code: string | null | undefined): boolean {
   if (!code) return false;
   const normalized = code.trim().toLowerCase().replace(/_/g, '-');
+  if (UNEXPECTED_CODES.has(normalized)) return false;
   if (EXPECTED_CODES.has(normalized)) return true;
   if (/(^|-)(failed|failure|error|errored|incomplete|unreadable)$/.test(normalized)) return false;
   if (/^(not-|invalid-|self-|already-|cannot-|no-)/.test(normalized)) return true;

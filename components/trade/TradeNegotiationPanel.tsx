@@ -51,6 +51,8 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
 import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
+import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
+import { HOLD_DECLINED_MESSAGE, type TradeAcceptCopy } from '@/lib/handover/terms';
 import { FEE_WAIVED_HINT, NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import {
   acceptTradeTerms,
@@ -103,7 +105,10 @@ export interface TradeNegotiationPanelProps {
    * dialog names the fee without an amount rather than inventing one.
    */
   acceptCost?: {
-    /** Trade fee taken from the card the moment the last accept lands. */
+    /**
+     * The viewer's Trade_Fee. Charged when the temporary card hold is placed, about a
+     * day before the meeting — not at acceptance.
+     */
     feeText: string;
     /**
      * The rate as members read it, e.g. "5%" or "waived for now, normally 5%",
@@ -111,8 +116,14 @@ export interface TradeNegotiationPanelProps {
      * percentage.
      */
     feeRateLabel?: string;
-    /** Collateral authorised against the card. Held, never charged. */
+    /**
+     * The temporary card hold placed against the viewer's card. Not a charge while the
+     * trade runs; charged only if a problem is still open when it is about to expire
+     * (ESC-01), and then refunded or paid out when staff decide.
+     */
     collateralText: string;
+    /** The dialog's sentences, from `tradeAcceptCopy` (design §1.12). */
+    copy?: TradeAcceptCopy;
   } | null;
   /**
    * Whether the room's Realtime channel is connected.
@@ -172,7 +183,12 @@ export function TradeNegotiationPanel({
           if (!liveUpdates) router.refresh();
           resolve(true);
         } else {
-          const message = result.message ?? 'Something went wrong. Please try again.';
+          // A declined hold reads the same here as in the action bar (design §1.12):
+          // a card limit is the usual cause, and saying so is the actionable part.
+          const message =
+            result.error === 'bond-failed'
+              ? HOLD_DECLINED_MESSAGE
+              : (result.message ?? 'Something went wrong. Please try again.');
           setError(message);
           resolve(false);
         }
@@ -332,19 +348,11 @@ export function TradeNegotiationPanel({
           <DialogHeader>
             <DialogTitle>Accept these terms?</DialogTitle>
             <DialogDescription>
-              {feesWaivedForBeta() ? (
-                <>
-                  If you are the last to accept, the trade starts straight away: the
-                  collateral is authorised against your card, with {NO_FEE_DURING_BETA}.
-                  Replace the card here if you do not want this one used.
-                </>
-              ) : (
-                <>
-                  If you are the last to accept, the trade starts straight away: the
-                  fee is charged to your card and the collateral is authorised
-                  against it. Replace the card here if you do not want this one used.
-                </>
-              )}
+              {acceptCost?.copy?.description ??
+                (feesWaivedForBeta()
+                  ? `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold, with ${NO_FEE_DURING_BETA}.`
+                  : `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold and charge the fee.`)}{' '}
+              Replace the card here if you do not want this one used.
             </DialogDescription>
           </DialogHeader>
           {/* The Exchange row already carries the fee, but it is one row of an
@@ -358,12 +366,16 @@ export function TradeNegotiationPanel({
                 {
                   label: `NoDitto fee (${acceptCost.feeRateLabel ?? `${TRADE_FEE_BPS / 100}%`})`,
                   value: acceptCost.feeText,
-                  hint: feesWaivedForBeta() ? FEE_WAIVED_HINT : 'Charged to your card.',
+                  hint: feesWaivedForBeta()
+                    ? FEE_WAIVED_HINT
+                    : (acceptCost.copy?.feeHint ?? 'Charged when the card hold is placed.'),
                 },
                 {
-                  label: 'Collateral',
+                  label: 'Trade collateral',
                   value: acceptCost.collateralText,
-                  hint: 'Authorised, not charged. Released in full when the trade completes.',
+                  hint:
+                    acceptCost.copy?.collateralHint ??
+                    "A temporary card hold, not a charge. Make sure your card's available limit covers it.",
                 },
               ]}
             />

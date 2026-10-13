@@ -25,6 +25,7 @@ import { NotShippedGuidance } from '@/components/arbitration/NotShippedGuidance'
 
 import { ReturnCaseActions } from '@/components/admin/ReturnCaseActions';
 import { DisputeActions } from '@/components/admin/DisputeActions';
+import { TrackingFlagActions } from '@/components/admin/TrackingFlagActions';
 import { TradeDisputeActions } from '@/components/admin/TradeDisputeActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -501,6 +502,12 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       shipLapsedAt={shipment?.shipLapsedAt ?? c.openedAt}
                       buyerHasGoods={resolution.buyerHasGoods}
                     />
+                  ) : resolution.trackingFlag ? (
+                    <TrackingFlagActions
+                      cashSaleId={resolution.cashSaleId}
+                      reason={resolution.trackingFlag.reason}
+                      carrierDeliveredAt={resolution.trackingFlag.carrierDeliveredAt}
+                    />
                   ) : resolution.status === 'RETURN_PENDING'
                   || resolution.status === 'RETURN_IN_TRANSIT' ? (
                     <ReturnCaseActions
@@ -538,7 +545,10 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                     initiator={resolution.initiator}
                     counterpart={resolution.counterpart}
                     fraudClaimedById={resolution.fraudClaimedById}
-                    frictionTaxCents={resolution.frictionTaxCents}
+                    inspected={resolution.inspected}
+                    compensationDefaultCents={resolution.compensationDefaultCents}
+                    handoverMethod={resolution.handoverMethod}
+                    custodyAccusedId={resolution.custodyAccusedId}
                     currency={detail.currency}
                   />
                 </div>

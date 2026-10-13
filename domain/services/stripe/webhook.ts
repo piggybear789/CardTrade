@@ -31,6 +31,22 @@ export const STRIPE_SIGNATURE_HEADER = 'stripe-signature';
 /** Stripe's own default replay window, in seconds. */
 export const DEFAULT_TOLERANCE_SECONDS = 300;
 
+/** The widest replay window `STRIPE_WEBHOOK_TOLERANCE_SECONDS` may set (ESC-39). */
+export const MAX_TOLERANCE_SECONDS = 600;
+
+/**
+ * ESC-39: the replay window to verify with, in SECONDS, from
+ * `STRIPE_WEBHOOK_TOLERANCE_SECONDS`. Bounded to 1–600 so a typo (or a value in
+ * milliseconds) cannot silently widen it to days; anything else is the default.
+ */
+export function webhookToleranceSeconds(raw: string | undefined | null): number {
+  const value = Number.parseInt(raw?.trim() ?? '', 10);
+  if (!Number.isFinite(value) || value < 1 || value > MAX_TOLERANCE_SECONDS) {
+    return DEFAULT_TOLERANCE_SECONDS;
+  }
+  return value;
+}
+
 /**
  * Verify a delivery and return the parsed Stripe event.
  *
@@ -73,6 +89,21 @@ export function translateStripeEvent(event: Stripe.Event): WebhookEvent[] {
   const build = (type: WebhookEventType, payload: WebhookEventPayload): WebhookEvent[] => [
     { eventId: event.id, type, occurredAt, payload },
   ];
+
+  // ESC-37: every PaymentIntent, charge and Identity session of ours lives on the
+  // PLATFORM account (separate charges and transfers). The same event type arriving
+  // with `event.account` set happened inside a CONNECTED account — a member's own
+  // Stripe account, where they can create a PaymentIntent carrying our metadata
+  // keys. Treating it as ours would let a seller "settle" their own sale. Dropped,
+  // and the pipeline logs it as a NO_OP.
+  if (
+    event.account &&
+    (event.type.startsWith('payment_intent.') ||
+      event.type.startsWith('charge.') ||
+      event.type.startsWith('identity.'))
+  ) {
+    return [];
+  }
 
   switch (event.type) {
     // --- Collateral holds --------------------------------------------------
@@ -211,6 +242,24 @@ export function translateStripeEvent(event: Stripe.Event): WebhookEvent[] {
         status: dispute.status,
         disputeOutcome: disputeOutcomeOf(dispute.status),
         reason: dispute.reason,
+      });
+    }
+
+    // --- Early fraud warnings (ESC-14) ---------------------------------------
+
+    // The issuer reports the cardholder called the charge fraud; a chargeback is
+    // likely to follow. Carries no CardTrade metadata, so it is routed by the
+    // PaymentIntent the pipeline looks up against the sale, trade cash leg or hold.
+    case 'radar.early_fraud_warning.created': {
+      const warning = event.data.object as Stripe.Radar.EarlyFraudWarning;
+      const paymentRef =
+        typeof warning.payment_intent === 'string' ? warning.payment_intent : warning.payment_intent?.id;
+      if (!paymentRef) return [];
+      return build('charge.fraud_warning', {
+        paymentRef,
+        captureId: typeof warning.charge === 'string' ? warning.charge : warning.charge.id,
+        reason: warning.fraud_type,
+        status: warning.actionable ? 'actionable' : 'not_actionable',
       });
     }
 

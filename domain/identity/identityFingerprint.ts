@@ -25,6 +25,13 @@ export interface IdentityFingerprintSource {
   firstName?: string | null;
   lastName?: string | null;
   dob?: { day: number; month: number; year: number } | null;
+  /**
+   * The document's ISSUING country (ESC-15). Scopes the document key, because two
+   * countries can issue the same number. Never the address country: moving house
+   * must not make a banned person a new person.
+   */
+  issuingCountry?: string | null;
+  /** @deprecated ignored since ESC-15; the address country never keys a person. */
   country?: string | null;
 }
 
@@ -44,27 +51,43 @@ export function identityFingerprints(
   const key = secret.trim();
   if (!key) return [];
 
-  const country = normalizeCountry(source.country);
   const out: IdentityFingerprint[] = [];
 
+  // `doc:<issuingCountry>:<number>` (ESC-15). Stored under the existing
+  // `document-id` kind (0105), so no constraint changes.
   const idNumber = normalizeIdNumber(source.idNumber);
   if (idNumber) {
     out.push({
       kind: 'document-id',
-      hash: hmac(key, `v1:id:${country}:${idNumber}`),
+      hash: hmac(key, `doc:${normalizeCountry(source.issuingCountry)}:${idNumber}`),
     });
   }
 
-  const name = normalizeName(source.firstName, source.lastName);
+  // `namedob:<family>:<firstGiven>:<yyyy-mm-dd>`. The FIRST given name only, so a
+  // passport ("Mary Jane") and a licence ("Mary") for one person share the key, and
+  // no country at all, so a second document from another country still matches.
+  const family = normalizePart(source.lastName);
+  const firstGiven = normalizePart(source.firstName)?.split(' ')[0] ?? null;
   const dob = formatDob(source.dob);
-  if (name && dob) {
+  if (family && firstGiven && dob) {
     out.push({
       kind: 'name-dob',
-      hash: hmac(key, `v1:dob:${country}:${name}:${dob}`),
+      hash: hmac(key, `namedob:${family}:${firstGiven}:${dob}`),
     });
   }
 
   return out;
+}
+
+function normalizePart(value: string | null | undefined): string | null {
+  const part =
+    value
+      ?.normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .replace(/[\s-]+/g, ' ')
+      .toLowerCase() ?? '';
+  return part.length > 0 ? part : null;
 }
 
 function hmac(secret: string, material: string): string {
@@ -74,17 +97,6 @@ function hmac(secret: string, material: string): string {
 function normalizeIdNumber(value: string | null | undefined): string | null {
   const compact = value?.replace(/[\s.\-]/g, '').toUpperCase() ?? '';
   return compact.length > 0 ? compact : null;
-}
-
-function normalizeName(
-  first: string | null | undefined,
-  last: string | null | undefined,
-): string | null {
-  const joined = [first, last]
-    .map((part) => part?.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase() ?? '')
-    .filter(Boolean)
-    .join(' ');
-  return joined.length > 0 ? joined : null;
 }
 
 function normalizeCountry(value: string | null | undefined): string {

@@ -538,3 +538,5 @@ npx vitest --run --project domain      → 691 passed / 55 files
 Footnote on that last command: the theme-agreement file needs `--testTimeout=30000` on some
 machines, because its filesystem scans over `flutter_app/` exceed Vitest's 5s default under
 parallel load. That is a runner limit, not a failing assertion.
+
+- [ ] Port ESC-09 to `flutter_app/lib/domain/trade_side_values.dart`: a binder side includes the cash leg (initiator cash adds, counterpart cash subtracts) and a side below `MIN_TRADE_SIDE_VALUE_MINOR` (aud/usd 500) is unvalued. Advisory only; the server decides.

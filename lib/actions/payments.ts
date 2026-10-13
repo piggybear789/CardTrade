@@ -19,6 +19,8 @@
 // resolves provider configuration.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { consumeDbRateLimit } from '@/lib/rateLimitDb';
+import { isCardHashBlocked, recordRiskSignal } from '@/lib/risk/signals';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -31,7 +33,11 @@ export type CardSetupError =
   | 'PROFILE_NOT_FOUND'
   | 'NOT_SUPPORTED' // the active provider has no hosted capture flow
   | 'PAYER_UNAVAILABLE'
-  | 'PROVIDER_ERROR';
+  | 'PROVIDER_ERROR'
+  /** ESC-03 layer 4: too many card setups this hour. */
+  | 'rate-limited'
+  /** ESC-14: this card is blocked after a lost fraud chargeback. Generic copy. */
+  | 'CARD_BLOCKED';
 
 /** What the browser needs to mount the provider's own card fields. */
 export interface CardSetupSession {
@@ -54,6 +60,10 @@ export const beginCardSetup = withActionLog('payments.beginCardSetup', async fun
   if (!authed.ok) return authed;
 
   const { payments, payerId } = authed.data;
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('beginCardSetup', authed.data.userId))) {
+    return fail('rate-limited', 'Too many attempts. Try again in a little while.');
+  }
   if (!payments.beginInstrumentSetup) {
     return fail('NOT_SUPPORTED', 'The active payment provider cannot store payment methods.');
   }
@@ -106,6 +116,13 @@ export const completeCardSetup = withActionLog('payments.completeCardSetup', asy
     });
 
     const admin = createAdminClient();
+    // ESC-03 layer 3 / ESC-14: remember the card (as an HMAC) so a second account
+    // using it is recognised, and refuse a card blocked after a lost fraud chargeback
+    // BEFORE it becomes this member's card on file.
+    const cardHash = await recordRiskSignal(userId, 'CARD_FINGERPRINT', instrument.fingerprint, admin);
+    if (cardHash && (await isCardHashBlocked(cardHash, admin))) {
+      return fail('CARD_BLOCKED', "This card can't be used on NoDitto. Try a different card or contact support.");
+    }
     await admin
       .from('profiles')
       .update({

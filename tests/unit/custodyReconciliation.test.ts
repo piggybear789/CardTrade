@@ -213,6 +213,56 @@ describe('reconcileCustody', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Captured trade collateral (design §1.8, ESC-01)
+// ---------------------------------------------------------------------------
+
+import { heldForCollateral, type HeldCollateralInput } from '@/domain/payouts/custodyReconciliation';
+
+function captured(overrides: Partial<HeldCollateralInput> = {}): HeldCollateralInput {
+  return {
+    holdRef: 'pi_1',
+    capturedCents: 50_000,
+    settledDisbursedCents: 0,
+    resolved: false,
+    platformRetainedCents: 0,
+    ...overrides,
+  };
+}
+
+describe('captured collateral', () => {
+  it('counts a custody-captured hold in full until it is disbursed', () => {
+    expect(heldForCollateral(captured())).toBe(50_000);
+    expect(heldForCollateral(captured({ settledDisbursedCents: 49_000 }))).toBe(1_000);
+    expect(heldForCollateral(captured({ settledDisbursedCents: 50_000, resolved: true }))).toBe(0);
+  });
+
+  it('holds nothing for a CLOSED legacy partial capture (return share paid, platform half retained)', () => {
+    // The pre-fix condition path: $20 captured, $10 paid as return postage, $10 kept.
+    const legacy = captured({ capturedCents: 2_000, settledDisbursedCents: 1_000, platformRetainedCents: 1_000, resolved: true });
+    expect(heldForCollateral(legacy)).toBe(0);
+  });
+
+  it('holds captured minus the paid return share for an OPEN legacy case', () => {
+    const legacy = captured({ capturedCents: 2_000, settledDisbursedCents: 1_000, platformRetainedCents: 1_000, resolved: false });
+    expect(heldForCollateral(legacy)).toBe(1_000);
+  });
+
+  it('adds captured collateral to what is owed, never uncaptured holds', () => {
+    const position = reconcileCustody({
+      sales: [sale({ collectedCents: 10_000 })],
+      collateral: [captured({ capturedCents: 5_000 })],
+      balance: { availableCents: 12_000, pendingCents: 0, readable: true },
+    });
+    expect(position.heldForMembersCents).toBe(15_000);
+    expect(position.heldForSalesCents).toBe(10_000);
+    expect(position.heldForCollateralCents).toBe(5_000);
+    expect(position.collateralCount).toBe(1);
+    expect(position.state).toBe('SHORTFALL');
+    expect(position.shortfallCents).toBe(3_000);
+  });
+});
+
 describe('zero fee revenue (beta waiver)', () => {
   // While every platform fee is waived (`domain/fees/betaFeeWaiver.ts`) the buyer's
   // whole collection is still owed while a sale is live, so a zero fee changes nothing

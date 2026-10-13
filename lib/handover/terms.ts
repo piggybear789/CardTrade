@@ -12,11 +12,68 @@
 //
 // The module header used to say "used by deals and 2-way trades". Deals are gone.
 
-import { formatMoney } from '@/lib/format';
+import { formatAud, formatMoney } from '@/lib/format';
+import { tradeFeeRateLabel } from '@/lib/fees/feeLabels';
 import {
   areFulfilmentTermsComplete,
+  BOND_PLACEMENT_LEAD_HOURS,
   type FulfilmentMethod,
 } from '@/domain/fulfilment';
+
+/** The accept dialog's strings (design §1.12). */
+export interface TradeAcceptCopy {
+  description: string;
+  collateralHint: string;
+  feeHint: string;
+}
+
+/**
+ * The trade accept-dialog copy, built from the constants so it cannot drift from the
+ * code (design §1.12, ESC-01, ESC-29).
+ *
+ * Honest about what happens: accepting agrees terms; the temporary card hold and the
+ * fee land about a day before the meeting; and since ESC-01 a hold that is about to
+ * expire on an open problem IS charged, then refunded or paid out. Never "escrow",
+ * never "not charged".
+ *
+ * `cashMinor` / `payerIsViewer` add the cash-payment sentence (ESC-05), for the paying
+ * viewer only: the receiver pays nothing and is not told to.
+ */
+export function tradeAcceptCopy(params: {
+  cashMinor: number;
+  payerIsViewer: boolean;
+  bondMinor: number | null;
+  currency: string;
+}): TradeAcceptCopy {
+  const rate = tradeFeeRateLabel(params.currency);
+  const hold = params.bondMinor === null ? 'a temporary card hold' : `a temporary card hold of ${formatMoney(params.bondMinor, params.currency)}`;
+  // ESC-05: only the trader who pays the cash is told to pay it, and when.
+  const cashSentence =
+    params.cashMinor > 0 && params.payerIsViewer
+      ? ` You then pay the ${formatMoney(params.cashMinor, params.currency)} cash before the hold goes on. ` +
+        'NoDitto holds it until the trade completes, and refunds it if the trade is cancelled.'
+      : '';
+  return {
+    description:
+      `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting ` +
+      `(or straight away if it's sooner) we place ${hold} and charge the ${rate} fee.` +
+      cashSentence,
+    collateralHint:
+      "A temporary card hold, not a charge. Make sure your card's available limit covers it. " +
+      "It's released when the trade completes. If a problem is still open when the hold is about " +
+      "to expire, it's charged and then refunded or paid out when staff decide.",
+    // ESC-29: the fee is a lock precondition, so say what a decline means.
+    feeHint:
+      "Charged when the card hold is placed. If the fee is declined, the trade doesn't lock and you can switch card and retry.",
+  };
+}
+
+/** Card-decline copy shared by the trade room's action bar and negotiation toasts. */
+export const CARD_LIMIT_SENTENCE =
+  "This usually means the card's available limit is too low. Switch card and try again.";
+
+/** "Your card declined the hold." plus the card-limit sentence. */
+export const HOLD_DECLINED_MESSAGE = `Your card declined the hold. ${CARD_LIMIT_SENTENCE}`;
 
 /**
  * How the goods change hands.

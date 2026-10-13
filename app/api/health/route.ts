@@ -7,6 +7,7 @@
 // the purpose of knowing whether THIS service is up.
 
 import { NextResponse } from 'next/server';
+import { resolvePaymentProvider } from '@/domain/services/providerMode';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,6 +17,9 @@ export function GET() {
       status: 'healthy',
       timestamp: new Date().toISOString(),
       version: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? 'dev',
+      // ESC-16: which KIND of payment binding is active. Never a key or a region list.
+      // `unconfigured` on a production deployment means every payment will fail loudly.
+      payments: resolvePaymentProvider(),
     },
     {
       status: 200,

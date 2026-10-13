@@ -8,7 +8,7 @@
 // Bearer token auth.
 
 import { carrierTrackingUrl, ship24CourierCode } from './carriers';
-import type { TrackingService, TrackingSnapshot, TrackingState } from './types';
+import type { TrackingLookup, TrackingService, TrackingSnapshot, TrackingState } from './types';
 
 const BASE_URL = 'https://api.ship24.com/public/v1';
 
@@ -30,6 +30,70 @@ function mapStatus(milestone: string | null | undefined): TrackingState {
     case 'exception': return 'EXCEPTION';
     default: return 'UNKNOWN';
   }
+}
+
+/**
+ * Milestones that are NOT a physical scan (ESC-02, round-3 review #5). A label is
+ * often printed before the buyer pays; counting it would refuse an honest seller.
+ */
+export const PRE_SCAN_MILESTONES: readonly string[] = ['info_received', 'pending'];
+
+/** The minimal event shape the timing helpers read. */
+export interface Ship24EventLike {
+  occurrenceDatetime: string | null | undefined;
+  statusMilestone: string | null | undefined;
+}
+
+function instant(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * The earliest physical carrier scan, in either event order. Events with no
+ * milestone, or a pre-scan one, do not count. Null when none qualifies.
+ */
+export function firstCarrierScanAt(events: readonly Ship24EventLike[] | null | undefined): string | null {
+  let best: { ms: number; iso: string } | null = null;
+  for (const event of events ?? []) {
+    if (!event.statusMilestone || PRE_SCAN_MILESTONES.includes(event.statusMilestone)) continue;
+    const ms = instant(event.occurrenceDatetime);
+    if (ms === null) continue;
+    if (!best || ms < best.ms) best = { ms, iso: event.occurrenceDatetime as string };
+  }
+  return best?.iso ?? null;
+}
+
+/** The latest `delivered`-milestone event, in either event order. */
+export function deliveredEventAt(events: readonly Ship24EventLike[] | null | undefined): string | null {
+  let best: { ms: number; iso: string } | null = null;
+  for (const event of events ?? []) {
+    if (event.statusMilestone !== 'delivered') continue;
+    const ms = instant(event.occurrenceDatetime);
+    if (ms === null) continue;
+    if (!best || ms > best.ms) best = { ms, iso: event.occurrenceDatetime as string };
+  }
+  return best?.iso ?? null;
+}
+
+/** Build a snapshot from a Ship24 tracking result. */
+function snapshotFrom(
+  carrier: string,
+  trackingNumber: string,
+  tracking: Ship24TrackResponse['data']['trackings'][number] | undefined,
+): TrackingSnapshot {
+  const status = mapStatus(tracking?.shipment?.statusMilestone);
+  const events = tracking?.events ?? [];
+  return {
+    carrier,
+    trackingNumber,
+    trackingUrl: carrierTrackingUrl(carrier, trackingNumber),
+    status,
+    deliveredAt: status === 'DELIVERED' ? (deliveredEventAt(events) ?? events[0]?.occurrenceDatetime ?? null) : null,
+    firstEventAt: firstCarrierScanAt(events),
+    destinationCountryCode: tracking?.shipment?.destinationCountryCode ?? null,
+  };
 }
 
 export class Ship24TrackingService implements TrackingService {
@@ -55,19 +119,16 @@ export class Ship24TrackingService implements TrackingService {
     return res.json() as Promise<T>;
   }
 
-  async registerShipment(input: {
-    carrier: string;
-    trackingNumber: string;
-  }): Promise<TrackingSnapshot> {
+  async registerShipment(input: TrackingLookup): Promise<TrackingSnapshot> {
     const carrier = input.carrier.trim();
     const trackingNumber = input.trackingNumber.trim();
     const courierCode = ship24CourierCode(carrier);
 
     // POST /trackers/track is idempotent — creates if needed, returns results.
-    const body: Record<string, unknown> = {
-      trackingNumber,
-      destinationCountryCode: 'AU',
-    };
+    // ESC-12: the contract's own destination, never a hard-coded 'AU'.
+      const body: Record<string, unknown> = { trackingNumber };
+      const destination = input.destinationCountryCode?.trim().toUpperCase();
+      if (destination && /^[A-Z]{2}$/.test(destination)) body.destinationCountryCode = destination;
     if (courierCode) {
       body.courierCode = [courierCode];
     }
@@ -78,18 +139,7 @@ export class Ship24TrackingService implements TrackingService {
         body: JSON.stringify(body),
       });
 
-      const shipment = data.data?.trackings?.[0]?.shipment;
-      const lastEvent = data.data?.trackings?.[0]?.events?.[0];
-      const status = mapStatus(shipment?.statusMilestone);
-      return {
-        carrier,
-        trackingNumber,
-        trackingUrl: carrierTrackingUrl(carrier, trackingNumber),
-        status,
-        deliveredAt: status === 'DELIVERED' && lastEvent?.occurrenceDatetime
-          ? lastEvent.occurrenceDatetime
-          : null,
-      };
+      return snapshotFrom(carrier, trackingNumber, data.data?.trackings?.[0]);
     } catch (err) {
       // Fallback: if Ship24 is down, still register with the URL and UNKNOWN status.
       console.error('[Ship24] registerShipment failed, falling back:', err);
@@ -102,20 +152,17 @@ export class Ship24TrackingService implements TrackingService {
     }
   }
 
-  async fetchStatus(input: {
-    carrier: string;
-    trackingNumber: string;
-  }): Promise<TrackingSnapshot | null> {
+  async fetchStatus(input: TrackingLookup): Promise<TrackingSnapshot | null> {
     const carrier = input.carrier.trim();
     const trackingNumber = input.trackingNumber.trim();
     const courierCode = ship24CourierCode(carrier);
 
     try {
       // Use the same idempotent endpoint to get current status.
-      const body: Record<string, unknown> = {
-        trackingNumber,
-        destinationCountryCode: 'AU',
-      };
+      // ESC-12: the contract's own destination, never a hard-coded 'AU'.
+      const body: Record<string, unknown> = { trackingNumber };
+      const destination = input.destinationCountryCode?.trim().toUpperCase();
+      if (destination && /^[A-Z]{2}$/.test(destination)) body.destinationCountryCode = destination;
       if (courierCode) {
         body.courierCode = [courierCode];
       }
@@ -125,20 +172,9 @@ export class Ship24TrackingService implements TrackingService {
         body: JSON.stringify(body),
       });
 
-      const shipment = data.data?.trackings?.[0]?.shipment;
-      const lastEvent = data.data?.trackings?.[0]?.events?.[0];
-      if (!shipment) return null;
-
-      const status = mapStatus(shipment.statusMilestone);
-      return {
-        carrier,
-        trackingNumber,
-        trackingUrl: carrierTrackingUrl(carrier, trackingNumber),
-        status,
-        deliveredAt: status === 'DELIVERED' && lastEvent?.occurrenceDatetime
-          ? lastEvent.occurrenceDatetime
-          : null,
-      };
+      const tracking = data.data?.trackings?.[0];
+      if (!tracking?.shipment) return null;
+      return snapshotFrom(carrier, trackingNumber, tracking);
     } catch (err) {
       console.error('[Ship24] fetchStatus failed:', err);
       return null;
@@ -154,6 +190,7 @@ interface Ship24TrackResponse {
       shipment: {
         trackingNumber: string;
         statusMilestone: string | null;
+        destinationCountryCode?: string | null;
       } | null;
       events: Array<{
         eventId: string;

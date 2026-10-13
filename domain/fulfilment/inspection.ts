@@ -4,15 +4,17 @@
 // once the goods are with them, and when an untouched trade completes on its own.
 //
 // THE WHOLE TRADE IS BUDGETED OUT OF ONE CARD AUTHORISATION, and this module owns
-// the budget. Collateral is an uncaptured authorisation that lapses about seven days
-// after it is PLACED, and it cannot be extended — that needs Interchange Plus
-// pricing, and the attempt is on file, rejected as ineligible. So every window in a
-// trade's life has to be carved out of those 168 hours:
+// the budget. Collateral is an uncaptured, OFF-SESSION authorisation, which the card
+// networks treat as merchant-initiated: Visa releases those after about 4 days 18
+// hours (114h), the shortest common brand, not the seven days of a customer-present
+// auth. It cannot be extended — that needs Interchange Plus pricing, and the attempt
+// is on file, rejected as ineligible. So every window in a trade's life has to be
+// carved out of those 114 hours (ESC-17a):
 //
-//     |<-- 24h -->|<---------- 120h ---------->|<-- 24h -->|
-//     placement   meeting                  inspection    margin
-//                                             closes
-//     |<------------------ 168h authorisation ------------------>|
+//     |<-- 24h -->|<------- 72h ------->|<-- 18h -->|
+//     placement   meeting           inspection    margin
+//                                      closes
+//     |<------------- 114h authorisation ------------->|
 //
 // The three add up to exactly the authorisation, which is asserted in the tests. It
 // is written as a partition rather than three independent numbers because the last
@@ -46,6 +48,80 @@ import type { FulfilmentMethod } from './types';
 export const BOND_PLACEMENT_LEAD_HOURS = 24;
 
 /**
+ * The Cash_Sale buyer's inspection window, in days. Matches
+ * `cardtrade.cash_sale_inspection_days()` (0011); pinned by
+ * `tests/unit/tradeClockAgreement.test.ts`. Since ESC-02 it always runs from the moment
+ * we learn of delivery (or from a staff START_CLOCK), never from the carrier's own
+ * timestamp.
+ */
+export const CASH_SALE_INSPECTION_DAYS = 7;
+
+/**
+ * The in-person Cash_Sale buyer inspection, in hours (ESC-20). The second handover
+ * confirmation opens it instead of completing on the spot. Matches
+ * `cardtrade.in_person_inspection_hours()` (0138), pinned by tradeClockAgreement.
+ */
+export const IN_PERSON_INSPECTION_HOURS = 24;
+
+/**
+ * The Seller's window to inspect a delivered RETURN, in hours (ESC-11). Carrier
+ * delivery of the return opens it; when it closes with no contest the Buyer is
+ * refunded automatically. Matches `cardtrade.return_inspection_hours()` (0143), pinned
+ * by tradeClockAgreement.
+ */
+export const RETURN_INSPECTION_HOURS = 72;
+
+/** The return inspection window as member copy ("3 days"). */
+export const RETURN_INSPECTION_LABEL = `${RETURN_INSPECTION_HOURS / 24} days`;
+
+/** The return-leg facts the window derivation reads. */
+export interface ReturnInspectionFacts {
+  status: string;
+  returnCarrierDeliveredAt: string | null;
+  returnInspectionDeadlineAt?: string | null;
+  returnDisputedAt?: string | null;
+}
+
+/**
+ * When the Seller's return inspection closes, or `null` while the return has not
+ * been delivered.
+ *
+ * The stored deadline wins. A return delivered before 0143 has none, so it is derived
+ * from the carrier's delivery instant instead: those sales must still reach a refund
+ * rather than wait forever on a column nothing will write.
+ */
+export function returnInspectionDeadline(facts: ReturnInspectionFacts): string | null {
+  const stored = instant(facts.returnInspectionDeadlineAt);
+  if (stored) return stored.toISOString();
+  const delivered = instant(facts.returnCarrierDeliveredAt);
+  if (!delivered) return null;
+  return new Date(delivered.getTime() + RETURN_INSPECTION_HOURS * HOUR_MS).toISOString();
+}
+
+/**
+ * Whether the Seller may still contest the return.
+ *
+ * Open while the return is owed but not yet delivered, and for
+ * `RETURN_INSPECTION_HOURS` after delivery. Closed once the window has passed, because
+ * the Buyer's refund is then due and a late contest would take it back from them.
+ */
+export function returnInspectionOpen(facts: ReturnInspectionFacts, now: Date = new Date()): boolean {
+  if (facts.status === 'RETURN_PENDING') return true;
+  if (facts.status !== 'RETURN_IN_TRANSIT') return false;
+  const deadline = returnInspectionDeadline(facts);
+  if (!deadline) return true;
+  return now.getTime() < new Date(deadline).getTime();
+}
+
+/** Whether a delivered, uncontested return's refund is due (the window has closed). */
+export function returnRefundDue(facts: ReturnInspectionFacts, now: Date = new Date()): boolean {
+  if (facts.status !== 'RETURN_IN_TRANSIT' || facts.returnDisputedAt) return false;
+  const deadline = returnInspectionDeadline(facts);
+  if (!deadline) return false;
+  return new Date(deadline).getTime() <= now.getTime();
+}
+
+/**
  * The handover methods a Trade offers. Face-to-face only.
  *
  * Not a preference. Collateral is a card authorisation that lapses in about a week and
@@ -63,12 +139,19 @@ export const TRADE_HANDOVER_METHODS = ['IN_PERSON'] as const satisfies readonly 
 /**
  * The inspection window, in hours.
  *
- * Five days, and the figure is derived rather than chosen: it is whatever is left of
- * the authorisation once the placement lead and the safety margin are taken out. Six
- * days would end at the exact instant the collateral dies, which means a dispute
- * raised on the last evening would find nothing to capture.
+ * Three days, matching `cardtrade.trade_inspection_hours()` (0057), which is what
+ * actually sets the deadline — pinned by `tests/unit/tradeClockAgreement.test.ts`.
+ * This was 120 while the SQL said 72, so members were promised five days and given
+ * three (ESC-17a). 120 would also need a hold to outlive the Visa merchant-initiated
+ * budget (24 + 120 > 114).
  */
-export const TRADE_INSPECTION_HOURS = 120;
+export const TRADE_INSPECTION_HOURS = 72;
+
+/**
+ * The inspection window as member copy ("3 days"), derived from the constant so the
+ * text cannot drift from the clock again.
+ */
+export const TRADE_INSPECTION_LABEL = `${TRADE_INSPECTION_HOURS / 24} days`;
 
 /**
  * The minimum window a trader always gets, in hours.
@@ -81,16 +164,19 @@ export const TRADE_INSPECTION_HOURS = 120;
 export const TRADE_INSPECTION_FLOOR_HOURS = 24;
 
 /**
- * How long a card authorisation lasts, in days.
+ * How long a card authorisation lasts, in hours.
  *
  * Stripe reports the real deadline per charge as `capture_before` and that value
  * always wins. This is the planning figure used BEFORE a hold exists — when terms are
- * still being agreed — and the backstop when the provider reports nothing. Seven days
- * is the standard online-card window; extending it requires Interchange Plus pricing,
- * which this platform does not have. The attempt is on file, rejected with "This
- * account is not eligible for the requested card features".
+ * still being agreed — and the backstop when the provider reports nothing. 114 hours
+ * is Visa's merchant-initiated window (about 4 days 18 hours), the shortest common
+ * brand; the seven-day figure this replaced (`CARD_AUTHORISATION_DAYS`) is the
+ * customer-present window and would aim the custody backstop two days after a Visa
+ * hold had already died. Extending it requires Interchange Plus pricing, which this
+ * platform does not have. The attempt is on file, rejected with "This account is not
+ * eligible for the requested card features".
  */
-export const CARD_AUTHORISATION_DAYS = 7;
+export const CARD_AUTHORISATION_HOURS = 114;
 
 /**
  * Slack between the end of the inspection window and the death of the collateral.
@@ -98,9 +184,11 @@ export const CARD_AUTHORISATION_DAYS = 7;
  * Three things have to happen after a trader sees a problem and before the money is
  * gone: they raise the dispute, the hourly reconciler notices, and a capture makes a
  * network round trip. Landing on the exact instant the authorisation lapses loses all
- * three races.
+ * three races. It is whatever the budget leaves over (114 − 24 − 72), so the
+ * partition stays an equality, and it matches `cardtrade.collateral_margin_hours()`
+ * (0133).
  */
-export const COLLATERAL_MARGIN_HOURS = 24;
+export const COLLATERAL_MARGIN_HOURS = 18;
 
 /**
  * How far ahead a meeting may be scheduled.
@@ -124,7 +212,7 @@ export const MAX_MEETING_LEAD_HOURS = 30 * 24;
  * moment the two traders meet.
  */
 export const COLLATERAL_HOURS_AFTER_MEETING =
-  CARD_AUTHORISATION_DAYS * 24 - BOND_PLACEMENT_LEAD_HOURS;
+  CARD_AUTHORISATION_HOURS - BOND_PLACEMENT_LEAD_HOURS;
 
 /** One hour in milliseconds. */
 const HOUR_MS = 3_600_000;
@@ -234,11 +322,11 @@ export function deriveTradeInspectionDeadline(
   const expiry = instant(earliestHoldExpiry);
   if (expiry) {
     const lastUsefulMoment = expiry.getTime() - COLLATERAL_MARGIN_HOURS * HOUR_MS;
-    // Never move the deadline EARLIER than the floor, though: if the collateral is
-    // already this close to lapsing the trade is in trouble either way, and cutting
-    // the window below the stated minimum would take away a right to fix a problem
-    // that is not the trader's fault. `inspectionHoldRisk` reports that case instead.
-    return new Date(Math.max(Math.min(deadline, lastUsefulMoment), floor)).toISOString();
+    // ESC-17b: THE CLAMP BEATS THE FLOOR. A window that outlives the money backing it
+    // is a right to dispute that cannot be honoured; a shorter real window, with both
+    // traders told to check now (0142 notifies under six hours), is the honest one.
+    // Matches `set_trade_inspection_deadline` in 0142.
+    return new Date(Math.min(deadline, lastUsefulMoment)).toISOString();
   }
 
   return new Date(deadline).toISOString();

@@ -24,7 +24,15 @@ import type { TradeEvent } from '../state-machine/types';
  */
 export type WebhookAction =
   | { kind: 'TRADE_EVENT'; tradeEvent: TradeEvent }
+  /**
+   * A provider statement about ONE collateral hold (ESC-08). Never a trade event:
+   * one trader's authorisation clearing says nothing about the other's, so the
+   * handler reconciles the row and lets `confirmCollateralIfComplete` decide.
+   */
+  | { kind: 'HOLD_STATUS'; status: 'ACTIVE' | 'FAILED'; holdId: string; tradeId: string | null }
   | { kind: 'CASH_SALE_SETTLE' }
+  /** ESC-05: a trade's cash leg cleared at the provider (the read-back is the main path). */
+  | { kind: 'TRADE_CASH_SETTLE' }
   | { kind: 'CASH_SALE_FAIL' }
   | { kind: 'MERCHANT_COMPLIANCE' }
   /**
@@ -36,6 +44,8 @@ export type WebhookAction =
   | { kind: 'IDENTITY_DECISION'; verified: boolean }
   | { kind: 'CASH_SALE_REFUND_FAILED' }
   | { kind: 'CHARGE_DISPUTE'; phase: 'OPENED' | 'CLOSED' }
+  /** ESC-14: an issuer's early fraud warning against one of our charges. */
+  | { kind: 'FRAUD_WARNING' }
   | { kind: 'NO_OP' };
 
 /**
@@ -59,16 +69,29 @@ export type WebhookAction =
  */
 export function mapEventToAction(event: WebhookEvent): WebhookAction {
   switch (event.type) {
-    // Collateral holds -> the COLLATERAL_PENDING lifecycle transitions (Req 5.5, 5.6).
+    // Collateral holds -> a per-hold reconcile, NEVER a trade event (ESC-08). It used
+    // to map to HOLDS_CONFIRMED, so the first trader's authorisation locked the trade
+    // with the other's still missing. A hold event with no hold id is unroutable.
     case 'hold.active':
-      return { kind: 'TRADE_EVENT', tradeEvent: 'HOLDS_CONFIRMED' };
     case 'hold.failed':
-      return { kind: 'TRADE_EVENT', tradeEvent: 'HOLDS_FAILED' };
+      return event.payload.holdId
+        ? {
+            kind: 'HOLD_STATUS',
+            status: event.type === 'hold.active' ? 'ACTIVE' : 'FAILED',
+            holdId: event.payload.holdId,
+            tradeId: event.payload.tradeId ?? null,
+          }
+        : { kind: 'NO_OP' };
 
     // Bank transfers -> Cash_Sale settlement/failure when a sale is referenced;
     // otherwise a fraud payout that needs no further transition (Req 4.3, 4.4, 8.3).
     case 'transfer.settled':
-      return event.payload.cashSaleId ? { kind: 'CASH_SALE_SETTLE' } : { kind: 'NO_OP' };
+      if (event.payload.cashSaleId) return { kind: 'CASH_SALE_SETTLE' };
+      // ESC-05: a trade's cash leg. Applied only to a COLLECTING row whose recorded
+      // collection is this intent, so a fraud payout or a legacy leg is a no-op.
+      return event.payload.tradeId && event.payload.transferId
+        ? { kind: 'TRADE_CASH_SETTLE' }
+        : { kind: 'NO_OP' };
     case 'transfer.failed':
       return event.payload.cashSaleId ? { kind: 'CASH_SALE_FAIL' } : { kind: 'NO_OP' };
 
@@ -121,6 +144,10 @@ export function mapEventToAction(event: WebhookEvent): WebhookAction {
       return { kind: 'CHARGE_DISPUTE', phase: 'OPENED' };
     case 'charge.dispute.closed':
       return { kind: 'CHARGE_DISPUTE', phase: 'CLOSED' };
+
+    // ESC-14: routed by the PaymentIntent; without one there is nothing to look up.
+    case 'charge.fraud_warning':
+      return event.payload.paymentRef ? { kind: 'FRAUD_WARNING' } : { kind: 'NO_OP' };
 
     // Dispute/fraud follow-ups: no webhook-driven Trade_State transition (Req 10.7).
     case 'hold.voided':

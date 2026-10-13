@@ -29,6 +29,9 @@ import { createHash, createHmac } from 'node:crypto';
 import type {
   CaptureResult,
   Cents,
+  CollectionCancel,
+  CollectionStatus,
+  PaymentPresence,
   InstrumentSetup,
   ManagedMerchant,
   ManagedMerchantDetails,
@@ -51,6 +54,7 @@ import type {
   WebhookEventPayload,
   WebhookEventType,
 } from '../types';
+import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 
 // ---------------------------------------------------------------------------
 // Webhook header contract
@@ -131,6 +135,11 @@ export interface MockServiceOptions {
   fetchFn?: WebhookTransport;
   /** Injectable clock for deterministic timestamps; defaults to a monotonic counter clock. */
   clock?: () => Date;
+  /**
+   * Give this instance its own ledger instead of the process-wide one. For tests,
+   * so one case's holds and collections cannot leak into the next.
+   */
+  isolatedLedger?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,6 +153,34 @@ function shortHash(input: string): string {
 
 /** Fixed base epoch for the default counter clock (2025-01-01T00:00:00Z). */
 const DEFAULT_CLOCK_BASE_MS = Date.parse('2025-01-01T00:00:00.000Z');
+
+/**
+ * The simulated provider ledger: holds, money held per collection or captured hold,
+ * and the first result per idempotency key.
+ *
+ * PROCESS-WIDE, not per instance. `getPaymentService()` builds a new MockService on
+ * every call, so a per-instance ledger would forget a collection before anything
+ * could refund it, and single-capture / bounded-refund semantics (ESC-01) could not
+ * hold across two calls. Pinned on `globalThis` so a dev-server module reload keeps
+ * it. A server RESTART still clears it, after which a refund or capture of money the
+ * process never saw reports FAILED — the honest answer for a simulator with no
+ * memory, and the reason these semantics are worth having.
+ */
+interface MockLedger {
+  holds: Map<string, PreAuthHold>;
+  money: Map<string, { collectedCents: Cents; spentCents: Cents }>;
+  nonces: Map<string, TransferResult | RefundResult>;
+}
+
+const LEDGER_KEY = Symbol.for('cardtrade.mockPaymentLedger');
+
+function processLedger(): MockLedger {
+  const store = globalThis as unknown as Record<symbol, MockLedger | undefined>;
+  if (!store[LEDGER_KEY]) {
+    store[LEDGER_KEY] = { holds: new Map(), money: new Map(), nonces: new Map() };
+  }
+  return store[LEDGER_KEY] as MockLedger;
+}
 
 // ---------------------------------------------------------------------------
 // MockService
@@ -167,8 +204,12 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
   private readonly profileByIdentity = new Map<string, string>();
   /** Demo-driven outcome per verification session; absent means PENDING. */
   private readonly identityOutcomes = new Map<string, IdentityCheckOutcome>();
-  /** Simulated hold ledger keyed by hold id. */
-  private readonly holds = new Map<string, PreAuthHold>();
+  /** Simulated hold ledger keyed by hold id (process-wide, or private when isolated). */
+  private readonly holds: Map<string, PreAuthHold>;
+  /** Money held per collection / captured hold, keyed by transfer or hold id. */
+  private readonly money: Map<string, { collectedCents: Cents; spentCents: Cents }>;
+  /** First result per idempotency key. */
+  private readonly nonces: Map<string, TransferResult | RefundResult>;
   /** Events awaiting manual emission (when `scenario.autoEmit` is false). */
   private readonly queue: WebhookEvent[] = [];
 
@@ -177,6 +218,12 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
 
   constructor(private readonly opts: MockServiceOptions) {
     this.transport = opts.fetchFn ?? ((url, init) => fetch(url, init));
+    const ledger: MockLedger = opts.isolatedLedger
+      ? { holds: new Map(), money: new Map(), nonces: new Map() }
+      : processLedger();
+    this.holds = ledger.holds;
+    this.money = ledger.money;
+    this.nonces = ledger.nonces;
   }
 
   // -------------------------------------------------------------------------
@@ -323,13 +370,25 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     nonce: string;
     merchantRef?: string;
     applicationFee?: Cents;
+    /** Accepted for parity; the simulation never asks for a challenge (ESC-03). */
+    presence?: PaymentPresence;
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult> {
+    // ESC-29: the same off-session boundary as the real binding.
+    if (params.merchantRef && !params.presence && !params.legacyOffSessionToMember) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+    const cached = this.nonces.get(`transfer:${params.nonce}`);
+    if (cached) return { ...(cached as TransferResult) };
+
     const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
     const result: TransferResult = {
       transferId: `transfer_${shortHash(params.ref)}`,
       amount: params.amount,
       status: ok ? 'SETTLED' : 'FAILED',
     };
+    if (ok) this.money.set(result.transferId, { collectedCents: params.amount, spentCents: 0 });
+    this.nonces.set(`transfer:${params.nonce}`, result);
     await this.dispatch(
       this.makeEvent(ok ? 'transfer.settled' : 'transfer.failed', `transfer:${params.ref}`, {
         transferId: result.transferId,
@@ -339,6 +398,44 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
       }),
     );
     return result;
+  }
+
+  /** ESC-34: the simulated open holds, for the orphan sweep. */
+  async listUncapturedHolds(): Promise<Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>> {
+    return [...this.holds.values()]
+      .filter((hold) => hold.status === 'ACTIVE')
+      .map((hold) => ({ holdId: hold.holdId, ref: null, amount: hold.amount, createdAt: new Date(0).toISOString() }));
+  }
+
+  /** Read a simulated collection back (ESC-03, ESC-37). Never REQUIRES_ACTION. */
+  async readCollection(paymentRef: string): Promise<CollectionStatus> {
+    const collected = this.money.get(paymentRef);
+    return collected
+      ? { status: 'SETTLED', amountReceived: collected.collectedCents }
+      : { status: 'FAILED', amountReceived: 0 };
+  }
+
+  /** A simulated collection settles synchronously, so there is never one to cancel. */
+  async cancelCollection(paymentRef: string): Promise<CollectionCancel> {
+    return this.money.has(paymentRef) ? { status: 'ALREADY_SETTLED' } : { status: 'CANCELLED' };
+  }
+
+  /** Simulated clawback (ESC-14). Deterministic and keyed like every other write. */
+  async reversePayout(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult> {
+    const cached = this.nonces.get(`reverse:${params.nonce}`);
+    if (cached) return { ...(cached as TransferResult) };
+    const result: TransferResult = {
+      transferId: `reversal_${shortHash(params.nonce)}`,
+      amount: params.amount,
+      status: 'SETTLED',
+    };
+    this.nonces.set(`reverse:${params.nonce}`, result);
+    return result;
+  }
+
+  /** No dispute to stage evidence on in the simulation. */
+  async submitDisputeEvidence(): Promise<{ status: 'STAGED' | 'FAILED' }> {
+    return { status: 'STAGED' };
   }
 
   /**
@@ -353,12 +450,25 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     nonce: string;
     sourcePaymentRef?: string;
   }): Promise<TransferResult> {
-    const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
+    const cached = this.nonces.get(`payout:${params.nonce}`);
+    if (cached) return { ...(cached as TransferResult) };
+
+    // Bounded by its source, like a refund (ESC-01).
+    const source = params.sourcePaymentRef ? this.money.get(params.sourcePaymentRef) : undefined;
+    const withinSource =
+      !params.sourcePaymentRef ||
+      (source !== undefined &&
+        params.amount > 0 &&
+        source.spentCents + params.amount <= source.collectedCents);
+
+    const ok = withinSource && this.resolveOutcome(params.ref) === 'SUCCESS';
     const result: TransferResult = {
       transferId: `payout_${shortHash(params.ref)}`,
       amount: params.amount,
       status: ok ? 'SETTLED' : 'FAILED',
     };
+    if (ok && source) source.spentCents += params.amount;
+    this.nonces.set(`payout:${params.nonce}`, result);
     await this.dispatch(
       this.makeEvent(ok ? 'transfer.settled' : 'transfer.failed', `payout:${params.ref}`, {
         transferId: result.transferId,
@@ -403,24 +513,43 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     nonce: string;
     ref?: string;
   }): Promise<RefundResult> {
+    const cached = this.nonces.get(`refund:${params.nonce}`);
+    if (cached) return { ...(cached as RefundResult) };
+
+    // BOUNDED (ESC-01): only money this simulator collected or captured, and never
+    // more than is left of it. An omitted amount refunds the remainder.
     const label = params.ref ?? params.paymentRef;
-    const ok = this.resolveOutcome(label) === 'SUCCESS';
-    return {
-      refundId: ok ? `re_${shortHash(label)}` : '',
-      amount: params.amount ?? 0,
+    const entry = this.money.get(params.paymentRef);
+    const remaining = entry ? entry.collectedCents - entry.spentCents : 0;
+    const amount = params.amount ?? remaining;
+    const bounded = entry !== undefined && amount > 0 && amount <= remaining;
+    const ok = bounded && this.resolveOutcome(label) === 'SUCCESS';
+    if (ok && entry) entry.spentCents += amount;
+
+    const result: RefundResult = {
+      refundId: ok ? `re_${shortHash(`${label}:${params.nonce}`)}` : '',
+      amount: ok ? amount : params.amount ?? 0,
       status: ok ? 'SETTLED' : 'FAILED',
-      ...(ok ? {} : { reason: 'Refund failed to settle' }),
+      ...(ok ? {} : { reason: bounded ? 'Refund failed to settle' : 'Nothing refundable on this payment' }),
     };
+    this.nonces.set(`refund:${params.nonce}`, result);
+    return result;
   }
 
   /** Place a 100%-FMV pre-auth hold on a payer's instrument (Req 5.4). */
   async placeHold(params: { payerId: string; amount: Cents; ref: string }): Promise<PreAuthHold> {
     const ok = this.resolveOutcome(params.ref) === 'SUCCESS';
+    // Real time, not the counter clock: a 2025 expiry would be in the past, and the
+    // `:27` lapse job would expire every mock hold the moment it was written.
+    const placedAt = this.opts.clock ? this.opts.clock() : new Date();
     const hold: PreAuthHold = {
       holdId: `hold_${shortHash(params.ref)}`,
       payerId: params.payerId,
       amount: params.amount,
       status: ok ? 'ACTIVE' : 'FAILED',
+      ...(ok
+        ? { expiresAt: new Date(placedAt.getTime() + CARD_AUTHORISATION_HOURS * 3_600_000).toISOString() }
+        : {}),
     };
     this.holds.set(hold.holdId, hold);
     await this.dispatch(
@@ -476,6 +605,8 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
       sourceId: `src_${shortHash(`${params.payerId}:${params.setupId}`)}`,
       brand: 'visa',
       last4: '4242',
+      // Per payer, so two mock members are never "related" by a shared card.
+      fingerprint: `fp_${shortHash(params.payerId)}`,
     };
   }
 
@@ -503,12 +634,16 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
   /** Release a hold at $0 cost (Req 6.7, 7.5, 8.5). Voids always succeed. */
   async voidHold(holdId: string): Promise<PreAuthHold> {
     const existing = this.holds.get(holdId);
+    // A captured authorisation cannot be cancelled, as with the real provider.
+    const captured =
+      existing?.status === 'PARTIALLY_CAPTURED' || existing?.status === 'FULLY_CAPTURED';
     const hold: PreAuthHold = {
       holdId,
       payerId: existing?.payerId ?? '',
       amount: existing?.amount ?? 0,
-      status: 'VOIDED',
+      status: captured ? 'FAILED' : 'VOIDED',
     };
+    if (captured) return hold;
     this.holds.set(holdId, hold);
     await this.dispatch(
       this.makeEvent('hold.voided', `void:${holdId}`, { holdId, status: 'VOIDED' }),
@@ -516,16 +651,30 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     return hold;
   }
 
-  /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */
+  /** The recorded expiry of a hold (R4-M5); `null` when this process never saw it. */
+  async readHoldExpiry(holdId: string): Promise<{ expiresAt: string | null }> {
+    return { expiresAt: this.holds.get(holdId)?.expiresAt ?? null };
+  }
+
+  /**
+   * Capture a fixed portion of a hold. SINGLE CAPTURE (ESC-01): FAILED unless the hold
+   * is ACTIVE in this simulator's ledger; afterwards the remainder is released.
+   */
   async partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult> {
-    const ok = this.resolveOutcome(params.holdId) === 'SUCCESS';
+    const hold = this.holds.get(params.holdId);
+    const capturable =
+      hold?.status === 'ACTIVE' && params.amount > 0 && params.amount <= hold.amount;
+    const ok = capturable && this.resolveOutcome(params.holdId) === 'SUCCESS';
     const result: CaptureResult = {
-      captureId: `capture_${shortHash(`${params.holdId}:partial:${params.amount}`)}`,
+      captureId: ok ? `capture_${shortHash(`${params.holdId}:partial:${params.amount}`)}` : '',
       holdId: params.holdId,
-      amount: params.amount,
+      amount: ok ? params.amount : 0,
       status: ok ? 'SETTLED' : 'FAILED',
     };
-    if (ok) this.markHold(params.holdId, 'PARTIALLY_CAPTURED');
+    if (ok) {
+      this.markHold(params.holdId, 'PARTIALLY_CAPTURED');
+      this.money.set(params.holdId, { collectedCents: params.amount, spentCents: 0 });
+    }
     await this.dispatch(
       this.makeEvent(ok ? 'capture.partial.settled' : 'capture.failed', `capture:partial:${params.holdId}:${params.amount}`, {
         captureId: result.captureId,
@@ -540,15 +689,19 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
 
   /** Capture the entire hold amount on Objective_Fraud (Req 8.2). */
   async fullCapture(holdId: string): Promise<CaptureResult> {
-    const ok = this.resolveOutcome(holdId) === 'SUCCESS';
-    const amount = this.holds.get(holdId)?.amount ?? 0;
+    const hold = this.holds.get(holdId);
+    const ok = hold?.status === 'ACTIVE' && this.resolveOutcome(holdId) === 'SUCCESS';
+    const amount = ok && hold ? hold.amount : 0;
     const result: CaptureResult = {
-      captureId: `capture_${shortHash(`${holdId}:full`)}`,
+      captureId: ok ? `capture_${shortHash(`${holdId}:full`)}` : '',
       holdId,
       amount,
       status: ok ? 'SETTLED' : 'FAILED',
     };
-    if (ok) this.markHold(holdId, 'FULLY_CAPTURED');
+    if (ok) {
+      this.markHold(holdId, 'FULLY_CAPTURED');
+      this.money.set(holdId, { collectedCents: amount, spentCents: 0 });
+    }
     await this.dispatch(
       this.makeEvent(ok ? 'capture.full.settled' : 'capture.failed', `capture:full:${holdId}`, {
         captureId: result.captureId,

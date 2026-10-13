@@ -67,6 +67,12 @@ enum TradeEvent {
   @JsonValue('CONDITION_DISPUTE') conditionDispute,
   @JsonValue('DISPUTE_RESOLVED') disputeResolved,
   @JsonValue('FRAUD_CONFIRMED') fraudConfirmed,
+  /// A member's fraud claim. Freezes the trade and captures nothing.
+  @JsonValue('FRAUD_CLAIMED') fraudClaimed,
+  /// A trade whose collateral never locked before the meeting was cancelled.
+  @JsonValue('COLLATERAL_ABANDONED') collateralAbandoned,
+  /// Staff found the exchange never happened and undid the trade.
+  @JsonValue('DISPUTE_UNWOUND') disputeUnwound,
 }
 
 enum TradeAction {

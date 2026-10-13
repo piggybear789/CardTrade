@@ -29,6 +29,7 @@ import {
   deliveryNotesFromDetails,
   summarizeHandover,
 } from '@/lib/handover/terms';
+import { TradeCashLeg, type TradeCashLegView } from './TradeCashLeg';
 import {
   getTradeDeliveryAddresses,
   retrySettleTradeCash,
@@ -55,6 +56,8 @@ import {
 } from '@/components/payments/SavedCardRow';
 import { tradeFeeCentsFor } from '@/domain/trade/tradeFee';
 import { feesWaivedForBeta, tradeFeeRowRate } from '@/lib/fees/feeLabels';
+import { tradeAcceptCopy } from '@/lib/handover/terms';
+import { HandoverChangeBanner, type HandoverChangeView } from '@/components/trade/HandoverChangeBanner';
 import {
   resolveTradeSideValues,
   tradeAgreedValueCents,
@@ -293,6 +296,13 @@ export interface TradeContractProps {
    * completion; after completion `manual_reconciliation` is the source of truth.
    */
   cashReceiverPayoutReady?: boolean;
+  /**
+   * The cash leg the platform holds (ESC-05/06), read under RLS by the page. Null for
+   * a trade with no cash, or one agreed before the switch (the legacy notice renders).
+   */
+  cashLeg?: TradeCashLegView | null;
+  /** An undecided meeting-change proposal on a COLLATERAL_PENDING trade (ESC-04). */
+  handoverChange?: HandoverChangeView | null;
   /**
    * Slot for the Demo panel (task 15.3). The panel is a separate deliverable; this view
    * accepts it as a prop and mounts it in the collapsed detail rows.
@@ -772,6 +782,8 @@ function TradeContractRoom({
   paymentMethod = null,
   initialAddresses,
   cashReceiverPayoutReady = true,
+  cashLeg = null,
+  handoverChange = null,
   demoPanel,
   disputeEvidence = [],
   reviewAction,
@@ -1008,7 +1020,15 @@ function TradeContractRoom({
               />
             ) : null}
 
-            {goods ? (
+            {goods && cashLeg ? (
+              <TradeCashLeg
+                trade={trade}
+                leg={cashLeg}
+                cashDirection={goods.cashDirection}
+                cashAmountCents={goods.cashAmountCents}
+                cashReceiverPayoutReady={cashReceiverPayoutReady}
+              />
+            ) : goods ? (
               <TradeCashSettlementNotice
                 trade={trade}
                 cashDirection={goods.cashDirection}
@@ -1141,6 +1161,14 @@ function TradeContractRoom({
                                     theirsValueCents,
                                     trade.currency,
                                   ),
+                                  // One builder for the dialog's sentences (design
+                                  // §1.12) so they cannot drift from the constants.
+                                  copy: tradeAcceptCopy({
+                                    cashMinor: 0,
+                                    payerIsViewer: false,
+                                    bondMinor: theirsValueCents,
+                                    currency: trade.currency,
+                                  }),
                                 }
                               : null
                           }
@@ -1157,6 +1185,14 @@ function TradeContractRoom({
                         />
                       ) : null}
 
+                      {handoverChange && trade.state === 'COLLATERAL_PENDING' ? (
+                        <HandoverChangeBanner
+                          change={handoverChange}
+                          viewerId={viewerRole === 'INITIATOR' ? initiatorId : counterpartId}
+                          otherName={them?.name ?? 'The other trader'}
+                          current={{ meetingLocation: trade.meeting_location, meetingAt: trade.meeting_at }}
+                        />
+                      ) : null}
                       {viewer && trade.state !== 'NEGOTIATING' && permittedActionCount > 0 ? (
                         <ActionBar
                           tradeId={tradeId}

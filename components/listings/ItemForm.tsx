@@ -499,7 +499,7 @@ function ItemFormInner({
   // EDIT reaches every step: the listing already exists, so every step has its data.
   // CREATE reaches up to the first incomplete step, never past it.
   const reachableUpTo: ItemFormStep =
-    mode === "edit" ? 3 : (firstIncompleteStep(stepInput) ?? 3);
+    mode === "edit" ? 2 : (firstIncompleteStep(stepInput) ?? 2);
 
   // WHEN THE OPEN STEP LAST CHANGED. A publish submit inside `STEP_SUBMIT_GUARD_MS` of
   // it is ignored: Next and publish sit in the same spot, so the second click of a fast
@@ -600,7 +600,7 @@ function ItemFormInner({
 
     // ONE SUBMIT, THREE MEANINGS. The footer button and the phone header both submit
     // this form (Enter in a field does too); before the last step that is Next.
-    if (step < 3) {
+    if (step < 2) {
       goNext();
       return;
     }
@@ -611,7 +611,7 @@ function ItemFormInner({
     // here past steps it never opened. The first failure opens its own step. These are
     // the form's client-side guards (Req 3.2 price parse, Req 3.3 image count), grouped
     // by step in `itemFormSteps`.
-    for (const s of [1, 2, 3] as const) {
+    for (const s of [1, 2] as const) {
       const problem = itemFormStepProblem(s, stepInput);
       if (problem) {
         failAt(problem);

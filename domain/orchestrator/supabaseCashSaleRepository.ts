@@ -5,6 +5,7 @@
 
 import 'server-only';
 
+import { isMemberCardBlocked, membersAreRelated, relatedBuyers } from '@/lib/risk/signals';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Tables, TablesUpdate } from '@/lib/supabase/database.types';
 import { createPayoutNotifier } from '@/lib/notifications/payoutNotifier';
@@ -28,6 +29,8 @@ import {
 } from './cashSaleOrchestrator';
 import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import type { MerchantRecord } from './merchantOnboarding';
+import { countQualifyingSales, type CompletedSaleFact } from '@/domain/payouts/releasePolicy';
+import { IN_PERSON_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type CashSaleRow = Tables<'cash_sales'>;
@@ -102,6 +105,8 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     paymentNonce: row.payment_nonce,
     paymentRequestedAt: row.payment_requested_at,
     paymentSettledAt: row.payment_settled_at,
+    // Service-role reads select `*`; a narrower projection simply omits it.
+    paymentAttempt: (row as { payment_attempt?: number }).payment_attempt ?? 0,
     fulfillmentMethod: row.fulfillment_method,
     shippingCostCents: row.shipping_cost_cents,
     shippingNotes: row.shipping_notes,
@@ -125,6 +130,9 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     inspectionAcceptedAt: row.inspection_accepted_at,
     carrierDeliveredAt: row.carrier_delivered_at,
     inspectionDeadlineAt: row.inspection_deadline_at,
+    trackingFlaggedAt: row.tracking_flagged_at ?? null,
+    trackingFlagReason: row.tracking_flag_reason ?? null,
+    trackingFlagResolvedAt: row.tracking_flag_resolved_at ?? null,
     // Return leg (0088), kept separate from the outbound fields above.
     returnTrackingCarrier: row.return_tracking_carrier,
     returnTrackingNumber: row.return_tracking_number,
@@ -137,6 +145,8 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     returnDisputedAt: row.return_disputed_at,
     returnDisputeReason: row.return_dispute_reason,
     returnLapsedAt: row.return_lapsed_at,
+    returnInspectionDeadlineAt: row.return_inspection_deadline_at ?? null,
+    returnTrackingCheckedAt: row.return_tracking_checked_at ?? null,
     autoCompleted: row.auto_completed,
     buyerHandoverConfirmedAt: row.buyer_handover_confirmed_at,
     sellerHandoverConfirmedAt: row.seller_handover_confirmed_at,
@@ -200,13 +210,16 @@ async function guardedUpdate(
   expectedStatus: CashSaleRecord['status'],
   patch: TablesUpdate<'cash_sales'>,
 ): Promise<CashSaleRecord | null> {
-  const { data } = await client
+  const { data, error } = await client
     .from('cash_sales')
     .update(patch)
     .eq('id', cashSaleId)
     .eq('status', expectedStatus)
     .select('*')
     .maybeSingle();
+  // ESC-12: the 0144 trigger refuses a tracking number bound to another contract.
+  // Thrown so the orchestrator can tell it from "no row matched".
+  if (error?.message?.includes('tracking-in-use')) throw new Error('tracking-in-use');
   return data ? toCashSale(data as CashSaleRow) : null;
 }
 
@@ -240,7 +253,7 @@ export function createSupabaseCashSaleRepository(
       const { data } = await client
         .from('profiles')
         .select(
-          'id, merchant_ref, merchant_status, merchant_compliance_status, merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled, merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, merchant_organisation_type, merchant_identity_version, merchant_identity_disclosure_consented_at, merchant_identity_verified_at, identity_check_status, identity_check_name, identity_check_verified_at, fraud_banned_at',
+          'id, merchant_ref, merchant_status, merchant_compliance_status, merchant_live_enabled, merchant_transactions_enabled, merchant_settlements_enabled, merchant_legal_entity_name, merchant_trading_name, merchant_registration_number, merchant_organisation_type, merchant_identity_version, merchant_identity_disclosure_consented_at, merchant_identity_verified_at, identity_check_status, identity_check_name, identity_check_verified_at, fraud_banned_at, payee_identity_mismatch_at, identity_grandfathered_at',
         )
         .eq('id', sellerId)
         .maybeSingle();
@@ -264,6 +277,8 @@ export function createSupabaseCashSaleRepository(
         identityCheckName: data.identity_check_name,
         identityCheckVerifiedAt: data.identity_check_verified_at,
         fraudBannedAt: data.fraud_banned_at,
+        payeeIdentityMismatchAt: (data as { payee_identity_mismatch_at?: string | null }).payee_identity_mismatch_at ?? null,
+        identityGrandfatheredAt: (data as { identity_grandfathered_at?: string | null }).identity_grandfathered_at ?? null,
       };
     },
 
@@ -483,13 +498,15 @@ export function createSupabaseCashSaleRepository(
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
-    async claimPayment({ cashSaleId, termsVersion, nonce, requestedAt }) {
+    async claimPayment({ cashSaleId, termsVersion, nonce, requestedAt, attempt }) {
       const { data } = await client
         .from('cash_sales')
         .update({
           status: 'PAYMENT_PENDING',
           payment_nonce: nonce,
           payment_requested_at: requestedAt,
+          // ESC-03: written in the same guarded UPDATE as the nonce it keys.
+          ...(attempt !== undefined ? { payment_attempt: attempt } : {}),
         })
         .eq('id', cashSaleId)
         .eq('status', 'AGREEMENT')
@@ -498,6 +515,41 @@ export function createSupabaseCashSaleRepository(
         .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async abandonPayment({ cashSaleId }) {
+      // ESC-03. Guarded on PAYMENT_PENDING, so a settlement that raced the sweep
+      // wins. `payment_attempt` is left alone: the next claim uses attempt + 1.
+      // The SINGLE item stays RESERVED by the still-open agreement, as before Pay.
+      return guardedUpdate(client, cashSaleId, 'PAYMENT_PENDING', {
+        status: 'AGREEMENT',
+        payment_nonce: null,
+        payment_requested_at: null,
+        transfer_id: null,
+        updated_at: new Date().toISOString(),
+      });
+    },
+
+    async listStalePaymentPending({ before, limit }) {
+      const { data, error } = await client
+        .from('cash_sales')
+        .select('*')
+        .eq('status', 'PAYMENT_PENDING')
+        .lt('payment_requested_at', before)
+        .order('payment_requested_at', { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(`listStalePaymentPending: ${error.message}`);
+      return ((data ?? []) as CashSaleRow[]).map(toCashSale);
+    },
+
+    async countCompletedPurchases(buyerId) {
+      const { count, error } = await client
+        .from('cash_sales')
+        .select('id', { count: 'exact', head: true })
+        .eq('buyer_id', buyerId)
+        .eq('status', 'COMPLETED');
+      // A read failure counts as a new buyer: the safe direction is a challenge.
+      return error ? 0 : (count ?? 0);
     },
 
     async recordPaymentSubmission({ cashSaleId, transferId, fxFeeCents, settlement }) {
@@ -549,6 +601,213 @@ export function createSupabaseCashSaleRepository(
         shipped_at: params.shippedAt,
         updated_at: params.shippedAt,
       });
+    },
+
+    async loadReleaseFacts(cashSaleId) {
+      // ESC-03 / ESC-14: everything `decideRelease` reads, in one place. Every read
+      // checks its error: guessing "release now" on a failed read would pay out the
+      // exact sale the holdback exists to stop.
+      const { data: sale, error } = await client
+        .from('cash_sales')
+        .select('id, seller_id, currency, payment_settled_at, fulfillment_method, buyer_handover_confirmed_at, seller_handover_confirmed_at, seller_payout_hold_reason, fraud_warning_received_at')
+        .eq('id', cashSaleId)
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] loadReleaseFacts: ${error.message}`);
+      if (!sale) return null;
+      const { data: completed, error: completedError } = await client
+        .from('cash_sales')
+        .select('id, buyer_id, agreed_price_cents, currency, payment_settled_at')
+        .eq('seller_id', sale.seller_id)
+        .eq('status', 'COMPLETED')
+        .neq('id', cashSaleId)
+        .limit(200);
+      if (completedError) throw new Error(`[cash sale] loadReleaseFacts history: ${completedError.message}`);
+      const saleIds = [cashSaleId, ...(completed ?? []).map((row) => row.id as string)];
+      const { data: disputes, error: disputeError } = await client
+        .from('charge_disputes')
+        .select('cash_sale_id, closed_at')
+        .in('cash_sale_id', saleIds);
+      if (disputeError) throw new Error(`[cash sale] loadReleaseFacts disputes: ${disputeError.message}`);
+      const disputed = new Set((disputes ?? []).map((row) => row.cash_sale_id as string));
+      const openOnThis = (disputes ?? []).some((row) => row.cash_sale_id === cashSaleId && !row.closed_at);
+      // ESC-03 layer 3: a sale to a related buyer never counts.
+      const related = await relatedBuyers(sale.seller_id as string, (completed ?? []).map((row) => row.buyer_id as string), client);
+      const facts: CompletedSaleFact[] = (completed ?? [])
+        .filter((row) => row.payment_settled_at)
+        .map((row) => ({
+          buyerId: row.buyer_id as string,
+          agreedPriceMinor: Number(row.agreed_price_cents ?? 0),
+          currency: String(row.currency ?? 'aud'),
+          paymentSettledAt: row.payment_settled_at as string,
+          chargeDisputed: disputed.has(row.id as string),
+          buyerRelated: related.has(row.buyer_id as string),
+        }));
+      const inPerson = sale.fulfillment_method === 'IN_PERSON';
+      const confirmations = [sale.buyer_handover_confirmed_at, sale.seller_handover_confirmed_at]
+        .filter((iso): iso is string => typeof iso === 'string' && iso.length > 0)
+        .sort();
+      return {
+        source: 'CASH_SALE',
+        currency: String(sale.currency ?? 'aud'),
+        qualifyingCompletedSales: countQualifyingSales(facts, new Date()),
+        paymentSettledAt: (sale.payment_settled_at as string | null) ?? null,
+        inPersonConfirmedAt: inPerson ? (confirmations[confirmations.length - 1] ?? null) : null,
+        openChargeDispute: openOnThis || sale.seller_payout_hold_reason === 'CHARGE_DISPUTE',
+        openFraudWarning: Boolean(sale.fraud_warning_received_at) || sale.seller_payout_hold_reason === 'FRAUD_WARNING',
+        staffHold: sale.seller_payout_hold_reason === 'STAFF',
+      };
+    },
+
+    async stampFraudWarning({ cashSaleId, at }) {
+      // ESC-14. Once only: the null guard makes a redelivered warning a no-op.
+      const { data, error } = await client
+        .from('cash_sales')
+        .update({ fraud_warning_received_at: at })
+        .eq('id', cashSaleId)
+        .is('fraud_warning_received_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] stampFraudWarning: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async markRefundedBeforeShipment({ cashSaleId, fromStatus, refundCents, refundNonce, at }) {
+      // ESC-14. Guarded on the status it was read in AND on nothing having shipped, so
+      // a shipment recorded meanwhile wins and staff see the refund in the log.
+      const { data, error } = await client
+        .from('cash_sales')
+        .update({
+          status: 'REFUNDED',
+          refund_cents: refundCents,
+          refund_status: 'SETTLED',
+          refund_nonce: refundNonce,
+          updated_at: at,
+        })
+        .eq('id', cashSaleId)
+        .eq('status', fromStatus)
+        .is('shipped_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] markRefundedBeforeShipment: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    // ESC-03 layer 3 / ESC-14, over the 0140 stores.
+    areRelated: (a, b) => membersAreRelated(a, b, client),
+    isBuyerCardBlocked: (buyerId) => isMemberCardBlocked(buyerId, client),
+
+    async loadSellerExposure(sellerId, excludeCashSaleId) {
+      // ESC-03 layer 1. Every read checks its error and THROWS: a guessed zero
+      // would wave through the exact new-seller burst the cap exists to stop.
+      const { data: profile, error: profileError } = await client
+        .from('profiles')
+        .select('exposure_limit_override_minor')
+        .eq('id', sellerId)
+        .maybeSingle();
+      if (profileError) throw new Error(`[cash sale] loadSellerExposure profile: ${profileError.message}`);
+
+      const { data: open, error: openError } = await client
+        .from('cash_sales')
+        .select('id, amount_cents, status, seller_payout_status')
+        .eq('seller_id', sellerId)
+        .neq('id', excludeCashSaleId)
+        .in('status', [
+          'PAYMENT_PENDING',
+          'ESCROW_HELD',
+          'IN_TRANSIT',
+          'HANDOVER',
+          'INSPECTION',
+          'DISPUTED',
+          'RETURN_PENDING',
+          'RETURN_IN_TRANSIT',
+          'COMPLETED',
+        ]);
+      if (openError) throw new Error(`[cash sale] loadSellerExposure open: ${openError.message}`);
+      // Collected but not yet released: every live sale, plus a COMPLETED one whose
+      // payout has not settled.
+      const openCollectedMinor = (open ?? [])
+        .filter((row) => row.status !== 'COMPLETED' || row.seller_payout_status !== 'SETTLED')
+        .reduce((sum, row) => sum + Number(row.amount_cents ?? 0), 0);
+
+      const { data: completed, error: completedError } = await client
+        .from('cash_sales')
+        .select('id, buyer_id, agreed_price_cents, currency, payment_settled_at')
+        .eq('seller_id', sellerId)
+        .eq('status', 'COMPLETED')
+        .limit(200);
+      if (completedError) throw new Error(`[cash sale] loadSellerExposure history: ${completedError.message}`);
+      const ids = (completed ?? []).map((row) => row.id as string);
+      const { data: disputes, error: disputeError } = ids.length
+        ? await client.from('charge_disputes').select('cash_sale_id').in('cash_sale_id', ids)
+        : { data: [], error: null };
+      if (disputeError) throw new Error(`[cash sale] loadSellerExposure disputes: ${disputeError.message}`);
+      const disputed = new Set((disputes ?? []).map((row) => row.cash_sale_id as string));
+      // ESC-03 layer 3: a sale to a related buyer never counts.
+      const related = await relatedBuyers(sellerId, (completed ?? []).map((row) => row.buyer_id as string), client);
+      const facts: CompletedSaleFact[] = (completed ?? [])
+        .filter((row) => row.payment_settled_at)
+        .map((row) => ({
+          buyerId: row.buyer_id as string,
+          agreedPriceMinor: Number(row.agreed_price_cents ?? 0),
+          currency: String(row.currency ?? 'aud'),
+          paymentSettledAt: row.payment_settled_at as string,
+          chargeDisputed: disputed.has(row.id as string),
+          buyerRelated: related.has(row.buyer_id as string),
+        }));
+
+      const override = (profile as { exposure_limit_override_minor?: number | null } | null)
+        ?.exposure_limit_override_minor;
+      return {
+        qualifyingCompletedSales: countQualifyingSales(facts, new Date()),
+        openCollectedMinor,
+        overrideMinor: override === undefined || override === null ? null : Number(override),
+      };
+    },
+
+    async recordPayoutDeferral({ cashSaleId, releaseAt, holdReason }) {
+      const { error } = await client
+        .from('cash_sales')
+        .update({ seller_payout_release_at: releaseAt, seller_payout_hold_reason: holdReason })
+        .eq('id', cashSaleId);
+      if (error) throw new Error(`[cash sale] recordPayoutDeferral: ${error.message}`);
+    },
+
+    async flagTracking({ cashSaleId, reason, at }) {
+      // ESC-02. Only once and only in transit; the 0134 function refuses to advance a
+      // flagged, unresolved sale, so no later tracking update can start a clock.
+      const { data, error } = await client
+        .from('cash_sales')
+        .update({ tracking_flagged_at: at, tracking_flag_reason: reason, updated_at: at })
+        .eq('id', cashSaleId)
+        .eq('status', 'IN_TRANSIT')
+        .is('tracking_flagged_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] flagTracking: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async resolveTrackingFlag({ cashSaleId, decision, staffId, at, inspectionDeadlineAt }) {
+      const resolution = {
+        tracking_flag_resolved_at: at,
+        tracking_flag_resolved_by: staffId,
+        updated_at: at,
+      };
+      const { data, error } = await client
+        .from('cash_sales')
+        .update(
+          decision === 'START_CLOCK'
+            ? { ...resolution, status: 'INSPECTION' as const, inspection_deadline_at: inspectionDeadlineAt }
+            : resolution,
+        )
+        .eq('id', cashSaleId)
+        .eq('status', 'IN_TRANSIT')
+        .not('tracking_flagged_at', 'is', null)
+        .is('tracking_flag_resolved_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] resolveTrackingFlag: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
     },
 
     async recordReceipt({ cashSaleId, receivedAt }) {
@@ -604,12 +863,19 @@ export function createSupabaseCashSaleRepository(
         return toCashSale(row);
       }
 
-      const completed = await guardedUpdate(client, cashSaleId, 'HANDOVER', {
-        status: 'COMPLETED',
-        completed_at: confirmedAt,
+      // ESC-20: the second confirmation opens a short buyer INSPECTION instead of
+      // completing (and paying out) on the spot. "We met and swapped" is not "I am
+      // satisfied": a buyer handed a fake, or pressured into tapping, needs a window
+      // to raise a problem before the seller is paid. pg_cron completes it after.
+      const inspection = await guardedUpdate(client, cashSaleId, 'HANDOVER', {
+        status: 'INSPECTION',
+        received_at: confirmedAt,
+        inspection_deadline_at: new Date(
+          Date.parse(confirmedAt) + IN_PERSON_INSPECTION_HOURS * 3_600_000,
+        ).toISOString(),
         updated_at: confirmedAt,
       });
-      if (completed) return completed;
+      if (inspection) return inspection;
 
       // A concurrent confirm already completed the row — re-read so payout
       // still sees COMPLETED rather than a stale HANDOVER snapshot.
@@ -723,7 +989,11 @@ export function createSupabaseCashSaleRepository(
         .select('id')
         .eq('status', 'COMPLETED')
         .in('seller_payout_status', ['PENDING', 'FAILED'])
-        .lt('seller_payout_attempts', maxAttempts);
+        .lt('seller_payout_attempts', maxAttempts)
+        // ESC-03 / ESC-14 (0138): a held payout waits for staff or the dispute to
+        // close; a deferred one waits for its release instant.
+        .is('seller_payout_hold_reason', null)
+        .or(`seller_payout_release_at.is.null,seller_payout_release_at.lte.${new Date().toISOString()}`);
 
       // Scoped so a drain pass only sees contracts the platform account it holds can
       // actually settle (0068). Attempting another region's contract would fail as a
@@ -899,7 +1169,7 @@ export function createSupabaseCashSaleRepository(
       trackingStatus: string | null;
       shippedAt: string;
     }) {
-      const { data } = await client
+      const { data, error: returnError } = await client
         .from('cash_sales')
         .update({
           status: 'RETURN_IN_TRANSIT',
@@ -923,6 +1193,7 @@ export function createSupabaseCashSaleRepository(
         .is('return_shipped_at', null)
         .select('*')
         .maybeSingle();
+      if (returnError?.message?.includes('tracking-in-use')) throw new Error('tracking-in-use');
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
@@ -986,6 +1257,32 @@ export function createSupabaseCashSaleRepository(
         .select('*')
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async loadDestinationCountry({ cashSaleId, leg }: { cashSaleId: string; leg: 'OUTBOUND' | 'RETURN' }) {
+      // ESC-12: the address row's own country. Null falls back to the sale's region.
+      const { data } = await client
+        .from(leg === 'OUTBOUND' ? 'cash_sale_delivery_details' : 'cash_sale_return_details')
+        .select('country_code')
+        .eq('cash_sale_id', cashSaleId)
+        .maybeSingle();
+      return (data as { country_code: string | null } | null)?.country_code ?? null;
+    },
+
+    async listDueReturnRefunds({ nowIso, limit }: { nowIso: string; limit: number }) {
+      // ESC-11. Delivered, uncontested, window closed. `finalizeReturnedCashSale`
+      // re-checks every one of these, so this is a work list, not a decision.
+      const { data, error } = await client
+        .from('cash_sales')
+        .select('id')
+        .eq('status', 'RETURN_IN_TRANSIT')
+        .is('return_disputed_at', null)
+        .not('return_carrier_delivered_at', 'is', null)
+        .lte('return_inspection_deadline_at', nowIso)
+        .order('return_inspection_deadline_at', { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(`listDueReturnRefunds: ${error.message}`);
+      return (data ?? []).map((row: { id: string }) => row.id);
     },
 
     async setItemStatus({ itemId, status }: { itemId: string; status: ItemStatus }) {

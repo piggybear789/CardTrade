@@ -7,6 +7,9 @@
 // members may only SELECT their own unused/used invites under RLS.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { consumeDbRateLimit } from '@/lib/rateLimitDb';
+import { membersAreRelated } from '@/lib/risk/signals';
+import { RELATED_ACCOUNTS_MESSAGE } from '@/domain/risk/relatedAccounts';
 import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 
@@ -57,7 +60,11 @@ export type DealInviteError =
   | 'not-host'
   | 'wrong-kind'
   | 'private-item-required'
-  | 'rejected';
+  | 'rejected'
+  /** ESC-03 layer 4: too many invites this hour. */
+  | 'rate-limited'
+  /** ESC-03 layer 3: host and joiner are related accounts. Generic copy. */
+  | 'related-accounts';
 
 /**
  * What still stands between the host and the deal going through.
@@ -329,6 +336,10 @@ async function claimBlock(
     return { reason: 'region-mismatch', message: regionMismatchMessage(mismatch) };
   }
 
+  // ESC-03 layer 3: a private deal between two accounts of one person.
+  if (await membersAreRelated(viewerId, invite.host_id)) {
+    return { reason: 'related-accounts', message: RELATED_ACCOUNTS_MESSAGE };
+  }
   if (invite.kind === 'CASH_SALE' && !invite.host_role) {
     return { reason: 'wrong-kind', message: 'That cash deal is missing a host role.' };
   }
@@ -413,6 +424,10 @@ export const createDealInvite = withActionLog('dealInvites.createDealInvite', as
 ): Promise<ActionResult<{ token: string; path: string }, DealInviteError>> {
   const userId = await currentUserId();
   if (!userId) return fail('unauthenticated', 'Sign in to start a private deal.');
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('createDealInvite', userId))) {
+    return fail('rate-limited', 'Too many attempts. Try again in a little while.');
+  }
 
   const region = await requireTradingRegion(userId);
   if (!region.ok) return region;
@@ -874,6 +889,10 @@ export const claimDealInvite = withActionLog('dealInvites.claimDealInvite', asyn
 ): Promise<ActionResult<{ path: string }, DealInviteError>> {
   const userId = await currentUserId();
   if (!userId) return fail('unauthenticated', 'Sign in to join this deal.');
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('claimDealInvite', userId))) {
+    return fail('rate-limited', 'Too many attempts. Try again in a little while.');
+  }
 
   const admin = createAdminClient();
   const { data } = await admin

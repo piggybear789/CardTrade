@@ -49,6 +49,10 @@ export const TRANSITIONS: Record<
   },
   COLLATERAL_PENDING: {
     HOLDS_CONFIRMED: 'COLLATERAL_LOCKED',
+    // The trade could not be locked before the meeting (ESC-04, ESC-18). Without this
+    // a COLLATERAL_PENDING trade had no exit, and its reserved cards sat off the
+    // market indefinitely. `abandonCollateralPendingTrade` voids any live hold first.
+    COLLATERAL_ABANDONED: 'CANCELLED',
     // Deliberately still a self-loop rather than -> CANCELLED. The compensating
     // path in Req 5.6 voids holds and restores items while the Trade stays put
     // so collateral can be re-sought; repointing it at the new terminal state
@@ -68,10 +72,14 @@ export const TRANSITIONS: Record<
     // WHY ADVANCING BEATS WAITING. Left in COLLATERAL_LOCKED the trade stalls: two
     // people who met and forgot to confirm have no dispute window, and the collateral
     // quietly lapses under them. Advancing OPENS the window instead of closing it —
-    // both are told, either can raise a problem for the next five days, and the
-    // collateral is still alive to answer it. Every outcome stays recoverable,
-    // including "we never actually met", which is `HANDOVER_FAILED` below.
+    // both are told, either can raise a problem for the next 72 hours
+    // (`TRADE_INSPECTION_HOURS`), and the collateral is still alive to answer it.
+    // Every outcome stays recoverable, including "we never actually met", which is
+    // `HANDOVER_FAILED` below.
     HANDOVER_ASSUMED: 'INSPECTION',
+    // A member's fraud claim before any handover is confirmed — a fake handed over
+    // at the meeting point. Captures nothing (ESC-01).
+    FRAUD_CLAIMED: 'DISPUTED',
     // The exchange did not happen: a no-show, a refusal at the meeting point, or
     // goods handed over under duress. Freezes the trade for review and captures
     // NOTHING, which is why it is not CONDITION_DISPUTE — that settles a
@@ -91,16 +99,27 @@ export const TRANSITIONS: Record<
     // The window closed with neither trader accepting or disputing. Dispatched by
     // the scheduled sweep, never by a participant.
     INSPECTION_EXPIRED: 'COMPLETED',
+    // Neither dispute event captures anything any more (ESC-01). Money moves only at
+    // a staff decision, or when the custody backstop takes a hold that is about to
+    // lapse into the platform balance.
     CONDITION_DISPUTE: 'DISPUTED',
+    FRAUD_CLAIMED: 'DISPUTED',
     FRAUD_CONFIRMED: 'FRAUD_RESOLVED',
   },
   DISPUTED: {
     DISPUTE_RESOLVED: 'COMPLETED',
     FRAUD_CONFIRMED: 'FRAUD_RESOLVED',
+    // Staff outcome NO_EXCHANGE. The table allows it from any DISPUTED trade; the
+    // "never reached INSPECTION" rule is enforced by `resolveTradeDispute`, because
+    // it is a fact about history and this table is keyed on the current state.
+    DISPUTE_UNWOUND: 'CANCELLED',
   },
   COMPLETED: {}, // terminal
   FRAUD_RESOLVED: {}, // terminal
-  CANCELLED: {}, // terminal — declined or withdrawn before terms were agreed
+  // terminal — declined or withdrawn before terms were agreed, abandoned because the
+  // collateral never locked (COLLATERAL_ABANDONED), or unwound by staff because the
+  // exchange never happened (DISPUTE_UNWOUND)
+  CANCELLED: {},
 };
 
 /**

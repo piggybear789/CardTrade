@@ -17,19 +17,14 @@ import { satisfiesIdentityGate, type IdentityCheckStatus } from '../identity/ide
 import type { PreAuthHold } from '../services/types';
 import type { TradeRecord } from './tradeOrchestrator';
 import {
-  proposeTrade,
   createCollateralSideEffects,
   type CreateTradeParams,
   type HoldRecordInput,
   type ItemRecord,
   type ProfileRecord,
-  type ProposeTradeParams,
-  type ProposeTradeResult,
   type RecordedHold,
-  type TradeProposalDeps,
   type TradeProposalRepository,
 } from './tradeProposal';
-import type { PaymentService } from '../services/types';
 import type { RunSideEffects } from './tradeOrchestrator';
 
 /** The Supabase admin client type (service-role, RLS-bypassing). */
@@ -158,7 +153,7 @@ export function createSupabaseTradeProposalRepository(
     async getHolds(tradeId: string): Promise<RecordedHold[]> {
       const { data } = await client
         .from('pre_auth_holds')
-        .select('trade_id, trader_id, hold_ref, amount_cents, status')
+        .select('trade_id, trader_id, hold_ref, amount_cents, status, created_at')
         .eq('trade_id', tradeId)
         .order('created_at', { ascending: true });
       const rows = (data ?? []) as Array<{
@@ -167,6 +162,7 @@ export function createSupabaseTradeProposalRepository(
         hold_ref: string;
         amount_cents: number;
         status: PreAuthHold['status'];
+        created_at: string | null;
       }>;
       return rows.map((row) => ({
         tradeId: row.trade_id,
@@ -174,6 +170,7 @@ export function createSupabaseTradeProposalRepository(
         holdRef: row.hold_ref,
         amountCents: Number(row.amount_cents),
         status: row.status,
+        createdAt: row.created_at,
       }));
     },
 
@@ -188,25 +185,20 @@ export function createSupabaseTradeProposalRepository(
     async markHoldStatus(holdRef: string, status: PreAuthHold['status']): Promise<void> {
       await client.from('pre_auth_holds').update({ status }).eq('hold_ref', holdRef);
     },
+
+    async restoreTradeItemsIfUnclaimed(tradeId: string): Promise<string[]> {
+      // The filtered restore (0133): a SOLD item, or one a live cash sale or another
+      // trade holds, is never put back on sale.
+      const { data, error } = await client.rpc('restore_trade_items_if_unclaimed', { p_trade_id: tradeId });
+      if (error) throw new Error(`[trade proposal] restoreTradeItemsIfUnclaimed: ${error.message}`);
+      return ((data ?? []) as string[]).filter((id) => typeof id === 'string');
+    },
   };
 }
 
-/**
- * Convenience production binding for proposing a Trade: wires the Supabase-backed
- * repository to the injected {@link PaymentService} and delegates to the pure
- * {@link proposeTrade}.
- */
-export function proposeTradeWithSupabase(
-  payments: PaymentService,
-  params: ProposeTradeParams,
-  overrides: Partial<TradeProposalDeps> = {},
-): Promise<ProposeTradeResult> {
-  const deps: TradeProposalDeps = {
-    repository: overrides.repository ?? createSupabaseTradeProposalRepository(),
-    payments: overrides.payments ?? payments,
-  };
-  return proposeTrade(deps, params);
-}
+// `proposeTradeWithSupabase` was the production binding of the legacy one-step
+// `proposeTrade`, and its only caller was the deleted Server Action of the same name
+// (ESC-32). The pure domain `proposeTrade` remains, test-only.
 
 /**
  * Build the collateral cancellation {@link RunSideEffects} hook (Req 5.6) backed

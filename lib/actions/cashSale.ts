@@ -5,8 +5,11 @@
 // the orchestrator directly; no client-callable settle/fail simulation exists.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { consumeDbRateLimit } from '@/lib/rateLimitDb';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
@@ -50,7 +53,30 @@ export type CashSaleActionError =
   | 'invalid-state'
   | 'refund-failed'
   | 'invalid-refund-amount'
-  | 'nothing-to-refund';
+  | 'nothing-to-refund'
+  /** ESC-02: the tracking was scanned before the buyer paid, so it is not this parcel. */
+  | 'tracking-predates-payment'
+  /** ESC-03: the seller payout is deferred by the holdback; it is released later. */
+  | 'payout-held'
+  /** ESC-03: a new seller is at their open-sales limit; the buyer can try later. */
+  | 'seller-exposure-limit'
+  /** ESC-03 layer 4: too many attempts this hour. */
+  | 'rate-limited'
+  /** ESC-03 layer 3: refused, generic copy. */
+  | 'related-accounts'
+  /** ESC-14: the card is blocked. */
+  | 'card-blocked'
+  /** ESC-25: the payout account name does not match the verified ID. */
+  | 'payee-identity-mismatch'
+  /** ESC-20: the meeting is more than an hour away. */
+  | 'handover-too-early'
+  /** ESC-11: the seller is still inspecting the return / the window has closed. */
+  | 'return-inspection-open'
+  | 'return-window-closed'
+  /** ESC-12: the tracking number cannot be this contract's. */
+  | 'tracking-in-use'
+  | 'tracking-already-delivered'
+  | 'tracking-predates-dispute';
 
 export type CashSaleActionResult =
   | {
@@ -64,6 +90,13 @@ export type CashSaleActionResult =
        * already-settled sale does not double-notify (0002/FEAT-002).
        */
       settledNow?: boolean;
+      /** ESC-02: the shipment was recorded but its tracking is flagged for staff. */
+      flagged?: boolean;
+      /**
+       * ESC-03: the card issuer asked for a 3-D Secure check. The room runs
+       * `stripe.handleNextAction` with this secret, then `confirmCashSalePayment`.
+       */
+      nextAction?: { clientSecret: string; publishableKey?: string };
     }
   | { ok: false; error: CashSaleActionError; message?: string };
 
@@ -71,6 +104,10 @@ export interface InitiateCashSaleInput {
   itemId: string;
   sellerIdentityVersion: string;
   buyerConfirmedSellerIdentity: boolean;
+  /**
+   * @deprecated IGNORED (ESC-22). A buyer-supplied price let a buyer open a single
+   * listing at any amount they chose. Kept on the type so older clients still compile.
+   */
   agreedPriceCents?: number;
   /**
    * What the buyer is asking for out of a SHOPFRONT listing (0064).
@@ -106,7 +143,19 @@ async function getUserId(): Promise<string | null> {
  * imply this call selects a Stripe account when it selects nothing.
  */
 function orchestrator() {
-  return createDefaultCashSaleOrchestrator({ payments: getPaymentService() });
+  return createDefaultCashSaleOrchestrator({
+    payments: getPaymentService(),
+    // ESC-12: the carrier's destination disagrees with the contract. Logged for staff,
+    // never refused.
+    onTrackingWarning: ({ cashSaleId, code, detail }) => {
+      void logBackgroundFailure({
+        name: 'tracking.destination_country',
+        errorCode: code,
+        message: detail,
+        context: { cashSaleId },
+      });
+    },
+  });
 }
 
 /**
@@ -151,6 +200,21 @@ function mapError(error: CashSaleError): CashSaleActionError {
     ALREADY_RECORDED: 'already-recorded',
     NOT_SUPPORTED: 'not-supported',
     INVALID_STATE: 'invalid-state',
+    TRACKING_PREDATES_PAYMENT: 'tracking-predates-payment',
+    PAYOUT_HELD: 'payout-held',
+    SELLER_EXPOSURE_LIMIT: 'seller-exposure-limit',
+    RELATED_ACCOUNTS: 'related-accounts',
+    CARD_BLOCKED: 'card-blocked',
+    PAYEE_IDENTITY_MISMATCH: 'payee-identity-mismatch',
+    HANDOVER_TOO_EARLY: 'handover-too-early',
+    RETURN_INSPECTION_OPEN: 'return-inspection-open',
+    RETURN_WINDOW_CLOSED: 'return-window-closed',
+    TRACKING_IN_USE: 'tracking-in-use',
+    TRACKING_ALREADY_DELIVERED: 'tracking-already-delivered',
+    TRACKING_PREDATES_DISPUTE: 'tracking-predates-dispute',
+    // ESC-37: only the webhook settles against a provider ref, so a member never
+    // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
+    SETTLEMENT_MISMATCH: 'invalid-state',
     // Reuses the transfer-failed surface: from a participant's point of view the
     // distinction between "collection failed" and "release failed" is not
     // actionable. The queued retry and the operator alert carry the detail.
@@ -182,7 +246,13 @@ function actionResult(result: Awaited<ReturnType<ReturnType<typeof orchestrator>
     return { ok: false, error: mapError(result.error), message: result.detail };
   }
   revalidatePath(`/sales/${result.sale.id}`);
-  return { ok: true, sale: result.sale, settledNow: result.settledNow };
+  return {
+    ok: true,
+    sale: result.sale,
+    settledNow: result.settledNow,
+    flagged: result.flagged,
+    ...(result.nextAction ? { nextAction: result.nextAction } : {}),
+  };
 }
 
 /** Create and reserve an agreement without collecting payment (Req 4.1). */
@@ -191,6 +261,10 @@ export const initiateCashSale = withActionLog('cashSale.initiateCashSale', async
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('initiateCashSale', userId))) {
+    return { ok: false, error: 'rate-limited', message: 'Too many attempts. Try again in a little while.' };
+  }
   if (!input?.itemId || !input.sellerIdentityVersion || !input.buyerConfirmedSellerIdentity) {
     return {
       ok: false,
@@ -214,7 +288,10 @@ export const initiateCashSale = withActionLog('cashSale.initiateCashSale', async
     itemId: input.itemId,
     sellerIdentityVersion: input.sellerIdentityVersion,
     buyerConfirmedSellerIdentity: true,
-    agreedPriceCents: input.agreedPriceCents,
+    // ESC-22: the BUYER never sets the price. A single listing opens at its own
+    // price; a binder at the sum of its lines; an accepted offer at the offer's
+    // amount, which only `respondToOffer` passes. `input.agreedPriceCents` is
+    // accepted for client compatibility and ignored.
     lineItems,
   });
   const actionRes = actionResult(result);
@@ -397,14 +474,24 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
    * `acceptCashSaleTerms` in the orchestrator.
    */
   confirmedSellerIdentityVersion?: string,
+  /** ESC-31: the total shown when the Pay dialog opened. The web room always sends it. */
+  expectedAmountCents?: number,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('acceptCashSaleTerms', userId))) {
+    return { ok: false, error: 'rate-limited', message: 'Too many attempts. Try again in a little while.' };
+  }
+  if (expectedAmountCents !== undefined && !Number.isSafeInteger(expectedAmountCents)) {
+    return { ok: false, error: 'invalid-terms' };
+  }
   const result = actionResult(
     await orchestrator().acceptTerms({
       actorId: userId,
       cashSaleId,
       termsVersion,
+      expectedAmountCents,
       ...(confirmedSellerIdentityVersion
         ? {
             sellerIdentityVersion: confirmedSellerIdentityVersion,
@@ -448,6 +535,43 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
   }
   return result;
 });
+
+/**
+ * Read the payment back after the browser finished a 3-D Secure check (ESC-03).
+ * Buyer only. Settles, fails, or returns the sale unchanged while still pending.
+ */
+export const confirmCashSalePayment = withActionLog('cashSale.confirmCashSalePayment', async function confirmCashSalePayment(
+  cashSaleId: string,
+): Promise<CashSaleActionResult> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  const result = actionResult(await orchestrator().confirmPayment({ actorId: userId, cashSaleId }));
+  if (result.ok && result.settledNow) {
+    await notifyCashSaleSettled({
+      buyerId: result.sale.buyerId,
+      sellerId: result.sale.sellerId,
+      cashSaleId: result.sale.id,
+    });
+  }
+  return result;
+});
+
+/**
+ * The outstanding 3-D Secure secret, read back from the provider, so a reload or a
+ * second device can finish the check (ESC-03). Null once there is nothing to finish.
+ */
+export const getCashSalePaymentAction = withActionLog('cashSale.getCashSalePaymentAction', async function getCashSalePaymentAction(
+  cashSaleId: string,
+): Promise<
+  | { ok: true; clientSecret: string | null; publishableKey?: string }
+  | { ok: false; error: CashSaleActionError }
+> {
+  const userId = await getUserId();
+  if (!userId) return { ok: false, error: 'not-authenticated' };
+  const result = await orchestrator().getPaymentAction({ actorId: userId, cashSaleId });
+  return result.ok ? result : { ok: false, error: mapError(result.error) };
+});
+
 /** Open (or resolve) the participant chat for a contract (Req 4.2). */
 export const ensureCashSaleConversation = withActionLog('cashSale.ensureCashSaleConversation', async function ensureCashSaleConversation(
   cashSaleId: string,
@@ -722,8 +846,13 @@ export const saveCashSaleReturnAddress = withActionLog('cashSale.saveCashSaleRet
     return { ok: false, error: 'invalid-state', message: 'No return is in progress.' };
   }
 
-  // Upsert via the cookie-bound client (RLS checks seller_id = auth.uid()).
-  const { error } = await supabase.from('cash_sale_return_details').upsert(
+  // ESC-13: members can no longer write this table directly (0135). A BUYER could
+  // insert the row first with themselves as `seller_id` (the old insert policy only
+  // checked `seller_id = auth.uid()`), read it back as "the seller's address", and
+  // post the "return" to themselves. The seller check above is the authority; the
+  // service-role write after it, plus 0135's trigger tying `seller_id` to the sale,
+  // make it the only one.
+  const { error } = await createAdminClient().from('cash_sale_return_details').upsert(
     {
       cash_sale_id: cashSaleId,
       seller_id: userId,

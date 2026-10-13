@@ -50,7 +50,13 @@ export type ArbitrationCaseSituation =
   | 'CHARGEBACK'
   | 'RETURN_CONTESTED'
   | 'RETURN_LAPSED'
-  | 'SHIP_LAPSED';
+  | 'SHIP_LAPSED'
+  /**
+   * ESC-02 (0134): outbound tracking that cannot be this sale's parcel — delivered
+   * before it shipped, or already delivered when entered. No inspection clock runs
+   * until staff confirm the delivery or refund the buyer.
+   */
+  | 'TRACKING_FLAG';
 
 /**
  * How urgent a case is.
@@ -158,6 +164,11 @@ export interface ArbitrationCase {
   deadlineAt: string | null;
   /** True when a party has alleged deliberate fraud rather than a condition problem. */
   fraudAlleged: boolean;
+  /**
+   * ESC-21 / ESC-17b: the earliest expiry among the trade's LIVE collateral holds.
+   * Once it passes there is nothing left to capture, so it is a deadline. Trades only.
+   */
+  earliestHoldExpiryAt?: string | null;
 }
 
 /** A case with its derived triage fields. */
@@ -210,7 +221,8 @@ function hoursBetween(fromIso: string | null, now: Date): number {
  * than a $4,000 one answered on day three.
  */
 export function priorityOf(
-  input: Pick<ArbitrationCase, 'hasHardDeadline' | 'deadlineAt' | 'fraudAlleged' | 'openedAt'>,
+  input: Pick<ArbitrationCase, 'hasHardDeadline' | 'deadlineAt' | 'fraudAlleged' | 'openedAt'> &
+    Partial<Pick<ArbitrationCase, 'earliestHoldExpiryAt'>>,
   now: Date,
 ): ArbitrationPriority {
   return PRIORITY_FOR_REASON[priorityReasonOf(input, now)];
@@ -232,6 +244,8 @@ export function priorityOf(
 export type PriorityReason =
   /** A hard evidence deadline is inside the warning window, or has passed. */
   | 'EVIDENCE_DEADLINE'
+  /** ESC-21: the collateral behind the remedy lapses inside the warning window. */
+  | 'HOLD_EXPIRING'
   /** Someone has alleged fraud, and the collateral behind the remedy expires. */
   | 'FRAUD_ALLEGED'
   /** Nothing has escalated it, but it has been waiting past the SLA. */
@@ -249,6 +263,7 @@ export type PriorityReason =
  */
 const PRIORITY_FOR_REASON: Record<PriorityReason, ArbitrationPriority> = {
   EVIDENCE_DEADLINE: 'CRITICAL',
+  HOLD_EXPIRING: 'CRITICAL',
   FRAUD_ALLEGED: 'HIGH',
   PAST_SLA: 'HIGH',
   IN_ORDER: 'NORMAL',
@@ -256,13 +271,22 @@ const PRIORITY_FOR_REASON: Record<PriorityReason, ArbitrationPriority> = {
 
 /** Which of the four escalations, if any, put this case where it is. */
 export function priorityReasonOf(
-  input: Pick<ArbitrationCase, 'hasHardDeadline' | 'deadlineAt' | 'fraudAlleged' | 'openedAt'>,
+  input: Pick<ArbitrationCase, 'hasHardDeadline' | 'deadlineAt' | 'fraudAlleged' | 'openedAt'> &
+    Partial<Pick<ArbitrationCase, 'earliestHoldExpiryAt'>>,
   now: Date,
 ): PriorityReason {
   if (input.hasHardDeadline && input.deadlineAt) {
     const hoursLeft = (Date.parse(input.deadlineAt) - now.getTime()) / 3_600_000;
     if (!Number.isNaN(hoursLeft) && hoursLeft < DEADLINE_WARNING_HOURS) {
       return 'EVIDENCE_DEADLINE';
+    }
+  }
+  // ESC-21: a lapsing hold is a deadline too, not an amount. Ranked like evidence,
+  // because once it passes the remedy is gone however the case is decided.
+  if (input.earliestHoldExpiryAt) {
+    const hoursLeft = (Date.parse(input.earliestHoldExpiryAt) - now.getTime()) / 3_600_000;
+    if (!Number.isNaN(hoursLeft) && hoursLeft < DEADLINE_WARNING_HOURS) {
+      return 'HOLD_EXPIRING';
     }
   }
   if (input.fraudAlleged) return 'FRAUD_ALLEGED';
@@ -278,7 +302,7 @@ export function priorityReasonOf(
  * input" is the part of this policy someone will otherwise assume is a bug.
  */
 export const TRIAGE_RULE_SUMMARY =
-  `Ordered by evidence deadline first, then alleged fraud, then time waiting past ${ARBITRATION_SLA_HOURS}h. ` +
+  `Ordered by deadline first (evidence due, or collateral about to lapse), then alleged fraud, then time waiting past ${ARBITRATION_SLA_HOURS}h. ` +
   'Amount is shown but never affects the order: weighting by money would park small disputes forever.';
 
 const PRIORITY_RANK: Record<ArbitrationPriority, number> = {
@@ -332,6 +356,7 @@ export const SITUATION_LABEL: Record<ArbitrationCaseSituation, string> = {
   RETURN_CONTESTED: 'Return contested',
   RETURN_LAPSED: 'Return lapsed',
   SHIP_LAPSED: 'Not shipped',
+  TRACKING_FLAG: 'Tracking flagged',
 };
 
 /** The `cash_sales` fields a marker case is derived from. */

@@ -141,7 +141,14 @@ export function RecordShipmentDialog({
               autoComplete="off"
               disabled={pending}
               required
+              aria-describedby="ship-tracking-hint"
             />
+            {/* ESC-02: say up front what happens to a number that is already
+                delivered, so an honest next-day courier user is not surprised. */}
+            <p id="ship-tracking-hint" className="text-body text-muted-foreground">
+              Enter the number for this parcel only. If it already shows delivered,
+              support confirms the delivery before the buyer&apos;s inspection starts.
+            </p>
           </div>
         </div>
 

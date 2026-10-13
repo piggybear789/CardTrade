@@ -71,8 +71,9 @@ Copy `.env.local.example` to `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — browser-safe
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — browser-safe Google Maps key for Places Autocomplete, Maps Embed API (meeting points), and Maps Static API (suburb previews). Restrict by HTTP referrer in the Google Cloud Console. Enable Places API (New) + Maps Embed API + Maps Static API on the key.
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only, RLS-bypassing
-- `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `stripe` (real Stripe API)
-- `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks
+- `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `stripe` (real Stripe API). In PRODUCTION an unset/keyless provider is `unconfigured` and every payment throws (ESC-16); `/api/health` reports the kind as `payments`
+- `ALLOW_MOCK_PAYMENTS_IN_PRODUCTION` — `true` is required, alongside `PAYMENTS_PROVIDER=mock`, for the mock to run on a production build (`next start`, the e2e harness sets it). Never set it on a real deployment
+- `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks. **There is no default secret** (ESC-16): unset, every mock delivery is refused, so set it in `.env.local` for local demos
 - `STRIPE_SECRET_KEY` — server-only. The prefix alone selects the mode (`sk_test_` vs `sk_live_`), so there is no separate environment variable to fall out of sync
 - `STRIPE_WEBHOOK_SECRET` — `whsec_...`, verifies the `stripe-signature` header. Get one from `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — the only Stripe value that may reach the browser
@@ -82,6 +83,7 @@ Copy `.env.local.example` to `.env.local`:
 - **`STRIPE_SECRET_KEY_<PLATFORM>`** — one Stripe platform account per PLATFORM (0068, 0136). UK, EEA, CA and CH members read `STRIPE_SECRET_KEY_US` via `credentialRegionFor`; only regions outside that group would need their own, e.g. `STRIPE_SECRET_KEY_NZ`. The unsuffixed `STRIPE_SECRET_KEY` is the binding for `AU` (`DEFAULT_CONFIG_REGION`) and **does not** serve any other region: a suffixed lookup never falls back, because resolving a GB seller onto the AU platform would look fine at onboarding and fail at the first transfer with the buyer already charged. `STRIPE_WEBHOOK_SECRET_<REGION>`, `STRIPE_CONNECT_WEBHOOK_SECRET_<REGION>` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_<REGION>` follow the same rule. Setting a region's key is what makes it operational — `allConfiguredRegionCodes()` discovers regions by scanning the environment, so there is no list to keep in step
 - `STRIPE_CURRENCY` / `STRIPE_ACCOUNT_COUNTRY` — legacy fallbacks only. Currency and account country now come from the region table in `domain/region/regions.ts`, because a per-region env var for either would be a second place the mapping `GB → gbp` lives
 - `ERROR_LOGGING` — optional `on` / `off` override for automatic error capture into `cardtrade.error_logs` (0123). Unset, it is on only in production (`VERCEL_ENV=production`, or `NODE_ENV=production` off Vercel), so preview deployments stay out of the table. See "Error logging" below. Member reports from the error screen are saved in every environment
+- `STRIPE_IDENTITY_RESTRICTED_KEY` (and `_<REGION>`, no cross-region fallback) — server-only restricted `rk_...` key with Identity "read verification results" only. Needed for the person keys behind the fraud blocklist (ESC-15); without it identity checks still pass but `PERSON_KEYS_UNAVAILABLE` is logged. `IDENTITY_FINGERPRINT_SECRET` keys those HMACs and the risk-signal HMACs; keep it stable
 - `JOBS_SECRET` — server-only bearer secret for the scheduled money-moving routes (`/api/jobs/cash-sale-payouts`, `/api/jobs/trade-inspections`). Both **fail closed** without it. Set `CRON_SECRET` to the same value, because Vercel Cron sends it as a bearer token on a GET.
 
 Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret values back in output.
@@ -131,7 +133,9 @@ Middleware (`proxy.ts`) is separate: it runs on the Edge Network near the USER, 
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/`, currently through `0136_us_platform_cross_border_regions.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0148_message_risk_flags.sql` (0143–0148 are WP4/WP5: seller return window, tracking binding, staff approvals, evidence path guards, default-privilege revoke, message risk flags; 0133–0137 are the escrow-hardening WP1 set, 0138–0140 WP2 and 0141–0142 WP3: frozen side values / scoped reservations / FMV guard, and the inspection clamp: payout release policy, trade cash settlements, risk signals + the `cardtrade_prune_rate_limits` pg_cron job at `:53` and must be applied in order; several are guarded by migration-TEXT tests: `tradeClockAgreement`, `migrationHoldReestimate`, `migrationRestoreUnclaimed`, `migrationHandoverLock`, `migrationTrackingClock`, `eventCopyCoverage`, `memberWriteSurface`). Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+
+Numbers 0134–0136 are used twice: the main-line files (`0134_sold_listing_declines_offers`, `0135_member_can_edit_bio_and_social_links`, `0136_us_platform_cross_border_regions`) and the escrow-hardening ones. Apply by full filename in sort order, e.g. `0134_cash_sale_tracking_clock` then `0134_sold_listing_declines_offers`, `0135_member_can_edit_bio_and_social_links` then `0135_return_details_lockdown`, and so on. 0133 also has two files.
 
 **The Supabase MCP `apply_migration` fails on this project** with `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`: the tool's history upsert does not match the project's `supabase_migrations.schema_migrations` constraints. It rolls back cleanly. 0121, 0122, 0123, 0124 and 0136 (among others) were therefore applied with `execute_sql` in a single transaction and have NO history row; check the catalog (`to_regclass`), not the history, before assuming a migration is missing.
 
@@ -144,3 +148,11 @@ SQL migrations are sequential files in `supabase/migrations/`, currently through
 When a migration changes the Identity_Gate expressions (`public_profiles.is_verified`, the two `seller_identity_verified` trigger functions, or that trigger's column list), the denormalisation-agreement property in `tests/property/identityGate.test.ts` reads the newest migration that defines each and evaluates it against `satisfiesIdentityGate`. It fails loudly on an expression it cannot interpret, so keep the SQL in the plain `identity_check_status = 'VERIFIED'::cardtrade.identity_check_status` form. The test additionally **throws** if a Connect column (`merchant_status`, `merchant_settlements_enabled`) reappears in a gate expression, because since 0069 those gate payouts and nothing else.
 
 **That test parses migration TEXT with regexes, and two things in a migration file will break it.** `grant select (col)` contains the literal `select (`, which the trigger-function regex matches across newlines — so put column grants at the END of the file, after the functions. And do not write `select (` or `as is_verified` in a migration COMMENT either; prose matches the regex just as well as code does.
+
+## Escrow hardening operational notes (WP4/WP5)
+
+- The `:47` job also releases return refunds whose seller window closed (`releaseDueReturnRefunds`, per-sale region via `regionForCashSale`), reads back every in-flight return not checked in 6h, and logs `returns.stale` past 14 days.
+- `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (seconds, 1–600, default 300) is honoured by the Stripe pipeline.
+- `SHIP24_WEBHOOK_ALLOW_QUERY_SECRET=true` keeps the old `?token=` secret working during migration. Otherwise the Ship24 secret must arrive as `Authorization: Bearer`.
+- 0147 revokes EXECUTE on new `cardtrade` functions from public/anon/authenticated by default. Every new member-callable function now needs an explicit grant.
+- `/api/errors` refuses an anonymous post with no `Origin`.

@@ -79,8 +79,8 @@ export interface PreAuthHold {
    * releases the funds on its own, moving the hold to a terminal state without
    * any call from us.
    *
-   * Set by providers that place a genuine authorisation: card authorisations for
-   * online payments are typically valid for ~7 days, so a Trade must reach
+   * Set by providers that place a genuine authorisation: an off-session Visa
+   * authorisation lasts about 114 hours (`CARD_AUTHORISATION_HOURS`), so a Trade must reach
    * INSPECTION and resolve inside that window, or the collateral must be
    * re-authorised before this instant. Absent when the provider's holds do not
    * expire (e.g. a charge-and-refund strategy, where funds have already moved,
@@ -111,14 +111,51 @@ export interface CaptureResult {
 export interface TransferResult {
   transferId: string;
   amount: Cents;
-  status: 'SETTLED' | 'FAILED';
+  /**
+   * `REQUIRES_ACTION` (ESC-03) is reachable only from a BUYER_PRESENT
+   * {@link PaymentService.requestTransfer}: the issuer asked for a 3-D Secure
+   * challenge, nothing is collected yet, and {@link TransferResult.clientSecret}
+   * lets the browser run it. Off-session calls never return it.
+   */
+  status: 'SETTLED' | 'FAILED' | 'REQUIRES_ACTION';
+  /** Present only with `REQUIRES_ACTION`. Never persisted, never logged. */
+  clientSecret?: string;
+  /** Browser-safe key for the account the intent lives on, with `clientSecret`. */
+  publishableKey?: string;
   /**
    * What the platform balance actually gained (a collection) or gave up (a payout),
    * in its SETTLEMENT currency, when that differs from the contract currency. Absent
-   * when nothing was converted. Custody reconciliation needs it: a EUR obligation
-   * cannot be compared with a USD balance otherwise.
+   * when nothing was converted. Custody reconciliation needs it.
    */
   settlement?: { amount: Cents; currency: string };
+}
+
+/**
+ * The payer is at the keyboard (ESC-03). The collection is made ON-session so the
+ * issuer can challenge it, which moves card-fraud liability to the issuer and stops a
+ * stolen card number alone from paying. `threeDS` comes from `domain/payments/scaPolicy.ts`.
+ */
+export interface PaymentPresence {
+  kind: 'BUYER_PRESENT';
+  threeDS: 'any' | 'automatic';
+}
+
+/** A collection read back from the provider (ESC-03 resume, ESC-37 binding). */
+export interface CollectionStatus {
+  status: 'SETTLED' | 'FAILED' | 'PENDING' | 'REQUIRES_ACTION';
+  /** What the provider actually collected. 0 unless SETTLED. */
+  amountReceived: Cents;
+  /** Present only with `REQUIRES_ACTION`. */
+  clientSecret?: string;
+  /** Browser-safe key for the account the intent lives on, with `clientSecret`. */
+  publishableKey?: string;
+}
+
+/** Cancelling an uncompleted collection (an abandoned 3-D Secure challenge). */
+export interface CollectionCancel {
+  /** `ALREADY_SETTLED`: the challenge finished first, so the money WAS collected. */
+  status: 'CANCELLED' | 'ALREADY_SETTLED' | 'FAILED';
+  reason?: string;
 }
 
 /**
@@ -193,6 +230,16 @@ export interface ManagedMerchant {
    * bank details are all deliberately excluded and must never be exposed.
    */
   legalName?: string | null;
+  /**
+   * Opaque fingerprint of the payout bank account (ESC-03 related accounts).
+   * Best-effort: null when the provider does not expose one.
+   */
+  payoutAccountFingerprint?: string | null;
+  /**
+   * The individual's name as the provider holds it on the payee account (ESC-25).
+   * Best-effort: null when not exposed, which is NOT a mismatch.
+   */
+  individualName?: { given: string; family: string } | null;
 }
 
 /**
@@ -315,6 +362,12 @@ export interface VaultedInstrument {
   brand?: string;
   /** Last four digits. Display only. */
   last4?: string;
+  /**
+   * Opaque provider card fingerprint (ESC-03 related accounts, ESC-14 blocklist).
+   * The same physical card yields the same value across payers. Callers HMAC it
+   * before storing; it never leaves the server.
+   */
+  fingerprint?: string;
 }
 
 /**
@@ -391,7 +444,11 @@ export type WebhookEventType =
   // opportunity to contest before the provider's evidence deadline.
   | 'charge.disputed'
   // The dispute reached a terminal outcome (won or lost).
-  | 'charge.dispute.closed';
+  | 'charge.dispute.closed'
+  // An issuer's early fraud warning (Radar), ESC-14: the cardholder has reported the
+  // charge as fraud and a chargeback is likely. Observed so the money is held or
+  // refunded BEFORE the seller is paid.
+  | 'charge.fraud_warning';
 
 /**
  * The data carried by a Webhook_Event. Every field is optional because the
@@ -448,6 +505,8 @@ export interface WebhookEventPayload {
    * path.
    */
   merchantActive?: boolean;
+  /** Provider charge / PaymentIntent the event concerns, when it is not a hold or transfer. */
+  paymentRef?: string;
 }
 
 /**
@@ -520,7 +579,55 @@ export interface PaymentService {
      * GBP sale is charged in USD.
      */
     currency?: string;
+    /**
+     * ESC-03: collect with the payer present (3-D Secure possible). Absent means
+     * off-session, which is reserved for collateral holds and the Trade_Fee.
+     */
+    presence?: PaymentPresence;
+    /**
+     * @deprecated ESC-29: the ONE permitted off-session charge forwarded to a member,
+     * the legacy trade cash leg (`settleTradeCash`) for trades agreed before
+     * `trade_cash_settlements`. Every binding refuses a `merchantRef` without
+     * `presence` unless this is set, so no new off-session-to-member path can appear.
+     */
+    legacyOffSessionToMember?: boolean;
   }): Promise<TransferResult>;
+
+  /**
+   * Read a collection back (ESC-03, ESC-37). Stripe mapping: `succeeded` SETTLED;
+   * `requires_action` REQUIRES_ACTION (with the secret); `processing` and
+   * `requires_confirmation` PENDING; `canceled` and `requires_payment_method` FAILED.
+   */
+  readCollection?(paymentRef: string): Promise<CollectionStatus>;
+
+  /**
+   * Cancel a collection that has not completed (ESC-03 abandoned challenge, ESC-05
+   * trade cash at `pay_by`). `ALREADY_SETTLED` when it succeeded first.
+   */
+  cancelCollection?(paymentRef: string): Promise<CollectionCancel>;
+
+  /**
+   * Claw a payout back from a connected account (ESC-14). Staff-initiated only,
+   * never automatic. Idempotent on `nonce`.
+   */
+  reversePayout?(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult>;
+
+  /**
+   * Stage chargeback evidence on the provider dispute WITHOUT submitting it (ESC-14).
+   * Staff review and submit from the provider dashboard. Never carries an address,
+   * identity or contact data.
+   */
+  submitDisputeEvidence?(params: {
+    disputeRef: string;
+    evidence: {
+      productDescription?: string;
+      uncategorizedText?: string;
+      shippingCarrier?: string;
+      shippingTrackingNumber?: string;
+      shippingDate?: string;
+    };
+    submit: false;
+  }): Promise<{ status: 'STAGED' | 'FAILED'; reason?: string }>;
 
   /**
    * Pay OUT of the platform balance to a Seller's connected account (Req 4.3).
@@ -601,10 +708,35 @@ export interface PaymentService {
   }): Promise<PreAuthHold>;
   /** Release a hold at $0 cost (Req 6.7, 7.5, 8.5). */
   voidHold(holdId: string): Promise<PreAuthHold>;
-  /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */
+  /**
+   * Capture a fixed portion of a hold — a staff-decided condition outcome.
+   *
+   * SINGLE CAPTURE (ESC-01/07): an authorisation is captured at most once, and the
+   * provider releases the remainder. Every binding returns `FAILED` with no write
+   * unless the hold is still `ACTIVE`.
+   */
   partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult>;
-  /** Capture the entire hold amount on Objective_Fraud (Req 8.2). */
+  /**
+   * Capture the entire hold — an Objective_Fraud finding, or the custody backstop
+   * (`custodyCaptureHold`). `FAILED` unless the hold is still `ACTIVE`.
+   */
   fullCapture(holdId: string): Promise<CaptureResult>;
+  /**
+   * Re-read a hold's provider-reported expiry (R4-M5).
+   *
+   * `expiresAt` is `null` when the provider reports no deadline. Optional so a binding
+   * without real authorisations can omit it; the re-estimate sweep then keeps its
+   * floored estimate.
+   */
+  readHoldExpiry?(holdId: string): Promise<{ expiresAt: string | null }>;
+  /**
+   * ESC-34: every uncaptured collateral authorisation the provider holds, older than
+   * `olderThan`. The orphan sweep compares it with `pre_auth_holds` and voids what no
+   * live row accounts for. Throws on a provider error; the sweep logs and skips.
+   */
+  listUncapturedHolds?(params: { olderThan: string }): Promise<
+    Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>
+  >;
   /**
    * Read what the platform currently holds with the provider.
    *
@@ -863,6 +995,12 @@ export interface IdentityCheck {
     kind: 'document-id' | 'name-dob';
     hash: string;
   }>;
+  /**
+   * ESC-15: VERIFIED, but the provider did not return the document number (no
+   * restricted key, or past its 48-hour window), so no document person key exists.
+   * The caller logs `PERSON_KEYS_UNAVAILABLE` and marks the profile for backfill.
+   */
+  personKeysUnavailable?: boolean;
 }
 
 /**

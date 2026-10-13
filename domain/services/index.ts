@@ -22,7 +22,7 @@ import {
   isStripeConfigured,
 } from './stripe/config';
 import { createStripeService } from './stripe';
-import { resolvePaymentProvider } from './providerMode';
+import { PaymentsUnconfiguredError, resolvePaymentProvider } from './providerMode';
 import {
   isTradingRegion,
   normalizeRegionCode,
@@ -36,9 +36,11 @@ import type { IdentityService, PayerService, PaymentService } from './types';
 export type { PayerService, PaymentService } from './types';
 export { MockService } from './mock/MockService';
 export {
+  acceptsMockWebhooks,
   isLivePaymentsProvider,
   isPaymentDemoEnabled,
   isRealMoneyProvider,
+  PaymentsUnconfiguredError,
   resolvePaymentProvider,
   type PaymentProvider,
 } from './providerMode';
@@ -59,15 +61,15 @@ export type PaymentKycService = PaymentService & PayerService & IdentityService;
 const DEFAULT_WEBHOOK_URL = 'http://localhost:3000/api/webhooks/stripe';
 
 /**
- * Default shared secret for Mock webhook HMAC. Real Stripe deliveries use
- * `STRIPE_WEBHOOK_SECRET` instead.
+ * The Mock webhook HMAC secret. There is NO default any more (ESC-16): the old one was
+ * committed to the repository, so anyone could sign a mock delivery. Unset, the Mock
+ * signs with an empty secret and the pipeline rejects every mock signature, so the
+ * demo simply does not deliver until `WEBHOOK_SECRET` is set locally.
  */
-const DEFAULT_WEBHOOK_SECRET = 'dev-mock-webhook-secret';
-
 function readWebhookConfig(): { webhookUrl: string; secret: string } {
   return {
     webhookUrl: process.env.WEBHOOK_URL ?? DEFAULT_WEBHOOK_URL,
-    secret: process.env.WEBHOOK_SECRET ?? DEFAULT_WEBHOOK_SECRET,
+    secret: process.env.WEBHOOK_SECRET?.trim() ?? '',
   };
 }
 
@@ -112,6 +114,11 @@ export function getPaymentService(region?: string | null): PaymentKycService {
       return createStripeService({ region: code });
     }
 
+    case 'unconfigured':
+      // ESC-16: fail loudly. Settling against simulated money in production is the
+      // failure this replaces; `withActionLog` records the throw as SERVER.
+      throw new PaymentsUnconfiguredError();
+
     default:
       // The Mock is deliberately region-agnostic: it moves no money, so it has no
       // platform account to be in the wrong country.
@@ -140,8 +147,11 @@ export function getPaymentService(region?: string | null): PaymentKycService {
  */
 export function operationalRegions(): ReadonlySet<RegionCode> {
   const intended = REGIONS.filter((region) => region.tradingEnabled).map((r) => r.code);
+  const provider = resolvePaymentProvider();
 
-  if (resolvePaymentProvider() !== 'stripe') {
+  // ESC-16: nothing trades on a deployment with no usable provider.
+  if (provider === 'unconfigured') return new Set();
+  if (provider === 'mock') {
     return new Set(intended);
   }
 

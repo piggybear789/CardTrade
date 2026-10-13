@@ -4,6 +4,7 @@
 // the buyer pays once handover details exist, cleared funds gate fulfillment,
 // and every action is authorized and state-guarded.
 
+import { settlementFor } from './helpers/settle';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -464,7 +465,7 @@ describe('cash sale — fulfillment', () => {
     expect(second.sale.status).toBe('ESCROW_HELD');
 
     // A second settle after sync clearance is a no-op / invalid-state.
-    const settledAgain = await settleCashSale(deps, { cashSaleId: saleId });
+    const settledAgain = await settleCashSale(deps, await settlementFor(deps, saleId));
     expect(settledAgain).toMatchObject({ ok: false, error: 'INVALID_STATE' });
 
     const missingTracking = await recordCashSaleShipment(deps, {
@@ -489,7 +490,7 @@ describe('cash sale — fulfillment', () => {
   it('only lets the seller ship and only the buyer receive', async () => {
     const { deps } = makeDeps();
     const { saleId } = await agreeAndPay(deps);
-    await settleCashSale(deps, { cashSaleId: saleId });
+    await settleCashSale(deps, await settlementFor(deps, saleId));
 
     const buyerShips = await recordCashSaleShipment(deps, {
       actorId: BUYER.profileId,
@@ -513,7 +514,7 @@ describe('cash sale — fulfillment', () => {
   it('completes a delivery after receipt and buyer acceptance', async () => {
     const { deps, state } = makeDeps();
     const { saleId } = await agreeAndPay(deps);
-    await settleCashSale(deps, { cashSaleId: saleId });
+    await settleCashSale(deps, await settlementFor(deps, saleId));
     await recordCashSaleShipment(deps, {
       actorId: ITEM.ownerId,
       cashSaleId: saleId,
@@ -554,6 +555,14 @@ describe('cash sale — fulfillment', () => {
     // In-person sales settle straight into HANDOVER when the transfer clears.
     expect(second.sale.status).toBe('HANDOVER');
 
+    // ESC-20: refused more than an hour before the meeting.
+    expect(await confirmCashSaleHandover(deps, { actorId: ITEM.ownerId, cashSaleId: saleId })).toMatchObject({
+      ok: false,
+      error: 'HANDOVER_TOO_EARLY',
+    });
+    // From then on, the clock is at the meeting.
+    deps.now = () => new Date('2099-01-15T03:00:00.000Z');
+
     const sellerFirst = await confirmCashSaleHandover(deps, {
       actorId: ITEM.ownerId,
       cashSaleId: saleId,
@@ -575,14 +584,20 @@ describe('cash sale — fulfillment', () => {
     });
     expect(buyerConfirm.ok).toBe(true);
     if (!buyerConfirm.ok) return;
-    expect(buyerConfirm.sale.status).toBe('COMPLETED');
-    expect(state.item.status).toBe('SOLD');
+    // ESC-20: the second confirmation opens a 24h buyer inspection instead of
+    // completing on the spot; nothing is paid out yet.
+    expect(buyerConfirm.sale.status).toBe('INSPECTION');
+    expect(buyerConfirm.sale.inspectionDeadlineAt).toBeTruthy();
 
     const repeat = await confirmCashSaleHandover(deps, {
       actorId: BUYER.profileId,
       cashSaleId: saleId,
     });
     expect(repeat).toMatchObject({ ok: false, error: 'INVALID_STATE' });
+
+    const accepted = await acceptCashSaleInspection(deps, { actorId: BUYER.profileId, cashSaleId: saleId });
+    expect(accepted.ok && accepted.sale.status).toBe('COMPLETED');
+    expect(state.item.status).toBe('SOLD');
   });
 });
 

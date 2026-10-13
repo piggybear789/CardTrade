@@ -13,9 +13,9 @@
 // reconciliation flags). The service-role client is import-guarded by
 // `server-only` and is only ever used inside these server actions.
 //
-// ONE DELIBERATE EXCEPTION. The three dispute-resolution actions
-// (`resolveCashSaleDispute`, `resolveTradeConditionDispute`, `resolveTradeFraud`) gate
-// on `requireStaff` rather than `requireAdmin`, because arbitration is the support
+// ONE DELIBERATE EXCEPTION. The dispute-resolution actions
+// (`resolveCashSaleDispute`, `resolveTradeDispute`, `setDisputeCustodyScope`,
+// `resolveTrackingFlag`) gate on `requireStaff` rather than `requireAdmin`, because arbitration is the support
 // worker's job and does not need the power to hide listings or drain payout queues.
 // They still never trust the client, and an admin passes that gate too. Everything
 // else in this module is admin-only.
@@ -32,14 +32,20 @@ import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
 import { requireStaff } from '@/lib/staffGate';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
-import type { CashSaleDisputeOutcome } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
-import { createDefaultDisputeResolutionOrchestrator } from '@/domain/orchestrator/supabaseDisputeResolutionRepository';
+import type { CashSaleDisputeOutcome, TrackingFlagDecision } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { CASH_SALE_INSPECTION_DAYS } from '@/domain/fulfilment/inspection';
+import { createLoggedDisputeOrchestrator } from '@/lib/trades/disputeOrchestrator';
+import type { TradeDisputeOutcome } from '@/domain/orchestrator/disputeResolution';
+import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
+import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
+import { payeePairHash, splitFullName } from '@/domain/identity/payeeNameMatch';
 import {
   COLLECTED_SALE_STATUSES,
   reconcileCustody,
   type CustodyPosition,
   type HeldSaleInput,
+  type HeldCollateralInput,
+  type HeldTradeCashInput,
 } from '@/domain/payouts/custodyReconciliation';
 import { getPaymentService, operationalPlatforms } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
@@ -47,7 +53,14 @@ import { normalizeRegionCode, platformRegion, regionCurrency } from '@/domain/re
 import { regionForCashSale as regionForCashSaleBinding } from '@/lib/regionBinding';
 import type { Enums } from '@/lib/supabase/database.types';
 import { createNotification } from '@/lib/notifications/createNotification';
-import { emailNotify } from '@/lib/email';
+import {
+  caseParticipants,
+  cashSaleValueMinor,
+  gateResolution,
+  staffCount,
+  tradeValueMinor,
+} from '@/lib/arbitration/approvals';
+import { canApprove, type ResolutionAction } from '@/domain/arbitration/approvalPolicy';
 
 /**
  * Admin action error codes.
@@ -60,27 +73,35 @@ export type AdminActionError =
   | 'not-authenticated'
   | 'not-authorized'
   | 'not-found'
-  | 'persistence-error';
+  | 'persistence-error'
+  /** A staff input failed validation; `field` names it. */
+  | 'invalid-input'
+  /** ESC-24: the duplicate-of account is still live; close it first. */
+  | 'duplicate-still-live'
+  /** ESC-24: the duplicate-of account was banned for fraud; never approved. */
+  | 'duplicate-banned'
+  /** ESC-23: the decision was saved as a proposal for a second staff member. */
+  | 'approval-required'
+  /** ESC-23: the approval id is not an APPROVED proposal for this decision. */
+  | 'approval-invalid'
+  /** ESC-23: approval refusals from `canApprove`. */
+  | 'SAME_STAFFER'
+  | 'COOLING_OFF'
+  | 'RECUSED';
 
 /** Discriminated result returned by every admin action. */
 export type AdminActionResult<T = { id: string }> =
   | { ok: true; data: T }
-  | { ok: false; error: AdminActionError; message?: string };
+  | { ok: false; error: AdminActionError; message?: string; field?: string };
 
 /**
- * Build the dispute/fraud resolution orchestrator with the default bindings.
+ * Build the dispute coordinator for one trade, on the trade's own platform account.
  *
- * Mirrors `buildDisputeOrchestrator` in `lib/actions/trades.ts`. Duplicated rather
- * than shared because a `'use server'` module may only export async functions, so
- * the helper cannot be exported from there.
+ * A resolution captures and voids authorisations, which belong to the Stripe account
+ * that created them (0068), so the region comes from the trade.
  */
-function buildAdminDisputeOrchestrator() {
-  const service = getPaymentService();
-  const orchestrator = createDefaultTradeOrchestrator({ payments: service });
-  return createDefaultDisputeResolutionOrchestrator({
-    orchestrator,
-    payments: service,
-  });
+async function buildAdminDisputeOrchestrator(tradeId: string) {
+  return createLoggedDisputeOrchestrator(await regionForTrade(tradeId));
 }
 
 /**
@@ -429,11 +450,22 @@ export const retryCashSalePayout = withActionLog('admin.retryCashSalePayout', as
 export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleReturnCase', async function resolveCashSaleReturnCase(
   cashSaleId: string,
   outcome: 'REFUND_BUYER' | 'RELEASE_SELLER',
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
 ): Promise<AdminActionResult<{ id: string; status: string }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+  const approval = await gateResolution({
+    action: 'RESOLVE_CASH_SALE_RETURN',
+    caseRef: cashSaleId,
+    valueMinor: await cashSaleValueMinor(cashSaleId),
+    payload: { outcome },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
 
   const orchestrator = createDefaultCashSaleOrchestrator({
     payments: getPaymentService(await regionForCashSale(cashSaleId)),
@@ -443,6 +475,7 @@ export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleRet
     actorId: gate.ctx.userId,
     outcome,
   });
+  await approval.settle(result.ok);
 
   if (!result.ok) {
     return {
@@ -465,6 +498,281 @@ export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleRet
   return { ok: true, data: { id: result.sale.id, status: result.sale.status } };
 });
 
+/**
+ * Decide a flagged outbound tracking number (ESC-02), staff-gated.
+ *
+ * A flag means the tracking cannot be this sale's parcel as recorded: it was
+ * delivered before the sale shipped, or it was already delivered when the seller
+ * entered it. No inspection clock starts until staff decide:
+ *
+ * - START_CLOCK  — the delivery is genuine; the buyer's 7-day inspection starts now.
+ * - REFUND_BUYER — it is not this parcel; the buyer is refunded in full, no return owed.
+ */
+export const resolveTrackingFlag = withActionLog('admin.resolveTrackingFlag', async function resolveTrackingFlag(
+  cashSaleId: string,
+  decision: TrackingFlagDecision,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
+): Promise<AdminActionResult<{ id: string; status: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  // Only a refund moves money; starting the clock does not.
+  const approval = await gateResolution({
+    action: 'RESOLVE_TRACKING_FLAG',
+    caseRef: cashSaleId,
+    valueMinor: decision === 'REFUND_BUYER' ? await cashSaleValueMinor(cashSaleId) : 0,
+    payload: { decision },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
+  const orchestrator = createDefaultCashSaleOrchestrator({
+    payments: getPaymentService(await regionForCashSale(cashSaleId)),
+  });
+  const result = await orchestrator.resolveTrackingFlag({
+    cashSaleId,
+    staffId: gate.ctx.userId,
+    decision,
+    inspectionDays: CASH_SALE_INSPECTION_DAYS,
+  });
+  await approval.settle(result.ok);
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error === 'CASH_SALE_NOT_FOUND' ? 'not-found' : 'persistence-error',
+      message: result.detail ?? 'The tracking flag could not be resolved.',
+    };
+  }
+  revalidatePath('/admin/arbitration');
+  revalidatePath(`/admin/arbitration/CASH_SALE/${cashSaleId}`);
+  revalidatePath(`/sales/${cashSaleId}`);
+  return { ok: true, data: { id: result.sale.id, status: result.sale.status } };
+});
+
+/**
+ * Set or clear a seller's open-exposure limit (ESC-03 layer 1).
+ *
+ * `limitMinor` replaces the per-currency new-seller limit for this seller whatever
+ * their history: a higher figure lets a known trader sell a big binder, 0 pauses
+ * them. `null` clears it, returning them to the default policy. Staff only; the
+ * column has no member grant.
+ */
+export const setExposureLimitOverride = withActionLog('admin.setExposureLimitOverride', async function setExposureLimitOverride(
+  profileId: string,
+  limitMinor: number | null,
+): Promise<AdminActionResult<{ id: string; limitMinor: number | null }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  if (limitMinor !== null && (!Number.isSafeInteger(limitMinor) || limitMinor < 0)) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      field: 'limitMinor',
+      message: 'Enter a whole amount of zero or more, or clear the override.',
+    };
+  }
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('profiles')
+    .update({ exposure_limit_override_minor: limitMinor })
+    .eq('id', profileId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: profileId, limitMinor } };
+});
+
+/**
+ * Clear a payout-name mismatch staff have checked (ESC-25), e.g. "Bob" on the bank
+ * account for a "Robert" on the ID. Records an HMAC of the (identity, payee) name
+ * pair, never the names, so the clearance holds while the pair is unchanged and a
+ * DIFFERENT payee name is checked again.
+ */
+export const clearPayeeMismatch = withActionLog('admin.clearPayeeMismatch', async function clearPayeeMismatch(
+  profileId: string,
+): Promise<AdminActionResult<{ id: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  const admin = createAdminClient();
+  const { data: profile, error } = await admin
+    .from('profiles')
+    .select('id, identity_check_name, merchant_ref')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!profile?.merchant_ref) return { ok: false, error: 'not-found' };
+
+  const payments = getPaymentService(await regionForProfile(profileId));
+  const merchant = payments.getManagedMerchant
+    ? await payments.getManagedMerchant(profile.merchant_ref as string)
+    : null;
+  const identity = splitFullName(profile.identity_check_name as string | null);
+  const secret = process.env.IDENTITY_FINGERPRINT_SECRET?.trim() || process.env.STRIPE_SECRET_KEY?.trim() || '';
+  const pair =
+    identity && merchant?.individualName ? payeePairHash(identity, merchant.individualName, secret) : null;
+  if (!pair) {
+    return { ok: false, error: 'invalid-input', message: 'The two names could not be read, so there is nothing to clear.' };
+  }
+  const { error: writeError } = await admin
+    .from('profiles')
+    .update({
+      payee_identity_mismatch_at: null,
+      payee_mismatch_cleared_by: gate.ctx.userId,
+      payee_mismatch_cleared_at: new Date().toISOString(),
+      payee_mismatch_cleared_pair: pair,
+    })
+    .eq('id', profileId);
+  if (writeError) return { ok: false, error: 'persistence-error', message: writeError.message };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: profileId } };
+});
+
+/**
+ * Decide a member held for a duplicate identity (ESC-24).
+ *
+ * APPROVE only once the older account is CLOSED (the "lost my old login" case). A
+ * live older account is refused (`duplicate-still-live`): close it first. A banned
+ * one is refused outright (`duplicate-banned`): that is exactly the evasion the
+ * blocklist exists for. Approval goes through the same writer as every identity
+ * decision, so the bans and the person keys still apply.
+ *
+ * REJECT marks the check FAILED and tells the member to contact support.
+ */
+export const resolveDuplicateIdentity = withActionLog('admin.resolveDuplicateIdentity', async function resolveDuplicateIdentity(
+  profileId: string,
+  decision: 'APPROVE' | 'REJECT',
+): Promise<AdminActionResult<{ id: string; status: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  const admin = createAdminClient();
+  const { data: profile, error } = await admin
+    .from('profiles')
+    .select('id, identity_duplicate_of, identity_check_session_id')
+    .eq('id', profileId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!profile?.identity_duplicate_of) return { ok: false, error: 'not-found', message: 'No duplicate review is open for this member.' };
+
+  if (decision === 'REJECT') {
+    const { error: rejectError } = await admin
+      .from('profiles')
+      .update({ identity_check_status: 'FAILED' })
+      .eq('id', profileId)
+      .neq('identity_check_status', 'VERIFIED');
+    if (rejectError) return { ok: false, error: 'persistence-error', message: rejectError.message };
+    await createNotification({
+      userId: profileId,
+      type: 'SYSTEM',
+      title: 'Identity check not approved',
+      body: "We couldn't approve your identity check. Contact support if you think this is a mistake.",
+      link: '/profile?tab=verification',
+    });
+    revalidatePath('/admin');
+    return { ok: true, data: { id: profileId, status: 'FAILED' } };
+  }
+
+  const { data: older, error: olderError } = await admin
+    .from('profiles')
+    .select('id, closed_at, fraud_banned_at')
+    .eq('id', profile.identity_duplicate_of as string)
+    .maybeSingle();
+  if (olderError) return { ok: false, error: 'persistence-error', message: olderError.message };
+  if (older?.fraud_banned_at) {
+    return { ok: false, error: 'duplicate-banned', message: 'The other account was banned for fraud, so this cannot be approved.' };
+  }
+  if (older && !older.closed_at) {
+    return { ok: false, error: 'duplicate-still-live', message: 'Close the other account first, then approve this one.' };
+  }
+
+  const sessionId = profile.identity_check_session_id as string | null;
+  const payments = getPaymentService(await regionForProfile(profileId));
+  if (!sessionId || !payments.readIdentityCheck) {
+    return { ok: false, error: 'persistence-error', message: 'The identity session could not be read back.' };
+  }
+  const check = await payments.readIdentityCheck(sessionId);
+  const applied = await applyIdentityDecision({
+    profileId,
+    check,
+    staffOverride: { staffId: gate.ctx.userId },
+  });
+  revalidatePath('/admin');
+  return { ok: true, data: { id: profileId, status: applied === 'verified' ? 'VERIFIED' : applied.toUpperCase() } };
+});
+
+/**
+ * Claw a released seller payout back from their connected account (ESC-14).
+ *
+ * Staff only and NEVER automatic: friendly fraud against an honest seller must not be
+ * auto-clawed, so a chargeback alone does nothing to money that has already left.
+ * Keyed on the sale, so a retry cannot reverse twice.
+ */
+export const reverseCashSalePayout = withActionLog('admin.reverseCashSalePayout', async function reverseCashSalePayout(
+  cashSaleId: string,
+  amountMinor: number,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
+): Promise<AdminActionResult<{ id: string; reversalRef: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('cash_sales')
+    .select('id, seller_payout_status, seller_payout_ref, amount_cents, platform_fee_cents, shipping_cost_cents')
+    .eq('id', cashSaleId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  if (data.seller_payout_status !== 'SETTLED' || !data.seller_payout_ref) {
+    return { ok: false, error: 'invalid-input', message: 'This sale has no released payout to reverse.' };
+  }
+  const releasedNet = Number(data.amount_cents ?? 0) - Number(data.platform_fee_cents ?? 0);
+  if (!Number.isSafeInteger(amountMinor) || amountMinor <= 0 || amountMinor > releasedNet) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      field: 'amountMinor',
+      message: 'Enter an amount above zero and no more than what the seller was paid.',
+    };
+  }
+  const payments = getPaymentService(await regionForCashSale(cashSaleId));
+  if (!payments.reversePayout) {
+    return { ok: false, error: 'persistence-error', message: 'The payment provider cannot reverse payouts.' };
+  }
+  // ESC-23: a second staff member confirms before a clawback above the threshold.
+  const approval = await gateResolution({
+    action: 'REVERSE_CASH_SALE_PAYOUT',
+    caseRef: cashSaleId,
+    valueMinor: amountMinor,
+    payload: { amountMinor },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
+  const reversal = await payments.reversePayout({
+    transferId: data.seller_payout_ref as string,
+    amount: amountMinor,
+    nonce: `cash-sale:${cashSaleId}`,
+  });
+  await approval.settle(reversal.status === 'SETTLED');
+  if (reversal.status !== 'SETTLED') {
+    return { ok: false, error: 'persistence-error', message: 'The reversal did not go through.' };
+  }
+  revalidatePath('/admin');
+  return { ok: true, data: { id: cashSaleId, reversalRef: reversal.transferId } };
+});
+
 export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDispute', async function resolveCashSaleDispute(
   cashSaleId: string,
   outcome: CashSaleDisputeOutcome,
@@ -483,11 +791,22 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
    * the columns cannot.
    */
   requireReturn?: boolean,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
 ): Promise<AdminActionResult<{ id: string; status: string; refundCents: number }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+  const approval = await gateResolution({
+    action: 'RESOLVE_CASH_SALE_DISPUTE',
+    caseRef: cashSaleId,
+    valueMinor: await cashSaleValueMinor(cashSaleId),
+    payload: { outcome, refundCents: refundCents ?? null, requireReturn: requireReturn ?? null },
+    staffId: gate.ctx.userId,
+    approvalId,
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
 
   // A resolution refunds the buyer and/or releases to the seller, so it must run on
   // the platform account that collected the money (0068).
@@ -501,6 +820,7 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
     refundCents,
     requireReturn,
   });
+  await approval.settle(result.ok);
 
   if (!result.ok) {
     const message =
@@ -537,163 +857,192 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
   };
 });
 
+/** What a staff trade-dispute decision reports back to the console. */
+export type ResolveTradeDisputeActionData = {
+  id: string;
+  state: string;
+  outcome: TradeDisputeOutcome['kind'];
+  manualReconciliation: boolean;
+};
+
 /**
- * Resolve a disputed Trade as a Condition_Dispute (Req 7.2-7.5), staff-gated.
+ * Resolve a disputed Trade with a staff-chosen outcome (design §1.2), staff-gated.
  *
- * Captures the fixed $20 Friction_Tax from the disputed-against trader and voids the
- * remaining collateral, completing the Trade.
+ * Replaces `resolveTradeConditionDispute` and `resolveTradeFraud`. The four outcomes:
  *
- * Staff-gated because it used to be participant-gated: `resolveDispute` in
- * `lib/actions/trades.ts` let either party trigger a capture against the other. The
- * point of moving it was that a party must not decide their own case — not that only
- * an administrator may decide it.
+ * - UNFOUNDED   — releases both traders' collateral and completes the trade.
+ * - CONDITION   — pays the wronged trader up to the accused's remaining collateral
+ *                 and completes the trade.
+ * - FRAUD       — captures the offender's collateral for the victim (paid after a
+ *                 7-day safety hold), bans the offender, and closes the trade.
+ * - NO_EXCHANGE — the exchange never happened: releases everything, refunds the
+ *                 fees and cancels the trade. Only on a trade that never reached
+ *                 INSPECTION.
+ *
+ * The victim / wronged trader is an ARGUMENT, validated against the trade before any
+ * money moves (ESC-23): a refused decision touches nothing. On a never-inspected trade
+ * UNFOUNDED and CONDITION need the staff attestation that the goods changed hands.
  */
-export const resolveTradeConditionDispute = withActionLog('admin.resolveTradeConditionDispute', async function resolveTradeConditionDispute(
+export const resolveTradeDispute = withActionLog('admin.resolveTradeDispute', async function resolveTradeDispute(
   tradeId: string,
-): Promise<AdminActionResult<{ id: string; state: string }>> {
+  outcome: TradeDisputeOutcome,
+  /** ESC-23: set only by `approveStaffResolution`. */
+  approvalId?: string,
+): Promise<AdminActionResult<ResolveTradeDisputeActionData>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
+  // A fraud finding always needs a second approver: it also bans a member for good.
+  const approval = await gateResolution({
+    action: 'RESOLVE_TRADE_DISPUTE',
+    caseRef: tradeId,
+    valueMinor: outcome.kind === 'UNFOUNDED' || outcome.kind === 'NO_EXCHANGE' ? 0 : await tradeValueMinor(tradeId),
+    payload: { outcome },
+    staffId: gate.ctx.userId,
+    approvalId,
+    fraud: outcome.kind === 'FRAUD',
+  });
+  if (!approval.proceed) return { ok: false, error: approval.error, message: approval.message };
 
-  const result = await buildAdminDisputeOrchestrator().resolveConditionDispute({
+  const result = await (await buildAdminDisputeOrchestrator(tradeId)).resolveTradeDispute({
     tradeId,
     actorId: gate.ctx.userId,
+    outcome,
   });
+  await approval.settle(result.ok);
 
   if (!result.ok) {
     return {
       ok: false,
       error: result.error === 'TRADE_NOT_FOUND' ? 'not-found' : 'persistence-error',
-      message: result.detail ?? 'The dispute could not be resolved.',
+      message:
+        result.error === 'INVALID_OUTCOME'
+          ? (result.detail ?? 'That outcome is not available for this trade.')
+          : result.error === 'HOLD_NOT_FOUND'
+            ? 'The accused trader has no collateral left on this trade. The case is flagged for reconciliation.'
+            : result.error === 'CAPTURE_FAILED'
+              ? 'The collateral could not be captured. The trade stays disputed and is flagged for reconciliation.'
+              : result.error === 'HOLD_RELEASE_FAILED'
+                ? 'A temporary card hold could not be released. The trade stays disputed and is flagged for reconciliation.'
+                : result.error === 'DISPUTE_HISTORY_UNAVAILABLE'
+                  ? "The trade's history could not be read, so nothing was changed. Try again."
+                  : (result.detail ?? 'The dispute could not be resolved.'),
     };
   }
+
+  const { resolution } = result;
+  const trade = resolution.trade;
+  const initiatorId = trade.initiator_id as string;
+  const counterpartId = trade.counterpart_id as string;
 
   revalidatePath('/admin');
   revalidatePath('/admin/arbitration');
   revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
   revalidatePath(`/trades/${tradeId}`);
 
-  // Notify both traders of the resolution.
-  const trade = result.trade;
-  await createNotification({
-    userId: trade.initiator_id as string,
-    type: 'TRADE',
-    title: 'Dispute resolved',
-    body: 'NoDitto support reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
-    link: `/trades/${tradeId}`,
-  });
-  await createNotification({
-    userId: trade.counterpart_id as string,
-    type: 'TRADE',
-    title: 'Dispute resolved',
-    body: 'NoDitto support reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
-    link: `/trades/${tradeId}`,
-  });
-  void emailNotify.disputeRaised({ userId: trade.initiator_id as string, contractType: 'trade', contractId: tradeId });
-  void emailNotify.disputeRaised({ userId: trade.counterpart_id as string, contractType: 'trade', contractId: tradeId });
+  if (outcome.kind === 'FRAUD' && resolution.offendingTraderId) {
+    const ban = await permanentlyBanConfirmedFraudOffender({
+      offenderId: resolution.offendingTraderId,
+      staffId: gate.ctx.userId,
+      tradeId,
+    });
+    if (!ban.ok) {
+      // FRAUD_RESOLVED stays committed. The profile ban may already be active even
+      // when the Auth sync fails, so the required follow-up is made explicit.
+      return {
+        ok: false,
+        error: 'persistence-error',
+        message: `Objective fraud was resolved, but the permanent ban needs follow-up: ${ban.message}`,
+      };
+    }
 
-  return { ok: true, data: { id: tradeId, state: result.trade.state } };
+    await createNotification({
+      userId: outcome.victimId,
+      type: 'TRADE',
+      title: 'Fraud confirmed — you are being compensated',
+      body:
+        "NoDitto support confirmed objective fraud. The other trader's collateral is being " +
+        'paid to you after a 7-day safety hold, and your own trade collateral has been released.',
+      link: `/trades/${tradeId}`,
+    });
+    await createNotification({
+      userId: resolution.offendingTraderId,
+      type: 'TRADE',
+      title: 'Fraud confirmed — your account is permanently suspended',
+      body: 'NoDitto support confirmed objective fraud on your trade. Your trade collateral has been captured.',
+      link: `/trades/${tradeId}`,
+    });
+  } else if (outcome.kind === 'UNFOUNDED' || outcome.kind === 'CONDITION') {
+    const body =
+      outcome.kind === 'UNFOUNDED'
+        ? 'NoDitto support reviewed the dispute and found no problem with the trade. Your trade collateral has been released.'
+        : 'NoDitto support reviewed the condition dispute and decided compensation. Any amount owed is paid after a 7-day safety hold, and the rest of the trade collateral has been released.';
+    for (const userId of [initiatorId, counterpartId]) {
+      await createNotification({ userId, type: 'TRADE', title: 'Dispute resolved', body, link: `/trades/${tradeId}` });
+    }
+  }
+  // NO_EXCHANGE notifies both traders inside the coordinator.
+
+  if (resolution.feeRefundFailed) {
+    // Already logged as `trade.fee_refund`; retried by the fee drain.
+    console.warn(`[admin] trade ${tradeId}: fee refund on NO_EXCHANGE failed`);
+  }
+
+  return {
+    ok: true,
+    data: {
+      id: tradeId,
+      state: trade.state,
+      outcome: resolution.outcome,
+      manualReconciliation: resolution.manualReconciliation,
+    },
+  };
 });
 
 /**
- * Resolve a disputed Trade as Objective_Fraud (Req 8.1-8.6), staff-gated.
+ * Narrow the custody backstop on a disputed trade to ONE trader, staff-gated.
  *
- * Full-captures the offending trader's collateral, pays it to the operator-determined
- * victim, and voids the victim's own hold.
- *
- * THE VICTIM IS AN ARGUMENT, and that is the entire point of this function existing.
- * `reportObjectiveFraud` previously inferred the victim from its caller, and its
- * caller was any participant — so a trader could name themselves the victim and take
- * the counterparty's 100%-of-FMV collateral with no review, no evidence, and no
- * chance for the accused to answer. A participant can now only CLAIM fraud
- * (`reportFraud`), which freezes the trade; an operator decides who was defrauded.
- *
- * The victim is validated against the trade's participants downstream, so naming an
- * unrelated account fails rather than paying a stranger.
+ * By default the backstop takes every live hold on a DISPUTED trade into custody at
+ * its own margin, whoever filed. Narrowing it to the accused is a staff decision only:
+ * if a member's claim chose whose collateral survives, a fraudster could file first
+ * against the victim and let their own hold lapse. `accusedId: null` restores 'ALL'.
  */
-export const resolveTradeFraud = withActionLog('admin.resolveTradeFraud', async function resolveTradeFraud(
+export const setDisputeCustodyScope = withActionLog('admin.setDisputeCustodyScope', async function setDisputeCustodyScope(
   tradeId: string,
-  victimId: string,
-): Promise<AdminActionResult<{ id: string; state: string }>> {
+  accusedId: string | null,
+): Promise<AdminActionResult<{ id: string; scope: 'ALL' | 'ACCUSED_ONLY' }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
-  if (!victimId) {
-    return {
-      ok: false,
-      error: 'persistence-error',
-      message: 'Name the trader who was defrauded before resolving.',
-    };
+
+  const admin = createAdminClient();
+  const { data: trade, error: readError } = await admin
+    .from('trades')
+    .select('id, state, initiator_id, counterpart_id')
+    .eq('id', tradeId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: 'persistence-error', message: readError.message };
+  if (!trade) return { ok: false, error: 'not-found' };
+
+  if (trade.state !== 'DISPUTED') {
+    return { ok: false, error: 'persistence-error', message: 'INVALID_OUTCOME: only a disputed trade has a safeguard scope.' };
+  }
+  if (accusedId !== null && accusedId !== trade.initiator_id && accusedId !== trade.counterpart_id) {
+    return { ok: false, error: 'persistence-error', message: 'INVALID_OUTCOME: that member is not a party to this trade.' };
   }
 
-  const result = await buildAdminDisputeOrchestrator().reportObjectiveFraud({
-    tradeId,
-    actorId: gate.ctx.userId,
-    victimId,
-  });
+  const scope = accusedId === null ? 'ALL' : 'ACCUSED_ONLY';
+  const { error } = await admin
+    .from('trades')
+    .update({ custody_scope: scope, custody_accused_id: accusedId })
+    .eq('id', tradeId)
+    .eq('state', 'DISPUTED');
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
 
-  if (!result.ok) {
-    return {
-      ok: false,
-      error:
-        result.error === 'TRADE_NOT_FOUND'
-          ? 'not-found'
-          : 'persistence-error',
-      message:
-        result.error === 'NOT_PARTICIPANT'
-          ? 'That member is not a party to this trade.'
-          : (result.detail ?? 'The fraud resolution could not be completed.'),
-    };
-  }
-
-  const ban = await permanentlyBanConfirmedFraudOffender({
-    offenderId: result.outcome.offendingTraderId,
-    staffId: gate.ctx.userId,
-    tradeId,
-  });
-
-  if (!ban.ok) {
-    // FRAUD_RESOLVED remains committed. The profile ban may already be active even
-    // when the Auth sync fails, so make the required staff follow-up explicit.
-    revalidatePath('/admin');
-    revalidatePath('/admin/arbitration');
-    revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
-    revalidatePath(`/trades/${tradeId}`);
-    return {
-      ok: false,
-      error: 'persistence-error',
-      message: `Objective fraud was resolved, but the permanent ban needs follow-up: ${ban.message}`,
-    };
-  }
-
-  revalidatePath('/admin');
-  revalidatePath('/admin/arbitration');
   revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
-  revalidatePath(`/trades/${tradeId}`);
-
-  // Notify both traders of the fraud resolution.
-  const outcome = result.outcome;
-  const victimUserId = victimId;
-  const offenderId = outcome.offendingTraderId as string;
-
-  await createNotification({
-    userId: victimUserId,
-    type: 'TRADE',
-    title: 'Fraud confirmed — you are being compensated',
-    body: 'NoDitto support confirmed objective fraud. The offender\'s collateral is being released to you.',
-    link: `/trades/${tradeId}`,
-  });
-  await createNotification({
-    userId: offenderId,
-    type: 'TRADE',
-    title: 'Fraud confirmed — your account is permanently suspended',
-    body: 'NoDitto support confirmed objective fraud on your trade. Your collateral has been captured.',
-    link: `/trades/${tradeId}`,
-  });
-
-  return { ok: true, data: { id: tradeId, state: result.outcome.trade.state } };
+  return { ok: true, data: { id: tradeId, scope } };
 });
 
 /**
@@ -755,6 +1104,87 @@ async function regionForCashSale(cashSaleId: string): Promise<string> {
  * not a member's contract, and it is not information an arbitrator needs to decide a
  * case.
  */
+const TERMINAL_TRADE_STATES = new Set(['COMPLETED', 'FRAUD_RESOLVED', 'CANCELLED']);
+
+/**
+ * Read every captured hold in one currency as custody inputs (design §1.8).
+ *
+ * A hold captured by the custody backstop or a resolution (`custody_captured_at` set)
+ * is drawn down by its SETTLED `collateral_disbursements` rows, platform-retained ones
+ * included. A LEGACY partial capture from the pre-fix condition path moved its money
+ * outside that table: its paid return share counts as disbursed, and its platform half
+ * becomes the platform's own once the trade is terminal. Counted naively, every closed
+ * legacy case would show its whole $20 as held forever.
+ *
+ * Not exported: a `'use server'` module may only export async Server Actions.
+ */
+async function loadCapturedCollateral(
+  admin: ReturnType<typeof createAdminClient>,
+  currency: string,
+): Promise<{ ok: true; inputs: HeldCollateralInput[] } | { ok: false; message: string }> {
+  const { data: holds, error } = await admin
+    .from('pre_auth_holds')
+    .select('hold_ref, trade_id, captured_cents, custody_captured_at')
+    .gt('captured_cents', 0);
+  if (error) return { ok: false, message: error.message };
+  const rows = ((holds ?? []) as Array<{
+    hold_ref: string | null;
+    trade_id: string;
+    captured_cents: number;
+    custody_captured_at: string | null;
+  }>).filter((row) => row.hold_ref);
+  if (rows.length === 0) return { ok: true, inputs: [] };
+
+  const tradeIds = [...new Set(rows.map((row) => row.trade_id))];
+  const [{ data: trades, error: tradeError }, { data: disbursed, error: disbursedError }] = await Promise.all([
+    admin
+      .from('trades')
+      .select('id, state, currency, friction_tax_platform_cents, friction_tax_return_cents, friction_tax_return_paid_at')
+      .in('id', tradeIds),
+    admin
+      .from('collateral_disbursements')
+      .select('hold_ref, amount_minor, status')
+      .in('trade_id', tradeIds)
+      .eq('status', 'SETTLED'),
+  ]);
+  if (tradeError) return { ok: false, message: tradeError.message };
+  if (disbursedError) return { ok: false, message: disbursedError.message };
+
+  const tradeOf = new Map(
+    ((trades ?? []) as Array<{
+      id: string;
+      state: string;
+      currency: string | null;
+      friction_tax_platform_cents: number | null;
+      friction_tax_return_cents: number | null;
+      friction_tax_return_paid_at: string | null;
+    }>).map((trade) => [trade.id, trade]),
+  );
+  const settledByHold = new Map<string, number>();
+  for (const row of (disbursed ?? []) as Array<{ hold_ref: string; amount_minor: number }>) {
+    settledByHold.set(row.hold_ref, (settledByHold.get(row.hold_ref) ?? 0) + Number(row.amount_minor ?? 0));
+  }
+
+  const inputs: HeldCollateralInput[] = [];
+  for (const row of rows) {
+    const trade = tradeOf.get(row.trade_id);
+    // Scoped to this region's balance, like the sales above.
+    if (!trade || String(trade.currency ?? 'aud').toLowerCase() !== currency) continue;
+    const settled = settledByHold.get(row.hold_ref as string) ?? 0;
+    const legacy = !row.custody_captured_at;
+    const legacyReturnPaid =
+      legacy && trade.friction_tax_return_paid_at ? Number(trade.friction_tax_return_cents ?? 0) : 0;
+    inputs.push({
+      holdRef: row.hold_ref as string,
+      capturedCents: Number(row.captured_cents ?? 0),
+      settledDisbursedCents: settled + legacyReturnPaid,
+      resolved: TERMINAL_TRADE_STATES.has(trade.state),
+      platformRetainedCents: legacy ? Number(trade.friction_tax_platform_cents ?? 0) : 0,
+    });
+  }
+  return { ok: true, inputs };
+}
+
 export const getCustodyPosition = withActionLog('admin.getCustodyPosition', async function getCustodyPosition(
   region?: string | null,
 ): Promise<AdminActionResult<CustodyReport>> {
@@ -838,8 +1268,35 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
     });
   }
 
+  // Captured trade collateral (design §1.8, ESC-01). Uncaptured authorisations are
+  // still excluded: only `captured_cents > 0` rows are money in this balance.
+  const collateral = await loadCapturedCollateral(admin, settles);
+  if (!collateral.ok) {
+    return { ok: false, error: 'persistence-error', message: collateral.message };
+  }
+
+  // ESC-05/06: trade cash legs the platform collected and has not yet paid out. A
+  // leg counts from COLLECTED until RELEASED or REFUNDED; a pending release or refund
+  // is still held.
+  const { data: legs, error: legError } = await admin
+    .from('trade_cash_settlements')
+    .select('trade_id, amount_minor, status')
+    .eq('currency', settles)
+    .in('status', ['COLLECTED', 'RELEASE_PENDING', 'REFUND_PENDING', 'RELEASED', 'REFUNDED']);
+  if (legError) {
+    return { ok: false, error: 'persistence-error', message: legError.message };
+  }
+  const tradeCash: HeldTradeCashInput[] = (legs ?? []).map((row) => ({
+    tradeId: row.trade_id as string,
+    collectedCents: Number(row.amount_minor ?? 0),
+    settledOutCents:
+      row.status === 'RELEASED' || row.status === 'REFUNDED' ? Number(row.amount_minor ?? 0) : 0,
+  }));
+
   const position = reconcileCustody({
     sales,
+    collateral: collateral.inputs,
+    tradeCash,
     balance: {
       availableCents: balance.availableCents,
       pendingCents: balance.pendingCents,
@@ -898,4 +1355,120 @@ export const drainCashSalePayouts = withActionLog('admin.drainCashSalePayouts', 
 
   revalidatePath('/admin');
   return { ok: true, data: totals };
+});
+
+/**
+ * Approve a pending staff decision and run it (ESC-23).
+ *
+ * The approver must be a different staff member, not a party to the case. On a
+ * one-person team the proposer may approve after `SOLO_COOLING_OFF_HOURS`. The
+ * decision then runs through the same action that proposed it, with the proposal id,
+ * so every guard in that action applies again.
+ */
+export const approveStaffResolution = withActionLog('admin.approveStaffResolution', async function approveStaffResolution(
+  proposalId: string,
+): Promise<AdminActionResult<{ id: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const admin = createAdminClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const table = () => (admin as any).from('staff_resolution_proposals');
+  const { data: proposal, error } = await table()
+    .select('id, action, case_ref, payload, status, proposed_by, proposed_at')
+    .eq('id', proposalId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!proposal) return { ok: false, error: 'not-found' };
+
+  const action = proposal.action as ResolutionAction;
+  const refusal = canApprove({
+    status: proposal.status,
+    proposedBy: proposal.proposed_by,
+    proposedAt: proposal.proposed_at,
+    approverId: gate.ctx.userId,
+    participantIds: await caseParticipants(action, proposal.case_ref),
+    staffCount: await staffCount(),
+    now: new Date(),
+  });
+  if (refusal === 'NOT_PENDING') {
+    return { ok: false, error: 'approval-invalid', message: 'That proposal is no longer waiting for approval.' };
+  }
+  if (refusal) {
+    const messages: Record<typeof refusal, string> = {
+      SAME_STAFFER: 'A different staff member has to approve this.',
+      COOLING_OFF: 'On a one-person team you can approve your own proposal 24 hours after making it.',
+      RECUSED: 'You are a party to this case, so you cannot approve it.',
+    };
+    return { ok: false, error: refusal, message: messages[refusal] };
+  }
+
+  const { data: claimed, error: claimError } = await table()
+    .update({ status: 'APPROVED', decided_by: gate.ctx.userId, decided_at: new Date().toISOString() })
+    .eq('id', proposalId)
+    .eq('status', 'PENDING')
+    .select('id');
+  if (claimError) return { ok: false, error: 'persistence-error', message: claimError.message };
+  if (!claimed || claimed.length === 0) {
+    return { ok: false, error: 'approval-invalid', message: 'Someone else decided this proposal first.' };
+  }
+
+  const payload = (proposal.payload ?? {}) as Record<string, unknown>;
+  const ref = proposal.case_ref as string;
+  let result: AdminActionResult<unknown>;
+  switch (action) {
+    case 'RESOLVE_CASH_SALE_DISPUTE':
+      result = await resolveCashSaleDispute(
+        ref,
+        payload.outcome as CashSaleDisputeOutcome,
+        (payload.refundCents as number | null) ?? undefined,
+        (payload.requireReturn as boolean | null) ?? undefined,
+        proposalId,
+      );
+      break;
+    case 'RESOLVE_CASH_SALE_RETURN':
+      result = await resolveCashSaleReturnCase(ref, payload.outcome as 'REFUND_BUYER' | 'RELEASE_SELLER', proposalId);
+      break;
+    case 'RESOLVE_TRACKING_FLAG':
+      result = await resolveTrackingFlag(ref, payload.decision as TrackingFlagDecision, proposalId);
+      break;
+    case 'REVERSE_CASH_SALE_PAYOUT':
+      result = await reverseCashSalePayout(ref, Number(payload.amountMinor), proposalId);
+      break;
+    case 'RESOLVE_TRADE_DISPUTE':
+      result = await resolveTradeDispute(ref, payload.outcome as TradeDisputeOutcome, proposalId);
+      break;
+    default:
+      return { ok: false, error: 'invalid-input', message: 'Unknown proposal action.' };
+  }
+  revalidatePath('/admin/arbitration');
+  if (!result.ok) return { ok: false, error: result.error, message: result.message };
+  return { ok: true, data: { id: proposalId } };
+});
+
+/** Reject a pending staff decision (ESC-23). Nothing moves. */
+export const rejectStaffResolution = withActionLog('admin.rejectStaffResolution', async function rejectStaffResolution(
+  proposalId: string,
+  note?: string,
+): Promise<AdminActionResult<{ id: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (createAdminClient() as any)
+    .from('staff_resolution_proposals')
+    .update({
+      status: 'REJECTED',
+      decided_by: gate.ctx.userId,
+      decided_at: new Date().toISOString(),
+      note: note?.trim().slice(0, 2000) || null,
+    })
+    .eq('id', proposalId)
+    .eq('status', 'PENDING')
+    .select('id');
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data || data.length === 0) {
+    return { ok: false, error: 'approval-invalid', message: 'That proposal is no longer waiting for approval.' };
+  }
+  revalidatePath('/admin/arbitration');
+  return { ok: true, data: { id: proposalId } };
 });

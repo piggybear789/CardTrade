@@ -27,10 +27,16 @@ const KINDS = new Set(['boundary', 'uncaught', 'rejection']);
 
 const NO_CONTENT = () => new Response(null, { status: 204 });
 
-/** True when the post came from this site, or from something that is not a browser. */
-function isSameOrigin(request: Request): boolean {
+/**
+ * True when the post came from this site (ESC-39).
+ *
+ * A missing Origin is accepted only from a signed-in member: every browser this app
+ * supports sends Origin on a POST, so an anonymous request without one is a script,
+ * and scripts are what flood an unauthenticated write.
+ */
+function isSameOrigin(request: Request, signedIn: boolean): boolean {
   const origin = request.headers.get('origin');
-  if (!origin) return true;
+  if (!origin) return signedIn;
   try {
     return new URL(origin).host === new URL(request.url).host;
   } catch {
@@ -40,7 +46,14 @@ function isSameOrigin(request: Request): boolean {
 
 export async function POST(request: Request): Promise<Response> {
   if (!isErrorLoggingEnabled()) return NO_CONTENT();
-  if (!isSameOrigin(request)) return new Response(null, { status: 403 });
+
+  let profileId: string | null = null;
+  try {
+    profileId = (await getCachedAuthUser())?.id ?? null;
+  } catch {
+    // A guest, or a broken session: still worth recording.
+  }
+  if (!isSameOrigin(request, profileId !== null)) return new Response(null, { status: 403 });
 
   let body: Record<string, unknown>;
   try {
@@ -59,13 +72,6 @@ export async function POST(request: Request): Promise<Response> {
   const reference = normalizeReference(body.reference);
   if (!reference || !message) return NO_CONTENT();
   if (isIgnorableClientError({ message, stack, filename })) return NO_CONTENT();
-
-  let profileId: string | null = null;
-  try {
-    profileId = (await getCachedAuthUser())?.id ?? null;
-  } catch {
-    // A guest, or a broken session: still worth recording.
-  }
 
   const { allowed } = await errorLogLimiter.check(await rateLimitIdentifier(profileId));
   if (!allowed) return NO_CONTENT();

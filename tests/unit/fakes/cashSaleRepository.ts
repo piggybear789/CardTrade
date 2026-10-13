@@ -69,6 +69,9 @@ export const APPROVED_SELLER: MerchantRecord = {
   // disclosed and to sell at all, and the `merchant_*` fields above to be paid.
   identityCheckStatus: 'VERIFIED',
   identityCheckVerifiedAt: IDENTITY.verifiedAt,
+  // The document-backed name (ESC-25): since the Connect fallback is limited to
+  // grandfathered members, a fully verified seller carries its Identity name.
+  identityCheckName: IDENTITY.legalEntityName,
 };
 
 /**
@@ -513,7 +516,7 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
-    async claimPayment({ termsVersion, nonce, requestedAt }) {
+    async claimPayment({ termsVersion, nonce, requestedAt, attempt }) {
       const sale = state.sale;
       if (
         !sale ||
@@ -528,8 +531,44 @@ export function makeCashSaleRepository(options: {
         status: 'PAYMENT_PENDING',
         paymentNonce: nonce,
         paymentRequestedAt: requestedAt,
+        ...(attempt !== undefined ? { paymentAttempt: attempt } : {}),
       };
       return state.sale;
+    },
+    // ESC-14: once-only fraud-warning stamp, and the pre-shipment refund.
+    async stampFraudWarning({ at }) {
+      const sale = state.sale as (CashSaleRecord & { fraudWarningAt?: string }) | null;
+      if (!sale || sale.fraudWarningAt) return null;
+      state.sale = { ...sale, fraudWarningAt: at } as CashSaleRecord;
+      return state.sale;
+    },
+    async markRefundedBeforeShipment({ fromStatus, refundCents, refundNonce }) {
+      const sale = state.sale;
+      if (!sale || sale.status !== fromStatus || sale.shippedAt) return null;
+      state.sale = { ...sale, status: 'REFUNDED', refundCents, refundStatus: 'SETTLED', refundNonce };
+      return state.sale;
+    },
+    // ESC-03: back to AGREEMENT after an abandoned challenge; the attempt counter stays.
+    async abandonPayment() {
+      const sale = state.sale;
+      if (!sale || sale.status !== 'PAYMENT_PENDING') return null;
+      state.sale = {
+        ...sale,
+        status: 'AGREEMENT',
+        paymentNonce: null,
+        paymentRequestedAt: null,
+        transferId: null,
+      };
+      return state.sale;
+    },
+    async listStalePaymentPending({ before }) {
+      const sale = state.sale;
+      return sale &&
+        sale.status === 'PAYMENT_PENDING' &&
+        sale.paymentRequestedAt !== null &&
+        sale.paymentRequestedAt < before
+        ? [sale]
+        : [];
     },
     async recordPaymentSubmission({ transferId }) {
       const sale = state.sale;
@@ -573,6 +612,22 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
+    async flagTracking({ reason, at }) {
+      const sale = state.sale;
+      if (!sale || sale.status !== 'IN_TRANSIT' || sale.trackingFlaggedAt) return null;
+      state.sale = { ...sale, trackingFlaggedAt: at, trackingFlagReason: reason };
+      return state.sale;
+    },
+    async resolveTrackingFlag({ decision, at, inspectionDeadlineAt }) {
+      const sale = state.sale;
+      if (!sale || sale.status !== 'IN_TRANSIT' || !sale.trackingFlaggedAt || sale.trackingFlagResolvedAt) return null;
+      state.sale = {
+        ...sale,
+        trackingFlagResolvedAt: at,
+        ...(decision === 'START_CLOCK' ? { status: 'INSPECTION' as const, inspectionDeadlineAt } : {}),
+      };
+      return state.sale;
+    },
     async recordReceipt({ receivedAt }) {
       const sale = state.sale;
       if (!sale || sale.status !== 'IN_TRANSIT') return null;
@@ -586,10 +641,25 @@ export function makeCashSaleRepository(options: {
         state.sale = { ...sale, trackingStatus: status };
         return state.sale;
       }
+      // Mirrors 0134 (ESC-02): a flagged, unresolved sale never advances; a delivery
+      // dated before the shipment is flagged; the clock runs from NOW.
+      if (sale.trackingFlaggedAt && !sale.trackingFlagResolvedAt) {
+        state.sale = { ...sale, trackingStatus: 'DELIVERED' };
+        return state.sale;
+      }
       const delivered = deliveredAt ?? new Date().toISOString();
-      const deadline = new Date(
-        new Date(delivered).getTime() + INSPECTION_WINDOW_DAYS * 86_400_000,
-      ).toISOString();
+      const floor = sale.shippedAt ?? sale.paymentSettledAt;
+      if (sale.status === 'IN_TRANSIT' && floor && Date.parse(delivered) < Date.parse(floor)) {
+        state.sale = {
+          ...sale,
+          trackingStatus: 'DELIVERED',
+          carrierDeliveredAt: delivered,
+          trackingFlaggedAt: new Date().toISOString(),
+          trackingFlagReason: 'DELIVERED_BEFORE_SHIPMENT',
+        };
+        return state.sale;
+      }
+      const deadline = new Date(Date.now() + INSPECTION_WINDOW_DAYS * 86_400_000).toISOString();
       state.sale = {
         ...sale,
         trackingStatus: 'DELIVERED',
@@ -636,8 +706,12 @@ export function makeCashSaleRepository(options: {
           actor === 'BUYER' ? confirmedAt : sale.buyerHandoverConfirmedAt,
         sellerHandoverConfirmedAt:
           actor === 'SELLER' ? confirmedAt : sale.sellerHandoverConfirmedAt,
-        status: completes ? 'COMPLETED' : 'HANDOVER',
-        completedAt: completes ? confirmedAt : sale.completedAt,
+        // ESC-20: the second confirmation opens a 24h buyer inspection.
+        status: completes ? 'INSPECTION' : 'HANDOVER',
+        receivedAt: completes ? confirmedAt : sale.receivedAt,
+        inspectionDeadlineAt: completes
+          ? new Date(Date.parse(confirmedAt) + 24 * 3_600_000).toISOString()
+          : sale.inspectionDeadlineAt,
       };
       return state.sale;
     },
@@ -713,7 +787,7 @@ export function makeCashSaleRepository(options: {
 /** Payment service double recording transfer calls and their nonces. */
 export function makePayments(
   options: {
-    transferStatus?: 'SETTLED' | 'FAILED';
+    transferStatus?: 'SETTLED' | 'FAILED' | 'PENDING';
     payoutStatus?: 'SETTLED' | 'FAILED';
     refundStatus?: 'SETTLED' | 'FAILED';
   } = {},

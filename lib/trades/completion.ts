@@ -24,6 +24,8 @@ import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
 import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { Tables } from '@/lib/supabase/database.types';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { queueTradeCashRelease } from '@/domain/orchestrator/tradeCashSettlement';
+import { createDefaultTradeCashDeps } from '@/domain/orchestrator/supabaseTradeCashSettlementRepository';
 
 /** The full persisted Trade row shape. */
 export type TradeRow = Tables<'trades'>;
@@ -163,6 +165,9 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
       // Reused verbatim on retry, never regenerated, so a repeat cannot double-pay.
       nonce: `trade-cash:${trade.id}`,
       merchantRef,
+      // ESC-29: the only off-session charge to a member the bindings still allow,
+      // and only for trades agreed before `trade_cash_settlements` (ESC-05/06).
+      legacyOffSessionToMember: true,
     });
     if (transfer.status !== 'SETTLED') {
       await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);
@@ -215,13 +220,49 @@ export async function finalizeCompletedTrade(
   trade: TradeRow,
 ): Promise<FinalizeCompletedTradeResult> {
   const holds = await voidTradeHolds(trade.id);
-  let cash: SettleTradeCashResult | null = null;
-  if ((trade.cash_amount_cents ?? 0) > 0) {
-    cash = await settleTradeCash(trade);
+  if ((trade.cash_amount_cents ?? 0) <= 0) {
+    return { holdsReleased: holds.released, holdsFailed: holds.failed, cashSettled: null };
   }
-  return {
-    holdsReleased: holds.released,
-    holdsFailed: holds.failed,
-    cashSettled: cash === null ? null : cash.ok,
-  };
+
+  // ESC-06: the platform already holds the cash (collected buyer-present before the
+  // trade locked). Completion only QUEUES its release; the `:47` drain pays the
+  // receiver through the release policy, and the leg is RELEASED only once the
+  // transfer settles. Nothing is charged here, and PAYOUT_MODE plays no part.
+  const admin = createAdminClient();
+  const { data: row, error } = await admin
+    .from('trade_cash_settlements')
+    .select('status')
+    .eq('trade_id', trade.id)
+    .maybeSingle();
+  if (error) {
+    await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);
+    await logBackgroundFailure({
+      name: 'trade_cash.release',
+      errorCode: 'READ_FAILED',
+      message: error.message,
+      context: { tradeId: trade.id },
+    });
+    return { holdsReleased: holds.released, holdsFailed: holds.failed, cashSettled: false };
+  }
+  if (row) {
+    const queued = await queueTradeCashRelease(
+      createDefaultTradeCashDeps(getPaymentService(regionForCurrency(trade.currency))),
+      { tradeId: trade.id },
+    );
+    if (!queued && (row as { status: string }).status !== 'RELEASE_PENDING' && (row as { status: string }).status !== 'RELEASED') {
+      // A trade cannot lock with its cash uncollected, so this is an anomaly.
+      await admin.from('trades').update({ manual_reconciliation: true }).eq('id', trade.id);
+      await logBackgroundFailure({
+        name: 'trade_cash.release',
+        errorCode: 'TRADE_CASH_NOT_COLLECTED',
+        message: `Completed trade's cash leg is ${(row as { status: string }).status}, not COLLECTED.`,
+        context: { tradeId: trade.id },
+      });
+    }
+    return { holdsReleased: holds.released, holdsFailed: holds.failed, cashSettled: queued };
+  }
+
+  // A trade agreed before the switch has no row: the legacy leg, kept only for those.
+  const cash = await settleTradeCash(trade);
+  return { holdsReleased: holds.released, holdsFailed: holds.failed, cashSettled: cash.ok };
 }

@@ -8,6 +8,7 @@
 // drift from this one silently, leaving two tests that believe they are testing the same
 // state.
 
+import { settlementFor } from './settle';
 import {
   acceptCashSaleTerms,
   disputeCashSale,
@@ -80,7 +81,7 @@ export async function paidCashSale(
     actorId: BUYER.profileId,
     termsVersion: sale.termsVersion,
   });
-  await settleCashSale(deps, { cashSaleId: saleId });
+  await settleCashSale(deps, await settlementFor(deps, saleId));
 
   const paid = await deps.repository.loadCashSale(saleId);
   if (!paid) throw new Error('setup: sale vanished after payment');

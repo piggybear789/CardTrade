@@ -79,6 +79,17 @@ export function createPayoutNotifier(): PayoutNotifier {
       });
     },
 
+    // ESC-03: an unfinished 3-D Secure payment was cancelled by the sweep.
+    async paymentAbandoned({ buyerId, cashSaleId, itemTitle }) {
+      await createNotification({
+        userId: buyerId,
+        type: 'SALE',
+        title: 'Payment not completed',
+        body: `Your payment for ${itemTitle} wasn't completed, so nothing was charged. You can pay again from the sale.`,
+        link: `/sales/${cashSaleId}`,
+      });
+    },
+
     async disputeResolved({
       buyerId,
       sellerId,

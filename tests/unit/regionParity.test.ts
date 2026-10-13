@@ -19,6 +19,7 @@
 // actually being threaded rather than defaulted. JPY additionally catches the
 // factor-of-100 error, since the yen has no minor unit.
 
+import { settlementFor } from './helpers/settle';
 import { describe, expect, it } from 'vitest';
 
 import { effectiveFeeBps } from '@/domain/fees/betaFeeWaiver';
@@ -151,7 +152,7 @@ async function runLifecycle(currency: string) {
   // assuming, because which one happens is a property of the binding, not the region.
   const cleared =
     paid.sale.status === 'PAYMENT_PENDING'
-      ? await settleCashSale(deps, { cashSaleId: saleId })
+      ? await settleCashSale(deps, await settlementFor(deps, saleId))
       : paid;
   if (!cleared.ok) throw new Error(`settlement failed: ${cleared.error}`);
 

@@ -66,6 +66,9 @@ export function parseRef(ref: string): Pick<CardTradeMetadata, 'tradeId' | 'cash
   switch (prefix) {
     case 'hold':
       return { tradeId: first };
+    // ESC-05: a trade's cash leg, collected buyer-present before the holds.
+    case 'trade-cash':
+      return { tradeId: first };
     // Every Cash_Sale operation resolves to its sale. These are distinct prefixes
     // rather than one because they appear on different provider objects and read
     // differently in the Dashboard — but they must all route home, and

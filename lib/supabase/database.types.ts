@@ -166,6 +166,17 @@ export type Database = {
           /** ESC-03 / ESC-14 (0138). Service-role only; no member grant. */
           exposure_limit_override_minor: number | null;
           buyer_risk_flagged_at: string | null;
+          /** ESC-15 / ESC-24 / ESC-25 review columns (0140). Service role only. */
+          identity_duplicate_of: string | null;
+          identity_duplicate_approved_by: string | null;
+          identity_duplicate_approved_at: string | null;
+          payee_identity_mismatch_at: string | null;
+          payee_mismatch_cleared_by: string | null;
+          payee_mismatch_cleared_at: string | null;
+          payee_mismatch_cleared_pair: string | null;
+          payee_name_unavailable_logged_at: string | null;
+          identity_keys_missing_at: string | null;
+          identity_grandfathered_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -222,6 +233,16 @@ export type Database = {
           unfounded_dispute_count?: number;
           exposure_limit_override_minor?: number | null;
           buyer_risk_flagged_at?: string | null;
+          identity_duplicate_of?: string | null;
+          identity_duplicate_approved_by?: string | null;
+          identity_duplicate_approved_at?: string | null;
+          payee_identity_mismatch_at?: string | null;
+          payee_mismatch_cleared_by?: string | null;
+          payee_mismatch_cleared_at?: string | null;
+          payee_mismatch_cleared_pair?: string | null;
+          payee_name_unavailable_logged_at?: string | null;
+          identity_keys_missing_at?: string | null;
+          identity_grandfathered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -278,6 +299,16 @@ export type Database = {
           unfounded_dispute_count?: number;
           exposure_limit_override_minor?: number | null;
           buyer_risk_flagged_at?: string | null;
+          identity_duplicate_of?: string | null;
+          identity_duplicate_approved_by?: string | null;
+          identity_duplicate_approved_at?: string | null;
+          payee_identity_mismatch_at?: string | null;
+          payee_mismatch_cleared_by?: string | null;
+          payee_mismatch_cleared_at?: string | null;
+          payee_mismatch_cleared_pair?: string | null;
+          payee_name_unavailable_logged_at?: string | null;
+          identity_keys_missing_at?: string | null;
+          identity_grandfathered_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -1847,6 +1878,45 @@ export type Database = {
        * collateral hold, held by the platform, released or refunded by the outcome.
        * Service-role writes; participants and staff may read.
        */
+      /** ESC-03 layer 3 (0140): HMAC'd card / payout-account fingerprints. Service role only. */
+      member_risk_signals: {
+        Row: {
+          id: string;
+          profile_id: string;
+          kind: 'CARD_FINGERPRINT' | 'PAYOUT_ACCOUNT_FINGERPRINT';
+          value_hash: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          kind: 'CARD_FINGERPRINT' | 'PAYOUT_ACCOUNT_FINGERPRINT';
+          value_hash: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          kind?: 'CARD_FINGERPRINT' | 'PAYOUT_ACCOUNT_FINGERPRINT';
+          value_hash?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      /** ESC-14 (0140): cards blocked after a lost fraud chargeback. Service role only. */
+      blocked_payment_fingerprints: {
+        Row: { value_hash: string; reason: string; source_dispute_ref: string | null; created_at: string };
+        Insert: { value_hash: string; reason: string; source_dispute_ref?: string | null; created_at?: string };
+        Update: { value_hash?: string; reason?: string; source_dispute_ref?: string | null; created_at?: string };
+        Relationships: [];
+      };
+      /** ESC-03 layer 4 (0140). Written only through `consume_rate_limit`. */
+      rate_limit_hits: {
+        Row: { key: string; window_start: string; count: number };
+        Insert: { key: string; window_start: string; count?: number };
+        Update: { key?: string; window_start?: string; count?: number };
+        Relationships: [];
+      };
       trade_cash_settlements: {
         Row: {
           trade_id: string;
@@ -3024,6 +3094,11 @@ export type Database = {
       };
     };
     Functions: {
+      /** ESC-03 layer 4 (0140). Service role only; true while within the limit. */
+      consume_rate_limit: {
+        Args: { p_key: string; p_limit: number; p_window_seconds: number };
+        Returns: boolean;
+      };
       create_cash_sale_agreement: {
         Args: {
           p_item_id: string;

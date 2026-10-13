@@ -43,6 +43,7 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   'refund-failed': 'The refund was rejected by the provider.',
   'invalid-refund-amount': 'That refund amount is not valid for this contract.',
   'nothing-to-refund': 'Nothing was collected on this contract, so there is nothing to refund.',
+  'rate-limited': 'Too many attempts. Try again in a little while.',
   'payout-held': 'The seller is paid after a short safety hold. Nothing is wrong with this contract.',
   'seller-exposure-limit':
     'This seller has reached their limit for new sellers. Try again after their current sales complete.',

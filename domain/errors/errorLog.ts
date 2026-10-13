@@ -239,6 +239,8 @@ const UNEXPECTED_CODES = new Set([
   // ESC-15 / ESC-25: a provider stopped returning what a check depends on. Would read
   // as refusals by the `-unavailable` pattern; they are gaps in a safety control.
   'person-keys-unavailable',
+  // ESC-03 layer 4: the cross-instance limiter could not count (it fails open).
+  'rate-limit-unavailable',
   'payee-name-unavailable',
 ]);
 

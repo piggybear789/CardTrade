@@ -5,6 +5,7 @@
 // the orchestrator directly; no client-callable settle/fail simulation exists.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { consumeDbRateLimit } from '@/lib/rateLimitDb';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -57,7 +58,9 @@ export type CashSaleActionError =
   /** ESC-03: the seller payout is deferred by the holdback; it is released later. */
   | 'payout-held'
   /** ESC-03: a new seller is at their open-sales limit; the buyer can try later. */
-  | 'seller-exposure-limit';
+  | 'seller-exposure-limit'
+  /** ESC-03 layer 4: too many attempts this hour. */
+  | 'rate-limited';
 
 export type CashSaleActionResult =
   | {
@@ -221,6 +224,10 @@ export const initiateCashSale = withActionLog('cashSale.initiateCashSale', async
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('initiateCashSale', userId))) {
+    return { ok: false, error: 'rate-limited', message: 'Too many attempts. Try again in a little while.' };
+  }
   if (!input?.itemId || !input.sellerIdentityVersion || !input.buyerConfirmedSellerIdentity) {
     return {
       ok: false,
@@ -433,6 +440,10 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('acceptCashSaleTerms', userId))) {
+    return { ok: false, error: 'rate-limited', message: 'Too many attempts. Try again in a little while.' };
+  }
   const result = actionResult(
     await orchestrator().acceptTerms({
       actorId: userId,

@@ -19,6 +19,7 @@
 // resolves provider configuration.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { consumeDbRateLimit } from '@/lib/rateLimitDb';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -31,7 +32,9 @@ export type CardSetupError =
   | 'PROFILE_NOT_FOUND'
   | 'NOT_SUPPORTED' // the active provider has no hosted capture flow
   | 'PAYER_UNAVAILABLE'
-  | 'PROVIDER_ERROR';
+  | 'PROVIDER_ERROR'
+  /** ESC-03 layer 4: too many card setups this hour. */
+  | 'rate-limited';
 
 /** What the browser needs to mount the provider's own card fields. */
 export interface CardSetupSession {
@@ -54,6 +57,10 @@ export const beginCardSetup = withActionLog('payments.beginCardSetup', async fun
   if (!authed.ok) return authed;
 
   const { payments, payerId } = authed.data;
+  // ESC-03 layer 4: a cross-instance brake on bursts. Fails open.
+  if (!(await consumeDbRateLimit('beginCardSetup', authed.data.userId))) {
+    return fail('rate-limited', 'Too many attempts. Try again in a little while.');
+  }
   if (!payments.beginInstrumentSetup) {
     return fail('NOT_SUPPORTED', 'The active payment provider cannot store payment methods.');
   }

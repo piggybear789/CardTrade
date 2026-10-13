@@ -106,9 +106,25 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
             {money(heldForMembersCents)}
           </dd>
           <p className="mt-0.5 text-body text-muted-foreground">
-            Across {saleCount} {saleCount === 1 ? 'sale' : 'sales'} where money has been
-            collected and not yet paid out or refunded.
+            Money collected and not yet paid out or refunded.
           </p>
+          {/* Three sources since disputes stopped capturing at raise (ESC-01): a
+              captured hold is member money until staff pay or refund it. Open
+              temporary card holds are never counted: they are not in this balance. */}
+          <ul className="mt-tight space-y-0.5 text-body text-muted-foreground" aria-label="Owed to members by source">
+            <li>
+              Cash sales: {money(position.heldForSalesCents ?? heldForMembersCents)} across {saleCount}{' '}
+              {saleCount === 1 ? 'sale' : 'sales'}
+            </li>
+            <li>
+              Captured trade collateral: {money(position.heldForCollateralCents ?? 0)} across{' '}
+              {position.collateralCount ?? 0} {(position.collateralCount ?? 0) === 1 ? 'hold' : 'holds'}
+            </li>
+            <li>
+              Trade cash: {money(position.heldForTradeCashCents ?? 0)} across {position.tradeCashCount ?? 0}{' '}
+              {(position.tradeCashCount ?? 0) === 1 ? 'trade' : 'trades'}
+            </li>
+          </ul>
         </div>
         <div>
           <dt className="text-meta uppercase tracking-wide text-muted-foreground">

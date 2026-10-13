@@ -35,6 +35,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { deliveredEventAt } from '@/domain/services/tracking/ship24Tracking';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,9 +126,11 @@ export async function POST(request: Request): Promise<Response> {
       continue;
     }
 
-    const deliveredAt = tracking.events?.[0]?.occurrenceDatetime
-      ? new Date(tracking.events[0].occurrenceDatetime).toISOString()
-      : new Date().toISOString();
+    // The DELIVERED milestone's own time, in whatever order Ship24 lists events
+    // (ESC-02/ESC-12). Evidence only: since 0134 the inspection clock runs from
+    // now, and a delivery dated before the shipment flags the sale for staff.
+    const deliveredIso = deliveredEventAt(tracking.events) ?? tracking.events?.[0]?.occurrenceDatetime ?? null;
+    const deliveredAt = deliveredIso ? new Date(deliveredIso).toISOString() : new Date().toISOString();
 
     // WHICH LEG IS THIS? A return-conditional refund (0088) gives a sale a SECOND
     // shipment, and the two are matched on different columns and applied by different

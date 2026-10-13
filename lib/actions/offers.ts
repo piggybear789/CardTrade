@@ -32,6 +32,7 @@ import { OFFER_AMOUNT_MIN, OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants'
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import type { Tables, Enums } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
+import { offerTransition } from '@/domain/offers/offerTransitions';
 
 /** A persisted offer row. */
 export type OfferRow = Tables<'offers'>;
@@ -156,9 +157,10 @@ export const makeOffer = withActionLog('offers.makeOffer', async function makeOf
   const buyerSellerIdentityConfirmedAt = new Date().toISOString();
 
   // Keep one active offer per buyer per item: withdraw any prior PENDING offer
-  // this buyer already has open on this item. Best-effort; RLS scopes the update
-  // to the caller's own offers.
-  await supabase
+  // this buyer already has open on this item. Status writes go through the service
+  // role since ESC-22 (members no longer hold UPDATE on offers); the filter scopes it
+  // to the caller's own PENDING offers, and PENDING -> WITHDRAWN is always allowed.
+  await createAdminClient()
     .from('offers')
     .update({ status: 'WITHDRAWN' })
     .eq('item_id', itemId)
@@ -267,8 +269,14 @@ export const counterOffer = withActionLog('offers.counterOffer', async function 
     return { ok: false, error: 'cannot-counter-own-offer' };
   }
 
-  // Mark the original as COUNTERED. RLS permits either party to update.
-  const { error: updateError } = await supabase
+  // Mark the original as COUNTERED, through the one status rule and the service role
+  // (ESC-22: members no longer hold UPDATE on offers). The participant and
+  // not-own-offer checks above are the authority.
+  if (!offerTransition(offer.status as OfferStatus, 'COUNTERED').ok) {
+    return { ok: false, error: 'invalid-status' };
+  }
+  const admin = createAdminClient();
+  const { error: updateError } = await admin
     .from('offers')
     .update({ status: 'COUNTERED' })
     .eq('id', offerId)
@@ -300,8 +308,10 @@ export const counterOffer = withActionLog('offers.counterOffer', async function 
     .single();
 
   if (error || !inserted) {
-    // Rollback original offer to PENDING if counter insertion failed
-    await supabase
+    // Compensate OUR OWN write above: the counter never landed, so the original goes
+    // back to PENDING. Deliberately outside `offerTransition`, which governs member
+    // intent; nothing returns to PENDING except this undo, and only via service role.
+    await admin
       .from('offers')
       .update({ status: 'PENDING' })
       .eq('id', offerId)
@@ -398,9 +408,14 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
   const otherParty = offer.buyer_id === me ? offer.seller_id : offer.buyer_id;
 
   // ---- withdraw: only the offering party ----
+  // ESC-22: every status change below is one rule and a service-role write; the
+  // participant / offering-party checks here are the authority.
+  const admin = createAdminClient();
+
   if (action === 'withdraw') {
     if (!madeByMe) return { ok: false, error: 'not-permitted' };
-    const { data: updated, error } = await supabase
+    if (!offerTransition('PENDING', 'WITHDRAWN').ok) return { ok: false, error: 'invalid-status' };
+    const { data: updated, error } = await admin
       .from('offers')
       .update({ status: 'WITHDRAWN' })
       .eq('id', offerId)
@@ -417,7 +432,8 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
   if (madeByMe) return { ok: false, error: 'not-permitted' };
 
   if (action === 'decline') {
-    const { data: updated, error } = await supabase
+    if (!offerTransition('PENDING', 'DECLINED').ok) return { ok: false, error: 'invalid-status' };
+    const { data: updated, error } = await admin
       .from('offers')
       .update({ status: 'DECLINED' })
       .eq('id', offerId)
@@ -436,7 +452,18 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
   // have to accept fulfillment terms in the contract room (Req 4.21). Opening it
   // before the status change means a failure (e.g. the item was just reserved
   // elsewhere) leaves the offer PENDING rather than stranding an ACCEPTED offer.
+  // ESC-22: the offer's seller must still be the listing's owner. A forged offer
+  // naming a stranger as `seller_id` could otherwise be "accepted" by that stranger
+  // into a contract over someone else's item. 0137's insert trigger prevents new ones;
+  // this refuses any row written before it.
+  const { data: ownerRow } = await admin.from('items').select('owner_id').eq('id', offer.item_id).maybeSingle();
+  if (!ownerRow || ownerRow.owner_id !== offer.seller_id) {
+    return { ok: false, error: 'not-permitted' };
+  }
+  if (!offerTransition('PENDING', 'ACCEPTED').ok) return { ok: false, error: 'invalid-status' };
+
   const cashSales = createDefaultCashSaleOrchestrator({ payments: getPaymentService() });
+  // The only caller that passes a price: the offer's own amount, read from the row.
   const saleResult = await cashSales.initiateCashSale({
     buyerId: offer.buyer_id,
     itemId: offer.item_id,
@@ -449,7 +476,7 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
   }
   const saleId = saleResult.sale.id;
 
-  const { data: updated, error } = await supabase
+  const { data: updated, error } = await admin
     .from('offers')
     .update({ status: 'ACCEPTED' })
     .eq('id', offerId)

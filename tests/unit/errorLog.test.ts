@@ -220,3 +220,19 @@ describe('buildErrorLogRecord', () => {
     expect(record.message).toBeNull();
   });
 });
+
+describe('escrow hardening codes (design §9)', () => {
+  it.each(['TRACKING_PREDATES_PAYMENT', 'terms-incomplete', 'handover-locked', 'proposal-open', 'INVALID_OUTCOME', 'stale-terms'])(
+    '%s is an expected refusal',
+    (code) => {
+      expect(isExpectedFailureCode(code)).toBe(true);
+    },
+  );
+
+  it.each(['HOLD_NOT_FOUND', 'CAPTURE_FAILED', 'DISPUTE_HISTORY_UNAVAILABLE', 'CUSTODY_CAPTURE_FAILED', 'TRANSITION_AUDIT_FAILED'])(
+    '%s stays unexpected, even where a pattern would call it a refusal',
+    (code) => {
+      expect(isExpectedFailureCode(code)).toBe(false);
+    },
+  );
+});

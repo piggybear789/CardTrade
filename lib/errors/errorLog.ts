@@ -15,6 +15,7 @@ import 'server-only';
 // or loops. A failed write goes to the console and is dropped.
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { isProductionEnv } from '@/domain/env/isProduction';
 import {
   buildErrorLogRecord,
   normalizeReference,
@@ -37,8 +38,8 @@ export function isErrorLoggingEnabled(): boolean {
   const override = process.env.ERROR_LOGGING?.trim().toLowerCase();
   if (override === 'on') return true;
   if (override === 'off') return false;
-  if (process.env.VERCEL_ENV) return process.env.VERCEL_ENV === 'production';
-  return process.env.NODE_ENV === 'production';
+  // The one production predicate, shared with payment-provider resolution (ESC-16).
+  return isProductionEnv(process.env);
 }
 
 /**

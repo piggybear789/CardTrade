@@ -19,10 +19,13 @@
 // reconciliation computed purely from our own tables is circular and would agree with
 // itself while the account was empty.
 //
-// WHAT COUNTS AS HELD FOR MEMBERS. Only money actually COLLECTED. Trade and deal
-// collateral are uncaptured card authorisations — that money never enters the platform
-// balance, so counting it would invent a shortfall on every open trade. This is the one
-// place the difference between "we have a claim on it" and "we have it" is load-bearing.
+// WHAT COUNTS AS HELD FOR MEMBERS. Only money actually COLLECTED. CAPTURED collateral
+// is counted, UNCAPTURED is not: an open trade-collateral hold is a card authorisation
+// that never enters the platform balance, so counting it would invent a shortfall on
+// every open trade. Once the custody backstop or a staff decision captures a hold
+// (ESC-01), that money IS in the balance and owed to members until disbursed, so it
+// counts. A collected trade cash leg (WP2) counts the same way. This is the one place
+// the difference between "we have a claim on it" and "we have it" is load-bearing.
 //
 // Pure module: no I/O, no Supabase, no provider types. Integer AUD cents throughout.
 
@@ -129,6 +132,53 @@ export interface ProviderBalanceInput {
  */
 export type CustodyState = 'SOLVENT' | 'SHORTFALL' | 'UNKNOWN';
 
+/**
+ * One CAPTURED collateral hold (design §1.8, ESC-01).
+ *
+ * Since disputes stopped capturing at raise, collateral is captured only by the custody
+ * backstop or a staff resolution, and from that moment it is member money sitting in
+ * the platform balance until `collateral_disbursements` refund or pay it. Uncaptured
+ * authorisations are still never counted.
+ */
+export interface HeldCollateralInput {
+  holdRef: string;
+  /** What the provider captured on this hold. */
+  capturedCents: Cents;
+  /** Refunds, payouts and platform-retained rows that SETTLED out of it. */
+  settledDisbursedCents: Cents;
+  /** The trade is terminal: nothing more can be owed out of this hold. */
+  resolved: boolean;
+  /**
+   * The share that becomes the platform's own once resolved and is NOT already in
+   * `settledDisbursedCents` (a legacy partial capture's platform half, which moved
+   * outside `collateral_disbursements`).
+   */
+  platformRetainedCents: Cents;
+}
+
+/** One trade's cash leg collected into the platform balance (WP2; empty before then). */
+export interface HeldTradeCashInput {
+  tradeId: string;
+  collectedCents: Cents;
+  /** Released to the receiver or refunded to the payer, SETTLED. */
+  settledOutCents: Cents;
+}
+
+/** What the platform still holds for members out of one captured hold. */
+export function heldForCollateral(c: HeldCollateralInput): Cents {
+  const captured = Math.max(Math.trunc(c.capturedCents), 0);
+  const out = Math.max(Math.trunc(c.settledDisbursedCents), 0);
+  const retained = c.resolved ? Math.max(Math.trunc(c.platformRetainedCents), 0) : 0;
+  return Math.max(captured - out - retained, 0);
+}
+
+/** What the platform still holds for members out of one trade's cash leg. */
+export function heldForTradeCash(t: HeldTradeCashInput): Cents {
+  const collected = Math.max(Math.trunc(t.collectedCents), 0);
+  const out = Math.max(Math.trunc(t.settledOutCents), 0);
+  return Math.max(collected - out, 0);
+}
+
 /** The full position, as an operator needs to see it. */
 export interface CustodyPosition {
   state: CustodyState;
@@ -142,6 +192,14 @@ export interface CustodyPosition {
   surplusCents: Cents;
   /** How many sales contribute to `heldForMembersCents`. */
   saleCount: number;
+  /** Cash-sale money held (the original single line). */
+  heldForSalesCents?: Cents;
+  /** Captured trade collateral held for members, and how many holds. */
+  heldForCollateralCents?: Cents;
+  collateralCount?: number;
+  /** Trade cash legs held, and how many trades. */
+  heldForTradeCashCents?: Cents;
+  tradeCashCount?: number;
 }
 
 /**
@@ -172,11 +230,28 @@ export function heldForSale(sale: HeldSaleInput): Cents {
  */
 export function reconcileCustody(params: {
   sales: readonly HeldSaleInput[];
+  /** Captured collateral (ESC-01). Omitted means none. */
+  collateral?: readonly HeldCollateralInput[];
+  /** Collected trade cash legs (WP2). Omitted means none. */
+  tradeCash?: readonly HeldTradeCashInput[];
   balance: ProviderBalanceInput;
 }): CustodyPosition {
-  const contributions = params.sales.map(heldForSale);
-  const heldForMembersCents = contributions.reduce((total, cents) => total + cents, 0);
-  const saleCount = contributions.filter((cents) => cents > 0).length;
+  const sum = (values: Cents[]) => values.reduce((total, cents) => total + cents, 0);
+  const saleParts = params.sales.map(heldForSale);
+  const collateralParts = (params.collateral ?? []).map(heldForCollateral);
+  const cashParts = (params.tradeCash ?? []).map(heldForTradeCash);
+  const heldForSalesCents = sum(saleParts);
+  const heldForCollateralCents = sum(collateralParts);
+  const heldForTradeCashCents = sum(cashParts);
+  const heldForMembersCents = heldForSalesCents + heldForCollateralCents + heldForTradeCashCents;
+  const breakdown = {
+    saleCount: saleParts.filter((cents) => cents > 0).length,
+    heldForSalesCents,
+    heldForCollateralCents,
+    collateralCount: collateralParts.filter((cents) => cents > 0).length,
+    heldForTradeCashCents,
+    tradeCashCount: cashParts.filter((cents) => cents > 0).length,
+  };
 
   if (!params.balance.readable) {
     return {
@@ -185,7 +260,7 @@ export function reconcileCustody(params: {
       providerBalanceCents: 0,
       shortfallCents: 0,
       surplusCents: 0,
-      saleCount,
+      ...breakdown,
     };
   }
 
@@ -202,6 +277,6 @@ export function reconcileCustody(params: {
     providerBalanceCents,
     shortfallCents: delta < 0 ? -delta : 0,
     surplusCents: delta > 0 ? delta : 0,
-    saleCount,
+    ...breakdown,
   };
 }

@@ -13,9 +13,9 @@
 // reconciliation flags). The service-role client is import-guarded by
 // `server-only` and is only ever used inside these server actions.
 //
-// ONE DELIBERATE EXCEPTION. The three dispute-resolution actions
-// (`resolveCashSaleDispute`, `resolveTradeConditionDispute`, `resolveTradeFraud`) gate
-// on `requireStaff` rather than `requireAdmin`, because arbitration is the support
+// ONE DELIBERATE EXCEPTION. The dispute-resolution actions
+// (`resolveCashSaleDispute`, `resolveTradeDispute`, `setDisputeCustodyScope`,
+// `resolveTrackingFlag`) gate on `requireStaff` rather than `requireAdmin`, because arbitration is the support
 // worker's job and does not need the power to hide listings or drain payout queues.
 // They still never trust the client, and an admin passes that gate too. Everything
 // else in this module is admin-only.
@@ -32,21 +32,23 @@ import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
 import { requireStaff } from '@/lib/staffGate';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
-import type { CashSaleDisputeOutcome } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
-import { createDefaultDisputeResolutionOrchestrator } from '@/domain/orchestrator/supabaseDisputeResolutionRepository';
+import type { CashSaleDisputeOutcome, TrackingFlagDecision } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { CASH_SALE_INSPECTION_DAYS } from '@/domain/fulfilment/inspection';
+import { createLoggedDisputeOrchestrator } from '@/lib/trades/disputeOrchestrator';
+import type { TradeDisputeOutcome } from '@/domain/orchestrator/disputeResolution';
+import { regionForTrade } from '@/lib/regionBinding';
 import {
   COLLECTED_SALE_STATUSES,
   reconcileCustody,
   type CustodyPosition,
   type HeldSaleInput,
+  type HeldCollateralInput,
 } from '@/domain/payouts/custodyReconciliation';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { normalizeRegionCode, regionCurrency } from '@/domain/region';
 import type { Enums } from '@/lib/supabase/database.types';
 import { createNotification } from '@/lib/notifications/createNotification';
-import { emailNotify } from '@/lib/email';
 
 /**
  * Admin action error codes.
@@ -67,19 +69,13 @@ export type AdminActionResult<T = { id: string }> =
   | { ok: false; error: AdminActionError; message?: string };
 
 /**
- * Build the dispute/fraud resolution orchestrator with the default bindings.
+ * Build the dispute coordinator for one trade, on the trade's own platform account.
  *
- * Mirrors `buildDisputeOrchestrator` in `lib/actions/trades.ts`. Duplicated rather
- * than shared because a `'use server'` module may only export async functions, so
- * the helper cannot be exported from there.
+ * A resolution captures and voids authorisations, which belong to the Stripe account
+ * that created them (0068), so the region comes from the trade.
  */
-function buildAdminDisputeOrchestrator() {
-  const service = getPaymentService();
-  const orchestrator = createDefaultTradeOrchestrator({ payments: service });
-  return createDefaultDisputeResolutionOrchestrator({
-    orchestrator,
-    payments: service,
-  });
+async function buildAdminDisputeOrchestrator(tradeId: string) {
+  return createLoggedDisputeOrchestrator(await regionForTrade(tradeId));
 }
 
 /**
@@ -464,6 +460,46 @@ export const resolveCashSaleReturnCase = withActionLog('admin.resolveCashSaleRet
   return { ok: true, data: { id: result.sale.id, status: result.sale.status } };
 });
 
+/**
+ * Decide a flagged outbound tracking number (ESC-02), staff-gated.
+ *
+ * A flag means the tracking cannot be this sale's parcel as recorded: it was
+ * delivered before the sale shipped, or it was already delivered when the seller
+ * entered it. No inspection clock starts until staff decide:
+ *
+ * - START_CLOCK  — the delivery is genuine; the buyer's 7-day inspection starts now.
+ * - REFUND_BUYER — it is not this parcel; the buyer is refunded in full, no return owed.
+ */
+export const resolveTrackingFlag = withActionLog('admin.resolveTrackingFlag', async function resolveTrackingFlag(
+  cashSaleId: string,
+  decision: TrackingFlagDecision,
+): Promise<AdminActionResult<{ id: string; status: string }>> {
+  const gate = await requireStaff();
+  if (!gate.ok) {
+    return { ok: false, error: gate.error };
+  }
+  const orchestrator = createDefaultCashSaleOrchestrator({
+    payments: getPaymentService(await regionForCashSale(cashSaleId)),
+  });
+  const result = await orchestrator.resolveTrackingFlag({
+    cashSaleId,
+    staffId: gate.ctx.userId,
+    decision,
+    inspectionDays: CASH_SALE_INSPECTION_DAYS,
+  });
+  if (!result.ok) {
+    return {
+      ok: false,
+      error: result.error === 'CASH_SALE_NOT_FOUND' ? 'not-found' : 'persistence-error',
+      message: result.detail ?? 'The tracking flag could not be resolved.',
+    };
+  }
+  revalidatePath('/admin/arbitration');
+  revalidatePath(`/admin/arbitration/CASH_SALE/${cashSaleId}`);
+  revalidatePath(`/sales/${cashSaleId}`);
+  return { ok: true, data: { id: result.sale.id, status: result.sale.status } };
+});
+
 export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDispute', async function resolveCashSaleDispute(
   cashSaleId: string,
   outcome: CashSaleDisputeOutcome,
@@ -536,163 +572,178 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
   };
 });
 
+/** What a staff trade-dispute decision reports back to the console. */
+export type ResolveTradeDisputeActionData = {
+  id: string;
+  state: string;
+  outcome: TradeDisputeOutcome['kind'];
+  manualReconciliation: boolean;
+};
+
 /**
- * Resolve a disputed Trade as a Condition_Dispute (Req 7.2-7.5), staff-gated.
+ * Resolve a disputed Trade with a staff-chosen outcome (design §1.2), staff-gated.
  *
- * Captures the fixed $20 Friction_Tax from the disputed-against trader and voids the
- * remaining collateral, completing the Trade.
+ * Replaces `resolveTradeConditionDispute` and `resolveTradeFraud`. The four outcomes:
  *
- * Staff-gated because it used to be participant-gated: `resolveDispute` in
- * `lib/actions/trades.ts` let either party trigger a capture against the other. The
- * point of moving it was that a party must not decide their own case — not that only
- * an administrator may decide it.
+ * - UNFOUNDED   — releases both traders' collateral and completes the trade.
+ * - CONDITION   — pays the wronged trader up to the accused's remaining collateral
+ *                 and completes the trade.
+ * - FRAUD       — captures the offender's collateral for the victim (paid after a
+ *                 7-day safety hold), bans the offender, and closes the trade.
+ * - NO_EXCHANGE — the exchange never happened: releases everything, refunds the
+ *                 fees and cancels the trade. Only on a trade that never reached
+ *                 INSPECTION.
+ *
+ * The victim / wronged trader is an ARGUMENT, validated against the trade before any
+ * money moves (ESC-23): a refused decision touches nothing. On a never-inspected trade
+ * UNFOUNDED and CONDITION need the staff attestation that the goods changed hands.
  */
-export const resolveTradeConditionDispute = withActionLog('admin.resolveTradeConditionDispute', async function resolveTradeConditionDispute(
+export const resolveTradeDispute = withActionLog('admin.resolveTradeDispute', async function resolveTradeDispute(
   tradeId: string,
-): Promise<AdminActionResult<{ id: string; state: string }>> {
+  outcome: TradeDisputeOutcome,
+): Promise<AdminActionResult<ResolveTradeDisputeActionData>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
 
-  const result = await buildAdminDisputeOrchestrator().resolveConditionDispute({
+  const result = await (await buildAdminDisputeOrchestrator(tradeId)).resolveTradeDispute({
     tradeId,
     actorId: gate.ctx.userId,
+    outcome,
   });
 
   if (!result.ok) {
     return {
       ok: false,
       error: result.error === 'TRADE_NOT_FOUND' ? 'not-found' : 'persistence-error',
-      message: result.detail ?? 'The dispute could not be resolved.',
+      message:
+        result.error === 'INVALID_OUTCOME'
+          ? (result.detail ?? 'That outcome is not available for this trade.')
+          : result.error === 'HOLD_NOT_FOUND'
+            ? 'The accused trader has no collateral left on this trade. The case is flagged for reconciliation.'
+            : result.error === 'CAPTURE_FAILED'
+              ? 'The collateral could not be captured. The trade stays disputed and is flagged for reconciliation.'
+              : result.error === 'HOLD_RELEASE_FAILED'
+                ? 'A temporary card hold could not be released. The trade stays disputed and is flagged for reconciliation.'
+                : result.error === 'DISPUTE_HISTORY_UNAVAILABLE'
+                  ? "The trade's history could not be read, so nothing was changed. Try again."
+                  : (result.detail ?? 'The dispute could not be resolved.'),
     };
   }
+
+  const { resolution } = result;
+  const trade = resolution.trade;
+  const initiatorId = trade.initiator_id as string;
+  const counterpartId = trade.counterpart_id as string;
 
   revalidatePath('/admin');
   revalidatePath('/admin/arbitration');
   revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
   revalidatePath(`/trades/${tradeId}`);
 
-  // Notify both traders of the resolution.
-  const trade = result.trade;
-  await createNotification({
-    userId: trade.initiator_id as string,
-    type: 'TRADE',
-    title: 'Dispute resolved',
-    body: 'NoDitto support reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
-    link: `/trades/${tradeId}`,
-  });
-  await createNotification({
-    userId: trade.counterpart_id as string,
-    type: 'TRADE',
-    title: 'Dispute resolved',
-    body: 'NoDitto support reviewed the condition dispute and resolved it. Your trade collateral has been settled.',
-    link: `/trades/${tradeId}`,
-  });
-  void emailNotify.disputeRaised({ userId: trade.initiator_id as string, contractType: 'trade', contractId: tradeId });
-  void emailNotify.disputeRaised({ userId: trade.counterpart_id as string, contractType: 'trade', contractId: tradeId });
+  if (outcome.kind === 'FRAUD' && resolution.offendingTraderId) {
+    const ban = await permanentlyBanConfirmedFraudOffender({
+      offenderId: resolution.offendingTraderId,
+      staffId: gate.ctx.userId,
+      tradeId,
+    });
+    if (!ban.ok) {
+      // FRAUD_RESOLVED stays committed. The profile ban may already be active even
+      // when the Auth sync fails, so the required follow-up is made explicit.
+      return {
+        ok: false,
+        error: 'persistence-error',
+        message: `Objective fraud was resolved, but the permanent ban needs follow-up: ${ban.message}`,
+      };
+    }
 
-  return { ok: true, data: { id: tradeId, state: result.trade.state } };
+    await createNotification({
+      userId: outcome.victimId,
+      type: 'TRADE',
+      title: 'Fraud confirmed — you are being compensated',
+      body:
+        "NoDitto support confirmed objective fraud. The other trader's collateral is being " +
+        'paid to you after a 7-day safety hold, and your own trade collateral has been released.',
+      link: `/trades/${tradeId}`,
+    });
+    await createNotification({
+      userId: resolution.offendingTraderId,
+      type: 'TRADE',
+      title: 'Fraud confirmed — your account is permanently suspended',
+      body: 'NoDitto support confirmed objective fraud on your trade. Your trade collateral has been captured.',
+      link: `/trades/${tradeId}`,
+    });
+  } else if (outcome.kind === 'UNFOUNDED' || outcome.kind === 'CONDITION') {
+    const body =
+      outcome.kind === 'UNFOUNDED'
+        ? 'NoDitto support reviewed the dispute and found no problem with the trade. Your trade collateral has been released.'
+        : 'NoDitto support reviewed the condition dispute and decided compensation. Any amount owed is paid after a 7-day safety hold, and the rest of the trade collateral has been released.';
+    for (const userId of [initiatorId, counterpartId]) {
+      await createNotification({ userId, type: 'TRADE', title: 'Dispute resolved', body, link: `/trades/${tradeId}` });
+    }
+  }
+  // NO_EXCHANGE notifies both traders inside the coordinator.
+
+  if (resolution.feeRefundFailed) {
+    // Already logged as `trade.fee_refund`; retried by the fee drain.
+    console.warn(`[admin] trade ${tradeId}: fee refund on NO_EXCHANGE failed`);
+  }
+
+  return {
+    ok: true,
+    data: {
+      id: tradeId,
+      state: trade.state,
+      outcome: resolution.outcome,
+      manualReconciliation: resolution.manualReconciliation,
+    },
+  };
 });
 
 /**
- * Resolve a disputed Trade as Objective_Fraud (Req 8.1-8.6), staff-gated.
+ * Narrow the custody backstop on a disputed trade to ONE trader, staff-gated.
  *
- * Full-captures the offending trader's collateral, pays it to the operator-determined
- * victim, and voids the victim's own hold.
- *
- * THE VICTIM IS AN ARGUMENT, and that is the entire point of this function existing.
- * `reportObjectiveFraud` previously inferred the victim from its caller, and its
- * caller was any participant — so a trader could name themselves the victim and take
- * the counterparty's 100%-of-FMV collateral with no review, no evidence, and no
- * chance for the accused to answer. A participant can now only CLAIM fraud
- * (`reportFraud`), which freezes the trade; an operator decides who was defrauded.
- *
- * The victim is validated against the trade's participants downstream, so naming an
- * unrelated account fails rather than paying a stranger.
+ * By default the backstop takes every live hold on a DISPUTED trade into custody at
+ * its own margin, whoever filed. Narrowing it to the accused is a staff decision only:
+ * if a member's claim chose whose collateral survives, a fraudster could file first
+ * against the victim and let their own hold lapse. `accusedId: null` restores 'ALL'.
  */
-export const resolveTradeFraud = withActionLog('admin.resolveTradeFraud', async function resolveTradeFraud(
+export const setDisputeCustodyScope = withActionLog('admin.setDisputeCustodyScope', async function setDisputeCustodyScope(
   tradeId: string,
-  victimId: string,
-): Promise<AdminActionResult<{ id: string; state: string }>> {
+  accusedId: string | null,
+): Promise<AdminActionResult<{ id: string; scope: 'ALL' | 'ACCUSED_ONLY' }>> {
   const gate = await requireStaff();
   if (!gate.ok) {
     return { ok: false, error: gate.error };
   }
-  if (!victimId) {
-    return {
-      ok: false,
-      error: 'persistence-error',
-      message: 'Name the trader who was defrauded before resolving.',
-    };
+
+  const admin = createAdminClient();
+  const { data: trade, error: readError } = await admin
+    .from('trades')
+    .select('id, state, initiator_id, counterpart_id')
+    .eq('id', tradeId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: 'persistence-error', message: readError.message };
+  if (!trade) return { ok: false, error: 'not-found' };
+
+  if (trade.state !== 'DISPUTED') {
+    return { ok: false, error: 'persistence-error', message: 'INVALID_OUTCOME: only a disputed trade has a safeguard scope.' };
+  }
+  if (accusedId !== null && accusedId !== trade.initiator_id && accusedId !== trade.counterpart_id) {
+    return { ok: false, error: 'persistence-error', message: 'INVALID_OUTCOME: that member is not a party to this trade.' };
   }
 
-  const result = await buildAdminDisputeOrchestrator().reportObjectiveFraud({
-    tradeId,
-    actorId: gate.ctx.userId,
-    victimId,
-  });
+  const scope = accusedId === null ? 'ALL' : 'ACCUSED_ONLY';
+  const { error } = await admin
+    .from('trades')
+    .update({ custody_scope: scope, custody_accused_id: accusedId })
+    .eq('id', tradeId)
+    .eq('state', 'DISPUTED');
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
 
-  if (!result.ok) {
-    return {
-      ok: false,
-      error:
-        result.error === 'TRADE_NOT_FOUND'
-          ? 'not-found'
-          : 'persistence-error',
-      message:
-        result.error === 'NOT_PARTICIPANT'
-          ? 'That member is not a party to this trade.'
-          : (result.detail ?? 'The fraud resolution could not be completed.'),
-    };
-  }
-
-  const ban = await permanentlyBanConfirmedFraudOffender({
-    offenderId: result.outcome.offendingTraderId,
-    staffId: gate.ctx.userId,
-    tradeId,
-  });
-
-  if (!ban.ok) {
-    // FRAUD_RESOLVED remains committed. The profile ban may already be active even
-    // when the Auth sync fails, so make the required staff follow-up explicit.
-    revalidatePath('/admin');
-    revalidatePath('/admin/arbitration');
-    revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
-    revalidatePath(`/trades/${tradeId}`);
-    return {
-      ok: false,
-      error: 'persistence-error',
-      message: `Objective fraud was resolved, but the permanent ban needs follow-up: ${ban.message}`,
-    };
-  }
-
-  revalidatePath('/admin');
-  revalidatePath('/admin/arbitration');
   revalidatePath(`/admin/arbitration/TRADE/${tradeId}`);
-  revalidatePath(`/trades/${tradeId}`);
-
-  // Notify both traders of the fraud resolution.
-  const outcome = result.outcome;
-  const victimUserId = victimId;
-  const offenderId = outcome.offendingTraderId as string;
-
-  await createNotification({
-    userId: victimUserId,
-    type: 'TRADE',
-    title: 'Fraud confirmed — you are being compensated',
-    body: 'NoDitto support confirmed objective fraud. The offender\'s collateral is being released to you.',
-    link: `/trades/${tradeId}`,
-  });
-  await createNotification({
-    userId: offenderId,
-    type: 'TRADE',
-    title: 'Fraud confirmed — your account is permanently suspended',
-    body: 'NoDitto support confirmed objective fraud on your trade. Your collateral has been captured.',
-    link: `/trades/${tradeId}`,
-  });
-
-  return { ok: true, data: { id: tradeId, state: result.outcome.trade.state } };
+  return { ok: true, data: { id: tradeId, scope } };
 });
 
 /**
@@ -758,6 +809,87 @@ async function regionForCashSale(cashSaleId: string): Promise<string> {
  * not a member's contract, and it is not information an arbitrator needs to decide a
  * case.
  */
+const TERMINAL_TRADE_STATES = new Set(['COMPLETED', 'FRAUD_RESOLVED', 'CANCELLED']);
+
+/**
+ * Read every captured hold in one currency as custody inputs (design §1.8).
+ *
+ * A hold captured by the custody backstop or a resolution (`custody_captured_at` set)
+ * is drawn down by its SETTLED `collateral_disbursements` rows, platform-retained ones
+ * included. A LEGACY partial capture from the pre-fix condition path moved its money
+ * outside that table: its paid return share counts as disbursed, and its platform half
+ * becomes the platform's own once the trade is terminal. Counted naively, every closed
+ * legacy case would show its whole $20 as held forever.
+ *
+ * Not exported: a `'use server'` module may only export async Server Actions.
+ */
+async function loadCapturedCollateral(
+  admin: ReturnType<typeof createAdminClient>,
+  currency: string,
+): Promise<{ ok: true; inputs: HeldCollateralInput[] } | { ok: false; message: string }> {
+  const { data: holds, error } = await admin
+    .from('pre_auth_holds')
+    .select('hold_ref, trade_id, captured_cents, custody_captured_at')
+    .gt('captured_cents', 0);
+  if (error) return { ok: false, message: error.message };
+  const rows = ((holds ?? []) as Array<{
+    hold_ref: string | null;
+    trade_id: string;
+    captured_cents: number;
+    custody_captured_at: string | null;
+  }>).filter((row) => row.hold_ref);
+  if (rows.length === 0) return { ok: true, inputs: [] };
+
+  const tradeIds = [...new Set(rows.map((row) => row.trade_id))];
+  const [{ data: trades, error: tradeError }, { data: disbursed, error: disbursedError }] = await Promise.all([
+    admin
+      .from('trades')
+      .select('id, state, currency, friction_tax_platform_cents, friction_tax_return_cents, friction_tax_return_paid_at')
+      .in('id', tradeIds),
+    admin
+      .from('collateral_disbursements')
+      .select('hold_ref, amount_minor, status')
+      .in('trade_id', tradeIds)
+      .eq('status', 'SETTLED'),
+  ]);
+  if (tradeError) return { ok: false, message: tradeError.message };
+  if (disbursedError) return { ok: false, message: disbursedError.message };
+
+  const tradeOf = new Map(
+    ((trades ?? []) as Array<{
+      id: string;
+      state: string;
+      currency: string | null;
+      friction_tax_platform_cents: number | null;
+      friction_tax_return_cents: number | null;
+      friction_tax_return_paid_at: string | null;
+    }>).map((trade) => [trade.id, trade]),
+  );
+  const settledByHold = new Map<string, number>();
+  for (const row of (disbursed ?? []) as Array<{ hold_ref: string; amount_minor: number }>) {
+    settledByHold.set(row.hold_ref, (settledByHold.get(row.hold_ref) ?? 0) + Number(row.amount_minor ?? 0));
+  }
+
+  const inputs: HeldCollateralInput[] = [];
+  for (const row of rows) {
+    const trade = tradeOf.get(row.trade_id);
+    // Scoped to this region's balance, like the sales above.
+    if (!trade || String(trade.currency ?? 'aud').toLowerCase() !== currency) continue;
+    const settled = settledByHold.get(row.hold_ref as string) ?? 0;
+    const legacy = !row.custody_captured_at;
+    const legacyReturnPaid =
+      legacy && trade.friction_tax_return_paid_at ? Number(trade.friction_tax_return_cents ?? 0) : 0;
+    inputs.push({
+      holdRef: row.hold_ref as string,
+      capturedCents: Number(row.captured_cents ?? 0),
+      settledDisbursedCents: settled + legacyReturnPaid,
+      resolved: TERMINAL_TRADE_STATES.has(trade.state),
+      platformRetainedCents: legacy ? Number(trade.friction_tax_platform_cents ?? 0) : 0,
+    });
+  }
+  return { ok: true, inputs };
+}
+
 export const getCustodyPosition = withActionLog('admin.getCustodyPosition', async function getCustodyPosition(
   region?: string | null,
 ): Promise<AdminActionResult<CustodyReport>> {
@@ -809,8 +941,18 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
     };
   });
 
+  // Captured trade collateral (design §1.8, ESC-01). Uncaptured authorisations are
+  // still excluded: only `captured_cents > 0` rows are money in this balance.
+  const collateral = await loadCapturedCollateral(admin, currency);
+  if (!collateral.ok) {
+    return { ok: false, error: 'persistence-error', message: collateral.message };
+  }
+
   const position = reconcileCustody({
     sales,
+    collateral: collateral.inputs,
+    // Trade cash legs land with WP2 (`trade_cash_settlements`); none are held before it.
+    tradeCash: [],
     balance: {
       availableCents: balance.availableCents,
       pendingCents: balance.pendingCents,

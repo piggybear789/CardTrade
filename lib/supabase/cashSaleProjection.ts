@@ -18,6 +18,8 @@ export const CASH_SALE_PUBLIC_SELECT = [
   // the tech steering doc calls out for exactly this list.
   'tracking_checked_at',
   'inspection_accepted_at', 'carrier_delivered_at', 'inspection_deadline_at',
+  // ESC-02 (0134): both parties are told when tracking is under review.
+  'tracking_flagged_at', 'tracking_flag_reason', 'tracking_flag_resolved_at',
   'auto_completed', 'buyer_handover_confirmed_at', 'seller_handover_confirmed_at',
   'completed_at', 'cancelled_at', 'cancelled_by', 'cancel_reason', 'disputed_at',
   'disputed_by', 'dispute_reason', 'conversation_id',

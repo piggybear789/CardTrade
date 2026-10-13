@@ -1,0 +1,38 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`member write surface > dispute_evidence is not widened 1`] = `
+{
+  "columns": {
+    "insert": [
+      "author_id",
+      "case_kind",
+      "case_ref",
+      "media_paths",
+      "statement",
+    ],
+  },
+  "table": [
+    "select",
+  ],
+}
+`;
+
+exports[`member write surface > messages is not widened 1`] = `
+{
+  "columns": {
+    "insert": [
+      "attachment_bytes",
+      "attachment_mime",
+      "attachment_name",
+      "attachment_path",
+      "body",
+      "conversation_id",
+      "sender_id",
+    ],
+    "update": [
+      "read_at",
+    ],
+  },
+  "table": [],
+}
+`;

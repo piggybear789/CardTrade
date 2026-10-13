@@ -125,7 +125,7 @@ describe('trade accept dialog — cost disclosure', () => {
     expect(within(dialog).getByText('$35.00')).toBeInTheDocument();
 
     // The bond, which had no pre-acceptance surface at all before this.
-    expect(within(dialog).getByText('Collateral')).toBeInTheDocument();
+    expect(within(dialog).getByText('Trade collateral')).toBeInTheDocument();
     expect(within(dialog).getByText('$700.00')).toBeInTheDocument();
   });
 
@@ -140,12 +140,14 @@ describe('trade accept dialog — cost disclosure', () => {
     // Exact strings, not a loose match: the description prose also mentions charging,
     // and a regex passes on that while saying nothing about the hints that sit beside
     // the two figures — which is the part a reader actually uses to tell them apart.
-    expect(within(dialog).getByText('Charged to your card.')).toBeInTheDocument();
+    // Design §1.12 / ESC-01: the fee lands with the card hold, and the hold is "not a
+    // charge" rather than "never charged", because an expiring hold on an open problem
+    // IS charged into safekeeping now.
+    expect(within(dialog).getByText('Charged when the card hold is placed.')).toBeInTheDocument();
     expect(
-      within(dialog).getByText(
-        'Authorised, not charged. Released in full when the trade completes.',
-      ),
+      within(dialog).getByText(/^A temporary card hold, not a charge\./),
     ).toBeInTheDocument();
+    expect(within(dialog).queryByText(/not charged/i)).toBeNull();
   });
 
   it('no longer hedges with "may charge"', async () => {
@@ -171,7 +173,7 @@ describe('trade accept dialog — cost disclosure', () => {
     expect(within(dialog).queryByText(/NoDitto fee/i)).toBeNull();
     expect(within(dialog).queryByText('$0.00')).toBeNull();
     expect(
-      within(dialog).getByText(/the collateral is authorised against it/i),
+      within(dialog).getByText(/we place a temporary card hold and charge the fee/i),
     ).toBeInTheDocument();
   });
 });

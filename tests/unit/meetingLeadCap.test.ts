@@ -10,7 +10,7 @@
 // at 72 hours, which worked but charged traders for our infrastructure limit. Placing
 // the bond a day before the MEETING removes the coupling: the authorisation does not
 // start until the risk does, the date can be anything, and the three windows below add
-// up to exactly the seven days.
+// up to exactly the authorisation: 114 hours, Visa's merchant-initiated window (ESC-17a).
 //
 // The partition assertion is the important one. The last time these figures were free
 // to move independently, a fourteen-day dispute return window ended up backed by a
@@ -20,7 +20,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BOND_PLACEMENT_LEAD_HOURS,
-  CARD_AUTHORISATION_DAYS,
+  CARD_AUTHORISATION_HOURS,
   COLLATERAL_HOURS_AFTER_MEETING,
   COLLATERAL_MARGIN_HOURS,
   MAX_MEETING_LEAD_HOURS,
@@ -56,13 +56,12 @@ describe('the trade timing budget', () => {
     // placement lead + inspection + margin == the whole authorisation.
     expect(
       BOND_PLACEMENT_LEAD_HOURS + TRADE_INSPECTION_HOURS + COLLATERAL_MARGIN_HOURS,
-    ).toBe(CARD_AUTHORISATION_DAYS * 24);
+    ).toBe(CARD_AUTHORISATION_HOURS);
   });
 
   it('leaves the inspection window finishing inside the collateral, with slack', () => {
     // Stated independently of the formula: meet, inspect for the full window, and the
-    // collateral is still alive by exactly the margin. Six days of inspection would
-    // land on the instant it dies, which is why the window is five.
+    // collateral is still alive by exactly the margin: 24 + 72 + 18 = 114.
     expect(TRADE_INSPECTION_HOURS).toBeLessThan(COLLATERAL_HOURS_AFTER_MEETING);
     expect(COLLATERAL_HOURS_AFTER_MEETING - TRADE_INSPECTION_HOURS).toBe(
       COLLATERAL_MARGIN_HOURS,
@@ -78,7 +77,7 @@ describe('the trade timing budget', () => {
   it('no longer ties the meeting date to the collateral', () => {
     // The whole point of moving placement. A cap derived from the authorisation would
     // be 72 hours; this is a staleness bound and is deliberately far larger.
-    expect(MAX_MEETING_LEAD_HOURS).toBeGreaterThan(CARD_AUTHORISATION_DAYS * 24);
+    expect(MAX_MEETING_LEAD_HOURS).toBeGreaterThan(CARD_AUTHORISATION_HOURS);
   });
 });
 
@@ -99,7 +98,7 @@ describe('bondPlacementInstant', () => {
 });
 
 describe('projectedCollateralLapse', () => {
-  it('is six days after the meeting, because the hold started a day early', () => {
+  it('is 90 hours after the meeting, because the hold started a day early', () => {
     const meeting = new Date(NOW.getTime() + 5 * 24 * HOUR_MS).toISOString();
     expect(projectedCollateralLapse(meeting)).toBe(
       new Date(Date.parse(meeting) + COLLATERAL_HOURS_AFTER_MEETING * HOUR_MS).toISOString(),

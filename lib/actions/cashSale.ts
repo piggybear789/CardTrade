@@ -7,6 +7,7 @@
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
@@ -50,7 +51,9 @@ export type CashSaleActionError =
   | 'invalid-state'
   | 'refund-failed'
   | 'invalid-refund-amount'
-  | 'nothing-to-refund';
+  | 'nothing-to-refund'
+  /** ESC-02: the tracking was scanned before the buyer paid, so it is not this parcel. */
+  | 'tracking-predates-payment';
 
 export type CashSaleActionResult =
   | {
@@ -64,6 +67,8 @@ export type CashSaleActionResult =
        * already-settled sale does not double-notify (0002/FEAT-002).
        */
       settledNow?: boolean;
+      /** ESC-02: the shipment was recorded but its tracking is flagged for staff. */
+      flagged?: boolean;
     }
   | { ok: false; error: CashSaleActionError; message?: string };
 
@@ -71,6 +76,10 @@ export interface InitiateCashSaleInput {
   itemId: string;
   sellerIdentityVersion: string;
   buyerConfirmedSellerIdentity: boolean;
+  /**
+   * @deprecated IGNORED (ESC-22). A buyer-supplied price let a buyer open a single
+   * listing at any amount they chose. Kept on the type so older clients still compile.
+   */
   agreedPriceCents?: number;
   /**
    * What the buyer is asking for out of a SHOPFRONT listing (0064).
@@ -151,6 +160,7 @@ function mapError(error: CashSaleError): CashSaleActionError {
     ALREADY_RECORDED: 'already-recorded',
     NOT_SUPPORTED: 'not-supported',
     INVALID_STATE: 'invalid-state',
+    TRACKING_PREDATES_PAYMENT: 'tracking-predates-payment',
     // Reuses the transfer-failed surface: from a participant's point of view the
     // distinction between "collection failed" and "release failed" is not
     // actionable. The queued retry and the operator alert carry the detail.
@@ -182,7 +192,7 @@ function actionResult(result: Awaited<ReturnType<ReturnType<typeof orchestrator>
     return { ok: false, error: mapError(result.error), message: result.detail };
   }
   revalidatePath(`/sales/${result.sale.id}`);
-  return { ok: true, sale: result.sale, settledNow: result.settledNow };
+  return { ok: true, sale: result.sale, settledNow: result.settledNow, flagged: result.flagged };
 }
 
 /** Create and reserve an agreement without collecting payment (Req 4.1). */
@@ -214,7 +224,10 @@ export const initiateCashSale = withActionLog('cashSale.initiateCashSale', async
     itemId: input.itemId,
     sellerIdentityVersion: input.sellerIdentityVersion,
     buyerConfirmedSellerIdentity: true,
-    agreedPriceCents: input.agreedPriceCents,
+    // ESC-22: the BUYER never sets the price. A single listing opens at its own
+    // price; a binder at the sum of its lines; an accepted offer at the offer's
+    // amount, which only `respondToOffer` passes. `input.agreedPriceCents` is
+    // accepted for client compatibility and ignored.
     lineItems,
   });
   const actionRes = actionResult(result);
@@ -722,8 +735,13 @@ export const saveCashSaleReturnAddress = withActionLog('cashSale.saveCashSaleRet
     return { ok: false, error: 'invalid-state', message: 'No return is in progress.' };
   }
 
-  // Upsert via the cookie-bound client (RLS checks seller_id = auth.uid()).
-  const { error } = await supabase.from('cash_sale_return_details').upsert(
+  // ESC-13: members can no longer write this table directly (0135). A BUYER could
+  // insert the row first with themselves as `seller_id` (the old insert policy only
+  // checked `seller_id = auth.uid()`), read it back as "the seller's address", and
+  // post the "return" to themselves. The seller check above is the authority; the
+  // service-role write after it, plus 0135's trigger tying `seller_id` to the sale,
+  // make it the only one.
+  const { error } = await createAdminClient().from('cash_sale_return_details').upsert(
     {
       cash_sale_id: cashSaleId,
       seller_id: userId,

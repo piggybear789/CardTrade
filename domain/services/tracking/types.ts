@@ -16,8 +16,19 @@ export interface TrackingSnapshot {
   trackingNumber: string;
   trackingUrl: string | null;
   status: TrackingState;
-  /** Carrier-confirmed delivery time; only set when `status` is DELIVERED. */
+  /**
+   * Carrier-confirmed delivery time: the latest `delivered`-milestone event. Only set
+   * when `status` is DELIVERED. Evidence only — the inspection clock never runs from
+   * it (ESC-02).
+   */
   deliveredAt?: string | null;
+  /**
+   * The first PHYSICAL carrier scan: the earliest event that is not a label being
+   * printed or a pending placeholder (ESC-02, ESC-12). A scan before the buyer paid
+   * means the parcel cannot be this sale's shipment. Null when there is no such event
+   * yet, in which case the "predates payment" rule does not apply.
+   */
+  firstEventAt?: string | null;
 }
 
 /** Shipment tracking provider contract. */

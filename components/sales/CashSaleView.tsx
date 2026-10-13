@@ -853,6 +853,15 @@ function CashSaleRoom({
                   note={
                     verificationNote ??
                     shipByNote ??
+                    // ESC-02: tracking that cannot be this sale's parcel as recorded.
+                    // No inspection clock runs until support confirms it.
+                    (sale.status === 'IN_TRANSIT' && sale.tracking_flagged_at && !sale.tracking_flag_resolved_at ? (
+                      iAmBuyer ? (
+                        <>The seller&apos;s tracking shows delivered. Support is checking it, and you can report a problem from here.</>
+                      ) : (
+                        <>Your tracking shows this parcel was already delivered, so support will confirm the delivery before the buyer&apos;s inspection starts.</>
+                      )
+                    ) : undefined) ??
                     (sale.tracking_number && sale.status === 'IN_TRANSIT' ? (
                       <>
                         {sale.tracking_carrier} · {sale.tracking_number}

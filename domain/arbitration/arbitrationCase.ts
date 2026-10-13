@@ -44,7 +44,13 @@ export type ArbitrationCaseSituation =
   | 'CHARGEBACK'
   | 'RETURN_CONTESTED'
   | 'RETURN_LAPSED'
-  | 'SHIP_LAPSED';
+  | 'SHIP_LAPSED'
+  /**
+   * ESC-02 (0134): outbound tracking that cannot be this sale's parcel — delivered
+   * before it shipped, or already delivered when entered. No inspection clock runs
+   * until staff confirm the delivery or refund the buyer.
+   */
+  | 'TRACKING_FLAG';
 
 /**
  * How urgent a case is.
@@ -325,6 +331,7 @@ export const SITUATION_LABEL: Record<ArbitrationCaseSituation, string> = {
   RETURN_CONTESTED: 'Return contested',
   RETURN_LAPSED: 'Return lapsed',
   SHIP_LAPSED: 'Not shipped',
+  TRACKING_FLAG: 'Tracking flagged',
 };
 
 /**

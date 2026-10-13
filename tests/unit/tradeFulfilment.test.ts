@@ -267,8 +267,14 @@ describe('deriveTradeInspectionDeadline', () => {
 
   it('is shorter than the Cash_Sale window, because collateral expires', () => {
     // A Cash_Sale gets 7 days from delivery; a trade cannot, because its collateral
-    // is a ~7-day authorisation that started when the trade did.
+    // is a ~114-hour merchant-initiated authorisation placed a day before the meeting.
     expect(TRADE_INSPECTION_HOURS).toBeLessThan(7 * 24);
+  });
+
+  it('is the 72 hours the SQL trigger actually applies (ESC-17a)', () => {
+    // `cardtrade.trade_inspection_hours()` is `select 72`; members were promised five
+    // days while the database gave three. tradeClockAgreement pins the two together.
+    expect(TRADE_INSPECTION_HOURS).toBe(72);
   });
 });
 

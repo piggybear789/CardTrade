@@ -7,6 +7,7 @@
 
 import type { Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
+import type { CashSaleEventCode } from './cashSaleEvents';
 import {
   checkRegionCompatibility,
   regionCurrency,
@@ -259,6 +260,13 @@ export interface CashSaleRecord {
   /** When an untouched INSPECTION contract completes on its own. */
   inspectionDeadlineAt: string | null;
   /**
+   * ESC-02 (0134): set when the tracking cannot be this sale's parcel. While set and
+   * unresolved, no tracking update advances the sale; staff decide.
+   */
+  trackingFlaggedAt?: string | null;
+  trackingFlagReason?: TrackingFlagReason | null;
+  trackingFlagResolvedAt?: string | null;
+  /**
    * The RETURN leg of a return-conditional refund (0088).
    *
    * Kept entirely separate from the outbound `tracking*` fields above: a return event
@@ -353,6 +361,12 @@ export interface CashSaleRecord {
  */
 export type CashSaleDisputeOutcome = 'REFUND_BUYER' | 'PARTIAL_REFUND' | 'RELEASE_SELLER';
 
+/** Why outbound tracking was flagged for staff (ESC-02, 0134 CHECK). */
+export type TrackingFlagReason = 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION';
+
+/** A staff decision on a tracking flag (ESC-02). */
+export type TrackingFlagDecision = 'START_CLOCK' | 'REFUND_BUYER';
+
 /**
  * How many times a Seller release is retried automatically before it is left for
  * an operator. Bounded for the same reason as the Full_Capture retries (Req 8.6):
@@ -405,7 +419,12 @@ export type CashSaleError =
   /** Resolution needs a refund but nothing was ever collected from the Buyer. */
   | 'NOTHING_TO_REFUND'
   /** The terms write failed operationally; it was not a concurrent edit. */
-  | 'TERMS_UPDATE_FAILED';
+  | 'TERMS_UPDATE_FAILED'
+  /**
+   * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
+   * this sale's shipment (the stale-number attack). Expected; nothing is written.
+   */
+  | 'TRACKING_PREDATES_PAYMENT';
 
 export type CashSaleResult =
   | {
@@ -428,6 +447,11 @@ export type CashSaleResult =
        * terms edit, a cancellation, and the claim-race fallback).
        */
       settledNow?: boolean;
+      /**
+       * ESC-02: the shipment was recorded but its tracking already showed delivered,
+       * so it is flagged for staff before any inspection clock starts.
+       */
+      flagged?: boolean;
     }
   | { ok: false; error: CashSaleError; detail?: string };
 
@@ -771,10 +795,29 @@ export interface CashSaleRepository {
     disputedAt: string;
   }): Promise<CashSaleRecord | null>;
   setItemStatus(params: { itemId: string; status: ItemStatus }): Promise<void>;
+  /**
+   * ESC-02: flag the outbound tracking for staff. Only from IN_TRANSIT and only once;
+   * returns null when nothing was flagged.
+   */
+  flagTracking(params: { cashSaleId: string; reason: TrackingFlagReason; at: string }): Promise<CashSaleRecord | null>;
+  /**
+   * ESC-02: resolve a tracking flag. START_CLOCK moves IN_TRANSIT -> INSPECTION with
+   * the deadline from now; REFUND_BUYER only marks the flag resolved (the caller runs
+   * the existing full-refund path). Guarded on IN_TRANSIT + flagged + unresolved;
+   * returns null when the guard did not match.
+   */
+  resolveTrackingFlag(params: {
+    cashSaleId: string;
+    decision: TrackingFlagDecision;
+    staffId: string;
+    at: string;
+    inspectionDeadlineAt: string;
+  }): Promise<CashSaleRecord | null>;
   logEvent(params: {
     cashSaleId: string;
     actorId: string | null;
-    event: string;
+    /** Narrowed so every code written has chat copy (design §1.13). */
+    event: CashSaleEventCode;
     fromStatus: CashSaleStatus | null;
     toStatus: CashSaleStatus | null;
     detail?: string;
@@ -3014,13 +3057,29 @@ export async function recordCashSaleShipment(
     return { ok: false, error: 'INVALID_TERMS', detail: 'Carrier and tracking number are required.' };
   }
   const tracking = await deps.tracking.registerShipment(params.shipment);
+
+  // ESC-02, rule 1: a physical carrier scan BEFORE the buyer paid means this parcel
+  // cannot be this sale's shipment. That is the stale-number attack: enter any old
+  // delivered number and the clock used to start in the past. A label printed before
+  // payment does not count (it is not a scan), and no scan yet means no verdict.
+  const firstScan = parseInstant(tracking.firstEventAt);
+  const paidAt = parseInstant(sale.paymentSettledAt);
+  if (firstScan !== null && paidAt !== null && firstScan < paidAt) {
+    return {
+      ok: false,
+      error: 'TRACKING_PREDATES_PAYMENT',
+      detail: 'That tracking number was scanned by the carrier before this sale was paid for, so it cannot be this parcel.',
+    };
+  }
+
+  const now = currentIso(deps);
   const updated = await deps.repository.recordShipment({
     cashSaleId: sale.id,
     carrier: tracking.carrier,
     trackingNumber: tracking.trackingNumber,
     trackingUrl: tracking.trackingUrl,
     trackingStatus: tracking.status,
-    shippedAt: currentIso(deps),
+    shippedAt: now,
   });
   if (!updated) return { ok: false, error: 'INVALID_STATE' };
   await deps.repository.logEvent({
@@ -3031,7 +3090,91 @@ export async function recordCashSaleShipment(
     toStatus: updated.status,
     detail: `${tracking.carrier} ${tracking.trackingNumber}`,
   });
+
+  // Rule 2: already delivered when entered. Record and FLAG, never refuse: an honest
+  // seller using a next-day courier may enter the number after delivery. No clock
+  // starts; staff confirm the delivery first (`resolveTrackingFlag`).
+  if (tracking.status === 'DELIVERED') {
+    const flagged = await deps.repository.flagTracking({
+      cashSaleId: sale.id,
+      reason: 'DELIVERED_AT_REGISTRATION',
+      at: now,
+    });
+    if (flagged) {
+      await deps.repository.logEvent({
+        cashSaleId: sale.id,
+        actorId: null,
+        event: 'TRACKING_FLAGGED',
+        fromStatus: flagged.status,
+        toStatus: flagged.status,
+        detail: 'DELIVERED_AT_REGISTRATION',
+      });
+      return { ok: true, sale: flagged, flagged: true };
+    }
+  }
   return { ok: true, sale: updated };
+}
+
+function parseInstant(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * Staff decide a tracking flag (ESC-02). START_CLOCK opens the buyer's inspection
+ * window from NOW; REFUND_BUYER marks the flag resolved, and the caller runs the
+ * existing full-refund path (which relists the item). Both are guarded on IN_TRANSIT
+ * with an unresolved flag.
+ */
+export async function resolveTrackingFlag(
+  deps: CashSaleOrchestratorDeps,
+  params: { cashSaleId: string; staffId: string; decision: TrackingFlagDecision; inspectionDays: number },
+): Promise<CashSaleResult> {
+  const sale = await deps.repository.loadCashSale(params.cashSaleId);
+  if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
+  if (sale.status !== 'IN_TRANSIT' || !sale.trackingFlaggedAt || sale.trackingFlagResolvedAt) {
+    return { ok: false, error: 'INVALID_STATE', detail: 'There is no open tracking flag on this sale.' };
+  }
+  if (params.decision !== 'START_CLOCK' && params.decision !== 'REFUND_BUYER') {
+    return { ok: false, error: 'INVALID_TERMS' };
+  }
+  const nowIso = currentIso(deps);
+  const deadline = new Date(Date.parse(nowIso) + params.inspectionDays * 86_400_000).toISOString();
+  const resolved = await deps.repository.resolveTrackingFlag({
+    cashSaleId: sale.id,
+    decision: params.decision,
+    staffId: params.staffId,
+    at: nowIso,
+    inspectionDeadlineAt: deadline,
+  });
+  if (!resolved) return { ok: false, error: 'INVALID_STATE' };
+  await deps.repository.logEvent({
+    cashSaleId: sale.id,
+    actorId: params.staffId,
+    event: 'TRACKING_FLAG_RESOLVED',
+    fromStatus: sale.status,
+    toStatus: resolved.status,
+    detail: params.decision,
+  });
+  if (params.decision === 'START_CLOCK') return { ok: true, sale: resolved };
+
+  // REFUND_BUYER: the existing full-refund path, entered through a staff-raised
+  // dispute so it is recorded and refunded exactly like any other. No return is owed:
+  // staff found the parcel was not this sale's, so the buyer has nothing to send back.
+  const disputed = await deps.repository.raiseDispute({
+    cashSaleId: sale.id,
+    actorId: params.staffId,
+    reason: 'Support found the tracking was not for this sale and is refunding the buyer.',
+    disputedAt: nowIso,
+  });
+  if (!disputed) return { ok: false, error: 'INVALID_STATE' };
+  return resolveCashSaleDispute(deps, {
+    cashSaleId: sale.id,
+    actorId: params.staffId,
+    outcome: 'REFUND_BUYER',
+    requireReturn: false,
+  });
 }
 
 export async function recordCashSaleReceipt(
@@ -3517,6 +3660,13 @@ export interface CashSaleOrchestrator {
     shipment: ShipmentInput;
   }): Promise<CashSaleResult>;
   recordReceipt(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
+  /** ESC-02: staff decide a tracking flag. Staff-gated by the caller. */
+  resolveTrackingFlag(params: {
+    cashSaleId: string;
+    staffId: string;
+    decision: TrackingFlagDecision;
+    inspectionDays: number;
+  }): Promise<CashSaleResult>;
   syncTracking(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
   acceptInspection(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
   confirmHandover(params: { actorId: string; cashSaleId: string }): Promise<CashSaleResult>;
@@ -3605,6 +3755,7 @@ export function createCashSaleOrchestrator(
     processDueRefunds: (params) => processDueCashSaleRefunds(deps, params),
     ensureConversation: (params) => ensureCashSaleConversation(deps, params),
     recordShipment: (params) => recordCashSaleShipment(deps, params),
+    resolveTrackingFlag: (params) => resolveTrackingFlag(deps, params),
     recordReceipt: (params) => recordCashSaleReceipt(deps, params),
     syncTracking: (params) => syncCashSaleTracking(deps, params),
     acceptInspection: (params) => acceptCashSaleInspection(deps, params),

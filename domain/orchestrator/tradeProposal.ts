@@ -28,6 +28,7 @@
 
 import type { PaymentService, PreAuthHold } from '../services/types';
 import { resolveTradeBonds, type BondPolicy } from '../bond/bondPolicy';
+import { currentHoldsByTrader } from '../bond/currentHolds';
 import { resolveTradeSideValues, tradeSidesAreValued } from '../trade/tradeSideValues';
 import type { RunSideEffects, TradeRecord } from './tradeOrchestrator';
 
@@ -99,6 +100,8 @@ export interface RecordedHold {
   holdRef: string;
   amountCents: number;
   status: PreAuthHold['status'];
+  /** Insertion instant; orders a trader's attempts (`domain/bond/currentHolds.ts`). */
+  createdAt?: string | null;
 }
 
 /**
@@ -130,6 +133,12 @@ export interface TradeProposalRepository {
   listTradeItemIds(tradeId: string): Promise<string[]>;
   /** Update a persisted hold's status (e.g. to VOIDED on cancellation, Req 5.6). */
   markHoldStatus(holdRef: string, status: PreAuthHold['status']): Promise<void>;
+  /**
+   * The filtered restore (0133 `restore_trade_items_if_unclaimed`): only RESERVED
+   * single items no live cash sale or other trade holds go back on sale. Returns the
+   * ids restored. Optional so test fakes may omit it; the Supabase binding has it.
+   */
+  restoreTradeItemsIfUnclaimed?(tradeId: string): Promise<string[]>;
 }
 
 // ---------------------------------------------------------------------------
@@ -207,24 +216,10 @@ function holdRef(tradeId: string, traderId: string, attempt = 1): string {
   return attempt <= 1 ? `hold:${tradeId}:${traderId}` : `hold:${tradeId}:${traderId}:${attempt}`;
 }
 
-/**
- * The latest hold row per trader. Older FAILED/VOIDED rows stay on file so a
- * retry can pick a new attempt number; sync and confirm must ignore them or a
- * successful retry would still look failed.
- */
-export function currentHoldsByTrader(holds: RecordedHold[]): RecordedHold[] {
-  const latest = new Map<string, RecordedHold>();
-  for (const hold of holds) {
-    latest.set(hold.traderId, hold);
-  }
-  return [...latest.values()];
-}
-
-/** True when the latest hold for every recorded trader is ACTIVE. */
-export function currentHoldsAreActive(holds: RecordedHold[]): boolean {
-  const current = currentHoldsByTrader(holds);
-  return current.length > 0 && current.every((hold) => hold.status === 'ACTIVE');
-}
+// `currentHoldsByTrader` lived here, beside `currentHoldsAreActive`. Both moved to
+// `domain/bond/currentHolds.ts` (ESC-07/08), which is now the one definition of
+// "which hold row counts"; `currentHoldsAreActive` became `currentHoldsCoverTraders`,
+// because it reported a trade fully collateralised when only one trader had a row.
 
 /** True when the latest hold for any trader is a finished-and-failed seek. */
 export function currentHoldsSeekFailed(holds: RecordedHold[]): boolean {
@@ -249,6 +244,11 @@ export function currentHoldsSeekFailed(holds: RecordedHold[]): boolean {
  * RECEIVES, against that Trader's payment instrument (Req 5.4). The active /
  * failed outcome of each hold is later reported via a Webhook_Event that drives
  * HOLDS_CONFIRMED / HOLDS_FAILED through the guarded transition core.
+ *
+ * @deprecated test-only (ESC-32). Its only production caller, the `trades.proposeTrade`
+ * Server Action, was deleted; `tests/unit/tradeProposal.test.ts` still seeds placement
+ * through it. Follow-up: fold those tests onto {@link placeBondsForAgreedTrade} and
+ * delete this.
  */
 export async function proposeTrade(
   deps: TradeProposalDeps,
@@ -572,7 +572,7 @@ export async function placeBondsForAgreedTrade(
 /** The repository subset the collateral cancellation hook needs. */
 export type CollateralRepository = Pick<
   TradeProposalRepository,
-  'getHolds' | 'markHoldStatus' | 'restoreItems' | 'listTradeItemIds'
+  'getHolds' | 'markHoldStatus' | 'restoreItems' | 'listTradeItemIds' | 'restoreTradeItemsIfUnclaimed'
 >;
 
 /**
@@ -620,7 +620,12 @@ export function createCollateralSideEffects(repository: CollateralRepository): R
       (id): id is string => typeof id === 'string' && id.length > 0,
     );
     const itemIds = bundledIds.length > 0 ? bundledIds : fallbackIds;
-    if (itemIds.length > 0) {
+    // The FILTERED restore (0133, round-3 review #4) whenever the binding has it: an
+    // item that SOLD, or that a live cash sale or another trade holds, stays where it
+    // is. The unfiltered `restoreItems` could relist a sold card.
+    if (repository.restoreTradeItemsIfUnclaimed) {
+      await repository.restoreTradeItemsIfUnclaimed(ctx.trade.id);
+    } else if (itemIds.length > 0) {
       await repository.restoreItems(itemIds);
     }
 

@@ -24,20 +24,19 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { tradeContext } from '@/lib/notifications/notificationContext';
-import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
+import { confirmTradeCollateral } from '@/lib/trades/collateralLock';
 import { emailNotify } from '@/lib/email';
 import { createPrivateTradeItem, type ImageInput } from '@/lib/actions/listings';
-import { getPaymentService, operationalRegions } from '@/domain/services';
-import { currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
+import { operationalRegions } from '@/domain/services';
+import { currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
+import { currentHoldsCoverTraders } from '@/domain/bond/currentHolds';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
 import { placeTradeCollateral } from '@/lib/trades/collateralPlacement';
 import {
   MAX_MEETING_LEAD_HOURS,
   TRADE_HANDOVER_METHODS,
   validateFulfilmentTerms,
 } from '@/domain/fulfilment';
-import { regionForTrade } from '@/lib/regionBinding';
 import { checkRegionCompatibility, regionMismatchMessage } from '@/domain/region';
 import type { Tables } from '@/lib/supabase/database.types';
 
@@ -51,6 +50,8 @@ export type TradeNegotiationError =
   | 'not-permitted'
   | 'stale-terms'
   | 'invalid-terms'
+  /** No face-to-face meeting place and time on the terms (ESC-04). */
+  | 'terms-incomplete'
   | 'rejected'
   | 'bond-failed';
 
@@ -342,6 +343,18 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
     }
   }
 
+  // ESC-04: collateral is placed a day before the MEETING, so terms with no meeting
+  // instant (or a non-face-to-face method) would leave a trade with no placement
+  // time, no inspection clock and no stale-sweep trigger. The SQL guard joins this
+  // when WP3's migration redefines `begin_trade_collateral`.
+  if (loaded.trade.handover_method !== 'IN_PERSON' || !loaded.trade.meeting_at) {
+    return {
+      ok: false,
+      error: 'terms-incomplete',
+      message: 'Set a meeting place and time before accepting.',
+    };
+  }
+
   const admin = createAdminClient();
   const { data, error } = await admin.rpc('accept_trade_terms', {
     p_trade_id: tradeId,
@@ -452,24 +465,15 @@ export const retryTradeCollateral = withActionLog('tradeNegotiation.retryTradeCo
   }
 
   const repository = createSupabaseTradeProposalRepository(admin);
-  const payments = getPaymentService(await regionForTrade(tradeId));
   const existing = await repository.getHolds(tradeId);
 
   // A retry while the first placement is still in flight would race it. Only
   // continue once a seek has already failed, or both latest holds are already
   // ACTIVE and just need confirming (process died between place and sync).
-  if (currentHoldsAreActive(existing)) {
-    const orchestrator = createDefaultTradeOrchestrator({ payments });
-    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId: userId });
-    // Both traders learn the collateral is locked and the swap is on (FEAT-002),
-    // but only when this dispatch actually moved the trade into COLLATERAL_LOCKED.
-    if (locked.ok && locked.trade.state === 'COLLATERAL_LOCKED') {
-      const initiatorId = (locked.trade as { initiator_id?: string }).initiator_id;
-      const counterpartId = (locked.trade as { counterpart_id?: string }).counterpart_id;
-      if (initiatorId && counterpartId) {
-        await notifyTradeCollateralLocked({ initiatorId, counterpartId, tradeId });
-      }
-    }
+  if (currentHoldsCoverTraders(existing, [trade.initiator_id, trade.counterpart_id])) {
+    // The one lock rule (ESC-08). It notifies both traders itself, exactly once, and
+    // only when it actually moved the trade into COLLATERAL_LOCKED (FEAT-002).
+    await confirmTradeCollateral({ tradeId, actorId: userId });
     revalidatePath(`/trades/${tradeId}`);
     return { ok: true, trade, collateralStarted: true };
   }

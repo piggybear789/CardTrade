@@ -21,7 +21,7 @@
 // hook.
 
 import { transition } from '../state-machine/machine';
-import type { TradeEvent, TradeState } from '../state-machine/types';
+import type { TradeAuditEvent, TradeEvent, TradeState } from '../state-machine/types';
 import type { PaymentService } from '../services/types';
 
 /**
@@ -72,7 +72,8 @@ export interface TransitionAudit {
   fromState: TradeState;
   toState: TradeState;
   requestedBy: string;
-  event: TradeEvent;
+  /** A transition event, or an audit-only self-loop code (§1.13). */
+  event: TradeEvent | TradeAuditEvent;
   at: Date;
 }
 

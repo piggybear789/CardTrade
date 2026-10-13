@@ -18,13 +18,7 @@
 
 import { timingSafeEqual } from 'node:crypto';
 
-import {
-  flagStaleCollateralTrades,
-  sweepTradeInspections,
-} from '@/lib/trades/inspectionSweep';
-import { advanceDueHandovers, placeDueTradeCollateral } from '@/lib/trades/bondPlacementSweep';
-import { sweepCashSaleInspections } from '@/lib/trades/cashSaleInspectionSweep';
-import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
+import { runTradeInspectionJob } from '@/lib/trades/tradeInspectionJob';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** Never prerender or cache a job that moves money. */
@@ -69,70 +63,13 @@ async function runSweep(request: Request): Promise<Response> {
   }
 
   try {
-    const result = await sweepTradeInspections();
-
-    // Cash sale inspection notifications: the pg_cron function completes the sale
-    // but cannot send in-app or email notifications, so this pass handles them.
-    let cashSales: Awaited<ReturnType<typeof sweepCashSaleInspections>> | null = null;
-    try {
-      cashSales = await sweepCashSaleInspections();
-    } catch (error) {
-      console.error('[jobs] cash-sale-inspection sweep failed', error);
-      await logBackgroundFailure({ name: 'job.trade-inspections.cash-sale-inspections', error });
-    }
-
-    // The Trade_Fee retry rides along on this pass rather than on a route of its own.
-    // It is trade-scoped, hourly is the cadence its attempt budget assumes, and a
-    // second cron entry is a second thing to forget to configure. Isolated so a
-    // collection problem can never cost the inspection sweep, which is the half that
-    // releases collateral.
-    let fees: Awaited<ReturnType<typeof drainFailedTradeFees>> | null = null;
-    try {
-      fees = await drainFailedTradeFees();
-    } catch (error) {
-      console.error('[jobs] trade-fee drain failed', error);
-      await logBackgroundFailure({ name: 'job.trade-inspections.fee-drain', error });
-    }
-
-    // Authorise collateral for trades meeting within the day. This is the OTHER half
-    // of the money in this job — the inspection sweep releases holds, this one places
-    // them — and it is isolated for the same reason: a placement problem must never
-    // cost the release of collateral that is already held.
-    //
-    // Ordered after the release passes deliberately. If the wall clock runs out, the
-    // work that has already been left undone is a hold placed slightly later, not a
-    // trader's collateral left sitting past its deadline.
-    let bonds: Awaited<ReturnType<typeof placeDueTradeCollateral>> | null = null;
-    try {
-      bonds = await placeDueTradeCollateral();
-    } catch (error) {
-      console.error('[jobs] trade collateral placement failed', error);
-      await logBackgroundFailure({ name: 'job.trade-inspections.collateral-placement', error });
-    }
-
-    // Open the inspection window on trades whose meeting time has passed without
-    // either side confirming. Isolated like the rest: a trade that cannot be advanced
-    // must not stop the ones behind it getting their dispute window.
-    let handovers: Awaited<ReturnType<typeof advanceDueHandovers>> | null = null;
-    try {
-      handovers = await advanceDueHandovers();
-    } catch (error) {
-      console.error('[jobs] handover advance failed', error);
-      await logBackgroundFailure({ name: 'job.trade-inspections.handover-advance', error });
-    }
-
-    // Trades whose meeting has arrived with no collateral behind it. Detection only,
-    // no provider calls, and isolated for the same reason as the fee drain. Rides this
-    // schedule because a second cron entry is a second thing to forget to configure.
-    let stale: Awaited<ReturnType<typeof flagStaleCollateralTrades>> | null = null;
-    try {
-      stale = await flagStaleCollateralTrades();
-    } catch (error) {
-      console.error('[jobs] stale-collateral flagging failed', error);
-      await logBackgroundFailure({ name: 'job.trade-inspections.stale-collateral', error });
-    }
-
-    return Response.json({ ok: true, ...result, cashSales, fees, bonds, handovers, stale });
+    // The passes and their ORDER live in `lib/trades/tradeInspectionJob.ts` (a route
+    // module may only export handlers). The hold-expiry re-estimate and the custody
+    // backstop run first because both key on `expires_at` (ESC-01, ESC-17a, R4-M5);
+    // the inspection timeout is the one critical pass; the rest are isolated.
+    const results = await runTradeInspectionJob();
+    const inspections = (results.inspections ?? {}) as Record<string, unknown>;
+    return Response.json({ ok: true, ...inspections, ...results });
   } catch (error) {
     console.error('[jobs] trade-inspections failed', error);
     await logBackgroundFailure({ name: 'job.trade-inspections', error });

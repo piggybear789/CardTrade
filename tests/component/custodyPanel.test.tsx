@@ -93,10 +93,20 @@ describe('CustodyPanel', () => {
 
   it('pluralises the sale count', () => {
     const { unmount } = render(<CustodyPanel position={report({ saleCount: 1 })} />);
-    expect(screen.getByText(/Across 1 sale\b/)).toBeInTheDocument();
+    expect(screen.getByText(/across 1 sale\b/)).toBeInTheDocument();
     unmount();
 
     render(<CustodyPanel position={report({ saleCount: 3 })} />);
-    expect(screen.getByText(/Across 3 sales/)).toBeInTheDocument();
+    expect(screen.getByText(/across 3 sales/)).toBeInTheDocument();
+  });
+
+  it('breaks what is owed down by source, including captured collateral (ESC-01)', () => {
+    render(
+      <CustodyPanel
+        position={report({ heldForSalesCents: 10_000, heldForCollateralCents: 5_000, collateralCount: 2, heldForTradeCashCents: 0, tradeCashCount: 0 })}
+      />,
+    );
+    expect(screen.getByText(/Captured trade collateral: \$50\.00 across 2 holds/)).toBeInTheDocument();
+    expect(screen.getByText(/Trade cash: \$0\.00 across 0 trades/)).toBeInTheDocument();
   });
 });

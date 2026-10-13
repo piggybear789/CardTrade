@@ -193,6 +193,27 @@ const EXPECTED_CODES = new Set([
   'seller-fraud-banned',
   'item-not-available',
   'region-mismatch',
+  // Escrow hardening (design §9). Each is a guard refusing an unsafe request.
+  // ESC-02: the tracking was scanned before the buyer paid.
+  'tracking-predates-payment',
+  // ESC-04: accepting terms with no meeting place and time. Listed explicitly
+  // because the `…-incomplete` pattern below would otherwise read it as a breakage.
+  'terms-incomplete',
+  // ESC-04: an undecided meeting-change proposal already exists.
+  'proposal-open',
+  // ESC-04: the 0133 trigger refused a handover edit after the placement cutoff.
+  'handover-locked',
+]);
+
+/**
+ * Codes that LOOK like refusals by the patterns below but are breakages (design §9).
+ * Checked first. A dispute whose accused has no hold left, or whose history cannot be
+ * read, means money or evidence is missing — that has to surface on the console, not
+ * file away with the guards.
+ */
+const UNEXPECTED_CODES = new Set([
+  'hold-not-found',
+  'dispute-history-unavailable',
 ]);
 
 /**
@@ -208,6 +229,7 @@ const EXPECTED_CODES = new Set([
 export function isExpectedFailureCode(code: string | null | undefined): boolean {
   if (!code) return false;
   const normalized = code.trim().toLowerCase().replace(/_/g, '-');
+  if (UNEXPECTED_CODES.has(normalized)) return false;
   if (EXPECTED_CODES.has(normalized)) return true;
   if (/(^|-)(failed|failure|error|errored|incomplete|unreadable)$/.test(normalized)) return false;
   if (/^(not-|invalid-|self-|already-|cannot-|no-)/.test(normalized)) return true;

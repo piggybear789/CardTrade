@@ -122,7 +122,7 @@ Lifecycle:
 2. Negotiate price, line items, fulfilment (`DELIVERY` / `IN_PERSON`), shipping cost, meeting place/time.
 3. **Payment is the commitment.** There is no mutual confirm-to-pay (0099). The seller sets handover details; the buyer pays. Card is collected into the platform balance. Fee = **5% of item price** (`PLATFORM_FEE_BPS = 500`), **minimum $1.50 per contract** (`PLATFORM_FEE_MINIMUM_MINOR`). Shipping is pass-through.
 4. Fulfil:
-   - `DELIVERY`: seller records shipment → `IN_TRANSIT` → carrier or buyer receipt → `INSPECTION`. The inspection clock starts on **carrier-confirmed delivery**, not the buyer's word.
+   - `DELIVERY`: seller records shipment → `IN_TRANSIT` → carrier or buyer receipt → `INSPECTION`. The inspection clock starts when we LEARN of carrier-confirmed delivery (`now()`), never from the carrier's own timestamp (ESC-02, 0134). A number whose first physical scan predates payment is refused (`TRACKING_PREDATES_PAYMENT`); one already delivered when entered, or delivered before it shipped, is recorded but FLAGGED (`tracking_flagged_at`) and no clock starts until staff decide (`admin.resolveTrackingFlag`: START_CLOCK or REFUND_BUYER).
    - `IN_PERSON`: both confirm handover → the sale **completes on the second confirmation** (unlike trades).
 5. Inspect — **7 days**. Auto-complete via pg_cron `auto_complete_due_cash_sales` (`:07` hourly). Warning emails from the Vercel job.
 6. Payout — queued, drained by `/api/jobs/cash-sale-payouts` (`:47` hourly). Needs `canReceiveFunds`, else `SELLER_NOT_PAYABLE`.
@@ -140,7 +140,7 @@ Routes: `/trades`, `/trades/new`, `/trades/[id]`.
 
 A Trade row is created on the first offer and lives in `NEGOTIATING` until `TERMS_AGREED`. Either party can counter. The same `terms_version` must be accepted by both. Saved card is a hard prerequisite for escrow.
 
-Fulfilment: `DELIVERY` or `IN_PERSON`. Handover-only edits do **not** void acceptances (0101). Cash, declared value, or `counterpart_goods_description` **do**.
+Fulfilment: trades are `IN_PERSON` only (`TRADE_HANDOVER_METHODS`). Cash, declared value, or `counterpart_goods_description` void both acceptances. **Meeting edits are locked by state (ESC-04, `domain/fulfilment/handoverEdits.ts`, backed by the 0133 `trades_lock_handover` trigger):** while NEGOTIATING an edit clears the OTHER trader's acceptance (a refinement of 0101 for trades: the meeting place is where a robbery happens); in COLLATERAL_PENDING before the placement cutoff, with no live hold, it is a PROPOSAL the other trader must accept (`trade_handover_changes`); after that it is refused. A COLLATERAL_PENDING trade whose meeting passed without locking is ended by the one abandon operation (`abandonCollateralPendingTrade`: void holds, `COLLATERAL_ABANDONED`, filtered restore, refund fees, notify).
 
 See [2-Way Trade Escrow](#2-way-trade-escrow) for collateral, inspection, shopfront trades, and the in-person vs delivery split.
 
@@ -309,9 +309,17 @@ Treat Flutter as **partial parity**, not a second complete product. `.kiro/specs
 
    A region in `REGIONS` is **browsable**; only `tradingEnabled` makes it **tradeable**. Today that is AU alone. Do not let a member select a browse-only region as their own: badging them ready and then refusing every contract they open is the shape of the 0060 mistake. What still blocks enabling a second region is not the region model — it is that `STRIPE_CURRENCY` is one global value and no money column records its own denomination, so a platform balance holding AUD and GBP at once has no way to say which is which.
 
-3. **Dispute & Fraud Resolution** — A state machine handling condition disputes (a fixed $20 partial capture "friction tax") and objective fraud (full capture of collateral, paid out to the victim). A staff-confirmed Objective_Fraud finding permanently bans the responsible account. There is deliberately **no identity dossier**: the "Police Evidence Pack" was withdrawn because the platform has no basis to hand a person's identity documents to a private individual on the strength of an in-app fraud determination.
+3. **Dispute & Fraud Resolution** — Members RAISE problems (`CONDITION_DISPUTE`, `FRAUD_CLAIMED`, `HANDOVER_FAILED`); staff DECIDE them. A staff-confirmed Objective_Fraud finding permanently bans the responsible account. There is deliberately **no identity dossier**: the "Police Evidence Pack" was withdrawn because the platform has no basis to hand a person's identity documents to a private individual on the strength of an in-app fraud determination.
 
-   Condition dispute on a trade captures `FRICTION_TAX_CENTS` ($20), capped at the hold: $10 return shipping to the counterpart, $10 platform (`domain/dispute/frictionTax.ts`). Those amounts are AU-only constants; a second trading region makes them a per-currency lookup.
+   **Nothing is captured when a dispute is raised (ESC-01).** The old flow partial-captured $20 at raise; Stripe then released the rest of the authorisation and a later fraud finding could capture nothing. Money moves only at `resolveTradeDispute` (`domain/orchestrator/disputeResolution.ts`, staff-gated `admin.resolveTradeDispute`), with one of four outcomes:
+   - `UNFOUNDED` — both holds released, trade completes; the raiser's `unfounded_dispute_count` increments (a triage signal, never a priority weight).
+   - `CONDITION` — staff choose compensation for the wronged trader, up to what the accused's collateral can still pay; the platform keeps `frictionTaxPlatformFeeFor(currency)` out of the remainder.
+   - `FRAUD` — the offender's collateral pays the victim via `collateral_disbursements` (7-day holdback, `domain/payouts/releasePolicy.ts`); the offender is banned. Victim is an explicit staff choice, validated before any money moves.
+   - `NO_EXCHANGE` — only on a trade that never reached INSPECTION (`hasReachedInspection`: `inspection_deadline_at` set OR an INSPECTION audit row). Everything released, fees refunded, items restored through the FILTERED restore (`restore_trade_items_if_unclaimed`, 0133), trade CANCELLED via `DISPUTE_UNWOUND`. On a never-inspected trade, UNFOUNDED and CONDITION need staff to attest the goods changed hands.
+
+   **Custody backstop.** A DISPUTED trade's live holds are full-captured into the platform balance `CUSTODY_CAPTURE_MARGIN_HOURS` (6) before `expires_at` by the `:17` job (`lib/trades/custodyEscalationSweep.ts`), for EVERY trader by default; only staff may narrow it to the accused (`custody_scope`). Captured collateral is member money and is counted by custody reconciliation. Both traders are warned a day ahead.
+
+   `FRICTION_TAX_CENTS` ($20) remains only as the legacy figure for disputes partial-captured before 0133; those holds are read as `LEGACY_PARTIAL` and still resolve correctly.
 
    Members upload dispute evidence (0082). Cash-sale disputes may be withdrawn by the raiser (0084).
 
@@ -359,7 +367,7 @@ Member-facing copy says **binder or bulk listing**, never "shopfront" — that i
 **Trade_State and Trade_Event are different sets — do not merge them.** This document previously listed one flat union containing both, which reads as a state list and is not one.
 
 - **Trade_State** (9 values, `domain/state-machine/types.ts`, and byte-for-byte the `cardtrade.trade_state` enum): `NEGOTIATING | COLLATERAL_PENDING | COLLATERAL_LOCKED | IN_TRANSIT | INSPECTION | COMPLETED | DISPUTED | FRAUD_RESOLVED | CANCELLED`. `COMPLETED`, `FRAUD_RESOLVED` and `CANCELLED` are terminal.
-- **Trade_Event** — what drives a transition. `BOTH_SHIPPED`, `BOTH_RECEIVED`, `BOTH_HANDOVER_CONFIRMED` and `HANDOVER_FAILED` are events, not states: `BOTH_SHIPPED` takes `COLLATERAL_LOCKED → IN_TRANSIT`, `BOTH_RECEIVED` takes `IN_TRANSIT → INSPECTION`, `BOTH_HANDOVER_CONFIRMED` takes `COLLATERAL_LOCKED → INSPECTION` directly, and `HANDOVER_FAILED` takes either of those to `DISPUTED`. `PROPOSED` and `ACCEPTED` are not states either — a Trade row is created at the first offer and lives in `NEGOTIATING` until `TERMS_AGREED`.
+- **Trade_Event** — what drives a transition. `BOTH_SHIPPED`, `BOTH_RECEIVED`, `BOTH_HANDOVER_CONFIRMED` and `HANDOVER_FAILED` are events, not states: `BOTH_SHIPPED` takes `COLLATERAL_LOCKED → IN_TRANSIT`, `BOTH_RECEIVED` takes `IN_TRANSIT → INSPECTION`, `BOTH_HANDOVER_CONFIRMED` takes `COLLATERAL_LOCKED → INSPECTION` directly, and `HANDOVER_FAILED` takes either of those to `DISPUTED`. `FRAUD_CLAIMED` (LOCKED/INSPECTION → DISPUTED, captures nothing), `COLLATERAL_ABANDONED` (COLLATERAL_PENDING → CANCELLED) and `DISPUTE_UNWOUND` (DISPUTED → CANCELLED, the NO_EXCHANGE outcome) are events too, and `COLLATERAL_TAKEN_INTO_CUSTODY` is an audit-only self-loop code (`TradeAuditEvent`), never a transition. `PROPOSED` and `ACCEPTED` are not states either — a Trade row is created at the first offer and lives in `NEGOTIATING` until `TERMS_AGREED`.
 
 `TRANSITIONS` in `domain/state-machine/machine.ts` is the source of truth; read it rather than this summary when the distinction matters.
 

@@ -24,8 +24,8 @@
 import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
+import { BOND_PLACEMENT_LEAD_HOURS, TRADE_INSPECTION_LABEL } from '@/domain/fulfilment';
+import { createLoggedTradeOrchestrator } from './tradeOrchestrator';
 import { getPaymentService } from '@/domain/services';
 import { regionForCurrency } from '@/lib/regionBinding';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -149,7 +149,7 @@ export interface HandoverAdvanceResult {
  * meeting time has passed would delete the dispute path on an exchange that may well
  * have happened; the system only knows what people told it, and it was told nothing.
  * Advancing opens the window instead: both are notified, either can raise a problem
- * for the next five days, and the collateral is still live to answer it. A meeting
+ * for the next three days (`TRADE_INSPECTION_HOURS`), and the collateral is still live to answer it. A meeting
  * that never happened is recoverable too — that is `HANDOVER_FAILED`.
  *
  * The event is `HANDOVER_ASSUMED`, not `BOTH_HANDOVER_CONFIRMED`, so the audit trail
@@ -180,7 +180,7 @@ export async function advanceDueHandovers(): Promise<HandoverAdvanceResult> {
     // Isolated per trade, like every other pass here: one unhealthy row costs one
     // trade rather than leaving the rest of the batch without a dispute window.
     try {
-      const orchestrator = createDefaultTradeOrchestrator({
+      const orchestrator = createLoggedTradeOrchestrator({
         payments: getPaymentService(regionForCurrency(row.currency)),
       });
       const applied = await orchestrator.applyEvent({
@@ -207,7 +207,7 @@ export async function advanceDueHandovers(): Promise<HandoverAdvanceResult> {
         row.id,
         'Your trade is now in inspection',
         'Your meeting time has passed, so the inspection window is open. Check what you ' +
-          'received and raise a problem in the next five days if anything is wrong. If ' +
+          `received and raise a problem in the next ${TRADE_INSPECTION_LABEL} if anything is wrong. If ` +
           'you never met, report it now.',
       );
     } catch (error) {

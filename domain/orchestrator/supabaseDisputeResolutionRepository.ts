@@ -1,18 +1,20 @@
 // domain/orchestrator/supabaseDisputeResolutionRepository.ts
 //
-// The concrete, production wiring of the dispute/fraud resolution seams, backed
-// by the service-role Supabase admin client (which bypasses RLS — resolution
-// must mutate the Trade and its holds via this trusted path). Mirrors
-// `supabaseTradeRepository.ts` / `supabaseTradeProposalRepository.ts`.
+// The production binding of the dispute seams over the service-role admin client
+// (which bypasses RLS: a resolution must mutate the trade and its holds through the
+// trusted path). Mirrors `supabaseTradeRepository.ts`.
 //
-// This binding is kept OUT of `disputeResolution.ts` on purpose: that
-// coordination module must stay importable by the domain tests (in-memory fakes)
-// without pulling in `server-only`/Supabase. Only this file carries the
-// server-only dependency.
+// Every write checks the returned `{ error }` and throws on one. Supabase reports a
+// database error as a value, not an exception, and a resolution that believed it had
+// stamped a capture or queued a payout when it had not would leave money unaccounted
+// for.
+//
+// Kept OUT of `disputeResolution.ts` so that module stays importable by the domain
+// tests without `server-only`.
 
 import 'server-only';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { PreAuthHold } from '../services/types';
+import type { PaymentService } from '../services/types';
 import {
   createDisputeResolutionOrchestrator,
   type DisputeHold,
@@ -20,201 +22,238 @@ import {
   type DisputeResolutionOrchestrator,
   type DisputeResolutionRepository,
 } from './disputeResolution';
-import type { MerchantRecord } from './merchantOnboarding';
+import type { TradeRecord, TradeOrchestrator } from './tradeOrchestrator';
 
 /** The Supabase admin client type (service-role, RLS-bypassing). */
 type AdminClient = ReturnType<typeof createAdminClient>;
 
+function check(error: { message: string } | null, what: string): void {
+  if (error) throw new Error(`[dispute repository] ${what}: ${error.message}`);
+}
+
 /**
- * Build a {@link DisputeResolutionRepository} backed by the Supabase admin
- * client.
+ * Build a {@link DisputeResolutionRepository} over the admin client.
  *
- * Column mapping (see `supabase/migrations/0001_schema.sql` + `0004_dispute_fraud.sql`):
- * - trades: `dispute_raised_by`, `disputed_against`, `disputed_at`,
- *   `fraud_victim_id`, `friction_tax_return_cents`, `friction_tax_platform_cents`,
- *   `partial_capture_failed`, `return_overdue`, `full_capture_failed`,
- *   `manual_reconciliation`, `evidence_pack_path`, `evidence_pack_complete`
- * - pre_auth_holds: `trader_id`, `hold_ref`, `amount_cents`, `captured_cents`, `status`
- * - profiles: `payer_id`
+ * Columns: trades (0004 dispute columns, 0046 fraud claim, 0075 return share, 0083
+ * reason, 0133 outcome / custody / attestation), pre_auth_holds (0133 custody),
+ * collateral_disbursements (0133), profiles.unfounded_dispute_count (0133).
  */
 export function createSupabaseDisputeResolutionRepository(
   client: AdminClient = createAdminClient(),
 ): DisputeResolutionRepository {
   return {
-    async getHolds(tradeId: string): Promise<DisputeHold[]> {
-      const { data } = await client
-        .from('pre_auth_holds')
-        .select('trader_id, hold_ref, amount_cents, captured_cents, status')
-        .eq('trade_id', tradeId);
-      const rows = (data ?? []) as Array<{
-        trader_id: string;
-        hold_ref: string;
-        amount_cents: number;
-        captured_cents: number;
-        status: PreAuthHold['status'];
-      }>;
-      return rows.map((row) => ({
-        traderId: row.trader_id,
-        holdRef: row.hold_ref,
-        amountCents: Number(row.amount_cents),
-        capturedCents: Number(row.captured_cents),
-        status: row.status,
-      }));
+    async loadTrade(tradeId): Promise<TradeRecord | null> {
+      const { data, error } = await client.from('trades').select('*').eq('id', tradeId).maybeSingle();
+      check(error, 'loadTrade');
+      return (data as TradeRecord | null) ?? null;
     },
 
-    async getTraderPayee(traderId: string): Promise<MerchantRecord | null> {
-      // The victim's PAYOUT destination, not their card. Reading `payer_id` here
-      // was what let the fraud path charge the victim — see the interface comment.
-      const { data } = await client
-        .from('profiles')
-        .select(
-          'merchant_ref, merchant_status, merchant_settlements_enabled, merchant_live_enabled, merchant_transactions_enabled, fraud_banned_at',
-        )
-        .eq('id', traderId)
+    async getHolds(tradeId: string): Promise<DisputeHold[]> {
+      // Oldest first, so `currentLiveHold` (ESC-07) reads each trader's attempts in
+      // the order they were made; a FAILED first attempt must never be "the" hold.
+      const { data, error } = await client
+        .from('pre_auth_holds')
+        .select('trader_id, hold_ref, amount_cents, captured_cents, status, created_at, custody_captured_at')
+        .eq('trade_id', tradeId)
+        .order('created_at', { ascending: true });
+      check(error, 'getHolds');
+      const rows = (data ?? []) as Array<{
+        trader_id: string;
+        hold_ref: string | null;
+        amount_cents: number;
+        captured_cents: number;
+        status: DisputeHold['status'];
+        created_at: string | null;
+        custody_captured_at: string | null;
+      }>;
+      return rows
+        .filter((row) => typeof row.hold_ref === 'string' && row.hold_ref.length > 0)
+        .map((row) => ({
+          traderId: row.trader_id,
+          holdRef: row.hold_ref as string,
+          amountCents: Number(row.amount_cents),
+          capturedCents: Number(row.captured_cents),
+          status: row.status,
+          createdAt: row.created_at,
+          custodyCapturedAt: row.custody_captured_at,
+        }));
+    },
+
+    async hasReachedInspection(tradeId): Promise<boolean> {
+      // R4-M1: the deadline column is written by the same trigger that fires on
+      // entering INSPECTION, so it proves the history even if the audit row was lost.
+      const { data: trade, error: tradeError } = await client
+        .from('trades')
+        .select('inspection_deadline_at')
+        .eq('id', tradeId)
         .maybeSingle();
-      const row = data as {
-        merchant_ref: string | null;
-        merchant_status: MerchantRecord['merchantStatus'] | null;
-        merchant_settlements_enabled: boolean | null;
-        merchant_live_enabled: boolean | null;
-        merchant_transactions_enabled: boolean | null;
-        fraud_banned_at: string | null;
-      } | null;
-      if (!row) return null;
-      // Only the payout facts are read. Identity fields are deliberately absent:
-      // `canReceiveFunds` does not consult them, and this module holds no identity
-      // data by design (see the module header).
-      //
-      // `fraud_banned_at` IS a payout fact and `canReceiveFunds` does consult it, so
-      // it must be selected here. Leaving it out would read as `undefined` and pass
-      // the ban check silently, which on this path means paying captured collateral
-      // to a permanently banned account.
-      return {
-        profileId: traderId,
-        merchantRef: row.merchant_ref,
-        merchantStatus: row.merchant_status ?? 'NONE',
-        liveEnabled: Boolean(row.merchant_live_enabled),
-        transactionsEnabled: Boolean(row.merchant_transactions_enabled),
-        settlementsEnabled: Boolean(row.merchant_settlements_enabled),
-        fraudBannedAt: row.fraud_banned_at,
-      };
+      check(tradeError, 'hasReachedInspection trade');
+      if ((trade as { inspection_deadline_at: string | null } | null)?.inspection_deadline_at) return true;
+
+      const { data, error } = await client
+        .from('trade_state_transitions')
+        .select('id')
+        .eq('trade_id', tradeId)
+        .eq('to_state', 'INSPECTION')
+        .limit(1);
+      check(error, 'hasReachedInspection history');
+      return (data ?? []).length > 0;
+    },
+
+    async disbursedFromHold(holdRef) {
+      const { data, error } = await client
+        .from('collateral_disbursements')
+        .select('amount_minor, status')
+        .eq('hold_ref', holdRef);
+      check(error, 'disbursedFromHold');
+      let settledCents = 0;
+      let queuedCents = 0;
+      for (const row of (data ?? []) as Array<{ amount_minor: number; status: string }>) {
+        if (row.status === 'SETTLED') settledCents += Number(row.amount_minor);
+        else queuedCents += Number(row.amount_minor);
+      }
+      return { settledCents, queuedCents };
     },
 
     async recordDisputeParticipants(params): Promise<void> {
-      await client
+      const { error } = await client
         .from('trades')
         .update({
           dispute_raised_by: params.raisedBy,
           disputed_against: params.disputedAgainst,
           disputed_at: params.at.toISOString(),
-          // Written only when supplied (0083). A second dispute on an already-DISPUTED
-          // trade — which `reportFraud` performs deliberately — must not blank the
-          // reason the first one recorded, so an absent value is omitted rather than
-          // written as null.
+          // Written only when supplied (0083), so a later claim on an already-disputed
+          // trade cannot blank the reason the first one recorded.
           ...(params.reason ? { dispute_reason: params.reason } : {}),
         })
         .eq('id', params.tradeId);
+      check(error, 'recordDisputeParticipants');
     },
 
-    async recordFrictionTaxCapture(params): Promise<void> {
-      // Increment the disputed-against hold's captured amount and mark it
-      // PARTIALLY_CAPTURED (Req 7.2), then store the $10/$10 allocation on the
-      // Trade (Req 7.3).
-      const { data } = await client
-        .from('pre_auth_holds')
-        .select('captured_cents')
-        .eq('hold_ref', params.holdRef)
-        .maybeSingle();
-      const prior = Number((data as { captured_cents: number } | null)?.captured_cents ?? 0);
-      await client
+    async recordFraudClaim(params): Promise<boolean> {
+      // 0046's RPC: participant-checked, INSPECTION/DISPUTED only, first claim wins.
+      const { data, error } = await client.rpc('record_trade_fraud_claim', {
+        p_trade_id: params.tradeId,
+        p_claimant_id: params.claimantId,
+        p_reason: params.reason,
+      });
+      check(error, 'recordFraudClaim');
+      return Boolean(data);
+    },
+
+    async recordHoldCapture(params): Promise<void> {
+      const { error } = await client
         .from('pre_auth_holds')
         .update({
-          captured_cents: prior + params.capturedCents,
-          status: 'PARTIALLY_CAPTURED',
+          captured_cents: params.capturedCents,
+          status: params.status,
+          custody_captured_at: params.custodyCapturedAt.toISOString(),
         })
         .eq('hold_ref', params.holdRef);
-      await client
-        .from('trades')
-        .update({
-          friction_tax_return_cents: params.allocation.returnShippingCents,
-          friction_tax_platform_cents: params.allocation.platformFeeCents,
-        })
-        .eq('id', params.tradeId);
-    },
-
-    async recordPartialCaptureFailure(params): Promise<void> {
-      await client
-        .from('trades')
-        .update({ partial_capture_failed: true })
-        .eq('id', params.tradeId);
-    },
-
-    async recordFrictionTaxReturnResult(params): Promise<void> {
-      // Columns from 0075. `paid_at` staying NULL is what marks the share as still owed,
-      // so it is only ever set on a settled payout.
-      await client
-        .from('trades')
-        .update({
-          friction_tax_return_nonce: params.nonce,
-          friction_tax_return_paid_at: params.paid ? new Date().toISOString() : null,
-          friction_tax_return_error: params.paid ? null : (params.error ?? null),
-        })
-        .eq('id', params.tradeId);
-    },
-
-    async recordReturnOverdue(params): Promise<void> {
-      await client.from('trades').update({ return_overdue: true }).eq('id', params.tradeId);
+      check(error, 'recordHoldCapture');
     },
 
     async markHoldVoided(holdRef: string): Promise<void> {
-      await client.from('pre_auth_holds').update({ status: 'VOIDED' }).eq('hold_ref', holdRef);
+      const { error } = await client.from('pre_auth_holds').update({ status: 'VOIDED' }).eq('hold_ref', holdRef);
+      check(error, 'markHoldVoided');
+    },
+
+    async queueDisbursements(rows): Promise<void> {
+      if (rows.length === 0) return;
+      // Idempotent on the deterministic nonce: a retried resolution queues nothing twice.
+      const { error } = await client.from('collateral_disbursements').upsert(
+        rows.map((row) => ({
+          trade_id: row.tradeId,
+          hold_ref: row.holdRef,
+          kind: row.kind,
+          payee_id: row.payeeId,
+          amount_minor: row.amountMinor,
+          currency: row.currency,
+          nonce: row.nonce,
+          hold_reason: row.holdReason ?? null,
+        })),
+        { onConflict: 'nonce', ignoreDuplicates: true },
+      );
+      check(error, 'queueDisbursements');
+    },
+
+    async insertCustodyAudit(params): Promise<void> {
+      const { error } = await client.from('trade_state_transitions').insert({
+        trade_id: params.tradeId,
+        from_state: 'DISPUTED',
+        to_state: 'DISPUTED',
+        requested_by: params.actorId,
+        event: 'COLLATERAL_TAKEN_INTO_CUSTODY',
+        created_at: params.at.toISOString(),
+      });
+      check(error, 'insertCustodyAudit');
+    },
+
+    async recordOutcome(params): Promise<void> {
+      const { error } = await client
+        .from('trades')
+        .update({
+          dispute_outcome: params.outcome,
+          dispute_goods_exchanged_attested_by: params.attestedBy,
+          dispute_goods_exchanged_attested_at: params.attestedBy ? params.at.toISOString() : null,
+          ...(params.cancelled ? { cancelled_at: params.at.toISOString() } : {}),
+        })
+        .eq('id', params.tradeId);
+      check(error, 'recordOutcome');
     },
 
     async recordFraudParticipants(params): Promise<void> {
-      await client
+      const { error } = await client
         .from('trades')
         .update({ fraud_victim_id: params.victimId })
         .eq('id', params.tradeId);
+      check(error, 'recordFraudParticipants');
     },
 
-    async recordFullCapture(params): Promise<void> {
-      await client
-        .from('pre_auth_holds')
-        .update({ captured_cents: params.capturedCents, status: 'FULLY_CAPTURED' })
-        .eq('hold_ref', params.holdRef);
+    async incrementUnfoundedDisputeCount(profileId): Promise<void> {
+      const { data, error: readError } = await client
+        .from('profiles')
+        .select('unfounded_dispute_count')
+        .eq('id', profileId)
+        .maybeSingle();
+      check(readError, 'incrementUnfoundedDisputeCount read');
+      const current = Number((data as { unfounded_dispute_count: number } | null)?.unfounded_dispute_count ?? 0);
+      const { error } = await client
+        .from('profiles')
+        .update({ unfounded_dispute_count: current + 1 })
+        .eq('id', profileId);
+      check(error, 'incrementUnfoundedDisputeCount');
     },
 
     async flagManualReconciliation(params): Promise<void> {
-      await client
+      const { error } = await client
         .from('trades')
-        .update({ full_capture_failed: true, manual_reconciliation: true })
+        .update({
+          manual_reconciliation: true,
+          ...(params.fullCaptureFailed ? { full_capture_failed: true } : {}),
+        })
         .eq('id', params.tradeId);
+      check(error, 'flagManualReconciliation');
     },
 
+    async restoreTradeItemsIfUnclaimed(tradeId): Promise<string[]> {
+      const { data, error } = await client.rpc('restore_trade_items_if_unclaimed', { p_trade_id: tradeId });
+      check(error, 'restoreTradeItemsIfUnclaimed');
+      return ((data ?? []) as string[]).filter((id) => typeof id === 'string');
+    },
   };
 }
 
 /**
- * Default production dispute/fraud resolution orchestrator: a Supabase-backed
- * repository, with the caller supplying the bound Trade Orchestrator and the
- * payment service.
- *
- * Takes no KYC dependency: the identity-disclosure step this flow used to perform
- * has been removed, so no verified identity field is read.
- *
- * Callers may override any dependency (e.g. inject a fake repository in an
- * integration test).
+ * The production dispute coordinator: the Supabase repository, with the caller
+ * supplying the trade orchestrator, the payment service and the lib-side bindings
+ * (cash leg, fee refund, notifier). Any dependency may be overridden.
  */
 export function createDefaultDisputeResolutionOrchestrator(
-  deps: Pick<DisputeResolutionDeps, 'orchestrator' | 'payments'> &
-    Partial<DisputeResolutionDeps>,
+  deps: { orchestrator: TradeOrchestrator; payments: PaymentService } & Partial<DisputeResolutionDeps>,
 ): DisputeResolutionOrchestrator {
-  const client = createAdminClient();
   return createDisputeResolutionOrchestrator({
-    orchestrator: deps.orchestrator,
-    repository: deps.repository ?? createSupabaseDisputeResolutionRepository(client),
-    payments: deps.payments,
-    now: deps.now,
-    maxFullCaptureAttempts: deps.maxFullCaptureAttempts,
+    ...deps,
+    repository: deps.repository ?? createSupabaseDisputeResolutionRepository(createAdminClient()),
   });
 }

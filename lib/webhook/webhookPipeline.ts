@@ -30,7 +30,7 @@ import { NextResponse } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { Database, Json } from '@/lib/supabase/database.types';
-import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
+import { acceptsMockWebhooks, getPaymentService } from '@/domain/services';
 import { regionForCashSale, regionForMerchantRef, regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import {
   MOCK_SIGNATURE_HEADER,
@@ -47,13 +47,14 @@ import {
 } from '@/domain/services/stripe';
 import type { WebhookEvent } from '@/domain/services/types';
 import { mapEventToAction } from '@/domain/webhook/mapEventToAction';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
+import { createLoggedTradeOrchestrator } from '@/lib/trades/tradeOrchestrator';
 import { createSupabaseCollateralSideEffects } from '@/domain/orchestrator/supabaseTradeProposalRepository';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { createDefaultMerchantOnboardingOrchestrator } from '@/domain/orchestrator/supabaseMerchantRepository';
-import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
+import { pushVerifiedIdentityToConnect } from '@/lib/identity/pushVerifiedIdentity';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
-import { notifyCashSaleSettled, notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
+import { notifyCashSaleSettled } from '@/lib/notifications/settlementNotifier';
+import { reconcileTradeHoldStatus } from '@/lib/trades/collateralLock';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -64,14 +65,6 @@ function failureDetail(result: { error?: unknown; detail?: unknown }): string {
   return typeof result.detail === 'string' && result.detail ? `${code}: ${result.detail}` : code;
 }
 type WebhookOutcome = Database['cardtrade']['Enums']['webhook_outcome'];
-
-/**
- * Shared secret used to verify MockService webhook signatures. Read from
- * `WEBHOOK_SECRET` with the same local default the emitter
- * (`domain/services/index.ts`) uses, so the signature path works end-to-end in
- * local demos while production supplies a real secret.
- */
-const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET ?? 'dev-mock-webhook-secret';
 
 /**
  * Constant-time comparison of two hex signature strings. Returns `false` on any
@@ -161,6 +154,36 @@ async function dispatchEvent(
   const action = mapEventToAction(event);
 
   switch (action.kind) {
+    case 'HOLD_STATUS': {
+      // ESC-08: a statement about ONE hold. Reconciled onto that row only when it is
+      // the trader's current attempt; the trade locks only when every trader's current
+      // hold is ACTIVE, through the same rule every other lock path uses, which also
+      // sends the "collateral locked" notification exactly once.
+      const tradeId = action.tradeId ?? (await resolveTradeId(client, event));
+      if (!tradeId) return { outcome: 'NO_OP', tradeId: null };
+      const { data: tradeRow } = await client
+        .from('trades')
+        .select('initiator_id')
+        .eq('id', tradeId)
+        .maybeSingle();
+      const actorId = (tradeRow as { initiator_id: string } | null)?.initiator_id;
+      if (!actorId) return { outcome: 'NO_OP', tradeId };
+      const reconciled = await reconcileTradeHoldStatus({
+        tradeId,
+        holdId: action.holdId,
+        status: action.status,
+        actorId,
+        client,
+      });
+      if (reconciled.kind === 'NO_OP') {
+        return { outcome: 'NO_OP', tradeId, detail: reconciled.reason };
+      }
+      if (reconciled.confirm?.kind === 'FAILED') {
+        return { outcome: 'FAILURE', tradeId, detail: reconciled.confirm.error };
+      }
+      return { outcome: 'SUCCESS', tradeId };
+    }
+
     case 'TRADE_EVENT': {
       const tradeId = await resolveTradeId(client, event);
       if (!tradeId) {
@@ -191,7 +214,7 @@ async function dispatchEvent(
       // active authorisations, and an authorisation belongs to the Stripe account
       // that created it. Through the wrong client the void silently finds nothing and
       // real collateral stays held.
-      const orchestrator = createDefaultTradeOrchestrator({
+      const orchestrator = createLoggedTradeOrchestrator({
         payments: getPaymentService(await regionForTrade(tradeId)),
         runSideEffects: createSupabaseCollateralSideEffects(client),
       });
@@ -201,23 +224,9 @@ async function dispatchEvent(
         actorId,
       });
 
-      // Collateral locking is the trade equivalent of a purchase clearing, and it
-      // emitted nothing (FEAT-002). Notify BOTH traders when this event actually
-      // moved the trade INTO COLLATERAL_LOCKED. Guarded on the resulting state so
-      // an unrelated trade event never notifies, and on the transition itself so a
-      // trade already locked (the synchronous placement path having driven
-      // HOLDS_CONFIRMED inline) is not announced twice: that path reports the
-      // trade already in COLLATERAL_LOCKED, so applyEvent here is a self-loop that
-      // does not re-enter the state. The pipeline's alreadyProcessed guard also
-      // stops a redelivered webhook re-running this. Best-effort, after the
-      // outcome is decided, so a failed notification never makes Stripe retry.
-      if (result.ok && result.trade.state === 'COLLATERAL_LOCKED' && action.tradeEvent === 'HOLDS_CONFIRMED') {
-        const initiatorId = (result.trade as { initiator_id?: string }).initiator_id;
-        const counterpartId = (result.trade as { counterpart_id?: string }).counterpart_id;
-        if (initiatorId && counterpartId) {
-          await notifyTradeCollateralLocked({ initiatorId, counterpartId, tradeId });
-        }
-      }
+      // The "collateral locked" notification moved into `confirmCollateralIfComplete`
+      // (ESC-08): no webhook produces HOLDS_CONFIRMED any more, and every lock path
+      // now announces itself exactly once through that one rule.
 
       // A rejected transition records FAILURE and preserves the current state
       // (Req 10.8); a committed transition records SUCCESS (Req 10.4).
@@ -487,17 +496,19 @@ function authenticate(
   }
 
   // --- MockService delivery ------------------------------------------------
-  // Reject mock-signed envelopes when a real provider is active so demo buttons
-  // cannot advance real money flows without a provider signature.
-  if (isLivePaymentsProvider()) {
+  // ESC-16: accepted ONLY while the mock is the active provider AND a WEBHOOK_SECRET
+  // is configured. The old default secret was committed to the repo, so with it any
+  // caller could sign a delivery whenever this path was reachable — including a
+  // production deployment that had silently fallen back to the mock.
+  if (!acceptsMockWebhooks()) {
     return NextResponse.json(
-      { ok: false, error: 'mock webhooks disabled while a real provider is active' },
+      { ok: false, error: 'mock webhooks are disabled' },
       { status: 401 },
     );
   }
 
   const providedSignature = headers.get(MOCK_SIGNATURE_HEADER);
-  const expectedSignature = signWebhookBody(rawBody, WEBHOOK_SECRET);
+  const expectedSignature = signWebhookBody(rawBody, (process.env.WEBHOOK_SECRET ?? '').trim());
   if (!providedSignature || !signaturesMatch(expectedSignature, providedSignature)) {
     return NextResponse.json({ ok: false, error: 'invalid signature' }, { status: 401 });
   }

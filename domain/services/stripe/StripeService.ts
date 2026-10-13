@@ -16,9 +16,13 @@
 //   fullCapture      -> paymentIntents.capture()                  (Req 8.2)
 //   requestTransfer  -> PaymentIntent (+ Transfer when settling to a Seller)
 //
-// The cost of a real authorisation is that it EXPIRES: online card auths last
-// about 7 days. Every hold therefore reports `expiresAt`, read from the charge's
-// `capture_before`, so callers can surface the deadline and/or re-authorise.
+// The cost of a real authorisation is that it EXPIRES: an off-session (merchant-
+// initiated) Visa auth lasts about 4 days 18 hours, others up to 7 days. Every hold
+// therefore reports `expiresAt`, read from the charge's `capture_before`, with
+// CARD_AUTHORISATION_HOURS as the fallback when the provider reports none.
+//
+// A PaymentIntent is captured ONCE. Both capture methods read the intent first and
+// refuse with no write unless it is still `requires_capture` (ESC-01/07).
 //
 // Failure is reported through the `status` field rather than thrown, so the
 // existing compensating logic still runs (Req 4.4, 5.6, 7.6, 8.6). `createPayer`
@@ -37,7 +41,7 @@ import type Stripe from 'stripe';
 // The authorisation length is shared with the inspection clock, which derives the
 // inspection window, the collateral margin and the meeting-lead cap from it. Keeping
 // a private copy here — as this file used to — is what lets those drift apart.
-import { CARD_AUTHORISATION_DAYS } from '../../fulfilment/inspection';
+import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 
 import type {
   CaptureResult,
@@ -669,6 +673,13 @@ export class StripeService implements PaymentService, PayerService {
    */
   async partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult> {
     try {
+      // SINGLE CAPTURE (ESC-01/07). A PaymentIntent can be captured once; after that
+      // Stripe has released the remainder and nothing is left to take. Read first and
+      // refuse with no write unless the authorisation is still open, so a second
+      // capture surfaces as FAILED rather than as an API error mid-resolution.
+      if (!(await this.isCapturable(params.holdId))) {
+        return { captureId: '', holdId: params.holdId, amount: 0, status: 'FAILED' };
+      }
       const intent = await this.stripe.paymentIntents.capture(
         params.holdId,
         { amount_to_capture: params.amount },
@@ -694,6 +705,12 @@ export class StripeService implements PaymentService, PayerService {
   /** Capture the entire authorisation on Objective_Fraud (Req 8.2). */
   async fullCapture(holdId: string): Promise<CaptureResult> {
     try {
+      // Retrieve-first guard (ESC-01/07), as in `partialCapture`. It also turns a
+      // genuinely lapsed authorisation into FAILED for the custody backstop, which
+      // logs CUSTODY_CAPTURE_FAILED instead of the hold being silently stamped.
+      if (!(await this.isCapturable(holdId))) {
+        return { captureId: '', holdId, amount: 0, status: 'FAILED' };
+      }
       const intent = await this.stripe.paymentIntents.capture(
         holdId,
         {},
@@ -712,6 +729,29 @@ export class StripeService implements PaymentService, PayerService {
       this.warn('fullCapture', holdId, err);
       return { captureId: '', holdId, amount: 0, status: 'FAILED' };
     }
+  }
+
+  /**
+   * Re-read a hold's real `capture_before` (R4-M5).
+   *
+   * Used by the hourly re-estimate for rows whose `expires_at` was the old seven-day
+   * planning figure. `null` when the provider reports no deadline; the caller then
+   * keeps a floored estimate rather than inventing a provider date.
+   */
+  async readHoldExpiry(holdId: string): Promise<{ expiresAt: string | null }> {
+    const intent = await this.stripe.paymentIntents.retrieve(holdId, {
+      expand: ['latest_charge'],
+    });
+    const seconds = latestCharge(intent)?.payment_method_details?.card?.capture_before;
+    return {
+      expiresAt: typeof seconds === 'number' ? new Date(seconds * 1000).toISOString() : null,
+    };
+  }
+
+  /** True only while the authorisation can still be captured. */
+  private async isCapturable(holdId: string): Promise<boolean> {
+    const current = await this.stripe.paymentIntents.retrieve(holdId);
+    return current.status === 'requires_capture';
   }
 
   // --- Transfers -----------------------------------------------------------
@@ -1378,5 +1418,5 @@ function captureBefore(intent: Stripe.PaymentIntent): string | undefined {
   if (intent.status !== 'requires_capture') return undefined;
 
   const created = typeof intent.created === 'number' ? intent.created * 1000 : Date.now();
-  return new Date(created + CARD_AUTHORISATION_DAYS * 86_400_000).toISOString();
+  return new Date(created + CARD_AUTHORISATION_HOURS * 3_600_000).toISOString();
 }

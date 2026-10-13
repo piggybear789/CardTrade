@@ -35,6 +35,8 @@ import { findRegion, normalizeRegionCode } from '@/domain/region';
 import { isDeliverableEmail } from '@/domain/validation';
 import { regionForProfile } from '@/lib/regionBinding';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
+// ESC-35: server-only, no longer a Server Action of this module.
+import { buildIdentityPrefill, pushVerifiedIdentityToConnect } from '@/lib/identity/pushVerifiedIdentity';
 import { type ActionResult, fail, ok } from './result';
 
 /**
@@ -356,76 +358,6 @@ export const beginEmbeddedPayout = withActionLog('merchant.beginEmbeddedPayout',
   }
 });
 
-/**
- * Build the transient Prefill_Object from the seller's own Identity session
- * (unified-seller-onboarding, Req 4.1). Server-only: the DOB/address it carries are
- * handed straight to account creation and never persisted, logged, or returned.
- *
- * Returns `undefined` when there is no session to read or the provider cannot be read
- * — the account is then created without prefill and Stripe collects the fields itself
- * (Req 4.6), which is a valid degrade, not a failure.
- */
-async function buildIdentityPrefill(
-  profileId: string,
-  payments: ReturnType<typeof getPaymentService>,
-): Promise<ManagedMerchantDetails['prefill'] | undefined> {
-  if (!payments.readIdentityCheck) return undefined;
-
-  const { data } = await createAdminClient()
-    .from('profiles')
-    .select('identity_check_session_id')
-    .eq('id', profileId)
-    .maybeSingle();
-
-  const sessionId = (data?.identity_check_session_id as string | null) ?? null;
-  if (!sessionId) return undefined;
-
-  try {
-    const check = await payments.readIdentityCheck(sessionId);
-    if (check.outcome !== 'VERIFIED') return undefined;
-    return {
-      firstName: check.verifiedFirstName ?? null,
-      lastName: check.verifiedLastName ?? null,
-      dob: check.verifiedDob ?? null,
-      address: check.verifiedAddress ?? null,
-    };
-  } catch {
-    // A read failure must not block onboarding — Stripe collects the fields instead.
-    return undefined;
-  }
-}
-
-/**
- * Write the caller's verified Identity outputs onto their connected account, if
- * one already exists.
- *
- * Hosted Connect skips fields already on the account. Used when a leftover
- * shell was created before Identity completed. Failures are swallowed: Connect
- * then collects the fields itself (Req 4.6). Never returns the Prefill_Object.
- */
-export const pushVerifiedIdentityToConnect = withActionLog('merchant.pushVerifiedIdentityToConnect', async function pushVerifiedIdentityToConnect(profileId: string): Promise<void> {
-  const payments = getPaymentService(await regionForProfile(profileId));
-  if (!payments.prefillManagedMerchant) return;
-
-  const { data } = await createAdminClient()
-    .from('profiles')
-    .select('merchant_ref')
-    .eq('id', profileId)
-    .maybeSingle();
-  const merchantRef = (data?.merchant_ref as string | null) ?? null;
-  if (!merchantRef) return;
-
-  const prefill = await buildIdentityPrefill(profileId, payments);
-  if (!prefill) return;
-
-  try {
-    await payments.prefillManagedMerchant(merchantRef, prefill);
-  } catch (err) {
-    const message =
-      err && typeof err === 'object' && 'message' in err ? String(err.message) : String(err);
-    console.warn(`[identity] could not stamp Connect identity for ${profileId}: ${message}`);
-  }
-});
 
 /**
  * Whether a provider submission failure was about the email address.

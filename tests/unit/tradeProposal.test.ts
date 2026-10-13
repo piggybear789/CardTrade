@@ -6,7 +6,6 @@ import {
   proposeTrade,
   createCollateralSideEffects,
   placeBondsForAgreedTrade,
-  currentHoldsAreActive,
   type CreateTradeParams,
   type HoldRecordInput,
   type ItemRecord,
@@ -15,6 +14,7 @@ import {
   type TradeProposalRepository,
 } from '@/domain/orchestrator/tradeProposal';
 import type { PreAuthHold } from '@/domain/services/types';
+import { currentHoldsCoverTraders } from '@/domain/bond/currentHolds';
 
 // ---------------------------------------------------------------------------
 // In-memory fake repository (stands in for the Supabase-backed binding). It
@@ -101,6 +101,7 @@ function makePayments(scenario?: ConstructorParameters<typeof MockService>[0]['s
     secret: 'test-secret',
     scenario,
     fetchFn: async () => ({}),
+    isolatedLedger: true,
   });
 }
 
@@ -481,7 +482,7 @@ describe('collateral retry uses a new authorisation key', () => {
 
     const first = await repo.getHolds(proposal.trade.id);
     expect(first.every((h) => h.status === 'FAILED')).toBe(true);
-    expect(currentHoldsAreActive(first)).toBe(false);
+    expect(currentHoldsCoverTraders(first, ['alice', 'bob'])).toBe(false);
 
     const retry = await placeBondsForAgreedTrade(
       { repository: repo, payments },
@@ -497,7 +498,9 @@ describe('collateral retry uses a new authorisation key', () => {
 
     const all = await repo.getHolds(proposal.trade.id);
     expect(all).toHaveLength(4);
-    expect(currentHoldsAreActive(all)).toBe(true);
+    expect(currentHoldsCoverTraders(all, ['alice', 'bob'])).toBe(true);
+    // ESC-08: one trader's ACTIVE row is not a fully collateralised trade.
+    expect(currentHoldsCoverTraders(all.filter((h) => h.traderId === 'alice'), ['alice', 'bob'])).toBe(false);
     const firstRefs = new Set(first.map((h) => h.holdRef));
     const latest = all.filter((h) => h.status === 'ACTIVE');
     expect(latest).toHaveLength(2);

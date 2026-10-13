@@ -37,7 +37,7 @@ import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { regionForProfile } from '@/lib/regionBinding';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
-import { pushVerifiedIdentityToConnect } from '@/lib/actions/merchant';
+import { pushVerifiedIdentityToConnect } from '@/lib/identity/pushVerifiedIdentity';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 import {
   DEFAULT_IDENTITY_RETURN_PATH,

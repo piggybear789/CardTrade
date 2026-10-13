@@ -19,6 +19,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
+import { createDefaultCollateralDisbursementDrain } from '@/domain/orchestrator/supabaseCollateralDisbursementRepository';
 import { getPaymentService, operationalRegions } from '@/domain/services';
 import { regionCurrency } from '@/domain/region';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
@@ -80,6 +81,7 @@ async function runPayoutPass(request: Request): Promise<Response> {
     // seller release — money the platform holds that belongs to a member — and until
     // now nothing retried one that failed, which for a partial refund meant never.
     const refunds = { considered: 0, settled: 0, stillOwed: 0 };
+    const collateral = { considered: 0, settled: 0, deferred: 0, failed: 0 };
     const failures: string[] = [];
 
     // Every per-sale failure the drains report, written to the error log (0123) once
@@ -130,6 +132,39 @@ async function runPayoutPass(request: Request): Promise<Response> {
             context: { region },
           });
         }
+
+        // Money leaving CAPTURED trade collateral (0133): refunds to the hold's owner
+        // and payouts to a wronged trader, each through releasePolicy. Isolated like
+        // the refunds above.
+        const currency = regionCurrency(region);
+        if (currency) {
+          try {
+            const disbursed = await createDefaultCollateralDisbursementDrain({
+              payments: getPaymentService(region),
+              currency,
+              onFailure: ({ disbursementId, tradeId, error }) => {
+                drainReports.push({
+                  name: 'collateral.disbursement',
+                  errorCode: error,
+                  message: `Collateral disbursement failed: ${error}`,
+                  context: { disbursementId, tradeId, region },
+                });
+              },
+            }).run();
+            collateral.considered += disbursed.considered;
+            collateral.settled += disbursed.settled;
+            collateral.deferred += disbursed.deferred;
+            collateral.failed += disbursed.failed;
+          } catch (error) {
+            console.error(`[jobs] collateral disbursement drain failed for region ${region}`, error);
+            drainReports.push({
+              name: 'collateral.disbursement',
+              errorCode: 'THREW',
+              error,
+              context: { region },
+            });
+          }
+        }
       } catch (error) {
         console.error(`[jobs] cash-sale-payouts failed for region ${region}`, error);
         failures.push(region);
@@ -156,6 +191,7 @@ async function runPayoutPass(request: Request): Promise<Response> {
       ok: true,
       ...totals,
       refunds,
+      collateral,
       ...(failures.length > 0 ? { failedRegions: failures } : {}),
     });
   } catch (error) {

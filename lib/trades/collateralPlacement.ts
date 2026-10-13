@@ -29,15 +29,17 @@ import { readIdentityGate, identityGateMessage } from '@/lib/identityGate';
 import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
 import {
   placeBondsForAgreedTrade,
-  currentHoldsAreActive,
   currentHoldsSeekFailed,
 } from '@/domain/orchestrator/tradeProposal';
+import { currentHoldsCoverTraders } from '@/domain/bond/currentHolds';
 import { resolveTradeSideValues } from '@/domain/trade/tradeSideValues';
 import { chargeTradeFees, refundTradeFees } from '@/lib/actions/tradeFees';
 import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
+import { createLoggedTradeOrchestrator } from './tradeOrchestrator';
 import { regionForTrade } from '@/lib/regionBinding';
-import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
+import { confirmTradeCollateral } from './collateralLock';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { createNotification } from '@/lib/notifications/createNotification';
 import type { Tables } from '@/lib/supabase/database.types';
 
 type TradeRow = Tables<'trades'>;
@@ -125,40 +127,18 @@ export async function syncHolds(tradeId: string, actorId: string): Promise<void>
   const admin = createAdminClient();
   const holds = await createSupabaseTradeProposalRepository(admin).getHolds(tradeId);
   if (holds.length === 0) return;
-  const orchestrator = createDefaultTradeOrchestrator({
-    payments: getPaymentService(await regionForTrade(tradeId)),
-  });
+  // ONE lock rule (ESC-08): every trader's CURRENT hold ACTIVE, plus the cash and fee
+  // preconditions. It notifies both traders itself, once, only when it locked.
+  const confirmed = await confirmTradeCollateral({ tradeId, actorId });
+  if (confirmed.kind !== 'INCOMPLETE' || confirmed.reason !== 'HOLDS') return;
   // Only the latest hold per trader counts. A retry leaves the declined row on
   // file, and treating it as current would confirm a successful retry as failed.
-  if (currentHoldsAreActive(holds)) {
-    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
-    await notifyLockedIfEntered(locked);
-    return;
-  }
   if (currentHoldsSeekFailed(holds)) {
+    const orchestrator = createLoggedTradeOrchestrator({
+      payments: getPaymentService(await regionForTrade(tradeId)),
+    });
     await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
   }
-}
-
-/**
- * Notify both traders when a HOLDS_CONFIRMED dispatch actually moved the trade
- * INTO COLLATERAL_LOCKED (FEAT-002). Mirrors the action-layer helper of the same
- * intent so collateral placed by a scheduled pass or retry announces the lock
- * exactly like the single-click path. Best-effort and guarded on the transition
- * so an already-locked trade emits nothing.
- */
-async function notifyLockedIfEntered(
-  result: Awaited<ReturnType<ReturnType<typeof createDefaultTradeOrchestrator>['applyEvent']>>,
-): Promise<void> {
-  if (!result.ok || result.trade.state !== 'COLLATERAL_LOCKED') return;
-  const initiatorId = (result.trade as { initiator_id?: string }).initiator_id;
-  const counterpartId = (result.trade as { counterpart_id?: string }).counterpart_id;
-  if (!initiatorId || !counterpartId) return;
-  await notifyTradeCollateralLocked({
-    initiatorId,
-    counterpartId,
-    tradeId: result.trade.id,
-  });
 }
 
 /**
@@ -209,14 +189,15 @@ export async function placeTradeCollateral(params: {
 
   const repository = createSupabaseTradeProposalRepository(admin);
   const payments = getPaymentService(await regionForTrade(tradeId));
-  const orchestrator = createDefaultTradeOrchestrator({ payments });
+  const orchestrator = createLoggedTradeOrchestrator({ payments });
   const existing = await repository.getHolds(tradeId);
 
   // Already authorised and just never confirmed — the process died between placing
   // and syncing. Confirm rather than authorise a second card hold.
-  if (currentHoldsAreActive(existing)) {
-    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
-    await notifyLockedIfEntered(locked);
+  if (currentHoldsCoverTraders(existing, [trade.initiator_id, trade.counterpart_id])) {
+    // The same rule as every other lock path (ESC-08): it no longer skips the fee
+    // and cash preconditions just because the holds happened to be on file already.
+    await confirmTradeCollateral({ tradeId, actorId });
     return { ok: true, alreadyActive: true };
   }
 
@@ -278,11 +259,123 @@ export async function placeTradeCollateral(params: {
 
   if (bonds.bondsRequired === 0) {
     // Nobody owes a bond, so no provider event will ever arrive to confirm one.
-    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
-    await notifyLockedIfEntered(locked);
+    await confirmTradeCollateral({ tradeId, actorId, noBondsRequired: true });
   } else if (isLivePaymentsProvider()) {
     await syncHolds(tradeId, actorId);
   }
 
   return { ok: true, alreadyActive: false };
+}
+
+// ---------------------------------------------------------------------------
+// One abandon operation (design §1.5 "One abandon operation", ESC-04)
+// ---------------------------------------------------------------------------
+
+export type AbandonReason = 'MEETING_PASSED_UNLOCKED' | 'PAY_BY_PASSED' | 'RESERVATION_LAPSED';
+
+export type AbandonResult =
+  | { ok: true; abandoned: true; restoredItemIds: string[]; feeRefundFailed: boolean }
+  | { ok: true; abandoned: false; reason: 'NOT_PENDING' }
+  | { ok: false; error: 'VOID_FAILED' | 'TRANSITION_FAILED'; detail?: string };
+
+/**
+ * End a COLLATERAL_PENDING trade that will never lock. Every such path (meeting
+ * passed without lock in WP1, `pay_by` in WP2, a short reservation in WP3) goes
+ * through here, in a fixed order so a failure never leaves a TERMINAL trade over live
+ * money:
+ *
+ *   1. (WP2) resolve the cash row. — extension point below.
+ *   2. Void every ACTIVE hold. A failed void STOPS the abandon: the trade stays
+ *      COLLATERAL_PENDING, flagged for reconciliation, and the next sweep retries.
+ *   3. COLLATERAL_ABANDONED through the guarded transition. Zero rows (another path
+ *      already moved the trade) returns without side effects.
+ *   4. The FILTERED item restore: a sold or otherwise-claimed item stays put.
+ *   5. Refund the Trade_Fees, which may already be charged at placement. A failure is
+ *      logged and retried by the fee drain; it does not undo the abandon.
+ *   6. (WP2) a COLLECTED cash row moves to REFUND_PENDING. — extension point below.
+ *   7. Tell both traders.
+ */
+export async function abandonCollateralPendingTrade(
+  tradeId: string,
+  reason: AbandonReason,
+): Promise<AbandonResult> {
+  const admin = createAdminClient();
+  const { data: row, error: readError } = await admin
+    .from('trades')
+    .select('id, state, initiator_id, counterpart_id')
+    .eq('id', tradeId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: 'TRANSITION_FAILED', detail: readError.message };
+  const trade = row as { id: string; state: string; initiator_id: string; counterpart_id: string } | null;
+  if (!trade || trade.state !== 'COLLATERAL_PENDING') return { ok: true, abandoned: false, reason: 'NOT_PENDING' };
+
+  // 1. WP2 (ESC-05): resolve the trade cash row here before anything else.
+
+  // 2. Void live holds first. One trader's hold can be live while the other's failed.
+  const repository = createSupabaseTradeProposalRepository(admin);
+  const payments = getPaymentService(await regionForTrade(tradeId));
+  for (const hold of await repository.getHolds(tradeId)) {
+    if (hold.status !== 'ACTIVE') continue;
+    const voided = await payments.voidHold(hold.holdRef);
+    if (voided.status !== 'VOIDED') {
+      await admin.from('trades').update({ manual_reconciliation: true }).eq('id', tradeId);
+      await logBackgroundFailure({
+        name: 'collateral.void',
+        errorCode: 'VOID_FAILED',
+        message: `Abandon (${reason}) stopped: a hold could not be released.`,
+        context: { tradeId },
+      });
+      return { ok: false, error: 'VOID_FAILED' };
+    }
+    await repository.markHoldStatus(hold.holdRef, 'VOIDED');
+  }
+
+  // 3. The guarded transition. Not ours if another path already moved it.
+  const orchestrator = createLoggedTradeOrchestrator({ payments });
+  const moved = await orchestrator.applyEvent({
+    tradeId,
+    event: 'COLLATERAL_ABANDONED',
+    actorId: trade.initiator_id,
+  });
+  if (!moved.ok) {
+    const { data: again } = await admin.from('trades').select('state').eq('id', tradeId).maybeSingle();
+    if ((again as { state?: string } | null)?.state !== 'COLLATERAL_PENDING') {
+      return { ok: true, abandoned: false, reason: 'NOT_PENDING' };
+    }
+    return { ok: false, error: 'TRANSITION_FAILED', detail: moved.error };
+  }
+
+  // 4. Filtered restore.
+  let restoredItemIds: string[] = [];
+  try {
+    restoredItemIds = (await repository.restoreTradeItemsIfUnclaimed?.(tradeId)) ?? [];
+  } catch (error) {
+    await logBackgroundFailure({ name: 'trade.item_restore', errorCode: 'WRITE_FAILED', error, context: { tradeId } });
+  }
+
+  // 5. Fees (round-3 review #7). Safe unconditionally: only refundable rows refund.
+  let feeRefundFailed = false;
+  try {
+    await refundTradeFees(tradeId);
+  } catch (error) {
+    feeRefundFailed = true;
+    await logBackgroundFailure({ name: 'trade.fee_refund', errorCode: 'REFUND_FAILED', error, context: { tradeId } });
+  }
+
+  // 6. WP2 (ESC-05): a COLLECTED cash row moves to REFUND_PENDING here.
+
+  // 7. Both traders.
+  for (const userId of [trade.initiator_id, trade.counterpart_id]) {
+    await createNotification({
+      userId,
+      type: 'TRADE',
+      title: 'Trade cancelled',
+      body:
+        "The trade was cancelled because it couldn't be locked before the meeting. Any temporary " +
+        'card holds were released, and anything you paid is being refunded.',
+      link: `/trades/${tradeId}`,
+    });
+  }
+
+  return { ok: true, abandoned: true, restoredItemIds, feeRefundFailed };
 }

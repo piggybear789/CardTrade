@@ -269,10 +269,31 @@ export default async function TradePage({
     );
   }
 
-  const [paymentMethodResult, initialAddresses] = await Promise.all([
+  // An undecided meeting-change proposal (ESC-04), read under RLS: participants only.
+  // Only a COLLATERAL_PENDING trade can carry one.
+  const handoverChangePromise =
+    trade.state === 'COLLATERAL_PENDING'
+      ? supabase
+          .from('trade_handover_changes')
+          .select('id, proposed_by, terms, expires_at')
+          .eq('trade_id', trade.id)
+          .is('decided_at', null)
+          .maybeSingle()
+      : Promise.resolve({ data: null });
+
+  const [paymentMethodResult, initialAddresses, { data: handoverChangeRow }] = await Promise.all([
     paymentMethodPromise,
     addressesPromise,
+    handoverChangePromise,
   ]);
+  const handoverChange = handoverChangeRow
+    ? {
+        id: handoverChangeRow.id as string,
+        proposedBy: handoverChangeRow.proposed_by as string,
+        terms: handoverChangeRow.terms as { meeting_location: string | null; meeting_at: string | null },
+        expiresAt: handoverChangeRow.expires_at as string,
+      }
+    : null;
 
   // Ask both carriers after this response is sent — see the matching note on the cash
   // sale route. A trade posts in both directions, so each side carries its own throttle
@@ -306,6 +327,7 @@ export default async function TradePage({
         paymentMethod={paymentMethodResult.ok ? paymentMethodResult.data : null}
         initialAddresses={initialAddresses}
         cashReceiverPayoutReady={cashReceiverPayoutReady}
+        handoverChange={handoverChange}
         demoPanel={
           isPaymentDemoEnabled() ? <DemoPanel tradeId={trade.id} /> : null
         }

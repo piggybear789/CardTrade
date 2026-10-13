@@ -61,6 +61,8 @@ the ONE place a rule lives: the transition table, `bondPolicy`, `identityGate`,
 `regions`, `tradeFee`, `tradeSideValues`, the fulfilment validator. `core/money.dart`
 re-derives `minorUnitDigits` on top of that.
 
+The transition table now carries `FRAUD_CLAIMED`, `COLLATERAL_ABANDONED` and `DISPUTE_UNWOUND` (escrow hardening, ESC-01/04); run `npm run generate:dart-vocab` after changing the `TradeEvent` union so the agreement test reads current generated output.
+
 Those ports exist so the app can decide which buttons to show without a round trip.
 They are **advisory**. The server re-evaluates every one of them and is authoritative;
 a Dart guard that says yes is never permission.

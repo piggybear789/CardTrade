@@ -71,8 +71,9 @@ Copy `.env.local.example` to `.env.local`:
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — browser-safe
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — browser-safe Google Maps key for Places Autocomplete, Maps Embed API (meeting points), and Maps Static API (suburb previews). Restrict by HTTP referrer in the Google Cloud Console. Enable Places API (New) + Maps Embed API + Maps Static API on the key.
 - `SUPABASE_SERVICE_ROLE_KEY` — server-only, RLS-bypassing
-- `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `stripe` (real Stripe API)
-- `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks
+- `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `stripe` (real Stripe API). In PRODUCTION an unset/keyless provider is `unconfigured` and every payment throws (ESC-16); `/api/health` reports the kind as `payments`
+- `ALLOW_MOCK_PAYMENTS_IN_PRODUCTION` — `true` is required, alongside `PAYMENTS_PROVIDER=mock`, for the mock to run on a production build (`next start`, the e2e harness sets it). Never set it on a real deployment
+- `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks. **There is no default secret** (ESC-16): unset, every mock delivery is refused, so set it in `.env.local` for local demos
 - `STRIPE_SECRET_KEY` — server-only. The prefix alone selects the mode (`sk_test_` vs `sk_live_`), so there is no separate environment variable to fall out of sync
 - `STRIPE_WEBHOOK_SECRET` — `whsec_...`, verifies the `stripe-signature` header. Get one from `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — the only Stripe value that may reach the browser
@@ -131,7 +132,7 @@ Middleware (`proxy.ts`) is separate: it runs on the Edge Network near the USER, 
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/`, currently through `0124_update_deal_invite.sql`. Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0137_offers_lockdown.sql` (0133–0137 are the escrow-hardening WP1 set and must be applied in order; several are guarded by migration-TEXT tests: `tradeClockAgreement`, `migrationHoldReestimate`, `migrationRestoreUnclaimed`, `migrationHandoverLock`, `migrationTrackingClock`, `eventCopyCoverage`, `memberWriteSurface`). Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
 
 **The Supabase MCP `apply_migration` fails on this project** with `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`: the tool's history upsert does not match the project's `supabase_migrations.schema_migrations` constraints. It rolls back cleanly. 0121, 0122, 0123 and 0124 were therefore applied with `execute_sql` in a single transaction and have NO history row; check the catalog (`to_regclass`), not the history, before assuming a migration is missing.
 

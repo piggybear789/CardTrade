@@ -79,8 +79,8 @@ export interface PreAuthHold {
    * releases the funds on its own, moving the hold to a terminal state without
    * any call from us.
    *
-   * Set by providers that place a genuine authorisation: card authorisations for
-   * online payments are typically valid for ~7 days, so a Trade must reach
+   * Set by providers that place a genuine authorisation: an off-session Visa
+   * authorisation lasts about 114 hours (`CARD_AUTHORISATION_HOURS`), so a Trade must reach
    * INSPECTION and resolve inside that window, or the collateral must be
    * re-authorised before this instant. Absent when the provider's holds do not
    * expire (e.g. a charge-and-refund strategy, where funds have already moved,
@@ -574,10 +574,27 @@ export interface PaymentService {
   placeHold(params: { payerId: string; amount: Cents; ref: string }): Promise<PreAuthHold>;
   /** Release a hold at $0 cost (Req 6.7, 7.5, 8.5). */
   voidHold(holdId: string): Promise<PreAuthHold>;
-  /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */
+  /**
+   * Capture a fixed portion of a hold — a staff-decided condition outcome.
+   *
+   * SINGLE CAPTURE (ESC-01/07): an authorisation is captured at most once, and the
+   * provider releases the remainder. Every binding returns `FAILED` with no write
+   * unless the hold is still `ACTIVE`.
+   */
   partialCapture(params: { holdId: string; amount: Cents }): Promise<CaptureResult>;
-  /** Capture the entire hold amount on Objective_Fraud (Req 8.2). */
+  /**
+   * Capture the entire hold — an Objective_Fraud finding, or the custody backstop
+   * (`custodyCaptureHold`). `FAILED` unless the hold is still `ACTIVE`.
+   */
   fullCapture(holdId: string): Promise<CaptureResult>;
+  /**
+   * Re-read a hold's provider-reported expiry (R4-M5).
+   *
+   * `expiresAt` is `null` when the provider reports no deadline. Optional so a binding
+   * without real authorisations can omit it; the re-estimate sweep then keeps its
+   * floored estimate.
+   */
+  readHoldExpiry?(holdId: string): Promise<{ expiresAt: string | null }>;
   /**
    * Read what the platform currently holds with the provider.
    *

@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     itemId: String(body.itemId ?? ''),
     sellerIdentityVersion: String(body.sellerIdentityVersion ?? ''),
     buyerConfirmedSellerIdentity: Boolean(body.buyerConfirmedSellerIdentity),
-    agreedPriceCents: body.agreedPriceCents != null ? Number(body.agreedPriceCents) : undefined,
+    // ESC-22: a body-supplied `agreedPriceCents` is ignored, not rejected, so an
+    // older app build keeps working; the buyer never sets the price.
     lineItems: Array.isArray(body.lineItems) ? body.lineItems : undefined,
   });
   return NextResponse.json(result);

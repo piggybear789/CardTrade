@@ -19,12 +19,14 @@ const Map<TradeState, Map<TradeEvent, TradeState>> transitions = {
   TradeState.collateralPending: {
     TradeEvent.holdsConfirmed: TradeState.collateralLocked,
     TradeEvent.holdsFailed: TradeState.collateralPending, // self-loop, retry
+    TradeEvent.collateralAbandoned: TradeState.cancelled, // never locked before the meeting
   },
   TradeState.collateralLocked: {
     TradeEvent.bothShipped: TradeState.inTransit,
     TradeEvent.bothHandoverConfirmed: TradeState.inspection, // in-person skips IN_TRANSIT
     TradeEvent.handoverAssumed: TradeState.inspection, // meeting passed, nobody confirmed
     TradeEvent.handoverFailed: TradeState.disputed,
+    TradeEvent.fraudClaimed: TradeState.disputed, // member claim, captures nothing
   },
   TradeState.inTransit: {
     TradeEvent.bothReceived: TradeState.inspection,
@@ -34,11 +36,13 @@ const Map<TradeState, Map<TradeEvent, TradeState>> transitions = {
     TradeEvent.bothAccepted: TradeState.completed,
     TradeEvent.inspectionExpired: TradeState.completed,
     TradeEvent.conditionDispute: TradeState.disputed,
+    TradeEvent.fraudClaimed: TradeState.disputed,
     TradeEvent.fraudConfirmed: TradeState.fraudResolved,
   },
   TradeState.disputed: {
     TradeEvent.disputeResolved: TradeState.completed,
     TradeEvent.fraudConfirmed: TradeState.fraudResolved,
+    TradeEvent.disputeUnwound: TradeState.cancelled, // staff NO_EXCHANGE
   },
   // Terminal states — no transitions out
   TradeState.completed: {},

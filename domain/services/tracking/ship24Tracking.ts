@@ -32,6 +32,69 @@ function mapStatus(milestone: string | null | undefined): TrackingState {
   }
 }
 
+/**
+ * Milestones that are NOT a physical scan (ESC-02, round-3 review #5). A label is
+ * often printed before the buyer pays; counting it would refuse an honest seller.
+ */
+export const PRE_SCAN_MILESTONES: readonly string[] = ['info_received', 'pending'];
+
+/** The minimal event shape the timing helpers read. */
+export interface Ship24EventLike {
+  occurrenceDatetime: string | null | undefined;
+  statusMilestone: string | null | undefined;
+}
+
+function instant(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const ms = Date.parse(iso);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * The earliest physical carrier scan, in either event order. Events with no
+ * milestone, or a pre-scan one, do not count. Null when none qualifies.
+ */
+export function firstCarrierScanAt(events: readonly Ship24EventLike[] | null | undefined): string | null {
+  let best: { ms: number; iso: string } | null = null;
+  for (const event of events ?? []) {
+    if (!event.statusMilestone || PRE_SCAN_MILESTONES.includes(event.statusMilestone)) continue;
+    const ms = instant(event.occurrenceDatetime);
+    if (ms === null) continue;
+    if (!best || ms < best.ms) best = { ms, iso: event.occurrenceDatetime as string };
+  }
+  return best?.iso ?? null;
+}
+
+/** The latest `delivered`-milestone event, in either event order. */
+export function deliveredEventAt(events: readonly Ship24EventLike[] | null | undefined): string | null {
+  let best: { ms: number; iso: string } | null = null;
+  for (const event of events ?? []) {
+    if (event.statusMilestone !== 'delivered') continue;
+    const ms = instant(event.occurrenceDatetime);
+    if (ms === null) continue;
+    if (!best || ms > best.ms) best = { ms, iso: event.occurrenceDatetime as string };
+  }
+  return best?.iso ?? null;
+}
+
+/** Build a snapshot from a Ship24 tracking result. */
+function snapshotFrom(
+  carrier: string,
+  trackingNumber: string,
+  tracking: Ship24TrackResponse['data']['trackings'][number] | undefined,
+): TrackingSnapshot {
+  const status = mapStatus(tracking?.shipment?.statusMilestone);
+  const events = tracking?.events ?? [];
+  return {
+    carrier,
+    trackingNumber,
+    trackingUrl: carrierTrackingUrl(carrier, trackingNumber),
+    status,
+    deliveredAt: status === 'DELIVERED' ? (deliveredEventAt(events) ?? events[0]?.occurrenceDatetime ?? null) : null,
+    firstEventAt: firstCarrierScanAt(events),
+  };
+}
+
 export class Ship24TrackingService implements TrackingService {
   private apiKey: string;
 
@@ -78,18 +141,7 @@ export class Ship24TrackingService implements TrackingService {
         body: JSON.stringify(body),
       });
 
-      const shipment = data.data?.trackings?.[0]?.shipment;
-      const lastEvent = data.data?.trackings?.[0]?.events?.[0];
-      const status = mapStatus(shipment?.statusMilestone);
-      return {
-        carrier,
-        trackingNumber,
-        trackingUrl: carrierTrackingUrl(carrier, trackingNumber),
-        status,
-        deliveredAt: status === 'DELIVERED' && lastEvent?.occurrenceDatetime
-          ? lastEvent.occurrenceDatetime
-          : null,
-      };
+      return snapshotFrom(carrier, trackingNumber, data.data?.trackings?.[0]);
     } catch (err) {
       // Fallback: if Ship24 is down, still register with the URL and UNKNOWN status.
       console.error('[Ship24] registerShipment failed, falling back:', err);
@@ -125,20 +177,9 @@ export class Ship24TrackingService implements TrackingService {
         body: JSON.stringify(body),
       });
 
-      const shipment = data.data?.trackings?.[0]?.shipment;
-      const lastEvent = data.data?.trackings?.[0]?.events?.[0];
-      if (!shipment) return null;
-
-      const status = mapStatus(shipment.statusMilestone);
-      return {
-        carrier,
-        trackingNumber,
-        trackingUrl: carrierTrackingUrl(carrier, trackingNumber),
-        status,
-        deliveredAt: status === 'DELIVERED' && lastEvent?.occurrenceDatetime
-          ? lastEvent.occurrenceDatetime
-          : null,
-      };
+      const tracking = data.data?.trackings?.[0];
+      if (!tracking?.shipment) return null;
+      return snapshotFrom(carrier, trackingNumber, tracking);
     } catch (err) {
       console.error('[Ship24] fetchStatus failed:', err);
       return null;

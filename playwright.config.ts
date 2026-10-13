@@ -55,6 +55,10 @@ const includeMobile = !!process.env.CI || process.env.E2E_MOBILE === '1';
 const SERVER_ENV = {
   PAYMENTS_PROVIDER: 'mock',
   ENABLE_PAYMENT_DEMO: 'true',
+  // ESC-16: `next start` runs with NODE_ENV=production, where the mock is refused
+  // unless explicitly allowed, and mock webhooks need a secret (there is no default).
+  ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: 'true',
+  WEBHOOK_SECRET: process.env.WEBHOOK_SECRET ?? 'e2e-mock-webhook-secret',
   // THE SIMULATED WEBHOOK MUST COME BACK TO *THIS* SERVER.
   //
   // `.env.local` sets `WEBHOOK_URL=http://localhost:3000/...` for a developer's normal

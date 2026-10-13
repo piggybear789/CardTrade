@@ -24,6 +24,12 @@ import type { TradeEvent } from '../state-machine/types';
  */
 export type WebhookAction =
   | { kind: 'TRADE_EVENT'; tradeEvent: TradeEvent }
+  /**
+   * A provider statement about ONE collateral hold (ESC-08). Never a trade event:
+   * one trader's authorisation clearing says nothing about the other's, so the
+   * handler reconciles the row and lets `confirmCollateralIfComplete` decide.
+   */
+  | { kind: 'HOLD_STATUS'; status: 'ACTIVE' | 'FAILED'; holdId: string; tradeId: string | null }
   | { kind: 'CASH_SALE_SETTLE' }
   | { kind: 'CASH_SALE_FAIL' }
   | { kind: 'MERCHANT_COMPLIANCE' }
@@ -59,11 +65,19 @@ export type WebhookAction =
  */
 export function mapEventToAction(event: WebhookEvent): WebhookAction {
   switch (event.type) {
-    // Collateral holds -> the COLLATERAL_PENDING lifecycle transitions (Req 5.5, 5.6).
+    // Collateral holds -> a per-hold reconcile, NEVER a trade event (ESC-08). It used
+    // to map to HOLDS_CONFIRMED, so the first trader's authorisation locked the trade
+    // with the other's still missing. A hold event with no hold id is unroutable.
     case 'hold.active':
-      return { kind: 'TRADE_EVENT', tradeEvent: 'HOLDS_CONFIRMED' };
     case 'hold.failed':
-      return { kind: 'TRADE_EVENT', tradeEvent: 'HOLDS_FAILED' };
+      return event.payload.holdId
+        ? {
+            kind: 'HOLD_STATUS',
+            status: event.type === 'hold.active' ? 'ACTIVE' : 'FAILED',
+            holdId: event.payload.holdId,
+            tradeId: event.payload.tradeId ?? null,
+          }
+        : { kind: 'NO_OP' };
 
     // Bank transfers -> Cash_Sale settlement/failure when a sale is referenced;
     // otherwise a fraud payout that needs no further transition (Req 4.3, 4.4, 8.3).

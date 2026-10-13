@@ -21,7 +21,9 @@ import {
 } from '@/domain/services/mock/MockService';
 import { createFakeAdmin, type FakeAdmin } from './fakes/supabaseChain';
 
-const SECRET = 'dev-mock-webhook-secret';
+// Set explicitly: there is no default mock secret any more (ESC-16).
+const SECRET = 'test-mock-webhook-secret';
+process.env.WEBHOOK_SECRET = SECRET;
 
 let admin: FakeAdmin;
 
@@ -35,12 +37,19 @@ const notifyTradeCollateralLocked = vi.fn(
   async (_p: { initiatorId: string; counterpartId: string; tradeId: string }) => {},
 );
 
+// The per-hold reconcile result for this delivery (ESC-08).
+let reconcileResult: unknown = { kind: 'NO_OP', reason: 'UNKNOWN_HOLD' };
+const reconcileTradeHoldStatus = vi.fn(async (_p: Record<string, unknown>) => reconcileResult);
+vi.mock('@/lib/trades/collateralLock', () => ({
+  reconcileTradeHoldStatus: (p: Record<string, unknown>) => reconcileTradeHoldStatus(p),
+}));
+
 vi.mock('@/lib/supabase/admin', () => ({
   createAdminClient: () => admin.client,
 }));
 
 vi.mock('@/domain/services', () => ({
-  isLivePaymentsProvider: () => false,
+  acceptsMockWebhooks: () => true,
   getPaymentService: () => ({}),
 }));
 
@@ -103,18 +112,20 @@ function cashSettleEnvelope(eventId: string): string {
   });
 }
 
-/** A hold.active event for a trade (-> TRADE_EVENT HOLDS_CONFIRMED). */
+/** A hold.active event for one trader's hold (-> HOLD_STATUS, ESC-08). */
 function holdActiveEnvelope(eventId: string): string {
   return JSON.stringify({
     eventId,
     type: 'hold.active',
-    payload: { tradeId: 'trade-9' },
+    payload: { tradeId: 'trade-9', holdId: 'pi_9' },
   });
 }
 
 beforeEach(() => {
   notifyCashSaleSettled.mockClear();
   notifyTradeCollateralLocked.mockClear();
+  reconcileTradeHoldStatus.mockClear();
+  reconcileResult = { kind: 'NO_OP', reason: 'UNKNOWN_HOLD' };
   settleResult = { ok: false, error: 'INVALID_STATE' };
   applyEventResult = { ok: false, error: 'INVALID_TRANSITION' };
   admin = createFakeAdmin({ defaults: { webhook_logs: { data: null } } });
@@ -167,45 +178,48 @@ describe('CASH_SALE_SETTLE — settlement notifications', () => {
   });
 });
 
-describe('hold.active — trade collateral locked notifications', () => {
-  it('notifies both traders when the event moves the trade into COLLATERAL_LOCKED', async () => {
-    // trades.select('initiator_id') resolves the actor; then applyEvent returns the
-    // locked trade with both party ids.
+describe('hold.active — routed to the one lock rule (ESC-08)', () => {
+  // The pipeline no longer dispatches HOLDS_CONFIRMED or notifies itself. It hands
+  // the ONE hold to `reconcileTradeHoldStatus`, whose `confirmCollateralIfComplete`
+  // sends the notification exactly once (tests/unit/collateralLockNotification.test.ts).
+  it('reconciles the named hold and never notifies from the pipeline itself', async () => {
     admin = createFakeAdmin({
       selects: { trades: [{ data: { initiator_id: 'trader-a' } }] },
       defaults: { webhook_logs: { data: null } },
     });
-    applyEventResult = {
-      ok: true,
-      trade: {
-        id: 'trade-9',
-        state: 'COLLATERAL_LOCKED',
-        initiator_id: 'trader-a',
-        counterpart_id: 'trader-b',
-      },
-    };
+    reconcileResult = { kind: 'RECORDED', status: 'ACTIVE', confirm: { kind: 'LOCKED' } };
 
     const response = await deliver(holdActiveEnvelope('evt_hold_1'));
 
     expect(response.status).toBe(200);
-    expect(notifyTradeCollateralLocked).toHaveBeenCalledTimes(1);
-    expect(notifyTradeCollateralLocked).toHaveBeenCalledWith({
-      initiatorId: 'trader-a',
-      counterpartId: 'trader-b',
+    expect(reconcileTradeHoldStatus).toHaveBeenCalledTimes(1);
+    expect(reconcileTradeHoldStatus.mock.calls[0][0]).toMatchObject({
       tradeId: 'trade-9',
+      holdId: 'pi_9',
+      status: 'ACTIVE',
+      actorId: 'trader-a',
     });
+    expect(notifyTradeCollateralLocked).not.toHaveBeenCalled();
   });
 
-  it('does not notify when the trade did not enter COLLATERAL_LOCKED', async () => {
+  it('acks a stale hold id as a NO_OP rather than locking', async () => {
     admin = createFakeAdmin({
       selects: { trades: [{ data: { initiator_id: 'trader-a' } }] },
       defaults: { webhook_logs: { data: null } },
     });
-    applyEventResult = { ok: false, error: 'INVALID_TRANSITION' };
+    reconcileResult = { kind: 'NO_OP', reason: 'STALE_HOLD' };
 
     const response = await deliver(holdActiveEnvelope('evt_hold_2'));
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(200);
     expect(notifyTradeCollateralLocked).not.toHaveBeenCalled();
+  });
+
+  it('a status-only hold event (no hold id) is never applied', async () => {
+    const response = await deliver(
+      JSON.stringify({ eventId: 'evt_hold_3', type: 'hold.active', payload: { tradeId: 'trade-9' } }),
+    );
+    expect(response.status).toBe(200);
+    expect(reconcileTradeHoldStatus).not.toHaveBeenCalled();
   });
 });

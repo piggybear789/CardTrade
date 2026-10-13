@@ -573,6 +573,22 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
+    async flagTracking({ reason, at }) {
+      const sale = state.sale;
+      if (!sale || sale.status !== 'IN_TRANSIT' || sale.trackingFlaggedAt) return null;
+      state.sale = { ...sale, trackingFlaggedAt: at, trackingFlagReason: reason };
+      return state.sale;
+    },
+    async resolveTrackingFlag({ decision, at, inspectionDeadlineAt }) {
+      const sale = state.sale;
+      if (!sale || sale.status !== 'IN_TRANSIT' || !sale.trackingFlaggedAt || sale.trackingFlagResolvedAt) return null;
+      state.sale = {
+        ...sale,
+        trackingFlagResolvedAt: at,
+        ...(decision === 'START_CLOCK' ? { status: 'INSPECTION' as const, inspectionDeadlineAt } : {}),
+      };
+      return state.sale;
+    },
     async recordReceipt({ receivedAt }) {
       const sale = state.sale;
       if (!sale || sale.status !== 'IN_TRANSIT') return null;
@@ -586,10 +602,25 @@ export function makeCashSaleRepository(options: {
         state.sale = { ...sale, trackingStatus: status };
         return state.sale;
       }
+      // Mirrors 0134 (ESC-02): a flagged, unresolved sale never advances; a delivery
+      // dated before the shipment is flagged; the clock runs from NOW.
+      if (sale.trackingFlaggedAt && !sale.trackingFlagResolvedAt) {
+        state.sale = { ...sale, trackingStatus: 'DELIVERED' };
+        return state.sale;
+      }
       const delivered = deliveredAt ?? new Date().toISOString();
-      const deadline = new Date(
-        new Date(delivered).getTime() + INSPECTION_WINDOW_DAYS * 86_400_000,
-      ).toISOString();
+      const floor = sale.shippedAt ?? sale.paymentSettledAt;
+      if (sale.status === 'IN_TRANSIT' && floor && Date.parse(delivered) < Date.parse(floor)) {
+        state.sale = {
+          ...sale,
+          trackingStatus: 'DELIVERED',
+          carrierDeliveredAt: delivered,
+          trackingFlaggedAt: new Date().toISOString(),
+          trackingFlagReason: 'DELIVERED_BEFORE_SHIPMENT',
+        };
+        return state.sale;
+      }
+      const deadline = new Date(Date.now() + INSPECTION_WINDOW_DAYS * 86_400_000).toISOString();
       state.sale = {
         ...sale,
         trackingStatus: 'DELIVERED',

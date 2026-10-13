@@ -125,6 +125,9 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     inspectionAcceptedAt: row.inspection_accepted_at,
     carrierDeliveredAt: row.carrier_delivered_at,
     inspectionDeadlineAt: row.inspection_deadline_at,
+    trackingFlaggedAt: row.tracking_flagged_at ?? null,
+    trackingFlagReason: row.tracking_flag_reason ?? null,
+    trackingFlagResolvedAt: row.tracking_flag_resolved_at ?? null,
     // Return leg (0088), kept separate from the outbound fields above.
     returnTrackingCarrier: row.return_tracking_carrier,
     returnTrackingNumber: row.return_tracking_number,
@@ -537,6 +540,44 @@ export function createSupabaseCashSaleRepository(
         shipped_at: params.shippedAt,
         updated_at: params.shippedAt,
       });
+    },
+
+    async flagTracking({ cashSaleId, reason, at }) {
+      // ESC-02. Only once and only in transit; the 0134 function refuses to advance a
+      // flagged, unresolved sale, so no later tracking update can start a clock.
+      const { data, error } = await client
+        .from('cash_sales')
+        .update({ tracking_flagged_at: at, tracking_flag_reason: reason, updated_at: at })
+        .eq('id', cashSaleId)
+        .eq('status', 'IN_TRANSIT')
+        .is('tracking_flagged_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] flagTracking: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
+    },
+
+    async resolveTrackingFlag({ cashSaleId, decision, staffId, at, inspectionDeadlineAt }) {
+      const resolution = {
+        tracking_flag_resolved_at: at,
+        tracking_flag_resolved_by: staffId,
+        updated_at: at,
+      };
+      const { data, error } = await client
+        .from('cash_sales')
+        .update(
+          decision === 'START_CLOCK'
+            ? { ...resolution, status: 'INSPECTION' as const, inspection_deadline_at: inspectionDeadlineAt }
+            : resolution,
+        )
+        .eq('id', cashSaleId)
+        .eq('status', 'IN_TRANSIT')
+        .not('tracking_flagged_at', 'is', null)
+        .is('tracking_flag_resolved_at', null)
+        .select('*')
+        .maybeSingle();
+      if (error) throw new Error(`[cash sale] resolveTrackingFlag: ${error.message}`);
+      return data ? toCashSale(data as CashSaleRow) : null;
     },
 
     async recordReceipt({ cashSaleId, receivedAt }) {

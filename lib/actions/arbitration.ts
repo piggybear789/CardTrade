@@ -39,7 +39,10 @@ import {
   returnRequiredForRefund,
   sellerNetCentsFor,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { frictionTaxChargeableCents } from '@/domain/dispute/frictionTax';
+import { frictionTaxCompensationDefault } from '@/domain/dispute/frictionTax';
+import { currentLiveHold } from '@/domain/bond/currentHolds';
+import { disputeHoldMode, remainingFromFacts } from '@/domain/orchestrator/disputeResolution';
+import { createSupabaseDisputeResolutionRepository } from '@/domain/orchestrator/supabaseDisputeResolutionRepository';
 import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import { type ActionResult, fail, ok } from './result';
 
@@ -137,6 +140,21 @@ export interface ArbitrationShipmentEvidence {
  * fraud finding captures. Flattening both into `ArbitrationCase` would put money
  * fields on the queue model that only ever mean something for one of the three kinds.
  */
+/** One trader on a disputed Trade, as the resolution console needs them (ESC-01/07/10). */
+export type TradeResolutionParty = {
+  id: string;
+  name: string;
+  /** The current live hold's authorised amount, minor units. */
+  bondCents: number;
+  /** What a resolution can still pay out of that hold (`remainingFromFacts`). */
+  remainingCents: number;
+  /** HELD = open card hold, CUSTODY = captured by the backstop, LEGACY = pre-fix partial capture. */
+  holdState: 'HELD' | 'CUSTODY' | 'LEGACY' | 'NONE';
+  holdExpiresAt: string | null;
+  /** When this trader confirmed receipt (DELIVERY trades; R4-N4). */
+  receivedAt: string | null;
+};
+
 export type ArbitrationResolution =
   | {
       kind: 'CASH_SALE';
@@ -170,14 +188,29 @@ export type ArbitrationResolution =
        * provider fault rather than the predictable consequence it is.
        */
       openChargebackRef: string | null;
+      /** ESC-02: an open tracking flag, or null. Staff decide it before any clock runs. */
+      trackingFlag: {
+        reason: 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null;
+        carrierDeliveredAt: string | null;
+      } | null;
     }
   | {
       kind: 'TRADE';
       tradeId: string;
-      initiator: { id: string; name: string; bondCents: number };
-      counterpart: { id: string; name: string; bondCents: number };
+      initiator: TradeResolutionParty;
+      counterpart: TradeResolutionParty;
       fraudClaimedById: string | null;
-      frictionTaxCents: number;
+      /**
+       * Whether the trade ever reached INSPECTION (R4-M1), from the SAME repository
+       * read the resolution uses. Decides whether "the exchange didn't happen" is
+       * offered and whether staff must attest that the goods changed hands.
+       */
+      inspected: boolean;
+      /** Default condition compensation (`frictionTaxCompensationDefault`). */
+      compensationDefaultCents: number;
+      handoverMethod: 'IN_PERSON' | 'DELIVERY' | null;
+      /** Staff narrowed the custody backstop to this trader, or null for both. */
+      custodyAccusedId: string | null;
       /**
        * What the counterpart was handing over out of a binder listing (0081), null on
        * a single listing.
@@ -310,12 +343,14 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
     admin
       .from('cash_sales')
       .select(
-        'id, status, currency, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, ship_lapsed_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
+        'id, status, currency, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, ship_lapsed_at, tracking_flagged_at, tracking_flag_reason, tracking_flag_resolved_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
       )
       // 0132: an ESCROW_HELD sale past its ship-by date joins them. It leaves the queue
       // by itself once tracking is recorded, because the sale leaves ESCROW_HELD.
-      .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT', 'ESCROW_HELD'])
-      .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null,ship_lapsed_at.not.is.null'),
+      // 0134 (ESC-02): an IN_TRANSIT sale with an unresolved tracking flag joins too;
+      // no inspection clock runs until staff decide it.
+      .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT', 'ESCROW_HELD', 'IN_TRANSIT'])
+      .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null,ship_lapsed_at.not.is.null,tracking_flagged_at.not.is.null'),
     admin.from('arbitration_assignments').select('case_kind, case_ref, assignee_id'),
     admin.from('arbitration_notes').select('case_kind, case_ref'),
   ]);
@@ -435,15 +470,23 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
     const returnDisputedAt = (rc.return_disputed_at as string | null) ?? null;
     const returnLapsedAt = (rc.return_lapsed_at as string | null) ?? null;
     const shipLapsedAt = (rc.ship_lapsed_at as string | null) ?? null;
+    const trackingFlaggedAt =
+      rc.status === 'IN_TRANSIT' && !rc.tracking_flag_resolved_at
+        ? ((rc.tracking_flagged_at as string | null) ?? null)
+        : null;
+    // A resolved flag, or one on a sale that has moved on, is not a case.
+    if (rc.status === 'IN_TRANSIT' && !trackingFlaggedAt) continue;
     // A sale can be BOTH contested and lapsed (seller contests after the buyer also
     // fails to post). Contested takes precedence: a human already said "something is
     // wrong", so it is the claim that matters. A missed ship-by only applies while the
     // sale is still waiting to be posted.
-    const situation: ArbitrationCaseSituation = returnDisputedAt
-      ? 'RETURN_CONTESTED'
-      : returnLapsedAt
-        ? 'RETURN_LAPSED'
-        : 'SHIP_LAPSED';
+    const situation: ArbitrationCaseSituation = trackingFlaggedAt
+      ? 'TRACKING_FLAG'
+      : returnDisputedAt
+        ? 'RETURN_CONTESTED'
+        : returnLapsedAt
+          ? 'RETURN_LAPSED'
+          : 'SHIP_LAPSED';
     const net = sellerNetCentsFor({
       amountCents: Number(rc.amount_cents ?? 0),
       platformFeeCents: Number(rc.platform_fee_cents ?? 0),
@@ -462,18 +505,24 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
       // sweep flagged it. Both are ISO-8601, both drive priority exactly like
       // `disputed_at` does for a condition dispute.
       openedAt:
-        situation === 'RETURN_CONTESTED'
-          ? returnDisputedAt
-          : situation === 'RETURN_LAPSED'
-            ? returnLapsedAt
-            : shipLapsedAt,
+        situation === 'TRACKING_FLAG'
+          ? trackingFlaggedAt
+          : situation === 'RETURN_CONTESTED'
+            ? returnDisputedAt
+            : situation === 'RETURN_LAPSED'
+              ? returnLapsedAt
+              : shipLapsedAt,
       raisedById: situation === 'RETURN_CONTESTED' ? (rc.seller_id as string) : null,
       claim:
-        situation === 'RETURN_CONTESTED'
-          ? ((rc.return_dispute_reason as string | null) ?? null)
-          : situation === 'RETURN_LAPSED'
-            ? 'The buyer did not post the return within the deadline.'
-            : 'The seller has not posted the item by the ship-by date. The buyer\'s payment is still held.',
+        situation === 'TRACKING_FLAG'
+          ? rc.tracking_flag_reason === 'DELIVERED_AT_REGISTRATION'
+            ? 'The tracking number was already delivered when the seller entered it. Confirm the delivery before the buyer\'s inspection starts, or refund the buyer.'
+            : 'The carrier reports delivery before this sale was shipped, so it may not be this parcel. Confirm the delivery, or refund the buyer.'
+          : situation === 'RETURN_CONTESTED'
+            ? ((rc.return_dispute_reason as string | null) ?? null)
+            : situation === 'RETURN_LAPSED'
+              ? 'The buyer did not post the return within the deadline.'
+              : 'The seller has not posted the item by the ship-by date. The buyer\'s payment is still held.',
       parties: [
         {
           id: rc.buyer_id as string,
@@ -781,7 +830,7 @@ async function readResolution(
       // ONE STRING LITERAL, deliberately long. Supabase infers the row type from the
       // literal, so splitting this across concatenated parts collapses `data` to
       // GenericStringError and every field read below stops type-checking.
-      .select('id, status, amount_cents, platform_fee_cents, refund_cents, refund_status, carrier_delivered_at, received_at, inspection_accepted_at, buyer_handover_confirmed_at, seller_handover_confirmed_at, return_carrier_delivered_at, return_lapsed_at')
+      .select('id, status, amount_cents, platform_fee_cents, refund_cents, refund_status, carrier_delivered_at, received_at, inspection_accepted_at, buyer_handover_confirmed_at, seller_handover_confirmed_at, return_carrier_delivered_at, return_lapsed_at, tracking_flagged_at, tracking_flag_reason, tracking_flag_resolved_at')
       .eq('id', ref)
       .maybeSingle();
     if (!data) return null;
@@ -807,6 +856,14 @@ async function readResolution(
       returnConfirmed: Boolean(data.return_carrier_delivered_at),
       returnLapsed: Boolean(data.return_lapsed_at),
       openChargebackRef: openChargeback?.dispute_ref ?? null,
+      // ESC-02: an unresolved tracking flag on a sale still in transit.
+      trackingFlag:
+        data.status === 'IN_TRANSIT' && data.tracking_flagged_at && !data.tracking_flag_resolved_at
+          ? {
+              reason: (data.tracking_flag_reason as 'DELIVERED_BEFORE_SHIPMENT' | 'DELIVERED_AT_REGISTRATION' | null) ?? null,
+              carrierDeliveredAt: (data.carrier_delivered_at as string | null) ?? null,
+            }
+          : null,
     };
   }
 
@@ -816,7 +873,7 @@ async function readResolution(
       .select(
         // `counterpart_goods_description` (0081): on a binder trade this is the only
         // record of what was actually being swapped, and the listing cannot supply it.
-        'id, initiator_id, counterpart_id, fraud_claimed_by, friction_tax_platform_cents, friction_tax_return_cents, counterpart_goods_description',
+        'id, initiator_id, counterpart_id, fraud_claimed_by, friction_tax_return_cents, friction_tax_return_paid_at, counterpart_goods_description, currency, handover_method, custody_accused_id, initiator_received_at, counterpart_received_at',
       )
       .eq('id', ref)
       .maybeSingle();
@@ -827,37 +884,61 @@ async function readResolution(
     const partyFor = (id: string) => triaged.parties.find((p) => p.id === id);
     const initiatorId = data.initiator_id as string;
     const counterpartId = data.counterpart_id as string;
-    const settled =
-      Number(data.friction_tax_platform_cents ?? 0) +
-      Number(data.friction_tax_return_cents ?? 0);
+
+    // The SAME reads and the SAME ceiling rule the resolution applies (ESC-07, ESC-10),
+    // so the console cannot offer a compensation the money path would refuse.
+    const repository = createSupabaseDisputeResolutionRepository(admin);
+    let inspected = true;
+    try {
+      inspected = await repository.hasReachedInspection(ref);
+    } catch {
+      // Unknown history: offer the conservative set (no undo). The resolution re-reads
+      // and refuses with DISPUTE_HISTORY_UNAVAILABLE anyway.
+      inspected = true;
+    }
+    const holds = await repository.getHolds(ref);
+    const { data: expiryRows } = await admin
+      .from('pre_auth_holds')
+      .select('hold_ref, expires_at')
+      .eq('trade_id', ref);
+    const expiryOf = new Map(
+      ((expiryRows ?? []) as Array<{ hold_ref: string | null; expires_at: string | null }>).map((row) => [
+        row.hold_ref,
+        row.expires_at,
+      ]),
+    );
+    const legacyReturnPaid = data.friction_tax_return_paid_at ? Number(data.friction_tax_return_cents ?? 0) : 0;
+
+    const sideOf = async (
+      id: string,
+      fallbackName: string,
+      receivedAt: string | null,
+    ): Promise<TradeResolutionParty> => {
+      const live = currentLiveHold(holds, id);
+      const mode = live ? disputeHoldMode(live) : null;
+      const settled = live && mode !== 'ACTIVE' ? (await repository.disbursedFromHold(live.holdRef)).settledCents : 0;
+      return {
+        id,
+        name: partyFor(id)?.name ?? fallbackName,
+        bondCents: live?.amountCents ?? partyFor(id)?.stakeCents ?? 0,
+        remainingCents: live ? remainingFromFacts(live, legacyReturnPaid, settled) : 0,
+        holdState: mode === 'ACTIVE' ? 'HELD' : mode === 'CUSTODY' ? 'CUSTODY' : mode === 'LEGACY_PARTIAL' ? 'LEGACY' : 'NONE',
+        holdExpiresAt: live ? (expiryOf.get(live.holdRef) ?? null) : null,
+        receivedAt,
+      };
+    };
+    const currency = String(data.currency ?? 'aud').toLowerCase();
 
     return {
       kind: 'TRADE',
       tradeId: data.id as string,
-      initiator: {
-        id: initiatorId,
-        name: partyFor(initiatorId)?.name ?? 'Initiator',
-        bondCents: partyFor(initiatorId)?.stakeCents ?? 0,
-      },
-      counterpart: {
-        id: counterpartId,
-        name: partyFor(counterpartId)?.name ?? 'Counterpart',
-        bondCents: partyFor(counterpartId)?.stakeCents ?? 0,
-      },
+      initiator: await sideOf(initiatorId, 'Initiator', (data.initiator_received_at as string | null) ?? null),
+      counterpart: await sideOf(counterpartId, 'Counterpart', (data.counterpart_received_at as string | null) ?? null),
       fraudClaimedById: (data.fraud_claimed_by as string | null) ?? null,
-      // A trade that has already settled a Friction_Tax reports its own figure; one that
-      // has not quotes what COULD be taken — capped by the smaller collateral, since the
-      // tax comes out of one trader's hold and cannot exceed it. Quoting the flat $20 on
-      // a low-value trade told staff a number the capture could never reach.
-      frictionTaxCents:
-        settled > 0
-          ? settled
-          : frictionTaxChargeableCents(
-              Math.min(
-                partyFor(initiatorId)?.stakeCents ?? 0,
-                partyFor(counterpartId)?.stakeCents ?? 0,
-              ),
-            ),
+      inspected,
+      compensationDefaultCents: frictionTaxCompensationDefault(currency),
+      handoverMethod: (data.handover_method as 'IN_PERSON' | 'DELIVERY' | null) ?? null,
+      custodyAccusedId: (data.custody_accused_id as string | null) ?? null,
       counterpartGoodsDescription:
         (data.counterpart_goods_description as string | null) ?? null,
     };

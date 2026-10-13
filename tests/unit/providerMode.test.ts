@@ -100,8 +100,18 @@ describe('isPaymentDemoEnabled', () => {
     // caller: the gate that unlocks listing, selling and entering trade escrow. A
     // missing credential must not be what lets every member verify themselves.
     expect(isPaymentDemoEnabled({ NODE_ENV: 'production' })).toBe(false);
+    // ESC-16: production with no provider is `unconfigured`, which never runs demos.
     expect(
       isPaymentDemoEnabled({ NODE_ENV: 'production', ENABLE_PAYMENT_DEMO: 'true' }),
+    ).toBe(false);
+    // A deliberate production demo deployment needs all three opt-ins.
+    expect(
+      isPaymentDemoEnabled({
+        NODE_ENV: 'production',
+        PAYMENTS_PROVIDER: 'mock',
+        ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: 'true',
+        ENABLE_PAYMENT_DEMO: 'true',
+      }),
     ).toBe(true);
   });
 
@@ -198,5 +208,57 @@ describe('readStripeEnvironment', () => {
     // credential at all. 'test' is the safe answer; `readStripeConfig` is the one
     // that refuses outright.
     expect(readStripeEnvironment({ STRIPE_SECRET_KEY: 'sk_live_au' }, 'GB')).toBe('test');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ESC-16: fail closed in production
+// ---------------------------------------------------------------------------
+
+import { acceptsMockWebhooks } from '@/domain/services/providerMode';
+
+describe('resolvePaymentProvider in production (ESC-16)', () => {
+  const PROD = { NODE_ENV: 'production' };
+  const VERCEL_PROD = { VERCEL_ENV: 'production', NODE_ENV: 'production' };
+  const VERCEL_PREVIEW = { VERCEL_ENV: 'preview', NODE_ENV: 'production' };
+
+  it('is unconfigured with no key, instead of silently using the mock', () => {
+    expect(resolvePaymentProvider(PROD)).toBe('unconfigured');
+    expect(resolvePaymentProvider(VERCEL_PROD)).toBe('unconfigured');
+  });
+
+  it('refuses an explicit mock without the production opt-in', () => {
+    expect(resolvePaymentProvider({ ...PROD, PAYMENTS_PROVIDER: 'mock' })).toBe('unconfigured');
+    expect(
+      resolvePaymentProvider({ ...PROD, PAYMENTS_PROVIDER: 'mock', ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: 'true' }),
+    ).toBe('mock');
+  });
+
+  it('treats a Vercel preview as non-production', () => {
+    expect(resolvePaymentProvider(VERCEL_PREVIEW)).toBe('mock');
+  });
+
+  it('counts a key in ANY region as configured', () => {
+    expect(resolvePaymentProvider({ ...PROD, STRIPE_SECRET_KEY_US: 'sk_test_us' })).toBe('stripe');
+    expect(isLivePaymentsProvider({ ...PROD, STRIPE_SECRET_KEY_US: 'sk_test_us' })).toBe(true);
+  });
+});
+
+describe('acceptsMockWebhooks (ESC-16)', () => {
+  it('needs the mock to be active AND a WEBHOOK_SECRET — there is no default secret', () => {
+    expect(acceptsMockWebhooks({})).toBe(false);
+    expect(acceptsMockWebhooks({ WEBHOOK_SECRET: 's3cret' })).toBe(true);
+  });
+
+  it('is refused whenever a real provider is active', () => {
+    expect(acceptsMockWebhooks({ ...STRIPE_TEST, WEBHOOK_SECRET: 's3cret' })).toBe(false);
+  });
+
+  it('is refused on an unconfigured production deployment', () => {
+    expect(acceptsMockWebhooks({ NODE_ENV: 'production', WEBHOOK_SECRET: 's3cret' })).toBe(false);
+  });
+
+  it('is accepted alongside stray Stripe keys only when the mock is explicitly selected', () => {
+    expect(acceptsMockWebhooks({ ...STRIPE_TEST, PAYMENTS_PROVIDER: 'mock', WEBHOOK_SECRET: 's3cret' })).toBe(true);
   });
 });

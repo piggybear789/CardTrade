@@ -52,6 +52,7 @@ import {
   reportTradeHandoverFailed,
 } from '@/lib/actions/trades';
 import { retryTradeCollateral } from '@/lib/actions/tradeNegotiation';
+import { CARD_LIMIT_SENTENCE, HOLD_DECLINED_MESSAGE } from '@/lib/handover/terms';
 import {
   SavedCardRow,
   type SavedCardStatus,
@@ -176,7 +177,8 @@ const ERROR_MESSAGES: Record<string, string> = {
     'The trade was just updated by someone else. Please try again.',
   TRADE_NOT_FOUND: 'This trade could not be found.',
   HOLD_NOT_FOUND: 'A collateral hold for this trade could not be found.',
-  'bond-failed': 'The card hold could not be placed.',
+  // Shared with the negotiation panel's toasts (design §1.12).
+  'bond-failed': HOLD_DECLINED_MESSAGE,
 };
 
 /** Resolve a user-facing message for a typed action failure. */
@@ -310,7 +312,7 @@ export function ActionBar({
               <div key={action} className="flex w-full min-w-0 flex-col gap-snug">
                 <p className="text-body text-muted-foreground">
                   A card declined the hold, so the trade is paused. Nothing was
-                  charged. Replace the card that failed, then retry.
+                  charged. {CARD_LIMIT_SENTENCE}
                 </p>
                 <SavedCardRow
                   initialStatus={paymentMethod}

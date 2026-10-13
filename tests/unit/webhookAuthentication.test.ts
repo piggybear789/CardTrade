@@ -31,8 +31,9 @@ import {
 } from '@/domain/services/mock/MockService';
 import { createFakeAdmin, type FakeAdmin } from './fakes/supabaseChain';
 
-/** Matches the module's fallback when `WEBHOOK_SECRET` is unset. */
-const SECRET = 'dev-mock-webhook-secret';
+/** Set explicitly: there is no default mock secret any more (ESC-16). */
+const SECRET = 'test-mock-webhook-secret';
+process.env.WEBHOOK_SECRET = SECRET;
 
 let admin: FakeAdmin;
 let liveProvider = false;
@@ -42,7 +43,8 @@ vi.mock('@/lib/supabase/admin', () => ({
 }));
 
 vi.mock('@/domain/services', () => ({
-  isLivePaymentsProvider: () => liveProvider,
+  // ESC-16: mock deliveries are accepted only while the mock is the active provider.
+  acceptsMockWebhooks: () => !liveProvider,
   getPaymentService: () => ({}),
 }));
 

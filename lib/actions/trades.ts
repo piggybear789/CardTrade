@@ -25,23 +25,12 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { deriveEvent } from '@/domain/state-machine/guards';
 import type { TradeState, TradeViewerRole } from '@/domain/state-machine/types';
-import { createDefaultTradeOrchestrator } from '@/domain/orchestrator/supabaseTradeRepository';
-import { proposeTradeWithSupabase } from '@/domain/orchestrator/supabaseTradeProposalRepository';
-import {
-  createDefaultDisputeResolutionOrchestrator,
-} from '@/domain/orchestrator/supabaseDisputeResolutionRepository';
-import type {
-  DisputeResolutionError,
-  FraudResolutionOutcome,
-  FrictionTaxAllocation,
-} from '@/domain/orchestrator/disputeResolution';
+import { createLoggedTradeOrchestrator } from '@/lib/trades/tradeOrchestrator';
+import { createLoggedDisputeOrchestrator } from '@/lib/trades/disputeOrchestrator';
+import type { DisputeResolutionError } from '@/domain/orchestrator/disputeResolution';
 import type { OrchestratorError } from '@/domain/orchestrator/tradeOrchestrator';
-import type { ProposeTradeError } from '@/domain/orchestrator/tradeProposal';
-import { getPaymentService, isLivePaymentsProvider } from '@/domain/services';
-import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
-import { identityGateMessage, readIdentityGate } from '@/lib/identityGate';
-import { createSupabaseTradeProposalRepository } from '@/domain/orchestrator/supabaseTradeProposalRepository';
-import { currentHoldsAreActive, currentHoldsSeekFailed } from '@/domain/orchestrator/tradeProposal';
+import { getPaymentService } from '@/domain/services';
+import { regionForTrade } from '@/lib/regionBinding';
 import {
   LIFECYCLE_SPECS,
   factsFromTrade,
@@ -54,10 +43,19 @@ import {
 import { toHandoverColumns, type HandoverMethod } from '@/lib/handover/terms';
 import {
   MAX_MEETING_LEAD_HOURS,
+  TRADE_HANDOVER_METHODS,
   validateFulfilmentTerms,
   type DeliveryAddress,
   type FulfilmentTermsError,
 } from '@/domain/fulfilment';
+import { acceptanceToClear, handoverEditMode } from '@/domain/fulfilment/handoverEdits';
+import {
+  proposeHandoverChange,
+  respondToHandoverChange,
+  tradeHasActiveHold,
+  withdrawHandoverChange,
+  type HandoverChangeError,
+} from '@/lib/trades/handoverChanges';
 import { getTrackingService } from '@/domain/services/tracking';
 import { finalizeCompletedTrade, settleTradeCash } from '@/lib/trades/completion';
 import {
@@ -69,7 +67,6 @@ import type { TablesUpdate } from '@/lib/supabase/database.types';
 import { revalidatePath } from 'next/cache';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { tradeContext } from '@/lib/notifications/notificationContext';
-import { notifyTradeCollateralLocked } from '@/lib/notifications/settlementNotifier';
 import { emailNotify } from '@/lib/email';
 
 // ---------------------------------------------------------------------------
@@ -182,207 +179,14 @@ export const ensureTradeConversation = withActionLog('trades.ensureTradeConversa
 });
 
 // ---------------------------------------------------------------------------
-// Trade proposal (Req 5.1, 5.2, 5.3)
+// Trade proposal
 // ---------------------------------------------------------------------------
-
-/** Result of {@link proposeTrade}. */
-export type ProposeTradeActionResult =
-  | { ok: true; tradeId: string }
-  | ActionFailure<AuthError | ProposeTradeError>;
-
-/**
- * Propose a 2-Way Trade pairing the caller's own Item with a Counterpart's Item
- * (Req 5.1, 5.2, 5.3). The authenticated user is the proposing (initiator)
- * Trader. Delegates the equal-FMV / both-AVAILABLE guards, Trade creation, item
- * reservation, and bond placement to the proposal orchestrator (revised Req 5.4:
- * each Trader bonds the value of what they RECEIVE, and a trade bond has no
- * verification exemption — both sides always post one).
- *
- * When no bond is placed at all, no provider webhook will arrive to confirm
- * collateral — this action dispatches HOLDS_CONFIRMED itself so the Trade moves
- * straight to COLLATERAL_LOCKED.
- */
-export const proposeTrade = withActionLog('trades.proposeTrade', async function proposeTrade(
-  initiatorItemId: string,
-  counterpartItemId: string,
-  options?: {
-    /**
-     * Further Items in the initiator's bundle. Counted into the Counterpart's
-     * Bond, because the Counterpart receives all of them.
-     */
-    initiatorExtraItemIds?: string[];
-  },
-): Promise<ProposeTradeActionResult> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: 'unauthenticated' };
-
-  // THE PROPOSER IS THE CALLER. FULL STOP.
-  //
-  // This used to accept an `onBehalfOfUserId` option and use it as the proposer,
-  // for `acceptTradeProposal` — which was removed in 0055 and has no replacement.
-  // Its own doc-comment said the value "must never be threaded through from client
-  // input", but every export of a `'use server'` module IS client input: the option
-  // was settable by anyone who could call the action.
-  //
-  // The effect was that a verified member could pass two ids straight off the public
-  // catalog and force two OTHER members into trade escrow — creating a trade neither
-  // had proposed, reserving both items, and placing a real card authorisation for
-  // 100% of FMV on both of their saved cards, with the caller not a party to it. It
-  // also skipped the region-compatibility and shopfront guards that
-  // `openTradeNegotiation` applies.
-  const initiatorId = user.id;
-
-  // Req 14.2. Entering trade escrow requires the Identity_Gate, because an
-  // Objective_Fraud resolution pays captured collateral to whichever trader was
-  // the victim — either side can RECEIVE money here. A Member with no payout
-  // account could be awarded restitution the platform has no way to deliver, so
-  // the trade must not start.
-  //
-  // BOTH parties are checked, not just the caller — a fraud finding can pay either
-  // side, so both must be able to receive. The loop this replaces walked the caller
-  // and the removed `onBehalfOfUserId` proposer, which after that removal were always
-  // the same person: it checked one party twice and the actual counterparty never.
-  // The counterparty is now resolved from the item being traded for.
-  const { data: targetItem } = await supabase
-    .from('items')
-    .select('owner_id, listing_kind')
-    .eq('id', counterpartItemId)
-    .maybeSingle();
-  if (!targetItem) return { ok: false, error: 'item-not-found' };
-
-  // A binder can be traded FOR since 0081, but only through `openTradeNegotiation`,
-  // which collects the statement of which cards come out of it. This path creates the
-  // trade, reserves the goods and authorises both cards in ONE step, so it has no
-  // point at which that statement could be agreed — and a binder trade without it is
-  // a contract whose goods are an inventory title, which is precisely what arbitration
-  // cannot adjudicate. Refused rather than allowed to create one silently.
-  //
-  // This module has no UI caller, but every export of a `'use server'` module is an
-  // endpoint reachable by anyone who learns its id — see the note above about
-  // `onBehalfOfUserId`.
-  if ((targetItem.listing_kind as string) === 'SHOPFRONT') {
-    return {
-      ok: false,
-      error: 'item-unavailable',
-      detail:
-        'This listing has multiple items. Open a trade offer on it so you can say which cards you want.',
-    };
-  }
-
-  const callerGate = await readIdentityGate(initiatorId);
-  if (!callerGate.satisfied) {
-    // This module's ActionFailure carries `detail`, not `message`.
-    return {
-      ok: false,
-      error: 'not-verified',
-      detail: identityGateMessage('trade', callerGate.state),
-    };
-  }
-
-  const counterpartyId = targetItem.owner_id as string;
-  if (counterpartyId !== initiatorId) {
-    const counterpartyGate = await readIdentityGate(counterpartyId);
-    if (!counterpartyGate.satisfied) {
-      return {
-        ok: false,
-        error: 'not-verified',
-        detail: 'The other trader has not verified their identity, so this trade cannot start yet.',
-      };
-    }
-  }
-
-  // Collateral is placed in the same call that creates the trade, so there is no
-  // frozen currency to read yet — the region comes from the initiator's profile
-  // (0068). Both traders are in one region by then: `openTradeNegotiation` refused
-  // the offer otherwise. The holds are real card authorisations on the region's own
-  // platform account, and placing them on the wrong one would not find the trader's
-  // saved card at all.
-  const tradeRegion = await regionForProfile(initiatorId);
-
-  const result = await proposeTradeWithSupabase(getPaymentService(tradeRegion), {
-    proposerId: initiatorId,
-    initiatorItemId,
-    initiatorExtraItemIds: options?.initiatorExtraItemIds ?? [],
-    counterpartItemId,
-  });
-  if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
-
-  if (result.bondsRequired === 0) {
-    // No collateral to wait on: lock the trade now. A rejected transition is not
-    // fatal — the Trade still exists in COLLATERAL_PENDING and can be retried.
-    const orchestrator = createDefaultTradeOrchestrator({
-      payments: getPaymentService(tradeRegion),
-    });
-    const locked = await orchestrator.applyEvent({
-      tradeId: result.trade.id,
-      event: 'HOLDS_CONFIRMED',
-      actorId: initiatorId,
-    });
-    await notifyCollateralLockedIfEntered(locked);
-  } else if (isLivePaymentsProvider()) {
-    // Stripe realtime charges return synchronously. Advance the trade from the
-    // hold rows instead of waiting for a webhook (or the mock DemoPanel).
-    await syncTradeHoldsFromStripe(result.trade.id, initiatorId);
-  }
-
-  return { ok: true, tradeId: result.trade.id };
-});
-
-/**
- * After Stripe `POST /payments/realtime`, hold rows already reflect ACTIVE/FAILED.
- * Drive HOLDS_CONFIRMED / HOLDS_FAILED from that truth so trades leave
- * COLLATERAL_PENDING without a fake webhook button.
- */
-async function syncTradeHoldsFromStripe(tradeId: string, actorId: string): Promise<void> {
-  const admin = createAdminClient();
-  const repository = createSupabaseTradeProposalRepository(admin);
-  const holds = await repository.getHolds(tradeId);
-  if (holds.length === 0) return;
-
-  // HOLDS_FAILED runs the documented compensation, which VOIDS the holds that did
-  // succeed — a provider call, so this needs the trade's own platform account (0068).
-  const orchestrator = createDefaultTradeOrchestrator({
-    payments: getPaymentService(await regionForTrade(tradeId)),
-  });
-  if (currentHoldsAreActive(holds)) {
-    const locked = await orchestrator.applyEvent({ tradeId, event: 'HOLDS_CONFIRMED', actorId });
-    await notifyCollateralLockedIfEntered(locked);
-    return;
-  }
-  if (currentHoldsSeekFailed(holds)) {
-    await orchestrator.applyEvent({ tradeId, event: 'HOLDS_FAILED', actorId });
-  }
-}
-
-/**
- * Notify both traders when a HOLDS_CONFIRMED dispatch actually moved the trade
- * INTO COLLATERAL_LOCKED (FEAT-002).
- *
- * Shared by every synchronous collateral-confirmation site so the "collateral
- * locked" notification fires exactly once per trade regardless of which path
- * (zero-bond, realtime Stripe sync) drove the confirmation. Guarded on the
- * resulting state and on the transition succeeding, so a self-loop on an
- * already-locked trade emits nothing — that, plus the webhook path only firing
- * when it drove the transition itself, keeps a single lock to a single pair of
- * notifications. Best-effort: `notifyTradeCollateralLocked` swallows failures and
- * this is called after the transition has already committed.
- */
-async function notifyCollateralLockedIfEntered(
-  result: Awaited<ReturnType<ReturnType<typeof createDefaultTradeOrchestrator>['applyEvent']>>,
-): Promise<void> {
-  if (!result.ok || result.trade.state !== 'COLLATERAL_LOCKED') return;
-  const initiatorId = (result.trade as { initiator_id?: string }).initiator_id;
-  const counterpartId = (result.trade as { counterpart_id?: string }).counterpart_id;
-  if (!initiatorId || !counterpartId) return;
-  await notifyTradeCollateralLocked({
-    initiatorId,
-    counterpartId,
-    tradeId: result.trade.id,
-  });
-}
+//
+// The legacy one-step `proposeTrade` Server Action was deleted (ESC-32). It had no UI
+// caller, but every export of a `'use server'` module is an endpoint reachable by
+// anyone who learns its id, and it created a trade, reserved both items and
+// authorised both cards in one call, skipping the negotiation that records what a
+// binder side covers. Trades open through `openTradeNegotiation` only.
 
 // ---------------------------------------------------------------------------
 // Lifecycle actions: shipment / receipt / acceptance (Req 6.1-6.8)
@@ -545,7 +349,7 @@ async function recordLifecycle(
 
   // Bound to the trade's own platform account (0068): transitions out of escrow void
   // or capture real authorisations, and those belong to one Stripe account.
-  const orchestrator = createDefaultTradeOrchestrator({
+  const orchestrator = createLoggedTradeOrchestrator({
     payments: getPaymentService(await regionForTrade(tradeId)),
   });
   const result = await orchestrator.applyEvent({ tradeId, event, actorId: userId });
@@ -678,21 +482,14 @@ export type DisputeActionError =
   | 'VALIDATION_ERROR';
 
 /**
- * Build the dispute/fraud resolution orchestrator for one trade.
+ * Build the dispute coordinator for one trade.
  *
- * Takes a region because resolution CAPTURES collateral — a Friction_Tax partial
- * capture, or a full capture paid to a fraud victim — and an authorisation belongs to
- * the Stripe platform account that created it (0068). Resolving through another
- * region's client would fail to find the PaymentIntent, leaving a determined dispute
- * with no money moved.
+ * Takes a region because the backstop and a staff decision CAPTURE collateral, and an
+ * authorisation belongs to the Stripe platform account that created it (0068).
+ * Raising a claim itself captures nothing (ESC-01).
  */
 function buildDisputeOrchestrator(region: string) {
-  const service = getPaymentService(region);
-  const orchestrator = createDefaultTradeOrchestrator({ payments: service });
-  return createDefaultDisputeResolutionOrchestrator({
-    orchestrator,
-    payments: service,
-  });
+  return createLoggedDisputeOrchestrator(region);
 }
 
 /** Result of {@link raiseDispute}. */
@@ -701,21 +498,21 @@ export type RaiseDisputeActionResult =
       ok: true;
       state: TradeState;
       disputedAgainst: string;
-      frictionTaxSettled: boolean;
-      allocation?: FrictionTaxAllocation;
     }
   | ActionFailure<DisputeActionError>;
 
 /**
- * Raise a Condition_Dispute for the Trade during INSPECTION (Req 7.1). The
- * caller is the raising Trader; the disputed-against Trader (their Counterpart),
- * the DISPUTED transition, and the $20 Friction_Tax partial capture are handled
- * by the dispute orchestrator.
+ * Raise a Condition_Dispute for the Trade during INSPECTION (Req 7.1). The caller is
+ * the raising Trader; the disputed-against Trader is their Counterpart.
+ *
+ * CAPTURES NOTHING (ESC-01). It used to partially capture $20 from the other trader
+ * on the spot, and because a PaymentIntent can be captured only once, that released
+ * the rest of their collateral: a later fraud finding had nothing left to take. The
+ * trade is frozen and staff decide; the custody backstop protects the collateral if
+ * the decision is slow.
  *
  * `reason` is the raiser's own account of what went wrong (0083), and reaches the
- * arbitration case as "the claim". It is required for the same reason the Cash_Sale
- * equivalent requires one: a dispute that captures money from the other trader and can
- * end in a full collateral capture must say what it is about.
+ * arbitration case as "the claim".
  */
 export const raiseDispute = withActionLog('trades.raiseDispute', async function raiseDispute(
   tradeId: string,
@@ -769,8 +566,6 @@ export const raiseDispute = withActionLog('trades.raiseDispute', async function 
     ok: true,
     state: result.trade.state,
     disputedAgainst: result.disputedAgainst,
-    frictionTaxSettled: result.frictionTaxSettled,
-    allocation: result.allocation,
   };
 });
 
@@ -783,18 +578,13 @@ export const raiseDispute = withActionLog('trades.raiseDispute', async function 
 // in the UI called it, but an exported Server Action is reachable by anyone who
 // knows its id, so an unused one is still an attack surface rather than dead code.
 //
-// Resolution is now `resolveTradeConditionDispute` in `lib/actions/admin.ts`,
-// admin-gated. Participants raise a dispute (`raiseDispute`) or claim fraud
-// (`reportFraud`); an operator decides.
+// Resolution is now `resolveTradeDispute` in `lib/actions/admin.ts`, staff-gated.
+// Participants raise a dispute (`raiseDispute`) or claim fraud (`reportFraud`); an
+// operator decides.
 
 // ---------------------------------------------------------------------------
 // Objective fraud (Req 8.1)
 // ---------------------------------------------------------------------------
-
-/** Result of {@link reportFraud}. */
-export type ReportFraudActionResult =
-  | { ok: true; state: TradeState; outcome: FraudResolutionOutcome }
-  | ActionFailure<DisputeActionError>;
 
 /** Result of {@link reportFraud}. */
 export type ClaimFraudActionResult =
@@ -802,10 +592,13 @@ export type ClaimFraudActionResult =
   | ActionFailure<DisputeActionError>;
 
 /**
- * CLAIM Objective_Fraud on a Trade from INSPECTION or DISPUTED (Req 8.1, revised).
+ * CLAIM Objective_Fraud on a Trade from COLLATERAL_LOCKED, INSPECTION or DISPUTED
+ * (Req 8.1, revised; ESC-01, ESC-04).
  *
- * Records an allegation and moves the Trade to DISPUTED. It deliberately captures
- * NOTHING and pays NOTHING.
+ * Applies `FRAUD_CLAIMED` (from LOCKED or INSPECTION) or records the claim on an
+ * already-disputed trade. It deliberately captures NOTHING and pays NOTHING. From
+ * COLLATERAL_LOCKED because a fake handed over at the meeting point is reported before
+ * anyone confirms a handover.
  *
  * This function used to do the whole thing: it treated its caller as the victim,
  * transitioned straight to the terminal FRAUD_RESOLVED, full-captured the
@@ -814,9 +607,9 @@ export type ClaimFraudActionResult =
  * trader could take the other's money by clicking first — no evidence, no review,
  * no chance for the accused to answer.
  *
- * Determining fraud and moving collateral is now
- * {@link resolveTradeFraud} in `lib/actions/admin.ts`, which is admin-gated and
- * requires the operator to name the victim explicitly.
+ * Determining fraud and moving collateral is now `resolveTradeDispute` in
+ * `lib/actions/admin.ts`, which is staff-gated and requires the operator to name the
+ * victim explicitly.
  */
 export const reportFraud = withActionLog('trades.reportFraud', async function reportFraud(
   tradeId: string,
@@ -841,33 +634,31 @@ export const reportFraud = withActionLog('trades.reportFraud', async function re
     };
   }
 
-  // Move to DISPUTED first, so the Trade is visibly frozen and an operator can see
-  // it. Already-disputed trades are fine: `raiseConditionDispute` is a no-op
-  // transition from DISPUTED, and the claim below records regardless.
-  const raised = await buildDisputeOrchestrator(await regionForTrade(tradeId)).raiseConditionDispute({
+  // The claimant's OWN words (0083) are recorded with the claim, so an arbitrator
+  // reads what happened rather than that a button was pressed.
+  const raised = await buildDisputeOrchestrator(await regionForTrade(tradeId)).raiseFraudClaim({
     tradeId,
     actorId: guard.ctx.userId,
     reason: trimmed,
   });
+  if (!raised.ok) return { ok: false, error: raised.error, detail: raised.detail };
 
-  const admin = createAdminClient();
-  const { data: recorded } = await admin.rpc('record_trade_fraud_claim', {
-    p_trade_id: tradeId,
-    p_claimant_id: guard.ctx.userId,
-    // The claimant's OWN words (0083). This used to be the literal string 'Objective
-    // fraud reported by a trader', which told an arbitrator only that the button had
-    // been pressed — on the one claim that can capture a trader's full collateral.
-    p_reason: trimmed,
-  });
-
-  // Only a genuine failure if BOTH the transition and the claim were rejected. An
-  // already-DISPUTED trade legitimately fails the transition while the claim records.
-  if (!recorded && !raised.ok) {
-    return { ok: false, error: raised.error, detail: raised.detail };
+  if (raised.transitioned) {
+    await createNotification({
+      userId: raised.accusedId,
+      type: 'TRADE',
+      title: 'Fraud reported on your trade',
+      body:
+        'The other trader reported a problem with this trade. Support will review it, and ' +
+        'nothing has been charged. Add your account of what happened in the trade room.',
+      link: `/trades/${tradeId}`,
+      context: tradeContext(tradeId, guard.ctx.userId),
+    });
+    void emailNotify.disputeRaised({ userId: raised.accusedId, contractType: 'trade', contractId: tradeId });
   }
 
   revalidatePath(`/trades/${tradeId}`);
-  return { ok: true, state: raised.ok ? raised.trade.state : 'DISPUTED' };
+  return { ok: true, state: raised.trade.state };
 });
 
 // NOTE: `downloadEvidencePack` has been removed.
@@ -889,11 +680,28 @@ export type UpdateTradeHandoverTermsError =
   | 'invalid-delivery-cost'
   | 'missing-meeting-location'
   | 'missing-meeting-time'
+  /** NEGOTIATING: the terms moved on since the editor loaded them. */
+  | 'stale-terms'
+  /** COLLATERAL_PENDING: an undecided proposal already exists. */
+  | 'proposal-open'
   | 'persistence-error';
 
 export type UpdateTradeHandoverTermsResult =
-  | { ok: true }
+  /** `proposed`: the change awaits the other trader (COLLATERAL_PENDING, ESC-04). */
+  | { ok: true; proposed?: boolean }
   | ActionFailure<UpdateTradeHandoverTermsError>;
+
+/** Handover terms as the room's editor submits them. */
+export type HandoverTermsActionInput = {
+  method: HandoverMethod;
+  meetingLocation?: string | null;
+  meetingLat?: number | null;
+  meetingLng?: number | null;
+  meetingPlaceId?: string | null;
+  meetingAt?: string | null;
+  deliveryCostCents?: number | null;
+  deliveryNotes?: string | null;
+};
 
 /**
  * Update meeting terms on a live trade — which is also how a meeting is rescheduled.
@@ -912,25 +720,88 @@ export type UpdateTradeHandoverTermsResult =
  */
 export const updateTradeHandoverTerms = withActionLog('trades.updateTradeHandoverTerms', async function updateTradeHandoverTerms(
   tradeId: string,
-  input: {
-    method: HandoverMethod;
-    meetingLocation?: string | null;
-    meetingLat?: number | null;
-    meetingLng?: number | null;
-    meetingPlaceId?: string | null;
-    meetingAt?: string | null;
-    deliveryCostCents?: number | null;
-    deliveryNotes?: string | null;
-  },
+  input: HandoverTermsActionInput,
 ): Promise<UpdateTradeHandoverTermsResult> {
   const guard = await requireParticipant(tradeId);
   if (!guard.ok) return guard;
 
-  const { trade } = guard.ctx;
-  if (trade.state !== 'NEGOTIATING' && trade.state !== 'COLLATERAL_PENDING' && trade.state !== 'COLLATERAL_LOCKED') {
+  const { trade, userId, role } = guard.ctx;
+  const admin = createAdminClient();
+  const mode = handoverEditMode({
+    state: trade.state as TradeState,
+    meetingAt: trade.meeting_at,
+    hasActiveHold: trade.state === 'COLLATERAL_PENDING' ? await tradeHasActiveHold(admin, tradeId) : false,
+    now: new Date(),
+  });
+  if (mode === 'LOCKED') {
+    // ESC-04: from the moment collateral can be placed for this meeting, nobody may
+    // move it alone. A change means cancelling and re-agreeing.
     return { ok: false, error: 'invalid-state' };
   }
 
+  const columns = handoverColumnsFromInput(input);
+  if (!columns.ok) return { ok: false, error: columns.error };
+
+  if (mode === 'PROPOSAL') {
+    // COLLATERAL_PENDING before the cutoff: the other trader must agree.
+    const proposed = await proposeHandoverChange({ tradeId, proposerId: userId, terms: columns.columns, client: admin });
+    if (!proposed.ok) {
+      return {
+        ok: false,
+        error: proposed.error === 'invalid-terms' ? 'missing-meeting-time' : proposed.error === 'proposal-open' ? 'proposal-open' : 'invalid-state',
+        detail: proposed.detail,
+      };
+    }
+    revalidatePath(`/trades/${tradeId}`);
+    return { ok: true, proposed: true };
+  }
+
+  // NEGOTIATING (refinement of 0101 for trades): write the terms AND clear the OTHER
+  // party's acceptance in one UPDATE guarded on the version they accepted. The meeting
+  // place is where a robbery happens, so an acceptance given for the old venue must
+  // not carry over to a new one. The editor's own acceptance stands.
+  // Spelled out per role (rather than computed keys) so the update stays typed; the
+  // pure `acceptanceToClear` states the same rule for the tests.
+  const clearing =
+    acceptanceToClear(role === 'INITIATOR' ? 'initiator' : 'counterpart').acceptedAt === 'counterpart_terms_accepted_at'
+      ? { counterpart_terms_accepted_at: null, counterpart_terms_accepted_version: null }
+      : { initiator_terms_accepted_at: null, initiator_terms_accepted_version: null };
+  const { data: written, error } = await admin
+    .from('trades')
+    .update({
+      ...columns.columns,
+      ...clearing,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', tradeId)
+    .in('state', ['NEGOTIATING'])
+    .eq('terms_version', trade.terms_version)
+    .select('id');
+  if (error) {
+    return { ok: false, error: 'persistence-error', detail: error.message };
+  }
+  if ((written ?? []).length === 0) {
+    return { ok: false, error: 'stale-terms' };
+  }
+
+  const otherId = role === 'INITIATOR' ? trade.counterpart_id : trade.initiator_id;
+  await createNotification({
+    userId: otherId,
+    type: 'TRADE',
+    title: 'Meeting details changed',
+    body: 'The other trader changed the meeting details. Review them and accept again if they suit you.',
+    link: `/trades/${tradeId}`,
+    context: tradeContext(tradeId, userId),
+  });
+
+  revalidatePath(`/trades/${tradeId}`);
+  return { ok: true };
+});
+
+/** Validate a handover input with the shared rules and map it to trade columns. */
+function handoverColumnsFromInput(input: HandoverTermsActionInput):
+  | { ok: true; columns: ReturnType<typeof toHandoverColumns> }
+  | { ok: false; error: UpdateTradeHandoverTermsError } {
   const meetingAtRaw = input.meetingAt?.trim() || null;
   const meetingAt =
     meetingAtRaw && !meetingAtRaw.includes('Z') && !meetingAtRaw.includes('+')
@@ -964,38 +835,89 @@ export const updateTradeHandoverTerms = withActionLog('trades.updateTradeHandove
     {
       maxDeliveryCostCents: DEAL_DELIVERY_COST_MAX,
       maxMeetingLeadHours: MAX_MEETING_LEAD_HOURS,
+      // ESC-04: trades are IN_PERSON-only. The edit path used to omit this, so a
+      // trader could switch a locked trade to DELIVERY, which nulls `meeting_at` and
+      // takes it out of the handover sweep entirely.
+      allowedMethods: TRADE_HANDOVER_METHODS,
     },
   );
   if (!validation.ok) {
     return { ok: false, error: termsErrorFor(validation.error) };
   }
 
-  const columns = toHandoverColumns({
-    handoverMethod: input.method,
-    meetingLocation: input.meetingLocation,
-    meetingLat: input.meetingLat,
-    meetingLng: input.meetingLng,
-    meetingPlaceId: input.meetingPlaceId,
-    meetingAt,
-    deliveryCostCents: input.deliveryCostCents,
-    deliveryNotes: input.deliveryNotes,
-  });
+  return {
+    ok: true,
+    columns: toHandoverColumns({
+      handoverMethod: input.method,
+      meetingLocation: input.meetingLocation,
+      meetingLat: input.meetingLat,
+      meetingLng: input.meetingLng,
+      meetingPlaceId: input.meetingPlaceId,
+      meetingAt,
+      deliveryCostCents: input.deliveryCostCents,
+      deliveryNotes: input.deliveryNotes,
+    }),
+  };
+}
 
-  // Participant confirmed above; writes on `trades` go through service-role
-  // because end-user UPDATE is not granted (same pattern as lifecycle actions).
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from('trades')
-    .update({
-      ...columns,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', tradeId);
-  if (error) {
-    return { ok: false, error: 'persistence-error', detail: error.message };
-  }
+// ---------------------------------------------------------------------------
+// Handover change proposals (ESC-04)
+// ---------------------------------------------------------------------------
 
+export type HandoverChangeActionResult =
+  | { ok: true }
+  | ActionFailure<AuthError | HandoverChangeError | UpdateTradeHandoverTermsError>;
+
+/**
+ * Propose new meeting details on a COLLATERAL_PENDING trade (ESC-04). The other trader
+ * must accept; nothing changes until they do. Refused once the placement cutoff has
+ * passed or a hold is live.
+ */
+export const proposeTradeHandoverChange = withActionLog('trades.proposeTradeHandoverChange', async function proposeTradeHandoverChange(
+  tradeId: string,
+  input: HandoverTermsActionInput,
+): Promise<HandoverChangeActionResult> {
+  const guard = await requireParticipant(tradeId);
+  if (!guard.ok) return guard;
+  const columns = handoverColumnsFromInput(input);
+  if (!columns.ok) return { ok: false, error: columns.error };
+  const proposed = await proposeHandoverChange({ tradeId, proposerId: guard.ctx.userId, terms: columns.columns });
+  if (!proposed.ok) return { ok: false, error: proposed.error, detail: proposed.detail };
   revalidatePath(`/trades/${tradeId}`);
+  return { ok: true };
+});
+
+/** Accept or decline the other trader's proposal. Only the non-proposer may respond. */
+export const respondTradeHandoverChange = withActionLog('trades.respondTradeHandoverChange', async function respondTradeHandoverChange(
+  params: { changeId: string; decision: 'ACCEPT' | 'DECLINE' },
+): Promise<HandoverChangeActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+  const result = await respondToHandoverChange({
+    changeId: params.changeId,
+    responderId: user.id,
+    decision: params.decision === 'ACCEPT' ? 'ACCEPT' : 'DECLINE',
+  });
+  if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
+  revalidatePath(`/trades/${result.tradeId}`);
+  return { ok: true };
+});
+
+/** The proposer withdraws their own undecided proposal. */
+export const withdrawTradeHandoverChange = withActionLog('trades.withdrawTradeHandoverChange', async function withdrawTradeHandoverChange(
+  changeId: string,
+): Promise<HandoverChangeActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: 'unauthenticated' };
+  const result = await withdrawHandoverChange({ changeId, proposerId: user.id });
+  if (!result.ok) return { ok: false, error: result.error, detail: result.detail };
+  revalidatePath(`/trades/${result.tradeId}`);
   return { ok: true };
 });
 
@@ -1086,7 +1008,7 @@ export const reportTradeHandoverFailed = withActionLog('trades.reportTradeHandov
     return { ok: false, error: 'not-permitted' };
   }
 
-  const orchestrator = createDefaultTradeOrchestrator({
+  const orchestrator = createLoggedTradeOrchestrator({
     payments: getPaymentService(await regionForTrade(tradeId)),
   });
   const result = await orchestrator.applyEvent({
@@ -1369,7 +1291,7 @@ export const syncTradeTracking = withActionLog('trades.syncTradeTracking', async
     latest.initiator_carrier_delivered_at &&
     latest.counterpart_carrier_delivered_at
   ) {
-    const orchestrator = createDefaultTradeOrchestrator({
+    const orchestrator = createLoggedTradeOrchestrator({
       payments: getPaymentService(await regionForTrade(tradeId)),
     });
     const result = await orchestrator.applyEvent({

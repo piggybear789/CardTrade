@@ -37,6 +37,7 @@ type AdminClient = ReturnType<typeof createAdminClient>;
  */
 export function createSupabaseTradeRepository(
   client: AdminClient = createAdminClient(),
+  options: TradeRepositoryOptions = {},
 ): TradeRepository {
   return {
     async loadTrade(tradeId: string): Promise<TradeRecord | null> {
@@ -64,7 +65,12 @@ export function createSupabaseTradeRepository(
     },
 
     async insertTransition(audit: TransitionAudit): Promise<void> {
-      await client.from('trade_state_transitions').insert({
+      // R4-M1: the returned `{ error }` was discarded, so a failed audit insert left a
+      // committed transition with no history row — and "did this trade ever reach
+      // INSPECTION" is now a money question (NO_EXCHANGE). The state change is NOT
+      // undone: it is committed under the version lock and is the truth. The hook
+      // lets the lib layer log it; domain stays log-free.
+      const { error } = await client.from('trade_state_transitions').insert({
         trade_id: audit.tradeId,
         from_state: audit.fromState,
         to_state: audit.toState,
@@ -72,8 +78,18 @@ export function createSupabaseTradeRepository(
         event: audit.event,
         created_at: audit.at.toISOString(),
       });
+      if (error) options.onAuditFailure?.(audit, error);
     },
   };
+}
+
+/** Options for {@link createSupabaseTradeRepository}. */
+export interface TradeRepositoryOptions {
+  /**
+   * Called when the audit row for a COMMITTED transition could not be written. The
+   * transition stands; this is for reporting (`createLoggedTradeOrchestrator`).
+   */
+  onAuditFailure?: (audit: TransitionAudit, error: { message: string; code?: string }) => void;
 }
 
 /**
@@ -85,10 +101,12 @@ export function createSupabaseTradeRepository(
  * fake repository in an integration test.
  */
 export function createDefaultTradeOrchestrator(
-  overrides: Partial<TradeOrchestratorDeps> = {},
+  overrides: Partial<TradeOrchestratorDeps> & TradeRepositoryOptions = {},
 ): TradeOrchestrator {
   return createTradeOrchestrator({
-    repository: overrides.repository ?? createSupabaseTradeRepository(),
+    repository:
+      overrides.repository ??
+      createSupabaseTradeRepository(createAdminClient(), { onAuditFailure: overrides.onAuditFailure }),
     payments: overrides.payments,
     runSideEffects: overrides.runSideEffects ?? createSupabaseCollateralSideEffects(),
     now: overrides.now,

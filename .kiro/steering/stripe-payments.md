@@ -50,11 +50,35 @@ trader's account — Stripe exposes the primitives directly:
 `placeHold` moves NO funds. Verify with `scripts/smoke-stripe-test.ts`, which
 asserts `amount_received === 0` on an active hold.
 
-**Authorisations expire.** Online card auths last about 7 days. Every hold reports
-`expiresAt`, read from the charge's `capture_before`. After it passes, the
-provider releases the funds itself and `voidHold` / `partialCapture` will fail.
-A Trade must resolve inside that window, or the collateral must be re-authorised
-before it. Do not treat `expiresAt` as advisory.
+**Authorisations expire, and the budget is 114 hours, not 7 days (ESC-17a).** A
+merchant-initiated (off-session) card auth lasts about 4 days 18 hours on the shortest
+common brand. Every hold reports `expiresAt`, read from the charge's `capture_before`;
+the fallback with no `capture_before` is `created + CARD_AUTHORISATION_HOURS` (114).
+The trade clock is planned inside it: placement lead 24h + inspection 72h + margin
+18h = 114h, pinned by `tests/unit/tradeClockAgreement.test.ts`. `readHoldExpiry` re-reads
+the provider's real expiry for rows still carrying the old 7-day estimate
+(`expires_at_estimated`, 0133). There is no re-authorisation: a DISPUTED trade's hold is
+captured into custody before it lapses instead (see product.md). Do not treat
+`expiresAt` as advisory.
+
+**Single capture (ESC-01/07).** An authorisation is captured at most once: a partial
+capture makes Stripe release the remainder, and a second capture fails. `fullCapture`
+and `partialCapture` retrieve the intent first and return FAILED unless it is
+`requires_capture`. `InMemoryService` and `MockService` model this exactly, with bounded
+refunds, so a test cannot pass on a capture real Stripe would refuse. Every capture
+targets `currentLiveHold` (`domain/bond/currentHolds.ts`), never "the first hold row".
+
+**Hold events no longer drive transitions (ESC-08).** `hold.active` / `hold.failed`
+map to `HOLD_STATUS`, a statement about ONE hold. The trade locks only through
+`confirmCollateralIfComplete` (`domain/orchestrator/collateralReconcile.ts`), when
+EVERY trader's current hold is ACTIVE; it sends the "collateral locked" notification
+exactly once.
+
+**Fail closed (ESC-16).** In production, a missing Stripe key resolves to
+`unconfigured` and `getPaymentService` throws `PaymentsUnconfiguredError`; the mock
+needs `PAYMENTS_PROVIDER=mock` AND `ALLOW_MOCK_PAYMENTS_IN_PRODUCTION=true`. There is no
+default `WEBHOOK_SECRET`; mock-signed webhooks are accepted only while the mock is the
+active provider and a secret is set (`acceptsMockWebhooks`).
 
 Holds, captures and transfers report failure through their `status` field rather
 than throwing, so the compensating logic (Req 4.4, 5.6, 7.6, 8.6) still runs.

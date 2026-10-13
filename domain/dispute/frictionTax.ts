@@ -39,6 +39,36 @@ export const FRICTION_TAX_RETURN_SHIPPING_CENTS: Cents = 1000;
 export const FRICTION_TAX_PLATFORM_FEE_CENTS: Cents = 1000;
 
 /**
+ * The platform's share of a staff-decided CONDITION outcome, per currency (ESC-10).
+ *
+ * Since the capture-free raise (ESC-01) there is no fixed $20 tax any more: staff
+ * choose the compensation, and the platform keeps at most this much of what is left
+ * of the accused's hold. A per-currency lookup rather than the AUD constant, because
+ * US is a trading region too. An unlisted currency gets 0 and staff decide, never a
+ * guessed figure.
+ */
+const FRICTION_TAX_PLATFORM_FEE_MINOR: Readonly<Record<string, Cents>> = { aud: 1000, usd: 1000 };
+
+/**
+ * The default compensation offered to a wronged trader on a CONDITION outcome, per
+ * currency. Mirrors the old return-shipping share. 0 when the currency is unlisted.
+ */
+const FRICTION_TAX_COMPENSATION_DEFAULT_MINOR: Readonly<Record<string, Cents>> = {
+  aud: 1000,
+  usd: 1000,
+};
+
+/** The platform share for a CONDITION outcome in `currency` (0 when unlisted). */
+export function frictionTaxPlatformFeeFor(currency: string | null | undefined): Cents {
+  return FRICTION_TAX_PLATFORM_FEE_MINOR[(currency ?? '').toLowerCase()] ?? 0;
+}
+
+/** The default compensation the admin form proposes in `currency` (0 when unlisted). */
+export function frictionTaxCompensationDefault(currency: string | null | undefined): Cents {
+  return FRICTION_TAX_COMPENSATION_DEFAULT_MINOR[(currency ?? '').toLowerCase()] ?? 0;
+}
+
+/**
  * What can actually be taken from a hold as the Friction_Tax.
  *
  * THE TAX IS $20 BUT A HOLD IS NOT ALWAYS $20. Collateral is 100% of the side's value

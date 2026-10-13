@@ -32,6 +32,7 @@ export function ListingDetailStack({
   isShopfront,
   locationLabel,
   createdAt,
+  watchCount,
   isOwner,
   statusBadge,
   sellerId,
@@ -60,6 +61,8 @@ export function ListingDetailStack({
   locationLabel: string | null;
   /** `items.created_at`, for the listing-age clause of a binder's meta line. */
   createdAt: string | null;
+  /** Members who saved it, for the meta line. */
+  watchCount: number;
   isOwner: boolean;
   /** Under contract / Sold / Closed. Null while the listing is available. */
   statusBadge?: ListingStatusBadge | null;
@@ -73,7 +76,7 @@ export function ListingDetailStack({
   sellerIdentity: SellerIdentityDisclosure | null;
   /** The photo carousel, which heads the stack. */
   media?: ReactNode;
-  /** A buyer who can buy: show how the purchase is protected. */
+  /** A buyer who can buy: show the fee note and how the purchase is protected. */
   showTrust?: boolean;
   /** Under the seller row: "Message seller" for a buyer on a phone. */
   sellerAction?: ReactNode;
@@ -86,6 +89,7 @@ export function ListingDetailStack({
     condition,
     locationLabel,
     listedAgo: formatRelativeTime(createdAt),
+    saves: watchCount,
   });
   // A binder shows its own indicative "from" figure; a single listing shows what the
   // buyer is actually charged — the same figure as its catalog tile.
@@ -143,12 +147,13 @@ export function ListingDetailStack({
           <span className="text-lead font-bold text-muted-foreground">{headline.minor}</span>
         ) : null}
       </p>
-      {/* Suppressed for a binder, whose price is an indicative "from". */}
-      {!isShopfront ? (
+      {/* Only for a buyer who can buy, and never on a binder, whose price is an
+          indicative "from". */}
+      {showTrust && !isShopfront ? (
         <ListingFeeNote priceCents={priceCents} currency={currency} className="mt-tight" />
       ) : null}
 
-      {/* NO MULTI-ITEM NOTICE HERE. The meta line above carries "Multiple items ·
+      {/* NO BINDER NOTICE HERE. The meta line above carries "Binder or bulk listing ·
           nothing is held", and the buy bar's own copy ("Request", "Nothing is held for
           you yet") says the rest at the moment it applies. */}
 

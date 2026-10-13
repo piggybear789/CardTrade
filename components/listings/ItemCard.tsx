@@ -264,7 +264,9 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         {isShopfront ? (
           <span className="absolute left-1.5 top-1.5 z-[1] inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-mist">
             <HugeiconsIcon icon={LibraryIcon} className="size-3" aria-hidden />
-            Multiple items
+            {/* Short on the photo, which it shares with the heart; the full name for
+                assistive tech. */}
+            Binder or bulk<span className="sr-only"> listing</span>
           </span>
         ) : null}
         {showWatch || item.watch_count > 0 ? (

@@ -1,10 +1,10 @@
 // app/listings/[id]/loading.tsx
 //
 // Phone: the photo carousel, then title, meta line, price, fee note, protection line,
-// the borderless seller row and the description.
+// the borderless seller row, the phone Message row and the description.
 // Desktop: back-nav row, gallery (rail + frame) on the left, `ListingDesktopPane` on the
-// right: title, meta line, price, fee note, the action stack, protection line, seller
-// row, description.
+// right: title, meta line, price, fee note, Buy now and the round-chip row, protection
+// line, seller row, description.
 //
 // TWO COLUMNS, NOT ONE, ON THE RIGHT. The page renders `ListingDetailStack` inside an
 // `lg:hidden` wrapper and `ListingDesktopPane` (`hidden lg:flex`) beside it. This
@@ -110,7 +110,9 @@ function PhoneStackSkeleton() {
           min-h-[2lh]`), so nothing below moves with the location. */}
       <TextLines className="mt-snug text-meta" widths={['w-2/3', 'w-1/3']} />
 
-      {/* Price (`text-display`), then the one-line fee note at `mt-tight`. */}
+      {/* Price (`text-display`), then the one-line fee note at `mt-tight`. The note is
+          reserved for the common reader, a buyer who can buy; an owner or an
+          unavailable listing resolves without it. */}
       <TextLines className="mt-snug text-display" widths={['w-1/3']} />
       <TextLines className="mt-tight text-meta" widths={['w-1/2']} />
 
@@ -118,6 +120,13 @@ function PhoneStackSkeleton() {
       <TextLines className="mt-group text-meta" widths={['w-full']} />
 
       <SellerRowSkeleton className="mt-group" />
+
+      {/* The `md:hidden` Message seller row a signed-in buyer gets under the seller row
+          (`size="default"` is `h-10` below `md`). A guest or owner sees the description
+          rise by that much, accepted because a buyer is the common reader. The round-chip
+          row is NOT reserved here: it renders below the description, in the md–lg band
+          only, so it moves nothing above it. */}
+      <Skeleton className="mt-snug h-10 w-full md:hidden" />
 
       {/* `ExpandableDescription` is `text-body line-clamp-4`. The clamp ceiling is the
           right thing to reserve: `line-clamp-4` and the "Read more" control both switch
@@ -138,7 +147,8 @@ function DesktopPaneSkeleton() {
     <div className="hidden flex-col gap-group lg:flex">
       {/* Header (`space-y-snug`): the `text-head` title with the Save / "⋯" pair
           (`size-9` each) on the right, the meta line, then the `text-display` price
-          with the fee note at `mt-tight`. */}
+          with the fee note at `mt-tight` (reserved for a buyer; the owner resolves
+          without it). */}
       <div className="space-y-snug">
         <div className="flex items-start justify-between gap-cozy">
           <TextLines className="min-w-0 flex-1 text-head" widths={['w-2/3']} />
@@ -154,17 +164,24 @@ function DesktopPaneSkeleton() {
         </div>
       </div>
 
-      {/* The action stack: Buy now (`lg`, 40px from `md`), the Offer | Trade pair
-          beneath it, then the full-width Message seller row. */}
+      {/* The actions: Buy now (`lg`, 40px from `md`), then the round-chip row
+          (`ListingActionRow`): 48px circles over a one-line `text-body leading-tight`
+          label, centred, each slot at most `max-w-32`. Three chips are reserved; the
+          row is one height for one to three chips, so a binder (no Offer) or a seller
+          without payout setup (Message alone) moves nothing below it. */}
       <div className="space-y-group">
-        <div className="space-y-snug">
-          <Skeleton className="h-10 w-full" />
-          <div className="grid grid-cols-2 gap-snug">
-            <Skeleton className="h-10" />
-            <Skeleton className="h-10" />
-          </div>
-        </div>
         <Skeleton className="h-10 w-full" />
+        <div className="flex items-start justify-center gap-snug">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div
+              key={index}
+              className="flex min-w-0 max-w-32 flex-1 basis-0 flex-col items-center gap-tight"
+            >
+              <Skeleton className="size-12 rounded-full" />
+              <TextLines className="w-full text-center text-body leading-tight" widths={['w-2/3']} />
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* The protection line: one `text-meta` line. */}

@@ -3,13 +3,15 @@
 // components/messages/MessageSellerButton.tsx
 //
 // Client entry point for messaging a seller from the item detail page.
-// Two variants:
+// Variants:
 //   - "button" (default): a simple button that opens/creates the conversation.
 //   - "inline": a compact input row ("Send seller a message" label + text field
 //     + send button) styled like a mini-compose box, matching marketplace UX
 //     patterns where the first message can be fired without leaving the page.
+//   - "icon" / "bar": the chat glyph and the filled "Chat" in the phone buyer bar.
+//   - "action": the round `ListingActionIcon` chip in the listing page's action row.
 //
-// Both call `getOrCreateConversation` and, on success, route the buyer to the
+// All of them call `getOrCreateConversation` and, on success, route the buyer to the
 // conversation thread at `/messages/[conversationId]`.
 
 import { useEffect, useId, useState, useTransition } from 'react';
@@ -18,6 +20,7 @@ import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LoaderCircleIcon, MessageCircleIcon, SendIcon } from '@hugeicons/core-free-icons';
 
+import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getOrCreateConversation, sendMessage } from '@/lib/actions/messages';
@@ -46,14 +49,13 @@ const SEND_ERROR_MESSAGES: Record<string, string> = {
 };
 
 /**
- * A "Message seller" control with two presentation modes.
+ * A "Message seller" control in one of several presentation modes (see `variant`).
  */
 export function MessageSellerButton({
   itemId,
   sellerId,
   size = 'lg',
   variant = 'button',
-  tone = 'outline',
   className,
 }: {
   /** The listing the thread is about, or null for the two members' general thread. */
@@ -61,21 +63,16 @@ export function MessageSellerButton({
   sellerId: string;
   /** Trigger button size (button variant only). */
   size?: 'default' | 'sm' | 'lg';
-  /** Width override for the `button` variant, e.g. `w-full` in an action stack. */
+  /** Extra classes for the `button` (e.g. `w-full`) and `action` variants. */
   className?: string;
   /**
    * `button` — labeled control.
    * `inline` — compose row on the listing.
    * `icon` — 44px chat glyph for the mobile buyer bar.
    * `bar` — filled "Chat" in the same bar.
+   * `action` — the round chip in the listing page's action row.
    */
-  variant?: 'button' | 'inline' | 'icon' | 'bar';
-  /**
-   * Fill of the `button` variant. `outline` everywhere by default; the listing page's
-   * action stack asks for `secondary` (light iris fill, iris label) so Message reads
-   * as part of that stack, beneath Buy / Offer / Trade.
-   */
-  tone?: 'outline' | 'secondary';
+  variant?: 'button' | 'inline' | 'icon' | 'bar' | 'action';
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -176,6 +173,21 @@ export function MessageSellerButton({
     );
   }
 
+  if (variant === 'action') {
+    // Same label in both states, for the same reason as the button variant below.
+    return (
+      <ListingActionIcon
+        icon={isPending ? LoaderCircleIcon : MessageCircleIcon}
+        iconClassName={isPending ? 'animate-spin' : undefined}
+        label="Message seller"
+        onClick={handleClick}
+        disabled={isPending}
+        aria-busy={isPending}
+        className={className}
+      />
+    );
+  }
+
   if (variant === 'inline') {
     return (
       <div className="space-y-snug">
@@ -240,12 +252,11 @@ export function MessageSellerButton({
 
   return (
     <div className="space-y-snug">
-      {/* Outline by default: the lavender fill is this app's selected state, and a
-          message is a way to ask, not a choice already made. The listing page's action
-          stack opts into `secondary` via `tone`. */}
+      {/* Outline: the lavender fill is this app's selected state, and a message is a
+          way to ask, not a choice already made. */}
       <Button
         type="button"
-        variant={tone}
+        variant="outline"
         size={size}
         className={className ?? 'w-full sm:w-auto'}
         onClick={handleClick}

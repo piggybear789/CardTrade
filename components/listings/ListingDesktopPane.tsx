@@ -18,7 +18,8 @@ export type ListingStatusBadge = { label: string; variant: 'secondary' | 'outlin
 /**
  * The desktop listing column, in the order a buyer decides in: what it is (a status
  * badge only when it is not available, the title, one quiet meta line), what it costs
- * (the fee-inclusive price and one muted fee note), the actions, one line on how the
+ * (the fee-inclusive price and one muted fee note), the actions (Buy now, then a row of
+ * round chips for Propose trade, Make an offer and Message seller), one line on how the
  * purchase is protected, who is selling, the description and the details. Phone layout
  * stays in ListingDetailStack and carries the same content.
  *
@@ -82,7 +83,7 @@ export function ListingDesktopPane({
   /** The card game, for the meta line. */
   category: string | null;
   condition: string;
-  /** Members who saved it, drawn beside the heart. */
+  /** Members who saved it, for the meta line. */
   watchCount: number;
   initialWatching: boolean;
   sellerId: string;
@@ -98,13 +99,14 @@ export function ListingDesktopPane({
   createdAt: string | null;
   children: ReactNode;
 }) {
-  const name = isOwner ? 'You' : (sellerDisplayName ?? 'Unknown seller');
+  const name = isOwner ? 'You' : (sellerDisplayName ?? 'Seller');
   const meta = listingMetaLine({
     isShopfront,
     category,
     condition,
     locationLabel,
     listedAgo: formatRelativeTime(createdAt),
+    saves: watchCount,
   });
   // A binder shows its own indicative "from" figure; a single listing shows what the
   // buyer is actually charged — the same figure as its catalog tile.
@@ -125,15 +127,15 @@ export function ListingDesktopPane({
           <h2 className="min-w-0 text-balance text-head font-semibold tracking-tight">
             {title}
           </h2>
-          {/* Save and "⋯" at 20px, beside the title they act on. The save count sits
-              beside the heart rather than in a chip row of its own. */}
+          {/* Save and "⋯" at 20px, beside the title they act on. The save count is
+              the last clause of the meta line below, so every viewer sees it, not
+              only the members who get a heart. */}
           <div className="-mr-snug -mt-tight flex shrink-0 items-center" role="group" aria-label="Listing actions">
             {showWatch ? (
               <WatchButton
                 itemId={itemId}
                 initialWatching={initialWatching}
                 variant="icon"
-                count={watchCount}
                 className="size-9 md:size-9"
                 glyphClassName="size-5"
               />
@@ -168,7 +170,8 @@ export function ListingDesktopPane({
               </span>
             ) : null}
           </p>
-          {!isShopfront ? (
+          {/* Buyers only: the owner reads "Buyers pay / You receive" in their tools. */}
+          {!isShopfront && !isOwner ? (
             <ListingFeeNote priceCents={priceCents} currency={currency} className="mt-tight" />
           ) : null}
         </div>
@@ -212,10 +215,13 @@ export function ListingDesktopPane({
 /**
  * The one quiet line under the title, shared by both layouts so they read the same.
  *
- * A single listing: `Pokémon · Graded · Croydon, NSW, Australia` — the full facts,
- * listed date included, are in Details. A binder or bulk listing has no Details, so its
- * line keeps the listing age, and it always says that nothing is held: on every other
- * listing opening a contract reserves the goods.
+ * A single listing: `Pokémon · Graded · Croydon, NSW, Australia · 3 saved` — the full
+ * facts, listed date included, are in Details. A binder or bulk listing has no Details,
+ * so its line keeps the listing age, and it always says that nothing is held: on every
+ * other listing opening a contract reserves the goods.
+ *
+ * The save count is the last clause for both kinds, for every viewer, and only when
+ * someone has saved it (the catalog tile's rule).
  */
 export function listingMetaLine({
   isShopfront,
@@ -223,20 +229,24 @@ export function listingMetaLine({
   condition,
   locationLabel,
   listedAgo,
+  saves,
 }: {
   isShopfront: boolean;
   category: string | null;
   condition: string;
   locationLabel: string | null;
   listedAgo: string | null;
+  /** Members who saved the listing. */
+  saves: number;
 }): string {
   const parts = isShopfront
     ? [
-        'Multiple items · nothing is held',
+        'Binder or bulk listing · nothing is held',
         category,
         listedAgo ? `Listed ${listedAgo}` : null,
         locationLabel,
       ]
     : [category, condition, locationLabel];
+  parts.push(saves > 0 ? `${saves} saved` : null);
   return parts.filter(Boolean).join(' · ');
 }

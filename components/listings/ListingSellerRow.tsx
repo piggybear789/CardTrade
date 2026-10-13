@@ -9,7 +9,8 @@
 // FIXED GEOMETRY. Both lines always render: an unrated seller reads "No ratings yet"
 // and an unverified one "Name not verified yet", so the description below sits at the
 // same height for every listing. A divider above separates it from the actions; there
-// is no box around it. "Message seller" stays in the action stack, not here.
+// is no box around it. "Message seller" is a chip in the action row (and, on phones,
+// its own row under this one), not part of the row.
 //
 // The whole row is one link to the seller's profile (the owner's own profile for the
 // owner). The separate `#reviews` rating link was dropped: an anchor inside the row's

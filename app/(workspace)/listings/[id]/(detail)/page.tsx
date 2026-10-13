@@ -14,16 +14,14 @@
 // The buy/trade actions re-enforce these gates server-side; the gating here
 // only decides what to surface.
 
-import { Suspense, ViewTransition } from "react";
+import { Suspense, ViewTransition, type ReactNode } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
-  ArrowLeftRightIcon,
   FileTextIcon,
-  HandCoinsIcon,
   LogInIcon,
   PencilIcon,
   ShoppingCart01Icon,
@@ -60,6 +58,7 @@ import {
   type GalleryImage,
 } from "@/components/listings/ImageGallery";
 import { readImageDims, type ImageDim } from "@/lib/images/dimensions";
+import { ListingActionRow } from "@/components/listings/ListingActionIcon";
 import { ListingBuyerBar } from "@/components/listings/ListingBuyerBar";
 import { ListingChromePublisher } from "@/components/listings/ListingChromePublisher";
 import {
@@ -487,52 +486,42 @@ export default async function ItemDetailPage({
   const showTrust = !isOwner && isAvailable && !myContractId;
   const canMessage = Boolean(user) && !isOwner && isAvailable && !myContractId;
 
-  function renderListingActions(headingId: string) {
+  function renderListingActions() {
     return (
-      <>
-        <ItemActions
-          itemId={item.id}
-          itemTitle={item.title}
-          itemImagePath={(item.image_paths ?? [])[0] ?? null}
-          sellerId={item.owner_id}
-          sellerDisplayName={sellerDisplayName}
-          fmvCents={item.fmv_cents}
-          currency={item.currency}
-          isOwner={isOwner}
-          isAuthenticated={Boolean(user)}
-          isAvailable={isAvailable}
-          regionNotice={regionNotice}
-          viewerVerification={viewerVerification}
-          sellerIdentity={sellerIdentity}
-          activeSaleId={activeSaleId}
-          activeTradeId={activeTradeId}
-          isShopfront={isShopfront}
-          isClosed={isClosed}
-          openContracts={openContracts}
-          ownItems={ownItems}
-          myContractId={myContractId}
-          ownerStats={{ saves: watchCount, openOffers }}
-        />
-        {/* A BUTTON, NOT A COMPOSER. The inline "Send seller a message" field sat
-            under Buy / Offer / Trade at the same visual weight as opening a contract;
-            asking a question now opens the conversation from one full-width button,
-            tinted (`secondary`) so it reads as the last row of the stack. */}
-        {canMessage ? (
-          <section aria-labelledby={headingId}>
-            <h2 id={headingId} className="sr-only">
-              Message seller
-            </h2>
+      <ItemActions
+        itemId={item.id}
+        itemTitle={item.title}
+        itemImagePath={(item.image_paths ?? [])[0] ?? null}
+        sellerId={item.owner_id}
+        sellerDisplayName={sellerDisplayName}
+        fmvCents={item.fmv_cents}
+        currency={item.currency}
+        isOwner={isOwner}
+        isAuthenticated={Boolean(user)}
+        isAvailable={isAvailable}
+        regionNotice={regionNotice}
+        viewerVerification={viewerVerification}
+        sellerIdentity={sellerIdentity}
+        activeSaleId={activeSaleId}
+        activeTradeId={activeTradeId}
+        isShopfront={isShopfront}
+        isClosed={isClosed}
+        openContracts={openContracts}
+        ownItems={ownItems}
+        myContractId={myContractId}
+        ownerStats={{ saves: watchCount, openOffers }}
+        messageAction={
+          // A CHIP, NOT A COMPOSER. Asking a question opens the conversation from
+          // the last round chip in the action row, beside Trade and Offer.
+          canMessage ? (
             <MessageSellerButton
               itemId={item.id}
               sellerId={item.owner_id}
-              variant="button"
-              tone="secondary"
-              size="lg"
-              className="w-full"
+              variant="action"
             />
-          </section>
-        ) : null}
-      </>
+          ) : null
+        }
+      />
     );
   }
 
@@ -654,6 +643,7 @@ export default async function ItemDetailPage({
                 isShopfront={isShopfront}
                 locationLabel={item.location_label}
                 createdAt={item.created_at ?? null}
+                watchCount={watchCount}
                 isOwner={isOwner}
                 statusBadge={unavailableBadge}
                 sellerId={item.owner_id}
@@ -679,7 +669,6 @@ export default async function ItemDetailPage({
                         itemId={item.id}
                         sellerId={item.owner_id}
                         variant="button"
-                        tone="secondary"
                         size="default"
                         className="w-full"
                       />
@@ -740,7 +729,7 @@ export default async function ItemDetailPage({
                     : 'mt-group space-y-group pt-snug'
                 }
               >
-                {renderListingActions('message-seller-heading')}
+                {renderListingActions()}
               </div>
             </div>
 
@@ -776,7 +765,7 @@ export default async function ItemDetailPage({
               locationLabel={item.location_label}
               createdAt={item.created_at ?? null}
             >
-              {renderListingActions('message-seller-heading-desktop')}
+              {renderListingActions()}
             </ListingDesktopPane>
           </div>
         </div>
@@ -847,6 +836,7 @@ function ItemActions({
   ownItems,
   myContractId,
   ownerStats,
+  messageAction,
 }: {
   itemId: string;
   itemTitle: string;
@@ -881,6 +871,8 @@ function ItemActions({
   myContractId: string | null;
   /** Saves and open offers, for the owner's tools. */
   ownerStats: { saves: number; openOffers: number };
+  /** The Message seller chip, or null. Rendered last in the action row. */
+  messageAction: ReactNode;
 }) {
   // Only the SELLER's missing setup disables the trigger — the viewer cannot
   // complete somebody else's onboarding by pressing a button, so there is nothing
@@ -890,8 +882,8 @@ function ItemActions({
     : null;
 
   // Desktop never shows a dead Propose Trade chip — the payout banner already
-  // says why a trade cannot start, and Message is still available underneath.
-  // Mobile keeps a disabled Trade slot in the sticky buyer bar.
+  // says why a trade cannot start, and the Message chip is still available beside
+  // it. Mobile keeps a disabled Trade slot in the sticky buyer bar.
   const proposeTrade =
     isAuthenticated && !isOwner && isAvailable && !disabledTradeReason ? (
       <ProposeTradeDialog
@@ -906,12 +898,6 @@ function ItemActions({
         ownItems={ownItems}
         viewerVerification={viewerVerification}
         returnPath={`/listings/${itemId}`}
-        trigger={
-          <Button type="button" variant="outline" size="lg" className="w-full min-w-0">
-            <HugeiconsIcon icon={ArrowLeftRightIcon} aria-hidden />
-            Propose trade
-          </Button>
-        }
       />
     ) : null;
 
@@ -1117,11 +1103,12 @@ function ItemActions({
   // could receive fraud restitution, so both must pass the Identity_Gate before
   // a proposal can become a trade.
   //
-  // ONE FILLED ACTION, THEN TWO OUTLINES. Buy now, Propose trade and Make an offer
-  // were three equal round icons with captions — a toolbar, not a decision. Buying is
-  // the step most buyers take, so it is the full-width primary; offering and trading
-  // are the alternatives beside each other under it. Message follows as its own
-  // tinted full-width row (see `renderListingActions`).
+  // ONE FILLED ACTION, THEN A ROW OF ROUND CHIPS. Buy now is the full-width primary.
+  // Propose trade, Make an offer and Message seller are round `ListingActionIcon`
+  // chips under it, in the order the row had before `81ca4e8` (Trade, Offer), with
+  // Message last. `81ca4e8` swapped the chips for labelled outline buttons, and that
+  // column had too much going on. Each chip keeps its own condition; the row centres
+  // whatever is left at one fixed height (`ListingActionRow`).
   const showOffer = Boolean(sellerIdentity) && !isShopfront;
 
   return (
@@ -1132,7 +1119,7 @@ function ItemActions({
           description="This seller cannot accept a cash purchase or start a trade until their payout setup is complete. You can message them in the meantime."
         />
       ) : (
-        <div className="space-y-snug" role="group" aria-label="Start a contract">
+        <div role="group" aria-label="Start a contract">
           {isShopfront ? (
             <ShopfrontBuyButton
               itemId={itemId}
@@ -1157,25 +1144,20 @@ function ItemActions({
               }
             />
           )}
-          <div className={showOffer ? 'grid grid-cols-2 gap-snug' : 'grid grid-cols-1'}>
-            {showOffer ? (
-              <MakeOfferDialog
-                itemId={itemId}
-                fmvCents={fmvCents}
-                currency={currency}
-                sellerIdentity={sellerIdentity}
-                trigger={
-                  <Button type="button" variant="outline" size="lg" className="w-full min-w-0">
-                    <HugeiconsIcon icon={HandCoinsIcon} aria-hidden />
-                    Make an offer
-                  </Button>
-                }
-              />
-            ) : null}
-            {proposeTrade}
-          </div>
         </div>
       )}
+      <ListingActionRow label="Other ways to deal">
+        {proposeTrade}
+        {showOffer && sellerIdentity ? (
+          <MakeOfferDialog
+            itemId={itemId}
+            fmvCents={fmvCents}
+            currency={currency}
+            sellerIdentity={sellerIdentity}
+          />
+        ) : null}
+        {messageAction}
+      </ListingActionRow>
       {regionGateNotice}
     </div>
   );

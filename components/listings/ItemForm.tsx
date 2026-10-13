@@ -179,8 +179,8 @@ const LISTING_KINDS = [
   {
     value: "SHOPFRONT" as const,
     icon: LibraryIcon,
-    label: "Multiple items",
-    hint: "A binder to pick from",
+    label: "Binder or bulk listing",
+    hint: "Many cards, nothing held",
   },
 ];
 

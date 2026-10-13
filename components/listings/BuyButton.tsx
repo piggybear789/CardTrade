@@ -29,6 +29,7 @@ import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
 import { PendingLabel } from '@/components/ui/pending-label';
+import { CurrencyNotice } from '@/components/payments/CurrencyNotice';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
@@ -72,6 +73,8 @@ export interface PurchaseSummary {
   /** The seller's asking price; the fee and the total are derived from it. */
   priceCents: number;
   currency: string;
+  /** The buyer's own region currency, so a foreign-currency purchase says so. */
+  buyerCurrency?: string | null;
 }
 
 /**
@@ -136,6 +139,11 @@ function OrderSummary({ summary }: { summary: PurchaseSummary }) {
           {money(buyerPaysCents(summary.priceCents, summary.currency))}
         </p>
       </div>
+      <CurrencyNotice
+        currency={summary.currency}
+        amountMinor={summary.priceCents + fee}
+        buyerCurrency={summary.buyerCurrency}
+      />
       <ol className="grid grid-cols-3 gap-snug text-meta text-muted-foreground" aria-label="How buying works">
         {['Reserve now, no charge', 'Agree shipping or a meet-up', 'Pay, inspect, done'].map((step, index) => (
           <li key={step} className="flex items-start gap-tight">

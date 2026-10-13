@@ -9,7 +9,8 @@
 //   - cash_sales    → readable by the buyer or the seller
 //   - trades        → readable by the two participants
 //
-// Money is integer AUD cents end-to-end; the UI formats via `formatAud`.
+// Money is integer minor units end-to-end, carried with the row's own `currency`;
+// the UI formats via `formatMoney`.
 // Results follow the discriminated `AccountActionResult` shape used elsewhere.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
@@ -117,6 +118,8 @@ export interface CashSaleSummary {
   /** First snapshotted image object path. */
   itemImagePath: string | null;
   amountCents: number;
+  /** ISO 4217 code `amountCents` is denominated in (the contract's own). */
+  currency: string;
   status: Enums<'cash_sale_status'>;
   createdAt: string;
   /** Which side of this contract the caller is on. */
@@ -136,8 +139,10 @@ export interface TradeSummary {
   /** Titles of the goods the caller is giving, and receiving. */
   yourItemTitles: string[];
   theirItemTitles: string[];
-  /** Cash on the trade, in integer AUD cents. */
+  /** Cash on the trade, in the trade currency's minor units. */
   cashAmountCents: number;
+  /** ISO 4217 code of the trade. */
+  currency: string;
   /** Whether the caller initiated the trade or is the counterpart. */
   role: 'initiator' | 'counterpart';
   createdAt: string;
@@ -197,6 +202,7 @@ const CASH_SALE_SUMMARY_COLUMNS = [
   'id',
   'item_id',
   'amount_cents',
+  'currency',
   'status',
   'created_at',
   'item_title',
@@ -221,6 +227,7 @@ interface CashSaleSummaryRow {
   id: string;
   item_id: string;
   amount_cents: number;
+  currency: string;
   status: Enums<'cash_sale_status'>;
   created_at: string;
   item_title: string | null;
@@ -288,6 +295,7 @@ function toCashSaleSummary(
     itemTitle: row.item_title,
     itemImagePath: row.item_image_paths?.[0] ?? null,
     amountCents: row.amount_cents,
+    currency: row.currency,
     status: row.status,
     createdAt: row.created_at,
     viewerRole,
@@ -471,6 +479,7 @@ export const getMyTrades = withActionLog('account.getMyTrades', async function g
       yourItemTitles: titlesFor(true),
       theirItemTitles: titlesFor(false),
       cashAmountCents: (r.cash_amount_cents as number) ?? 0,
+      currency: r.currency,
       role,
       createdAt: r.created_at,
       counterpartyName,

@@ -17,6 +17,7 @@
 // price-plus-fee a total is a promise the flow cannot keep.
 
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { buyerChargeMinorFor } from '@/domain/fees/fxFee';
 
 // The member-facing rate label is `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
 
@@ -34,7 +35,11 @@ import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator'
  * rather than this function guessing, because it takes cents and not a listing.
  */
 export function buyerPaysCents(priceCents: number, currency: string | null): number {
-  return priceCents + platformFeeCentsFor(priceCents, currency);
+  // Plus the Currency_Conversion fee where this currency's platform settles in
+  // another one (a EUR or GBP listing on the US platform). Same function the
+  // orchestrator charges with, applied to the same price-plus-fee base, so the
+  // headline never rises between reading and paying (shipping aside, as above).
+  return buyerChargeMinorFor(priceCents + platformFeeCentsFor(priceCents, currency), currency);
 }
 
 /**
@@ -125,8 +130,17 @@ export function splitMoney(formatted: string): {
   symbol: string;
   major: string;
   minor: string;
+  /** Trailing currency code `formatMoney` appends (e.g. " AUD"), or ''. */
+  code: string;
 } {
-  const match = /^(\D*)(.*?)([.,]\d{2})?$/.exec(formatted);
-  if (!match) return { symbol: '', major: formatted, minor: '' };
-  return { symbol: match[1] ?? '', major: match[2] ?? '', minor: match[3] ?? '' };
+  // The trailing code group matters: without it a suffixed string fails the `$`
+  // anchor on the cents, and ".00 AUD" lands in `major` at headline size.
+  const match = /^(\D*)(.*?\d)([.,]\d{2})?(\s*[A-Z]{3})?$/.exec(formatted);
+  if (!match) return { symbol: '', major: formatted, minor: '', code: '' };
+  return {
+    symbol: match[1] ?? '',
+    major: match[2] ?? '',
+    minor: match[3] ?? '',
+    code: match[4] ?? '',
+  };
 }

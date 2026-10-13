@@ -17,7 +17,7 @@ import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ShoppingBag01Icon, Tag01Icon } from '@hugeicons/core-free-icons';
 
-import { formatAud, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 import type { CashSaleSummary } from '@/lib/actions/account';
 import { EmptyState } from '@/components/account/EmptyState';
 import {
@@ -97,7 +97,7 @@ export function CashSalesSection({
               </Link>
               <div className="mt-0.5 flex flex-wrap items-center gap-x-cozy gap-y-tight text-meta text-muted-foreground">
                 <span className="font-semibold tabular-nums text-foreground">
-                  {formatAud(sale.amountCents)}
+                  {formatMoney(sale.amountCents, sale.currency)}
                 </span>
                 <span>{buying ? 'from' : 'to'} {sale.counterpartyName}</span>
                 {opened ? (

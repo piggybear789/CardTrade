@@ -52,7 +52,7 @@ import {
   type UnlistedItemDraft,
 } from '@/components/trade/UnlistedItemDialog';
 import { StorageImage } from '@/components/ui/storage-image';
-import { formatAud, itemImageUrl } from '@/lib/format';
+import { formatMoney, itemImageUrl } from '@/lib/format';
 import { betaFeeNote, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
@@ -95,12 +95,19 @@ export type TradeOfferOwnItem = {
   id: string;
   title: string;
   fmv_cents: number;
+  /** ISO 4217 code of `fmv_cents` (`items.currency`). */
+  currency: string;
 };
 
 export type TradeOfferRequested = {
   id: string;
   title: string;
   fmvCents: number;
+  /**
+   * ISO 4217 code of the requested listing (`items.currency`). Every total on the
+   * offer is shown in it: a trade runs inside one region, so this is the trade's.
+   */
+  currency: string;
   imagePath: string | null;
   ownerName: string;
   /**
@@ -172,6 +179,8 @@ export function TradeOfferForm({
    * listing, where the item itself is the statement of what is being traded.
    */
   const isShopfront = requested.isShopfront === true;
+  /** Every figure on the offer is in the requested listing's currency. */
+  const currency = requested.currency;
   const [wantedGoods, setWantedGoods] = useState('');
 
   const { cashDirection, message } = terms;
@@ -227,14 +236,14 @@ export function TradeOfferForm({
     if (cashAmountCents > 0) {
       parts.push(
         cashDirection === 'PROPOSER_PAYS'
-          ? `+ ${formatAud(cashAmountCents)} from you`
-          : `+ ${formatAud(cashAmountCents)} from them`,
+          ? `+ ${formatMoney(cashAmountCents, currency)} from you`
+          : `+ ${formatMoney(cashAmountCents, currency)} from them`,
       );
     }
-    if (declaredValueCents > 0) parts.push(`valued ${formatAud(declaredValueCents)}`);
+    if (declaredValueCents > 0) parts.push(`valued ${formatMoney(declaredValueCents, currency)}`);
     if (message.trim() !== '') parts.push('note added');
     return parts.join(' · ');
-  }, [cashAmountCents, cashDirection, declaredValueCents, message]);
+  }, [cashAmountCents, cashDirection, declaredValueCents, message, currency]);
 
   function handleSubmit() {
     setError(null);
@@ -355,7 +364,7 @@ export function TradeOfferForm({
             <span className="ml-auto shrink-0 text-meta text-muted-foreground">binder or bulk listing</span>
           ) : (
             <span className="ml-auto shrink-0 text-body font-semibold tabular-nums">
-              {formatAud(requested.fmvCents)}
+              {formatMoney(requested.fmvCents, currency)}
             </span>
           )}
         </div>
@@ -478,7 +487,7 @@ export function TradeOfferForm({
                     />
                     <span className="min-w-0 flex-1 truncate font-medium">{item.title}</span>
                     <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {formatAud(item.fmv_cents)}
+                      {formatMoney(item.fmv_cents, item.currency)}
                     </span>
                   </label>
                 </li>
@@ -527,13 +536,13 @@ export function TradeOfferForm({
         <div className="flex items-baseline justify-between gap-cozy">
           <span className="text-muted-foreground">You give</span>
           <span className="font-semibold tabular-nums">
-            {formatAud(youGiveTotalCents)}
+            {formatMoney(youGiveTotalCents, currency)}
           </span>
         </div>
         <div className="mt-tight flex items-baseline justify-between gap-cozy">
           <span className="text-muted-foreground">They give</span>
           <span className="font-semibold tabular-nums">
-            {formatAud(theyGiveTotalCents)}
+            {formatMoney(theyGiveTotalCents, currency)}
           </span>
         </div>
         {isShopfront ? (
@@ -546,8 +555,8 @@ export function TradeOfferForm({
           {differenceCents === 0
             ? 'Even on the stated terms.'
             : differenceCents > 0
-              ? `You give ${formatAud(differenceCents)} more.`
-              : `Their side is worth ${formatAud(Math.abs(differenceCents))} more. Add cards or cash, or send it as it is.`}
+              ? `You give ${formatMoney(differenceCents, currency)} more.`
+              : `Their side is worth ${formatMoney(Math.abs(differenceCents), currency)} more. Add cards or cash, or send it as it is.`}
         </p>
       </div>
 

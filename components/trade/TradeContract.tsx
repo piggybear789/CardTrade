@@ -578,6 +578,7 @@ function TradeTermsRow({
         meeting_location: trade.meeting_location,
         delivery_cost_cents: trade.delivery_cost_cents,
         delivery_details: trade.delivery_details,
+        currency: trade.currency,
       })
     : 'Not agreed yet';
 
@@ -1386,7 +1387,7 @@ function TradeContractRoom({
                   viewerRole={viewerRole}
                   currency={trade.currency}
                 />
-                <DittoBondExplainer />
+                <DittoBondExplainer currency={trade.currency} />
               </ContractDetailRow>
 
               {/* Dispute evidence (0082). Only while disputed or resolved — see the

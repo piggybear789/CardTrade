@@ -35,6 +35,11 @@ import {
   frictionTaxChargeableCents,
 } from '../dispute/frictionTax';
 import { canReceiveFunds, type MerchantRecord } from './merchantOnboarding';
+
+/** The trade row's frozen currency (0068), carried on the record's index signature. */
+function tradeCurrency(trade: { [column: string]: unknown }): string | undefined {
+  return typeof trade.currency === 'string' && trade.currency ? trade.currency : undefined;
+}
 import type { OrchestratorError, TradeOrchestrator, TradeRecord } from './tradeOrchestrator';
 
 // ---------------------------------------------------------------------------
@@ -297,7 +302,8 @@ export async function raiseConditionDispute(
   // CAPPED AT WHAT WAS AUTHORISED. A trade on a $5 item holds $5, and requesting the
   // full $20 made Stripe refuse the capture outright — so every dispute on a low-value
   // trade failed, froze, and looked transient. See `frictionTaxChargeableCents`.
-  const chargeable = frictionTaxChargeableCents(disputedHold.amountCents);
+  const currency = tradeCurrency(trade);
+  const chargeable = frictionTaxChargeableCents(disputedHold.amountCents, currency);
   if (chargeable <= 0) {
     // No collateral to take from at all. The dispute still stands — it is a claim about
     // goods, not a payment — but there is nothing to capture and pretending otherwise
@@ -322,7 +328,7 @@ export async function raiseConditionDispute(
   // Derived from `capture.amount` — what the provider ACTUALLY took — not from the
   // constants. On a short capture the shares must still sum to the money collected, or
   // step 4c pays out more than was ever received.
-  const allocation: FrictionTaxAllocation = allocateFrictionTax(capture.amount);
+  const allocation: FrictionTaxAllocation = allocateFrictionTax(capture.amount, currency);
   await repository.recordFrictionTaxCapture({
     tradeId: trade.id,
     holdRef: disputedHold.holdRef,
@@ -344,6 +350,7 @@ export async function raiseConditionDispute(
     tradeId: trade.id,
     payeeTraderId: params.actorId,
     amountCents: allocation.returnShippingCents,
+    currency,
   });
 
   return {
@@ -370,7 +377,7 @@ export async function raiseConditionDispute(
  */
 async function payReturnShippingShare(
   deps: DisputeResolutionDeps,
-  params: { tradeId: string; payeeTraderId: string; amountCents: Cents },
+  params: { tradeId: string; payeeTraderId: string; amountCents: Cents; currency?: string },
 ): Promise<boolean> {
   const { repository, payments } = deps;
   if (params.amountCents <= 0) return true;
@@ -392,6 +399,7 @@ async function payReturnShippingShare(
   const payout = await payments.payoutToMerchant({
     merchantRef: payee!.merchantRef!,
     amount: params.amountCents,
+    ...(params.currency ? { currency: params.currency } : {}),
     ref: `friction-return:${params.tradeId}`,
     // Persisted, and reused verbatim on any retry.
     nonce,
@@ -697,6 +705,8 @@ export async function reportObjectiveFraud(
       const payout = await payments.payoutToMerchant({
         merchantRef: victimPayee!.merchantRef!,
         amount: capturedCents,
+        // Captured in the trade's currency, so owed to the victim in it.
+        ...(tradeCurrency(trade) ? { currency: tradeCurrency(trade) } : {}),
         ref: `fraud-payout:${trade.id}`,
         nonce: `fraud-payout:${trade.id}`,
       });

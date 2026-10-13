@@ -110,7 +110,8 @@ export function HierarchicalChrome({ pathname }: { pathname: string }) {
  *
  * The label comes from the form through `publishItemFormChrome` rather than being
  * derived from the route, so "Create listing" / "Save changes" is decided in one
- * place.
+ * place. Before the form's last step it publishes "Next": submitting the form
+ * advances it a step until then, so this button needs no step logic of its own.
  */
 function ItemFormChrome({
   title,

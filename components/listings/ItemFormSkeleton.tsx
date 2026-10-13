@@ -1,8 +1,9 @@
 // components/listings/ItemFormSkeleton.tsx
 //
 // Static placeholder for `ItemForm`'s two-pane card (photo panel + details
-// rail, which ends in the submit), shared by the create and edit loading states
-// so swapping in the real form causes no layout shift.
+// rail, with the footer pinned beneath the step body), drawn on step 1 — where the
+// form opens — and shared by the create and edit loading states so swapping in the
+// real form causes no layout shift.
 //
 // IT TAKES `mode` FOR THE SAME REASON `ItemForm` DOES. Three parts of that form
 // exist in one mode and not the other — the card header, the photo filmstrip and
@@ -29,21 +30,30 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
     // `clip` rather than `hidden` for the same reason the form gives: `hidden` makes
     // this a scroll container on both axes.
     <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr]">
-      {/* `max-md:hidden` in create mode, matching `ItemForm`: on `/listings/new`
-          the title lives in the phone chrome, so a header drawn here is ~80px of
-          card that never resolves to anything. */}
-      <CardHeader
-        className={cn(
-          'lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7',
-          isCreate && 'max-md:hidden',
-        )}
-      >
+      {/* ALWAYS RENDERED, matching `ItemForm`: the header now carries the step row and
+          the step indicator at every width. Only the title and description are
+          `max-md:hidden` in create mode, where the title lives in the phone chrome. */}
+      <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7">
         {/* `CardTitle` is `text-subhead`; `CardDescription` is `hidden md:block`
             in BOTH modes, so nothing below `md` may stand in for it. Bars sit in
-            real line boxes rather than the `h-6`/`h-4` they were, and
-            `CardHeader`'s own `space-y-snug` sets the gap. */}
-        <TextLines className="text-subhead" widths={['w-1/2']} />
-        <TextLines className="hidden text-body md:block" widths={['w-full']} />
+            real line boxes rather than the `h-6`/`h-4` they were. */}
+        <div className={cn('space-y-snug', isCreate && 'max-md:hidden')}>
+          <TextLines className="text-subhead" widths={['w-1/2']} />
+          <TextLines className="hidden text-body md:block" widths={['w-full']} />
+        </div>
+        {/* The step row: Back's 32px button sets its height, the step title beside it. */}
+        <div className="flex min-h-8 items-center gap-snug">
+          <TextLines className="flex-1 text-body" widths={['w-1/3']} />
+        </div>
+        {/* The indicator: three steps, each a bar over its one-line name. */}
+        <div className="grid grid-cols-3 gap-tight">
+          {Array.from({ length: 3 }, (_, index) => (
+            <div key={index} className="flex min-h-8 flex-col gap-tight">
+              <Skeleton className="h-1 w-full rounded-full" />
+              <TextLines className="text-meta" widths={['w-2/3']} />
+            </div>
+          ))}
+        </div>
       </CardHeader>
 
       {/* `gap-5`, matching `ItemForm`'s `CardContent`. `gap-section` put 12px of extra
@@ -52,12 +62,9 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           to `minmax(0, 1fr)` so it tracks the card's width rather than its
           content, keeping the placeholder the same width as the form it stands in
           for. */}
-      {/* `max-md:pt-group` in create mode, matching `ItemForm`: with the header hidden
-          below `md`, the form restores the top padding `CardHeader` would otherwise
-          supply. Without it here the whole phone placeholder sat 16px high. */}
-      <CardContent
-        className={cn('grid grid-cols-1 gap-5 lg:contents', isCreate && 'max-md:pt-group')}
-      >
+      {/* No create-only `max-md:pt-group` any more, matching `ItemForm`: the header is
+          always rendered now, so it supplies the top padding at every width. */}
+      <CardContent className="grid grid-cols-1 gap-5 lg:contents">
         {/* Photos panel */}
         {/* `lg:bg-card` and the cover's aspect ratio both mirror ItemForm: the
             panel used to paint `lg:bg-muted`, so it visibly changed colour on
@@ -68,7 +75,9 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             16px one there shifts every element below the label on swap.
             `lg:min-h-0 lg:overflow-hidden` are the form's too: they are what let the
             photo row below take the panel's remainder rather than its content height. */}
-        <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
+        {/* `max-lg:hidden`: the form opens on step 1, where the photo panel is hidden
+            below `lg` (it is step 2's body there). */}
+        <div className="flex flex-col gap-cozy max-lg:hidden lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
           {/* The `Photos` label, a 14px `leading-none` `Label`. It was `h-4`, which
               is 16px against a 14px line.
               
@@ -113,14 +122,15 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
           )}
         </div>
 
-        {/* Details rail — five blocks in `ItemForm`'s order: listing kind,
-            description, category + condition, price, `Based near`.
+        {/* Details rail, as `ItemForm` draws it: the step body, then the footer pinned
+            beneath it. The body holds step 1 only — listing kind, title, description,
+            game, "Is it graded?" — because that is the step the form opens on.
 
-            `lg:min-h-0 lg:overflow-y-auto` because this is the card's `1fr` row
-            and the card's height is definite: a grid item defaults to
-            `min-height:auto`, so without it the rail grows past the row and the
-            card clips it instead of scrolling the way the real one does. */}
-        <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-7 lg:pb-7">
+            `lg:min-h-0` because this is the card's `1fr` row and the card's height is
+            definite: a grid item defaults to `min-height:auto`, so without it the rail
+            grows past the row and pushes the footer out of the card. */}
+        <div className="flex min-w-0 flex-col gap-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:border-l lg:border-border">
+          <div className="space-y-5 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:px-7">
           {/* Listing kind. This block was absent entirely, so the whole rail
               under it — every field the seller actually fills in — sat ~66px
               high in both modes. The tiles carry `ChoiceTile`'s border and
@@ -150,6 +160,12 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             {isCreate ? null : <TextLines className="text-body" widths={['w-2/3']} />}
           </div>
 
+          {/* Title: a `Label` over an `Input`, `h-10 md:h-9`. */}
+          <div className="space-y-snug">
+            <TextLines className="text-body leading-none" widths={['w-1/4']} />
+            <Skeleton className="h-10 w-full md:h-9" />
+          </div>
+
           <div className="space-y-snug">
             <TextLines className="text-body leading-none" widths={['w-1/3']} />
             {/* `Textarea rows={4}`: four lines of `text-body` (22.4px) plus `py-snug`
@@ -166,10 +182,10 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
             <TextLines className="text-meta" widths={['w-1/3']} />
           </div>
 
-          {/* `gap-cozy`, matching `ItemForm`. `gap-5` here added 8px between
-              Category and Condition, which stack on a phone. `grid-cols-1` below
-              `sm` matches the form's taxonomy row. */}
-          <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
+          {/* `gap-cozy` and `grid-cols-1`, matching the form's taxonomy row. One select:
+              a single listing (the default kind) has only the Game here, and asks about
+              its condition through "Is it graded?" below. */}
+          <div className="grid grid-cols-1 gap-cozy">
             <div className="space-y-snug">
               <TextLines className="text-body leading-none" widths={['w-1/3']} />
               {/* `h-10 md:h-9`, matching `SelectTrigger` — which matches `Button` and
@@ -177,44 +193,40 @@ export function ItemFormSkeleton({ mode }: { mode: 'create' | 'edit' }) {
                   height here leaves every field placeholder short of the control. */}
               <Skeleton className="h-10 w-full md:h-9" />
             </div>
-            <div className="space-y-snug">
-              <TextLines className="text-body leading-none" widths={['w-1/3']} />
-              <Skeleton className="h-10 w-full md:h-9" />
+          </div>
+
+          {/* "Is it graded?": its legend over two `ChoiceTile`s, the same placeholder
+              as the listing-kind tiles above. */}
+          <div className="space-y-cozy">
+            <TextLines className="pb-snug text-body leading-none" widths={['w-1/3']} />
+            <div className="grid grid-cols-2 gap-snug">
+              {Array.from({ length: 2 }, (_, index) => (
+                <div
+                  key={index}
+                  className="space-y-tight rounded-md border border-border p-snug md:p-cozy"
+                >
+                  <TextLines className="text-body font-medium" widths={['w-1/2']} />
+                  <TextLines className="text-body" widths={['w-full', 'w-2/3']} />
+                </div>
+              ))}
             </div>
           </div>
-
-          <div className="space-y-snug">
-            <TextLines className="text-body leading-none" widths={['w-1/3']} />
-            {/* `MoneyInput` is an `Input` behind a currency prefix: `h-10 md:h-9`. */}
-            <Skeleton className="h-10 w-full md:h-9" />
-            {/* `PriceReadout`: two two-line cells, then the fee line. */}
-            <div className="space-y-tight">
-              <div className="grid grid-cols-2 gap-snug">
-                {Array.from({ length: 2 }, (_, index) => (
-                  <div key={index} className="rounded-md bg-muted px-snug py-tight">
-                    <TextLines className="text-meta" widths={['w-1/2']} />
-                    <TextLines className="text-body" widths={['w-1/3']} />
-                  </div>
-                ))}
-              </div>
-              <TextLines className="text-meta" widths={['w-full', 'w-1/3']} />
-            </div>
           </div>
 
-          {/* `Based near` — a `PlacePicker`, which is a `Label` over a
-              `PlaceSearch` input. The rail used to stop at the price, so it ran
-              61px short of the form on every load. Label width is canonical texture. */}
-          <div className="space-y-snug">
-            <TextLines className="text-body leading-none" widths={['w-1/3']} />
-            <Skeleton className="h-10 w-full md:h-9" />
-          </div>
-
-          {/* The submit, last in the rail behind a hairline, as `ItemForm` draws it:
-              `max-md:hidden` because the phone chrome carries it below `md`, full
-              width in the desktop rail and right-aligned between. `h-10 md:h-9`,
-              `Button`'s default size. */}
-          <div className="border-t border-border pt-5 max-md:hidden sm:flex sm:justify-end lg:block">
-            <Skeleton className="h-10 w-full sm:w-32 md:h-9 lg:w-full" />
+          {/* The footer, pinned beneath the step body from `lg` as `ItemForm` draws it.
+              The primary is `max-md:hidden` because the phone chrome carries it below
+              `md`; create also has Save draft, visible at every width, so its footer
+              stays, while edit's footer has nothing left below `md` and goes. Full width
+              in the desktop rail and right-aligned between. `h-10 md:h-9`, `Button`'s
+              default size. */}
+          <div
+            className={cn(
+              'flex shrink-0 flex-col gap-snug border-t border-border pt-5 sm:flex-row sm:justify-end lg:flex-col lg:px-7 lg:pb-7',
+              !isCreate && 'max-md:hidden',
+            )}
+          >
+            {isCreate ? <Skeleton className="h-10 w-full sm:w-32 md:h-9 lg:w-full" /> : null}
+            <Skeleton className="h-10 w-full max-md:hidden sm:w-32 md:h-9 lg:w-full" />
           </div>
         </div>
       </CardContent>

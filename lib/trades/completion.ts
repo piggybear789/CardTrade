@@ -20,6 +20,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import { regionForCurrency, regionForTrade } from '@/lib/regionBinding';
 import { canReceiveFunds } from '@/domain/orchestrator/merchantOnboarding';
+import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
 import { createSupabaseMerchantRepository } from '@/domain/orchestrator/supabaseMerchantRepository';
 import type { Tables } from '@/lib/supabase/database.types';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
@@ -148,9 +149,16 @@ export async function settleTradeCash(trade: TradeRow): Promise<SettleTradeCashR
   // receiver's connected account.
   const payments = getPaymentService(regionForCurrency(trade.currency));
   try {
+    // The paying trader is the buyer of this cash leg, so they absorb any currency
+    // conversion, exactly as a Cash_Sale buyer does: the receiver is owed
+    // `cash_amount_cents` in the trade's currency, and the fee is charged on top.
+    const fxFeeCents = currencyConversionFeeFor(trade.cash_amount_cents, trade.currency);
     const transfer = await payments.requestTransfer({
       payerId,
-      amount: trade.cash_amount_cents,
+      amount: trade.cash_amount_cents + fxFeeCents,
+      // Only the agreed cash goes onward; the conversion fee stays to cover the FX.
+      ...(fxFeeCents > 0 ? { applicationFee: fxFeeCents } : {}),
+      ...(trade.currency ? { currency: trade.currency } : {}),
       ref: `trade-cash:${trade.id}`,
       // Reused verbatim on retry, never regenerated, so a repeat cannot double-pay.
       nonce: `trade-cash:${trade.id}`,

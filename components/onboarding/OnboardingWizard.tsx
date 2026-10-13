@@ -49,7 +49,14 @@ import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboard
 import { joinRegionWaitlist, setTradingRegion } from '@/lib/actions/region';
 import { type SelectableRegion } from '@/lib/actions/regionOptions';
 import type { ProviderReturn } from '@/components/onboarding/providerReturn';
-import { isTradingRegion, REGIONS, regionLabel } from '@/domain/region';
+import {
+  findRegion,
+  isTradingRegion,
+  platformRegion,
+  REGIONS,
+  regionLabel,
+  settlementCurrency,
+} from '@/domain/region';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import {
@@ -70,10 +77,13 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { chargesCurrencyConversion, FX_FEE_BPS } from '@/domain/fees/fxFee';
 import { cn } from '@/lib/utils';
 
 export type Step = 'welcome' | 'username' | 'region' | 'intent' | 'seller-onboarding';
@@ -108,6 +118,45 @@ const STEPS: Step[] = ['welcome', 'username', 'region', 'intent'];
 const WAITLIST_REGIONS = REGIONS.filter((region) => !region.tradingEnabled)
   .map((region) => ({ code: region.code, label: region.label }))
   .sort((a, b) => a.label.localeCompare(b.label));
+
+/**
+ * What choosing an open country means, said under the picker: the currency the member
+ * is paid in, who they can deal with, and whether their purchases carry the currency
+ * conversion fee. All three are consequences of the country's PLATFORM, which is why
+ * they are derived from it rather than written per country.
+ */
+function RegionOutcome({ regionCode }: { regionCode: string }) {
+  const region = findRegion(regionCode);
+  if (!region) return null;
+  const code = region.currency.toUpperCase();
+  const platform = platformRegion(region.code);
+  const peers = REGIONS.filter((r) => r.tradingEnabled && r.platform === platform);
+  const settles = (settlementCurrency(platform) ?? region.currency).toUpperCase();
+  const converts = chargesCurrencyConversion(region.currency);
+  const rate = `${FX_FEE_BPS / 100}%`;
+
+  return (
+    <div className="space-y-tight rounded-md border bg-muted p-cozy text-body">
+      <p className="flex items-start gap-snug font-medium text-foreground">
+        <HugeiconsIcon icon={MapPinIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <span>
+          You&apos;re paid in {code}, and your listings are priced in {code}.
+        </span>
+      </p>
+      <p className="text-pretty text-muted-foreground">
+        {peers.length > 1
+          ? `You can buy, sell and trade with members in ${peers.length} countries: the US, Canada, the UK and most of Europe. Every price shows its currency, and you pay in the seller's.`
+          : `You can buy, sell and trade with other members in ${region.label}.`}
+      </p>
+      {converts ? (
+        <p className="text-pretty text-muted-foreground">
+          Payments are processed in {settles}, so a purchase in {code} includes a {rate}{' '}
+          currency conversion fee, paid by the buyer. Sellers receive exactly their price.
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 /** What the welcome step promises, one sentence each, in one voice. */
 const WELCOME_POINTS = [
@@ -218,11 +267,17 @@ export function OnboardingWizard({
   // the preview — it is not part of what `completeOnboarding` submits.
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
-  // The guess only counts towards the WAITLIST tile. A guess that lands on an open
-  // region says nothing the tiles do not already say, and a guess that is not on the
-  // waitlist list cannot be pre-filled.
+  // THE IP GUESS PRE-SELECTS THE COUNTRY, open or not, and is never written anywhere by
+  // itself: the member sees it in the picker and confirms or changes it. With dozens
+  // of open countries the guess is what makes this step a confirmation for most people.
+  const guessedOpenRegion =
+    guessedRegion && regions.some((region) => region.code === guessedRegion)
+      ? guessedRegion
+      : null;
   const guessedWaitlistRegion =
-    guessedRegion && !isTradingRegion(guessedRegion) ? guessedRegion : null;
+    guessedRegion && !isTradingRegion(guessedRegion) && findRegion(guessedRegion)
+      ? guessedRegion
+      : null;
 
   // Which tile is chosen, decided on the first render from what the server already
   // knows — this used to settle a tick after mount and move the selection under anyone
@@ -234,10 +289,16 @@ export function OnboardingWizard({
   // make the later "your region is tied to your payout account" refusal come out of
   // nowhere.
   const [regionChoice, setRegionChoice] = useState<RegionChoice>(
-    guessedWaitlistRegion ? 'waitlist' : regions.length === 1 ? 'trade' : null,
+    guessedOpenRegion
+      ? 'trade'
+      : guessedWaitlistRegion
+        ? 'waitlist'
+        : regions.length === 1
+          ? 'trade'
+          : null,
   );
   const [regionCode, setRegionCode] = useState<string | null>(
-    regions.length === 1 ? regions[0].code : null,
+    guessedOpenRegion ?? (regions.length === 1 ? regions[0].code : null),
   );
   const [waitlistRegion, setWaitlistRegion] = useState<string | null>(guessedWaitlistRegion);
   const regionChoices = regions;
@@ -476,7 +537,7 @@ export function OnboardingWizard({
                     setDisplayName(event.target.value);
                     setError(null);
                   }}
-                  placeholder="e.g. PokeTrader99, Phil Y."
+                  placeholder="e.g. PokeTrader99, Sam K."
                   maxLength={255}
                   autoComplete="off"
                   onKeyDown={(event) => {
@@ -536,124 +597,73 @@ export function OnboardingWizard({
               <DialogHeader className="space-y-snug pr-0 text-center">
                 <DialogTitle className="text-head">Where are you trading from?</DialogTitle>
                 <DialogDescription className="text-pretty">
-                  Deals are completed within one region, so postage, currency and
-                  payouts all stay local.
+                  Your country sets the currency you are paid in and who you can deal
+                  with. It is tied to your payout account.
                 </DialogDescription>
               </DialogHeader>
 
-              <fieldset className="grid gap-snug">
-                <legend className="sr-only">Your trading region</legend>
-                {regionChoices.map((region) => {
-                  const selected = regionChoice === 'trade' && regionCode === region.code;
-                  return (
-                    <button
-                      key={region.code}
-                      type="button"
-                      onClick={() => {
-                        setRegionChoice('trade');
-                        setRegionCode(region.code);
-                        setError(null);
-                      }}
-                      aria-pressed={selected}
-                      className={cn(
-                        'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
-                        // The accent pair, which is what `ChoiceTile` uses and what
-                        // globals.css names as THE selected look. What was here —
-                        // `border-primary bg-primary/5 ring-1 ring-primary` — is the exact
-                        // anti-pattern that comment calls out: a 5%-alpha primary wash
-                        // measures about 1.1:1 and is invisible, so the state was being
-                        // carried entirely by a violet border plus a violet ring drawn
-                        // 1px outside it. Two violet lines around a tile, for a choice
-                        // the accent surface states on its own.
-                        selected
-                          ? 'border-foreground bg-accent text-accent-foreground'
-                          : 'hover:border-foreground/60 hover:bg-muted/50',
-                      )}
-                    >
-                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                        <HugeiconsIcon icon={MapPinIcon} className="size-5" aria-hidden />
-                      </span>
-                      <span>
-                        <span className="block font-medium">{region.label}</span>
-                        <span className="block text-body text-muted-foreground">
-                          Buy, sell and trade in {region.currency.toUpperCase()} with
-                          other members in {region.label}.
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
-
-                {/* THE THIRD ANSWER. Most of the world is not an open region, and a
-                    member there used to have to pick one falsely or leave. This tile
-                    is the truthful option: say where you are, join the list for it,
-                    and go and browse. It opens into a country picker rather than
-                    listing forty tiles, and the picker starts on the IP's guess so
-                    the common case is a confirmation. */}
-                <div
-                  className={cn(
-                    'rounded-md border border-input bg-card transition-colors',
-                    regionChoice === 'waitlist'
-                      ? 'border-foreground bg-accent text-accent-foreground'
-                      : 'hover:border-foreground/60 hover:bg-muted/50',
-                  )}
-                >
-                  <button
-                    type="button"
-                    onClick={() => {
+              {/* ONE PICKER, NOT A TILE PER COUNTRY. With the US platform serving the
+                  UK, the EEA, Canada and Switzerland there are dozens of open countries,
+                  and a tile each would be a wall. The IP guess pre-selects the country,
+                  so for most members this is a confirmation. Closed countries sit in
+                  the same list under their own heading and lead to the waitlist. */}
+              <div className="space-y-snug">
+                <Label htmlFor="trading-country">Your country</Label>
+                <Select
+                  value={(regionChoice === 'trade' ? regionCode : waitlistRegion) ?? ''}
+                  onValueChange={(value) => {
+                    setError(null);
+                    if (regionChoices.some((region) => region.code === value)) {
+                      setRegionChoice('trade');
+                      setRegionCode(value);
+                    } else {
                       setRegionChoice('waitlist');
-                      setError(null);
-                    }}
-                    aria-pressed={regionChoice === 'waitlist'}
-                    className="flex w-full items-center gap-group rounded-lg p-group text-left focus:outline-none focus-visible:border-iris"
-                  >
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                      <HugeiconsIcon icon={Globe02Icon} className="size-5" aria-hidden />
-                    </span>
-                    <span>
-                      <span className="block font-medium">Somewhere else</span>
-                      <span className="block text-body text-muted-foreground">
-                        NoDitto isn&apos;t open there yet. Join the waitlist for your
-                        country and browse in the meantime.
-                      </span>
-                    </span>
-                  </button>
+                      setWaitlistRegion(value);
+                    }
+                  }}
+                  disabled={saving}
+                >
+                  <SelectTrigger id="trading-country" className="bg-card">
+                    <SelectValue placeholder="Choose your country" />
+                  </SelectTrigger>
+                  <SelectContent className="z-[60] max-h-80">
+                    {regionChoices.length > 0 ? (
+                      <SelectGroup>
+                        <SelectLabel>Open for deals</SelectLabel>
+                        {regionChoices.map((region) => (
+                          <SelectItem key={region.code} value={region.code}>
+                            {region.label} · {region.currency.toUpperCase()}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    ) : null}
+                    <SelectGroup>
+                      <SelectLabel>Not open yet (join the waitlist)</SelectLabel>
+                      {WAITLIST_REGIONS.map((region) => (
+                        <SelectItem key={region.code} value={region.code}>
+                          {region.label}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                  {regionChoice === 'waitlist' ? (
-                    // Inside the tile, under the words that opened it, so the picker
-                    // reads as part of the choice rather than a fourth thing on the
-                    // step. `bg-card` lifts the control off the accent wash the tile
-                    // now wears; the Select itself is the same one every form uses.
-                    <div className="space-y-snug border-t border-border/60 px-group pb-group pt-cozy">
-                      <Label htmlFor="waitlist-region">Your country</Label>
-                      <Select
-                        value={waitlistRegion ?? ''}
-                        onValueChange={(value) => {
-                          setWaitlistRegion(value);
-                          setError(null);
-                        }}
-                        disabled={saving}
-                      >
-                        <SelectTrigger id="waitlist-region" className="bg-card">
-                          <SelectValue placeholder="Choose your country" />
-                        </SelectTrigger>
-                        <SelectContent className="z-[60]">
-                          {WAITLIST_REGIONS.map((region) => (
-                            <SelectItem key={region.code} value={region.code}>
-                              {region.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-pretty text-body text-muted-foreground">
-                        {waitlistRegion
-                          ? `We'll email you when NoDitto opens in ${regionLabel(waitlistRegion)}. Until then you can browse listings, but not buy, sell or trade.`
-                          : 'We can only open where Stripe can pay sellers, which is why the list is what it is.'}
-                      </p>
-                    </div>
-                  ) : null}
+              {regionChoice === 'trade' && regionCode ? (
+                <RegionOutcome regionCode={regionCode} />
+              ) : regionChoice === 'waitlist' && waitlistRegion ? (
+                <div className="flex items-start gap-snug rounded-md border bg-muted p-cozy text-body">
+                  <HugeiconsIcon icon={Globe02Icon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                  <p className="text-pretty text-muted-foreground">
+                    NoDitto isn&apos;t open in {regionLabel(waitlistRegion)} yet. We&apos;ll email
+                    you when it opens. Until then you can browse listings, but not buy, sell or
+                    trade.
+                  </p>
                 </div>
+              ) : null}
 
+              <fieldset className="contents">
+                <legend className="sr-only">Your trading region</legend>
                 {/*
                   An empty list is a misconfiguration, not a member error: it means no
                   region has both product intent and a Stripe platform account. Say so

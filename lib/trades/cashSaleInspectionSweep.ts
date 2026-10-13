@@ -225,12 +225,17 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
 
   for (const sale of lapsed ?? []) {
     try {
-      const { error } = await admin
+      // ASKS FOR THE ROW BACK. A bare conditional update answers `{ data: null, error:
+      // null }` whether it matched the row or another pass had already stamped it, so
+      // this step used to notify both members a second time whenever two passes
+      // overlapped. Step 6 below has always done it this way.
+      const { data: won, error } = await admin
         .from('cash_sales')
         .update({ return_lapsed_at: nowIso })
         .eq('id', sale.id)
-        .is('return_lapsed_at', null);
-      // Only notify if THIS pass won the stamp, so a concurrent run cannot double-send.
+        .is('return_lapsed_at', null)
+        .select('id')
+        .maybeSingle();
       if (error) {
         // A write that failed, not a lost race (a lost race matches no row and
         // reports no error): the sale stays unflagged for review.
@@ -242,6 +247,9 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         });
         continue;
       }
+      // Only the pass that won the stamp notifies and counts, so a concurrent run cannot
+      // double-send.
+      if (!won) continue;
 
       await createNotification({
         userId: sale.seller_id as string,

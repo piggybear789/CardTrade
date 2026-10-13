@@ -46,6 +46,7 @@ vi.mock('@/domain/services', () => ({
 
 vi.mock('@/lib/regionBinding', () => ({
   regionForTrade: async () => 'AU',
+  currencyForTrade: async () => 'aud',
 }));
 
 const { chargeTradeFees, drainFailedTradeFees } = await import('@/lib/actions/tradeFees');

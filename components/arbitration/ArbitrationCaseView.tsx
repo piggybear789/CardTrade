@@ -21,6 +21,7 @@ import {
 } from '@/domain/arbitration/arbitrationCase';
 import { CaseNoteComposer } from '@/components/arbitration/CaseNoteComposer';
 import { ArbitrationEvidenceGrid } from '@/components/arbitration/ArbitrationEvidenceGrid';
+import { NotShippedGuidance } from '@/components/arbitration/NotShippedGuidance';
 
 import { ReturnCaseActions } from '@/components/admin/ReturnCaseActions';
 import { DisputeActions } from '@/components/admin/DisputeActions';
@@ -262,6 +263,22 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               </CardHeader>
               <CardContent className="space-y-group">
                 <ShipmentLeg label="Outbound (seller → buyer)" leg={shipment.outbound} />
+                {/* 0132. Shown wherever the sale carries the flag, as "Return lapsed" is:
+                    once the buyer reports a problem the case becomes a dispute, and this
+                    is then the only place staff see the date the seller missed. */}
+                {shipment.shipLapsedAt ? (
+                  <div className="rounded-md border border-border bg-muted p-cozy">
+                    <p className="text-meta font-medium uppercase tracking-wide text-iris-ink">
+                      Ship-by date passed · {formatContractDateTime(shipment.shipLapsedAt) ?? shipment.shipLapsedAt}
+                    </p>
+                    <p className="mt-tight text-body text-muted-foreground">
+                      {shipment.shipByAt
+                        ? `The seller was due to post by ${formatContractDateTime(shipment.shipByAt) ?? shipment.shipByAt}. `
+                        : null}
+                      This is a triage signal only. Nothing is cancelled or refunded because of it.
+                    </p>
+                  </div>
+                ) : null}
                 <ShipmentLeg label="Return (buyer → seller)" leg={shipment.returnLeg} />
                 {shipment.returnDisputedAt ? (
                   <div className="rounded-md border border-destructive/40 bg-destructive/5 p-cozy">
@@ -473,7 +490,18 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       the merits decision — the merits were already decided when the
                       refund was made conditional. Rendering DisputeActions here would
                       give staff a button that reports success and does nothing. */}
-                  {resolution.status === 'RETURN_PENDING'
+                  {/* A "Not shipped" case (0132) has nothing to decide on the merits:
+                      the sale is not disputed, so every refund or release would be
+                      refused. Keyed on the SITUATION it was listed under, not on the
+                      status read for the resolution. Those are two reads, and a seller
+                      adding tracking between them must still land here. */}
+                  {c.situation === 'SHIP_LAPSED' ? (
+                    <NotShippedGuidance
+                      shipByAt={shipment?.shipByAt ?? null}
+                      shipLapsedAt={shipment?.shipLapsedAt ?? c.openedAt}
+                      buyerHasGoods={resolution.buyerHasGoods}
+                    />
+                  ) : resolution.status === 'RETURN_PENDING'
                   || resolution.status === 'RETURN_IN_TRANSIT' ? (
                     <ReturnCaseActions
                       cashSaleId={resolution.cashSaleId}

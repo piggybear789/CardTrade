@@ -37,6 +37,8 @@ export interface CustodyPanelProps {
     region: string;
     currency: string;
     unreadableReason: string | null;
+    /** Foreign-currency sales left out of the owed figure (0136). */
+    unconvertedSales?: number;
   };
 }
 
@@ -89,7 +91,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
       <div className="mb-cozy flex flex-wrap items-center gap-snug">
         {tone.icon}
         <h3 id={headingId} className="text-lead font-semibold">
-          Money held for members — {regionLabel(region)}
+          Money held for members — {regionLabel(region)} platform
         </h3>
         <Badge variant={tone.badge}>{tone.label}</Badge>
         <Badge variant="outline" className="uppercase">
@@ -109,6 +111,15 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
             Across {saleCount} {saleCount === 1 ? 'sale' : 'sales'} where money has been
             collected and not yet paid out or refunded.
           </p>
+          {/* A foreign-currency sale whose converted amount is not on file is missing
+              from the figure above, so the position is incomplete rather than clean. */}
+          {position.unconvertedSales ? (
+            <p className="mt-0.5 text-body text-destructive">
+              Plus {position.unconvertedSales} foreign-currency{' '}
+              {position.unconvertedSales === 1 ? 'sale' : 'sales'} with no recorded{' '}
+              {currency.toUpperCase()} amount, not included.
+            </p>
+          ) : null}
         </div>
         <div>
           <dt className="text-meta uppercase tracking-wide text-muted-foreground">

@@ -19,7 +19,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
+import { FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
 
 import { getItem } from "@/lib/actions/listings";
 import type { TradeOfferOwnItem } from "@/components/trade/TradeOfferForm";
@@ -33,11 +33,11 @@ import type { SellerIdentityDisclosure } from "@/domain/orchestrator/merchantOnb
 import type { VerificationState } from "@/domain/identity/identityGate";
 import {
   checkRegionCompatibility,
+  regionCurrency,
   regionMismatchMessage,
 } from "@/domain/region";
 import { viewerTradingRegion } from "@/lib/location/resolveRegion";
 import {
-  formatAud,
   formatMoney,
   itemImageUrl,
 } from "@/lib/format";
@@ -57,7 +57,6 @@ import { ListingBuyerBar } from "@/components/listings/ListingBuyerBar";
 import { ListingChromePublisher } from "@/components/listings/ListingChromePublisher";
 import { ListingDesktopPane } from "@/components/listings/ListingDesktopPane";
 import { ListingDetailStack } from "@/components/listings/ListingDetailStack";
-import { ListingDetails } from "@/components/listings/ListingDetails";
 import { ListingProtectionLine } from "@/components/listings/ListingTrust";
 import { CopyTradeLink } from "@/components/listings/CopyTradeLink";
 import { DeleteListingDialog } from "@/components/listings/DeleteListingDialog";
@@ -78,6 +77,7 @@ import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
    the meta line in both layouts now, not a plotted map. */
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BackToMarketplace } from "@/components/layout/BackToMarketplace";
 import { StatusNotice } from "@/components/ui/status-notice";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -243,7 +243,7 @@ export default async function ItemDetailPage({
           // the 2000-character description — for a trade dialog that most
           // visitors never open. The picker reads the id, the title and the
           // value; see `TradeOfferOwnItem`.
-          .select("id, title, fmv_cents")
+          .select("id, title, fmv_cents, currency")
           .eq("owner_id", user!.id)
           .eq("status", "AVAILABLE")
           // A shopfront cannot be offered into a trade: its FMV is a whole
@@ -289,6 +289,10 @@ export default async function ItemDetailPage({
   //
   // Only computed for a signed-in non-owner: an anonymous visitor has no region to
   // compare, and warning them about a mismatch they cannot yet have would be noise.
+  // The viewer's own currency, so a purchase in another one says so at the point of
+  // paying. Null for a guest or an owner, who are not buying.
+  const viewerCurrency = regionCurrency(viewerRegion);
+
   const viewerRegionMismatch =
     user && !isOwner
       ? checkRegionCompatibility(
@@ -308,7 +312,12 @@ export default async function ItemDetailPage({
   // contract (Cash_Sale or Trade) so we can link directly to the contract room.
   let activeSaleId: string | null = null;
   let activeTradeId: string | null = null;
-  let openContracts: { id: string; buyerName: string; amountCents: number }[] = [];
+  let openContracts: {
+    id: string;
+    buyerName: string;
+    amountCents: number;
+    currency: string;
+  }[] = [];
   // THE VIEWER'S OWN LIVE CONTRACT on this item, if they have one.
   //
   // Both queries below are gated on `isOwner`, so a BUYER got nothing and the page offered
@@ -325,7 +334,7 @@ export default async function ItemDetailPage({
   if (isOwner && isShopfront) {
     const { data: saleRows } = await supabase
       .from("cash_sales")
-      .select("id, buyer_id, amount_cents, created_at")
+      .select("id, buyer_id, amount_cents, currency, created_at")
       .eq("item_id", item.id)
       .not("status", "in", '("COMPLETED","CANCELLED","FAILED","REFUNDED")')
       .order("created_at", { ascending: false });
@@ -345,6 +354,7 @@ export default async function ItemDetailPage({
       id: row.id,
       buyerName: nameOf.get(row.buyer_id) ?? "A buyer",
       amountCents: row.amount_cents,
+      currency: row.currency,
     }));
   } else if (isOwner && status === "RESERVED") {
     const [{ data: saleRow }, { data: tradeRow }] = await Promise.all([
@@ -451,21 +461,6 @@ export default async function ItemDetailPage({
     ]),
   ];
 
-  // The listing's facts — grade, cert (with Verify on PSA), condition, game, listed
-  // date, location — as a list under the description (0129). A binder has no single
-  // condition or grade, so it gets none.
-  const listingDetails = isShopfront ? null : (
-    <ListingDetails
-      condition={item.condition}
-      grader={item.grader}
-      grade={item.grade}
-      certNumber={item.cert_number}
-      game={item.category}
-      createdAt={item.created_at ?? null}
-      locationLabel={item.location_label}
-    />
-  );
-
   // A buyer looking at something they can still buy: the fee note under the price
   // and the one-line protection strip under the actions. Guests included — they need
   // the reassurance most. The same condition as the phone buyer bar.
@@ -482,6 +477,7 @@ export default async function ItemDetailPage({
           sellerDisplayName={sellerDisplayName}
           fmvCents={item.fmv_cents}
           currency={item.currency}
+          viewerCurrency={viewerCurrency}
           isOwner={isOwner}
           isAuthenticated={Boolean(user)}
           isAvailable={isAvailable}
@@ -551,17 +547,9 @@ export default async function ItemDetailPage({
               Conditional on the same thing the rail is: with one photo there is no rail,
               the photo starts at the column's edge, and an inset here would create the
               notch instead of removing it. */}
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
+          <BackToMarketplace
             className={images.length > 1 ? GALLERY_RAIL_BAND_ML : undefined}
-          >
-            <Link href="/" transitionTypes={['nav-back']}>
-              <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden="true" />
-              Back to marketplace
-            </Link>
-          </Button>
+          />
 
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-snug">
             <Badge
@@ -635,7 +623,6 @@ export default async function ItemDetailPage({
           <div className="flex min-w-0 flex-col pt-cozy lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="lg:hidden">
               <ListingDetailStack
-                details={listingDetails}
                 showTrust={showTrust}
                 title={listingTitle}
                 description={item.description ?? ''}
@@ -729,7 +716,6 @@ export default async function ItemDetailPage({
             </div>
 
             <ListingDesktopPane
-              details={listingDetails}
               showTrust={showTrust}
               title={listingTitle}
               description={item.description ?? ''}
@@ -777,6 +763,7 @@ export default async function ItemDetailPage({
           sellerDisplayName={sellerDisplayName}
           fmvCents={item.fmv_cents}
           currency={item.currency}
+          viewerCurrency={viewerCurrency}
           isAuthenticated={Boolean(user)}
           isShopfront={isShopfront}
           initialWatching={initialWatching}
@@ -811,6 +798,7 @@ function ItemActions({
   sellerDisplayName,
   fmvCents,
   currency,
+  viewerCurrency,
   isOwner,
   isAuthenticated,
   isAvailable,
@@ -833,6 +821,8 @@ function ItemActions({
   fmvCents: number;
   /** `items.currency`, for fee-inclusive figures in the buy and offer dialogs. */
   currency: string;
+  /** The viewer's own region currency, so a foreign-currency purchase says so. */
+  viewerCurrency: string | null;
   isOwner: boolean;
   isAuthenticated: boolean;
   isAvailable: boolean;
@@ -852,7 +842,7 @@ function ItemActions({
   isShopfront: boolean;
   isClosed: boolean;
   /** Every live contract against a shopfront; the owner sees them all. */
-  openContracts: { id: string; buyerName: string; amountCents: number }[];
+  openContracts: { id: string; buyerName: string; amountCents: number; currency: string }[];
   ownItems: TradeOfferOwnItem[];
   /** The viewer's own live contract on this item, if any. */
   myContractId: string | null;
@@ -874,6 +864,7 @@ function ItemActions({
           id: itemId,
           title: itemTitle,
           fmvCents,
+          currency,
           imagePath: itemImagePath,
           ownerName: sellerDisplayName,
           isShopfront,
@@ -918,7 +909,7 @@ function ItemActions({
                     >
                       <span className="min-w-0 truncate">{contract.buyerName}</span>
                       <span className="shrink-0 font-medium">
-                        {formatAud(contract.amountCents)}
+                        {formatMoney(contract.amountCents, contract.currency)}
                       </span>
                     </Link>
                   </li>
@@ -1106,7 +1097,13 @@ function ItemActions({
               <BuyButton
                 itemId={itemId}
                 sellerIdentity={sellerIdentity}
-                summary={{ title: itemTitle, imagePath: itemImagePath, priceCents: fmvCents, currency }}
+                summary={{
+                  title: itemTitle,
+                  imagePath: itemImagePath,
+                  priceCents: fmvCents,
+                  currency,
+                  buyerCurrency: viewerCurrency,
+                }}
               />
             )}
           </div>

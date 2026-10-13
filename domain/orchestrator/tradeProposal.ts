@@ -413,6 +413,12 @@ export interface AgreedTradeBundles {
   initiatorItemIds: string[];
   /** Items the INITIATOR receives, so they size the initiator's bond. */
   counterpartItemIds: string[];
+  /**
+   * The trade's frozen currency (`trades.currency`), so both authorisations are in
+   * the same denomination as the values they collateralise. Omitted means the
+   * platform's settlement currency.
+   */
+  currency?: string;
 }
 
 export type PlaceAgreedBondsResult =
@@ -532,6 +538,7 @@ export async function placeBondsForAgreedTrade(
       // use a new key — Stripe caches the original decline against the first
       // one for 24 hours, even if the trader has swapped cards.
       ref: deterministicRef,
+      ...(params.currency ? { currency: params.currency } : {}),
     });
     if (hold.status !== 'ACTIVE') anyHoldFailed = true;
     await repository.recordHold({

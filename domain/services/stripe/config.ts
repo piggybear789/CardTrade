@@ -9,7 +9,7 @@
 // mode and the credentials to disagree. Secret values are never logged or
 // returned to callers.
 
-import { assertMinorUnitSupported, findRegion } from '../../region';
+import { assertMinorUnitSupported, findRegion, platformRegion } from '../../region';
 
 /** Which Stripe mode the configured key targets. Derived, never declared. */
 export type StripeEnvironment = 'test' | 'live';
@@ -142,10 +142,12 @@ const DEFAULT_TOLERANCE_SECONDS = 300;
  * sits in the middle of even a wholly domestic sale, and no amount of product-level
  * "intra-region only" makes one account able to pay sellers in two countries.
  *
- * Credentials are therefore suffixed per region: `STRIPE_SECRET_KEY_GB`,
- * `STRIPE_WEBHOOK_SECRET_GB`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_GB`, and so on.
- * The UNSUFFIXED names remain the binding for {@link DEFAULT_CONFIG_REGION}, so the
- * existing single-region deployment keeps working untouched.
+ * Credentials are therefore suffixed per PLATFORM: `STRIPE_SECRET_KEY_US`,
+ * `STRIPE_WEBHOOK_SECRET_US`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_US`, and so on. A
+ * region that shares a platform (GB, DE, CA, ... all use US) has no variables of its
+ * own; {@link credentialRegionFor} maps it to its platform first. The UNSUFFIXED
+ * names remain the binding for {@link DEFAULT_CONFIG_REGION}, so the AU deployment
+ * keeps working untouched.
  */
 export const DEFAULT_CONFIG_REGION = 'AU';
 
@@ -170,9 +172,22 @@ function readRegionalEnv(
   return undefined;
 }
 
-/** Read and trim the secret key for a region, or `null` when absent/blank. */
+/**
+ * The platform region whose credentials serve `region`.
+ *
+ * A region in the cross-border group (UK, EEA, CA, CH) has NO credentials of its own:
+ * it reads the US platform's, because the US platform is the account its money moves
+ * through. An unknown code is passed through unchanged so a misspelt region fails at
+ * the key lookup rather than silently borrowing another platform.
+ */
+export function credentialRegionFor(region: string): string {
+  const code = region.trim().toUpperCase();
+  return platformRegion(code) ?? code;
+}
+
+/** Read and trim the secret key for a region's platform, or `null` when absent/blank. */
 function readSecretKey(env: EnvLike, region: string = DEFAULT_CONFIG_REGION): string | null {
-  return readRegionalEnv(env, 'STRIPE_SECRET_KEY', region) ?? null;
+  return readRegionalEnv(env, 'STRIPE_SECRET_KEY', credentialRegionFor(region)) ?? null;
 }
 
 /**
@@ -315,15 +330,17 @@ export function readStripeConfig(
   env: EnvLike = process.env,
   region: string = DEFAULT_CONFIG_REGION,
 ): StripeConfig {
-  const code = region.trim().toUpperCase();
+  // Everything below is the PLATFORM's: a German member's config is the US platform's
+  // config, settling in USD, because that is the account the money moves through.
+  const code = credentialRegionFor(region);
   const secretKey = readSecretKey(env, code);
   if (!secretKey) {
     const suffix = code === DEFAULT_CONFIG_REGION ? '' : `_${code}`;
     throw new Error(
-      `Stripe credentials are missing for region ${code}. Set STRIPE_SECRET_KEY${suffix} ` +
-        '(sk_test_... or sk_live_...). Each region needs its OWN platform account: ' +
-        'Stripe refuses transfers from a platform to a connected account in another ' +
-        'region. For local mock money, set PAYMENTS_PROVIDER=mock.',
+      `Stripe credentials are missing for platform ${code}. Set STRIPE_SECRET_KEY${suffix} ` +
+        '(sk_test_... or sk_live_...). Regions outside the US/UK/EEA/CA/CH cross-border ' +
+        'group need their OWN platform account. For local mock money, set ' +
+        'PAYMENTS_PROVIDER=mock.',
     );
   }
 
@@ -388,5 +405,7 @@ export function readStripePublishableKey(
   env: EnvLike = process.env,
   region: string = DEFAULT_CONFIG_REGION,
 ): string | null {
-  return readRegionalEnv(env, 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', region) ?? null;
+  return (
+    readRegionalEnv(env, 'NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY', credentialRegionFor(region)) ?? null
+  );
 }

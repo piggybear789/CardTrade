@@ -105,6 +105,7 @@ interface ParsedRegion {
   label: string;
   currency: string;
   tradingEnabled: boolean;
+  platform: string;
 }
 
 function parseRegions(): ParsedRegion[] {
@@ -113,7 +114,7 @@ function parseRegions(): ParsedRegion[] {
     'utf8',
   );
   const pattern =
-    /\{\s*code:\s*'([A-Z]{2})',\s*label:\s*'([^']*)',\s*currency:\s*'([a-z]{3})',\s*stripeCountry:\s*'[a-z]{2}',\s*locale:\s*'[^']*',\s*tradingEnabled:\s*(true|false)\s*\}/g;
+    /\{\s*code:\s*'([A-Z]{2})',\s*label:\s*'([^']*)',\s*currency:\s*'([a-z]{3})',\s*stripeCountry:\s*'[a-z]{2}',\s*locale:\s*'[^']*',\s*tradingEnabled:\s*(true|false)\s*,\s*platform:\s*'([A-Z]{2})'\s*\}/g;
 
   const regions: ParsedRegion[] = [];
   for (const match of source.matchAll(pattern)) {
@@ -122,6 +123,7 @@ function parseRegions(): ParsedRegion[] {
       label: match[2],
       currency: match[3],
       tradingEnabled: match[4] === 'true',
+      platform: match[5],
     });
   }
   if (regions.length === 0) {
@@ -139,6 +141,9 @@ function generateRegions(): string {
     const digits = ZERO_DECIMAL.has(r.currency) ? 0 : 2;
     return `  Region(code: '${r.code}', label: '${r.label}', currency: '${r.currency}', minorUnitDigits: ${digits}${trading}),`;
   });
+  // A separate map rather than a field on `Region`, which is a Freezed model: adding a
+  // field there needs build_runner, and the platform is only read by the guard.
+  const platforms = regions.map((r) => `  '${r.code}': '${r.platform}',`);
 
   return [
     header('Region registry from domain/region/regions.ts'),
@@ -149,6 +154,12 @@ function generateRegions(): string {
     'const List<Region> generatedRegions = [',
     ...lines,
     '];',
+    '',
+    '/// The Stripe platform each region\'s money moves through. Two regions may contract',
+    '/// with each other only when they share one (US serves the US/UK/EEA/CA/CH group).',
+    'const Map<String, String> generatedRegionPlatforms = {',
+    ...platforms,
+    '};',
     '',
   ].join('\n');
 }

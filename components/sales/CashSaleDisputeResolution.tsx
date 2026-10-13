@@ -52,7 +52,7 @@ import {
   withdrawCashSaleDispute,
 } from '@/lib/actions/cashSale';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /** Which confirmation is open. */
@@ -112,6 +112,8 @@ export interface CashSaleDisputeResolutionProps {
   iRaisedIt: boolean;
   /** Total collected from the Buyer, for the refund confirmation. */
   amountCents: number;
+  /** ISO 4217 code of the sale (`cash_sales.currency`) that `amountCents` is in. */
+  currency: string;
   /** The other party's display name. */
   counterpartyName: string;
 }
@@ -121,6 +123,7 @@ export function CashSaleDisputeResolution({
   iAmBuyer,
   iRaisedIt,
   amountCents,
+  currency,
   counterpartyName,
 }: CashSaleDisputeResolutionProps) {
   const router = useRouter();
@@ -196,7 +199,7 @@ export function CashSaleDisputeResolution({
         title={
           iAmBuyer
             ? 'Release the payment to the seller?'
-            : `Refund ${formatAud(amountCents)} to the buyer?`
+            : `Refund ${formatMoney(amountCents, currency)} to the buyer?`
         }
         description={
           iAmBuyer
@@ -207,7 +210,7 @@ export function CashSaleDisputeResolution({
               // the goods, the refund now WAITS for them to post it back, and the
               // refund releases automatically once a carrier confirms it arrived.
               `This ends the dispute in ${counterpartyName}'s favour. If they already have the item, ` +
-              `they must post it back to you first — the ${formatAud(amountCents)} is refunded ` +
+              `they must post it back to you first — the ${formatMoney(amountCents, currency)} is refunded ` +
               `automatically once a carrier confirms it reached you, and your listing goes back on ` +
               `sale at that point. If the item never reached them, they are refunded straight away. ` +
               `This cannot be undone.`

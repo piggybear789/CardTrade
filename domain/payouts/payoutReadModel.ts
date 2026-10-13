@@ -123,6 +123,8 @@ export interface TradeArbitrationInput {
   state: TradeState;
   /** Collateral held against the Member for this Trade. */
   myBondCents: Cents;
+  /** The trade's currency, which sizes the Friction_Tax. Optional; defaults to the AUD figure. */
+  currency?: string | null;
   /** True when the Member is recorded as the fraud victim. */
   iAmFraudVictim: boolean;
   /** Collateral captured from the counterparty and paid to the victim. */
@@ -509,7 +511,7 @@ export function derivePayoutReadModel(input: PayoutReadModelInput): PayoutReadMo
           // value — so a $5 trade yields a $5 tax, not $20. Printing the constant here
           // put the exact "member's screen disagrees with what was charged" mismatch on
           // this file that its own header warns against.
-          ? frictionTaxChargeableCents(trade.myBondCents)
+          ? frictionTaxChargeableCents(trade.myBondCents, trade.currency)
           : Math.max(Math.trunc(trade.myBondCents), 0),
       open: !fraud,
       occurredAt: trade.createdAt,

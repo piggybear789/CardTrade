@@ -98,7 +98,9 @@ export function SellerTrustBand({
   return (
     <section
       aria-label="Seller checks"
-      className="mt-cozy flex flex-wrap items-center gap-x-group gap-y-tight rounded-lg border bg-muted/60 px-group py-cozy text-body"
+      // A plain line, not a boxed panel: the grey box was the heaviest thing on a
+      // page whose content is the listings below it.
+      className="mt-snug flex flex-wrap items-center gap-x-group gap-y-tight text-body"
     >
       {verified ? (
         <p className="flex min-w-0 items-start gap-tight font-medium text-trust">

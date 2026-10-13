@@ -229,7 +229,7 @@ There is deliberately **no identity dossier**. The Police Evidence Pack stays re
 
 ### Payments and tracking
 
-Provider: `PAYMENTS_PROVIDER` = `mock` | `stripe` | unset (Stripe if configured, else mock). Currency is integer minor units. Presentment from region (AU → AUD). One global `STRIPE_CURRENCY` is why only AU can trade.
+Provider: `PAYMENTS_PROVIDER` = `mock` | `stripe` | unset (Stripe if configured, else mock). Currency is integer minor units. Presentment is the SELLER's region currency (AU → AUD, DE → EUR), frozen on the contract. Since 0136 the US platform serves the US, UK, EEA (not Hungary), Canada and Switzerland, members across those may trade with each other, and a buyer paying in a currency other than USD pays a 2% Currency_Conversion fee (`domain/fees/fxFee.ts`) so the seller receives exactly the agreed price. Every displayed amount carries its ISO code (`formatMoney`).
 
 **Card** is the live rail. PayTo is documented intent, not implemented. BECS is rejected — its dispute window is 7 years, no-questions-asked, and unappealable.
 
@@ -314,7 +314,7 @@ Treat Flutter as **partial parity**, not a second complete product. `.kiro/specs
 
    An ABSENT region is refused, not waved through. "We do not know where either party is" is not a basis for taking their money, and a permissive default would let every pre-0065 Profile bypass the guard.
 
-   A region in `REGIONS` is **browsable**; only `tradingEnabled` makes it **tradeable**. Today that is AU alone. Do not let a member select a browse-only region as their own: badging them ready and then refusing every contract they open is the shape of the 0060 mistake. What still blocks enabling a second region is not the region model — it is that `STRIPE_CURRENCY` is one global value and no money column records its own denomination, so a platform balance holding AUD and GBP at once has no way to say which is which.
+   A region in `REGIONS` is **browsable**; only `tradingEnabled` makes it **tradeable**. Today that is AU (its own platform) and the US/UK/EEA/CA/CH group on the US platform (0136); two members may contract when their regions share a platform (`platformRegion`). Do not let a member select a browse-only region as their own: badging them ready and then refusing every contract they open is the shape of the 0060 mistake. What still blocks enabling a second region is not the region model — it is that `STRIPE_CURRENCY` is one global value and no money column records its own denomination, so a platform balance holding AUD and GBP at once has no way to say which is which.
 
 3. **Dispute & Fraud Resolution** — A state machine handling condition disputes (a fixed $20 partial capture "friction tax") and objective fraud (full capture of collateral, paid out to the victim). A staff-confirmed Objective_Fraud finding permanently bans the responsible account. There is deliberately **no identity dossier**: the "Police Evidence Pack" was withdrawn because the platform has no basis to hand a person's identity documents to a private individual on the strength of an in-app fraud determination.
 

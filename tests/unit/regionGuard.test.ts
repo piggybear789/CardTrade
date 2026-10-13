@@ -96,10 +96,30 @@ describe('checkRegionCompatibility', () => {
     // Browsable is not tradeable. A region can exist in the registry — so its
     // listings are visible and its filter works — long before Connect onboarding
     // and currency handling are finished for it.
-    expect(isTradingRegion('GB')).toBe(false);
-    expect(checkRegionCompatibility('GB', 'GB')).toMatchObject({
+    expect(isTradingRegion('NZ')).toBe(false);
+    expect(checkRegionCompatibility('NZ', 'NZ')).toMatchObject({
       reason: 'REGION_NOT_ENABLED',
+      closedRegion: 'NZ',
     });
+  });
+
+  it('allows two different countries on the same platform (0136)', () => {
+    // A UK buyer and a German seller both sit on the US platform, which can collect
+    // from one and pay the other.
+    expect(checkRegionCompatibility('GB', 'DE')).toBeNull();
+    expect(checkRegionCompatibility('US', 'FR')).toBeNull();
+    expect(checkRegionCompatibility('CA', 'CH')).toBeNull();
+  });
+
+  it('refuses a buyer in an open region facing a seller in a closed one', () => {
+    expect(checkRegionCompatibility('GB', 'NZ')).toMatchObject({
+      reason: 'REGION_NOT_ENABLED',
+      closedRegion: 'NZ',
+    });
+  });
+
+  it('keeps Hungary closed until HUF payouts are handled', () => {
+    expect(isTradingRegion('HU')).toBe(false);
   });
 
   it('treats an unknown code as unknown rather than as a literal match', () => {

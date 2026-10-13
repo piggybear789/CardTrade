@@ -9,7 +9,7 @@ import { MessageSquareIcon } from '@hugeicons/core-free-icons';
 
 import { StarRating } from '@/components/listings/StarRating';
 import { EmptyState } from '@/components/ui/empty-state';
-import { formatAud, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 import type { ReviewWithReviewer } from '@/lib/actions/reviews';
 
 /** Verb phrase for each transaction kind, from the reviewee's perspective. */
@@ -60,7 +60,9 @@ export function ReviewList({
               </span>
               <p className="break-words text-body text-muted-foreground">
                 {TRANSACTION_KIND_LABEL[review.transactionKind]} {revieweeName}
-                {review.valueCents != null ? ` · ${formatAud(review.valueCents)}` : ''}
+                {review.valueCents != null && review.currency != null
+                  ? ` · ${formatMoney(review.valueCents, review.currency)}`
+                  : ''}
               </p>
             </div>
             <StarRating rating={review.rating} hideLabel />

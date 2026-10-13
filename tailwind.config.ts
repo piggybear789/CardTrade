@@ -107,21 +107,15 @@ const config: Config = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
-      // FONTS COME FROM THE THEME: `--font-sans` (Inter), `--font-serif`
-      // (Merriweather), `--font-mono` (JetBrains Mono), declared in globals.css.
-      // `next/font` serves each face under a hashed family name exposed as
-      // `--font-inter` / `--font-merriweather` / `--font-jetbrains-mono`
-      // (app/layout.tsx), so that variable leads and the theme's own stack follows.
-      //
-      // `display` and `wordmark` are kept as NAMES so their call sites still
-      // resolve. They used Instrument Sans's width axis; Inter has none, so both
-      // are now the text face, and titles are told apart by size and weight.
+      // ONE TYPEFACE: Inter, self-hosted by `next/font` as `--font-inter`
+      // (app/layout.tsx). Every family name resolves to it so existing call sites
+      // (`font-display`, `font-wordmark`, `font-serif`, `font-mono`) keep working.
       fontFamily: {
         sans: ["var(--font-inter)", "var(--font-sans)"],
         display: ["var(--font-inter)", "var(--font-sans)"],
         wordmark: ["var(--font-inter)", "var(--font-sans)"],
-        serif: ["var(--font-merriweather)", "var(--font-serif)"],
-        mono: ["var(--font-jetbrains-mono)", "var(--font-mono)"],
+        serif: ["var(--font-inter)", "var(--font-sans)"],
+        mono: ["var(--font-inter)", "var(--font-sans)"],
       },
       // The theme's tracking.
       letterSpacing: {

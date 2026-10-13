@@ -51,11 +51,11 @@ export function betaFeeNote(): string {
  * standard fee is 5%, and we'll tell you before it applies."
  */
 export function feeWaiverExplanation(): string {
-  return `We're waiving fees for now. The standard fee is ${rateLabel(PLATFORM_FEE_BPS)}, and we'll tell you before it applies.`;
+  return `We're waiving fees for now, and we'll tell you before standard fees apply.`;
 }
 
-/** Under a listing's price while waived. */
-export const LISTING_BETA_FEE_NOTE = betaFeeNote();
+/** Under a listing's price while waived: the waiver explanation alone. */
+export const LISTING_BETA_FEE_NOTE = feeWaiverExplanation();
 
 /** Lower-case clause after a figure: "You'd pay $X, no fees for now (normally 5%)". */
 export const NO_FEE_DURING_BETA = `no fees for now (normally ${rateLabel(PLATFORM_FEE_BPS)})`;

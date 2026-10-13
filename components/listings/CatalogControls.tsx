@@ -4,16 +4,23 @@
 // call CatalogView.apply — fetch in place, rewrite the URL, do not navigate.
 // Prices stay readable dollars in the URL and integer cents at the action.
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, CancelIcon, CheckIcon } from '@hugeicons/core-free-icons';
+import {
+  CheckIcon,
+  ChevronRightIcon,
+  GemIcon,
+  HotPriceIcon,
+  SparklesIcon,
+} from '@hugeicons/core-free-icons';
 
 import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
-import {
-  requestCatalogFilters,
-  subscribeCatalogFilters,
-  type CatalogFilterSection,
-} from '@/lib/catalog/browseEvents';
+import { subscribeCatalogFilters } from '@/lib/catalog/browseEvents';
 import { ITEM_CONDITIONS } from '@/lib/catalog/conditions';
 import {
   buildPriceLadderCents,
@@ -63,10 +70,6 @@ const AUD_WHOLE_FORMATTER = new Intl.NumberFormat(CURRENCY_LOCALE, {
    the histogram buckets against the same stops the slider thumbs snap to. See the note
    there. */
 
-/** The TCGplayer wear scale for raw cards, which the filters label apart from Graded and Unopened. */
-const RAW_SCALE = new Set<string>(['Near Mint', 'Lightly Played', 'Moderately Played', 'Heavily Played', 'Damaged']);
-const RAW_SCALE_START = 'Near Mint';
-
 /** Current URL-backed catalog filter values. */
 export interface CatalogFilterState {
   q: string;
@@ -90,139 +93,33 @@ function conditionSummary(conditions: readonly string[]): string {
   return `${ordered.length} selected`;
 }
 
-/** Plain-language summary of the URL's price bounds (whole dollars), or null when unset. */
-function priceSummary(min: string, max: string): string | null {
-  const from = min ? AUD_WHOLE_FORMATTER.format(Number(min)) : null;
-  const to = max ? AUD_WHOLE_FORMATTER.format(Number(max)) : null;
-  if (from && to) return `${from} – ${to}`;
-  if (from) return `${from}+`;
-  if (to) return `Up to ${to}`;
-  return null;
+/** Plain-language summary of the selected price range, for a property-row value. */
+function priceSummary(
+  ladder: number[],
+  [minStop, maxStop]: [number, number],
+  topStop: number,
+): string {
+  const openEnded = maxStop >= topStop;
+  if (minStop <= 0 && openEnded) return 'Any';
+  const from = AUD_WHOLE_FORMATTER.format(ladder[minStop] / 100);
+  if (openEnded) return `${from}+`;
+  return `${from} – ${AUD_WHOLE_FORMATTER.format(ladder[maxStop] / 100)}`;
 }
 
-/** One applied filter, as a chip that removes it. */
-interface AppliedFilter {
-  key: string;
-  label: string;
-  onRemove: () => void;
-}
-
+/** Plain-language summary of the availability toggles, for a property-row value. */
 /**
- * What is narrowing the grid, under the game pills.
+ * Plain-language summary of the availability toggles.
  *
- * DESKTOP: one chip per applied filter, each removing itself, and "Clear all". The
- * rail shows the controls; this shows the result of using them, beside the grid
- * they changed — nothing above the grid said what was applied or offered a reset.
- *
- * PHONE: the result count on the left, then Sort, Condition and Price chips that
- * open the sheet at their own section. All three sat behind one sliders icon, so a
- * phone showed no sign of what was filtering the grid or how to change it.
+ * Each active toggle is named in full: at ~230px of rail a combined label
+ * ("+ Reserved, sold") is only a couple of words shorter than the plain list,
+ * and truncation mid-label ("+ Reserve…") would land on the common case rather
+ * than on a long-tail one.
  */
-export function CatalogFilterChips() {
-  const { current, result, apply, reset, isPending } = useCatalogView();
-
-  const applied: AppliedFilter[] = [];
-  if (current.q) {
-    applied.push({ key: 'q', label: `“${current.q}”`, onRemove: () => apply({ q: null }) });
-  }
-  for (const condition of ITEM_CONDITIONS) {
-    if (!current.conditions.includes(condition)) continue;
-    applied.push({
-      key: `condition-${condition}`,
-      label: condition,
-      onRemove: () => apply({ condition: current.conditions.filter((value) => value !== condition) }),
-    });
-  }
-  const price = priceSummary(current.min, current.max);
-  if (price) {
-    applied.push({ key: 'price', label: price, onRemove: () => apply({ min: null, max: null }) });
-  }
-  if (current.includeReserved) {
-    applied.push({ key: 'reserved', label: 'Including reserved', onRemove: () => apply({ reserved: null }) });
-  }
-  if (current.includeSold) {
-    applied.push({ key: 'sold', label: 'Including sold', onRemove: () => apply({ sold: null }) });
-  }
-
-  const conditionLabel =
-    current.conditions.length > 0 ? conditionSummary(current.conditions) : 'Condition';
-  const sortActive = current.sort !== 'newest';
-
-  return (
-    <>
-      <MobileOnly>
-        <div className="-mx-group flex items-center gap-snug overflow-x-auto px-group [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <span className="shrink-0 text-meta tabular-nums text-muted-foreground" aria-live="polite">
-            {result.total} {result.total === 1 ? 'listing' : 'listings'}
-          </span>
-          <PhoneFilterChip
-            label={sortActive ? SORT_LABELS[current.sort] : 'Sort'}
-            active={sortActive}
-            onClick={() => requestCatalogFilters(true, 'sort')}
-          />
-          <PhoneFilterChip
-            label={conditionLabel}
-            active={current.conditions.length > 0}
-            onClick={() => requestCatalogFilters(true, 'condition')}
-          />
-          <PhoneFilterChip
-            label={price ?? 'Price'}
-            active={Boolean(price)}
-            onClick={() => requestCatalogFilters(true, 'price')}
-          />
-        </div>
-      </MobileOnly>
-      {applied.length > 0 ? (
-        <DesktopOnly>
-          <div className="flex flex-wrap items-center gap-snug" aria-label="Applied filters" role="group">
-            {applied.map((filter) => (
-              <button
-                key={filter.key}
-                type="button"
-                onClick={filter.onRemove}
-                disabled={isPending}
-                aria-label={`Remove filter: ${filter.label}`}
-                className="inline-flex h-8 items-center gap-tight rounded-full border border-border bg-card pl-cozy pr-snug text-meta font-medium text-foreground transition-colors hover:border-foreground/40 focus:outline-none focus-visible:border-iris disabled:opacity-60"
-              >
-                {filter.label}
-                <HugeiconsIcon icon={CancelIcon} className="size-3.5 text-muted-foreground" aria-hidden />
-              </button>
-            ))}
-            <Button type="button" variant="ghost" size="sm" onClick={reset} disabled={isPending}>
-              Clear all
-            </Button>
-          </div>
-        </DesktopOnly>
-      ) : null}
-    </>
-  );
-}
-
-function PhoneFilterChip({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-haspopup="dialog"
-      className={cn(
-        'inline-flex h-8 shrink-0 items-center gap-tight rounded-full border px-cozy text-meta font-medium transition-colors focus:outline-none focus-visible:border-iris',
-        active
-          ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-border bg-card text-foreground',
-      )}
-    >
-      {label}
-      <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" aria-hidden />
-    </button>
-  );
+function availabilitySummary(includeReserved: boolean, includeSold: boolean): string {
+  const parts: string[] = [];
+  if (includeReserved) parts.push('Reserved');
+  if (includeSold) parts.push('sold');
+  return parts.length > 0 ? `Including ${parts.join(' + ')}` : 'Available';
 }
 
 /** Browse updates stay on the client — see CatalogViewProvider. */
@@ -255,23 +152,7 @@ export function CatalogFilters() {
     }
   }, []);
 
-  // Opening at a section (the phone chip row): the sheet portals in on open, so the
-  // scroll waits a frame for the section to exist.
-  useEffect(
-    () =>
-      subscribeCatalogFilters((open, section?: CatalogFilterSection) => {
-        setFiltersOpenAndUrl(open);
-        if (!open || !section) return;
-        requestAnimationFrame(() =>
-          requestAnimationFrame(() =>
-            document
-              .getElementById(`catalog-sheet-${section}`)
-              ?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
-          ),
-        );
-      }),
-    [],
-  );
+  useEffect(() => subscribeCatalogFilters(setFiltersOpenAndUrl), []);
 
   // Rounding the ceiling up to a legible figure keeps the track's top end
   // stable as inventory comes and goes, rather than shifting on every new
@@ -358,7 +239,7 @@ export function CatalogFilters() {
                   On desktop it sits beside the result count in the catalog
                   header, where the thing being ordered is on screen; the sheet
                   is the only place a phone can reach it, so it leads here. */}
-              <div id="catalog-sheet-sort" className="scroll-mt-group">
+              <div>
                 <p className="market-label mb-snug text-muted-foreground">Sort</p>
                 <CatalogSortControl fullWidth />
               </div>
@@ -402,13 +283,13 @@ export function CatalogFilters() {
       </MobileOnly>
 
       <DesktopOnly>
-        {/* OPEN GROUPS, NOT DRILL-INS. Each filter was a row reading "Any >" that
-            had to be opened to be used, so the rail hid every option behind a
-            click and showed nothing of the stock. Now the boxes are on screen with
-            how many listings each holds, and price is typed or dragged in place.
-            A game pill is the one filter set outside the rail, so "Reset" beside
-            "Filters" stays its way back; the applied chips above the grid are the
-            other. */}
+        {/* No heading and no chrome of its own — the rail's h1 already says
+            Marketplace. What the rail does say is one row per filter with its
+            current value, opening inline: "Condition · Near Mint, Lightly
+            Played" and "Price · $100 – $500". A game pill is the one filter that
+            is set outside the rail, so the "Reset" beside "Filters" is its only
+            way back — without it, picking a game leaves a filter nothing on
+            this page can undo. */}
         <div id="catalog-filter-panel" className="mt-group bg-transparent">
           <div className="flex items-center justify-between px-cozy pb-tight">
             <span className="market-label text-muted-foreground">Filters</span>
@@ -423,9 +304,8 @@ export function CatalogFilters() {
               </button>
             ) : null}
           </div>
-          <CatalogRailGroups
+          <CatalogPropertyRows
             current={current}
-            conditionCounts={facets.conditionCounts}
             isPending={isPending}
             onToggleCondition={toggleCondition}
             onToggleSold={() => pushWith({ sold: current.includeSold ? null : '1' })}
@@ -446,14 +326,20 @@ export function CatalogFilters() {
   );
 }
 
+type CatalogPropertyKey = 'condition' | 'price' | 'showing';
+
 /**
- * The desktop rail's filters as open groups: condition boxes with counts, the price
- * control in place, and the two availability toggles. Nothing is behind a disclosure;
- * on the catalog the rail holds only Marketplace and these, so it has the room.
+ * The desktop rail as property rows: one row per filter that states its value
+ * and opens inline, so the whole search reads in three rows. Only one is open
+ * at a time — there is a single disclosure's worth of room on a laptop rail.
+ *
+ * Closed unless the URL already carries the row's filter: a shared or bookmarked
+ * filtered link must never hide the filter it is applying. After mount the state
+ * belongs to the member — the rows do not close when a filter is set inside one,
+ * because closing on select would hide the result of the tap that just happened.
  */
-function CatalogRailGroups({
+function CatalogPropertyRows({
   current,
-  conditionCounts,
   isPending,
   onToggleCondition,
   onToggleSold,
@@ -470,8 +356,6 @@ function CatalogRailGroups({
     CatalogFilterState,
     'conditions' | 'includeSold' | 'includeReserved'
   >;
-  /** AVAILABLE listings per condition, from `CatalogFacets.conditionCounts`. */
-  conditionCounts: Record<string, number>;
   isPending: boolean;
   onToggleCondition: (condition: string) => void;
   onToggleSold: () => void;
@@ -482,35 +366,62 @@ function CatalogRailGroups({
   priceLadder: number[];
   topStop: number;
   ceilingCents: number;
-  /** See `CatalogFacets.priceHistogram`. Empty draws no histogram. */
+  /**
+   * Relative listing density per ladder segment, from `CatalogFacets.priceHistogram`.
+   * Empty renders no histogram at all rather than a flat bar, so a catalog with no
+   * prices does not imply a uniform spread.
+   */
   histogram: number[];
 }) {
+  const [open, setOpen] = useState<CatalogPropertyKey | null>(() =>
+    current.conditions.length > 0
+      ? 'condition'
+      : priceStopsActive(priceStops, topStop)
+        ? 'price'
+        : current.includeSold || current.includeReserved
+          ? 'showing'
+          : null,
+  );
+
+  function toggle(key: CatalogPropertyKey) {
+    setOpen((value) => (value === key ? null : key));
+  }
+
+  const priceRangeLabel = priceSummary(priceLadder, priceStops, topStop);
+  const showingLabel = availabilitySummary(current.includeSold, current.includeReserved);
+
   return (
-    <div className="flex flex-col gap-group px-tight">
-      <fieldset>
-        <legend className="mb-tight px-cozy text-body font-medium text-foreground">Condition</legend>
-        <div className="flex flex-col">
+    <div className="flex flex-col gap-0.5">
+      <CatalogPropertyRow
+        label="Condition"
+        value={conditionSummary(current.conditions)}
+        active={current.conditions.length > 0}
+        open={open === 'condition'}
+        onClick={() => toggle('condition')}
+        icon={GemIcon}
+      >
+        <div className="flex flex-col gap-tight">
           {ITEM_CONDITIONS.map((condition) => (
-            <Fragment key={condition}>
-              {/* Graded and sealed are kinds of item; the rest is the wear scale for a
-                  raw card. Labelled apart so "Graded" does not read as a grade of wear. */}
-              {condition === RAW_SCALE_START ? (
-                <p className="mt-snug px-cozy pb-0.5 text-meta text-muted-foreground">Raw cards</p>
-              ) : null}
-              <FilterCheckRow
-                label={condition}
-                count={conditionCounts[condition] ?? 0}
-                pressed={current.conditions.includes(condition)}
-                onClick={() => onToggleCondition(condition)}
-                disabled={isPending}
-              />
-            </Fragment>
+            <FilterCheckRow
+              key={condition}
+              label={condition}
+              pressed={current.conditions.includes(condition)}
+              onClick={() => onToggleCondition(condition)}
+              disabled={isPending}
+            />
           ))}
         </div>
-      </fieldset>
-      <div>
-        <p className="mb-snug px-cozy text-body font-medium text-foreground">Price</p>
-        <div className="px-cozy">
+      </CatalogPropertyRow>
+      <CatalogPropertyRow
+        label="Price"
+        value={priceRangeLabel}
+        active={priceStopsActive(priceStops, topStop)}
+        open={open === 'price'}
+        onClick={() => toggle('price')}
+        icon={HotPriceIcon}
+      >
+        <div className="border-t border-border pt-group">
+          <div className="mb-cozy text-body font-semibold tabular-nums">{priceRangeLabel}</div>
           <PriceRefineBlock
             priceStops={priceStops}
             onPriceStopsChange={onPriceStopsChange}
@@ -522,24 +433,95 @@ function CatalogRailGroups({
             disabled={isPending}
           />
         </div>
-      </div>
-      <fieldset>
-        <legend className="mb-tight px-cozy text-body font-medium text-foreground">Showing</legend>
-        <div className="flex flex-col">
+      </CatalogPropertyRow>
+      <CatalogPropertyRow
+        label="Showing"
+        value={showingLabel}
+        active={current.includeSold || current.includeReserved}
+        open={open === 'showing'}
+        onClick={() => toggle('showing')}
+        icon={SparklesIcon}
+      >
+        <div className="flex flex-col gap-tight">
           <FilterCheckRow
-            label="Include reserved"
+            label="Include reserved listings"
             pressed={current.includeReserved}
             onClick={onToggleReserved}
             disabled={isPending}
           />
           <FilterCheckRow
-            label="Include sold"
+            label="Include sold listings"
             pressed={current.includeSold}
             onClick={onToggleSold}
             disabled={isPending}
           />
         </div>
-      </fieldset>
+      </CatalogPropertyRow>
+    </div>
+  );
+}
+
+function priceStopsActive([minStop, maxStop]: [number, number], topStop: number): boolean {
+  return minStop > 0 || maxStop < topStop;
+}
+
+/**
+ * One filter as a row: an icon, the filter's name, and on the right the value
+ * it currently carries. Opening is a native `button`; the accordion primitive is
+ * for stacked labeled sections, not for rows whose open state is mutually exclusive.
+ */
+function CatalogPropertyRow({
+  label,
+  value,
+  active,
+  open,
+  onClick,
+  icon,
+  children,
+}: {
+  label: string;
+  value: string;
+  /** Whether the row's filter is currently narrowing the grid. */
+  active: boolean;
+  open: boolean;
+  onClick: () => void;
+  icon: typeof GemIcon;
+  children: ReactNode;
+}) {
+  const Icon = icon;
+  return (
+    <div
+      className={cn(
+        'rounded-lg border transition-colors',
+        open ? 'border-border bg-card' : 'border-transparent',
+      )}
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        aria-expanded={open}
+        className="flex h-10 w-full items-center gap-snug px-cozy text-left border border-transparent focus:outline-none focus-visible:border-iris rounded-lg"
+      >
+        <HugeiconsIcon icon={Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <span className="text-body text-muted-foreground">{label}</span>
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-right text-body tabular-nums',
+            active ? 'font-semibold text-foreground' : 'text-muted-foreground',
+          )}
+        >
+          {value}
+        </span>
+        <HugeiconsIcon
+          icon={ChevronRightIcon}
+          className={cn(
+            'size-3.5 shrink-0 text-muted-foreground transition-transform',
+            open && 'rotate-90',
+          )}
+          aria-hidden="true"
+        />
+      </button>
+      {open ? <div className="px-cozy pb-cozy pt-tight">{children}</div> : null}
     </div>
   );
 }
@@ -589,23 +571,11 @@ function CatalogPhoneRefineFields({
       {/* The rule sits on a wrapper, not the fieldset: a fieldset's top border runs
           through its legend, which drew this one heading as "CONDITION ——" beside
           siblings whose rule sits above the label. */}
-      <div id="catalog-sheet-condition" className="scroll-mt-group border-t border-border pt-group">
+      <div className="border-t border-border pt-group">
         <fieldset>
           <legend className="market-label mb-snug text-muted-foreground">Condition</legend>
           <div className="flex flex-wrap gap-1.5">
-            {ITEM_CONDITIONS.filter((condition) => !RAW_SCALE.has(condition)).map((condition) => (
-              <FilterSquare
-                key={condition}
-                label={condition}
-                pressed={current.conditions.includes(condition)}
-                onClick={() => onToggleCondition(condition)}
-                disabled={isPending}
-              />
-            ))}
-          </div>
-          <p className="mb-tight mt-snug text-meta text-muted-foreground">Raw cards</p>
-          <div className="flex flex-wrap gap-1.5">
-            {ITEM_CONDITIONS.filter((condition) => RAW_SCALE.has(condition)).map((condition) => (
+            {ITEM_CONDITIONS.map((condition) => (
               <FilterSquare
                 key={condition}
                 label={condition}
@@ -618,7 +588,7 @@ function CatalogPhoneRefineFields({
         </fieldset>
       </div>
 
-      <div id="catalog-sheet-price" className="scroll-mt-group border-t border-border pt-group">
+      <div className="border-t border-border pt-group">
         <p className="market-label mb-snug text-muted-foreground">Price</p>
         <PriceRefineBlock
           priceStops={priceStops}
@@ -739,14 +709,11 @@ function PriceRefineBlock({
 
 function FilterCheckRow({
   label,
-  count,
   pressed,
   onClick,
   disabled,
 }: {
   label: string;
-  /** Listings this option holds, shown at the right edge when given. */
-  count?: number;
   pressed: boolean;
   onClick: () => void;
   disabled: boolean;
@@ -758,7 +725,7 @@ function FilterCheckRow({
       disabled={disabled}
       aria-pressed={pressed}
       className={cn(
-        'flex w-full items-center gap-cozy rounded-lg px-cozy py-1.5 text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-60',
+        'flex w-full items-center gap-cozy rounded-lg px-cozy py-snug text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-iris disabled:opacity-60',
         // No violet wash behind a ticked row. The box IS the state — it is the
         // thing that changes shape when you click — and tinting the whole row
         // as well put a second, much larger violet element in the rail for the
@@ -789,9 +756,6 @@ function FilterCheckRow({
         {pressed ? <HugeiconsIcon icon={CheckIcon} className="size-3" strokeWidth={3} /> : null}
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count !== undefined ? (
-        <span className="shrink-0 text-meta font-normal tabular-nums text-muted-foreground">{count}</span>
-      ) : null}
     </button>
   );
 }

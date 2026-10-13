@@ -19,8 +19,8 @@ import type { ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AlertCircleIcon, CheckIcon, CheckmarkCircle02Icon, CreditCardIcon, ShieldAlertIcon, Timer01Icon, XIcon } from '@hugeicons/core-free-icons';
 
-import { FRICTION_TAX_CENTS } from '@/domain/dispute/frictionTax';
-import { formatAud } from '@/lib/format';
+import { frictionTaxCentsFor } from '@/domain/dispute/frictionTax';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /**
@@ -31,13 +31,14 @@ import { cn } from '@/lib/utils';
  * and the copy must not promise otherwise. The amount is read from the constant
  * so this line cannot drift from the one that is actually captured.
  */
-const OUTCOMES: {
+function outcomes(currency: string): {
   icon: typeof CheckIcon;
   tone: string;
   event: string;
   result: string;
   note?: string;
-}[] = [
+}[] {
+  return [
   {
     icon: CheckIcon,
     tone: 'text-trust',
@@ -54,7 +55,7 @@ const OUTCOMES: {
     icon: AlertCircleIcon,
     tone: 'text-iris-ink',
     event: 'A condition dispute',
-    result: `Up to ${formatAud(FRICTION_TAX_CENTS)}`,
+    result: `Up to ${formatMoney(frictionTaxCentsFor(currency), currency)}`,
     note: "Covers the other trader's return postage.",
   },
   {
@@ -65,6 +66,7 @@ const OUTCOMES: {
     note: 'Paid to the trader who was defrauded.',
   },
 ];
+}
 
 /**
  * The two things a trader needs to know about collateral beyond what the tab's
@@ -84,7 +86,7 @@ const OUTCOMES: {
  * The consequences below it stay in full, because those are the facts that are
  * genuinely surprising and genuinely matter.
  */
-export function DittoBondExplainer() {
+export function DittoBondExplainer({ currency = 'aud' }: { currency?: string }) {
   return (
     <section className="space-y-cozy text-body" aria-labelledby="dittobond-title">
       {/* The tab is labelled "Collateral" and opens with its own explainer
@@ -104,7 +106,7 @@ export function DittoBondExplainer() {
           </p>
         </div>
         <ul className="divide-y divide-border">
-          {OUTCOMES.map(({ icon: Icon, tone, event, result, note }) => (
+          {outcomes(currency).map(({ icon: Icon, tone, event, result, note }) => (
             <li
               key={event}
               className="flex items-start gap-cozy px-cozy py-snug"
@@ -203,8 +205,9 @@ export function CashSaleProtectionExplainer({
    * problem" outcome — the row that already describes what pressing it does.
    *
    * Injected rather than built here because this component is presentational and
-   * knows nothing about the sale it describes. Omit it for a seller, or once the
-   * inspection window has closed.
+   * knows nothing about the sale it describes. Passed to the buyer during the
+   * inspection window, and on a posted sale whose ship-by date passed with nothing
+   * shipped (0132). Omit it for a seller, and once the inspection window has closed.
    */
   reportAction?: ReactNode;
 }) {

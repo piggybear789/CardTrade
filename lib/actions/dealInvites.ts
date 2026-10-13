@@ -110,6 +110,8 @@ export interface DealInviteSummary {
   kind: InviteRow['kind'];
   hostRole: InviteRow['host_role'];
   priceCents: number | null;
+  /** ISO 4217 code `priceCents` is in, from the host's trading region. */
+  currency: string | null;
   hostItemTitle: string | null;
   wantedDescription: string | null;
   expiresAt: string;
@@ -697,6 +699,15 @@ export const listMyDealInvites = withActionLog('dealInvites.listMyDealInvites', 
       | 'created_at'
     >
   >;
+  // Every listed invite is the caller's own, so they are all priced in the caller's
+  // trading-region currency — the same derivation `getDealInvitePreview` uses.
+  const { data: hostProfile } = await supabase
+    .from('profiles')
+    .select('region_code')
+    .eq('id', userId)
+    .maybeSingle();
+  const currency = regionCurrency((hostProfile?.region_code as string | null) ?? null);
+
   const itemIds = rows.map((row) => row.host_item_id).filter((id): id is string => Boolean(id));
   const titles = new Map<string, string>();
   if (itemIds.length > 0) {
@@ -716,6 +727,7 @@ export const listMyDealInvites = withActionLog('dealInvites.listMyDealInvites', 
       kind: row.kind,
       hostRole: row.host_role,
       priceCents: row.price_cents,
+      currency,
       hostItemTitle: row.host_item_id ? titles.get(row.host_item_id) ?? null : null,
       wantedDescription: row.wanted_description,
       expiresAt: row.expires_at,

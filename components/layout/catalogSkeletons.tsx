@@ -47,7 +47,7 @@ export function CatalogTileSkeleton({
           'w-full rounded-none',
           // 3:4 like the real cover: the photo's own shape in the phone mosaic,
           // portrait everywhere else.
-          inMosaic ? 'catalog-cover' : 'aspect-[3/4]',
+          inMosaic ? 'catalog-cover' : 'aspect-square',
         )}
         style={
           inMosaic

@@ -19,8 +19,7 @@
 import { timingSafeEqual } from 'node:crypto';
 
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
-import { getPaymentService, operationalRegions } from '@/domain/services';
-import { regionCurrency } from '@/domain/region';
+import { getPaymentService, operationalPlatforms } from '@/domain/services';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** Payouts must not be prerendered or cached. */
@@ -87,11 +86,17 @@ async function runPayoutPass(request: Request): Promise<Response> {
     // synchronous, and awaited at the end so the rows land before the function freezes.
     const drainReports: Parameters<typeof logBackgroundFailure>[0][] = [];
 
-    for (const region of operationalRegions()) {
+    // One pass per PLATFORM and CURRENCY: the US platform holds contracts in USD, EUR,
+    // GBP and more, and looping over regions would drain it once per EEA country.
+    // `region` below names the pass as `<platform>:<currency>` in logs and failures.
+    const passes = [...operationalPlatforms()].flatMap(([platform, currencies]) =>
+      currencies.map((currency) => ({ platform, currency, region: `${platform}:${currency}` })),
+    );
+    for (const { platform, currency, region } of passes) {
       try {
         const orchestrator = createDefaultCashSaleOrchestrator({
-          payments: getPaymentService(region),
-          payoutRegionCurrency: regionCurrency(region) ?? undefined,
+          payments: getPaymentService(platform),
+          payoutRegionCurrency: currency,
           onDrainError: ({ cashSaleId, error }) => {
             console.error(`[cash-sale drain] ${cashSaleId}:`, error);
             drainReports.push({

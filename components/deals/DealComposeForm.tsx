@@ -28,12 +28,7 @@ import Link from 'next/link';
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowLeft01Icon,
-  BanknoteIcon,
-  LoaderCircleIcon,
-  RepeatIcon,
-} from '@hugeicons/core-free-icons';
+import { BanknoteIcon, LoaderCircleIcon, RepeatIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
@@ -47,16 +42,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { MoneyInput } from '@/components/ui/money-input';
-import { Textarea } from '@/components/ui/textarea';
 import {
   EMPTY_UNLISTED_DRAFT,
-  UnlistedCategoryConditionFields,
-  UnlistedDescriptionField,
-  UnlistedPhotoField,
-  UnlistedTitleField,
-  unlistedDraftGap,
   type UnlistedItemDraft,
 } from '@/components/trade/UnlistedItemFields';
 import {
@@ -65,18 +52,22 @@ import {
   saveDealDraft,
   type DraftKind,
 } from '@/components/deals/dealDraftStore';
-import { SaleTermsBreakdown, TradeTermsBreakdown } from '@/components/deals/DealTermsBreakdown';
+import {
+  DEAL_STEP_PROGRESS,
+  DealCardStep,
+  DealReviewStep,
+  DealTermsStep,
+  StepHeader,
+  dealStepGap,
+} from '@/components/deals/DealSteps';
 import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
 import { QuickProfileFields } from '@/components/deals/QuickProfileFields';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
 import { cashPriceProblem, dollarsToCents } from '@/domain/deals/dealInvite';
-import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { deriveItemTitle } from '@/domain/validation';
 import { createDealInvite } from '@/lib/actions/dealInvites';
 import { completeQuickOnboarding } from '@/lib/actions/quickOnboarding';
 import type { SelectableRegion } from '@/lib/actions/regionOptions';
 import { DEAL_RESUME_PATH } from '@/lib/deals/paths';
-import { formatMoney } from '@/lib/format';
 import { navigateWithType } from '@/lib/motion/navigate';
 
 type Step = 'kind' | 'card' | 'terms' | 'review' | 'account' | 'profile';
@@ -91,7 +82,7 @@ const BACK: Record<Exclude<Step, 'kind'>, Step> = {
 };
 
 /** The three steps the progress bar counts. The chooser and the account steps sit outside it. */
-const PROGRESS: Partial<Record<Step, number>> = { card: 1, terms: 2, review: 3 };
+const PROGRESS: Partial<Record<Step, number>> = DEAL_STEP_PROGRESS;
 
 export interface DealComposerViewer {
   signedIn: boolean;
@@ -158,19 +149,16 @@ export function DealComposeForm({
   const selling = kind === 'CASH_SALE';
   const priceCents = dollarsToCents(priceDollars);
   const valueCents = dollarsToCents(valueDollars);
-  const money = (cents: number) => formatMoney(cents, quoteCurrency);
 
   /**
    * What the current step still needs, or `null` when it is complete. Drives the
    * line beside the action AND the button's disabled state, so the two cannot
-   * disagree. Presence only — range rules come back as messages on Next.
+   * disagree. Presence only — range rules come back as messages on Next. The card
+   * and terms rules are shared with the editor (`dealStepGap`).
    */
   function gap(): string | null {
-    if (step === 'card') return unlistedDraftGap(card);
-    if (step === 'terms') {
-      if (selling) return priceCents == null ? 'Enter a price.' : null;
-      if (wanted.trim() === '') return 'Say what you want for it.';
-      if (valueCents == null || valueCents < 1) return 'Say what your card is worth.';
+    if (step === 'card' || step === 'terms') {
+      return dealStepGap(step, { card, selling, priceCents, wanted, valueCents });
     }
     if (step === 'profile') {
       if (displayName.trim() === '') return 'Add the name other members see.';
@@ -358,101 +346,31 @@ export function DealComposeForm({
 
       <div className="space-y-group">
         {step === 'card' ? (
-          <>
-            <UnlistedPhotoField draft={card} onChange={setCard} idPrefix="deal-card" />
-            <UnlistedTitleField draft={card} onChange={setCard} idPrefix="deal-card" />
-            <UnlistedDescriptionField
-              draft={card}
-              onChange={setCard}
-              idPrefix="deal-card"
-              label={selling ? 'What are you selling?' : 'What are you swapping?'}
-              placeholder="Condition details, grade, anything they should know."
-            />
-            <UnlistedCategoryConditionFields draft={card} onChange={setCard} idPrefix="deal-card" />
-          </>
+          <DealCardStep card={card} onCard={setCard} selling={selling} idPrefix="deal-card" />
         ) : null}
 
-        {step === 'terms' && selling ? (
-          <>
-            <div className="space-y-snug">
-              <Label htmlFor="deal-price">Price</Label>
-              <MoneyInput
-                id="deal-price"
-                size="lg"
-                min="0.01"
-                value={priceDollars}
-                onChange={(event) => setPriceDollars(event.target.value)}
-              />
-            </div>
-            <SaleTermsBreakdown priceCents={priceCents} currency={quoteCurrency} />
-            <p className="text-meta text-muted-foreground">
-              Postage or a meetup is agreed in the deal room.
-            </p>
-          </>
-        ) : null}
-
-        {step === 'terms' && !selling ? (
-          <>
-            <div className="space-y-snug">
-              <Label htmlFor="deal-wanted">What do you want for it?</Label>
-              <Textarea
-                id="deal-wanted"
-                value={wanted}
-                onChange={(event) => setWanted(event.target.value)}
-                maxLength={1000}
-                rows={2}
-                placeholder="The card, set or grade they should put up."
-                className="resize-none"
-              />
-            </div>
-            <div className="space-y-snug">
-              <Label htmlFor="deal-value">What is your card worth?</Label>
-              <MoneyInput
-                id="deal-value"
-                size="lg"
-                min="0.01"
-                value={valueDollars}
-                onChange={(event) => setValueDollars(event.target.value)}
-              />
-            </div>
-            <TradeTermsBreakdown valueCents={valueCents} currency={quoteCurrency} />
-          </>
+        {step === 'terms' ? (
+          <DealTermsStep
+            selling={selling}
+            idPrefix="deal"
+            currency={quoteCurrency}
+            priceDollars={priceDollars}
+            onPriceDollars={setPriceDollars}
+            wanted={wanted}
+            onWanted={setWanted}
+            valueDollars={valueDollars}
+            onValueDollars={setValueDollars}
+          />
         ) : null}
 
         {step === 'review' ? (
-          <>
-            <div className="space-y-snug">
-              <p className="text-meta text-muted-foreground">What they will see</p>
-              <DraftPreview
-                card={card}
-                line={
-                  selling
-                    ? priceCents
-                      ? `They pay ${money(priceCents + platformFeeCentsFor(priceCents, quoteCurrency))}`
-                      : null
-                    : `Wants: ${wanted.trim()}`
-                }
-              />
-            </div>
-            <div className="space-y-snug">
-              <p className="text-meta text-muted-foreground">What happens next</p>
-              <NextSteps
-                items={
-                  selling
-                    ? [
-                        'They join. Nothing is charged.',
-                        'You agree the handover in the deal room.',
-                        'You verify with Stripe Identity and set up payouts, then they pay.',
-                      ]
-                    : [
-                        'They join with the card they are offering.',
-                        'You agree the trade in the deal room.',
-                        'You both verify with Stripe Identity, then a hold goes on each card.',
-                      ]
-                }
-              />
-            </div>
-          </>
+          <DealReviewStep
+            card={card}
+            selling={selling}
+            priceCents={priceCents}
+            wanted={wanted}
+            currency={quoteCurrency}
+          />
         ) : null}
 
         {step === 'account' ? (
@@ -530,113 +448,5 @@ export function DealComposeForm({
         </>
       )}
     </>
-  );
-}
-
-function StepHeader({
-  title,
-  description,
-  progress,
-  onBack,
-  backDisabled,
-}: {
-  title: string;
-  description?: string;
-  progress?: number;
-  onBack: () => void;
-  backDisabled: boolean;
-}) {
-  return (
-    <>
-      <DialogHeader>
-        {/* The back arrow shares the title row rather than sitting above it: one line
-            of chrome, and the title says where you are. */}
-        <div className="flex items-center gap-snug">
-          <button
-            type="button"
-            onClick={onBack}
-            disabled={backDisabled}
-            aria-label="Back"
-            className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
-          </button>
-          <DialogTitle className="min-w-0 flex-1">{title}</DialogTitle>
-          {progress ? (
-            <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
-              Step {progress} of 3
-            </span>
-          ) : null}
-        </div>
-        {description ? (
-          <DialogDescription>{description}</DialogDescription>
-        ) : (
-          <DialogDescription className="sr-only">{title}</DialogDescription>
-        )}
-      </DialogHeader>
-      {/* OUTSIDE THE HEADER, which keeps `pr-12` clear of the close button. The bar
-          measures the whole form, so it spans the same width as the fields below it. */}
-      {progress ? (
-        <div className="grid grid-cols-3 gap-tight" aria-hidden>
-          {[1, 2, 3].map((n) => (
-            <span
-              key={n}
-              className={n <= progress ? 'h-1 rounded-full bg-primary' : 'h-1 rounded-full bg-muted'}
-            />
-          ))}
-        </div>
-      ) : null}
-    </>
-  );
-}
-
-function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | null }) {
-  const [thumb, setThumb] = useState<string | null>(null);
-  useEffect(() => {
-    const first = card.images[0];
-    if (!first) return;
-    const url = URL.createObjectURL(first);
-    setThumb(url);
-    return () => URL.revokeObjectURL(url);
-  }, [card.images]);
-
-  return (
-    <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-      <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
-        {thumb ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={thumb} alt="" className="size-full object-cover" />
-        ) : null}
-      </div>
-      <div className="min-w-0 space-y-tight">
-        <p className="truncate text-body font-medium">{deriveItemTitle(card.description)}</p>
-        <p className="text-meta text-muted-foreground">
-          {[card.condition, card.category].filter(Boolean).join(' · ')}
-        </p>
-        {line ? <p className="line-clamp-2 text-body text-muted-foreground">{line}</p> : null}
-      </div>
-    </div>
-  );
-}
-
-function NextSteps({ items }: { items: string[] }) {
-  return (
-    <ol className="grid gap-snug">
-      {items.map((item, index) => (
-        <li key={item} className="flex items-center gap-snug">
-          <span
-            aria-hidden
-            className={
-              index === items.length - 1
-                ? 'grid size-5 shrink-0 place-items-center rounded-full bg-primary text-meta font-semibold text-primary-foreground'
-                : 'grid size-5 shrink-0 place-items-center rounded-full bg-muted text-meta font-semibold text-muted-foreground'
-            }
-          >
-            {index + 1}
-          </span>
-          <span className="text-body text-muted-foreground">{item}</span>
-        </li>
-      ))}
-    </ol>
   );
 }

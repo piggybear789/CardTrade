@@ -43,6 +43,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { BackToMarketplace } from '@/components/layout/BackToMarketplace';
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import { SellerTrustBand } from '@/components/profile/SellerTrustBand';
@@ -302,13 +303,7 @@ export default async function SellerProfilePage({
       {/* HIDDEN BELOW `md`, where the hierarchical mobile chrome already renders a
           back chevron to the same place — two back controls stacked on a phone. */}
       <nav className="mb-cozy hidden md:block" aria-label="Breadcrumb">
-        <Link
-          href="/"
-          transitionTypes={['nav-back']}
-          className="text-body text-muted-foreground underline-offset-4 hover:underline"
-        >
-          ← Back to marketplace
-        </Link>
+        <BackToMarketplace />
       </nav>
 
       {/* Header */}
@@ -337,8 +332,11 @@ export default async function SellerProfilePage({
                   `seller.isVerified` — so the page asserted the same fact twice in
                   two different glyphs. Labelled rather than icon-only because a
                   profile page is where a buyer goes to decide about a person. */}
+              {/* Only when the band below will not say it: with a disclosed name the
+                  band reads "ID verified by Stripe · <name>", and the header badge
+                  repeated the same fact a line above it. */}
               <IdentityBadge
-                verified={seller.isVerified}
+                verified={seller.isVerified && !sellerIdentity?.legalEntityName}
                 firstName={seller.identityFirstName}
                 hideNameWhen={displayName}
                 size={14}
@@ -375,9 +373,8 @@ export default async function SellerProfilePage({
             )}
             {/* A FIXED ROW whether or not the seller added links: `SocialLinksDisplay`
                 renders nothing without any, and the header then lost a line. */}
-            <div className="flex min-h-6 items-center">
-              <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
-            </div>
+            {/* No reserved row: an empty one left a gap between the stars and the bio. */}
+            <SocialLinksDisplay socialLinks={sellerRow.social_links as Record<string, string> | null} />
             {/* MEMBER-AUTHORED, so it is presented as their words and nothing more.
                 Deliberately NOT inside the trust band below, which carries
                 provider-verified facts — putting self-written copy there

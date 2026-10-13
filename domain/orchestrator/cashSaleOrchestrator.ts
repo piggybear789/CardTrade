@@ -15,6 +15,7 @@ import {
 } from '../region';
 import { percentageFeeMinor } from '../fees/percentageFee';
 import { effectiveFeeBps } from '../fees/betaFeeWaiver';
+import { currencyConversionFeeFor } from '../fees/fxFee';
 import {
   canReceiveFunds,
   sellerIdentityDisclosure,
@@ -571,6 +572,10 @@ export interface CashSaleRepository {
   recordPaymentSubmission(params: {
     cashSaleId: string;
     transferId: string;
+    /** The Currency_Conversion fee the buyer was charged on top (0 when none). */
+    fxFeeCents?: Cents;
+    /** What the platform balance received, when the charge was converted. */
+    settlement?: { amount: Cents; currency: string };
   }): Promise<CashSaleRecord | null>;
   failPayment(params: { cashSaleId: string; transferId?: string }): Promise<CashSaleRecord | null>;
   settlePayment(params: { cashSaleId: string; settledAt: string }): Promise<CashSaleRecord | null>;
@@ -1642,9 +1647,14 @@ async function submitClaimedPayment(
   // was no escrow: the money was already gone when a dispute could first arise.
   // Funds now always land in the platform balance and are released explicitly by
   // `payoutCashSaleSeller` once the sale completes (Req 4.3).
+  // The contract total PLUS the Currency_Conversion fee when the platform settles in
+  // another currency. The buyer absorbs the conversion so the seller is paid exactly
+  // the agreed figure; the Pay step disclosed this same number from the same function.
+  const fxFeeCents = currencyConversionFeeFor(sale.amountCents, sale.currency);
   const transfer = await deps.payments.requestTransfer({
     payerId: target.payerId,
-    amount: sale.amountCents,
+    amount: sale.amountCents + fxFeeCents,
+    currency: sale.currency,
     ref: `cash-sale:${sale.id}`,
     nonce: sale.paymentNonce,
   });
@@ -1671,6 +1681,8 @@ async function submitClaimedPayment(
   const submitted = await deps.repository.recordPaymentSubmission({
     cashSaleId: sale.id,
     transferId: transfer.transferId,
+    fxFeeCents,
+    ...(transfer.settlement ? { settlement: transfer.settlement } : {}),
   });
 
   // Stripe realtime payments settle synchronously. Advance ESCROW_HELD here so
@@ -1932,6 +1944,9 @@ export async function payoutCashSaleSeller(
   const payout = await deps.payments.payoutToMerchant({
     merchantRef: payee!.merchantRef!,
     amount: net,
+    // The seller is owed `net` in the CONTRACT's currency; the provider converts out
+    // of the platform's settlement currency so exactly that lands (`transferExactly`).
+    currency: sale.currency,
     ref: `cash-sale-payout:${sale.id}`,
     nonce,
     // Lets the provider draw against the original charge, so the release works

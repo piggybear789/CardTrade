@@ -156,11 +156,11 @@ describe('what the buyer is shown', () => {
   it('says plainly that fees are waived for now and names the normal rate', () => {
     expect(feesWaivedForBeta()).toBe(BETA_FEE_WAIVER);
     expect(betaFeeNote()).toBe('No fees for now (normally 5%)');
-    expect(LISTING_BETA_FEE_NOTE).toBe('No fees for now (normally 5%)');
+    expect(LISTING_BETA_FEE_NOTE).toBe(feeWaiverExplanation());
     expect(NO_FEE_DURING_BETA).toBe('no fees for now (normally 5%)');
     expect(TILE_BETA_FEE_NOTE).toBe('no fees for now');
     expect(feeWaiverExplanation()).toBe(
-      "We're waiving fees for now. The standard fee is 5%, and we'll tell you before it applies.",
+      "We're waiving fees for now, and we'll tell you before standard fees apply.",
     );
     expect(TERMS_BETA_FEE_SENTENCE).toContain('members will be told before standard fees apply');
     expect(platformFeeRowRate(0)).toBe('waived for now, normally 5%');

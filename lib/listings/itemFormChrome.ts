@@ -9,7 +9,8 @@ export const ITEM_FORM_ID = 'listing-item-form';
 export type ItemFormChromeContext = {
   submitting: boolean;
   /**
-   * The submit control's resting label — "Create listing" or "Save changes".
+   * The label of the form's primary control: "Next" before the last step, then
+   * "Create listing" / "Save changes".
    *
    * Published by the form rather than derived in the header, because the form is
    * the thing that knows which mode it is in. The header only knew about `/new`

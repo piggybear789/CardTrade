@@ -31,7 +31,8 @@ interfaces only.
 
 Stripe amounts are integer cents, same as ours. Pass `fmvCents` / `amountCents`
 straight through. No floats, no dollar conversion outside display formatting
-(`lib/format.ts`). Currency is `aud` end to end.
+(`lib/format.ts`). Currency is the CONTRACT's own (`cash_sales.currency`,
+`trades.currency`) and is passed to every Stripe call; see "One platform, many regions".
 
 ## Escrow holds are REAL authorisations
 
@@ -138,9 +139,47 @@ fails at runtime even though the SDK still types the v1 `controller` parameter.
 Create accounts with `stripe.v2.core.accounts.create`.
 
 - `configuration.recipient` with `stripe_balance.stripe_transfers` requested.
-  Do NOT request a `merchant` configuration or card payment capabilities — a
-  marketplace connected account never accepts payments itself, and asking imposes
+  For a seller in the PLATFORM'S OWN country, request nothing else — a marketplace
+  connected account never accepts payments itself, and a merchant configuration imposes
   far heavier onboarding.
+- **Exception, since 0136: a CROSS-BORDER seller also gets
+  `configuration.merchant.capabilities.card_payments`.** Stripe refuses
+  `stripe_transfers` on an account whose country differs from the platform's without
+  it (`capability_not_available_without_other_capability`, verified 2026-10-13),
+  because cross-border payouts are unavailable under a recipient service agreement.
+  The card capability is never used. `createManagedMerchant` decides this from the
+  account country vs the platform country, and `createMerchantOnboardingLink` reads
+  `applied_configurations` so the hosted flow collects both. Do not remove it for a
+  "recipient only" tidy-up: every UK/EEA/CA/CH seller would be unpayable.
+
+## One platform, many regions (0136)
+
+The US platform (`acct_1UIfsRRbOJEOZeCm`) serves the US, UK, EEA (except Hungary),
+Canada and Switzerland; Australia has its own. `RegionDefinition.platform` is the
+mapping, `credentialRegionFor` reads the PLATFORM's keys (`STRIPE_SECRET_KEY_US` for a
+German member), and `checkRegionCompatibility` allows any two regions that share a
+platform. Jobs that touch each Stripe account once (payout drain, custody) loop over
+`operationalPlatforms()`, never `operationalRegions()`.
+
+**Every Stripe money call takes the CONTRACT's currency** (`currency` on `placeHold`,
+`requestTransfer`, `payoutToMerchant`). Omitting it falls back to the platform's
+settlement currency, which silently charges a GBP sale in USD.
+
+**The platform balance holds its settlement currency only (USD).** A EUR charge is
+converted on arrival; a EUR transfer is refused (`balance_insufficient`, or a currency
+mismatch against a USD `source_transaction`). So a foreign-currency payout is sent in
+USD, sized from a locked FX quote (`/v1/fx_quotes`, a PREVIEW API that only answers
+under a `.preview` version) and tied to it with `fx_quote`, rounded up so the seller
+receives exactly what they are owed. No quote, no payout: it stays queued.
+
+**The BUYER absorbs the conversion.** `domain/fees/fxFee.ts` (`FX_FEE_BPS = 200`) is
+charged on top of the contract total whenever its currency is not the platform's
+settlement currency, disclosed by `CurrencyNotice` and the money tables from the same
+function, stored as `cash_sales.fx_fee_cents`, and not refunded. It is NOT waived by
+`BETA_FEE_WAIVER`: it passes a provider cost through. `settlement_amount_cents` records
+what the balance received, which custody needs to compare a EUR obligation with a USD
+balance. Known test-mode limit: the quote rate is not applied to test transfers, so test
+sellers receive slightly more than owed; verify the first live payout.
 - `responsibilities: { fees_collector: 'application', losses_collector: 'application' }`.
   Platform-owned loss liability is mandatory for separate charges and transfers,
   and must be accepted in the Dashboard before creating accounts.

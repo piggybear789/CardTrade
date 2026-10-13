@@ -24,7 +24,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { CopyDealLink } from '@/components/deals/CopyDealLink';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { revokeDealInvite, type DealInviteSummary } from '@/lib/actions/dealInvites';
 
 function inviteTitle(invite: DealInviteSummary): string {
@@ -70,8 +70,8 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
                     {inviteTitle(invite)}
                   </p>
                   <p className="mt-0.5 text-body text-muted-foreground">
-                    {invite.priceCents != null
-                      ? formatAud(invite.priceCents)
+                    {invite.priceCents != null && invite.currency != null
+                      ? formatMoney(invite.priceCents, invite.currency)
                       : 'Waiting for them to join'}
                   </p>
                   <Badge variant="secondary" className="mt-snug max-w-full sm:hidden">

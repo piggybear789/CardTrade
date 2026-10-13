@@ -134,12 +134,15 @@ export default async function NewTradePage({
   const { data: requestedRow } = await supabase
     .from('items')
     .select(
-      'id, owner_id, title, fmv_cents, image_paths, status, hidden, listing_kind, closed_at',
+      'id, owner_id, title, fmv_cents, currency, image_paths, status, hidden, listing_kind, closed_at',
     )
     .eq('id', counterpartItemId)
     .maybeSingle();
   const requested = requestedRow as
-    | (Pick<ItemRow, 'id' | 'owner_id' | 'title' | 'fmv_cents' | 'image_paths' | 'status'> & {
+    | (Pick<
+        ItemRow,
+        'id' | 'owner_id' | 'title' | 'fmv_cents' | 'currency' | 'image_paths' | 'status'
+      > & {
         hidden: boolean | null;
         listing_kind: 'SINGLE' | 'SHOPFRONT';
         closed_at: string | null;
@@ -184,10 +187,10 @@ export default async function NewTradePage({
     // previous offer, as candidates to put up.
     //
     // Three columns, not `*`: these cross into a Client Component, and the form
-    // reads only the id, the title and the value. See `TradeOfferOwnItem`.
+    // reads only the id, the title, the value and its currency. See `TradeOfferOwnItem`.
     supabase
       .from('items')
-      .select('id, title, fmv_cents')
+      .select('id, title, fmv_cents, currency')
       .eq('owner_id', user.id)
       .eq('status', 'AVAILABLE')
       // A binder still cannot go INTO a trade. It can be traded FOR (0081), where
@@ -207,6 +210,7 @@ export default async function NewTradePage({
           id: requested.id,
           title: requested.title,
           fmvCents: requested.fmv_cents,
+          currency: requested.currency,
           imagePath: (requested.image_paths ?? [])[0] ?? null,
           ownerName:
             (ownerRow?.display_name as string | undefined)?.trim() ||

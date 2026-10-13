@@ -26,6 +26,8 @@ import { resolvePaymentProvider } from './providerMode';
 import {
   isTradingRegion,
   normalizeRegionCode,
+  platformRegion,
+  regionCurrency,
   REGIONS,
   type RegionCode,
 } from '../region';
@@ -89,7 +91,9 @@ function readWebhookConfig(): { webhookUrl: string; secret: string } {
  *   contract's region should pass it.
  */
 export function getPaymentService(region?: string | null): PaymentKycService {
-  const code = normalizeRegionCode(region) ?? DEFAULT_CONFIG_REGION;
+  // Resolved to the PLATFORM: a German member's money moves through the US platform,
+  // so asking for DE and asking for US must return the same binding.
+  const code = platformRegion(normalizeRegionCode(region) ?? DEFAULT_CONFIG_REGION) ?? DEFAULT_CONFIG_REGION;
   const { webhookUrl, secret } = readWebhookConfig();
 
   switch (resolvePaymentProvider()) {
@@ -141,8 +145,29 @@ export function operationalRegions(): ReadonlySet<RegionCode> {
     return new Set(intended);
   }
 
+  // A region is live when ITS PLATFORM has credentials: STRIPE_SECRET_KEY_US opens the
+  // whole cross-border group at once.
   const configured = new Set(allConfiguredRegionCodes());
-  return new Set(intended.filter((code) => configured.has(code)));
+  return new Set(intended.filter((code) => configured.has(platformRegion(code) ?? code)));
+}
+
+/**
+ * Every operational PLATFORM, with the contract currencies its balance holds money in.
+ *
+ * For the jobs that must touch each Stripe account exactly once (the payout drain,
+ * custody reconciliation). Looping over `operationalRegions()` instead would drain the
+ * US platform once per EEA country.
+ */
+export function operationalPlatforms(): ReadonlyMap<RegionCode, readonly string[]> {
+  const platforms = new Map<RegionCode, string[]>();
+  for (const code of operationalRegions()) {
+    const platform = platformRegion(code) ?? code;
+    const currency = regionCurrency(code);
+    const currencies = platforms.get(platform) ?? [];
+    if (currency && !currencies.includes(currency)) currencies.push(currency);
+    platforms.set(platform, currencies);
+  }
+  return platforms;
 }
 
 /** Whether a contract may be opened in this region right now. */

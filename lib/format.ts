@@ -64,17 +64,35 @@ export function formatMoney(
   }
 
   try {
-    return new Intl.NumberFormat(locale ?? localeForCurrency(code), {
+    const figure = new Intl.NumberFormat(locale ?? localeForCurrency(code), {
       style: 'currency',
       currency: code,
       currencyDisplay: 'symbol',
     }).format(minorToMajor(minorUnits, code));
+    // ALWAYS WITH THE ISO CODE. AUD, USD and CAD all render as a bare "$" in their
+    // own locales, and since one marketplace spans all three (0136) a bare "$12.00"
+    // genuinely does not say which. The code is what makes it unambiguous: members
+    // in different countries now see each other's listings and pay in the seller's
+    // currency. `formatMoneyCompact` exists for the very few places with no room.
+    // Unless Intl already printed it (a foreign currency in a viewer locale renders
+    // "USD 1,234.56"), which would otherwise read "USD 1,234.56 USD".
+    return figure.includes(code) ? figure : `${figure} ${code}`;
   } catch {
     // `Intl` throws on a syntactically valid but unknown currency. Degrade to a
     // readable figure rather than losing the amount entirely.
     const major = Number.isFinite(minorUnits) ? Math.round(minorUnits) / 100 : 0;
-    return `${code} ${major.toFixed(2)}`;
+    return `${major.toFixed(2)} ${code}`;
   }
+}
+
+/**
+ * {@link formatMoney} without the trailing ISO code, for space-constrained places
+ * where the currency is stated right beside the figure (a money table whose header
+ * names it, a chart axis). Never use it for a lone price.
+ */
+export function formatMoneyCompact(minorUnits: number, currency: string, locale?: string): string {
+  const full = formatMoney(minorUnits, currency, locale);
+  return full.replace(/\s[A-Z]{3}$/, '');
 }
 
 /**

@@ -59,15 +59,17 @@ export function QuickProfileFields({
           <SelectContent>
             {regions.map((region) => (
               <SelectItem key={region.code} value={region.code}>
-                {region.label}
+                {region.label} · {region.currency.toUpperCase()}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <p className="text-meta text-muted-foreground">
-          {currencyChanges
-            ? `Deals stay inside one country. Your price will be in ${chosen.currency.toUpperCase()}.`
-            : 'Deals stay inside one country.'}
+          {chosen
+            ? currencyChanges
+              ? `You're paid in ${chosen.currency.toUpperCase()}, so your price will be in ${chosen.currency.toUpperCase()}. It's tied to your payout account.`
+              : `You're paid in ${chosen.currency.toUpperCase()}. It's tied to your payout account.`
+            : 'Sets the currency you are paid in. It is tied to your payout account.'}
         </p>
       </div>
     </>

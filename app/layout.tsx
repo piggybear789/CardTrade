@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
 import { cookies } from 'next/headers';
-import { Inter, JetBrains_Mono, Merriweather } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
@@ -17,14 +17,11 @@ import './globals.css';
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
 
-// TYPEFACES COME FROM THE THEME: Inter (sans), Merriweather (serif) and
-// JetBrains Mono (mono), matching `--font-sans` / `--font-serif` / `--font-mono` in
-// globals.css. `next/font` self-hosts each one under a hashed family name exposed as
-// a CSS variable, which `tailwind.config.ts` puts ahead of the theme's stack.
+// ONE TYPEFACE: Inter. `next/font` self-hosts it under a hashed family name exposed
+// as `--font-inter`, which `tailwind.config.ts` maps every font family onto.
 //
 // `display: 'swap'` stays explicit: `optional` once meant the brand face rarely
-// rendered on a cold load. Serif and mono are not preloaded because nothing on the
-// critical path uses them.
+// rendered on a cold load.
 //
 // The `opsz` axis is what makes Inter read as designed rather than default: with
 // `font-optical-sizing: auto` (the browser default) every heading from 21px up is
@@ -35,21 +32,6 @@ const inter = Inter({
   variable: '--font-inter',
   display: 'swap',
   axes: ['opsz'],
-});
-
-const merriweather = Merriweather({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-merriweather',
-  display: 'swap',
-  preload: false,
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains-mono',
-  display: 'swap',
-  preload: false,
 });
 
 export const metadata: Metadata = {
@@ -134,7 +116,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${merriweather.variable} ${jetbrainsMono.variable}`}
+      className={inter.variable}
     >
       <head>
         <link rel="preconnect" href="https://images.pokemontcg.io" />

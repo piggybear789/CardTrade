@@ -122,6 +122,11 @@ export function ListingDesktopPane({
                 {headline.minor}
               </span>
             ) : null}
+            {headline.code ? (
+              <span className="text-body font-semibold text-muted-foreground">
+                {headline.code}
+              </span>
+            ) : null}
           </p>
           {/* "Includes $X buyer fee" and the (i) breakdown, directly under the price.
               Disclosure has to happen here: the fee otherwise first appears in the

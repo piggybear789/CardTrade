@@ -500,9 +500,22 @@ export function createSupabaseCashSaleRepository(
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
-    async recordPaymentSubmission({ cashSaleId, transferId }) {
+    async recordPaymentSubmission({ cashSaleId, transferId, fxFeeCents, settlement }) {
       return guardedUpdate(client, cashSaleId, 'PAYMENT_PENDING', {
         transfer_id: transferId,
+        // 0136. What the buyer paid on top for currency conversion, and what the
+        // platform balance actually received, so custody can compare a EUR obligation
+        // against a USD balance.
+        //
+        // Written only when non-zero, so a same-currency sale (every AU sale) sends the
+        // exact payload it always did and does not depend on 0136 being applied.
+        ...(fxFeeCents ? { fx_fee_cents: fxFeeCents } : {}),
+        ...(settlement
+          ? {
+              settlement_amount_cents: settlement.amount,
+              settlement_currency: settlement.currency,
+            }
+          : {}),
         updated_at: new Date().toISOString(),
       });
     },

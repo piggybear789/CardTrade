@@ -190,31 +190,39 @@ export async function createListing(
   // would fail much later, on the detail page's heading.
   await page.getByLabel('Title', { exact: true }).fill(title);
   await page.getByLabel('Description', { exact: true }).fill(description);
+
+  // THE FORM IS THREE STEPS: Details, Photos, Price & location. "Next" is unique per
+  // viewport — the footer button is `max-md:hidden` and the phone header button
+  // exists only below `md`.
+  await page.getByRole('button', { name: 'Next' }).click();
+
+  await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
+  // The current picker represents selection with a thumbnail + named remove
+  // control rather than the retired "1 selected" counter.
+  await expect(
+    page.getByRole('button', { name: `Remove ${path.basename(TEST_IMAGE)}` }),
+  ).toBeVisible({ timeout: 20_000 });
+  await page.getByRole('button', { name: 'Next' }).click();
+
   await page.getByLabel('Price').fill(priceDollars);
 
-  // PLACE BEFORE PHOTOS, and the order matters.
+  // PLACE AFTER THE PHOTO HAS SETTLED, and the order matters.
   //
-  // `setInputFiles` starts an upload to Supabase Storage. When it resolves it
-  // re-renders `ItemForm`, which re-runs `PlaceSearch`'s search effect — and that
-  // effect ABORTS the in-flight request on cleanup. Choosing the place while an
-  // upload was settling therefore produced an empty suggestion list, intermittently
-  // and with no error: the field held the typed query, no options appeared, and the
-  // failure surfaced as "option not found" as though the intercept were broken. It
-  // was not; the request had been cancelled.
+  // The photo is a local file now — `ItemForm` uploads it to Storage only on publish
+  // — but picking it still re-renders the form, which re-runs `PlaceSearch`'s search
+  // effect, and that effect ABORTS the in-flight request on cleanup. Choosing the
+  // place while a re-render was settling once produced an empty suggestion list,
+  // intermittently and with no error: the field held the typed query, no options
+  // appeared, and the failure surfaced as "option not found" as though the intercept
+  // were broken. It was not; the request had been cancelled. The photo is picked on
+  // step 2 and the remove control waited on above, so the place field only renders
+  // here, on step 3, after that has settled.
   //
   // Filled through the real autocomplete rather than free text, so the value is a
   // RESOLVED place — which is what lets this listing later carry a contract (see
   // support/places.ts).
   await fillPlace(page, /Based near/, place);
 
-  await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
-  // The current picker represents selection with a thumbnail + named remove
-  // control rather than the retired "1 selected" counter. The submit button
-  // stays disabled while an upload is in flight, so both signals together mean
-  // the object path is ready for the action.
-  await expect(
-    page.getByRole('button', { name: `Remove ${path.basename(TEST_IMAGE)}` }),
-  ).toBeVisible({ timeout: 20_000 });
   await expect(page.getByRole('button', { name: 'Create listing' })).toBeEnabled({
     timeout: 20_000,
   });

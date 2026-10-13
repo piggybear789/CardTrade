@@ -349,14 +349,17 @@ function OfferNegotiation({
   // BOTH CONSEQUENCES, IN ONE SENTENCE EACH. The rival count is only ever non-zero for
   // a seller (RLS), which is also the only side for whom it means anything.
   const acceptConsequences = [
-    `Accepting opens a purchase contract for "${itemTitle}" with ${counterparty} at ${money(offer.amountCents)}.`,
+    // Short on purpose: the title is already on the row behind this dialog.
     offer.role === 'seller'
-      ? 'The card is reserved and leaves the catalog until the contract settles.'
-      : 'You pay once handover details are set; NoDitto holds the money until you accept the card.',
+      ? `Sell to ${counterparty} for ${money(offer.amountCents)}.`
+      : `Buy from ${counterparty} for ${money(offer.amountCents)}.`,
+    offer.role === 'seller'
+      ? 'The card is reserved until the sale settles.'
+      : 'You pay once handover is set. We hold the money until you accept the card.',
     offer.otherPendingOnItem > 0
       ? offer.otherPendingOnItem === 1
-        ? 'The other pending offer on this listing will be declined.'
-        : `The other ${offer.otherPendingOnItem} pending offers on this listing will be declined.`
+        ? 'The other offer will be declined.'
+        : `The other ${offer.otherPendingOnItem} offers will be declined.`
       : null,
   ]
     .filter(Boolean)

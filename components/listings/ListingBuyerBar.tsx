@@ -68,6 +68,7 @@ export function ListingBuyerBar({
   sellerDisplayName,
   fmvCents,
   currency,
+  viewerCurrency = null,
   isAuthenticated,
   isShopfront,
   initialWatching,
@@ -84,6 +85,8 @@ export function ListingBuyerBar({
   fmvCents: number;
   /** `items.currency`, for fee-inclusive figures in the buy and offer dialogs. */
   currency: string;
+  /** The viewer's own region currency, so a foreign-currency purchase says so. */
+  viewerCurrency?: string | null;
   isAuthenticated: boolean;
   isShopfront: boolean;
   initialWatching: boolean;
@@ -135,6 +138,7 @@ export function ListingBuyerBar({
           id: itemId,
           title: itemTitle,
           fmvCents,
+          currency,
           imagePath: itemImagePath,
           ownerName: sellerDisplayName,
           isShopfront,
@@ -177,7 +181,7 @@ export function ListingBuyerBar({
           <BuyButton
             itemId={itemId}
             sellerIdentity={sellerIdentity!}
-            summary={{ title: itemTitle, imagePath: itemImagePath, priceCents: fmvCents, currency }}
+            summary={{ title: itemTitle, imagePath: itemImagePath, priceCents: fmvCents, currency, buyerCurrency: viewerCurrency }}
             trigger={
               <Button type="button" variant="action" className={BAR_PRIMARY}>
                 Buy

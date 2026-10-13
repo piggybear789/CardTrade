@@ -230,6 +230,8 @@ test.describe('Listing form', () => {
     await expect(titleInput).toHaveValue(original, { timeout: 10_000 });
     await titleInput.fill(updated);
 
+    // The form is three steps, and an edit may jump straight to the last one.
+    await page.getByRole('button', { name: /Step 3: Price & location/ }).click();
     await page.getByRole('button', { name: /Save changes|Update listing/i }).click();
 
     await expect(page).toHaveURL(/\/listings\/[0-9a-f-]{36}/, { timeout: 20_000 });
@@ -238,19 +240,21 @@ test.describe('Listing form', () => {
     });
   });
 
-  test('refuses a listing with no title', async ({ page }) => {
+  test('keeps a blank listing on step 1', async ({ page }) => {
     await page.goto('/listings/new');
     await page.waitForLoadState('domcontentloaded');
 
     await page.getByRole('radio', { name: /^One item/ }).check();
-    await page.getByRole('button', { name: 'Create listing' }).click();
+    await page.getByRole('button', { name: 'Next' }).click();
 
-    // Stays on the form, with the error pinned to the Title field. The
-    // validator returns a field-scoped error rather than throwing, so the page
-    // must not navigate.
+    // Stays on the form's first step, with the error pinned to the Description
+    // field — the title is optional (a blank one is derived from the
+    // description). The message is the server validator's own, so the step
+    // boundary and the action cannot disagree.
     await expect(page).toHaveURL(/\/listings\/new/);
-    await expect(page.getByText('Title must be at least 1 character')).toBeVisible({
+    await expect(page.getByText('Description must be at least 1 character')).toBeVisible({
       timeout: 10_000,
     });
+    await expect(page.getByText('Step 1 of 3')).toBeVisible();
   });
 });

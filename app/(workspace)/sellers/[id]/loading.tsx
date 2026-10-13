@@ -55,11 +55,6 @@ export default function SellerProfileLoading() {
                 {/* The row height is the reserve (`h-[1.175rem]`); the bar is texture. */}
                 <Skeleton className="h-4 w-1/3" />
               </div>
-              {/* The social links row: a fixed `min-h-6` on the page now, links or not.
-                  The row's min-height is the reserve; the bar width is texture. */}
-              <div className="flex min-h-6 items-center">
-                <Skeleton className="h-4 w-1/3" />
-              </div>
               {/* The bio: one line, the common case. The page shows it only when the
                   seller wrote one (or, for the owner, an "Add a bio" link). */}
               <TextLines className="max-w-prose text-body" widths={['w-2/3']} />
@@ -70,10 +65,10 @@ export default function SellerProfileLoading() {
           <Skeleton className="h-9 w-full shrink-0 rounded-md sm:w-24 md:h-8" />
         </div>
 
-        {/* THE TRUST BAND: one row of facts in a bordered band — a 16px shield beside
+        {/* THE TRUST BAND: one plain row of facts — a 16px shield beside
             a line of body copy. It wraps to a second line on a phone for a verified
             seller with several facts; one line is the reserve. */}
-        <section className="mt-cozy flex items-center gap-tight rounded-lg border bg-muted/60 px-group py-cozy">
+        <section className="mt-snug flex items-center gap-tight">
           <Skeleton className="size-4 shrink-0 rounded-sm" />
           <TextLines className="min-w-0 flex-1 text-body" widths={['w-3/4']} />
         </section>

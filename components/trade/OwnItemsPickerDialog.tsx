@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { TradeOfferOwnItem } from '@/components/trade/TradeOfferForm';
 
@@ -125,7 +125,7 @@ export function OwnItemsPickerDialog({
                       />
                       <span className="min-w-0 flex-1 truncate">{item.title}</span>
                       <span className="shrink-0 tabular-nums text-muted-foreground">
-                        {formatAud(item.fmv_cents)}
+                        {formatMoney(item.fmv_cents, item.currency)}
                       </span>
                     </label>
                   </li>

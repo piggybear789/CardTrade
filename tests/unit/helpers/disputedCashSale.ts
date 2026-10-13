@@ -43,12 +43,12 @@ export const DELIVERY_TERMS = {
 };
 
 /**
- * Take a fresh sale to DISPUTED and return it.
+ * Take a fresh posted sale as far as payment: ESCROW_HELD, nothing shipped yet.
  *
- * Throws on any setup step that fails, rather than continuing with a sale in the wrong
- * state — a test that silently starts from AGREEMENT would assert nothing useful.
+ * The first half of `disputedCashSale`, exported for the cases that start before the
+ * parcel goes, such as a dispute on a sale that was never posted (0132).
  */
-export async function disputedCashSale(
+export async function paidCashSale(
   deps: CashSaleOrchestratorDeps,
 ): Promise<CashSaleRecord> {
   const created = await initiateCashSale(deps, PURCHASE);
@@ -81,6 +81,22 @@ export async function disputedCashSale(
     termsVersion: sale.termsVersion,
   });
   await settleCashSale(deps, { cashSaleId: saleId });
+
+  const paid = await deps.repository.loadCashSale(saleId);
+  if (!paid) throw new Error('setup: sale vanished after payment');
+  return paid;
+}
+
+/**
+ * Take a fresh sale to DISPUTED and return it.
+ *
+ * Throws on any setup step that fails, rather than continuing with a sale in the wrong
+ * state — a test that silently starts from AGREEMENT would assert nothing useful.
+ */
+export async function disputedCashSale(
+  deps: CashSaleOrchestratorDeps,
+): Promise<CashSaleRecord> {
+  const { id: saleId } = await paidCashSale(deps);
   await recordCashSaleShipment(deps, {
     cashSaleId: saleId,
     actorId: ITEM.ownerId,

@@ -6,42 +6,32 @@
 // you want for it. The link stays the same, so whoever already has it sees the new
 // terms, and anyone who joins from now on joins those.
 //
-// ONE SCREEN, NOT THE COMPOSER'S STEPS. The host has been through those once, and an
-// edit is usually one field, a price or a typo. The deal type is not editable: a
-// sale and a trade are different contracts, so switching is a new link.
+// THE COMPOSER'S THREE STEPS. The edit reuses Card, Terms and Review from
+// `DealSteps.tsx`, pre-filled with the deal as it stands, so the host edits the deal
+// in the same shape they built it. The deal type stays non-editable: a sale and a
+// trade are different contracts, so switching is a new link. There is no draft
+// persistence here — the deal itself is the saved copy.
 
 import { useState, useTransition, type ReactElement } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
-import { SaleTermsBreakdown, TradeTermsBreakdown } from '@/components/deals/DealTermsBreakdown';
+import {
+  DEAL_STEP_PROGRESS,
+  DealCardStep,
+  DealReviewStep,
+  DealTermsStep,
+  StepHeader,
+  dealStepGap,
+  type DealStepName,
+} from '@/components/deals/DealSteps';
 import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
 import { FieldError } from '@/components/motion/FieldError';
-import {
-  UnlistedCategoryConditionFields,
-  UnlistedDescriptionField,
-  UnlistedPhotoField,
-  UnlistedTitleField,
-  unlistedDraftGap,
-  type UnlistedItemDraft,
-} from '@/components/trade/UnlistedItemFields';
+import type { UnlistedItemDraft } from '@/components/trade/UnlistedItemFields';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { MoneyInput } from '@/components/ui/money-input';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { PendingLabel } from '@/components/ui/pending-label';
 import { cashPriceProblem, dollarsToCents } from '@/domain/deals/dealInvite';
 import { updateDealInvite, type DealInviteEditable } from '@/lib/actions/dealInvites';
 import { isItemCondition } from '@/lib/catalog/conditions';
@@ -65,7 +55,7 @@ export function DealEditDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className="md:max-w-lg">
         {/* Mounted only while open, so every opening starts from the deal as it
             stands now rather than from an earlier, abandoned edit. */}
         <DealEditForm {...props} onDone={() => setOpen(false)} />
@@ -78,6 +68,16 @@ function centsToDollars(cents: number | null): string {
   return cents == null ? '' : (cents / 100).toFixed(2);
 }
 
+/**
+ * Where each step's back arrow goes. Card has none: there is no deal-type step to
+ * return to, and the dialog's own close button already exits.
+ */
+const BACK: Record<DealStepName, DealStepName | null> = {
+  card: null,
+  terms: 'card',
+  review: 'terms',
+};
+
 function DealEditForm({
   inviteId,
   kind,
@@ -88,6 +88,7 @@ function DealEditForm({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState<DealStepName>('card');
   const [card, setCard] = useState<UnlistedItemDraft>({
     title: editable.title,
     description: editable.description,
@@ -106,18 +107,25 @@ function DealEditForm({
   const priceCents = dollarsToCents(priceDollars);
   const valueCents = dollarsToCents(valueDollars);
 
-  // Presence only, like the composer: range rules come back as messages on Save.
-  const missing =
-    unlistedDraftGap(card) ??
-    (selling
-      ? priceCents == null
-        ? 'Enter a price.'
-        : null
-      : wanted.trim() === ''
-        ? 'Say what you want for it.'
-        : valueCents == null || valueCents < 1
-          ? 'Say what your card is worth.'
-          : null);
+  // Presence only, shared with the composer: range rules come back as messages on Next.
+  const missing = dealStepGap(step, { card, selling, priceCents, wanted, valueCents });
+  const back = BACK[step];
+
+  function go(next: DealStepName) {
+    setError(null);
+    setStep(next);
+  }
+
+  function leaveTerms() {
+    if (selling) {
+      const problem = cashPriceProblem(priceCents);
+      if (problem) {
+        setError(problem);
+        return;
+      }
+    }
+    go('review');
+  }
 
   function save() {
     setError(null);
@@ -148,7 +156,9 @@ function DealEditForm({
             wantedDescription: wanted,
           });
       if (!result.ok) {
-        setError(result.message || DEAL_INVITE_ERROR_COPY[result.error]);
+        const message = result.message || DEAL_INVITE_ERROR_COPY[result.error];
+        setError(message);
+        toast.error(message);
         return;
       }
       toast.success('Deal updated');
@@ -159,64 +169,42 @@ function DealEditForm({
 
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>Edit deal</DialogTitle>
-        <DialogDescription>The link stays the same.</DialogDescription>
-      </DialogHeader>
+      <StepHeader
+        title={step === 'review' ? 'Review your changes' : 'Edit deal'}
+        description="The link stays the same."
+        progress={DEAL_STEP_PROGRESS[step]}
+        onBack={back ? () => go(back) : undefined}
+        backDisabled={isPending}
+      />
 
       <div className="space-y-group">
-        <UnlistedPhotoField draft={card} onChange={setCard} idPrefix="deal-edit" />
-        <UnlistedTitleField draft={card} onChange={setCard} idPrefix="deal-edit" />
-        <UnlistedDescriptionField
-          draft={card}
-          onChange={setCard}
-          idPrefix="deal-edit"
-          label={selling ? 'What are you selling?' : 'What are you trading?'}
-          placeholder="Condition details, grade, anything they should know."
-        />
-        <UnlistedCategoryConditionFields draft={card} onChange={setCard} idPrefix="deal-edit" />
+        {step === 'card' ? (
+          <DealCardStep card={card} onCard={setCard} selling={selling} idPrefix="deal-edit" />
+        ) : null}
 
-        {selling ? (
-          <>
-            <div className="space-y-snug">
-              <Label htmlFor="deal-edit-price">Price</Label>
-              <MoneyInput
-                id="deal-edit-price"
-                size="lg"
-                min="0.01"
-                value={priceDollars}
-                onChange={(event) => setPriceDollars(event.target.value)}
-              />
-            </div>
-            <SaleTermsBreakdown priceCents={priceCents} currency={currency} />
-          </>
-        ) : (
-          <>
-            <div className="space-y-snug">
-              <Label htmlFor="deal-edit-wanted">What do you want for it?</Label>
-              <Textarea
-                id="deal-edit-wanted"
-                value={wanted}
-                onChange={(event) => setWanted(event.target.value)}
-                maxLength={1000}
-                rows={2}
-                placeholder="The card, set or grade they should put up."
-                className="resize-none"
-              />
-            </div>
-            <div className="space-y-snug">
-              <Label htmlFor="deal-edit-value">What is your card worth?</Label>
-              <MoneyInput
-                id="deal-edit-value"
-                size="lg"
-                min="0.01"
-                value={valueDollars}
-                onChange={(event) => setValueDollars(event.target.value)}
-              />
-            </div>
-            <TradeTermsBreakdown valueCents={valueCents} currency={currency} />
-          </>
-        )}
+        {step === 'terms' ? (
+          <DealTermsStep
+            selling={selling}
+            idPrefix="deal-edit"
+            currency={currency}
+            priceDollars={priceDollars}
+            onPriceDollars={setPriceDollars}
+            wanted={wanted}
+            onWanted={setWanted}
+            valueDollars={valueDollars}
+            onValueDollars={setValueDollars}
+          />
+        ) : null}
+
+        {step === 'review' ? (
+          <DealReviewStep
+            card={card}
+            selling={selling}
+            priceCents={priceCents}
+            wanted={wanted}
+            currency={currency}
+          />
+        ) : null}
 
         <FieldError message={error ?? undefined} />
       </div>
@@ -225,22 +213,18 @@ function DealEditForm({
         {missing && !isPending ? missing : null}
       </p>
       <DialogFooter>
-        <DialogClose asChild>
-          <Button type="button" variant="outline" disabled={isPending}>
-            Cancel
-          </Button>
-        </DialogClose>
         <Button
           type="button"
-          onClick={save}
+          onClick={step === 'card' ? () => go('terms') : step === 'terms' ? leaveTerms : save}
           disabled={isPending || missing != null}
           aria-busy={isPending}
           aria-describedby="deal-edit-blocker"
         >
-          {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-          ) : null}
-          {isPending ? 'Saving…' : 'Save changes'}
+          {/* Width-stable, as in the composer: the pending text and spinner share the
+              resting label's grid cell. */}
+          <PendingLabel pending={isPending} pendingLabel="Saving…">
+            {step === 'review' ? 'Save changes' : 'Next'}
+          </PendingLabel>
         </Button>
       </DialogFooter>
     </>

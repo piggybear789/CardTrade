@@ -15,12 +15,23 @@
 // form, and repeated that five times. `useItemFormDraft` closes that loop for create mode;
 // the photos are the one thing it cannot keep, and the restore notice says so.
 //
+// THREE STEPS, not one long scroll: 1 Details (listing kind, title, description, game,
+// condition and slab details), 2 Photos, 3 Price & location, which publishes. The rules
+// for which field is on which step, and what each step needs before Next, live in
+// `lib/listings/itemFormSteps.ts`. The steps apply at every width with one behaviour:
+// the open step is `useState`, visibility is CSS and `hidden`, so the server render and
+// the first client render agree. From `lg` the photo panel stays the left column on
+// every step (hiding it would empty most of the fixed two-column card); below `lg` it is
+// step 2's body. Every field's state lives here and hidden steps stay mounted, so Back
+// never loses input. Edit mode may jump to any step; create mode reaches no further than
+// the first incomplete one. A server error naming a field opens that field's step.
+//
 // Key behaviours:
 //  - Fair_Market_Value is entered in DOLLARS in the UI but converted to integer
 //    AUD cents (`Math.round(dollars * 100)`) before calling the action, since
 //    money is integer cents end-to-end.
-//  - Image count is enforced client-side (1–10) with a friendly message before
-//    any upload work happens on the server (Req 3.3).
+//  - Image count is enforced client-side (1–10) on step 2 with a friendly message
+//    before any upload work happens on the server (Req 3.3).
 //  - Selected files are uploaded browser → Supabase Storage first
 //    (`uploadItemImages`), and only the resulting object paths are sent to the
 //    action. That keeps photo bytes out of the Server Action body, which Next
@@ -39,10 +50,28 @@ import { navigateWithType } from "@/lib/motion/navigate";
 import { FieldError } from "@/components/motion/FieldError";
 import { toast } from "sonner";
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ImageOffIcon, ImagePlusIcon, LibraryIcon, PackageIcon, XIcon } from '@hugeicons/core-free-icons';
+import {
+  ArrowLeft01Icon,
+  ImageOffIcon,
+  ImagePlusIcon,
+  LibraryIcon,
+  PackageIcon,
+  XIcon,
+} from '@hugeicons/core-free-icons';
 
 import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
-import { TITLE_MAX_LENGTH } from "@/domain/validation/item";
+import { IMAGES_MAX, TITLE_MAX_LENGTH } from "@/domain/validation/item";
+import {
+  dollarsToCents,
+  firstIncompleteStep,
+  ITEM_FORM_STEP_LABELS,
+  itemFormStepProblem,
+  stepForField,
+  type ItemFormErrorField,
+  type ItemFormStep,
+  type ItemFormStepInput,
+} from "@/lib/listings/itemFormSteps";
+import { StepProgress } from "@/components/ui/step-progress";
 import { Input } from "@/components/ui/input";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
 import {
@@ -56,29 +85,16 @@ import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { formatMoney, itemImageUrl } from "@/lib/format";
-import { platformFeeRateLabel } from "@/lib/fees/feeLabels";
+import { feesWaivedForBeta, platformFeeRateLabel } from "@/lib/fees/feeLabels";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
-import { GRADERS } from "@/lib/catalog/graders";
 import { deleteListingDraft, saveListingDraft } from "@/lib/actions/listingDrafts";
 import type { ItemFormDraftFields } from "@/lib/listings/useItemFormDraft";
 import { cn } from "@/lib/utils";
 
-/**
- * What each raw condition means, in a line. The scale is TCGplayer's (see
- * `lib/catalog/conditions.ts`), and a seller choosing between Lightly and Moderately
- * Played should not have to know that already.
- */
-const RAW_CONDITION_HINTS: Record<string, string> = {
-  Unopened: "Sealed product, never opened.",
-  "Near Mint": "Looks unplayed. Minimal edge wear at most.",
-  "Lightly Played": "Light edge or corner wear, no creases.",
-  "Moderately Played": "Visible wear or scratches, still sleeve-playable.",
-  "Heavily Played": "Heavy wear. May have creases.",
-  Damaged: "Tears, water damage or major creases.",
-};
-const RAW_CONDITIONS = ITEM_CONDITIONS.filter((c) => c !== "Graded");
+/** A publish submit this soon after the step changed is a stray second click. */
+const STEP_SUBMIT_GUARD_MS = 400;
 import {
   ITEM_FORM_ID,
   publishItemFormChrome,
@@ -90,7 +106,6 @@ import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -105,23 +120,26 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-/** Inclusive image-count bounds enforced in the UI (mirrors Req 3.1/3.3). */
-const IMAGES_MIN = 1;
-const IMAGES_MAX = 10;
+/** Which server field a validation error maps to for inline display; `null` is general. */
+type ErrorField = ItemFormErrorField | null;
 
-/** Which server field a validation error maps to for inline display. */
-type ErrorField =
-  | "title"
-  | "description"
-  | "category"
-  | "condition"
-  | "grader"
-  | "grade"
-  | "certNumber"
-  | "fmvCents"
-  | "images"
-  | "location"
-  | null;
+/**
+ * The element focused when an error lands on a field. `images` and `location` focus
+ * the step heading instead: the picker is a hidden file input, and the place search
+ * reports its own error beside itself.
+ */
+const FIELD_FOCUS_ID: Record<ItemFormErrorField, string> = {
+  title: "title",
+  description: "description",
+  category: "game",
+  condition: "condition",
+  grader: "grader",
+  grade: "grade",
+  certNumber: "cert",
+  fmvCents: "fmv",
+  images: "heading",
+  location: "heading",
+};
 
 function placeFromItem(item?: ItemRow): PlaceValue | null {
   if (
@@ -169,18 +187,22 @@ export interface ItemFormProps {
  * Everything downstream — no reservation, several concurrent contracts, a price
  * that comes from each contract rather than from this form — follows from it.
  */
+/** One line under the bar per step, in ITEM_FORM_STEP_LABELS order. */
+const STEP_HINTS = [
+  "",
+  "",
+] as const;
+
 const LISTING_KINDS = [
   {
     value: "SINGLE" as const,
     icon: PackageIcon,
     label: "One item",
-    hint: "Held for one buyer",
   },
   {
     value: "SHOPFRONT" as const,
     icon: LibraryIcon,
-    label: "Binder or bulk listing",
-    hint: "Many cards, nothing held",
+    label: "Multiple items",
   },
 ];
 
@@ -206,24 +228,12 @@ function PriceReadout({ cents, currency }: { cents: number | null; currency: str
         {cell("You'll get", valid ? formatMoney(cents, currency) : "—")}
       </div>
       <p className="text-meta text-muted-foreground">
-        The {platformFeeRateLabel(currency)} buyer fee is added to your price. Card
-        processing is shown on your statement.
+        {feesWaivedForBeta()
+          ? `No fees during beta (normally ${platformFeeRateLabel(currency)}).`
+          : `The ${platformFeeRateLabel(currency)} buyer fee is added to your price. Card processing is shown on your statement.`}
       </p>
     </div>
   );
-}
-
-/**
- * Convert a dollars string (e.g. `"123.45"`) to integer AUD cents. Returns
- * `null` when the input is empty or not a finite number so the caller can show
- * a friendly validation message rather than sending garbage to the server.
- */
-function dollarsToCents(raw: string): number | null {
-  const trimmed = raw.trim();
-  if (trimmed === "") return null;
-  const dollars = Number(trimmed);
-  if (!Number.isFinite(dollars)) return null;
-  return Math.round(dollars * 100);
 }
 
 /** Format integer AUD cents back to a plain dollars string for the input. */
@@ -315,15 +325,11 @@ function ItemFormInner({
     return isItemCondition(stored) ? stored : "";
   });
   // Slab details (0129), used only while the condition is Graded on a single listing.
-  const [grader, setGrader] = React.useState(() => item?.grader ?? restored?.grader ?? "");
-  const [grade, setGrade] = React.useState(() => item?.grade ?? restored?.grade ?? "");
-  const [certNumber, setCertNumber] = React.useState(
+  const [grader] = React.useState(() => item?.grader ?? restored?.grader ?? "");
+  const [grade] = React.useState(() => item?.grade ?? restored?.grade ?? "");
+  const [certNumber] = React.useState(
     () => item?.cert_number ?? restored?.certNumber ?? "",
   );
-  const graded = condition === "Graded";
-  // "Raw card" chosen but no condition picked yet: the select shows, empty, rather than
-  // the tile quietly choosing Near Mint for the seller.
-  const [rawChosen, setRawChosen] = React.useState(() => condition !== "" && condition !== "Graded");
   // Immutable after creation: contracts already open against a shopfront depend
   // on it not being reserved, and a single listing's live contract depends on the
   // opposite. Switching either way mid-flight would break one of them.
@@ -363,18 +369,41 @@ function ItemFormInner({
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+  // THE OPEN STEP. Every field's state lives above, in this component, and the hidden
+  // steps stay MOUNTED, so Back, Next and a jump from the indicator never lose input.
+  const [step, setStep] = React.useState<ItemFormStep>(1);
+  const stepHeadingRef = React.useRef<HTMLHeadingElement>(null);
+  // What to focus once the step (or error) the last action set has rendered: an
+  // element id, or the step heading. Consumed by the effect below; null on first
+  // mount, so arriving at the form does not steal focus.
+  const pendingFocus = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const target = pendingFocus.current;
+    if (!target) return;
+    pendingFocus.current = null;
+    const element =
+      target === "heading"
+        ? null
+        : document.getElementById(target) ??
+          null;
+    (element ?? stepHeadingRef.current)?.focus();
+  }, [step, error]);
+
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   /** The submit control's resting label, shared by the footer and the phone header. */
   const submitLabel = mode === "create" ? "Create listing" : "Save changes";
+  /** The primary control's label on the open step: Next until the last one. */
+  const primaryLabel = step === 2 ? submitLabel : "Next";
 
   // BOTH MODES PUBLISH NOW. This was `if (mode !== "create") return`, so the phone
   // header could only ever offer Create — an edit had its submit at the bottom of a
-  // long scrolling form with a Cancel above it.
+  // long scrolling form with a Cancel above it. It reads "Next" before the last step,
+  // because the header button submits this form and submitting advances it until then.
   React.useEffect(() => {
-    publishItemFormChrome({ submitting: isSubmitting, label: submitLabel });
+    publishItemFormChrome({ submitting: isSubmitting, label: primaryLabel });
     return () => publishItemFormChrome(null);
-  }, [isSubmitting, submitLabel]);
+  }, [isSubmitting, primaryLabel]);
 
   // A BOOLEAN DEPENDENCY, not the field values. Keyed on `description` itself this
   // effect unsubscribed and resubscribed the `beforeunload` listener on every
@@ -454,6 +483,68 @@ function ItemFormInner({
 
   const totalImages = keptPaths.length + newFiles.length;
 
+  // What the step checks read. The same rules gate Next and re-run on publish.
+  const stepInput: ItemFormStepInput = {
+    listingKind,
+    description,
+    game,
+    condition,
+    grader,
+    grade,
+    certNumber,
+    totalImages,
+    fmvDollars,
+    locationLabel: location?.label ?? null,
+  };
+  // EDIT reaches every step: the listing already exists, so every step has its data.
+  // CREATE reaches up to the first incomplete step, never past it.
+  const reachableUpTo: ItemFormStep =
+    mode === "edit" ? 3 : (firstIncompleteStep(stepInput) ?? 3);
+
+  // WHEN THE OPEN STEP LAST CHANGED. A publish submit inside `STEP_SUBMIT_GUARD_MS` of
+  // it is ignored: Next and publish sit in the same spot, so the second click of a fast
+  // double-click on step 2's Next would otherwise land on step 3's publish and save a
+  // listing the seller never saw. The phone header's button submits this form too and
+  // is caught by the same check.
+  const stepChangedAt = React.useRef(0);
+  function openStep(n: ItemFormStep) {
+    stepChangedAt.current = Date.now();
+    setStep(n);
+  }
+
+  /** Open step `n` and move focus to its heading. A user-initiated change. */
+  function goToStep(n: ItemFormStep) {
+    // The open step is a no-op: setting a focus request with no re-render would leave
+    // it pending for whichever unrelated update next runs the focus effect.
+    if (n === step) return;
+    setError(null);
+    pendingFocus.current = "heading";
+    openStep(n);
+  }
+
+  /**
+   * Report an error inline beside its field, opening the step that holds the field
+   * and focusing it. A general error (`field: null`) stays on the open step.
+   */
+  function failAt(problem: { field: ErrorField; message: string }) {
+    setError(problem);
+    if (!problem.field) return;
+    const target = stepForField(problem.field);
+    if (target === null) return;
+    if (target !== step) openStep(target);
+    pendingFocus.current = FIELD_FOCUS_ID[problem.field];
+  }
+
+  /** Next: check the open step, then move on, or show what it still needs. */
+  function goNext() {
+    const problem = itemFormStepProblem(step, stepInput);
+    if (problem) {
+      failAt(problem);
+      return;
+    }
+    goToStep((step + 1) as ItemFormStep);
+  }
+
   function errorFor(field: Exclude<ErrorField, null>): string | undefined {
     return error?.field === field ? error.message : undefined;
   }
@@ -507,54 +598,29 @@ function ItemFormInner({
     event.preventDefault();
     setError(null);
 
-    if (!game) {
-      setError({ field: "category", message: "Select the card game." });
+    // ONE SUBMIT, THREE MEANINGS. The footer button and the phone header both submit
+    // this form (Enter in a field does too); before the last step that is Next.
+    if (step < 3) {
+      goNext();
       return;
     }
-    if (!isShopfront && graded) {
-      if (!grader) {
-        setError({ field: "grader", message: "Choose who graded the card." });
+    // Only a deliberate publish from a step 3 the seller has had time to see.
+    if (Date.now() - stepChangedAt.current < STEP_SUBMIT_GUARD_MS) return;
+
+    // Publishing re-checks every step, in order, because an edit can jump straight
+    // here past steps it never opened. The first failure opens its own step. These are
+    // the form's client-side guards (Req 3.2 price parse, Req 3.3 image count), grouped
+    // by step in `itemFormSteps`.
+    for (const s of [1, 2, 3] as const) {
+      const problem = itemFormStepProblem(s, stepInput);
+      if (problem) {
+        failAt(problem);
         return;
       }
-      if (!grade.trim()) {
-        setError({ field: "grade", message: "Enter the grade on the label." });
-        return;
-      }
     }
-
-    // Client-side FMV parse (Req 3.2): keep dollars<->cents conversion explicit.
-    const fmvCents = dollarsToCents(fmvDollars);
-    if (fmvCents === null) {
-      setError({
-        field: "fmvCents",
-        message: "Enter a price in dollars (e.g. 123.45).",
-      });
-      return;
-    }
-
-    // Client-side image-count guard (Req 3.3) with a friendly message.
-    if (totalImages < IMAGES_MIN) {
-      setError({
-        field: "images",
-        message: "Add at least one image of your item.",
-      });
-      return;
-    }
-    if (totalImages > IMAGES_MAX) {
-      setError({
-        field: "images",
-        message: `You can add at most ${IMAGES_MAX} images.`,
-      });
-      return;
-    }
-
-    if (!location?.label.trim()) {
-      setError({
-        field: "location",
-        message: "Add where this listing is based (suburb or city).",
-      });
-      return;
-    }
+    // Both guaranteed by step 3's check above.
+    const fmvCents = dollarsToCents(fmvDollars)!;
+    if (!location) return;
 
     const locationPayload = {
       label: location.label.trim(),
@@ -585,7 +651,7 @@ function ItemFormInner({
           fitOversizedForDisplay: true,
         });
         if (!uploaded.ok) {
-          setError({ field: "images", message: uploaded.message });
+          failAt({ field: "images", message: uploaded.message });
           setIsSubmitting(false);
           return;
         }
@@ -599,7 +665,7 @@ function ItemFormInner({
           description,
           category: cardGameName(game),
           condition,
-          grading: isShopfront ? undefined : { grader, grade, certNumber },
+          grading: isShopfront || !grader ? undefined : { grader, grade, certNumber },
           fmvCents,
           images: uploadedPaths,
           imageDims: uploadedDims,
@@ -628,7 +694,7 @@ function ItemFormInner({
           description,
           category: cardGameName(game),
           condition,
-          grading: isShopfront ? undefined : { grader, grade, certNumber },
+          grading: isShopfront || !grader ? undefined : { grader, grade, certNumber },
           fmvCents,
           images,
           // Kept photos are left null: the action reads their stored sizes back
@@ -669,9 +735,12 @@ function ItemFormInner({
       window.location.pathname,
     );
 
+    // OPENS THE STEP THAT HOLDS THE FIELD, so the error is beside the field it names
+    // rather than on a step the seller is not looking at. A field the form does not
+    // render (a schema's `(root)`) is shown as a general error instead of nowhere.
     if (code === "validation-error" && field) {
-      setError({
-        field: field as Exclude<ErrorField, null>,
+      failAt({
+        field: stepForField(field) ? (field as ItemFormErrorField) : null,
         message: message ?? "Please correct the highlighted field.",
       });
       return;
@@ -717,9 +786,6 @@ function ItemFormInner({
   const descriptionError = errorFor("description");
   const gameError = errorFor("category");
   const conditionError = errorFor("condition");
-  const graderError = errorFor("grader");
-  const gradeError = errorFor("grade");
-  const certError = errorFor("certNumber");
   const fmvError = errorFor("fmvCents");
   const imagesError = errorFor("images");
   const locationError = errorFor("location");
@@ -748,9 +814,10 @@ function ItemFormInner({
   // document, owns scrolling. The shell budget is subtracted below; overlay
   // keyboards subtract their published inset as well.
   //
-  // A CONSEQUENCE FOR THE LAST FIELD IN THE RAIL. `Based near` is a combobox, and
+  // A CONSEQUENCE FOR THE LAST FIELD ON STEP 3. `Based near` is a combobox, and
   // `PlaceSearch` positions its suggestions absolutely against the input. Once the rail
-  // became a scroll box the suggestions were clipped at its bottom edge, so the third
+  // became a scroll box (today, the step body inside it — the footer is pinned beneath)
+  // the suggestions were clipped at its bottom edge, so the third
   // one down was sliced in half and the rest were unreachable. `PlaceSearch` measures
   // its nearest clipping ancestor and opens upwards when there is no room below, which
   // is what keeps that field usable inside a definite-height card — do not assume a
@@ -784,7 +851,7 @@ function ItemFormInner({
     // clipping value that does not force the other axis to `auto`, which is exactly why
     // `hidden` could not be used for this. `clippingBounds` now tests `overflow-y` alone, so
     // it walks past this card below `lg` and measures the viewport instead. From `lg` the
-    // full `overflow-clip` returns and the details rail's own `overflow-y-auto` is the
+    // full `overflow-clip` returns and the rail's step body (`overflow-y-auto`) is the
     // clipping ancestor, which is the behaviour the drop-up logic was written for.
     // NO `lg:max-h`. The card uses the shell's full desktop budget and that is
     // all — it was also capped
@@ -800,15 +867,68 @@ function ItemFormInner({
     // reverted: with a content-sized row the two columns compete to set the height
     // and the photo panel wins as soon as the filmstrip has a few rows in it.
     <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr]">
-      <CardHeader className={`lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7${mode === "create" ? " max-md:hidden" : ""}`}>
-        <CardTitle className="text-subhead">
-          {mode === "create" ? "Sell an item" : "Edit listing"}
-        </CardTitle>
-        <CardDescription className="hidden md:block">
-          {isShopfront
-            ? "Describe what buyers can pick from. You agree the cards and the price with each buyer separately."
-            : "Describe your collectible and set its price in Australian dollars."}
-        </CardDescription>
+      {/* THE HEADER IS ALWAYS RENDERED NOW, in create mode on a phone too. It used to be
+          `max-md:hidden` in create mode, because the phone chrome already says "New
+          listing" and the card's title duplicated it — that half is still hidden. What
+          is new is the step row above it: Back, which step this is, and the
+          indicator, which a phone needs as much as a desktop does.
+
+          THE STEPPER LEADS THE CARD. It used to sit under the title with its own
+          visible step heading ("Details" beside "Step 1 of 3"), which named the step
+          twice — once there and once under its bar. The heading is now `sr-only`: it
+          is still the focus target on a step change, so a screen reader announces
+          the step, but the bar's label is the only visible name. */}
+      <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7">
+        {/* ONE TOP ROW: Back, the page title, and the step counter on the right, then
+            the bar. No subtitle: the one that was here talked about price on every
+            step. The title is hidden below `md` in create mode because the phone chrome
+            already says "New listing". Back is dropped on step 1 and appears before the
+            title from step 2; the row's `min-h-8` keeps the bar below from moving. */}
+        <div className="flex min-h-8 items-center gap-snug">
+          <button
+            type="button"
+            onClick={() => goToStep((step - 1) as ItemFormStep)}
+            disabled={step === 1 || isSubmitting}
+            aria-hidden={step === 1 || undefined}
+            tabIndex={step === 1 ? -1 : undefined}
+            aria-label={step > 1 ? `Back to ${ITEM_FORM_STEP_LABELS[step - 2]}` : undefined}
+            className={cn(
+              "-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-iris disabled:opacity-50",
+              // Gone, not invisible, on step 1, so the title starts flush left.
+              step === 1 && "hidden",
+            )}
+          >
+            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+          </button>
+          <CardTitle
+            className={cn("min-w-0 flex-1 truncate text-subhead", mode === "create" && "max-md:invisible")}
+          >
+            {mode === "create" ? "Sell an item" : "Edit listing"}
+          </CardTitle>
+          <span className="ml-auto shrink-0 text-meta tabular-nums text-muted-foreground">
+            Step {step} of 2
+          </span>
+        </div>
+        <StepProgress
+          steps={ITEM_FORM_STEP_LABELS}
+          current={step}
+          onSelect={(n) => goToStep(n as ItemFormStep)}
+          canSelect={(n) => !isSubmitting && (n <= reachableUpTo || n < step)}
+        />
+        {STEP_HINTS[step - 1] ? (
+          <p className="hidden pt-snug text-body text-muted-foreground md:block">
+            {STEP_HINTS[step - 1]}
+          </p>
+        ) : null}
+        {/* The step's heading, for assistive tech only: the focus target on a step
+            change (see `goToStep`). Visually the bar's label above names the step. */}
+        <h4
+          ref={stepHeadingRef}
+          tabIndex={-1}
+          className="sr-only focus:outline-none"
+        >
+          {ITEM_FORM_STEP_LABELS[step - 1]}
+        </h4>
       </CardHeader>
 
       <form
@@ -819,14 +939,11 @@ function ItemFormInner({
         noValidate
         className="lg:contents"
       >
-        {/* `pt-0` is `CardContent`'s default, and it is right only because a
-            `CardHeader` normally sits above it supplying the top padding. In CREATE
-            mode that header is `max-md:hidden` — the mobile chrome already renders
-            "New Listing", so a second title in the card was a duplicate — which left
-            this as the card's first child with no top padding at all, so "Photos" sat
-            flush against the border. Restored under the same condition that removes
-            the header, rather than unconditionally: from `md` the header is back and
-            `pt-0` is correct again. */}
+        {/* `pt-0` is `CardContent`'s default, and it is right because the `CardHeader`
+            above supplies the top padding at every width. It did not in CREATE mode on
+            a phone while that whole header was `max-md:hidden`, and this restored
+            `max-md:pt-group` to compensate; the header's step row now always renders,
+            so the compensation went with it. */}
         {/* `grid-cols-1`, not a bare `grid`. Below `lg` this is the stacked
             single-column layout, and a bare grid gives its one implicit column a
             track of `auto`, which sizes to the widest child's MIN-CONTENT. An
@@ -839,9 +956,7 @@ function ItemFormInner({
             instead of the content, so the fields track the card's width and wrap
             rather than overflow. Irrelevant from `lg`, where `lg:contents` dissolves
             this grid entirely. */}
-        <CardContent
-          className={`grid grid-cols-1 gap-5 lg:contents${mode === "create" ? " max-md:pt-group" : ""}`}
-        >
+        <CardContent className="grid grid-cols-1 gap-5 lg:contents">
           {/* Photos occupy the full-height left panel, keeping image entry
               visually distinct from the listing details rail. */}
           {/* `lg:min-h-0` + `lg:overflow-hidden` are what make the photo actually
@@ -857,14 +972,33 @@ function ItemFormInner({
               on the cover and the filmstrip almost on that, so three separate things
               read as one crowded block. `group` is the scale's "between related
               components" step, which the form's own field blocks already use. */}
-          <div className="flex flex-col gap-cozy lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section">
+          {/* STEP 2 BELOW `lg`, AND THE LEFT COLUMN ON EVERY STEP FROM `lg`. The desktop
+              card is a fixed two-column grid, and hiding this panel on steps 1 and 3
+              would leave most of the card empty; below `lg` the panel is the whole of
+              step 2's body. Hidden by a `max-lg:` class rather than unmounted, so the
+              picked files and their previews survive every step change. */}
+          <div
+            className={cn(
+              "flex flex-col gap-cozy lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section",
+              step !== 2 && "max-lg:hidden",
+            )}
+          >
             {/* NO COUNT LINE UNDER THE LABEL. "Add 1–10 photos. N selected." spent a
                 whole row restating what the panel already shows: the tiles are the
                 count, and the add target disappearing at ten is the ceiling. The
-                bounds are still enforced — `IMAGES_MIN` on submit, `IMAGES_MAX` on the
+                bounds are still enforced — `IMAGES_MIN` on step 2's Next, `IMAGES_MAX` on the
                 add tile — and a shortfall is reported by `imagesError` below, which is
                 where a member actually needs to read it. */}
-            <Label htmlFor="images">Photos</Label>
+            {/* Says it is required up front, rather than at step 2's Next. The count is
+                live, so the ceiling is visible before the add tile disappears. */}
+            <div className="flex items-baseline justify-between gap-snug">
+              <Label htmlFor="images">
+                Photos <span className="font-normal text-muted-foreground">· required</span>
+              </Label>
+              <span className="text-meta tabular-nums text-muted-foreground">
+                {totalImages} of {IMAGES_MAX}
+              </span>
+            </div>
 
             {/* TWO LAYOUTS, SPLIT AT `lg`.
 
@@ -893,9 +1027,11 @@ function ItemFormInner({
                 aspect ratio — a tall phone photo once stretched the whole row to ~3x
                 its intended height. */}
             <div
-              className={`grid min-h-0 grid-cols-1 gap-cozy lg:aspect-auto lg:max-h-none lg:flex-1 lg:grid-rows-[minmax(0,1fr)]${
-                totalImages > 0
+              className={`relative grid min-h-0 grid-cols-1 gap-cozy lg:aspect-auto lg:max-h-none lg:flex-1 lg:grid-rows-[minmax(0,1fr)]${
+                totalImages > 1
                   ? " lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
+                  : totalImages === 1
+                  ? ""
                   : " aspect-[16/10] max-h-[22svh]"
               }`}
             >
@@ -954,15 +1090,10 @@ function ItemFormInner({
                   {/* The slot grid needs the desktop panel's height; a phone's empty
                       cover is capped at 22svh, so it gets the same list as one line. */}
                   <span className="text-meta lg:hidden">Front, back, slab label and corners</span>
-                  <span className="mt-snug hidden w-full max-w-xs grid-cols-2 gap-snug text-meta lg:grid" aria-hidden>
-                    {["Front (cover)", "Back", "Slab label or cert", "Corners and flaws"].map((shot) => (
-                      <span
-                        key={shot}
-                        className="rounded-md border border-dashed border-input px-snug py-cozy text-center"
-                      >
-                        {shot}
-                      </span>
-                    ))}
+                  {/* Plain text, not boxes: dashed chips inside the button read as
+                      four separate targets. */}
+                  <span className="hidden text-meta lg:inline">
+                    Front · Back · Slab label or cert · Corners and flaws
                   </span>
                   <span className="text-meta">
                     Up to {IMAGES_MAX} photos · the first is the cover
@@ -970,6 +1101,25 @@ function ItemFormInner({
                 </>
               )}
             </button>
+
+            {/* ONE PHOTO: no filmstrip (it would only repeat the cover), so the cover
+                carries the remove control the strip tile used to. A sibling, not a
+                child, because a button cannot sit inside the cover button. */}
+            {totalImages === 1 ? (
+              <button
+                type="button"
+                onClick={() =>
+                  keptPaths.length === 1
+                    ? removeKeptPath(keptPaths[0])
+                    : pending.remove(newFiles[0].key)
+                }
+                disabled={isSubmitting}
+                className="group/remove absolute right-1 top-1 grid size-8 place-items-center focus:outline-none"
+                aria-label="Remove image"
+              >
+                <RemoveMark />
+              </button>
+            ) : null}
 
             {/* A BARE `<input>`, NEVER THE `Input` COMPONENT. This is visually
                 hidden and driven by the dropzone button above it, so none of
@@ -1030,7 +1180,7 @@ function ItemFormInner({
                 `content-start` is deliberate even though two rows fill the column: with
                 a single photo the strip holds that photo and the add tile, and with ten
                 it holds eleven tiles that scroll; neither wants distributing. */}
-            {totalImages > 0 ? (
+            {totalImages > 1 ? (
               <ul className="grid grid-cols-5 gap-snug sm:grid-cols-6 lg:h-full lg:min-h-0 lg:auto-rows-[calc(50%_-_0.25rem)] lg:grid-cols-1 lg:content-start lg:overflow-y-auto">
                 {keptPaths.map((path) => {
                   const url = itemImageUrl(path);
@@ -1114,14 +1264,23 @@ function ItemFormInner({
             ) : null}
           </div>
 
-          {/* Details form — a dedicated right-hand rail. */}
-          {/* THE ONLY SCROLLING REGION. This is the grid's `1fr` row, so now that the
-              card's height is definite this is where the overflow belongs — the
-              header stays pinned and the photo column stays put.
-              `lg:min-h-0` is required, not cosmetic: a grid item defaults to
-              `min-height:auto`, which grows the row to fit its content and would
-              silently defeat `overflow-y-auto`. */}
-          <div className="space-y-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto lg:border-l lg:border-border lg:px-7 lg:pb-7">
+          {/* Details form — a dedicated right-hand rail: the open step's body, then the
+              footer pinned beneath it.
+
+              `lg:min-h-0` is required, not cosmetic: this is the grid's `1fr` row and a
+              grid item defaults to `min-height:auto`, which grows the row to fit its
+              content and would push the footer out of the card. */}
+          <div className="flex min-w-0 flex-col gap-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:border-l lg:border-border">
+            {/* THE ONLY SCROLLING REGION. Now that the card's height is definite this is
+                where the overflow belongs — the header stays pinned, the photo column
+                stays put, and the footer below stays where it is on every step. It is
+                also the clipping ancestor `PlaceSearch` measures from `lg`. */}
+            <div
+              className="space-y-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:px-7"
+            >
+            {/* STEP 1: the card. Hidden steps stay mounted (`hidden`), so their state,
+                and `PlacePicker`'s typed query, survive every step change. */}
+            <div hidden={step !== 1} className={cn("space-y-5", step === 1 && "lg:flex lg:flex-1 lg:flex-col")}>
             {/* Listing kind (0064). First, because it changes what the rest of
                 this form means: for a shopfront the price below is only a guide
                 and the condition covers a mixed pile. Locked in edit mode. */}
@@ -1138,7 +1297,6 @@ function ItemFormInner({
                     type="radio"
                     icon={kind.icon}
                     label={kind.label}
-                    hint={kind.hint}
                     checked={listingKind === kind.value}
                     onChange={() => setListingKind(kind.value)}
                   />
@@ -1186,7 +1344,9 @@ function ItemFormInner({
               ) : null}
             </div>
 
-            <div className="space-y-snug">
+            {/* FILLS THE REST OF THE RAIL from `lg`, so there is no dead band above the
+                footer on a tall screen and nothing to scroll on a short one. */}
+            <div className="space-y-snug lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
@@ -1195,28 +1355,64 @@ function ItemFormInner({
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
-                rows={4}
+                rows={6}
+                className="min-h-36 resize-none lg:flex-1"
                 aria-invalid={descriptionError ? true : undefined}
                 aria-describedby={
                   descriptionError ? "description-error" : undefined
                 }
                 disabled={isSubmitting}
               />
-              <div className="flex items-center justify-end">
-                <span className="text-meta text-muted-foreground tabular-nums">
-                  {description.length}/2000
-                </span>
-              </div>
               {descriptionError ? (
                 <FieldError id="description-error" message={descriptionError} />
+              ) : description.length > 1800 ? (
+                // Only near the ceiling, where it is information rather than noise.
+                <p className="text-right text-meta tabular-nums text-muted-foreground">
+                  {2000 - description.length} characters left
+                </p>
               ) : null}
             </div>
 
+            {/* Price, on step 1 with what is being sold. For a binder this is
+                INDICATIVE only: each contract's real total is the sum of the cards
+                that buyer asks for, so the label must not promise a purchase price. */}
+            <div className="space-y-snug">
+              <Label htmlFor="fmv">
+                {isShopfront ? "Typical price" : "Price"}
+              </Label>
+              <MoneyInput
+                id="fmv"
+                name="fmv"
+                min="0.01"
+                placeholder="123.45"
+                value={fmvDollars}
+                onChange={(e) => setFmvDollars(e.target.value)}
+                aria-invalid={fmvError ? true : undefined}
+                aria-describedby={
+                  fmvError ? "fmv-error" : isShopfront ? "fmv-hint" : undefined
+                }
+                disabled={isSubmitting}
+              />
+              <FieldError id="fmv-error" message={fmvError} />
+              {isShopfront ? (
+                <p id="fmv-hint" className="text-body text-muted-foreground">
+                  Prices are only a guide until terms are agreed.
+                </p>
+              ) : (
+                <PriceReadout cents={dollarsToCents(fmvDollars)} currency={item?.currency ?? "aud"} />
+              )}
+            </div>
+            </div>
+
+            {/* STEP 2: game, condition and place, then publish (below `lg` the photo
+                panel sits above it). No "Is it graded?" question: Graded is one entry in
+                the condition list, and slab details are not asked for. */}
+            <div hidden={step !== 2} className="space-y-5">
             {/* `grid-cols-1` below `sm` for the same reason as the outer grid: a
                 bare grid's implicit `auto` column sizes to the Select triggers'
                 min-content and overflows the clipped card on a phone. `minmax(0,
                 1fr)` lets the single column shrink to the row's width. */}
-            <div className={cn("grid grid-cols-1 gap-cozy", isShopfront && "sm:grid-cols-2")}>
+            <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
               <div className="space-y-snug">
                 <Label htmlFor="game">Game</Label>
                 <Select
@@ -1244,193 +1440,34 @@ function ItemFormInner({
                 ) : null}
               </div>
 
-              {/* A binder's condition is typical of a pile, so it keeps the plain list.
-                  A single asks "Graded?" first, below. */}
-              {isShopfront ? (
-                <div className="space-y-snug">
-                  <Label htmlFor="condition">Typical condition</Label>
-                  <Select
-                    value={condition}
-                    onValueChange={(v) => setCondition(v)}
-                    disabled={isSubmitting}
+              <div className="space-y-snug">
+                <Label htmlFor="condition">
+                  {isShopfront ? "Typical condition" : "Condition"}
+                </Label>
+                <Select
+                  value={condition}
+                  onValueChange={(v) => setCondition(v)}
+                  disabled={isSubmitting}
+                >
+                  <SelectTrigger
+                    id="condition"
+                    aria-invalid={conditionError ? true : undefined}
+                    aria-describedby={conditionError ? "condition-error" : undefined}
                   >
-                    <SelectTrigger
-                      id="condition"
-                      aria-invalid={conditionError ? true : undefined}
-                      aria-describedby={conditionError ? "condition-error" : undefined}
-                    >
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ITEM_CONDITIONS.map((c) => (
-                        <SelectItem key={c} value={c}>
-                          {c}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {conditionError ? (
-                    <FieldError id="condition-error" message={conditionError} />
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-
-            {/* GRADED IS A QUESTION, NOT A CONDITION. It sat in the condition list
-                beside Near Mint, with nowhere to say who graded the card, what grade
-                it got or which cert it is. Answering yes asks for those; no shows the
-                raw scale with what each step means. */}
-            {!isShopfront ? (
-              <fieldset className="space-y-cozy">
-                <legend className="mb-snug text-body font-medium leading-none">Is it graded?</legend>
-                <div className="grid grid-cols-2 gap-snug">
-                  <ChoiceTile
-                    id="graded-yes"
-                    name="graded"
-                    type="radio"
-                    label="Graded slab"
-                    hint="PSA, BGS, CGC and others"
-                    checked={graded}
-                    onChange={() => {
-                      setCondition("Graded");
-                      setRawChosen(false);
-                    }}
-                  />
-                  <ChoiceTile
-                    id="graded-no"
-                    name="graded"
-                    type="radio"
-                    label="Raw card"
-                    hint="Ungraded, or sealed"
-                    checked={!graded && rawChosen}
-                    onChange={() => {
-                      if (graded) setCondition("");
-                      setRawChosen(true);
-                    }}
-                  />
-                </div>
-                {graded ? (
-                  <div className="grid grid-cols-1 gap-cozy sm:grid-cols-3">
-                    <div className="space-y-snug">
-                      <Label htmlFor="grader">Grader</Label>
-                      <Select value={grader} onValueChange={setGrader} disabled={isSubmitting}>
-                        <SelectTrigger
-                          id="grader"
-                          aria-invalid={graderError ? true : undefined}
-                          aria-describedby={graderError ? "grader-error" : undefined}
-                        >
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GRADERS.map((g) => (
-                            <SelectItem key={g} value={g}>
-                              {g}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      {graderError ? <FieldError id="grader-error" message={graderError} /> : null}
-                    </div>
-                    <div className="space-y-snug">
-                      <Label htmlFor="grade">Grade</Label>
-                      <Input
-                        id="grade"
-                        value={grade}
-                        onChange={(e) => setGrade(e.target.value)}
-                        placeholder="e.g. 10"
-                        maxLength={20}
-                        disabled={isSubmitting}
-                        aria-invalid={gradeError ? true : undefined}
-                        aria-describedby={gradeError ? "grade-error" : undefined}
-                      />
-                      {gradeError ? <FieldError id="grade-error" message={gradeError} /> : null}
-                    </div>
-                    <div className="space-y-snug">
-                      <Label htmlFor="cert">
-                        Cert number <span className="font-normal text-muted-foreground">(optional)</span>
-                      </Label>
-                      <Input
-                        id="cert"
-                        value={certNumber}
-                        onChange={(e) => setCertNumber(e.target.value)}
-                        placeholder="From the label"
-                        maxLength={20}
-                        autoComplete="off"
-                        disabled={isSubmitting}
-                        aria-invalid={certError ? true : undefined}
-                        aria-describedby={certError ? "cert-error" : "cert-hint"}
-                      />
-                      {certError ? (
-                        <FieldError id="cert-error" message={certError} />
-                      ) : (
-                        <p id="cert-hint" className="text-meta text-muted-foreground">
-                          Buyers can check it with the grader.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ) : rawChosen ? (
-                  <div className="space-y-snug">
-                    <Label htmlFor="condition">Condition</Label>
-                    <Select value={condition} onValueChange={(v) => setCondition(v)} disabled={isSubmitting}>
-                      <SelectTrigger
-                        id="condition"
-                        aria-invalid={conditionError ? true : undefined}
-                        aria-describedby={conditionError ? "condition-error" : "condition-hint"}
-                      >
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RAW_CONDITIONS.map((c) => (
-                          <SelectItem key={c} value={c}>
-                            {c}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {conditionError ? (
-                      <FieldError id="condition-error" message={conditionError} />
-                    ) : RAW_CONDITION_HINTS[condition] ? (
-                      <p id="condition-hint" className="text-meta text-muted-foreground">
-                        {RAW_CONDITION_HINTS[condition]}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : conditionError ? (
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ITEM_CONDITIONS.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {conditionError ? (
                   <FieldError id="condition-error" message={conditionError} />
                 ) : null}
-              </fieldset>
-            ) : null}
-
-            {/* Fair Market Value (dollars). For a shopfront this is INDICATIVE
-                only: each contract's real total is the sum of the cards that
-                buyer asks for, so the label must not promise a purchase price. */}
-            <div className="space-y-snug">
-              <Label htmlFor="fmv">
-                {isShopfront ? "Typical price" : "Price"}
-              </Label>
-              <MoneyInput
-                id="fmv"
-                name="fmv"
-                min="0.01"
-                placeholder="123.45"
-                value={fmvDollars}
-                onChange={(e) => setFmvDollars(e.target.value)}
-                aria-invalid={fmvError ? true : undefined}
-                aria-describedby={
-                  fmvError ? "fmv-error" : isShopfront ? "fmv-hint" : undefined
-                }
-                disabled={isSubmitting}
-              />
-              <FieldError id="fmv-error" message={fmvError} />
-              {isShopfront ? (
-                <p id="fmv-hint" className="text-body text-muted-foreground">
-                  A guide for buyers. Each contract&apos;s total is the cards that buyer
-                  asks for.
-                </p>
-              ) : (
-                <PriceReadout cents={dollarsToCents(fmvDollars)} currency={item?.currency ?? "aud"} />
-              )}
+              </div>
             </div>
 
             <div className="space-y-snug">
@@ -1442,59 +1479,77 @@ function ItemFormInner({
                 disabled={isSubmitting}
                 required
                 error={locationError}
-                hint={locationIsDefault ? "Same as your last listing." : undefined}
                 locate
               />
             </div>
+            </div>
+            </div>
 
+            {/* Outside the step body, so a general error shows on whichever step is open. */}
             {generalError ? (
-              <FieldError message={generalError} />
+              <div className="lg:px-7">
+                <FieldError message={generalError} />
+              </div>
             ) : null}
 
-            {/* THE SUBMIT ENDS THE FORM, after the last field and any error above it,
-                and scrolls with the fields. It used to be a footer row pinned under
-                the scrolling rail, so it sat frozen at the bottom of the card while
-                the fields moved behind it — a button that reads as chrome rather than
-                as the step that finishes what you just filled in. Full width in the
-                narrow desktop rail, right-aligned in the wide stacked layout.
+            {/* THE FOOTER IS PINNED BENEATH THE STEP'S SCROLL REGION from `lg`, so Back,
+                Next and Save draft sit in the same place on every step. When this was one
+                long form the submit ended it and scrolled with the fields, because a
+                frozen button beside moving fields read as chrome; with one step's fields
+                at a time there is little to scroll, and a Next that moves between steps
+                would be the worse jump. Full width in the narrow desktop rail,
+                right-aligned in the wide stacked layout.
 
-                `max-md:hidden`, because below `md` the phone header carries the submit
-                and a second one here would be a duplicate — two controls with the same
-                accessible name break the strict locator in
-                `tests/e2e/support/listings.ts`.
+                The primary is `max-md:hidden`, because below `md` the phone header
+                carries it and a second one here would be a duplicate — two controls with
+                the same accessible name break the strict locator in
+                `tests/e2e/support/listings.ts`. In edit mode nothing else is in this row,
+                so the whole row goes below `md`.
 
                 NO CANCEL. Dismissal is the back chevron in the header on a phone and
                 browser-back elsewhere, and a "Cancel" beside "Save changes" invited the
                 misread that it discards rather than navigates. */}
-            <div className="flex flex-col gap-snug border-t border-border pt-5 sm:flex-row sm:justify-end lg:flex-col">
+            <div
+              className={cn(
+                "flex shrink-0 flex-col gap-snug border-t border-border pt-5 sm:flex-row sm:justify-end lg:justify-between lg:px-7 lg:pb-7",
+                mode === "edit" && "max-md:hidden",
+              )}
+            >
               {mode === "create" ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="ghost"
                   onClick={saveDraft}
                   disabled={isSubmitting || savingDraft}
                   aria-busy={savingDraft}
-                  className="w-full sm:w-auto lg:w-full"
+                  className="w-full sm:w-auto lg:-ml-3"
                 >
                   {draftId ? "Update draft" : "Save draft"}
                 </Button>
               ) : null}
+              {/* TWO ELEMENTS, NOT ONE RELABELLED. Next is a plain button and publish is
+                  the submit, keyed apart so React swaps the node rather than retyping it;
+                  with `handleSubmit`'s step-change window this keeps the second click of
+                  a double-click on Next from publishing. */}
               <Button
-                type="submit"
+                key={step === 2 ? "publish" : "next"}
+                type={step === 2 ? "submit" : "button"}
+                onClick={step === 2 ? undefined : goNext}
                 disabled={isSubmitting}
                 aria-busy={isSubmitting}
-                className="w-full max-md:hidden sm:w-auto lg:w-full"
+                className="w-full max-md:hidden sm:w-auto lg:ml-auto lg:min-w-36"
               >
                 {/* WIDTH PINNED TO THE RESTING LABEL. Where the button is `w-auto`,
                     swapping "Create listing" for the shorter "Saving…" shrank it under
                     the pointer on every submit. The resting label stays in the box,
                     `invisible` (so it is out of the accessibility tree and the name
                     stays single), and the live label is laid over it in the same grid
-                    cell. */}
+                    cell. The sizer is always the submit label, which is longer than
+                    "Next", so the button is one width on every step too. */}
                 <span className="grid">
                   <span className="invisible col-start-1 row-start-1">{submitLabel}</span>
                   <span className="col-start-1 row-start-1">
-                    {isSubmitting ? "Saving…" : submitLabel}
+                    {isSubmitting ? "Saving…" : primaryLabel}
                   </span>
                 </span>
               </Button>

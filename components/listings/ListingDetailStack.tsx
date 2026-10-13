@@ -132,6 +132,11 @@ export function ListingDetailStack({
               {headline.minor}
             </span>
           ) : null}
+          {headline.code ? (
+            <span className="text-body font-semibold text-muted-foreground">
+              {headline.code}
+            </span>
+          ) : null}
         </p>
         <span className="shrink-0 rounded-full bg-mist px-snug py-0.5 text-meta font-semibold text-muted-foreground">
           {condition}

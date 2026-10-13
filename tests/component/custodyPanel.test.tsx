@@ -30,6 +30,7 @@ function report(overrides: Partial<CustodyReport> = {}): CustodyReport {
     region: 'AU',
     currency: 'aud',
     unreadableReason: null,
+    unconvertedSales: 0,
     ...overrides,
   };
 }
@@ -40,7 +41,7 @@ describe('CustodyPanel', () => {
 
     expect(screen.getByText('Funds covered')).toBeInTheDocument();
     expect(screen.getByText('Headroom')).toBeInTheDocument();
-    expect(screen.getByText('$150.00')).toBeInTheDocument();
+    expect(screen.getByText('$150.00 AUD')).toBeInTheDocument();
     // No alarm copy when nothing is wrong.
     expect(screen.queryByText(/Automatic payouts/)).not.toBeInTheDocument();
   });
@@ -59,7 +60,7 @@ describe('CustodyPanel', () => {
 
     expect(screen.getByText('Shortfall')).toBeInTheDocument();
     expect(screen.getByText('Short by')).toBeInTheDocument();
-    expect(screen.getByText('$60.00')).toBeInTheDocument();
+    expect(screen.getByText('$60.00 AUD')).toBeInTheDocument();
     // An operator seeing red for the first time needs somewhere to look. Automatic
     // payouts lead because a commingled balance being swept is the most likely cause.
     expect(screen.getByText(/Automatic payouts/)).toBeInTheDocument();
@@ -88,7 +89,7 @@ describe('CustodyPanel', () => {
     expect(screen.queryByText('Shortfall')).not.toBeInTheDocument();
 
     // What is owed is still shown — that half is knowable and useful alone.
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
+    expect(screen.getByText('$100.00 AUD')).toBeInTheDocument();
   });
 
   it('pluralises the sale count', () => {

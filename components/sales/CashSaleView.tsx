@@ -68,6 +68,7 @@ import {
   deriveCashSaleSteps,
   type ContractStep,
 } from '@/domain/contract';
+import { canReportUnpostedSale } from '@/domain/contract/cashSaleStatus';
 import { CashSaleStatusBadge } from './CashSaleStatusBadge';
 import { CashSalePriceDialog } from './CashSalePriceDialog';
 import { CashSaleTermsDialog } from './CashSaleTermsDialog';
@@ -85,6 +86,8 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
 
 import { FEE_WAIVED_HINT, platformFeeRowRate } from '@/lib/fees/feeLabels';
+import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
+import { CurrencyNotice, fxFeeRateLabel } from '@/components/payments/CurrencyNotice';
 import { formatMoney, formatContractDateTime, formatShortDate, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -623,6 +626,12 @@ function CashSaleRoom({
   // fee is already computed on the item price alone.
   const sellerNetCents = Math.max(sale.amount_cents - sale.platform_fee_cents, 0);
 
+  // The Currency_Conversion fee and what the buyer's card is actually charged. From
+  // the same function the orchestrator charges with, applied to the same contract
+  // total, so the room can never quote a figure the charge disagrees with (0136).
+  const fxFeeCents = currencyConversionFeeFor(sale.amount_cents, sale.currency);
+  const buyerChargeCents = sale.amount_cents + fxFeeCents;
+
   // The countdown to automatic completion now comes from the shared
   // `InspectionCountdown`, which both this room and the trade room render from the
   // stored deadline — so both parties see the same instant regardless of clock skew.
@@ -652,6 +661,38 @@ function CashSaleRoom({
           ? `Post by ${shipByDate}`
           : `The seller posts by ${shipByDate}`
       : null;
+
+  // 0132: a posted sale whose ship-by date lapsed with nothing shipped. The server has
+  // always accepted a dispute from ESCROW_HELD; this is the one moment the room offers
+  // it, to the buyer only, because a seller who never posts otherwise leaves the payment
+  // held with nothing in the product able to move it on. The seller's remedy is to post.
+  // The predicate is held to the staff queue's "Not shipped" rule, so the staff guidance
+  // that says the buyer can report a problem stays true.
+  const buyerMayReportUnposted = canReportUnpostedSale(
+    {
+      status: sale.status,
+      fulfillmentMethod: sale.fulfillment_method,
+      shipLapsedAt: sale.ship_lapsed_at,
+    },
+    iAmBuyer ? 'BUYER' : 'SELLER',
+  );
+  // Where the report controls appear: goods in hand at inspection, or goods that never
+  // left. The phone Status panel keeps the inspection pair only; for an unposted sale its
+  // step asks nothing of the buyer, and the dock menu stays on screen.
+  const buyerMayReport = (sale.status === 'INSPECTION' && iAmBuyer) || buyerMayReportUnposted;
+  // One dialog, two moments. A buyer with nothing to inspect is not asked what is wrong
+  // with the item.
+  const disputePrompt = buyerMayReportUnposted
+    ? {
+        label: 'What has happened with this purchase?',
+        placeholder: 'e.g. The seller has not posted it or replied to my messages…',
+        hint: 'You can add screenshots as evidence after opening the dispute.',
+      }
+    : {
+        label: 'What is wrong with the item?',
+        placeholder: 'e.g. The card arrived with a crease not shown in the photos…',
+        hint: 'You can add photos as evidence after opening the dispute.',
+      };
 
   const steps = deriveCashSaleSteps({
     status: sale.status,
@@ -908,8 +949,9 @@ function CashSaleRoom({
                       {/* Opens the dialog rather than scrolling to the Protection tab.
                     It used to hand the reader off to a tab and leave them to find
                     the form at the bottom of it; the menu item and the tab button
-                    are the same action, so they now do the same thing. */}
-                      {sale.status === 'INSPECTION' && iAmBuyer ? (
+                    are the same action, so they now do the same thing. A posted
+                    sale whose ship-by date lapsed offers it too (0132). */}
+                      {buyerMayReport ? (
                         <Button
                           type="button"
                           variant="destructive-quiet"
@@ -1375,7 +1417,7 @@ function CashSaleRoom({
           <ContractDetailRow
             id={CASH_SALE_SECTIONS.payment}
             label="Payment"
-            summary={`${money(sale.amount_cents)} · buyer pays via Stripe`}
+            summary={`${money(buyerChargeCents)} · buyer pays via Stripe`}
             action={
               editable && !fromShopfront && !iAmBuyer ? (
                 <CashSalePriceDialog
@@ -1400,9 +1442,19 @@ function CashSaleRoom({
                     label: `Platform fee (${platformFeeRowRate(sale.platform_fee_cents)})`,
                     value: money(sale.platform_fee_cents),
                   },
+                  // The buyer's cost of converting into the platform's settlement
+                  // currency. Paid by the buyer so the seller's figure below is exact.
+                  ...(fxFeeCents > 0
+                    ? [
+                        {
+                          label: `Currency conversion (${fxFeeRateLabel()}, buyer pays)`,
+                          value: money(fxFeeCents),
+                        },
+                      ]
+                    : []),
                   {
-                    label: 'Buyer pays via Stripe',
-                    value: money(sale.amount_cents),
+                    label: `Buyer pays via Stripe, in ${sale.currency.toUpperCase()}`,
+                    value: money(buyerChargeCents),
                     total: true,
                   },
                   // The seller's own number. The rows above are all the BUYER's
@@ -1457,7 +1509,7 @@ function CashSaleRoom({
                 viewerIsBuyer={iAmBuyer}
                 inPerson={!isDelivery}
                 reportAction={
-                  sale.status === 'INSPECTION' && iAmBuyer ? (
+                  buyerMayReport ? (
                     // The deadline sits BESIDE the button, not under it. Stacked,
                     // the control was sandwiched between the outcome's own
                     // description above and a second muted line below, and owned
@@ -1474,7 +1526,9 @@ function CashSaleRoom({
                         Report a problem
                       </Button>
                       <p className="text-meta text-muted-foreground">
-                        Raise it before the payment is released.
+                        {buyerMayReportUnposted
+                          ? 'The ship-by date passed without tracking.'
+                          : 'Raise it before the payment is released.'}
                       </p>
                     </div>
                   ) : null
@@ -1544,6 +1598,7 @@ function CashSaleRoom({
                 resolution={
                   sale.status === 'DISPUTED' && !sale.dispute_resolution ? (
                     <CashSaleDisputeResolution
+                      currency={sale.currency}
                       cashSaleId={sale.id}
                       iAmBuyer={iAmBuyer}
                       iRaisedIt={sale.disputed_by === myUserId}
@@ -1598,8 +1653,8 @@ function CashSaleRoom({
           if (!next) setConfirmedSeller(false);
         }}
         title="Accept these terms and pay?"
-        description={`This charges ${money(sale.amount_cents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`}
-        confirmLabel={`Accept terms and pay ${money(sale.amount_cents)}`}
+        description={`This charges ${money(buyerChargeCents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`}
+        confirmLabel={`Accept terms and pay ${money(buyerChargeCents)}`}
         confirmDisabled={
           payCard.card.state !== 'saved' || (pendingSellerIdentity != null && !confirmedSeller)
         }
@@ -1641,13 +1696,23 @@ function CashSaleRoom({
                   ? FEE_WAIVED_HINT
                   : 'Returned if the sale is refunded in full.',
             },
+            ...(fxFeeCents > 0
+              ? [
+                  {
+                    label: `Currency conversion (${fxFeeRateLabel()})`,
+                    value: money(fxFeeCents),
+                    hint: 'So the seller receives exactly the agreed price. Not refunded.',
+                  },
+                ]
+              : []),
             {
-              label: 'Charged now',
-              value: money(sale.amount_cents),
+              label: `Charged now, in ${sale.currency.toUpperCase()}`,
+              value: money(buyerChargeCents),
               total: true,
             },
           ]}
         />
+        <CurrencyNotice currency={sale.currency} amountMinor={sale.amount_cents} />
         <PayCardSection
           card={payCard.card}
           onAttached={payCard.refresh}
@@ -1717,17 +1782,17 @@ function CashSaleRoom({
       >
         <div className="space-y-snug">
           <Label htmlFor="cash-sale-dispute-reason">
-            What is wrong with the item?
+            {disputePrompt.label}
           </Label>
           <Textarea
             id="cash-sale-dispute-reason"
             value={disputeReason}
             onChange={(event) => setDisputeReason(event.target.value)}
-            placeholder="e.g. The card arrived with a crease not shown in the photos…"
+            placeholder={disputePrompt.placeholder}
             rows={3}
           />
           <p className="text-body text-muted-foreground">
-            You can add photos as evidence after opening the dispute.
+            {disputePrompt.hint}
           </p>
         </div>
       </ConfirmDialog>

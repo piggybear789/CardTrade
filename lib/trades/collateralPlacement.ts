@@ -241,6 +241,8 @@ export async function placeTradeCollateral(params: {
       counterpartId: trade.counterpart_id,
       initiatorItemIds,
       counterpartItemIds,
+      // Authorised in the trade's own currency, not the platform's settlement one.
+      ...(trade.currency ? { currency: trade.currency } : {}),
     },
   );
 

@@ -218,7 +218,11 @@ export function SettingsListRow({
           >
             {label}
           </span>
-          {value ? (
+          {/* Beside the label only when there is no description. With one, the value
+              moves to the right column (below) and centres on the row with the
+              chevron, rather than sitting on the first line while the chevron sits
+              in the middle. */}
+          {value && !description ? (
             <span className="min-w-0 flex-1 truncate text-right text-body text-muted-foreground">
               {value}
             </span>
@@ -233,6 +237,11 @@ export function SettingsListRow({
           </span>
         ) : null}
       </span>
+      {value && description ? (
+        <span className="max-w-[40%] shrink-0 truncate text-right text-body text-muted-foreground">
+          {value}
+        </span>
+      ) : null}
       {trailing ?? null}
       {interactive && !trailing ? (
         <HugeiconsIcon icon={ChevronRightIcon} className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />

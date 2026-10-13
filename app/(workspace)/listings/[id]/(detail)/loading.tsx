@@ -148,29 +148,6 @@ function PhoneStackSkeleton() {
       {/* The "Read more" control is `min-h-10` — a touch target, not a text row. The
           height is the reserve; the width is texture. */}
       <Skeleton className="mt-tight h-10 w-1/3" />
-
-      <DetailsSkeleton className="mt-group" />
-    </div>
-  );
-}
-
-/**
- * `ListingDetails`: a `text-meta` eyebrow, then a bordered list of `text-body` rows
- * at `px-cozy py-snug`. Four rows (condition, game, listed, location) is the common
- * ungraded listing; a graded one adds rows below, and a binder has none.
- */
-function DetailsSkeleton({ className }: { className?: string }) {
-  return (
-    <div className={className}>
-      <TextLines className="mb-tight text-meta" widths={['w-1/4']} />
-      <div className="divide-y divide-border rounded-lg border border-border bg-card">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="flex items-baseline justify-between gap-group px-cozy py-snug">
-            <TextLines className="w-1/4 text-body" widths={['w-full']} />
-            <TextLines className="w-1/3 text-body" widths={['w-full']} />
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -228,7 +205,6 @@ function DesktopPaneSkeleton() {
         />
       </div>
 
-      <DetailsSkeleton />
 
       {/* Action stack, pinned to the bottom with `mt-auto pt-group` exactly as the pane
           pins it, so it lines up with the frame's bottom edge. Buy / Trade / Offer are

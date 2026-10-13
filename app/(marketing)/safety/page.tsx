@@ -1,611 +1,257 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Clock01Icon, LockIcon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
-
-import { TabbedPanels, type TabDescriptor } from '@/components/ui/tabbed-panels';
 import { TRADE_INSPECTION_FLOOR_HOURS, TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 import { betaFeeNote, feesWaivedForBeta, platformFeePhrase } from '@/lib/fees/feeLabels';
 
-import { RolePanel, SafetyList, SafetySection, type Stage } from './stage-rail';
+import { Guide, PageSection, Prose } from './stage-rail';
 
 // app/(marketing)/safety/page.tsx
 //
-// Member-facing safety guidance, ordered by WHEN rather than by topic. See
-// `stage-rail.tsx` for why the ordinals and the per-stage window carry the design.
+// Member-facing safety guidance, written as plain conversational prose rather than
+// bullet fragments. One column, one section pattern (`PageSection`), typography only.
 //
 // COPY RULES, both load-bearing.
 //
-// 1. One line per move, imperative, and the fact comes before the reason. This page is
-//    scanned by someone mid-deal, not read. An earlier draft explained the reasoning
-//    behind every precaution and buried the precaution.
+// 1. Write it the way you'd explain it to a friend across the counter: full sentences,
+//    casual, no fragments, no marketing voice. Put what to do before why.
 // 2. Never promise a protection that is not built, and match `/help` on the hedges:
 //    trade collateral is a temporary card hold and never "escrow", a binder or bulk
-//    listing always states that nothing is held, and freeze-and-review is operational
-//    rather than a promise that losses are covered. "What NoDitto cannot do" is not a
-//    section to trim for length.
+//    listing always says nothing is held, and a frozen dispute is not a promise that
+//    every loss is covered. The "What we can't do" guide is not one to delete.
 //
-// THE PHOTO ADVICE IS A HABIT WE ASK FOR, NOT A STEP WE ENFORCE.
-// `RecordShipmentDialog` captures no media and `dispute_evidence` is authored after a
-// dispute opens, by a motivated party — so the record that would settle a
-// swapped-contents claim is one nobody is prompted to make. If guided capture ever
-// becomes a precondition of recording a shipment, this copy becomes description.
+// The photo and weight advice is a habit we ask for, not a step the product enforces.
+// The sealed-product warning must not be softened: `DISPUTABLE_STATUSES` has no
+// COMPLETED entry, so once the 7 days pass there is no remedy.
 
 export const metadata: Metadata = {
-  // "on NoDitto" is in the H1 but not here, where the suffix already says it.
   title: 'How to protect yourself · NoDitto',
   description:
-    'What protects you at each stage of a purchase or trade on NoDitto, how long you have to act, and where the platform stops.',
+    'How NoDitto protects your purchases and trades, the warning signs to walk away from, and what to do at each step.',
 };
 
-type RoleId = 'buying' | 'selling' | 'trading';
+const strong = 'font-semibold text-foreground';
 
-/** The trade inspection window in days, from the constant the sweep enforces. */
-const TRADE_INSPECTION_DAYS = TRADE_INSPECTION_HOURS / 24;
-
-/**
- * What protects a member, before anything they have to do. Every line is a mechanism
- * the product enforces — see the copy rules above — and the windows come from the
- * same figures the sweeps use.
- */
-const COVERAGE = [
-  {
-    icon: LockIcon,
-    title: 'Payment held by Stripe until you accept',
-    body: 'On a purchase the seller is paid only after you accept the card, or your inspection window ends without a dispute.',
-  },
-  {
-    icon: Clock01Icon,
-    title: 'Time to check what you got',
-    body: `7 days from carrier-confirmed delivery on a posted purchase. ${TRADE_INSPECTION_DAYS} days after a trade's handover.`,
-  },
-  {
-    icon: ScaleIcon,
-    title: 'Disputes freeze the money',
-    body: 'Raise a problem inside your window and nothing moves while our case team reviews it.',
-  },
-  {
-    icon: ShieldCheckIcon,
-    title: 'Sellers and traders are ID-checked',
-    body: 'Stripe checks a photo ID before anyone can list or trade.',
-  },
-] as const;
-
-/** Phone-only jump links to the sections under the role tabs. */
-const JUMPS = [
-  { href: '#sealed', label: 'Sealed product' },
-  { href: '#in-person', label: 'Meeting in person' },
-  { href: '#red-flags', label: 'Red flags' },
-  { href: '#wrong', label: 'If it goes wrong' },
-  { href: '#limits', label: 'Limits' },
-] as const;
-
-const BUYING: Stage[] = [
-  {
-    title: 'Before you commit to buying',
-    window: 'No limit',
-    moves: [
-      <>Check the seller is identity verified. This means that Stripe has accepted their photo ID.</>,
-      <>Read the contract lines, not the listing title. We won't tolerate obvious scam ideas like selling a photo, but we can't help if you make a mistake.</>,
-      <>
-        Graded card? Look up the certificate number. It is checkable
-        against the relevant grader&rsquo;s own registry.
-      </>,
-      <>Ask for any photos or more detail.</>,
-      <>
-        Until you hit buy, nothing is held for you.
-      </>,
-    ],
-  },
-  {
-    title: 'When you pay',
-    window: 'Until you pay. After that you are committed',
-    moves: [
-      <>Your payment is held by Stripe, not paid to the seller, until you accept.</>,
-      <>Check the delivery address and postage before paying.</>,
-      feesWaivedForBeta() ? (
-        <>{betaFeeNote()}. Postage is passed through at cost.</>
-      ) : (
-        <>The buyer pays a NoDitto fee of {platformFeePhrase('aud')}, included in the price you see before paying. Postage is passed through at cost.</>
-      ),
-    ],
-  },
-  {
-    title: 'While it is in transit',
-    window: 'However long the carrier takes',
-    moves: [
-      <>Use tracked postage. Carrier confirmation is what starts your inspection window.</>,
-      <>Tracking says delivered but nothing came? Say so in the contract immediately.</>,
-    ],
-  },
-  {
-    title: 'The moment it arrives',
-    window: 'The first few minutes, before you open it',
-    moves: [
-      <>Photograph the parcel sealed, label visible.</>,
-      <>Film the opening in one take.</>,
-      <>Keep the packaging until the contract closes.</>,
-    ],
-  },
-  {
-    title: 'Your inspection window',
-    window: 'You will have 7 days from carrier-confirmed delivery to inspect the item',
-    moves: [
-      <>Accept or dispute inside it. The contract completes automatically afterwards.</>,
-      <>Raise a dispute early even if you are still gathering evidence.</>,
-      <>
-        Meeting in person? There is no window afterwards: confirming the handover
-        completes the sale, so check the card before you confirm.
-      </>,
-    ],
-  },
-];
-
-const SELLING: Stage[] = [
-  {
-    title: 'Before you list',
-    window: 'No limit',
-    moves: [
-      <>Identity verification is required to list. Payouts are a separate step.</>,
-      <>
-        Set up payouts before your first sale completes. You can sell without it, but you
-        cannot be paid.
-      </>,
-      <>
-        Write the contract lines precisely. Support reads the contract, never the
-        listing.
-      </>,
-    ],
-  },
-  {
-    title: 'Before you agree the terms',
-    window: 'Until payment is collected',
-    moves: [
-      <>Wait for payment to show as collected. Never post on a message or a screenshot.</>,
-      <>
-        Say no to posting early, to an address that is not on the contract, and to
-        under-declaring value.
-      </>,
-      <>
-        Your buyer may not be identity verified. Buyers are only ever refunded to their
-        own card, so they are not asked to be.
-      </>,
-    ],
-  },
-  {
-    title: 'Before it ships',
-    window: 'Within 3 business days of payment',
-    moves: [
-      <>
-        Photograph the item, the packed parcel, then the sealed parcel with the label in
-        frame.
-      </>,
-      <>
-        Note the weight off the receipt. Swap claims turn on weight, and the carrier
-        records it too.
-      </>,
-      <>Tracked postage, recorded in the contract room rather than in chat.</>,
-    ],
-  },
-  {
-    title: 'While the buyer inspects',
-    window: '7 days from carrier-confirmed delivery',
-    moves: [
-      <>The clock starts on the carrier&rsquo;s confirmation, not the buyer&rsquo;s word.</>,
-      <>Answer questions in the contract conversation. It is part of the record.</>,
-    ],
-  },
-  {
-    title: 'After it completes',
-    window: 'Payout is queued on completion',
-    moves: [
-      <>Payout needs an active payout account, or it waits.</>,
-      <>
-        A card payment can still be reversed weeks later. Your dispatch photos and
-        tracking are the defence.
-      </>,
-    ],
-  },
-];
-
-const TRADING: Stage[] = [
-  {
-    title: 'Before you agree terms',
-    window: 'No limit',
-    moves: [
-      <>Both traders must be identity verified.</>,
-      <>A saved card is required. Collateral cannot be placed without one.</>,
-      <>
-        Write exactly what you are receiving. &ldquo;Some cards from your binder&rdquo;
-        cannot be arbitrated.
-      </>,
-    ],
-  },
-  {
-    title: 'When collateral locks',
-    window: 'About 7 days before the card hold expires on its own',
-    moves: [
-      <>
-        Both sides get a temporary card hold for the agreed value. No money moves and
-        nothing is charged.
-      </>,
-      <>If they will not complete that step, nothing is protecting you. Do not ship.</>,
-    ],
-  },
-  {
-    title: 'Before you meet',
-    window: 'Trades are face to face',
-    moves: [
-      <>Agree the place and time in the contract, so the record shows where you met.</>,
-      <>Photograph your card before you go. It shows the condition you handed over.</>,
-    ],
-  },
-  {
-    title: 'The handover',
-    window: `Your ${TRADE_INSPECTION_DAYS} days starts here`,
-    moves: [
-      <>
-        Confirming records that you met and swapped. It is
-        <strong className="font-semibold text-foreground"> not </strong>
-        acceptance.
-      </>,
-      <>
-        No-show? Use handover failed. It freezes the trade and charges nothing.
-      </>,
-    ],
-  },
-  {
-    title: 'Your inspection window',
-    window: `${TRADE_INSPECTION_DAYS} days, and never less than ${TRADE_INSPECTION_FLOOR_HOURS} hours`,
-    moves: [
-      <>Shorter than a purchase, because the card hold expires in about a week.</>,
-      <>
-        A condition disagreement costs a small fixed fee off the collateral of whoever is
-        at fault. Fraud is different: collateral is captured, paid to the person
-        defrauded, and the account banned.
-      </>,
-    ],
-  },
-];
-
-const ROLES: TabDescriptor<RoleId>[] = [
-  { id: 'buying', label: 'Buying', href: '/safety' },
-  { id: 'selling', label: 'Selling', href: '/safety?role=selling' },
-  { id: 'trading', label: 'Trading', href: '/safety?role=trading' },
-];
-
-export default async function SafetyPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ role?: string | string[] }>;
-}) {
-  const { role: rawRole } = await searchParams;
-
-  // Resolved on the server so the first paint already shows the right panel. An
-  // unrecognised `?role=` falls back to the first tab, which is what the strip does
-  // when answering Back.
-  const rawRoleValue = Array.isArray(rawRole) ? rawRole[0] : rawRole;
-  const initialRole: RoleId = ROLES.find((entry) => entry.id === rawRoleValue)?.id ?? 'buying';
+export default function SafetyPage() {
+  const buyerFee = feesWaivedForBeta()
+    ? `${betaFeeNote()}, and postage is passed through at cost.`
+    : 'The price you see is what you pay, and postage is passed through at cost.';
+  const sellerFee = feesWaivedForBeta()
+    ? `${betaFeeNote()}, so you'll receive the full item price.`
+    : `NoDitto keeps ${platformFeePhrase('aud')}.`;
 
   return (
-    <article className="mx-auto max-w-3xl px-group py-section sm:px-6 md:py-12 lg:px-section">
-      {/* Header geometry MIRRORS `PolicyArticle` rather than out-dressing it. This page
-          used to open on an eyebrow and a `display` title, one step above /help, /terms
-          and /privacy — four marketing pages, four header treatments. There is no
-          in-page back link either: the wordmark in `MarketingChrome` and in the desktop
-          header both go to `/` and render for signed-in and signed-out alike, so the
-          link was a third route to the same place. */}
+    <article className="mx-auto max-w-2xl px-group py-section sm:px-6 md:py-12">
       <header>
         <h1 className="text-subhead font-semibold tracking-tight text-foreground md:text-head">
-          How to protect yourself on NoDitto
+          Staying safe on NoDitto
         </h1>
-        {/* `mt-snug` / `md:mt-cozy` are `PolicyArticle`'s lede offsets, not a guess —
-            the header no longer has a `space-y` wrapper to supply them. */}
-        <p className="mt-snug max-w-prose text-pretty text-body text-muted-foreground md:mt-cozy md:text-lead">
-          What protects you on every deal, and the habits that keep it working.
-        </p>
-        {/* JUMP LINKS, PHONE ONLY. The sections under the role tabs sit several screens
-            down on a phone. Kept apart from the tab strip by the coverage and the
-            warning below, so the two never read as competing navigations. */}
-        <nav aria-label="On this page" className="mt-cozy flex gap-snug overflow-x-auto pb-tight md:hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {JUMPS.map((jump) => (
-            <a
-              key={jump.href}
-              href={jump.href}
-              className="inline-flex h-8 shrink-0 items-center rounded-full border border-border bg-card px-cozy text-meta font-medium text-foreground"
-            >
-              {jump.label}
-            </a>
-          ))}
-        </nav>
+        <Prose className="mt-cozy md:text-lead">
+          <p>
+            Most deals on NoDitto go off without a hitch, and the system is built so that when one
+            doesn&rsquo;t, you&rsquo;ve still got a way back. This page explains how that works and
+            what you can do to keep yourself covered.
+          </p>
+        </Prose>
       </header>
 
-      {/* HOW YOU'RE COVERED COMES FIRST. The page used to open on what NoDitto could
-          not do, then a warning, and reach the protections several screens later —
-          so a member checking whether a deal was safe met the caveats before the
-          cover. The cover leads; the warning and the limits still follow. */}
-      <section aria-labelledby="covered-heading" className="mt-section">
-        <h2 id="covered-heading" className="text-lead font-semibold tracking-tight text-foreground">
-          How you&rsquo;re covered
-        </h2>
-        <ul className="mt-cozy grid gap-cozy sm:grid-cols-2">
-          {COVERAGE.map((point) => (
-            <li key={point.title} className="flex gap-cozy rounded-lg border border-border bg-card p-group">
-              <HugeiconsIcon icon={point.icon} className="mt-0.5 size-5 shrink-0 text-trust" aria-hidden />
-              <div>
-                <p className="text-body font-semibold text-foreground">{point.title}</p>
-                <p className="mt-0.5 text-pretty text-body text-muted-foreground">{point.body}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      {/* THE ONE RULE, ABOVE THE TABS: it is the only guidance here that does not
-          depend on role or stage, and off-platform payment is the scam that makes
-          everything below it irrelevant. `.cardtrade-warning` is the product's caution
-          tone and carries its own defined edge. */}
-      <div className="cardtrade-warning mt-section rounded-lg border p-group">
-        <p className="market-label">Before anything else</p>
-        <p className="mt-snug text-body font-semibold text-foreground">
-          Keep the whole deal on NoDitto.
-        </p>
-        <p className="mt-tight text-pretty text-body">
-          Being steered off NoDitto is the clearest sign of a scam - you will be warned if this is attempted. If the contract is not conducted on NoDitto, we cannot provide any protection.
-        </p>
+      {/* THE ONE RULE, marked by a single amber rule on its left edge. */}
+      <div className="mt-section border-l-2 border-action-edge pl-group">
+        <Prose>
+          <p>
+            <strong className={strong}>The one thing that matters most is keeping the whole deal on
+            NoDitto.</strong>{' '}
+            Pay here, chat here, and record your postage here. Everything we can do to help depends on
+            the deal having happened on the platform, and if someone tries to move you somewhere else,
+            that&rsquo;s usually the first sign something&rsquo;s off.
+          </p>
+        </Prose>
       </div>
 
-      {/* NO JUMP-NAV ABOVE THE STRIP. An "on this page" row sitting directly on the
-          role tabs read as two competing navigations stacked on each other — the same
-          reason `TabbedPanels` does not put an underlined strip under a phone's bottom
-          bar. The strip is this page's navigation; the sections below the rule carry
-          their own headings. */}
-      <div className="mt-section">
-        <TabbedPanels
-          tabs={ROLES}
-          initialTab={initialRole}
-          label="Safety guidance by role"
-          layoutId="safety-roles"
-          param="role"
-          panels={{
-            buying: (
-              <RolePanel
-                headingId="buying-heading"
-                heading="If you are buying"
-                idPrefix="buying"
-                lede="Your payment is held by Stripe until you accept what arrived. You have a limited time to check it and say something."
-                stages={BUYING}
-              />
-            ),
-            selling: (
-              <RolePanel
-                headingId="selling-heading"
-                heading="If you are selling"
-                idPrefix="selling"
-                lede="Sellers lose money to false claims and to card payments reversed weeks later. Photos and tracking are what defend you, and you can only take them before you post."
-                stages={SELLING}
-              />
-            ),
-            trading: (
-              <RolePanel
-                headingId="trading-heading"
-                heading="If you are trading"
-                idPrefix="trading"
-                lede="A trade is backed by a temporary hold on both traders' cards. That hold expires after about a week, which is why every deadline in a trade is shorter than in a purchase."
-                stages={TRADING}
-              />
-            ),
-          }}
-        />
-      </div>
-
-      <div className="mt-region space-y-section border-t border-border pt-section">
-        {/* SEALED PRODUCT IS THE ONE CATEGORY THE INSPECTION WINDOW CANNOT SERVE, so it
-            gets its own section rather than a bullet inside a stage. Checking the
-            contents means destroying the premium, so the window forces a choice instead
-            of offering a remedy — and a member who does not know that before they pay
-            will discover it years later when nothing can be done.
-
-            AMBER, NOT RED. This is not a scam signal; it is a limit on what any
-            marketplace can offer, and the advice below is how to work inside it. Red is
-            reserved for "walk away".
-
-            DO NOT SOFTEN THE CALLOUT INTO A REASSURANCE. Buyer protection here runs 7
-            days from carrier-confirmed delivery and `DISPUTABLE_STATUSES` in
-            `cashSaleOrchestrator` has no COMPLETED entry, so a dispute after completion
-            returns INVALID_STATE. Verified elsewhere at the time of writing: eBay's
-            money-back guarantee and PayPal's not-as-described claims both run 30 days
-            from delivery, and eBay's trading-card authentication covers single cards
-            only, not sealed cases. Weeks everywhere, against a product held for years.
-
-            THE ORDER OF THE LIST IS THE ADVICE. Tampering signs and seller history come
-            first because they are the only two defences that work before the money moves
-            and without breaking the seal. Everything after them is either a second
-            opinion (weight) or a record for later (photographs) — useful, but no help to
-            a member deciding whether to buy at all.
-
-            The weighing and case-code advice is a HABIT we ask for, like the photographs
-            — nothing in the product captures or compares a weight today. */}
-        <SafetySection id="sealed" title="Sealed and unopened product">
-          <div className="cardtrade-warning rounded-lg border p-group">
-            <p className="text-body font-semibold text-foreground">
-              Your 7 days runs whether you open it or not.
+      <div className="mt-region space-y-region">
+        <PageSection id="protected" title="How you're protected">
+          <Prose>
+            <p>
+              When you buy a card, the seller doesn&rsquo;t get paid straight away. We hold your
+              payment until you&rsquo;ve received the card and accepted it, or until your inspection
+              time runs out without a dispute. That inspection time is 7 days from when the carrier
+              confirms delivery, and on a trade it&rsquo;s {TRADE_INSPECTION_HOURS} hours.
             </p>
-            <p className="mt-tight text-pretty text-body">
-              Opening a sealed case is the only way to confirm what is inside, and it
-              destroys most of what you paid for. Leave it sealed and the contract
-              completes on schedule, and once it has completed there is nothing we can do.
-              Other platforms give you weeks at most. If you buy sealed and keep it
-              sealed, you are accepting the contents unseen.
+            <p>
+              If something&rsquo;s wrong, raising a dispute within that time freezes the money, so
+              nothing gets paid out while our case team looks into it. And anyone who lists, sells or
+              trades has had their photo ID and a selfie checked by Stripe first, so you always know
+              there&rsquo;s a real, verified person on the other side.
             </p>
+          </Prose>
+        </PageSection>
+
+        <PageSection id="red-flags" title="When to walk away">
+          <Prose>
+            <p>
+              Scams on card marketplaces tend to look the same. The most common is someone asking you
+              to pay another way, whether that&rsquo;s a bank transfer, crypto, gift cards or a payment
+              link, or asking to carry on the conversation over WhatsApp, Instagram, Discord or email.
+              Once you leave NoDitto, there&rsquo;s nothing we can reverse.
+            </p>
+            <p>
+              Be wary too if you&rsquo;re being rushed because &ldquo;another buyer is waiting&rdquo;,
+              if a valuable card is priced well under what it&rsquo;s worth, if the seller won&rsquo;t
+              take the extra photos you ask for, or if you&rsquo;re asked to post to an address
+              that isn&rsquo;t on the contract. We&rsquo;ll also never ask for your password, your card
+              number or a code, so anyone claiming to be NoDitto support who does isn&rsquo;t us.
+            </p>
+            <p>
+              If something feels wrong, you can report the listing or the member from their page. They
+              won&rsquo;t be told who reported them.
+            </p>
+          </Prose>
+        </PageSection>
+
+        <PageSection
+          id="guides"
+          title="Step by step"
+          lede="These go into more detail. Open whichever one fits what you're doing."
+        >
+          <div className="border-t border-border">
+            <Guide id="buying" title="Buying a card">
+              <p>
+                Before you pay, take your time. Nothing is held for you until you pay, and paying is
+                what commits you to the deal. Check that the seller shows as identity verified, and read
+                the contract lines carefully, because they describe exactly what you&rsquo;re buying in
+                a way the listing title doesn&rsquo;t. If it&rsquo;s a graded card, look the certificate
+                number up on the grader&rsquo;s own website. {buyerFee}
+              </p>
+              <p>
+                When the parcel turns up, photograph it before you open it, with the label in view, and
+                then film yourself opening it in one continuous take. Hang on to the packaging until the
+                sale is finished. It sounds like a lot, but if anything&rsquo;s wrong, that footage is
+                what settles it.
+              </p>
+              <p>
+                You then have 7 days from carrier-confirmed delivery to accept the card or raise a
+                dispute. If you do neither, the sale completes on its own. If you&rsquo;re meeting the
+                seller in person instead, there&rsquo;s no inspection time afterwards, because confirming
+                the handover completes the sale, so check the card properly before you confirm.
+              </p>
+            </Guide>
+
+            <Guide id="selling" title="Selling a card">
+              <p>
+                You&rsquo;ll need to verify your identity before you can list, and it&rsquo;s worth
+                setting up payouts at the same time so there&rsquo;s nothing holding up your money later.
+                Describe each card precisely, because if there&rsquo;s ever a dispute, it gets decided on
+                what the contract says rather than on the listing. {sellerFee}
+              </p>
+              <p>
+                Once the buyer has paid, you&rsquo;ve got 3 business days to post. Only send it once the
+                contract itself shows the payment as collected, never because of a message or a
+                screenshot. Before you seal the parcel, photograph the card and the packed box, then
+                photograph the sealed parcel with the label showing, and keep your postage receipt. Use
+                tracked postage and record the tracking in the contract room.
+              </p>
+              <p>
+                Your payout is sent once the sale completes and your payout account is active. Keep your
+                photos and tracking even after that, since a card payment can occasionally be reversed by
+                the buyer&rsquo;s bank weeks later, and they&rsquo;re your defence if it is.
+              </p>
+            </Guide>
+
+            <Guide id="trading" title="Trading cards">
+              <p>
+                A trade works a little differently, because instead of anyone paying, both of you put a
+                temporary hold on your card for the value of your side. Nothing is charged and no money
+                moves, but that hold only lasts about a week, which is why the deadlines on a trade are
+                shorter than on a purchase.
+              </p>
+              <p>
+                You&rsquo;ll both need verified identity and a saved card. When you agree the terms,
+                write down exactly which cards you&rsquo;re getting, then wait until both holds are in
+                place before you post anything or meet up. Photograph your card before it leaves your
+                hands, and either post it tracked or meet somewhere public.
+              </p>
+              <p>
+                If you meet in person, confirming the handover only records that you swapped. It
+                isn&rsquo;t the same as accepting the card. If the other person doesn&rsquo;t show or a
+                parcel goes missing, use &ldquo;Handover failed&rdquo;, which freezes the trade without
+                charging anyone.
+              </p>
+              <p>
+                After the swap, you get {TRADE_INSPECTION_HOURS} hours to inspect, and never less than{' '}
+                {TRADE_INSPECTION_FLOOR_HOURS}. That clock starts at the agreed meeting time, or when the
+                later of the two parcels is delivered. If the other trader turns out to have committed
+                fraud, their hold is captured and paid to you, and their account is banned.
+              </p>
+            </Guide>
+
+            <Guide id="in-person" title="Meeting in person">
+              <p>
+                Pick somewhere public and busy with cameras around, like a card shop or a shopping
+                centre, and either bring someone along or let someone know where you&rsquo;ll be. Take
+                your time checking the card. If the other person is hurrying you, treat that as a warning
+                sign.
+              </p>
+              <p>
+                It helps to know what confirming the handover actually does. On a purchase, it completes
+                the sale and releases the money to the seller, so there&rsquo;s no going back. On a trade,
+                it only records the swap, and you still have {TRADE_INSPECTION_HOURS} hours to inspect
+                what you received.
+              </p>
+            </Guide>
+
+            <Guide id="sealed" title="Buying sealed product">
+              <p>
+                Sealed boxes and cases are the one thing the inspection window can&rsquo;t really help
+                with. Your 7 days runs whether you open it or not, and opening it is usually what
+                destroys its value. If you keep it sealed, you&rsquo;re accepting the contents without
+                seeing them, and once the sale completes there&rsquo;s nothing we can do.
+              </p>
+              <p>
+                So the checking has to happen before you pay. Ask for close-up photos of the seams, flaps
+                and case code, and look for signs of resealing like wrinkled or re-shrunk film, glue, or
+                re-taped flaps. Check that the seller has a history of completed sealed sales, ask for the
+                weight on their postage receipt, and weigh it yourself the day it arrives.
+              </p>
+            </Guide>
+
+            <Guide id="wrong" title="If something goes wrong">
+              <p>
+                Raise a dispute in the contract room while you&rsquo;re still inside your inspection
+                time, even if you haven&rsquo;t gathered your evidence yet. You can add photos, video and
+                tracking afterwards, and our case team reads everything both of you send. If you manage
+                to sort it out between yourselves, you can withdraw the dispute.
+              </p>
+              <p>
+                If you&rsquo;re refunded and you&rsquo;ve still got the card, you&rsquo;ll need to post it
+                back within 7 days, and the refund goes through automatically once the carrier confirms
+                it&rsquo;s been delivered. A dispute freezes the money while we review it, which gives
+                everyone time to sort things out, but it isn&rsquo;t a promise that every loss will be
+                covered.
+              </p>
+            </Guide>
+
+            <Guide id="limits" title="What we can't do">
+              <p>
+                We never handle the cards ourselves, so we can&rsquo;t authenticate them, and we
+                can&rsquo;t help with anything that was paid for outside NoDitto. When neither side has
+                any evidence, we usually can&rsquo;t decide a claim either way. Binder and bulk listings
+                don&rsquo;t reserve individual cards, so nothing on them is held for you. And we&rsquo;re
+                not a replacement for the police, so if you&rsquo;ve been the victim of serious fraud,
+                report it to them and to ReportCyber as well.
+              </p>
+            </Guide>
           </div>
-          <p className="max-w-prose text-pretty text-body text-muted-foreground">
-            You cannot check the contents, so check the packaging and check the seller.
-            Both are free and both have to happen before you pay.
+        </PageSection>
+
+        <Prose>
+          <p>
+            For more on identity checks, card holds and private deals, have a look at the{' '}
+            <Link href="/help" className="font-medium text-iris-ink underline-offset-4 hover:underline">
+              Help page
+            </Link>
+            .
           </p>
-          <SafetyList
-            items={[
-              <>
-                Check the wrap and the seams first. Resealing leaves marks: wrinkled or
-                re-shrunk film, glue residue, re-taped flaps, film that is loose or
-                doubled over, a seam somewhere the factory does not put one.
-              </>,
-              <>
-                Ask for close photos of the seams, flaps and case code before you pay. A
-                seller with nothing to hide sends them.
-              </>,
-              <>
-                Check the seller&rsquo;s history. Open their seller page: completed sales,
-                reviews from different buyers, how long they have been trading, and
-                whether they have sold sealed product before.
-              </>,
-              <>
-                A long run of completed sales tells you more than the star rating. If the
-                history is thin, you do not know much yet, so keep the purchase small.
-              </>,
-              <>
-                Weigh it the day it arrives, and ask for the weight off the
-                seller&rsquo;s postage receipt before you pay. A factory case has a known
-                weight, the carrier records it independently, and a swapped or padded one
-                rarely matches.
-              </>,
-              <>
-                Photograph the case code, lot number, seams and flaps on arrival, before
-                you break anything.
-              </>,
-              <>
-                Selling or reselling sealed? Photograph the case code and weigh it at the
-                counter. Keep both. It is your answer if a buyer later says the case was
-                opened and swapped.
-              </>,
-              <>
-                Spending heavily? Consider having a third-party authenticator take
-                delivery and verify the seal before it reaches you.
-              </>,
-            ]}
-          />
-        </SafetySection>
-
-        <SafetySection id="in-person" title="Meeting in person">
-          <SafetyList
-            items={[
-              <>
-                Public, busy, daylight, cameras. A card shop, a game store, a shopping
-                centre, a police station car park. 
-              </>,
-              <>Bring someone, and tell a third person where you will be.</>,
-              <>Inspect properly. If you are being hurried, that is a warning.</>,
-              <>
-                <strong className="font-semibold text-foreground">
-                  On a purchase, confirming completes the sale and releases the money.
-                </strong>{' '}
-                There is no window afterwards, so check before you confirm.
-              </>,
-              <>
-                On a trade, confirming only records the swap. Your {TRADE_INSPECTION_DAYS}{' '}
-                days starts from there.
-              </>,
-              <>Keep the meeting place and time in the contract.</>,
-            ]}
-          />
-        </SafetySection>
-
-        <SafetySection id="red-flags" title="Red flags">
-          {/* DANGER, NOT CAUTION — deliberately a different tone from the callout above
-              the tabs. That one is an instruction ("keep the deal here"); this is a list
-              of things to walk away from, and amber for both made them read as two
-              intensities of the same note. */}
-          <div className="cardtrade-danger rounded-lg border p-group">
-            <p className="text-body font-semibold text-foreground">
-              Any one of these is a reason to stop and report, not to negotiate.
-            </p>
-            <ul className="mt-cozy list-disc space-y-snug pl-5 text-body marker:text-destructive">
-              <li className="text-pretty">
-                Any request to pay outside NoDitto - transfer, friends and family,
-                crypto, gift cards, a payment link.
-              </li>
-              <li className="text-pretty">
-                Pressure to move to WhatsApp, Instagram, Discord or email.
-              </li>
-              <li className="text-pretty">
-                Being rushed: another buyer waiting, an account about to be limited.
-              </li>
-              <li className="text-pretty">
-                Well under market on a high-value item. Nobody is that stupid.
-              </li>
-              <li className="text-pretty">
-                Stock, reused or cropped photos, or refusal to send specific ones.
-              </li>
-              <li className="text-pretty">
-                Shipping to an address that is not on the contract.
-              </li>
-              <li className="text-pretty">
-                &ldquo;Support&rdquo; asking for your password, card number, or a code.
-                We never do.
-              </li>
-              <li className="text-pretty">A new account pushing a large first deal.</li>
-            </ul>
-          </div>
-          <p className="text-pretty text-body text-muted-foreground">
-            Report a listing or a member from its page. Reports never move money, and the
-            person you report is not told.
-          </p>
-        </SafetySection>
-
-        <SafetySection id="wrong" title="If it goes wrong">
-          <SafetyList
-            items={[
-              <>Raise it in the contract room inside your window, evidence or not.</>,
-              <>
-                Upload photos, video, packaging and tracking. Both sides can add to it
-                and staff read all of it.
-              </>,
-              <>
-                Keep talking in the contract conversation. You can withdraw a dispute if
-                you settle it between you.
-              </>,
-              <>
-                Awarded a full refund while holding the goods? They go back first. You
-                get 7 days to lodge the parcel, and the refund is automatic on carrier
-                confirmation.
-              </>,
-              <>
-                Support can freeze a disputed contract while they look at it. That buys
-                time to sort it out. It is not a promise that every loss is covered.
-              </>,
-            ]}
-          />
-        </SafetySection>
-
-        <SafetySection id="limits" title="What NoDitto cannot do">
-          <SafetyList
-            items={[
-              <>Authenticate anything. No card passes through our hands.</>,
-              <>Help with a payment made off-platform. No contract, nothing to reverse.</>,
-              <>
-                Settle a claim when neither side has evidence. That is your word against
-                theirs, and we were not there.
-              </>,
-              <>
-                Act as police. A fraud finding here is about an account and its money,
-                not a conviction, and we do not store anyone&rsquo;s identity
-                documents to hand over. Serious fraud should also go to the police and ReportCyber.
-              </>,
-              <>Reserve a card on a binder or bulk listing.</>,
-              <>Vouch for reviews. A thin history is a risk, not a clean record.</>,
-            ]}
-          />
-          <p className="text-pretty text-body text-muted-foreground">
-            <Link
-              href="/help"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Help
-            </Link>{' '}
-            covers identity, holds and private deals.
-          </p>
-        </SafetySection>
+        </Prose>
       </div>
     </article>
   );

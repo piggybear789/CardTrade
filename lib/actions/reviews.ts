@@ -267,12 +267,17 @@ export interface ReviewWithReviewer {
   /** The transaction kind, from the reviewee's perspective. */
   transactionKind: ReviewTransactionKind;
   /**
-   * The transaction's value in AUD cents, when it can be determined: the
+   * The transaction's value in minor units of `currency`, when it can be determined: the
    * agreed item price for a cash sale, or the Fair_Market_Value of the goods
    * `userId` received for a trade (equal by design to what they gave up).
    * `null` if the source transaction could not be resolved.
    */
   valueCents: number | null;
+  /**
+   * ISO 4217 code `valueCents` is denominated in: the cash sale's own currency, or
+   * the currency of the trade goods' items. `null` exactly when `valueCents` is.
+   */
+  currency: string | null;
 }
 
 /**
@@ -312,7 +317,7 @@ export const getReviewsFor = withActionLog('reviews.getReviewsFor', async functi
       cashSaleIds.length > 0
         ? supabase
             .from('cash_sales')
-            .select('id, buyer_id, seller_id, agreed_price_cents')
+            .select('id, buyer_id, seller_id, agreed_price_cents, currency')
             .in('id', cashSaleIds)
         : Promise.resolve({
             data: [] as {
@@ -320,18 +325,19 @@ export const getReviewsFor = withActionLog('reviews.getReviewsFor', async functi
               buyer_id: string;
               seller_id: string;
               agreed_price_cents: number;
+              currency: string;
             }[],
           }),
       tradeIds.length > 0
         ? supabase
             .from('trade_items')
-            .select('trade_id, trader_id, items(fmv_cents)')
+            .select('trade_id, trader_id, items(fmv_cents, currency)')
             .in('trade_id', tradeIds)
         : Promise.resolve({
             data: [] as {
               trade_id: string;
               trader_id: string;
-              items: { fmv_cents: number } | null;
+              items: { fmv_cents: number; currency: string } | null;
             }[],
           }),
     ]);
@@ -348,24 +354,40 @@ export const getReviewsFor = withActionLog('reviews.getReviewsFor', async functi
   // For each trade, sum the Fair_Market_Value of the items the OTHER trader
   // contributed — that's what `userId` received, and by the equal-value trade
   // rule it matches what they gave up.
+  //
+  // A trade runs inside one region, so its items share one currency; the first
+  // item's code is recorded and a disagreeing item drops the figure rather than
+  // summing across currencies.
   const tradeValueByTradeId = new Map<string, number>();
+  const tradeCurrencyByTradeId = new Map<string, string | null>();
   for (const row of tradeItems ?? []) {
     if (row.trader_id === userId) continue;
     const fmv = row.items?.fmv_cents ?? 0;
+    const code = row.items?.currency ?? null;
+    if (!tradeCurrencyByTradeId.has(row.trade_id)) {
+      tradeCurrencyByTradeId.set(row.trade_id, code);
+    } else if (code && tradeCurrencyByTradeId.get(row.trade_id) !== code) {
+      tradeCurrencyByTradeId.set(row.trade_id, null);
+    }
     tradeValueByTradeId.set(row.trade_id, (tradeValueByTradeId.get(row.trade_id) ?? 0) + fmv);
   }
 
   return rows.map((r) => {
     let transactionKind: ReviewTransactionKind = 'traded';
     let valueCents: number | null = null;
+    let currency: string | null = null;
 
     if (r.source_type === 'cash_sale') {
       const sale = cashSaleById.get(r.source_id);
       transactionKind = sale?.seller_id === userId ? 'sold' : 'bought';
       valueCents = sale?.agreed_price_cents ?? null;
+      currency = sale?.currency ?? null;
     } else {
       valueCents = tradeValueByTradeId.get(r.source_id) ?? null;
+      currency = tradeCurrencyByTradeId.get(r.source_id) ?? null;
     }
+    // No currency, no figure: an amount without its denomination is not shown.
+    if (currency == null) valueCents = null;
 
     return {
       id: r.id,
@@ -376,6 +398,7 @@ export const getReviewsFor = withActionLog('reviews.getReviewsFor', async functi
       reviewerName: nameById.get(r.reviewer_id) ?? null,
       transactionKind,
       valueCents,
+      currency,
     };
   });
 });

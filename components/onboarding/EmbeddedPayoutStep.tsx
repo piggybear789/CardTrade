@@ -78,6 +78,8 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
   // The offending field, when the failure was caused by stored profile data rather
   // than by something retrying could fix.
   const [errorField, setErrorField] = useState<string | null>(null);
+  // A neutral wait (Stripe reviewing), kept apart from `error` so it is not drawn red.
+  const [notice, setNotice] = useState<string | null>(null);
   // No pending flag is read: the two async paths either swap the phase (start) or hand
   // off to the parent (exit), so there is no control left on screen to disable.
   const [, startTransition] = useTransition();
@@ -183,13 +185,24 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
         return;
       }
       if (refreshed.data.settlementsEnabled) {
-        
         onComplete();
         return;
       }
+      // Only claim details are missing when they are. `pending` is Stripe reviewing what
+      // was submitted, and telling that member to "pick up where you left off" sends them
+      // back into a form they have already finished.
+      if (refreshed.data.complianceStatus === 'pending') {
+        setError(null);
+        setNotice(
+          'Stripe is reviewing your payout details. This usually takes a minute or two. ' +
+            'You can leave this page, and it will be up to date when you come back.',
+        );
+        return;
+      }
+      setNotice(null);
       setError(
-        'Stripe still needs a few details before you can be paid. Pick up where you left off ' +
-          'above — nothing you entered is lost.',
+        'Stripe still needs a few details before you can be paid. Pick up where you left ' +
+          'off above. Nothing you entered is lost.',
       );
     });
   }
@@ -299,6 +312,10 @@ export function EmbeddedPayoutStep({ onComplete, onUnsupported }: EmbeddedPayout
       {error ? (
         <p role="alert" className="text-body text-destructive">
           {error}
+        </p>
+      ) : notice ? (
+        <p role="status" className="text-body text-muted-foreground">
+          {notice}
         </p>
       ) : null}
 

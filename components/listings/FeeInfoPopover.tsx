@@ -50,7 +50,7 @@ export function FeeInfoPopover({
           <dd className="whitespace-nowrap tabular-nums">{priceText}</dd>
         </div>
         <div className="flex justify-between gap-cozy">
-          <dt>{waived ? `NoDitto fee (normally ${rateLabel})` : `NoDitto fee (${rateLabel})`}</dt>
+          <dt>{waived ? 'NoDitto fee' : `NoDitto fee (${rateLabel})`}</dt>
           <dd className="whitespace-nowrap tabular-nums">{feeText}</dd>
         </div>
         <div className="flex justify-between gap-cozy border-t pt-tight font-medium text-foreground">

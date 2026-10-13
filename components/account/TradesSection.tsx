@@ -21,7 +21,7 @@ import {
   ContractRowThumb,
   NextMoveCell,
 } from '@/components/account/ContractRow';
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /**
@@ -94,7 +94,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
                     straight trade is noise, and the sign says which way it moves. */}
                 {trade.cashAmountCents > 0 ? (
                   <span className="tabular-nums">
-                    plus {formatAud(trade.cashAmountCents)} cash
+                    plus {formatMoney(trade.cashAmountCents, trade.currency)} cash
                   </span>
                 ) : null}
                 {/* Its own column from `md`; here below it, beside the counterparty. */}

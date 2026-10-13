@@ -29,9 +29,9 @@ import {
 } from '@/lib/actions/disputeEvidence';
 import {
   buildQueue,
+  cashSaleMarkerCase,
   type ArbitrationCase,
   type ArbitrationCaseKind,
-  type ArbitrationCaseSituation,
   type ArbitrationGoodsLine,
   type TriagedCase,
 } from '@/domain/arbitration/arbitrationCase';
@@ -126,6 +126,13 @@ export interface ArbitrationShipmentEvidence {
   returnDisputedAt: string | null;
   /** When the sweep marked the return as lapsed. Null when not lapsed. */
   returnLapsedAt: string | null;
+  /** The ship-by date the seller was given (0132). Null on a sale that never had one. */
+  shipByAt: string | null;
+  /**
+   * When the sweep found the ship-by date passed with nothing posted (0132). Never
+   * cleared, so it stays on the record after a late post or a dispute.
+   */
+  shipLapsedAt: string | null;
 }
 
 /**
@@ -312,8 +319,11 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
       .select(
         'id, status, currency, item_title, from_shopfront, amount_cents, platform_fee_cents, refund_cents, buyer_id, seller_id, return_disputed_at, return_dispute_reason, return_lapsed_at, ship_lapsed_at, cash_sale_items(description, condition, quantity, unit_price_cents, sort_order)',
       )
-      // 0132: an ESCROW_HELD sale past its ship-by date joins them. It leaves the queue
-      // by itself once tracking is recorded, because the sale leaves ESCROW_HELD.
+      // 0132: an ESCROW_HELD sale past its ship-by date joins them. This read is a
+      // SUPERSET, any marker in any of the three statuses, and `cashSaleMarkerCase`
+      // decides in the loop below which rows are cases, so the rule lives in one tested
+      // place rather than a second time inside a filter string. A "Not shipped" case
+      // leaves the queue once tracking is recorded, because the sale leaves ESCROW_HELD.
       .in('status', ['RETURN_PENDING', 'RETURN_IN_TRANSIT', 'ESCROW_HELD'])
       .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null,ship_lapsed_at.not.is.null'),
     admin.from('arbitration_assignments').select('case_kind, case_ref, assignee_id'),
@@ -432,18 +442,20 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
   // timestamp rather than `disputed_at`.
   for (const rc of returnCases.data ?? []) {
     const id = rc.id as string;
-    const returnDisputedAt = (rc.return_disputed_at as string | null) ?? null;
-    const returnLapsedAt = (rc.return_lapsed_at as string | null) ?? null;
-    const shipLapsedAt = (rc.ship_lapsed_at as string | null) ?? null;
-    // A sale can be BOTH contested and lapsed (seller contests after the buyer also
-    // fails to post). Contested takes precedence: a human already said "something is
-    // wrong", so it is the claim that matters. A missed ship-by only applies while the
-    // sale is still waiting to be posted.
-    const situation: ArbitrationCaseSituation = returnDisputedAt
-      ? 'RETURN_CONTESTED'
-      : returnLapsedAt
-        ? 'RETURN_LAPSED'
-        : 'SHIP_LAPSED';
+    // STATUS SCOPES EVERY MARKER. `ship_lapsed_at` is never cleared, so a sale that
+    // posted late and was later sent back still carries it; read outside ESCROW_HELD it
+    // listed a running return as a seller who had not posted. The rule, contested over
+    // lapsed included, is `cashSaleMarkerCase`, and a row it rejects is not a case. The
+    // currency and name lookups above still see every row, so a chargeback against such
+    // a sale keeps its denomination.
+    const marker = cashSaleMarkerCase({
+      status: rc.status as string,
+      shipLapsedAt: (rc.ship_lapsed_at as string | null) ?? null,
+      returnDisputedAt: (rc.return_disputed_at as string | null) ?? null,
+      returnLapsedAt: (rc.return_lapsed_at as string | null) ?? null,
+    });
+    if (!marker) continue;
+    const { situation, openedAt } = marker;
     const net = sellerNetCentsFor({
       amountCents: Number(rc.amount_cents ?? 0),
       platformFeeCents: Number(rc.platform_fee_cents ?? 0),
@@ -457,16 +469,11 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
       goods: toGoodsLines(rc.cash_sale_items),
       amountAtRiskCents: Number(rc.amount_cents ?? 0),
       currency: (rc.currency as string | null) ?? FALLBACK_CURRENCY,
-      // SLA clock: for a contested return, the seller's dispute timestamp is when the
-      // case started waiting. For a lapsed return, `return_lapsed_at` is the moment the
-      // sweep flagged it. Both are ISO-8601, both drive priority exactly like
+      // SLA clock: the marker that opened the case. For a contested return that is the
+      // seller's dispute; for a lapsed return or a missed ship-by date, the moment the
+      // sweep flagged it. All ISO-8601, and all drive priority exactly like
       // `disputed_at` does for a condition dispute.
-      openedAt:
-        situation === 'RETURN_CONTESTED'
-          ? returnDisputedAt
-          : situation === 'RETURN_LAPSED'
-            ? returnLapsedAt
-            : shipLapsedAt,
+      openedAt,
       raisedById: situation === 'RETURN_CONTESTED' ? (rc.seller_id as string) : null,
       claim:
         situation === 'RETURN_CONTESTED'
@@ -518,7 +525,10 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
       amountAtRiskCents: Math.max(
         initiatorBond,
         counterpartBond,
-        frictionTaxChargeableCents(Math.max(initiatorBond, counterpartBond)),
+        frictionTaxChargeableCents(
+          Math.max(initiatorBond, counterpartBond),
+          trade.currency as string | null,
+        ),
       ),
       currency: (trade.currency as string | null) ?? FALLBACK_CURRENCY,
       openedAt: (trade.disputed_at as string | null) ?? null,
@@ -670,7 +680,7 @@ export const getArbitrationCase = withActionLog('arbitration.getArbitrationCase'
         ? admin
             .from('cash_sales')
             .select(
-              'tracking_carrier, tracking_number, shipped_at, carrier_delivered_at, return_tracking_carrier, return_tracking_number, return_shipped_at, return_carrier_delivered_at, return_disputed_at, return_dispute_reason, return_lapsed_at',
+              'tracking_carrier, tracking_number, shipped_at, carrier_delivered_at, return_tracking_carrier, return_tracking_number, return_shipped_at, return_carrier_delivered_at, return_disputed_at, return_dispute_reason, return_lapsed_at, ship_by_at, ship_lapsed_at',
             )
             .eq('id', ref)
             .maybeSingle()
@@ -733,6 +743,8 @@ export const getArbitrationCase = withActionLog('arbitration.getArbitrationCase'
         returnDisputeReason: (shipRow.return_dispute_reason as string | null) ?? null,
         returnDisputedAt: (shipRow.return_disputed_at as string | null) ?? null,
         returnLapsedAt: (shipRow.return_lapsed_at as string | null) ?? null,
+        shipByAt: (shipRow.ship_by_at as string | null) ?? null,
+        shipLapsedAt: (shipRow.ship_lapsed_at as string | null) ?? null,
       }
     : null;
 
@@ -857,6 +869,7 @@ async function readResolution(
                 partyFor(initiatorId)?.stakeCents ?? 0,
                 partyFor(counterpartId)?.stakeCents ?? 0,
               ),
+              triaged.currency,
             ),
       counterpartGoodsDescription:
         (data.counterpart_goods_description as string | null) ?? null,

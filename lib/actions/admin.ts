@@ -41,9 +41,10 @@ import {
   type CustodyPosition,
   type HeldSaleInput,
 } from '@/domain/payouts/custodyReconciliation';
-import { getPaymentService, operationalRegions } from '@/domain/services';
+import { getPaymentService, operationalPlatforms } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
-import { normalizeRegionCode, regionCurrency } from '@/domain/region';
+import { normalizeRegionCode, platformRegion, regionCurrency } from '@/domain/region';
+import { regionForCashSale as regionForCashSaleBinding } from '@/lib/regionBinding';
 import type { Enums } from '@/lib/supabase/database.types';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { emailNotify } from '@/lib/email';
@@ -710,6 +711,11 @@ export type CustodyReport = CustodyPosition & {
   region: string;
   currency: string;
   unreadableReason: string | null;
+  /**
+   * Foreign-currency sales still held whose converted amount is not on file, so they
+   * are missing from the owed figure. Non-zero means the position is incomplete.
+   */
+  unconvertedSales: number;
 };
 
 /**
@@ -725,19 +731,10 @@ export type CustodyReport = CustodyPosition & {
  * wrong account.
  */
 async function regionForCashSale(cashSaleId: string): Promise<string> {
-  const { data } = await createAdminClient()
-    .from('cash_sales')
-    .select('currency')
-    .eq('id', cashSaleId)
-    .maybeSingle();
-
-  const currency = (data?.currency as string | null)?.toLowerCase() ?? null;
-  if (!currency) return DEFAULT_CONFIG_REGION;
-
-  for (const code of operationalRegions()) {
-    if (regionCurrency(code) === currency) return code;
-  }
-  return DEFAULT_CONFIG_REGION;
+  // The shared binding, not a second copy of it: this used to re-derive the
+  // currency-to-region loop locally, which would have resolved a EUR sale to "DE"
+  // rather than to the US platform that actually holds the money.
+  return regionForCashSaleBinding(cashSaleId);
 }
 
 // The classification and the derived list live in domain/payouts/custodyReconciliation.ts,
@@ -766,24 +763,29 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
     return { ok: false, error: gate.error };
   }
 
+  // A PLATFORM, not a member's country: the US platform's balance holds the money for
+  // every region it serves, so custody is reconciled once per platform account.
+  const platforms = operationalPlatforms();
+  const requested = normalizeRegionCode(region);
   const code =
-    normalizeRegionCode(region) ??
-    [...operationalRegions()][0] ??
+    (requested ? platformRegion(requested) : null) ??
+    [...platforms.keys()][0] ??
     DEFAULT_CONFIG_REGION;
-  const currency = regionCurrency(code) ?? 'aud';
+  const settles = regionCurrency(code) ?? 'aud';
+  const currencies = platforms.get(code) ?? [settles];
 
   const admin = createAdminClient();
 
   const [{ data: rows, error }, balance] = await Promise.all([
     admin
       .from('cash_sales')
-      .select('id, status, amount_cents, refund_cents, refund_status, seller_payout_status')
+      .select(
+        'id, status, currency, amount_cents, refund_cents, refund_status, seller_payout_status, fx_fee_cents, settlement_amount_cents, settlement_currency',
+      )
       .in('status', [...COLLECTED_SALE_STATUSES])
-      // Scoped to this region's contracts, because they are the only ones whose money
-      // is in this platform account's balance. Comparing all regions' obligations
-      // against one region's balance would invent a shortfall the size of every other
-      // region.
-      .eq('currency', currency),
+      // Scoped to this PLATFORM's contracts, in every currency it holds money for,
+      // because they are the only ones whose money is in this account's balance.
+      .in('currency', [...currencies]),
     getPaymentService(code).getPlatformBalance(),
   ]);
 
@@ -791,9 +793,12 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
     return { ok: false, error: 'persistence-error', message: error.message };
   }
 
-  const sales: HeldSaleInput[] = (rows ?? []).map((row) => {
+  const sales: HeldSaleInput[] = [];
+  let unconverted = 0;
+  for (const row of rows ?? []) {
     const refundSettled = row.refund_status === 'SETTLED';
-    const settledRefundCents = refundSettled ? Number(row.refund_cents ?? 0) : 0;
+    const refundCents = refundSettled ? Number(row.refund_cents ?? 0) : 0;
+    const contractCents = Number(row.amount_cents ?? 0);
     // Nothing further is held once the Seller has been released, or once a refund has
     // returned the whole collected amount. Anything else — including a FAILED release —
     // is still the platform's to hold and therefore still owed.
@@ -801,13 +806,37 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
       row.seller_payout_status === 'SETTLED' ||
       (row.status === 'REFUNDED' && refundSettled);
 
-    return {
+    if ((row.currency as string).toLowerCase() === settles) {
+      sales.push({
+        id: row.id as string,
+        collectedCents: contractCents,
+        settledRefundCents: refundCents,
+        fullyDisbursed,
+      });
+      continue;
+    }
+
+    // A FOREIGN-CURRENCY contract (0136). Its obligation is in, say, EUR while the
+    // balance is USD, and adding the two would be meaningless. The balance received
+    // `settlement_amount_cents` for the buyer's whole charge (contract + conversion
+    // fee), so the contract's share of it is what the platform holds for this sale.
+    const settled = Number(row.settlement_amount_cents ?? 0);
+    if (!settled || row.settlement_currency !== settles) {
+      // Recorded before 0136 or the balance transaction lagged. Left out of the sum
+      // and COUNTED, so the panel says how much it could not convert rather than
+      // reporting a healthy position it never checked.
+      if (!fullyDisbursed) unconverted += 1;
+      continue;
+    }
+    const charged = contractCents + Number(row.fx_fee_cents ?? 0);
+    const toSettlement = (cents: number) => (charged > 0 ? Math.round((cents * settled) / charged) : 0);
+    sales.push({
       id: row.id as string,
-      collectedCents: Number(row.amount_cents ?? 0),
-      settledRefundCents,
+      collectedCents: toSettlement(contractCents),
+      settledRefundCents: toSettlement(refundCents),
       fullyDisbursed,
-    };
-  });
+    });
+  }
 
   const position = reconcileCustody({
     sales,
@@ -825,6 +854,7 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
       region: code,
       currency: balance.currency,
       unreadableReason: balance.status === 'READ' ? null : (balance.reason ?? null),
+      unconvertedSales: unconverted,
     },
   };
 });
@@ -848,18 +878,22 @@ export const drainCashSalePayouts = withActionLog('admin.drainCashSalePayouts', 
   // could only pay the sellers in its own region and would fail on the rest as
   // cross-region transfers. Totals are summed because the figures are counts of
   // contracts, not money; nothing here adds amounts across currencies.
+  // Once per PLATFORM and currency: the US platform holds USD, EUR, GBP, ... contracts,
+  // and looping over regions instead would drain it once per EEA country.
   const totals = { considered: 0, settled: 0, stillOwed: 0 };
-  for (const region of operationalRegions()) {
-    const orchestrator = createDefaultCashSaleOrchestrator({
-      payments: getPaymentService(region),
-      // Scoped so this pass only attempts the contracts whose money is in the account
-      // it is holding. Without it every region's pass would try every contract.
-      payoutRegionCurrency: regionCurrency(region) ?? undefined,
-    });
-    const result = await orchestrator.processDuePayouts();
-    totals.considered += result.considered;
-    totals.settled += result.settled;
-    totals.stillOwed += result.stillOwed;
+  for (const [platform, currencies] of operationalPlatforms()) {
+    for (const currency of currencies) {
+      const orchestrator = createDefaultCashSaleOrchestrator({
+        payments: getPaymentService(platform),
+        // Scoped so this pass only attempts the contracts whose money is in the
+        // account it is holding.
+        payoutRegionCurrency: currency,
+      });
+      const result = await orchestrator.processDuePayouts();
+      totals.considered += result.considered;
+      totals.settled += result.settled;
+      totals.stillOwed += result.stillOwed;
+    }
   }
 
   revalidatePath('/admin');

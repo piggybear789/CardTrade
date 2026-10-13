@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
  * "Includes $X buyer fee" under a single listing's fee-inclusive price, with the (i)
  * that breaks the figure down. The headline already contains the fee; this says so.
  *
- * While fees are waived for the beta it reads "No fees for now (normally 5%)" instead, so a
+ * While fees are waived for the beta it reads the waiver explanation instead, so a
  * member never sees "Includes $0.00 buyer fee". Same line, same geometry.
  */
 export function ListingFeeNote({

@@ -37,7 +37,7 @@ import { ScaleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { formatAud, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 import { getCustodyPosition, type CustodyReport } from '@/lib/actions/admin';
 import { operationalRegions } from '@/domain/services';
 import { ReportActions } from '@/components/admin/ReportActions';
@@ -437,10 +437,20 @@ export default async function AdminPage({
   }
   const nameFor = (id: string) => nameById.get(id) ?? 'Unknown member';
 
-  const owedCents = owedPayouts.reduce(
-    (sum, sale) => sum + Math.max(sale.amount_cents - sale.platform_fee_cents, 0),
-    0,
-  );
+  // Owed, grouped by currency. Sales now span several currencies, and one integer
+  // summed across them would be a figure in no denomination at all.
+  const owedByCurrency = new Map<string, { cents: number; count: number }>();
+  for (const sale of owedPayouts) {
+    const code = sale.currency.toUpperCase();
+    const entry = owedByCurrency.get(code) ?? { cents: 0, count: 0 };
+    entry.cents += Math.max(sale.amount_cents - sale.platform_fee_cents, 0);
+    entry.count += 1;
+    owedByCurrency.set(code, entry);
+  }
+  const owedLabel = Array.from(
+    owedByCurrency,
+    ([code, { cents, count }]) => `${formatMoney(cents, code)} across ${count}`,
+  ).join(' · ');
 
   return (
     <MarketplaceShell title="Operations">
@@ -501,7 +511,7 @@ export default async function AdminPage({
                   rather than removing it. */}
               <Badge variant={owedPayouts.length > 0 ? 'destructive' : 'secondary'}>
                 {owedPayouts.length > 0
-                  ? `${formatAud(owedCents)} across ${owedPayouts.length}`
+                  ? owedLabel
                   : 'Nothing owed'}
               </Badge>
             </div>
@@ -536,7 +546,7 @@ export default async function AdminPage({
                               {sale.seller_payout_status}
                             </Badge>
                             <CardTitle className="text-lead">
-                              {formatAud(net)} to {nameFor(sale.seller_id)}
+                              {formatMoney(net, sale.currency)} to {nameFor(sale.seller_id)}
                             </CardTitle>
                           </div>
                           <span className="shrink-0 text-meta text-muted-foreground">
@@ -564,7 +574,7 @@ export default async function AdminPage({
                             <dt className="inline font-medium text-foreground">
                               Platform fee kept:{' '}
                             </dt>
-                            <dd className="inline">{formatAud(sale.platform_fee_cents)}</dd>
+                            <dd className="inline">{formatMoney(sale.platform_fee_cents, sale.currency)}</dd>
                           </div>
                           {sale.seller_payout_error ? (
                             <div className="sm:col-span-2">

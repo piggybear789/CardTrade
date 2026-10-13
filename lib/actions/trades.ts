@@ -979,7 +979,7 @@ export const updateTradeHandoverTerms = withActionLog('trades.updateTradeHandove
     meetingAt,
     deliveryCostCents: input.deliveryCostCents,
     deliveryNotes: input.deliveryNotes,
-  });
+  }, trade.currency);
 
   // Participant confirmed above; writes on `trades` go through service-role
   // because end-user UPDATE is not granted (same pattern as lifecycle actions).

@@ -119,15 +119,33 @@ const CONFIRMING_IDENTITY = 'Confirming your identity check with Stripe…';
 const CONFIRMING_PAYOUT = 'Confirming your payout details with Stripe…';
 
 /**
- * Shown when Connect handed the member back but has not enabled payouts.
+ * Connect handed the member back and payouts are not enabled. Two situations produce
+ * that, and the provider's transfer-capability status tells them apart, so each gets
+ * its own copy and its own single control rather than one hedge offering both:
  *
- * Two different situations produce it and this cannot tell them apart from here: the
- * member left the form with fields still due, or Stripe is reviewing what they gave.
- * So it says both and offers both remedies — continue the form, or ask again — rather
- * than a spinner that one of the two situations can never clear.
+ * - `pending`: Stripe is reviewing what was submitted. Nothing for the member to do, so
+ *   it renders as a wait and the surface polls by itself ({@link PAYOUT_POLL_DELAYS_MS}).
+ * - anything else (`restricted`, …): Stripe needs more from the member. A spinner here
+ *   would never clear, so it renders as a problem with only "Continue with Stripe".
+ *
+ * The previous single notice said both, put two unequal buttons side by side, and only
+ * re-checked when pressed, which told a member under review that they might have left
+ * something unfinished.
  */
-const PAYOUT_NOT_CONFIRMED =
-  'Stripe has not confirmed your payout details yet. If you left the form before the end, continue where you left off; otherwise this usually finishes within a few minutes.';
+const PAYOUT_REVIEWING =
+  'Stripe is reviewing your payout details. This usually takes a minute or two, and there is nothing for you to do.';
+const PAYOUT_STILL_REVIEWING =
+  'Stripe is still reviewing your payout details. This can take longer than usual. You can safely leave this page, and it will be up to date when you come back.';
+const PAYOUT_NEEDS_DETAILS =
+  'Stripe needs a few more details before you can be paid. Continue with Stripe to finish. Nothing you entered is lost.';
+
+/** Backoff for the automatic payout re-check, about two and a half minutes in total. */
+const PAYOUT_POLL_DELAYS_MS = [3000, 5000, 8000, 13000, 20000, 30000, 30000, 40000];
+
+/** Whether a not-yet-enabled transfer capability is Stripe's to decide rather than the member's. */
+function payoutUnderReview(complianceStatus: string | null | undefined): boolean {
+  return complianceStatus === 'pending';
+}
 
 /** Connect's single-use link expired mid-flow. Nothing was submitted. */
 const PAYOUT_LINK_EXPIRED = 'That setup link expired. Continue with Stripe to pick up where you left off.';
@@ -257,6 +275,18 @@ export function UnifiedOnboardingSurface({
   );
   /** True while an on-demand payout "Check again" is in flight. */
   const [payoutRechecking, setPayoutRechecking] = useState(false);
+  /**
+   * Stripe is reviewing the payout details: the wait copy to show, or null. Distinct
+   * from {@link payoutWaiting}, which is now only "the member has more to enter".
+   */
+  const [payoutReviewing, setPayoutReviewing] = useState<string | null>(null);
+  /** True while the automatic payout re-check loop is running. */
+  const [payoutPolling, setPayoutPolling] = useState(false);
+  /** Bumped on unmount and on each new poll so a stale loop stops writing state. */
+  const payoutPollId = useRef(0);
+  useEffect(() => () => {
+    payoutPollId.current += 1;
+  }, []);
 
   const settledChange = useRef(onSettledChange);
   settledChange.current = onSettledChange;
@@ -322,6 +352,58 @@ export function UnifiedOnboardingSurface({
     everPayoutDone.current = true;
     setPayoutDone(true);
   }, []);
+
+  /**
+   * Payouts were just confirmed enabled by a read-back: tick the step, clear every
+   * wait and notice, and re-render the server props that still say "not set up".
+   */
+  const confirmPayoutEnabled = useCallback(() => {
+    markPayoutDone();
+    setPayoutWaiting(null);
+    setPayoutProblem(null);
+    setPayoutReviewing(null);
+    settledChange.current?.(everIdentityDone.current);
+    routerRef.current.refresh();
+  }, [markPayoutDone]);
+
+  /**
+   * Re-read Connect on a backoff while Stripe reviews the payout details, so a member
+   * under review watches a spinner resolve instead of having to press anything.
+   *
+   * Stops on the first decisive answer: enabled ticks the step, a status that needs
+   * the member switches to the "more details" notice. A budget that runs out leaves the
+   * honest long-wait copy and hands over a single "Check again".
+   */
+  const pollPayoutReview = useCallback(async () => {
+    const poll = payoutPollId.current + 1;
+    payoutPollId.current = poll;
+    const live = () => payoutPollId.current === poll;
+    setPayoutPolling(true);
+    setPayoutWaiting(null);
+    setPayoutReviewing(PAYOUT_REVIEWING);
+
+    for (const delay of PAYOUT_POLL_DELAYS_MS) {
+      await sleep(delay);
+      if (!live()) return;
+      const read = await refreshPayoutStatus();
+      if (!live()) return;
+      if (!read.ok) continue; // a failed read is not an answer; keep waiting
+      if (read.data.settlementsEnabled) {
+        setPayoutPolling(false);
+        confirmPayoutEnabled();
+        return;
+      }
+      if (!payoutUnderReview(read.data.complianceStatus)) {
+        setPayoutPolling(false);
+        setPayoutReviewing(null);
+        setPayoutWaiting(PAYOUT_NEEDS_DETAILS);
+        return;
+      }
+    }
+    if (!live()) return;
+    setPayoutPolling(false);
+    setPayoutReviewing(PAYOUT_STILL_REVIEWING);
+  }, [confirmPayoutEnabled]);
 
   // Which poll run owns the component. Bumped on every mount AND every unmount, so an
   // in-flight poll can tell that it has been superseded and stop writing.
@@ -537,28 +619,30 @@ export function UnifiedOnboardingSurface({
       }
     }
 
-    // Payouts get the same read-back but no poll. Connect reports `payouts_enabled` on
-    // the return itself, and where it does not the wait is a genuine multi-minute
-    // review that a forty-second spinner would misrepresent as nearly done.
+    // Payouts get the same read-back. When it is not enabled, the transfer capability's
+    // status says whose move it is: `pending` is Stripe reviewing (poll, spinner, no
+    // button), anything else is the member's (one "Continue with Stripe"). Saying which
+    // is the point; the earlier single hedge suggested a member under review might have
+    // left something unfinished.
+    let pollPayout = false;
     if (!snapshot.payoutOk && snapshot.merchantRef) {
       const read = await refreshPayoutStatus();
       if (!current()) return;
       if (read.ok && read.data.settlementsEnabled) {
-        markPayoutDone();
-        setPayoutWaiting(null);
-        setPayoutProblem(null);
-        settledChange.current?.(true);
-        // Same reasoning as the identity read-back above. This is the case that shipped
-        // visibly: the spine read "Payouts active" while the header two rows higher
-        // still read "Payouts not set up", because that line is a server-rendered prop
-        // and only this read knew any better.
-        routerRef.current.refresh();
-      } else if (confirmingRef.current === 'payout') {
-        // Back from Connect and NOT enabled. Say so, with both remedies, rather than
-        // reverting to the untouched-step button as though the form had never been
-        // opened — which is what a member reads as "it didn't save".
-        setPayoutWaiting(PAYOUT_NOT_CONFIRMED);
+        // Also re-renders the server-rendered "Payouts not set up" header, which only
+        // this read knows is stale.
+        confirmPayoutEnabled();
+      } else if (read.ok && payoutUnderReview(read.data.complianceStatus)) {
+        // Under review whether or not they just came back: a member who returns later
+        // should see the same wait, not an untouched step.
+        pollPayout = true;
+      } else if (read.ok && confirmingRef.current === 'payout') {
+        setPayoutWaiting(PAYOUT_NEEDS_DETAILS);
       }
+    }
+    if (pollPayout) {
+      setPayoutReviewing(PAYOUT_REVIEWING);
+      void pollPayoutReview();
     }
 
     // Whatever the payout read-back found, or if there was no account to read, the
@@ -567,7 +651,7 @@ export function UnifiedOnboardingSurface({
       settleConfirming('payout');
       settledChange.current?.(everIdentityDone.current && everPayoutDone.current);
     }
-  }, [load, markIdentityDone, markPayoutDone, settleConfirming]);
+  }, [load, markIdentityDone, confirmPayoutEnabled, pollPayoutReview, settleConfirming]);
 
   useEffect(() => {
     const run = runId.current + 1;
@@ -651,14 +735,16 @@ export function UnifiedOnboardingSurface({
     void (async () => {
       const read = await refreshPayoutStatus();
       setPayoutRechecking(false);
-      if (read.ok && read.data.settlementsEnabled) {
-        markPayoutDone();
-        setPayoutWaiting(null);
-        setPayoutProblem(null);
-        settledChange.current?.(identityDone);
-        routerRef.current.refresh();
+      if (!read.ok) return;
+      if (read.data.settlementsEnabled) {
+        confirmPayoutEnabled();
+      } else if (payoutUnderReview(read.data.complianceStatus)) {
+        // Still with Stripe: resume watching rather than leaving a dead button.
+        void pollPayoutReview();
+      } else {
+        setPayoutReviewing(null);
+        setPayoutWaiting(PAYOUT_NEEDS_DETAILS);
       }
-      // Still not enabled: the notice and its two remedies stay exactly as they were.
     })();
   }
 
@@ -791,27 +877,17 @@ export function UnifiedOnboardingSurface({
           problem={payoutProblem ?? payoutWaiting}
           hasNext={false}
         >
-          {confirming === 'payout' ? (
+          {confirming === 'payout' && !payoutReviewing ? (
             // JUST BACK FROM CONNECT. Hold here until `refreshPayoutStatus` answers,
             // rather than drawing the button the member has just come back from
-            // pressing. Resolves to the tick, or to the notice above with its remedies.
+            // pressing. Resolves to the tick, the review wait, or the details notice.
             <WaitingOnProvider copy={CONFIRMING_PAYOUT} />
-          ) : (
-            // HOSTED, not embedded. The spine, the numbering and the return here are all
-            // still ours; only the form Stripe insists on owning happens on Stripe. See
-            // `HostedProviderStep` for why. The prefill is unaffected — it is written to
-            // the account at creation, so the hosted pages open already filled in.
-            //
-            // "Check again" joins it only once Connect has handed the member back without
-            // enabling payouts: at that point the wait may be Stripe's, and a page reload
-            // should not be the only way to find out it has ended.
-            <div className="flex min-w-0 flex-col items-stretch gap-snug sm:max-w-xs sm:items-end">
-              <HostedProviderStep
-                step="payout"
-                returnPath={returnPath}
-                onComplete={finishPayout}
-              />
-              {payoutWaiting ? (
+          ) : payoutReviewing ? (
+            // STRIPE IS REVIEWING. Spinner and automatic re-checks, no "Continue with
+            // Stripe": the member has finished and reopening the form is the wrong move.
+            // "Check again" appears only once the poll has given up, so it never races it.
+            <WaitingOnProvider copy={payoutReviewing}>
+              {!payoutPolling ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -829,7 +905,20 @@ export function UnifiedOnboardingSurface({
                   </PendingLabel>
                 </Button>
               ) : null}
-            </div>
+            </WaitingOnProvider>
+          ) : (
+            // HOSTED, not embedded. The spine, the numbering and the return here are all
+            // still ours; only the form Stripe insists on owning happens on Stripe. See
+            // `HostedProviderStep` for why. The prefill is unaffected — it is written to
+            // the account at creation, so the hosted pages open already filled in.
+            //
+            // ONE control. When Stripe needs more from the member the remedy is the form,
+            // and a "Check again" beside it could only ever return the same answer.
+            <HostedProviderStep
+              step="payout"
+              returnPath={returnPath}
+              onComplete={finishPayout}
+            />
           )}
         </OnboardingSpineStep>
       </OnboardingSpine>

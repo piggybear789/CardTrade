@@ -97,8 +97,8 @@
   /* Theme values the mobile token parser cannot read (see the note above). */
   :root {
     --font-sans: Inter, sans-serif;
-    --font-serif: Merriweather, serif;
-    --font-mono: JetBrains Mono, monospace;
+    --font-serif: Inter, sans-serif;
+    --font-mono: Inter, sans-serif;
     --shadow-x: 0px;
     --shadow-y: 4px;
     --shadow-blur: 10px;
@@ -150,8 +150,8 @@
     --sidebar-border: 243 23.2558% 16.8627%;
     --sidebar-ring: 250.1613 75.6098% 67.8431%;
     --font-sans: Inter, sans-serif;
-    --font-serif: Merriweather, serif;
-    --font-mono: JetBrains Mono, monospace;
+    --font-serif: Inter, sans-serif;
+    --font-mono: Inter, sans-serif;
     --radius: 0.5rem;
     --shadow-x: 0px;
     --shadow-y: 8px;
@@ -623,7 +623,7 @@
    photo neither reader could decode — falls back through the custom property to
    square on phone, rather than collapsing to nothing. */
 .catalog-cover {
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 1 / 1;
 }
 
 @media (max-width: 767px) {

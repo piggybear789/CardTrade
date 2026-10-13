@@ -38,6 +38,7 @@ import type Stripe from 'stripe';
 // inspection window, the collateral margin and the meeting-lead cap from it. Keeping
 // a private copy here — as this file used to — is what lets those drift apart.
 import { CARD_AUTHORISATION_DAYS } from '../../fulfilment/inspection';
+import { regionCurrency } from '../../region/regions';
 
 import type {
   CaptureResult,
@@ -79,6 +80,13 @@ import {
  * methods from silently selecting an ineligible one.
  */
 const CARD_ONLY = ['card'];
+
+/**
+ * The API version the FX Quotes preview answers under. `/v1/fx_quotes` returns 404
+ * without a `.preview` version (checked 2026-10-13); this one returned a quote.
+ * Used ONLY for the quote and the transfer that consumes it.
+ */
+const FX_QUOTE_API_VERSION = '2026-09-30.preview';
 
 export interface StripeServiceOptions {
   client: Stripe;
@@ -566,7 +574,12 @@ export class StripeService implements PaymentService, PayerService {
    * HOLDS_FAILED compensating path (Req 5.6) — e.g. the Customer has no vaulted
    * payment method, or the issuer declined the authorisation.
    */
-  async placeHold(params: { payerId: string; amount: Cents; ref: string }): Promise<PreAuthHold> {
+  async placeHold(params: {
+    payerId: string;
+    amount: Cents;
+    ref: string;
+    currency?: string;
+  }): Promise<PreAuthHold> {
     if (!params.payerId) return failedHold(params.payerId, params.amount);
 
     try {
@@ -580,7 +593,7 @@ export class StripeService implements PaymentService, PayerService {
       const intent = await this.stripe.paymentIntents.create(
         {
           amount: params.amount,
-          currency: this.opts.config.currency,
+          currency: this.contractCurrency(params.currency),
           customer: params.payerId,
           payment_method: paymentMethod,
           payment_method_types: CARD_ONLY,
@@ -737,7 +750,9 @@ export class StripeService implements PaymentService, PayerService {
     nonce: string;
     merchantRef?: string;
     applicationFee?: Cents;
+    currency?: string;
   }): Promise<TransferResult> {
+    const currency = this.contractCurrency(params.currency);
     try {
       const paymentMethod = await this.defaultPaymentMethod(params.payerId);
       if (!paymentMethod) return { transferId: '', amount: params.amount, status: 'FAILED' };
@@ -745,7 +760,7 @@ export class StripeService implements PaymentService, PayerService {
       const intent = await this.stripe.paymentIntents.create(
         {
           amount: params.amount,
-          currency: this.opts.config.currency,
+          currency,
           customer: params.payerId,
           payment_method: paymentMethod,
           payment_method_types: CARD_ONLY,
@@ -763,30 +778,35 @@ export class StripeService implements PaymentService, PayerService {
         return { transferId: intent.id, amount: params.amount, status: 'FAILED' };
       }
 
+      // A charge in a currency the platform does not settle in is converted on the
+      // spot; record what actually landed so custody can compare like with like.
+      const settlement =
+        currency === this.opts.config.currency ? undefined : await this.settledAmountOf(intent);
+
       // Collect-only: collateral and platform-mode sales stay in the platform
       // balance, so there is no onward transfer to make.
       const settleDirect = params.merchantRef && this.opts.config.payoutMode === 'direct';
       if (!settleDirect) {
-        return { transferId: intent.id, amount: intent.amount_received, status: 'SETTLED' };
+        return {
+          transferId: intent.id,
+          amount: intent.amount_received,
+          status: 'SETTLED',
+          ...(settlement ? { settlement } : {}),
+        };
       }
 
-      const sourceTransaction = chargeIdOf(intent);
       const net = Math.max(params.amount - (params.applicationFee ?? 0), 0);
+      const transfer = await this.transferExactly({
+        merchantRef: params.merchantRef!,
+        amount: net,
+        currency,
+        ref: params.ref,
+        idempotencyKey: `${params.nonce}:transfer`,
+        sourceTransaction: chargeIdOf(intent),
+      });
+      if (!transfer) return { transferId: intent.id, amount: net, status: 'FAILED' };
 
-      const transfer = await this.stripe.transfers.create(
-        {
-          amount: net,
-          currency: this.opts.config.currency,
-          destination: params.merchantRef!,
-          // Ties the transfer to the charge, so it succeeds even before the
-          // funds have settled into the platform's available balance.
-          ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
-          metadata: metadataFor('TRANSFER', params.ref),
-        },
-        { idempotencyKey: `${params.nonce}:transfer` },
-      );
-
-      return { transferId: transfer.id, amount: net, status: 'SETTLED' };
+      return { transferId: transfer.id, amount: net, status: 'SETTLED', settlement: transfer.settlement };
     } catch (err) {
       this.warn('requestTransfer', params.ref, err);
       return { transferId: '', amount: params.amount, status: 'FAILED' };
@@ -812,27 +832,171 @@ export class StripeService implements PaymentService, PayerService {
     ref: string;
     nonce: string;
     sourcePaymentRef?: string;
+    currency?: string;
   }): Promise<TransferResult> {
     try {
       const sourceTransaction = params.sourcePaymentRef
         ? await this.chargeForPaymentRef(params.sourcePaymentRef)
         : undefined;
 
-      const transfer = await this.stripe.transfers.create(
-        {
-          amount: params.amount,
-          currency: this.opts.config.currency,
-          destination: params.merchantRef,
-          ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
-          metadata: metadataFor('TRANSFER', params.ref),
-        },
-        { idempotencyKey: params.nonce },
-      );
+      const transfer = await this.transferExactly({
+        merchantRef: params.merchantRef,
+        amount: params.amount,
+        currency: this.contractCurrency(params.currency),
+        ref: params.ref,
+        idempotencyKey: params.nonce,
+        sourceTransaction,
+      });
+      if (!transfer) return { transferId: '', amount: params.amount, status: 'FAILED' };
 
-      return { transferId: transfer.id, amount: params.amount, status: 'SETTLED' };
+      return {
+        transferId: transfer.id,
+        amount: params.amount,
+        status: 'SETTLED',
+        ...(transfer.settlement ? { settlement: transfer.settlement } : {}),
+      };
     } catch (err) {
       this.warn('payoutToMerchant', params.ref, err);
       return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+  }
+
+  // --- Currency ------------------------------------------------------------
+
+  /** The contract's currency, lowercased, or the platform's when the caller gave none. */
+  private contractCurrency(currency: string | undefined): string {
+    return currency?.trim().toLowerCase() || this.opts.config.currency;
+  }
+
+  /**
+   * Transfer so the connected account receives EXACTLY `amount` of `currency`.
+   *
+   * The platform balance holds its settlement currency only, and Stripe refuses a
+   * transfer in any other currency (verified 2026-10-13: a EUR transfer from the US
+   * platform failed with `balance_insufficient`, and a EUR transfer against a USD
+   * `source_transaction` was refused outright). So a foreign-currency payout is sent
+   * in the settlement currency, sized from a LOCKED FX quote and tied to it, and the
+   * provider converts at the quoted rate on arrival.
+   *
+   * Rounded UP, so the seller is never short a minor unit. The buyer funded the
+   * difference through the Currency_Conversion fee (`domain/fees/fxFee.ts`).
+   *
+   * Returns null when no quote is available rather than guessing a rate: the payout
+   * then stays queued and is retried, which is strictly better than paying a seller a
+   * figure nobody agreed to.
+   *
+   * KNOWN LIMIT: in TEST mode the quote's rate is not applied to the transfer (a
+   * 11304 USD transfer quoted at 0.884677 landed as 10109 EUR at 0.894245), so test
+   * sellers receive slightly MORE than agreed. Live behaviour is the documented one;
+   * verify it on the first live payout.
+   */
+  private async transferExactly(params: {
+    merchantRef: string;
+    amount: Cents;
+    currency: string;
+    ref: string;
+    idempotencyKey: string;
+    sourceTransaction?: string;
+  }): Promise<{ id: string; settlement?: { amount: Cents; currency: string } } | null> {
+    const settles = this.opts.config.currency;
+    if (params.currency === settles) {
+      const transfer = await this.stripe.transfers.create(
+        {
+          amount: params.amount,
+          currency: settles,
+          destination: params.merchantRef,
+          // Ties the transfer to the charge, so it succeeds even before the funds
+          // have settled into the platform's available balance.
+          ...(params.sourceTransaction ? { source_transaction: params.sourceTransaction } : {}),
+          metadata: metadataFor('TRANSFER', params.ref),
+        },
+        { idempotencyKey: params.idempotencyKey },
+      );
+      return { id: transfer.id };
+    }
+
+    const quote = await this.lockFxQuote({
+      from: settles,
+      to: params.currency,
+      destination: params.merchantRef,
+    });
+    if (!quote) return null;
+
+    const sendAmount = Math.ceil(params.amount / quote.rate);
+    const transfer = await this.stripe.transfers.create(
+      {
+        amount: sendAmount,
+        currency: settles,
+        destination: params.merchantRef,
+        ...(params.sourceTransaction ? { source_transaction: params.sourceTransaction } : {}),
+        metadata: {
+          ...metadataFor('TRANSFER', params.ref),
+          cardtrade_owed_amount: String(params.amount),
+          cardtrade_owed_currency: params.currency,
+        },
+        // `fx_quote` is a preview parameter the typed params do not declare yet.
+        ...({ fx_quote: quote.id } as Record<string, string>),
+      } as Stripe.TransferCreateParams,
+      // The key is reused verbatim on retry, so a retried payout replays THIS
+      // transfer rather than sending a second one at a new rate.
+      { idempotencyKey: params.idempotencyKey, apiVersion: FX_QUOTE_API_VERSION },
+    );
+    return { id: transfer.id, settlement: { amount: sendAmount, currency: settles } };
+  }
+
+  /**
+   * Lock a five-minute FX quote for a transfer from the settlement currency.
+   *
+   * `/v1/fx_quotes` is a PREVIEW API: it answers only under a `.preview` version and
+   * the SDK has no typed method for it, hence `rawRequest`. Returns null on any
+   * failure so the caller can refuse rather than guess.
+   */
+  private async lockFxQuote(params: {
+    from: string;
+    to: string;
+    destination: string;
+  }): Promise<{ id: string; rate: number } | null> {
+    try {
+      const quote = (await this.stripe.rawRequest(
+        'POST',
+        '/v1/fx_quotes',
+        {
+          to_currency: params.to,
+          from_currencies: [params.from],
+          lock_duration: 'five_minutes',
+          usage: { type: 'transfer', transfer: { destination: params.destination } },
+        },
+        { apiVersion: FX_QUOTE_API_VERSION },
+      )) as { id?: string; rates?: Record<string, { exchange_rate?: number }> };
+      const rate = quote.rates?.[params.from]?.exchange_rate;
+      if (!quote.id || !rate || !(rate > 0)) return null;
+      return { id: quote.id, rate };
+    } catch (err) {
+      this.warn('lockFxQuote', `${params.from}->${params.to}`, err);
+      return null;
+    }
+  }
+
+  /**
+   * What a converted charge added to the platform balance, in the settlement
+   * currency. Best effort: the balance transaction can lag the charge by a moment,
+   * and custody falls back to an estimate when it is missing.
+   */
+  private async settledAmountOf(
+    intent: Stripe.PaymentIntent,
+  ): Promise<{ amount: Cents; currency: string } | undefined> {
+    try {
+      const chargeId = chargeIdOf(intent);
+      if (!chargeId) return undefined;
+      const charge = await this.stripe.charges.retrieve(chargeId, {
+        expand: ['balance_transaction'],
+      });
+      const bt = charge.balance_transaction;
+      if (!bt || typeof bt === 'string') return undefined;
+      return { amount: bt.amount, currency: bt.currency };
+    } catch (err) {
+      this.warn('settledAmountOf', intent.id, err);
+      return undefined;
     }
   }
 
@@ -972,21 +1136,34 @@ export class StripeService implements PaymentService, PayerService {
     // will accept in the same request, so the prefill has to be built against the
     // same value rather than re-deriving it.
     const accountCountry = resolveAccountCountry(details.country, this.opts.config.country);
+    const crossBorder = accountCountry !== this.opts.config.country;
 
     const body: Stripe.V2.Core.AccountCreateParams = {
       contact_email: details.businessEmail,
       display_name: details.tradingName || details.legalEntityName,
       dashboard: 'express',
-      // RECIPIENT only — the account receives funds but is never merchant of
-      // record. Requesting a `merchant` configuration would drag the Seller
-      // through far heavier onboarding for a capability they never use.
+      // RECIPIENT for a seller in the platform's own country: the account receives
+      // funds but is never merchant of record, and a merchant configuration would
+      // drag them through heavier onboarding for a capability they never use.
+      //
+      // RECIPIENT + MERCHANT for a seller in another country. Stripe refuses
+      // `stripe_transfers` on a cross-border account without `card_payments`
+      // ("capability_not_available_without_other_capability", verified 2026-10-13),
+      // because cross-border payouts are unavailable under a recipient service
+      // agreement. The card capability is never used: the account still only
+      // RECEIVES transfers. Onboarding asks such sellers for more (a business category
+      // and website among them), which is the accepted cost of opening their country.
       configuration: {
         recipient: {
           capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
         },
+        ...(crossBorder
+          ? { merchant: { capabilities: { card_payments: { requested: true } } } }
+          : {}),
       },
       defaults: {
-        currency: this.opts.config.currency,
+        // The seller's OWN currency, which is what Stripe pays out to their bank in.
+        currency: regionCurrency(accountCountry.toUpperCase()) ?? this.opts.config.currency,
         // Platform collects fees and carries negative-balance liability, which
         // separate charges and transfers requires.
         responsibilities: {
@@ -1017,7 +1194,12 @@ export class StripeService implements PaymentService, PayerService {
           ? { individual: prefillIndividual(details.prefill, accountCountry) }
           : {}),
       },
-      include: ['identity', 'configuration.recipient', 'requirements'],
+      include: [
+        'identity',
+        'configuration.recipient',
+        ...(crossBorder ? (['configuration.merchant'] as const) : []),
+        'requirements',
+      ],
       metadata: {
         // Stamped so an account whose reference we failed to persist can still be
         // traced back to the Profile that opened it. Without it an orphaned
@@ -1099,12 +1281,24 @@ export class StripeService implements PaymentService, PayerService {
     returnUrl: string;
     refreshUrl: string;
   }): Promise<{ url: string; expiresAt?: string }> {
+    // A cross-border seller's account also carries a merchant configuration, and an
+    // onboarding link that omits it never collects what that configuration needs, so
+    // the transfers capability would stay restricted forever.
+    const account = (await this.stripe.v2.core.accounts.retrieve(params.merchantRef)) as {
+      applied_configurations?: string[] | null;
+    };
+    const configurations: ('recipient' | 'merchant')[] = account.applied_configurations?.includes(
+      'merchant',
+    )
+      ? ['recipient', 'merchant']
+      : ['recipient'];
+
     const link = await this.stripe.v2.core.accountLinks.create({
       account: params.merchantRef,
       use_case: {
         type: 'account_onboarding',
         account_onboarding: {
-          configurations: ['recipient'],
+          configurations,
           return_url: params.returnUrl,
           refresh_url: params.refreshUrl,
           // Ask for everything Stripe will eventually need, not just what is due

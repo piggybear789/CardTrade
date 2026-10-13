@@ -14,7 +14,7 @@ export function CountBadge({ count, className }: { count: number; className?: st
     <span
       aria-hidden
       className={cn(
-        "inline-flex min-w-4 items-center justify-center rounded-full bg-destructive px-tight text-meta font-semibold leading-none text-destructive-foreground",
+        "inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-destructive px-tight text-meta font-semibold leading-none text-destructive-foreground",
         className,
       )}
     >

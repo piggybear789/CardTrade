@@ -34,13 +34,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { formatAud, itemImageUrl } from '@/lib/format';
+import { formatMoney, itemImageUrl } from '@/lib/format';
 
 /** The Item facts this dialog needs. Structurally a `TradeProposalItem`. */
 export interface PeekableItem {
   id: string;
   title: string;
   fmvCents: number;
+  /** ISO 4217 code of `fmvCents` (`items.currency`). */
+  currency: string;
   imagePaths: string[];
   condition: string | null;
   description: string | null;
@@ -78,7 +80,7 @@ export function ItemPeekDialog({
         <DialogHeader>
           <DialogTitle className="break-words">{item.title}</DialogTitle>
           <DialogDescription>
-            Valued at {formatAud(item.fmvCents)}
+            Valued at {formatMoney(item.fmvCents, item.currency)}
           </DialogDescription>
         </DialogHeader>
 

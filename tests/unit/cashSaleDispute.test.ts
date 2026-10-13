@@ -20,6 +20,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   acceptCashSaleInspection,
+  disputeCashSale,
   initiateCashSale,
   resolveCashSaleDispute,
   sellerNetCentsFor,
@@ -34,7 +35,7 @@ import {
 } from './fakes/cashSaleRepository';
 // The walk to DISPUTED and the fixtures it needs now live in the shared helper; the
 // individual step functions are no longer called from this file.
-import { disputedCashSale, PURCHASE } from './helpers/disputedCashSale';
+import { disputedCashSale, paidCashSale, PURCHASE } from './helpers/disputedCashSale';
 
 const OPERATOR = 'admin-1';
 
@@ -364,5 +365,70 @@ describe('acceptCashSaleInspection after a dispute', () => {
 
     expect(result.ok).toBe(false);
     expect(state.sale?.status).toBe('DISPUTED');
+  });
+});
+
+// lapsed-sale-case-fix. A buyer whose seller missed the ship-by date (0132) can now
+// report a problem from the room, which raises a dispute from ESCROW_HELD, and the staff
+// guidance on that "Not shipped" case promises what follows: nothing moves when it is
+// raised, and a full refund goes straight back because nothing was ever delivered.
+// Pinned here because that guidance is only true while this path behaves this way.
+describe('a dispute on a sale that was never posted', () => {
+  const NOT_POSTED = 'The seller has not posted it and does not reply.';
+
+  it('refuses a blank or overlong reason', async () => {
+    const { deps, state } = makeDeps();
+    const sale = await paidCashSale(deps);
+    expect(sale.status).toBe('ESCROW_HELD');
+
+    for (const reason of ['   ', 'x'.repeat(1_001)]) {
+      const result = await disputeCashSale(deps, {
+        cashSaleId: sale.id,
+        actorId: BUYER.profileId,
+        reason,
+      });
+      expect(result).toMatchObject({ ok: false, error: 'INVALID_TERMS' });
+    }
+    expect(state.sale?.status).toBe('ESCROW_HELD');
+  });
+
+  it('freezes the sale and moves no money when the buyer raises it', async () => {
+    const { deps, state, calls } = makeDeps();
+    const sale = await paidCashSale(deps);
+
+    const result = await disputeCashSale(deps, {
+      cashSaleId: sale.id,
+      actorId: BUYER.profileId,
+      reason: NOT_POSTED,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(state.sale?.status).toBe('DISPUTED');
+    expect(calls.refunds).toHaveLength(0);
+    expect(calls.payouts).toHaveLength(0);
+  });
+
+  it('refunds a full award at once, because nothing was delivered to send back', async () => {
+    const { deps, state, calls } = makeDeps();
+    const sale = await paidCashSale(deps);
+    const raised = await disputeCashSale(deps, {
+      cashSaleId: sale.id,
+      actorId: BUYER.profileId,
+      reason: NOT_POSTED,
+    });
+    expect(raised.ok).toBe(true);
+
+    const result = await resolveCashSaleDispute(deps, {
+      cashSaleId: sale.id,
+      actorId: OPERATOR,
+      outcome: 'REFUND_BUYER',
+      // No `requireReturn`: the point is that the DERIVATION finds nothing to return.
+    });
+
+    expect(result.ok).toBe(true);
+    expect(state.sale?.status).toBe('REFUNDED');
+    expect(calls.refunds).toHaveLength(1);
+    expect(calls.refunds[0].amount).toBe(sale.amountCents);
+    expect(calls.payouts).toHaveLength(0);
   });
 });

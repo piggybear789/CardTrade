@@ -47,26 +47,20 @@ export function subscribeCatalogQuery(onQuery: (q: string) => void): () => void 
 
 const CATALOG_FILTERS_EVENT = 'noditto:catalog-filters';
 
-/** A section of the refine sheet a caller can open it at. */
-export type CatalogFilterSection = 'sort' | 'condition' | 'price';
-
-/**
- * Opens or closes the catalog refine sheet from chrome that sits outside CatalogView,
- * optionally scrolled to one section — the phone chip row's Sort, Condition and Price.
- */
-export function requestCatalogFilters(open: boolean, section?: CatalogFilterSection) {
+/** Opens or closes the catalog refine sheet from chrome that sits outside CatalogView. */
+export function requestCatalogFilters(open: boolean) {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(
-    new CustomEvent(CATALOG_FILTERS_EVENT, { detail: { open, section } }),
+    new CustomEvent(CATALOG_FILTERS_EVENT, { detail: { open } }),
   );
 }
 
 export function subscribeCatalogFilters(
-  onOpen: (open: boolean, section?: CatalogFilterSection) => void,
+  onOpen: (open: boolean) => void,
 ): () => void {
   function handle(event: Event) {
-    const detail = (event as CustomEvent<{ open: boolean; section?: CatalogFilterSection }>).detail;
-    if (typeof detail?.open === 'boolean') onOpen(detail.open, detail.section);
+    const open = (event as CustomEvent<{ open: boolean }>).detail?.open;
+    if (typeof open === 'boolean') onOpen(open);
   }
   window.addEventListener(CATALOG_FILTERS_EVENT, handle);
   return () => window.removeEventListener(CATALOG_FILTERS_EVENT, handle);

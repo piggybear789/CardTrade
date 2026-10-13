@@ -931,6 +931,11 @@ export type Database = {
           seller_identity_verified_at: string | null;
           buyer_seller_identity_confirmed_at: string | null;
           /** Release leg of escrow (0038). FAILED = platform holds seller funds. */
+          /** Currency_Conversion fee the buyer paid on top of amount_cents (0136). */
+          fx_fee_cents: number;
+          /** What the platform balance received in its settlement currency, when converted (0136). */
+          settlement_amount_cents: number | null;
+          settlement_currency: string | null;
           seller_payout_status: Database['cardtrade']['Enums']['cash_sale_payout_status'];
           seller_payout_ref: string | null;
           /** Stable idempotency key; never regenerated on retry. */
@@ -1044,6 +1049,9 @@ export type Database = {
           seller_organisation_type?: string | null;
           seller_identity_verified_at?: string | null;
           buyer_seller_identity_confirmed_at?: string | null;
+          fx_fee_cents?: number;
+          settlement_amount_cents?: number | null;
+          settlement_currency?: string | null;
           seller_payout_status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
           seller_payout_ref?: string | null;
           seller_payout_nonce?: string | null;
@@ -1140,6 +1148,9 @@ export type Database = {
           seller_organisation_type?: string | null;
           seller_identity_verified_at?: string | null;
           buyer_seller_identity_confirmed_at?: string | null;
+          fx_fee_cents?: number;
+          settlement_amount_cents?: number | null;
+          settlement_currency?: string | null;
           seller_payout_status?: Database['cardtrade']['Enums']['cash_sale_payout_status'];
           seller_payout_ref?: string | null;
           seller_payout_nonce?: string | null;

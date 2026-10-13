@@ -2,9 +2,9 @@
 ///
 /// Mirrors `domain/region/regions.ts` in the web app.
 ///
-/// The marketplace is regional: one deployment, listings scoped to a
-/// jurisdiction, contracts completed inside one. Browsing crosses regions;
-/// contracts do not.
+/// The marketplace is regional: contracts are completed within one Stripe
+/// PLATFORM, which may serve several countries (the US platform serves the
+/// US, UK, EEA, Canada and Switzerland). Australia has its own platform.
 ///
 /// TWO region values — merging them is the mistake to avoid:
 /// - `items.location_country_code` is where the GOODS are (scopes catalog)
@@ -55,7 +55,7 @@ class RegionMismatch {
       case RegionMismatchReason.unknownRegion:
         return 'Both parties must have a trading region set to start a contract.';
       case RegionMismatchReason.crossRegion:
-        return 'You and this seller are in different regions. Contracts can only be completed within the same region.';
+        return 'Contracts between your region and this seller\'s are not possible yet, because payments for each are handled separately.';
       case RegionMismatchReason.regionNotEnabled:
         return 'Trading is not yet available in this region.';
     }
@@ -127,17 +127,8 @@ RegionMismatch? checkRegionCompatibility(
     );
   }
 
-  // Must be the same region
-  if (normalizedBuyer != normalizedSeller) {
-    return RegionMismatch(
-      reason: RegionMismatchReason.crossRegion,
-      buyerRegion: normalizedBuyer,
-      sellerRegion: normalizedSeller,
-    );
-  }
-
-  // Must be a trading-enabled region
-  if (!isTradingRegion(normalizedBuyer)) {
+  // Both must be trading-enabled
+  if (!isTradingRegion(normalizedSeller) || !isTradingRegion(normalizedBuyer)) {
     return RegionMismatch(
       reason: RegionMismatchReason.regionNotEnabled,
       buyerRegion: normalizedBuyer,
@@ -145,5 +136,22 @@ RegionMismatch? checkRegionCompatibility(
     );
   }
 
+  // Must share a Stripe platform: a UK buyer and a German seller both sit on the
+  // US platform and may contract; Australia has its own platform.
+  if (platformRegion(normalizedBuyer) != platformRegion(normalizedSeller)) {
+    return RegionMismatch(
+      reason: RegionMismatchReason.crossRegion,
+      buyerRegion: normalizedBuyer,
+      sellerRegion: normalizedSeller,
+    );
+  }
+
   return null; // Compatible
+}
+
+/// The platform region whose Stripe account serves [code], or null when unknown.
+String? platformRegion(String? code) {
+  final normalized = normalizeRegionCode(code);
+  if (normalized == null) return null;
+  return generatedRegionPlatforms[normalized] ?? normalized;
 }

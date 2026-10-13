@@ -112,6 +112,13 @@ export interface TransferResult {
   transferId: string;
   amount: Cents;
   status: 'SETTLED' | 'FAILED';
+  /**
+   * What the platform balance actually gained (a collection) or gave up (a payout),
+   * in its SETTLEMENT currency, when that differs from the contract currency. Absent
+   * when nothing was converted. Custody reconciliation needs it: a EUR obligation
+   * cannot be compared with a USD balance otherwise.
+   */
+  settlement?: { amount: Cents; currency: string };
 }
 
 /**
@@ -506,6 +513,13 @@ export interface PaymentService {
     nonce: string;
     merchantRef?: string;
     applicationFee?: Cents;
+    /**
+     * ISO 4217 currency of `amount`, from the CONTRACT row. Omitted means the
+     * platform's settlement currency, which was the only currency before one platform
+     * served several regions. A money path that knows its contract MUST pass it, or a
+     * GBP sale is charged in USD.
+     */
+    currency?: string;
   }): Promise<TransferResult>;
 
   /**
@@ -535,6 +549,13 @@ export interface PaymentService {
      * funds have settled into the platform's available balance.
      */
     sourcePaymentRef?: string;
+    /**
+     * Currency the Seller is owed `amount` in (the contract's). When it differs from
+     * the platform's settlement currency, the provider sizes the transfer from a
+     * locked FX quote so the Seller receives exactly `amount` of it, and reports
+     * FAILED rather than paying a different figure when no quote is available.
+     */
+    currency?: string;
   }): Promise<TransferResult>;
 
   /**
@@ -571,7 +592,13 @@ export interface PaymentService {
    * means "we may take up to this much from this payer", NOT "this money has
    * been taken" — so a capture can still fail on insufficient funds.
    */
-  placeHold(params: { payerId: string; amount: Cents; ref: string }): Promise<PreAuthHold>;
+  placeHold(params: {
+    payerId: string;
+    amount: Cents;
+    ref: string;
+    /** The trade's currency. An authorisation is never converted, so any currency works. */
+    currency?: string;
+  }): Promise<PreAuthHold>;
   /** Release a hold at $0 cost (Req 6.7, 7.5, 8.5). */
   voidHold(holdId: string): Promise<PreAuthHold>;
   /** Capture a fixed portion of a hold — the Friction_Tax (Req 7.2). */

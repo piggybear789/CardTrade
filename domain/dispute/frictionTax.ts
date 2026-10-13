@@ -19,11 +19,11 @@
 // orchestrator, the read model, and the action layer all import from here rather than
 // from each other, which is what keeps them from forming a cycle.
 //
-// A NOTE ON CURRENCY. These are integer minor units and the intent is "$20". In a
-// zero-decimal currency 2000 is two thousand units, not twenty — so when a second
-// trading region is enabled this becomes a per-currency lookup rather than a constant.
-// Recorded here because the constant is where that assumption is easiest to miss, and
-// AU-only is the only reason it is currently harmless.
+// CURRENCY. The amount is set per currency in {@link FRICTION_TAX_BY_CURRENCY}: a round
+// figure worth roughly A$20 / US$20 in each, because "2000 minor units" is 20 EUR but
+// only 200 SEK-öre short of nothing, and a deterrent has to be the same size wherever
+// the trade is. A currency missing from the table falls back to 2000, which is correct
+// for the 2-decimal majors and is why the table only lists the ones that differ much.
 //
 // Requirements: 7.2, 7.3.
 
@@ -37,6 +37,33 @@ export const FRICTION_TAX_RETURN_SHIPPING_CENTS: Cents = 1000;
 
 /** Friction_Tax allocation to the Platform_Fee: $10.00 (Req 7.3). */
 export const FRICTION_TAX_PLATFORM_FEE_CENTS: Cents = 1000;
+
+/**
+ * The Friction_Tax in each trading currency's minor units, where it is not 2000.
+ * Round local figures, not live conversions: a dispute fee that moves with the
+ * exchange rate cannot be stated in the Terms.
+ */
+const FRICTION_TAX_BY_CURRENCY: Readonly<Record<string, Cents>> = {
+  cad: 2500,
+  sek: 20000,
+  nok: 20000,
+  dkk: 15000,
+  pln: 8000,
+  czk: 50000,
+  ron: 10000,
+  bgn: 4000,
+};
+
+/** The Friction_Tax for a trade in `currency` (defaults to the AUD figure). */
+export function frictionTaxCentsFor(currency?: string | null): Cents {
+  const code = currency?.trim().toLowerCase() ?? '';
+  return FRICTION_TAX_BY_CURRENCY[code] ?? FRICTION_TAX_CENTS;
+}
+
+/** The return-shipping share of the Friction_Tax in `currency`: half, rounded down. */
+export function frictionTaxReturnShippingCentsFor(currency?: string | null): Cents {
+  return Math.floor(frictionTaxCentsFor(currency) / 2);
+}
 
 /**
  * What can actually be taken from a hold as the Friction_Tax.
@@ -53,8 +80,8 @@ export const FRICTION_TAX_PLATFORM_FEE_CENTS: Cents = 1000;
  * and contradicts the `min(bond, fmv)` rule; and a $20 penalty on a $5 trade is
  * disproportionate anyway. A tax that cannot be collected is not a deterrent.
  */
-export function frictionTaxChargeableCents(holdAmountCents: Cents): Cents {
-  return Math.max(Math.min(FRICTION_TAX_CENTS, Math.trunc(holdAmountCents)), 0);
+export function frictionTaxChargeableCents(holdAmountCents: Cents, currency?: string | null): Cents {
+  return Math.max(Math.min(frictionTaxCentsFor(currency), Math.trunc(holdAmountCents)), 0);
 }
 
 /**
@@ -72,12 +99,12 @@ export function frictionTaxChargeableCents(holdAmountCents: Cents): Cents {
  * worse bug than the failure it replaced, and the reason a bare `min()` at the call site
  * is not enough.
  */
-export function allocateFrictionTax(capturedCents: Cents): {
+export function allocateFrictionTax(capturedCents: Cents, currency?: string | null): {
   returnShippingCents: Cents;
   platformFeeCents: Cents;
 } {
   const captured = Math.max(Math.trunc(capturedCents), 0);
-  const returnShippingCents = Math.min(FRICTION_TAX_RETURN_SHIPPING_CENTS, captured);
+  const returnShippingCents = Math.min(frictionTaxReturnShippingCentsFor(currency), captured);
   return {
     returnShippingCents,
     // The remainder, never a constant: the two shares must sum to what was captured or

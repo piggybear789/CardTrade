@@ -30,10 +30,16 @@ export type ArbitrationCaseKind = 'CASH_SALE' | 'TRADE' | 'CHARGEBACK';
  * the queue must tell them apart without opening each one:
  *
  *   - A CASH_SALE in status DISPUTED is a condition or fraud dispute.
- *   - A CASH_SALE with `return_disputed_at` set is a Seller contesting a return.
- *   - A CASH_SALE with `return_lapsed_at` set is a Buyer who never posted it back.
- *   - A CASH_SALE with `ship_lapsed_at` set, still unshipped, is a Seller who missed
- *     the ship-by date (0132).
+ *   - A CASH_SALE in RETURN_PENDING or RETURN_IN_TRANSIT with `return_disputed_at` set
+ *     is a Seller contesting a return.
+ *   - A CASH_SALE in RETURN_PENDING or RETURN_IN_TRANSIT with `return_lapsed_at` set is
+ *     a Buyer who never posted it back.
+ *   - A CASH_SALE in ESCROW_HELD with `ship_lapsed_at` set is a Seller who missed the
+ *     ship-by date (0132).
+ *
+ * The last three are MARKER cases, opened by a timestamp rather than a status, and
+ * `cashSaleMarkerCase` is the one rule for them: a marker counts only in its own
+ * statuses.
  *
  * Situation affects priority, queue labelling and which panel the detail page shows.
  * It does NOT affect the `kind` or `ref`, which still identify the underlying row.
@@ -194,9 +200,10 @@ function hoursBetween(fromIso: string | null, now: Date): number {
  *   2. Alleged fraud. The remedy is capturing someone's full collateral, and the
  *      authorisations behind it expire in about seven days, so a slow decision can
  *      leave nothing to capture.
- *   3. Past SLA. For a regular dispute, the clock is `openedAt`. For a RETURN_LAPSED
- *      case, the clock is `openedAt` too — the caller must set `openedAt` to
- *      `return_lapsed_at`, because that is when the case began waiting.
+ *   3. Past SLA. For a regular dispute, the clock is `openedAt`. For a marker case
+ *      (RETURN_CONTESTED, RETURN_LAPSED, SHIP_LAPSED) it is `openedAt` too, set from
+ *      the marker that opened the case, because that is when it began waiting.
+ *      `cashSaleMarkerCase` returns both, so the two cannot disagree.
  *
  * Money is deliberately NOT an input. Weighting by amount would systematically park
  * small disputes forever, and a $40 dispute nobody ever answers is a worse failure
@@ -326,6 +333,66 @@ export const SITUATION_LABEL: Record<ArbitrationCaseSituation, string> = {
   RETURN_LAPSED: 'Return lapsed',
   SHIP_LAPSED: 'Not shipped',
 };
+
+/** The `cash_sales` fields a marker case is derived from. */
+export interface CashSaleCaseMarkers {
+  /** `cash_sales.status`. Any status outside the two flows below opens no marker case. */
+  status: string;
+  /** When the sweep found the ship-by date passed with nothing posted (0132). */
+  shipLapsedAt: string | null;
+  /** When the seller contested the return (0088). */
+  returnDisputedAt: string | null;
+  /** When the sweep found the return's dispatch deadline passed unposted (0089). */
+  returnLapsedAt: string | null;
+}
+
+/** Why a marker case is open, and when it started waiting: its SLA clock. */
+export interface CashSaleMarkerCase {
+  situation: Extract<ArbitrationCaseSituation, 'SHIP_LAPSED' | 'RETURN_CONTESTED' | 'RETURN_LAPSED'>;
+  openedAt: string;
+}
+
+/**
+ * Whether a cash sale is open as a marker case, and which one.
+ *
+ * STATUS SCOPES EVERY MARKER. `ship_lapsed_at` counts only while the sale is still
+ * ESCROW_HELD, waiting to be posted. The two return markers count only while the sale
+ * is RETURN_PENDING or RETURN_IN_TRANSIT. Any other combination is not a case.
+ *
+ * The queue used to read any marker in any of those three statuses and label whatever
+ * had no return marker "Not shipped". `ship_lapsed_at` is never cleared, so a sale that
+ * posted late and was later sent back by an arbitrator was listed for the whole return as
+ * a seller who had not posted: aged from the old flag, and impossible to decide, because
+ * the return decision refuses a return that is neither contested nor lapsed.
+ *
+ * SCOPED, NOT CLEARED, on purpose. Sweep step 6 de-duplicates on `ship_lapsed_at`, and a
+ * sale whose buyer withdraws a dispute raised before anything shipped goes back to
+ * ESCROW_HELD. It must be listed again without being flagged, or anyone notified, a
+ * second time, so the marker has to outlive the dispute and the status says when it
+ * applies.
+ *
+ * A return that is both contested and lapsed is RETURN_CONTESTED: a person has already
+ * said something is wrong, so theirs is the claim that matters.
+ *
+ * Pure, so the rule is tested over every combination rather than restated in a filter
+ * string. The queue reads a superset and keeps only what this returns.
+ */
+export function cashSaleMarkerCase(markers: CashSaleCaseMarkers): CashSaleMarkerCase | null {
+  if (markers.status === 'ESCROW_HELD') {
+    return markers.shipLapsedAt
+      ? { situation: 'SHIP_LAPSED', openedAt: markers.shipLapsedAt }
+      : null;
+  }
+  if (markers.status === 'RETURN_PENDING' || markers.status === 'RETURN_IN_TRANSIT') {
+    if (markers.returnDisputedAt) {
+      return { situation: 'RETURN_CONTESTED', openedAt: markers.returnDisputedAt };
+    }
+    if (markers.returnLapsedAt) {
+      return { situation: 'RETURN_LAPSED', openedAt: markers.returnLapsedAt };
+    }
+  }
+  return null;
+}
 
 /**
  * Narrow a route segment to a case kind.

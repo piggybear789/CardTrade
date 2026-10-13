@@ -43,7 +43,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { formatAud, formatRelativeTime } from '@/lib/format';
+import { formatMoney, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -70,6 +70,29 @@ const PRIORITY_REASON_LABEL: Record<PriorityReason, string> = {
   PAST_SLA: `Raised: nobody has answered this in ${ARBITRATION_SLA_HOURS} hours.`,
   IN_ORDER: 'Waiting its turn. Nothing has escalated it.',
 };
+
+/**
+ * "Money at stake", one figure per currency joined with " · ".
+ *
+ * `summariseQueue().amountAtRiskCents` adds every case into one integer regardless of
+ * denomination, which is meaningless once cases span currencies, so the headline is
+ * grouped here instead. Same per-case rule as the summary (truncate, floor at zero),
+ * so each currency's figure still agrees with the rows beneath it.
+ */
+function moneyAtStakeLabel(
+  cases: readonly { amountAtRiskCents: number; currency: string }[],
+): string {
+  const byCurrency = new Map<string, number>();
+  for (const c of cases) {
+    const code = c.currency.toUpperCase();
+    byCurrency.set(
+      code,
+      (byCurrency.get(code) ?? 0) + Math.max(Math.trunc(c.amountAtRiskCents), 0),
+    );
+  }
+  if (byCurrency.size === 0) return '—';
+  return Array.from(byCurrency, ([code, cents]) => formatMoney(cents, code)).join(' · ');
+}
 
 // Priority badges and kind labels are shared with the case page rather than declared
 // twice, so a queue row and the case it opens can never disagree about what a case is
@@ -132,7 +155,7 @@ export default async function ArbitrationQueuePage({
           { label: 'Open cases', value: String(summary.total) },
           { label: 'Critical', value: String(summary.critical) },
           { label: `Over ${ARBITRATION_SLA_HOURS}h`, value: String(summary.overdue) },
-          { label: 'Money at stake', value: formatAud(summary.amountAtRiskCents) },
+          { label: 'Money at stake', value: moneyAtStakeLabel(cases) },
         ].map((stat) => (
           <div key={stat.label} className="rounded-lg border bg-muted p-cozy">
             <dt className="text-meta uppercase tracking-wide text-muted-foreground">
@@ -211,7 +234,7 @@ export default async function ArbitrationQueuePage({
                         </CardTitle>
                       </div>
                       <span className="shrink-0 text-body font-semibold tabular-nums">
-                        {formatAud(c.amountAtRiskCents)}
+                        {formatMoney(c.amountAtRiskCents, c.currency)}
                       </span>
                     </div>
                     <CardDescription className="flex flex-wrap items-center gap-x-cozy gap-y-tight">

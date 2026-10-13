@@ -19,7 +19,10 @@ export function AuthScreen({ children, aside }: { children: ReactNode; aside?: R
   return (
     <main className="flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-group py-section sm:px-6">
       {aside ? (
-        <div className="flex w-full max-w-md flex-col gap-section lg:max-w-4xl lg:flex-row lg:items-center lg:justify-center lg:gap-region">
+        // STRETCHED, not centred, from `lg`: the aside is a tinted panel now and has to
+        // stand as tall as the form card beside it, so the two read as one composition
+        // rather than a card and a caption floating on an empty page.
+        <div className="flex w-full max-w-md flex-col gap-section lg:max-w-4xl lg:flex-row lg:items-stretch lg:justify-center lg:gap-group">
           <div className="w-full max-w-md shrink-0">{children}</div>
           <div className="w-full max-w-md lg:max-w-sm">{aside}</div>
         </div>

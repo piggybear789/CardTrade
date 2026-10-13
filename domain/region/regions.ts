@@ -2,11 +2,11 @@
 //
 // The trading-region registry and the ONE definition of what a region is.
 //
-// A region is an ISO 3166-1 alpha-2 country code. Deliberately not a
-// supra-national grouping: a region maps 1:1 onto a Stripe PLATFORM account, a
-// presentment currency and a Connect account country, and "EU" is none of those —
-// a German platform and an Irish platform are separate Stripe accounts even though
-// both settle in EUR.
+// A region is an ISO 3166-1 alpha-2 country code. It maps onto ONE presentment
+// currency and ONE Connect account country, and onto the Stripe PLATFORM account its
+// money moves through (`platform`). Several regions may share a platform: the US
+// platform serves the whole US/UK/EEA/CA/CH cross-border group, and members on one
+// platform may trade across countries. Australia has its own platform.
 //
 // TWO REGION VALUES EXIST AND THEY ARE NOT THE SAME THING.
 //
@@ -20,27 +20,24 @@
 // holiday, would otherwise be handed a trading region they cannot settle in and
 // would only discover it at payout time.
 //
-// WHY EVERY REGION NEEDS ITS OWN STRIPE PLATFORM ACCOUNT.
+// WHICH REGIONS CAN SHARE A PLATFORM.
 //
 // Stripe supports cross-border transfers on the payments balance only between the
 // US, Canada, UK, EEA and Switzerland; everywhere else "your platform and any
-// connected account must be in the same region", and attempting otherwise returns
-// an error. Cross-border payouts additionally require the PLATFORM to sit in the
-// US, UK, EEA, CA or CH — Australia is not eligible — and are unavailable to
-// connected accounts under a recipient service agreement, which is exactly what
-// `createManagedMerchant` opens (`configuration.recipient`). Stripe's documented
-// alternative for recipient accounts is Global payouts, which is US/UK-platform
-// only and moves compliance — potentially a money transmitter licence — onto us.
+// connected account must be in the same region". Cross-border payouts also require
+// the PLATFORM to sit in that group — Australia is not eligible — and are refused for
+// RECIPIENT-only connected accounts. So a seller whose country differs from the
+// platform's is created with a merchant (card_payments) configuration as well
+// (`createManagedMerchant`); a seller in the platform's own country stays
+// recipient-only.
 //
-// The consequence is not about currency. Our funds flow is
-// buyer → PLATFORM balance → seller, so a purely domestic UK sale still moves
-// money through whatever country the platform is registered in. One platform
-// account therefore cannot serve two regions, no matter how strictly the product
-// forbids cross-border deals. `resolveRegionPaymentConfig` in
-// `domain/services/stripe/config.ts` is where the per-region binding is selected.
+// Our funds flow is buyer → PLATFORM balance → seller, so the platform's settlement
+// currency (USD for the US platform) sits in the middle of every sale it handles. A
+// contract in any other currency is converted twice — at collection and at payout —
+// and the BUYER pays for both (`domain/fees/fxFee.ts`).
 //
-// VERIFIED against Stripe's documentation on 2026-09-01. Re-check before acting on
-// any of it — provider availability is not in our control and does change.
+// VERIFIED against Stripe's documentation on 2026-09-01 and in test mode on
+// 2026-10-13. Re-check before acting on any of it — provider availability changes.
 //   https://docs.stripe.com/connect/cross-border-payouts
 //   https://docs.stripe.com/connect/separate-charges-and-transfers
 //   https://docs.stripe.com/connect/service-agreement-types
@@ -84,7 +81,27 @@ export interface RegionDefinition {
    * filter working — before the entity and Stripe account behind it exist.
    */
   tradingEnabled: boolean;
+  /**
+   * The region whose Stripe PLATFORM account this region's money moves through.
+   *
+   * Usually the region itself. The exception is the cross-border group: Stripe lets a
+   * platform in the US, UK, EEA, CA or CH pay connected accounts in any of those, so
+   * one US platform (`acct_1UIfsRRbOJEOZeCm`) serves all of them and their members
+   * trade with each other. Verified in test mode on 2026-10-13: a DE account on the US
+   * platform onboarded and received a USD transfer as EUR. Australia is not eligible
+   * and keeps its own platform.
+   */
+  platform: RegionCode;
 }
+
+/**
+ * The platform that serves the US/UK/EEA/CA/CH cross-border group.
+ *
+ * A seller whose country differs from the platform's needs a MERCHANT configuration
+ * (card_payments) as well as the recipient one: Stripe refuses cross-border transfers
+ * to recipient-only accounts. See `createManagedMerchant`.
+ */
+export const CROSS_BORDER_PLATFORM: RegionCode = 'US';
 
 /**
  * Currencies Stripe treats as having NO minor unit.
@@ -117,65 +134,64 @@ const ZERO_DECIMAL_CURRENCIES: ReadonlySet<string> = new Set([
  * All 41 entries below were checked against that list on 2026-09-01 and matched
  * exactly: https://docs.stripe.com/connect/separate-charges-and-transfers
  *
- * `tradingEnabled` is true for AU and US and false for everything else, and that is
- * the honest state: each region needs a registered legal entity and its own Stripe
- * platform account before a single deal can complete in it. Flipping one on without
- * those would badge members ready to trade and then fail every payout — which is why
- * `operationalRegions()` re-checks for a configured binding and the contract guard
- * consults it rather than this flag alone.
+ * `tradingEnabled` is true for AU and for the cross-border group served by the US
+ * platform (US, UK, EEA, CA, CH — `platform: 'US'`), and false for everything else.
+ * The rest need a registered legal entity and their own Stripe platform account before
+ * a single deal can complete in them. Hungary sits on the US platform but stays closed
+ * (see its row).
  *
- * US IS PRODUCT INTENT, NOT A LIVE SWITCH. The US entity ("NoDitto Company",
- * `acct_1UIfsRRbOJEOZeCm`) exists and Connect is registered on it, so the intent is
- * real. But this flag alone changes nothing a member can see: `operationalRegions()`
- * intersects it with `allConfiguredRegionCodes()`, which scans for
- * `STRIPE_SECRET_KEY_US`. Until that variable is set, US is absent from
- * `listSelectableRegions()`, absent from the onboarding region step, and refused by
- * every contract guard. Setting the key is the switch; this is the intent.
+ * THIS IS PRODUCT INTENT, NOT A LIVE SWITCH. `operationalRegions()` intersects it with
+ * the configured platform keys: a region is operational only when ITS PLATFORM's key
+ * is set (`STRIPE_SECRET_KEY_US` for the whole group). Without it the group is absent
+ * from the onboarding region step and refused by every contract guard.
  */
 export const REGIONS: readonly RegionDefinition[] = [
-  { code: 'AE', label: 'United Arab Emirates', currency: 'aed', stripeCountry: 'ae', locale: 'en-AE', tradingEnabled: false },
-  { code: 'AT', label: 'Austria',              currency: 'eur', stripeCountry: 'at', locale: 'en-IE', tradingEnabled: false },
-  { code: 'AU', label: 'Australia',            currency: 'aud', stripeCountry: 'au', locale: 'en-AU', tradingEnabled: true  },
-  { code: 'BE', label: 'Belgium',              currency: 'eur', stripeCountry: 'be', locale: 'en-IE', tradingEnabled: false },
-  { code: 'BG', label: 'Bulgaria',             currency: 'bgn', stripeCountry: 'bg', locale: 'en-GB', tradingEnabled: false },
-  { code: 'BR', label: 'Brazil',               currency: 'brl', stripeCountry: 'br', locale: 'en-GB', tradingEnabled: false },
-  { code: 'CA', label: 'Canada',               currency: 'cad', stripeCountry: 'ca', locale: 'en-CA', tradingEnabled: false },
-  { code: 'CH', label: 'Switzerland',          currency: 'chf', stripeCountry: 'ch', locale: 'en-CH', tradingEnabled: false },
-  { code: 'CY', label: 'Cyprus',               currency: 'eur', stripeCountry: 'cy', locale: 'en-IE', tradingEnabled: false },
-  { code: 'CZ', label: 'Czechia',              currency: 'czk', stripeCountry: 'cz', locale: 'en-GB', tradingEnabled: false },
-  { code: 'DE', label: 'Germany',              currency: 'eur', stripeCountry: 'de', locale: 'en-IE', tradingEnabled: false },
-  { code: 'DK', label: 'Denmark',              currency: 'dkk', stripeCountry: 'dk', locale: 'en-GB', tradingEnabled: false },
-  { code: 'EE', label: 'Estonia',              currency: 'eur', stripeCountry: 'ee', locale: 'en-IE', tradingEnabled: false },
-  { code: 'ES', label: 'Spain',                currency: 'eur', stripeCountry: 'es', locale: 'en-IE', tradingEnabled: false },
-  { code: 'FI', label: 'Finland',              currency: 'eur', stripeCountry: 'fi', locale: 'en-IE', tradingEnabled: false },
-  { code: 'FR', label: 'France',               currency: 'eur', stripeCountry: 'fr', locale: 'en-IE', tradingEnabled: false },
-  { code: 'GB', label: 'United Kingdom',       currency: 'gbp', stripeCountry: 'gb', locale: 'en-GB', tradingEnabled: false },
-  { code: 'GR', label: 'Greece',               currency: 'eur', stripeCountry: 'gr', locale: 'en-IE', tradingEnabled: false },
+  { code: 'AE', label: 'United Arab Emirates', currency: 'aed', stripeCountry: 'ae', locale: 'en-AE', tradingEnabled: false, platform: 'AE' },
+  { code: 'AT', label: 'Austria',              currency: 'eur', stripeCountry: 'at', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'AU', label: 'Australia',            currency: 'aud', stripeCountry: 'au', locale: 'en-AU', tradingEnabled: true,  platform: 'AU' },
+  { code: 'BE', label: 'Belgium',              currency: 'eur', stripeCountry: 'be', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'BG', label: 'Bulgaria',             currency: 'bgn', stripeCountry: 'bg', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'BR', label: 'Brazil',               currency: 'brl', stripeCountry: 'br', locale: 'en-GB', tradingEnabled: false, platform: 'BR' },
+  { code: 'CA', label: 'Canada',               currency: 'cad', stripeCountry: 'ca', locale: 'en-CA', tradingEnabled: true,  platform: 'US' },
+  { code: 'CH', label: 'Switzerland',          currency: 'chf', stripeCountry: 'ch', locale: 'en-CH', tradingEnabled: true,  platform: 'US' },
+  { code: 'CY', label: 'Cyprus',               currency: 'eur', stripeCountry: 'cy', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'CZ', label: 'Czechia',              currency: 'czk', stripeCountry: 'cz', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'DE', label: 'Germany',              currency: 'eur', stripeCountry: 'de', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'DK', label: 'Denmark',              currency: 'dkk', stripeCountry: 'dk', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'EE', label: 'Estonia',              currency: 'eur', stripeCountry: 'ee', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'ES', label: 'Spain',                currency: 'eur', stripeCountry: 'es', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'FI', label: 'Finland',              currency: 'eur', stripeCountry: 'fi', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'FR', label: 'France',               currency: 'eur', stripeCountry: 'fr', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'GB', label: 'United Kingdom',       currency: 'gbp', stripeCountry: 'gb', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'GR', label: 'Greece',               currency: 'eur', stripeCountry: 'gr', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
   // Croatia adopted the euro on 2023-01-01; the kuna is retired.
-  { code: 'HR', label: 'Croatia',              currency: 'eur', stripeCountry: 'hr', locale: 'en-IE', tradingEnabled: false },
-  { code: 'HU', label: 'Hungary',              currency: 'huf', stripeCountry: 'hu', locale: 'en-GB', tradingEnabled: false },
-  { code: 'IE', label: 'Ireland',              currency: 'eur', stripeCountry: 'ie', locale: 'en-IE', tradingEnabled: false },
-  { code: 'IT', label: 'Italy',                currency: 'eur', stripeCountry: 'it', locale: 'en-IE', tradingEnabled: false },
+  { code: 'HR', label: 'Croatia',              currency: 'eur', stripeCountry: 'hr', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  // Held closed while the rest of the EEA opens: Stripe treats HUF as two-decimal for
+  // charges but requires payout amounts divisible by 100, which our integer model does
+  // not enforce. Open it once that rule is handled at the seam.
+  { code: 'HU', label: 'Hungary',              currency: 'huf', stripeCountry: 'hu', locale: 'en-GB', tradingEnabled: false, platform: 'US' },
+  { code: 'IE', label: 'Ireland',              currency: 'eur', stripeCountry: 'ie', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'IT', label: 'Italy',                currency: 'eur', stripeCountry: 'it', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
   // The ONLY zero-decimal currency in this table. See ZERO_DECIMAL_CURRENCIES.
-  { code: 'JP', label: 'Japan',                currency: 'jpy', stripeCountry: 'jp', locale: 'en-JP', tradingEnabled: false },
-  { code: 'LI', label: 'Liechtenstein',        currency: 'chf', stripeCountry: 'li', locale: 'en-CH', tradingEnabled: false },
-  { code: 'LT', label: 'Lithuania',            currency: 'eur', stripeCountry: 'lt', locale: 'en-IE', tradingEnabled: false },
-  { code: 'LU', label: 'Luxembourg',           currency: 'eur', stripeCountry: 'lu', locale: 'en-IE', tradingEnabled: false },
-  { code: 'LV', label: 'Latvia',               currency: 'eur', stripeCountry: 'lv', locale: 'en-IE', tradingEnabled: false },
-  { code: 'MT', label: 'Malta',                currency: 'eur', stripeCountry: 'mt', locale: 'en-MT', tradingEnabled: false },
-  { code: 'MX', label: 'Mexico',               currency: 'mxn', stripeCountry: 'mx', locale: 'en-GB', tradingEnabled: false },
-  { code: 'MY', label: 'Malaysia',             currency: 'myr', stripeCountry: 'my', locale: 'en-MY', tradingEnabled: false },
-  { code: 'NL', label: 'Netherlands',          currency: 'eur', stripeCountry: 'nl', locale: 'en-IE', tradingEnabled: false },
-  { code: 'NO', label: 'Norway',               currency: 'nok', stripeCountry: 'no', locale: 'en-GB', tradingEnabled: false },
-  { code: 'NZ', label: 'New Zealand',          currency: 'nzd', stripeCountry: 'nz', locale: 'en-NZ', tradingEnabled: false },
-  { code: 'PL', label: 'Poland',               currency: 'pln', stripeCountry: 'pl', locale: 'en-GB', tradingEnabled: false },
-  { code: 'PT', label: 'Portugal',             currency: 'eur', stripeCountry: 'pt', locale: 'en-IE', tradingEnabled: false },
-  { code: 'RO', label: 'Romania',              currency: 'ron', stripeCountry: 'ro', locale: 'en-GB', tradingEnabled: false },
-  { code: 'SE', label: 'Sweden',               currency: 'sek', stripeCountry: 'se', locale: 'en-GB', tradingEnabled: false },
-  { code: 'SG', label: 'Singapore',            currency: 'sgd', stripeCountry: 'sg', locale: 'en-SG', tradingEnabled: false },
-  { code: 'SI', label: 'Slovenia',             currency: 'eur', stripeCountry: 'si', locale: 'en-IE', tradingEnabled: false },
-  { code: 'SK', label: 'Slovakia',             currency: 'eur', stripeCountry: 'sk', locale: 'en-IE', tradingEnabled: false },
-  { code: 'US', label: 'United States',        currency: 'usd', stripeCountry: 'us', locale: 'en-US', tradingEnabled: true  },
+  { code: 'JP', label: 'Japan',                currency: 'jpy', stripeCountry: 'jp', locale: 'en-JP', tradingEnabled: false, platform: 'JP' },
+  { code: 'LI', label: 'Liechtenstein',        currency: 'chf', stripeCountry: 'li', locale: 'en-CH', tradingEnabled: true,  platform: 'US' },
+  { code: 'LT', label: 'Lithuania',            currency: 'eur', stripeCountry: 'lt', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'LU', label: 'Luxembourg',           currency: 'eur', stripeCountry: 'lu', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'LV', label: 'Latvia',               currency: 'eur', stripeCountry: 'lv', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'MT', label: 'Malta',                currency: 'eur', stripeCountry: 'mt', locale: 'en-MT', tradingEnabled: true,  platform: 'US' },
+  { code: 'MX', label: 'Mexico',               currency: 'mxn', stripeCountry: 'mx', locale: 'en-GB', tradingEnabled: false, platform: 'MX' },
+  { code: 'MY', label: 'Malaysia',             currency: 'myr', stripeCountry: 'my', locale: 'en-MY', tradingEnabled: false, platform: 'MY' },
+  { code: 'NL', label: 'Netherlands',          currency: 'eur', stripeCountry: 'nl', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'NO', label: 'Norway',               currency: 'nok', stripeCountry: 'no', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'NZ', label: 'New Zealand',          currency: 'nzd', stripeCountry: 'nz', locale: 'en-NZ', tradingEnabled: false, platform: 'NZ' },
+  { code: 'PL', label: 'Poland',               currency: 'pln', stripeCountry: 'pl', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'PT', label: 'Portugal',             currency: 'eur', stripeCountry: 'pt', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'RO', label: 'Romania',              currency: 'ron', stripeCountry: 'ro', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'SE', label: 'Sweden',               currency: 'sek', stripeCountry: 'se', locale: 'en-GB', tradingEnabled: true,  platform: 'US' },
+  { code: 'SG', label: 'Singapore',            currency: 'sgd', stripeCountry: 'sg', locale: 'en-SG', tradingEnabled: false, platform: 'SG' },
+  { code: 'SI', label: 'Slovenia',             currency: 'eur', stripeCountry: 'si', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'SK', label: 'Slovakia',             currency: 'eur', stripeCountry: 'sk', locale: 'en-IE', tradingEnabled: true,  platform: 'US' },
+  { code: 'US', label: 'United States',        currency: 'usd', stripeCountry: 'us', locale: 'en-US', tradingEnabled: true,  platform: 'US' },
 ] as const;
 
 /**
@@ -233,6 +249,37 @@ export function regionCurrency(code: unknown): string | null {
 /** The locale a region's money is formatted in, or null when unknown. */
 export function regionLocale(code: unknown): string | null {
   return findRegion(code)?.locale ?? null;
+}
+
+/**
+ * The region whose Stripe platform account serves `code`, or null when unknown.
+ *
+ * This is the ONE place a member's region becomes a platform. Credentials, the
+ * settlement currency and the contract guard all key off it.
+ */
+export function platformRegion(code: unknown): RegionCode | null {
+  return findRegion(code)?.platform ?? null;
+}
+
+/**
+ * The currency a platform's balance settles in: its own region's currency.
+ *
+ * A contract in any other currency is converted into this one when the buyer is
+ * charged and back out of it when the seller is paid.
+ */
+export function settlementCurrency(platform: unknown): string | null {
+  const code = platformRegion(platform);
+  return code ? regionCurrency(code) : null;
+}
+
+/**
+ * Whether a contract in `currency` on `platform` crosses currencies, so the
+ * Currency_Conversion fee applies. False when either side is unknown.
+ */
+export function needsCurrencyConversion(currency: unknown, platform: unknown): boolean {
+  const settles = settlementCurrency(platform);
+  const code = typeof currency === 'string' ? currency.trim().toLowerCase() : '';
+  return Boolean(settles && code && code !== settles);
 }
 
 /** Whether the region exists AND product intent allows contracts in it. */
@@ -377,15 +424,24 @@ export function isGuessedRegionSource(source: RegionSource): boolean {
 export type RegionMismatch =
   /** One side has no region on file at all. */
   | { reason: 'UNKNOWN_REGION'; buyerRegion: RegionCode | null; sellerRegion: RegionCode | null }
-  /** Both known, different jurisdictions. */
+  /** Both known, but served by different Stripe platforms (e.g. AU and DE). */
   | { reason: 'CROSS_REGION'; buyerRegion: RegionCode; sellerRegion: RegionCode }
-  /** Same jurisdiction, but the platform cannot settle there yet. */
-  | { reason: 'REGION_NOT_ENABLED'; buyerRegion: RegionCode; sellerRegion: RegionCode };
+  /** One side's region is not open for contracts yet. */
+  | {
+      reason: 'REGION_NOT_ENABLED';
+      buyerRegion: RegionCode;
+      sellerRegion: RegionCode;
+      /** Whichever side is closed; the seller's when both are. */
+      closedRegion: RegionCode;
+    };
 
 /**
  * The region precondition for opening a contract.
  *
- * Both parties must sit in the same region AND that region must be enabled. This
+ * Both parties' regions must be enabled AND served by the SAME Stripe platform. Two
+ * countries on one platform may trade (a UK buyer and a German seller both sit on the
+ * US platform); two platforms may not, because the money is collected into one
+ * platform's balance and a platform cannot pay a seller registered on another. This
  * is the single place that question is answered — the Cash_Sale orchestrator and
  * the trade negotiation action both call it, exactly as the Identity_Gate is only
  * ever evaluated through `satisfiesIdentityGate`.
@@ -417,15 +473,20 @@ export function checkRegionCompatibility(
   if (!buyer || !seller) {
     return { reason: 'UNKNOWN_REGION', buyerRegion: buyer, sellerRegion: seller };
   }
-  if (buyer !== seller) {
-    return { reason: 'CROSS_REGION', buyerRegion: buyer, sellerRegion: seller };
+  const enabled = (code: RegionCode) =>
+    enabledRegions ? enabledRegions.has(code) : isTradingRegion(code);
+  // The seller's side is checked first: "deals in Germany are not open" is the more
+  // useful sentence when the listing is the thing that cannot be transacted.
+  if (!enabled(seller) || !enabled(buyer)) {
+    return {
+      reason: 'REGION_NOT_ENABLED',
+      buyerRegion: buyer,
+      sellerRegion: seller,
+      closedRegion: enabled(seller) ? buyer : seller,
+    };
   }
-
-  const enabled = enabledRegions
-    ? enabledRegions.has(buyer)
-    : isTradingRegion(buyer);
-  if (!enabled) {
-    return { reason: 'REGION_NOT_ENABLED', buyerRegion: buyer, sellerRegion: seller };
+  if (platformRegion(buyer) !== platformRegion(seller)) {
+    return { reason: 'CROSS_REGION', buyerRegion: buyer, sellerRegion: seller };
   }
   return null;
 }
@@ -453,12 +514,12 @@ export function regionMismatchMessage(mismatch: RegionMismatch): string {
     case 'CROSS_REGION':
       return (
         `This listing is in ${regionLabel(mismatch.sellerRegion)} and you are trading in ` +
-        `${regionLabel(mismatch.buyerRegion)}. Deals are completed within a single region, ` +
-        'so postage, currency and payouts all stay local.'
+        `${regionLabel(mismatch.buyerRegion)}. Deals between those two regions are not ` +
+        'possible yet, because payments for each are handled separately.'
       );
     case 'REGION_NOT_ENABLED':
       return (
-        `Deals in ${regionLabel(mismatch.sellerRegion)} are not open yet. You can browse ` +
+        `Deals in ${regionLabel(mismatch.closedRegion)} are not open yet. You can browse ` +
         'listings there, but contracts cannot be opened.'
       );
   }

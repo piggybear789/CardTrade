@@ -7,12 +7,12 @@
 // method needs, how long an inspection window runs — moved to
 // `domain/fulfilment`, which is pure and shared with the Cash_Sale. What is left
 // here is the part that legitimately belongs in `lib/`: strings that need
-// `formatAud`, and the trade-specific column names. `domain/` may not import from
+// `formatMoney`, and the trade-specific column names. `domain/` may not import from
 // `lib/`, which is exactly why the split falls where it does.
 //
 // The module header used to say "used by deals and 2-way trades". Deals are gone.
 
-import { formatAud } from '@/lib/format';
+import { formatMoney } from '@/lib/format';
 import {
   areFulfilmentTermsComplete,
   type FulfilmentMethod,
@@ -55,11 +55,15 @@ export interface HandoverTermsColumns {
  * Render a DELIVERY handover as human-readable `delivery_details`: the postage
  * price plus any shipping notes. Cost stays the machine-readable source of truth.
  */
-export function describeDelivery(costCents: number, notes: string | null): string {
+export function describeDelivery(
+  costCents: number,
+  notes: string | null,
+  currency: string,
+): string {
   const priceLine =
     costCents === 0
       ? 'Delivered — free delivery.'
-      : `Delivered — ${formatAud(costCents)} delivery on top of the cash amount.`;
+      : `Delivered — ${formatMoney(costCents, currency)} delivery on top of the cash amount.`;
   return notes ? `${priceLine}\n${notes}` : priceLine;
 }
 
@@ -112,7 +116,10 @@ export function areHandoverTermsComplete(input: {
  * Normalize a handover input into opposite-method-cleared columns ready to write.
  * Does not validate — callers check required fields first.
  */
-export function toHandoverColumns(input: HandoverTermsInput): HandoverTermsColumns {
+export function toHandoverColumns(
+  input: HandoverTermsInput,
+  currency: string,
+): HandoverTermsColumns {
   if (input.handoverMethod === 'IN_PERSON') {
     const location = input.meetingLocation?.trim() || null;
     return {
@@ -158,7 +165,7 @@ export function toHandoverColumns(input: HandoverTermsInput): HandoverTermsColum
     meeting_place_id: null,
     meeting_at: null,
     delivery_cost_cents: cost,
-    delivery_details: describeDelivery(cost, notes),
+    delivery_details: describeDelivery(cost, notes, currency),
   };
 }
 
@@ -168,6 +175,7 @@ export function summarizeHandover(input: {
   meeting_location: string | null;
   delivery_cost_cents: number | null;
   delivery_details: string | null;
+  currency: string;
 }): string {
   if (input.handover_method === 'IN_PERSON') {
     return input.meeting_location?.trim() || 'Face to face';
@@ -176,7 +184,7 @@ export function summarizeHandover(input: {
     if (input.delivery_cost_cents != null) {
       return input.delivery_cost_cents === 0
         ? 'Free delivery'
-        : `${formatAud(input.delivery_cost_cents)} postage`;
+        : `${formatMoney(input.delivery_cost_cents, input.currency)} postage`;
     }
     // Method chosen, postage still open — don't leave the tab reading bare
     // "Delivery" with no hint that something is outstanding.

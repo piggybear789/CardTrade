@@ -15,7 +15,7 @@ import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
-import { regionForTrade } from '@/lib/regionBinding';
+import { currencyForTrade, regionForTrade } from '@/lib/regionBinding';
 import {
   resolveTradeFees,
   isTradeFeeRefundable,
@@ -60,6 +60,8 @@ export async function chargeTradeFees(params: {
   // trade's own platform account (0068). Charging through another region's client
   // would not find the payer at all.
   const payments = getPaymentService(await regionForTrade(params.tradeId));
+  // Fees are a share of the trade's value, so they are charged in its currency.
+  const currency = await currencyForTrade(params.tradeId);
 
   const { initiatorFeeCents, counterpartFeeCents } = resolveTradeFees({
     initiatorReceivesCents: params.initiatorReceivesCents,
@@ -120,6 +122,7 @@ export async function chargeTradeFees(params: {
     const result = await payments.requestTransfer({
       payerId,
       amount: entry.amountCents,
+      ...(currency ? { currency } : {}),
       ref: `tradefee:${params.tradeId}`,
       nonce,
     });
@@ -343,9 +346,11 @@ export async function drainFailedTradeFees(
       }
 
       const payments = getPaymentService(await regionForTrade(row.trade_id));
+      const feeCurrency = await currencyForTrade(row.trade_id);
       const charge = await payments.requestTransfer({
         payerId,
         amount: row.amount_cents,
+        ...(feeCurrency ? { currency: feeCurrency } : {}),
         ref: `tradefee:${row.trade_id}`,
         // The persisted key, reused exactly.
         nonce: row.nonce,

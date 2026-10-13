@@ -68,7 +68,9 @@ export default async function DealInvitePage({
     preview.hostRegion != null && regions.some((region) => region.code === preview.hostRegion);
 
   return (
-    <MarketplaceShell title="Private deal">
+    // The host's share view is a short ticket that is the whole page, so it sits
+    // centred; the joiner's form is long and reads from the top.
+    <MarketplaceShell title="Private deal" center={preview.isHost && preview.status === 'open'}>
       <DealJoinForm
         preview={preview}
         viewer={{ needsOnboarding, displayName: profile?.display_name ?? null }}

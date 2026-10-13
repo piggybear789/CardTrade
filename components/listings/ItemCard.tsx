@@ -13,7 +13,7 @@ import { WatchButton } from '@/components/listings/WatchButton';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
 import { formatMoney, itemImageUrl } from '@/lib/format';
-import { TILE_BETA_FEE_NOTE, feesWaivedForBeta } from '@/lib/fees/feeLabels';
+import { feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
 import { cn } from '@/lib/utils';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
@@ -215,13 +215,13 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           // `WatchButton` below restores `pointer-events-auto` on itself, which is the
           // same arrangement the text block uses for the seller link.
           'pointer-events-none',
-          // PORTRAIT 3:4, because the goods are. A square crop cut the grade label
-          // off the top of every slab — the one part of a graded card's photo a
-          // buyer reads first. In the phone mosaic the cover takes the photo's own
-          // shape; `.catalog-cover` (globals.css) is 3:4 from md, and the flat grid
-          // matches it, so the server's mosaic and the hydrated grid agree on a
-          // desktop first visit and nothing shifts.
-          inMosaic ? 'catalog-cover' : 'aspect-[3/4]',
+          // SQUARE from md, so a row of tiles is short enough to see several rows at
+          // once. The image is anchored to the top (`object-top`), which keeps a
+          // slab's grade label in frame; the crop falls on the bottom of the card. In
+          // the phone mosaic the cover takes the photo's own shape; `.catalog-cover`
+          // (globals.css) is square from md, and the flat grid matches it, so the
+          // server's mosaic and the hydrated grid agree and nothing shifts.
+          inMosaic ? 'catalog-cover' : 'aspect-square',
         )}
       >
         {imageUrl ? (
@@ -379,7 +379,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             <span className="text-body font-semibold text-muted-foreground">
               {price.symbol}
             </span>
-            <span className="text-head">{price.major}</span>
+            <span className="text-lead">{price.major}</span>
             {/* WHOLE DOLLARS STAY WHOLE. ".00" on every tile was two muted digits of
                 noise in a grid of prices; real cents still show. */}
             {price.minor && /[1-9]/.test(price.minor) ? (
@@ -387,12 +387,18 @@ export const CatalogItemCard = memo(function CatalogItemCard({
                 {price.minor}
               </span>
             ) : null}
+            {price.code ? (
+              <span className="text-meta font-semibold text-muted-foreground">
+                {price.code}
+              </span>
+            ) : null}
           </p>
-          {!isShopfront ? (
+          {!isShopfront && !feesWaivedForBeta() ? (
             // From `sm` only: a two-column phone tile has ~150px for this row and a
             // six-figure price takes most of it. The listing page states the fee.
+            // While fees are waived the tile says nothing; the listing page explains.
             <span className="hidden shrink-0 text-meta text-muted-foreground sm:inline">
-              {feesWaivedForBeta() ? TILE_BETA_FEE_NOTE : 'incl. fees'}
+              incl. fees
             </span>
           ) : null}
         </div>

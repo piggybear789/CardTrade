@@ -9,7 +9,7 @@
 // the deal as the other person will see it, and its stub is how it reaches them —
 // the code to scan, the link, Copy and Share. A to-do from Stripe sits under the
 // ticket only while there is one, and the ways out — editing, the inbox, cancelling —
-// share one quiet row beneath it all. Cancelling still asks first.
+// share one row of outline buttons beneath it all. Cancelling still asks first.
 
 import { useState, useSyncExternalStore, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -49,13 +49,6 @@ function ticketLabel(preview: DealInvitePreview): string {
 function subscribeNever() {
   return () => {};
 }
-
-/**
- * The ways out of the screen share one look: quiet, and plainly actions. The few
- * pixels of padding are for the focus ring, which focus lands on whenever a dialog
- * opened from this row closes.
- */
-const QUIET_ACTION = 'h-auto px-1 py-0.5 text-muted-foreground hover:text-foreground';
 
 export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
   const router = useRouter();
@@ -106,7 +99,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
         <HostVerificationNotice kind={preview.kind} readiness={preview.hostReadiness} />
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-center gap-x-section gap-y-snug">
+      <div className="flex flex-wrap items-center justify-center gap-snug">
         {preview.editable && preview.id && preview.kind ? (
           <DealEditDialog
             inviteId={preview.id}
@@ -114,18 +107,19 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
             editable={preview.editable}
             currency={preview.currency ?? 'aud'}
           >
-            <Button type="button" variant="link" className={QUIET_ACTION}>
+            <Button type="button" variant="outline">
               Edit deal
             </Button>
           </DealEditDialog>
         ) : null}
-        <Button type="button" variant="link" className={QUIET_ACTION} onClick={leave}>
+        <Button type="button" variant="outline" onClick={leave}>
           {inboxLabel(preview)}
         </Button>
+        {/* A trigger for a confirm, so the quiet red outline; the filled red waits
+            in the dialog. */}
         <Button
           type="button"
-          variant="link"
-          className={QUIET_ACTION}
+          variant="destructive-quiet"
           disabled={!preview.id}
           onClick={() => setConfirmingCancel(true)}
         >

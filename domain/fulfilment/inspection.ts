@@ -264,11 +264,11 @@ export function deriveTradeInspectionDeadline(
   const expiry = instant(earliestHoldExpiry);
   if (expiry) {
     const lastUsefulMoment = expiry.getTime() - COLLATERAL_MARGIN_HOURS * HOUR_MS;
-    // Never move the deadline EARLIER than the floor, though: if the collateral is
-    // already this close to lapsing the trade is in trouble either way, and cutting
-    // the window below the stated minimum would take away a right to fix a problem
-    // that is not the trader's fault. `inspectionHoldRisk` reports that case instead.
-    return new Date(Math.max(Math.min(deadline, lastUsefulMoment), floor)).toISOString();
+    // ESC-17b: THE CLAMP BEATS THE FLOOR. A window that outlives the money backing it
+    // is a right to dispute that cannot be honoured; a shorter real window, with both
+    // traders told to check now (0142 notifies under six hours), is the honest one.
+    // Matches `set_trade_inspection_deadline` in 0142.
+    return new Date(Math.min(deadline, lastUsefulMoment)).toISOString();
   }
 
   return new Date(deadline).toISOString();

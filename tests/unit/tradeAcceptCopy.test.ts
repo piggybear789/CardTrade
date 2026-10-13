@@ -30,7 +30,9 @@ describe('tradeAcceptCopy', () => {
   });
 
   it('says when the fee is charged and that an expiring hold on an open problem is charged', () => {
-    expect(copy.feeHint).toBe('Charged when the card hold is placed.');
+    expect(copy.feeHint).toMatch(/^Charged when the card hold is placed\./);
+    // ESC-29: a declined fee means the trade does not lock.
+    expect(copy.feeHint).toMatch(/doesn't lock and you can switch card and retry/);
     expect(copy.collateralHint).toMatch(/charged and then refunded or paid out/);
   });
 

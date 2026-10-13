@@ -233,9 +233,11 @@ class _SaleRoomScreenState extends ConsumerState<SaleRoomScreen> {
         value: Money.format(sale.shippingCostCents, sale.currency),
       ),
       ContractMoneyRow(
-        label: 'Platform fee (${Money.platformFeeRateLabel(sale.currency)})',
+        label: 'Platform fee (${Money.feeRowRate(sale.platformFeeCents)})',
         value: Money.format(sale.platformFeeCents, sale.currency),
-        hint: 'Charged on the item price only.',
+        hint: sale.platformFeeCents == 0
+            ? 'No fee during beta.'
+            : 'Charged on the item price only.',
       ),
       ContractMoneyRow(
         label: role == CashSaleRole.buyer ? 'You pay' : 'You receive',

@@ -52,6 +52,7 @@ import { StorageImage } from '@/components/ui/storage-image';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { formatMoney, itemImageUrl } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
+import { NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import {
   counterOffer,
   respondToOffer,
@@ -339,7 +340,9 @@ function OfferNegotiation({
   const outcome =
     offer.role === 'seller'
       ? `You'd get ${money(offer.amountCents)}`
-      : `You'd pay ${money(buyerPaysCents(offer.amountCents, offer.currency))} incl. fee`;
+      : feesWaivedForBeta()
+        ? `You'd pay ${money(buyerPaysCents(offer.amountCents, offer.currency))}, ${NO_FEE_DURING_BETA}`
+        : `You'd pay ${money(buyerPaysCents(offer.amountCents, offer.currency))} incl. fee`;
   const showAsking =
     offer.itemAskingCents != null && offer.itemAskingCents !== offer.amountCents;
 

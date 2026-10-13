@@ -11,7 +11,12 @@ import type { ReactNode } from 'react';
 import { InfoPopover } from '@/components/ui/info-popover';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { tradeFeeCentsFor } from '@/domain/trade/tradeFee';
-import { platformFeeRateLabel } from '@/lib/fees/feeLabels';
+import {
+  betaFeeNote,
+  feesWaivedForBeta,
+  platformFeeRateLabel,
+  platformFeeRowRate,
+} from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
 
 /**
@@ -29,7 +34,9 @@ export function SaleTermsBreakdown({
   if (!priceCents) {
     return (
       <p className="text-meta text-muted-foreground">
-        A NoDitto fee ({platformFeeRateLabel(currency)}) is added for the buyer.
+        {feesWaivedForBeta()
+          ? `${betaFeeNote()}.`
+          : `A NoDitto fee (${platformFeeRateLabel(currency)}) is added for the buyer.`}
       </p>
     );
   }
@@ -38,7 +45,7 @@ export function SaleTermsBreakdown({
     <Breakdown>
       <BreakdownRow label="They pay" value={formatMoney(priceCents + fee, currency)} />
       <BreakdownRow
-        label={`NoDitto fee (${platformFeeRateLabel(currency)})`}
+        label={`NoDitto fee (${platformFeeRowRate(fee)})`}
         value={formatMoney(fee, currency)}
       />
       <BreakdownRule />
@@ -81,7 +88,11 @@ export function TradeTermsBreakdown({
       <BreakdownRow
         label="Your fee"
         value={valueCents ? formatMoney(tradeFeeCentsFor(valueCents, currency), currency) : '—'}
-        info="Each of you pays it on the trade value, when the holds go on."
+        info={
+          feesWaivedForBeta()
+            ? `${betaFeeNote()}.`
+            : 'Each of you pays it on the trade value, when the holds go on.'
+        }
       />
     </Breakdown>
   );

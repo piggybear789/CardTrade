@@ -51,6 +51,7 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
 import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
+import { FEE_WAIVED_HINT, NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import {
   acceptTradeTerms,
   declineTradeOffer,
@@ -105,8 +106,9 @@ export interface TradeNegotiationPanelProps {
     /** Trade fee taken from the card the moment the last accept lands. */
     feeText: string;
     /**
-     * The rate as members read it, e.g. "5%", from `tradeFeeRateLabel`, so the label
-     * has one source. Falls back to the bare percentage.
+     * The rate as members read it, e.g. "5%" or "waived during beta, normally 5%",
+     * from `tradeFeeRowRate`, so the label has one source. Falls back to the bare
+     * percentage.
      */
     feeRateLabel?: string;
     /** Collateral authorised against the card. Held, never charged. */
@@ -330,9 +332,19 @@ export function TradeNegotiationPanel({
           <DialogHeader>
             <DialogTitle>Accept these terms?</DialogTitle>
             <DialogDescription>
-              If you are the last to accept, the trade starts straight away: the
-              fee is charged to your card and the collateral is authorised
-              against it. Replace the card here if you do not want this one used.
+              {feesWaivedForBeta() ? (
+                <>
+                  If you are the last to accept, the trade starts straight away: the
+                  collateral is authorised against your card, with {NO_FEE_DURING_BETA}.
+                  Replace the card here if you do not want this one used.
+                </>
+              ) : (
+                <>
+                  If you are the last to accept, the trade starts straight away: the
+                  fee is charged to your card and the collateral is authorised
+                  against it. Replace the card here if you do not want this one used.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           {/* The Exchange row already carries the fee, but it is one row of an
@@ -346,7 +358,7 @@ export function TradeNegotiationPanel({
                 {
                   label: `NoDitto fee (${acceptCost.feeRateLabel ?? `${TRADE_FEE_BPS / 100}%`})`,
                   value: acceptCost.feeText,
-                  hint: 'Charged to your card.',
+                  hint: feesWaivedForBeta() ? FEE_WAIVED_HINT : 'Charged to your card.',
                 },
                 {
                   label: 'Collateral',

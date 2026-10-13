@@ -7,6 +7,8 @@
 // longer covers the provider's fixed costs (card ~$0.30, payout ~$0.25); that
 // trade-off is accepted. Do not reintroduce a floor without a product decision.
 //
+// The beta fee waiver is applied to the RATE, before this rule: see `betaFeeWaiver.ts`.
+//
 // Pure module: no I/O, no provider types.
 
 /**

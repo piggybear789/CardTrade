@@ -37,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { displayLegalName, formatMoney } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
+import { NO_FEE_DURING_BETA, betaFeeNote, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { makeOffer, type MakeOfferResult } from '@/lib/actions/offers';
 import { OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -176,7 +177,13 @@ export function MakeOfferDialog({
                   <span className="font-semibold tabular-nums">{money(buyerPaysCents(asking, currency))}</span>
                 </p>
                 <p className="mt-tight text-meta text-muted-foreground">
-                  Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} NoDitto fee
+                  {feesWaivedForBeta() ? (
+                    betaFeeNote()
+                  ) : (
+                    <>
+                      Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} NoDitto fee
+                    </>
+                  )}
                 </p>
               </div>
             ) : null}
@@ -219,8 +226,12 @@ export function MakeOfferDialog({
                     You&apos;d pay{' '}
                     <span className="font-semibold text-foreground tabular-nums">
                       {money(buyerPaysCents(offerCents, currency))}
-                    </span>{' '}
-                    including the {money(platformFeeCentsFor(offerCents, currency))} fee.
+                    </span>
+                    {feesWaivedForBeta() ? (
+                      <>, {NO_FEE_DURING_BETA}.</>
+                    ) : (
+                      <> including the {money(platformFeeCentsFor(offerCents, currency))} fee.</>
+                    )}
                   </>
                 ) : null}
               </p>

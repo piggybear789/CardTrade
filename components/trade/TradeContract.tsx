@@ -54,7 +54,7 @@ import {
   type SavedCardStatus,
 } from '@/components/payments/SavedCardRow';
 import { tradeFeeCentsFor } from '@/domain/trade/tradeFee';
-import { tradeFeeRateLabel } from '@/lib/fees/feeLabels';
+import { feesWaivedForBeta, tradeFeeRowRate } from '@/lib/fees/feeLabels';
 import {
   resolveTradeSideValues,
   tradeAgreedValueCents,
@@ -1135,7 +1135,7 @@ function TradeContractRoom({
                             goods && theirsValueCents > 0
                               ? {
                                   feeText: formatMoney(myFeeCents, trade.currency),
-                                  feeRateLabel: tradeFeeRateLabel(trade.currency),
+                                  feeRateLabel: tradeFeeRowRate(myFeeCents),
                                   collateralText: formatMoney(
                                     theirsValueCents,
                                     trade.currency,
@@ -1259,7 +1259,10 @@ function TradeContractRoom({
                         // trader receives — so it appears against your column while
                         // being derived from theirs.
                         feeCents: myFeeCents,
-                        feeLabel: `NoDitto fee (${tradeFeeRateLabel(trade.currency)})`,
+                        feeLabel: `NoDitto fee (${tradeFeeRowRate(myFeeCents)})`,
+                        // During the beta the $0.00 line still shows, labelled as
+                        // waived, so the fee's absence is stated rather than silent.
+                        feeWaived: feesWaivedForBeta() && theirsValueCents + cashToMe > 0,
                         emptyLabel: 'You are putting up no goods.',
                       },
                       {
@@ -1278,7 +1281,8 @@ function TradeContractRoom({
                         // receive" would put a credit in a column of debits.
                         cashLabel: 'Cash they pay via Stripe',
                         feeCents: theirFeeCents,
-                        feeLabel: `NoDitto fee (${tradeFeeRateLabel(trade.currency)})`,
+                        feeLabel: `NoDitto fee (${tradeFeeRowRate(theirFeeCents)})`,
+                        feeWaived: feesWaivedForBeta() && yoursValueCents + cashToThem > 0,
                         emptyLabel: 'They are putting up no goods.',
                       },
                     ]}

@@ -21,11 +21,14 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { effectiveFeeBps } from '@/domain/fees/betaFeeWaiver';
+import { percentageFeeMinor } from '@/domain/fees/percentageFee';
 import {
   acceptCashSaleInspection,
   acceptCashSaleTerms,
   initiateCashSale,
   payoutCashSaleSeller,
+  PLATFORM_FEE_BPS,
   platformFeeCentsFor,
   recordCashSaleReceipt,
   recordCashSaleShipment,
@@ -236,7 +239,9 @@ describe('Cash_Sale lifecycle is identical in every trading region', () => {
       expect(run.platformFeeCents).toBe(
         platformFeeCentsFor(run.agreedPriceCents, run.currency),
       );
-      expect(run.platformFeeCents).toBe(Math.round((run.agreedPriceCents * 500) / 10_000));
+      expect(run.platformFeeCents).toBe(
+        percentageFeeMinor(run.agreedPriceCents, effectiveFeeBps(PLATFORM_FEE_BPS)),
+      );
     }
   });
 });

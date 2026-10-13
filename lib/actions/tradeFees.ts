@@ -66,6 +66,9 @@ export async function chargeTradeFees(params: {
     counterpartReceivesCents: params.counterpartReceivesCents,
   });
 
+  // A zero fee (every fee during the beta waiver, `domain/fees/betaFeeWaiver.ts`)
+  // writes no row and makes no provider call. Stripe refuses a zero-amount charge, and
+  // a 0 row would print "Trade fee $0.00" on both traders' statements.
   const owed = [
     { traderId: params.initiatorId, amountCents: initiatorFeeCents },
     { traderId: params.counterpartId, amountCents: counterpartFeeCents },
@@ -309,6 +312,14 @@ export async function drainFailedTradeFees(
   for (const row of rows.slice(0, bounded)) {
     try {
       result.attempted += 1;
+
+      // Nothing to collect: settle without a provider call (Stripe refuses a zero charge),
+      // so a zero row can never loop in this drain.
+      if (Number(row.amount_cents) <= 0) {
+        result.settled += 1;
+        await recordFeeResult(row.trade_id, row.trader_id, 'SETTLED');
+        continue;
+      }
 
       const { data: payerRow } = await admin
         .from('profiles')

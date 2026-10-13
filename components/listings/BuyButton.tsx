@@ -21,6 +21,7 @@ import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnb
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { displayLegalName, formatMoney, itemImageUrl } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
+import { betaFeeNote, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -122,7 +123,13 @@ function OrderSummary({ summary }: { summary: PurchaseSummary }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-medium">{summary.title}</p>
           <p className="text-meta text-muted-foreground">
-            {money(summary.priceCents)} + {money(fee)} fee
+            {feesWaivedForBeta() ? (
+              betaFeeNote()
+            ) : (
+              <>
+                {money(summary.priceCents)} + {money(fee)} fee
+              </>
+            )}
           </p>
         </div>
         <p className="shrink-0 text-lead font-semibold tabular-nums">

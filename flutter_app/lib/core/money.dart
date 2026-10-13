@@ -143,18 +143,39 @@ abstract final class Money {
     return formatted;
   }
 
-  /// 5% of [baseCents], rounded half-up to the nearest minor unit, with no
-  /// minimum. Zero or negative base → 0.
+  /// True while every platform fee is waived for the beta.
+  ///
+  /// Mirrors `BETA_FEE_WAIVER` in `domain/fees/betaFeeWaiver.ts`, and is pinned to it
+  /// by `tests/unit/mobileDomainAgreement.test.ts`. Ending the beta means flipping
+  /// both. ADVISORY: the server decides the fee it charges.
+  static const bool betaFeeWaiver = true;
+
+  /// The STANDARD fee rate in basis points (5%), once the beta ends.
+  ///
+  /// Mirrors `PLATFORM_FEE_BPS` / `TRADE_FEE_BPS` in the web app.
+  static const int standardFeeBps = 500;
+
+  /// [standardFeeBps] of [baseCents], rounded half-up to the nearest minor unit,
+  /// with no minimum. Zero or negative base → 0. The standard rate, regardless of
+  /// [betaFeeWaiver].
   ///
   /// Mirrors `percentageFeeMinor` in `domain/fees/percentageFee.ts`.
-  static int _percentageFee(int baseCents) {
+  static int standardFee(int baseCents) {
     if (baseCents <= 0) return 0;
-    return ((baseCents * 500) + 5000) ~/ 10000;
+    return ((baseCents * standardFeeBps) + 5000) ~/ 10000;
+  }
+
+  /// The fee actually applied: 0 while [betaFeeWaiver], else [standardFee].
+  ///
+  /// Mirrors `effectiveFeeBps` in `domain/fees/betaFeeWaiver.ts`.
+  static int _percentageFee(int baseCents) {
+    return betaFeeWaiver ? 0 : standardFee(baseCents);
   }
 
   /// Calculates platform fee from item price in the currency's minor units.
   ///
-  /// 5% of item price (PLATFORM_FEE_BPS = 500), no minimum. Uses rounding (not
+  /// 5% of item price (PLATFORM_FEE_BPS = 500), no minimum, and 0 while
+  /// [betaFeeWaiver]. Uses rounding (not
   /// truncation) to match `platformFeeCentsFor` in
   /// `domain/orchestrator/cashSaleOrchestrator.ts`. [currency] does not affect
   /// the result. ADVISORY: the server sizes the fee.
@@ -162,7 +183,8 @@ abstract final class Money {
     return _percentageFee(priceCents);
   }
 
-  /// Calculates trade fee for one side (5% of value, no minimum).
+  /// Calculates trade fee for one side (5% of value, no minimum; 0 while
+  /// [betaFeeWaiver]).
   /// Rounds to match the server's `tradeFeeCentsFor`.
   static int tradeFee(int valueCents, {required String? currency}) {
     return _percentageFee(valueCents);
@@ -181,6 +203,18 @@ abstract final class Money {
   static String tradeFeeRateLabel(String currency) {
     return '5%';
   }
+
+  /// "No fees during beta (normally 5%)", the one sentence prose surfaces use.
+  ///
+  /// Mirrors `betaFeeNote` in `lib/fees/feeLabels.ts`.
+  static String betaFeeNote() => 'No fees during beta (normally 5%)';
+
+  /// Parenthetical for a fee row: "waived during beta, normally 5%" when the fee
+  /// is 0, else "5%". Decided by the figure, so a stored pre-beta fee reads "5%".
+  ///
+  /// Mirrors `platformFeeRowRate` / `tradeFeeRowRate` in `lib/fees/feeLabels.ts`.
+  static String feeRowRate(int feeCents) =>
+      feeCents == 0 ? 'waived during beta, normally 5%' : '5%';
 
   /// Returns total cost for a cash sale buyer: price + shipping + platform fee.
   static int cashSaleTotal({

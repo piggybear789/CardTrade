@@ -180,6 +180,13 @@ describe('sellerNetCents', () => {
       }),
     );
   });
+
+  it('pays the seller the full amount when the fee is waived (beta)', () => {
+    expect(sellerNetCents({ amountCents: 10_000, platformFeeCents: 0 })).toBe(10_000);
+    expect(sellerNetCents({ amountCents: 10_000, platformFeeCents: 0, refundCents: 4_000 })).toBe(
+      6_000,
+    );
+  });
 });
 
 describe('bucketFor', () => {

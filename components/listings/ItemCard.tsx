@@ -13,6 +13,7 @@ import { WatchButton } from '@/components/listings/WatchButton';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
 import { formatMoney, itemImageUrl } from '@/lib/format';
+import { TILE_BETA_FEE_NOTE, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
 import { cn } from '@/lib/utils';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
@@ -391,7 +392,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             // From `sm` only: a two-column phone tile has ~150px for this row and a
             // six-figure price takes most of it. The listing page states the fee.
             <span className="hidden shrink-0 text-meta text-muted-foreground sm:inline">
-              incl. fees
+              {feesWaivedForBeta() ? TILE_BETA_FEE_NOTE : 'incl. fees'}
             </span>
           ) : null}
         </div>

@@ -1,19 +1,23 @@
 import { describe, expect, it } from 'vitest';
 
+import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { askingPriceRange, buyerPaysCents, listedPriceCents } from '@/lib/listings/buyerPrice';
 
 describe('listedPriceCents', () => {
   it('shows a single listing at what the buyer is charged', () => {
     expect(listedPriceCents(40_000_000, 'aud', false)).toBe(buyerPaysCents(40_000_000, 'aud'));
-    expect(listedPriceCents(40_000_000, 'aud', false)).toBe(42_000_000);
+    expect(listedPriceCents(40_000_000, 'aud', false)).toBe(
+      40_000_000 + platformFeeCentsFor(40_000_000, 'aud'),
+    );
   });
 
   it('shows a shopfront at its asking "from" figure', () => {
     expect(listedPriceCents(350_000, 'aud', true)).toBe(350_000);
   });
 
-  it('adds the plain 5% fee on cheap singles, with no minimum', () => {
-    expect(listedPriceCents(500, 'aud', false)).toBe(525);
+  it('adds the effective fee on cheap singles (none during the beta)', () => {
+    expect(listedPriceCents(500, 'aud', false)).toBe(BETA_FEE_WAIVER ? 500 : 525);
   });
 });
 

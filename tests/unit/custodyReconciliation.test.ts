@@ -212,3 +212,29 @@ describe('reconcileCustody', () => {
     );
   });
 });
+
+describe('zero fee revenue (beta waiver)', () => {
+  // While every platform fee is waived (`domain/fees/betaFeeWaiver.ts`) the buyer's
+  // whole collection is still owed while a sale is live, so a zero fee changes nothing
+  // about what is counted.
+  it('is SOLVENT when the balance holds exactly what was collected', () => {
+    const position = reconcileCustody({
+      sales: [sale({ collectedCents: 10_000 })],
+      balance: readable(10_000),
+    });
+
+    expect(position).toMatchObject({ state: 'SOLVENT', shortfallCents: 0 });
+  });
+
+  it('reports the processing cost the platform absorbed as a REAL shortfall', () => {
+    // Stripe deducts about 1.75% + $0.30 from the collection, and with no fee revenue
+    // nothing covers it. This is not a false alarm: it is money members are owed that the
+    // balance does not hold, so the platform must keep a buffer. Do not tune it away.
+    const position = reconcileCustody({
+      sales: [sale({ collectedCents: 10_000 })],
+      balance: readable(9_795),
+    });
+
+    expect(position).toMatchObject({ state: 'SHORTFALL', shortfallCents: 205 });
+  });
+});

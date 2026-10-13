@@ -14,6 +14,7 @@ import {
   type RegionCode,
 } from '../region';
 import { percentageFeeMinor } from '../fees/percentageFee';
+import { effectiveFeeBps } from '../fees/betaFeeWaiver';
 import {
   canReceiveFunds,
   sellerIdentityDisclosure,
@@ -67,6 +68,9 @@ export type CashSaleStatus =
  * Platform fee rate in basis points (1 bp = 0.01%), so 500 bp = 5% of the
  * agreed item price. Held in basis points rather than a float percentage so the
  * fee stays exact integer arithmetic end-to-end — no floating-point money.
+ *
+ * This is the STANDARD rate. While `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`)
+ * is on, the applied rate is 0.
  */
 export const PLATFORM_FEE_BPS = 500;
 
@@ -82,10 +86,13 @@ export const PLATFORM_FEE_BPS = 500;
  * the carrier, not platform revenue, so it is excluded from the base. Rounded to
  * the nearest minor unit (`Math.round`); a price of 0 yields a fee of 0.
  *
+ * BETA WAIVER: the fee is 0 for every price while `BETA_FEE_WAIVER` is on. Disclosure
+ * and charge both call this function, so they cannot disagree.
+ *
  * `_currency` does not affect the result and is kept so callers keep their signature.
  */
 export function platformFeeCentsFor(agreedPriceCents: Cents, _currency?: string | null): Cents {
-  return percentageFeeMinor(agreedPriceCents, PLATFORM_FEE_BPS);
+  return percentageFeeMinor(agreedPriceCents, effectiveFeeBps(PLATFORM_FEE_BPS));
 }
 
 export interface BuyerRecord {

@@ -6,7 +6,8 @@
 // WHY THIS EXISTS. Eight Dart files re-derive rules the steering docs describe as
 // living in exactly ONE place: the transition table, the bond policy, the
 // Identity_Gate, the region registry, the trade fee, the binder rule, the fulfilment
-// validator. `core/money.dart` re-derives `minorUnitDigits` on top of that. The
+// validator. `core/money.dart` re-derives `minorUnitDigits` on top of that, and
+// mirrors the beta fee switch (`BETA_FEE_WAIVER` in `domain/fees/betaFeeWaiver.ts`). The
 // ports were faithful when they were written — that is not the problem. The problem
 // is that nothing would notice if they stopped being faithful, and a money rule with
 // two definitions and no pin between them is the exact shape of bug this codebase
@@ -25,11 +26,16 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
+import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { minorUnitDigits, REGIONS } from '@/domain/region';
+import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
+import { betaFeeNote, platformFeeRowRate } from '@/lib/fees/feeLabels';
 import { TRANSITIONS } from '@/domain/state-machine/machine';
 import { TERMINAL_STATES } from '@/domain/state-machine/types';
 import {
   dartEnumValues,
+  dartFeeSchedule,
   dartRegions,
   dartRetiredVocabularyHits,
   dartTransitions,
@@ -220,6 +226,23 @@ describe('the Dart region registry is the TypeScript region registry', () => {
       expect(minorUnitDigits(currency), `${currency} should be zero-decimal`).toBe(0);
     }
     expect(dartZeroDecimalCurrencies()).toContain('jpy');
+  });
+});
+
+describe('the beta fee waiver agrees across the language boundary', () => {
+  // Ending the beta is a flip of `BETA_FEE_WAIVER` AND `Money.betaFeeWaiver`. If only
+  // one moved, the app would show one fee while the server charged another.
+  it('holds the same switch and the same standard rate', () => {
+    const schedule = dartFeeSchedule();
+    expect(schedule.betaFeeWaiver).toBe(BETA_FEE_WAIVER);
+    expect(schedule.standardFeeBps).toBe(PLATFORM_FEE_BPS);
+    expect(schedule.standardFeeBps).toBe(TRADE_FEE_BPS);
+  });
+
+  it('uses the same beta copy', () => {
+    const { source } = dartFeeSchedule();
+    expect(source).toContain(`'${betaFeeNote()}'`);
+    expect(source).toContain(`'${platformFeeRowRate(0)}'`);
   });
 });
 

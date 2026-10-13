@@ -42,6 +42,7 @@ import {
   itemImageUrl,
 } from "@/lib/format";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
+import { betaFeeNote, feesWaivedForBeta } from "@/lib/fees/feeLabels";
 import { BuyButton, ShopfrontBuyButton } from "@/components/listings/BuyButton";
 import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
 import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
@@ -995,6 +996,9 @@ function ItemActions({
             <dd className="font-semibold tabular-nums">{formatMoney(fmvCents, currency)}</dd>
           </div>
         </dl>
+        {feesWaivedForBeta() ? (
+          <p className="text-meta text-muted-foreground">{betaFeeNote()}</p>
+        ) : null}
         <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
           <Button asChild size="lg" className="min-w-0 w-full px-snug">
             <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>

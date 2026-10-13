@@ -64,6 +64,8 @@ export interface ContractExchangeSide {
   feeCents?: number | null;
   /** Override the fee line's copy. */
   feeLabel?: string;
+  /** Show a $0.00 fee line labelled as waived (the beta fee waiver). */
+  feeWaived?: boolean;
   /** Edit control — only rendered for the side the viewer owns. */
   action?: ReactNode;
   /** Emphasise the viewer's own side. */
@@ -335,7 +337,8 @@ function SideColumn({
           The FEE is different, and sits outside the ledger on purpose. It is not
           part of the exchange — it is what the platform charges for running it — so
           including it in the total would overstate what this side is worth. */}
-      {!compact && (side.feeCents ?? 0) > 0 ? (
+      {!compact &&
+      ((side.feeCents ?? 0) > 0 || (side.feeWaived === true && side.feeCents === 0)) ? (
         <div className="flex items-center gap-snug text-body text-muted-foreground">
           <MoneyGlyph />
           <p className="min-w-0 flex-1">{side.feeLabel ?? 'NoDitto fee'}</p>

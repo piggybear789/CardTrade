@@ -29,10 +29,15 @@
 // NO MINIMUM. Each trader pays a plain percentage of what they receive. A per-trader
 // floor existed briefly and was removed deliberately (`domain/fees/percentageFee.ts`).
 //
+// BETA WAIVER. While `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`) is on, the
+// default rate is 0, so every trader's fee is 0 and no fee charge is made at all
+// (`chargeTradeFees` skips a zero fee). `TRADE_FEE_BPS` stays the standard rate.
+//
 // Pure module: no I/O, no provider types. All amounts are integer minor units of the
 // trade's currency.
 
 import { percentageFeeMinor } from '../fees/percentageFee';
+import { effectiveFeeBps } from '../fees/betaFeeWaiver';
 
 /**
  * Trade fee rate per trader, in basis points (1 bp = 0.01%), so 500 bp = 5% each.
@@ -57,7 +62,7 @@ export const TRADE_FEE_BPS = 500;
 export function tradeFeeCentsFor(
   valueReceivedCents: number,
   _currency: string | null,
-  rateBps: number = TRADE_FEE_BPS,
+  rateBps: number = effectiveFeeBps(TRADE_FEE_BPS),
 ): number {
   return percentageFeeMinor(valueReceivedCents, rateBps);
 }
@@ -80,7 +85,7 @@ export function resolveTradeFees(params: {
   counterpartReceivesCents: number;
   rateBps?: number;
 }): TradeFeeSplit {
-  const rate = params.rateBps ?? TRADE_FEE_BPS;
+  const rate = params.rateBps ?? effectiveFeeBps(TRADE_FEE_BPS);
   return {
     initiatorFeeCents: tradeFeeCentsFor(params.initiatorReceivesCents, null, rate),
     counterpartFeeCents: tradeFeeCentsFor(params.counterpartReceivesCents, null, rate),

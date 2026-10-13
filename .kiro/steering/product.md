@@ -120,7 +120,7 @@ Lifecycle:
 
 1. Buyer opens agreement. SINGLE is reserved. Shopfront needs line items (`cash_sale_items`). Region + seller Identity_Gate + seller-identity confirmation snapshot. Buyer does not need Identity.
 2. Negotiate price, line items, fulfilment (`DELIVERY` / `IN_PERSON`), shipping cost, meeting place/time.
-3. **Payment is the commitment.** There is no mutual confirm-to-pay (0099). The seller sets handover details; the buyer pays. Card is collected into the platform balance. Fee = **5% of item price** (`PLATFORM_FEE_BPS = 500`), **no minimum**. Shipping is pass-through.
+3. **Payment is the commitment.** There is no mutual confirm-to-pay (0099). The seller sets handover details; the buyer pays. Card is collected into the platform balance. Fee = **5% of item price** (`PLATFORM_FEE_BPS = 500`), **no minimum**, **waived during beta** (`BETA_FEE_WAIVER` in `domain/fees/betaFeeWaiver.ts`). Shipping is pass-through.
 4. Fulfil:
    - `DELIVERY`: seller records shipment → `IN_TRANSIT` → carrier or buyer receipt → `INSPECTION`. The inspection clock starts on **carrier-confirmed delivery**, not the buyer's word.
    - `IN_PERSON`: both confirm handover → the sale **completes on the second confirmation** (unlike trades).
@@ -253,9 +253,16 @@ Treat Flutter as **partial parity**, not a second complete product. `.kiro/specs
 
 ## Transaction models
 
-1. **Cash Sale** — Buyer pays, the platform holds the funds, and the Seller is paid their net once the Buyer accepts the goods. The platform fee is **5% of the agreed item price** (`PLATFORM_FEE_BPS = 500`), charged on the item price only — shipping is a pass-through to the carrier, not revenue.
+1. **Cash Sale** — Buyer pays, the platform holds the funds, and the Seller is paid their net once the Buyer accepts the goods. The platform fee is **5% of the agreed item price** at the standard rate (`PLATFORM_FEE_BPS = 500`), charged on the item price only — shipping is a pass-through to the carrier, not revenue. During the beta it is waived (see below).
 
    **There is no fee minimum, deliberately.** The fee is a plain percentage: 5% of the item price on a Cash_Sale, and 5% of Trade_Side_Value per trader on a Trade, rounded to the nearest minor unit (`domain/fees/percentageFee.ts`); a zero base charges zero. A per-currency floor ($1.50 per Cash_Sale, $1.00 per trader) existed briefly and was removed on purpose. The trade-off is accepted and recorded: the provider's costs have a fixed part (card ~$0.30, payout ~$0.25) that a percentage cannot cover, so below about $30 a cash sale costs more to process than it earns. Do not reintroduce a floor without a product decision. Contracts agreed while the floor existed keep the fee stored on them. Member copy reads the rate from `lib/fees/feeLabels.ts` ("5%") so it cannot drift from the charge; the Dart port lives in `core/money.dart`.
+
+   **Fees are waived during the beta.** One switch, `BETA_FEE_WAIVER` in `domain/fees/betaFeeWaiver.ts`, zeroes both the Cash_Sale Platform_Fee and every trader's Trade_Fee: `platformFeeCentsFor` and `tradeFeeCentsFor` / `resolveTradeFees` apply `effectiveFeeBps(...)`, which is 0 while it is on. `PLATFORM_FEE_BPS` and `TRADE_FEE_BPS` stay defined as the 5% standard rates. It is a code constant, not an env var, because the fee is disclosed on the client and charged on the server, and an environment mismatch would show one fee and charge another. Ending the beta means flipping it and `Money.betaFeeWaiver` in `flutter_app/lib/core/money.dart`; `tests/unit/mobileDomainAgreement.test.ts` pins the two together. Copy comes only from `lib/fees/feeLabels.ts`: prose says "No fees during beta (normally 5%)" and never "$0.00 fee"; money tables keep the numeric $0.00 and label the row "waived during beta, normally 5%". No end date is promised, and the Terms say members will be told before standard fees apply.
+   - A zero trade fee skips the charge entirely: `chargeTradeFees` writes no `trade_fees` row and makes no provider call (Stripe refuses a zero-amount charge, and a 0 row would print "Trade fee $0.00" on statements). `drainFailedTradeFees` settles any zero-amount row without charging, so nothing can loop.
+   - **ACCEPTED COST.** The platform absorbs Stripe's card (~1.7% + $0.30) and payout costs on every sale with no fee revenue to cover them, and the Seller receives the full item price.
+   - Custody reconciliation is unchanged and can show a REAL `SHORTFALL` equal to the processing costs absorbed. That is money members are owed that the balance does not hold, so keep a buffer in the platform balance; do not tune the check to hide it.
+   - Stored fees are untouched. That includes unpaid `AGREEMENT` rows opened before the waiver shipped: the fee is set at open and on price or line changes, not at Pay, so they still charge (and show) the 5% stored on them until the terms change.
+   - The trade room derives its disclosed fee live, so a trade charged before the beta reads as waived there; `trade_fees` and the account statement still show what was charged.
 
    **Do not describe the fee as flat.** It is percentage-based in code, and no Australian rail Stripe offers makes a flat fee viable: cards cost 1.7% + $0.30 and PayTo costs 1% + $0.30, both percentages. Card is the current rail; PayTo is the intended addition, worth 0.7 points and a materially better chargeback profile, with card retained as a fallback because PayTo needs the payer's bank to have enabled it. BECS is rejected outright — its dispute window is 7 years, "no questions asked", and unappealable, which is untenable for a platform that is merchant of record and owns loss liability.
 
@@ -271,7 +278,7 @@ Treat Flutter as **partial parity**, not a second complete product. `.kiro/specs
 
    **A shopfront can be BOUGHT from and TRADED FOR, but never OFFERED, and never made the subject of an Offer** (0081, superseding 0064's blanket cash-only refusal).
 
-2. **2-Way Trade Escrow** — Two users swap goods of equal Fair Market Value with $0 cash. A pre-authorization hold for 100% of FMV is placed on both parties and voided once both receive and accept. The platform fee is 5% of Trade_Side_Value, charged symmetrically to both traders (`domain/trade/tradeFee.ts`).
+2. **2-Way Trade Escrow** — Two users swap goods of equal Fair Market Value with $0 cash. A pre-authorization hold for 100% of FMV is placed on both parties and voided once both receive and accept. The platform fee is 5% of Trade_Side_Value (waived during beta), charged symmetrically to both traders (`domain/trade/tradeFee.ts`).
 
    **Trade negotiation** follows `PROPOSED → NEGOTIATING → ACCEPTED`. Either party can counter-offer until terms are agreed: items, fulfilment method (delivery or in-person), meeting place/time, and shipping cost. The negotiation panel (`components/trade/TradeNegotiationPanel.tsx`) and server actions (`lib/actions/tradeNegotiation.ts`) handle this flow.
 

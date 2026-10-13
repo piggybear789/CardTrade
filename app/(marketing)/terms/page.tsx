@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 
+import { TERMS_BETA_FEE_SENTENCE, feesWaivedForBeta } from '@/lib/fees/feeLabels';
+
 import { PolicyArticle } from '../policy-article';
 
 export const metadata: Metadata = {
@@ -35,6 +37,13 @@ export default function TermsPage() {
         card authorisation or collecting a payment through Stripe is not the
         same as a licensed escrow or trust service.
       </p>
+
+      {feesWaivedForBeta() ? (
+        <>
+          <h2>Fees</h2>
+          <p>{TERMS_BETA_FEE_SENTENCE}</p>
+        </>
+      ) : null}
 
       <h2>Identity</h2>
       <p>

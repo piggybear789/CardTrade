@@ -53,6 +53,14 @@ vi.mock('@/components/reports/ReportDialog', () => ({
 
 import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import type { TradeFacts, TradeViewerContext } from '@/domain/state-machine/types';
+import { FEE_WAIVED_HINT, feesWaivedForBeta, tradeFeeRowRate } from '@/lib/fees/feeLabels';
+
+// What the room passes while fees are waived for the beta, and at the standard rate.
+const WAIVED = feesWaivedForBeta();
+const cost = WAIVED
+  ? { feeText: '$0.00', feeRateLabel: tradeFeeRowRate(0), collateralText: '$700.00' }
+  : { feeText: '$35.00', feeRateLabel: tradeFeeRowRate(3_500), collateralText: '$700.00' };
+const feeHint = WAIVED ? FEE_WAIVED_HINT : 'Charged to your card.';
 
 function facts(overrides: Partial<TradeFacts> = {}): TradeFacts {
   const noOne = { initiator: false, counterpart: false };
@@ -88,7 +96,7 @@ const terms = {
 };
 
 function renderPanel(
-  acceptCost: { feeText: string; collateralText: string } | null,
+  acceptCost: { feeText: string; feeRateLabel?: string; collateralText: string } | null,
 ) {
   return render(
     <TradeNegotiationPanel
@@ -116,13 +124,13 @@ describe('trade accept dialog — cost disclosure', () => {
 
   it('names the fee and the collateral before the card is touched', async () => {
     const user = userEvent.setup();
-    renderPanel({ feeText: '$35.00', collateralText: '$700.00' });
+    renderPanel(cost);
 
     const dialog = await openAcceptDialog(user);
 
     // The percentage, so the number is checkable rather than merely asserted.
-    expect(within(dialog).getByText('NoDitto fee (5%)')).toBeInTheDocument();
-    expect(within(dialog).getByText('$35.00')).toBeInTheDocument();
+    expect(within(dialog).getByText(`NoDitto fee (${cost.feeRateLabel})`)).toBeInTheDocument();
+    expect(within(dialog).getByText(cost.feeText)).toBeInTheDocument();
 
     // The bond, which had no pre-acceptance surface at all before this.
     expect(within(dialog).getByText('Collateral')).toBeInTheDocument();
@@ -133,14 +141,14 @@ describe('trade accept dialog — cost disclosure', () => {
     // A trader who reads "$700.00" and believes it is leaving their account has been
     // misinformed in the more alarming direction, so the two rows must not read alike.
     const user = userEvent.setup();
-    renderPanel({ feeText: '$35.00', collateralText: '$700.00' });
+    renderPanel(cost);
 
     const dialog = await openAcceptDialog(user);
 
     // Exact strings, not a loose match: the description prose also mentions charging,
     // and a regex passes on that while saying nothing about the hints that sit beside
     // the two figures — which is the part a reader actually uses to tell them apart.
-    expect(within(dialog).getByText('Charged to your card.')).toBeInTheDocument();
+    expect(within(dialog).getByText(feeHint)).toBeInTheDocument();
     expect(
       within(dialog).getByText(
         'Authorised, not charged. Released in full when the trade completes.',
@@ -152,7 +160,7 @@ describe('trade accept dialog — cost disclosure', () => {
     // The exact copy this replaced. Kept as an assertion because the hedge is what
     // made the old dialog defensible-looking while disclosing nothing.
     const user = userEvent.setup();
-    renderPanel({ feeText: '$35.00', collateralText: '$700.00' });
+    renderPanel(cost);
 
     const dialog = await openAcceptDialog(user);
 
@@ -171,7 +179,7 @@ describe('trade accept dialog — cost disclosure', () => {
     expect(within(dialog).queryByText(/NoDitto fee/i)).toBeNull();
     expect(within(dialog).queryByText('$0.00')).toBeNull();
     expect(
-      within(dialog).getByText(/the collateral is authorised against it/i),
+      within(dialog).getByText(/the collateral is authorised against/i),
     ).toBeInTheDocument();
   });
 });

@@ -98,7 +98,10 @@ function readWebhookConfig(): { webhookUrl: string; secret: string } {
  */
 async function requireParticipant(
   tradeId: string,
-): Promise<{ ok: true } | { ok: false; error: 'unauthenticated' | 'not-participant' }> {
+): Promise<
+  | { ok: true; transferId: string | null; amountCents: number }
+  | { ok: false; error: 'unauthenticated' | 'not-participant' }
+> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -275,7 +278,10 @@ const CASH_SALE_EVENT_TYPE_BY_KIND: Record<DemoCashSaleWebhookKind, WebhookEvent
  */
 async function requireCashSaleParticipant(
   cashSaleId: string,
-): Promise<{ ok: true } | { ok: false; error: 'unauthenticated' | 'not-participant' }> {
+): Promise<
+  | { ok: true; transferId: string | null; amountCents: number }
+  | { ok: false; error: 'unauthenticated' | 'not-participant' }
+> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -284,14 +290,14 @@ async function requireCashSaleParticipant(
 
   const { data: sale } = await supabase
     .from('cash_sales')
-    .select('id, buyer_id, seller_id')
+    .select('id, buyer_id, seller_id, transfer_id, amount_cents')
     .eq('id', cashSaleId)
     .maybeSingle();
   if (!sale) return { ok: false, error: 'not-participant' };
   if (sale.buyer_id !== user.id && sale.seller_id !== user.id) {
     return { ok: false, error: 'not-participant' };
   }
-  return { ok: true };
+  return { ok: true, transferId: sale.transfer_id, amountCents: sale.amount_cents };
 }
 
 /**
@@ -325,6 +331,10 @@ export const fireCashSaleWebhook = withActionLog('demo.fireCashSaleWebhook', asy
     occurredAt: new Date().toISOString(),
     payload: {
       cashSaleId,
+      // ESC-37: a settlement is bound to the sale's own collection, so the demo
+      // reports the recorded PaymentIntent and the contract amount.
+      ...(guard.transferId ? { transferId: guard.transferId } : {}),
+      amount: guard.amountCents,
       status: kind === 'settle-payment' ? 'SETTLED' : 'FAILED',
       ...(kind === 'fail-payment' ? { reason: 'Simulated payment failure' } : {}),
     },

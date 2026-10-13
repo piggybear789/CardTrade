@@ -291,7 +291,13 @@ async function dispatchEvent(
       });
       const result =
         action.kind === 'CASH_SALE_SETTLE'
-          ? await cashSales.settleCashSale({ cashSaleId })
+          ? // ESC-37: bound to the PaymentIntent that cleared and what it collected.
+            // A payload missing either cannot be bound, so it reads as a mismatch.
+            await cashSales.settleCashSale({
+              cashSaleId,
+              paymentRef: event.payload.transferId ?? '',
+              amountReceived: event.payload.amount ?? -1,
+            })
           : await cashSales.failCashSale({ cashSaleId });
 
       // Settlement completing is the purchase going through, so notify both

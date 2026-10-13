@@ -5,6 +5,7 @@
 // holdback from collection, an open chargeback holds it outright, an established seller
 // is paid at once. A deferral spends no attempt and is not a drain failure.
 
+import { settlementFor } from './helpers/settle';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -64,7 +65,7 @@ async function completeWith(release: ReleaseFacts) {
   await updateCashSaleTerms(deps, { cashSaleId: id, actorId: BUYER.profileId, expectedTermsVersion: priced.sale.termsVersion, terms: DELIVERY_TERMS });
   const sale = await deps.repository.loadCashSale(id);
   await acceptCashSaleTerms(deps, { cashSaleId: id, actorId: BUYER.profileId, termsVersion: sale!.termsVersion });
-  await settleCashSale(deps, { cashSaleId: id });
+  await settleCashSale(deps, await settlementFor(deps, id));
   await recordCashSaleShipment(deps, { cashSaleId: id, actorId: ITEM.ownerId, shipment: { carrier: 'Australia Post', trackingNumber: 'AP1' } });
   await recordCashSaleReceipt(deps, { cashSaleId: id, actorId: BUYER.profileId });
   const accepted = await acceptCashSaleInspection(deps, { cashSaleId: id, actorId: BUYER.profileId });

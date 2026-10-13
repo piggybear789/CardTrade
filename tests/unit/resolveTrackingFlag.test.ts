@@ -5,6 +5,7 @@
 // guarded on an open flag, and while the flag is open no tracking update advances the
 // sale.
 
+import { settlementFor } from './helpers/settle';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -78,7 +79,7 @@ async function flaggedSale() {
   });
   const sale = await repository.loadCashSale(created.sale.id);
   await acceptCashSaleTerms(deps, { cashSaleId: created.sale.id, actorId: BUYER.profileId, termsVersion: sale!.termsVersion });
-  await settleCashSale(deps, { cashSaleId: created.sale.id });
+  await settleCashSale(deps, await settlementFor(deps, created.sale.id));
   clock = NOW;
   const shipped = await recordCashSaleShipment(deps, {
     cashSaleId: created.sale.id,

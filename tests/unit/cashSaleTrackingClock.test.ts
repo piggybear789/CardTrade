@@ -5,6 +5,7 @@
 // never sent. The six cases from the design, against the orchestrator with a fake
 // tracker.
 
+import { settlementFor } from './helpers/settle';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -65,7 +66,7 @@ async function paidSale(tracking: TrackingService) {
   });
   const sale = await repository.loadCashSale(created.sale.id);
   await acceptCashSaleTerms(deps, { cashSaleId: created.sale.id, actorId: BUYER.profileId, termsVersion: sale!.termsVersion });
-  await settleCashSale(deps, { cashSaleId: created.sale.id });
+  await settleCashSale(deps, await settlementFor(deps, created.sale.id));
   const settled = await repository.loadCashSale(created.sale.id);
   if (settled?.status !== 'ESCROW_HELD') throw new Error(`setup: expected ESCROW_HELD, got ${settled?.status}`);
   clock = NOW;

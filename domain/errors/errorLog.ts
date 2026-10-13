@@ -217,6 +217,9 @@ const EXPECTED_CODES = new Set([
 const UNEXPECTED_CODES = new Set([
   'hold-not-found',
   'dispute-history-unavailable',
+  // ESC-37: a provider settlement that is not this sale's collection. Would read as
+  // a refusal by the `-mismatch` pattern; it is a payment that cannot be matched.
+  'settlement-mismatch',
 ]);
 
 /**

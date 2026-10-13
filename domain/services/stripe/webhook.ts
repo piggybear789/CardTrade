@@ -74,6 +74,21 @@ export function translateStripeEvent(event: Stripe.Event): WebhookEvent[] {
     { eventId: event.id, type, occurredAt, payload },
   ];
 
+  // ESC-37: every PaymentIntent, charge and Identity session of ours lives on the
+  // PLATFORM account (separate charges and transfers). The same event type arriving
+  // with `event.account` set happened inside a CONNECTED account — a member's own
+  // Stripe account, where they can create a PaymentIntent carrying our metadata
+  // keys. Treating it as ours would let a seller "settle" their own sale. Dropped,
+  // and the pipeline logs it as a NO_OP.
+  if (
+    event.account &&
+    (event.type.startsWith('payment_intent.') ||
+      event.type.startsWith('charge.') ||
+      event.type.startsWith('identity.'))
+  ) {
+    return [];
+  }
+
   switch (event.type) {
     // --- Collateral holds --------------------------------------------------
 

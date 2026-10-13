@@ -748,7 +748,7 @@ export function makeCashSaleRepository(options: {
 /** Payment service double recording transfer calls and their nonces. */
 export function makePayments(
   options: {
-    transferStatus?: 'SETTLED' | 'FAILED';
+    transferStatus?: 'SETTLED' | 'FAILED' | 'PENDING';
     payoutStatus?: 'SETTLED' | 'FAILED';
     refundStatus?: 'SETTLED' | 'FAILED';
   } = {},

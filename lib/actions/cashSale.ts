@@ -164,6 +164,9 @@ function mapError(error: CashSaleError): CashSaleActionError {
     INVALID_STATE: 'invalid-state',
     TRACKING_PREDATES_PAYMENT: 'tracking-predates-payment',
     PAYOUT_HELD: 'payout-held',
+    // ESC-37: only the webhook settles against a provider ref, so a member never
+    // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
+    SETTLEMENT_MISMATCH: 'invalid-state',
     // Reuses the transfer-failed surface: from a participant's point of view the
     // distinction between "collection failed" and "release failed" is not
     // actionable. The queued retry and the operator alert carry the detail.

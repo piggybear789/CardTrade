@@ -427,6 +427,11 @@ export type CashSaleError =
    */
   | 'PAYOUT_HELD'
   /**
+   * ESC-37: a provider settlement whose payment ref or amount does not match this
+   * sale's own collection. UNEXPECTED; the sale stays PAYMENT_PENDING.
+   */
+  | 'SETTLEMENT_MISMATCH'
+  /**
    * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
    * this sale's shipment (the stale-number attack). Expected; nothing is written.
    */
@@ -1740,7 +1745,11 @@ async function submitClaimedPayment(
   // Stripe realtime payments settle synchronously. Advance ESCROW_HELD here so
   // the sale does not wait on a webhook (or the mock Demo panel).
   if (transfer.status === 'SETTLED') {
-    return settleCashSale(deps, { cashSaleId: sale.id });
+    return settleCashSale(deps, {
+      cashSaleId: sale.id,
+      paymentRef: transfer.transferId,
+      amountReceived: transfer.amount,
+    });
   }
 
   return { ok: true, sale: submitted ?? sale };
@@ -1864,12 +1873,40 @@ export async function acceptCashSaleTerms(
 /** Provider settlement unlocks fulfillment; it does not complete the sale. */
 export async function settleCashSale(
   deps: CashSaleOrchestratorDeps,
-  params: { cashSaleId: string },
+  params: {
+    cashSaleId: string;
+    /**
+     * ESC-37: the provider payment that cleared, and how much it collected. A
+     * settlement is bound to THIS sale's own collection: the ref must be the
+     * `transferId` recorded at submission and the amount must be the contract
+     * amount. Without the binding, any succeeded PaymentIntent that names the
+     * sale in its metadata (a cheaper one, or one from another attempt) would
+     * release the goods. Both are required; the synchronous path passes the
+     * transfer it just made.
+     */
+    paymentRef: string;
+    amountReceived: number;
+  },
 ): Promise<CashSaleResult> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
   if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
   if (sale.status !== 'PAYMENT_PENDING') {
     return { ok: false, error: 'INVALID_STATE', detail: sale.status };
+  }
+  // The submission has not been recorded yet: the webhook beat the synchronous
+  // path, which settles on its own. Not a mismatch, just early.
+  if (!sale.transferId) {
+    return { ok: false, error: 'INVALID_STATE', detail: 'transfer-not-recorded' };
+  }
+  if (params.paymentRef !== sale.transferId || params.amountReceived !== sale.amountCents) {
+    return {
+      ok: false,
+      error: 'SETTLEMENT_MISMATCH',
+      detail:
+        params.paymentRef !== sale.transferId
+          ? 'The cleared payment is not this sale\'s collection.'
+          : `Collected ${params.amountReceived}, contract is ${sale.amountCents}.`,
+    };
   }
   const settled = await deps.repository.settlePayment({
     cashSaleId: sale.id,
@@ -3665,7 +3702,11 @@ export interface CashSaleOrchestrator {
     sellerIdentityVersion?: string;
     buyerConfirmedSellerIdentity?: boolean;
   }): Promise<CashSaleResult>;
-  settleCashSale(params: { cashSaleId: string }): Promise<CashSaleResult>;
+  settleCashSale(params: {
+    cashSaleId: string;
+    paymentRef: string;
+    amountReceived: number;
+  }): Promise<CashSaleResult>;
   failCashSale(params: { cashSaleId: string }): Promise<CashSaleResult>;
   /** Release escrowed proceeds to the Seller on a COMPLETED sale (Req 4.3). */
   payoutSeller(params: { cashSaleId: string }): Promise<CashSaleResult>;

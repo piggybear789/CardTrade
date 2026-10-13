@@ -4,6 +4,7 @@
 // the buyer pays once handover details exist, cleared funds gate fulfillment,
 // and every action is authorized and state-guarded.
 
+import { settlementFor } from './helpers/settle';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -464,7 +465,7 @@ describe('cash sale — fulfillment', () => {
     expect(second.sale.status).toBe('ESCROW_HELD');
 
     // A second settle after sync clearance is a no-op / invalid-state.
-    const settledAgain = await settleCashSale(deps, { cashSaleId: saleId });
+    const settledAgain = await settleCashSale(deps, await settlementFor(deps, saleId));
     expect(settledAgain).toMatchObject({ ok: false, error: 'INVALID_STATE' });
 
     const missingTracking = await recordCashSaleShipment(deps, {
@@ -489,7 +490,7 @@ describe('cash sale — fulfillment', () => {
   it('only lets the seller ship and only the buyer receive', async () => {
     const { deps } = makeDeps();
     const { saleId } = await agreeAndPay(deps);
-    await settleCashSale(deps, { cashSaleId: saleId });
+    await settleCashSale(deps, await settlementFor(deps, saleId));
 
     const buyerShips = await recordCashSaleShipment(deps, {
       actorId: BUYER.profileId,
@@ -513,7 +514,7 @@ describe('cash sale — fulfillment', () => {
   it('completes a delivery after receipt and buyer acceptance', async () => {
     const { deps, state } = makeDeps();
     const { saleId } = await agreeAndPay(deps);
-    await settleCashSale(deps, { cashSaleId: saleId });
+    await settleCashSale(deps, await settlementFor(deps, saleId));
     await recordCashSaleShipment(deps, {
       actorId: ITEM.ownerId,
       cashSaleId: saleId,

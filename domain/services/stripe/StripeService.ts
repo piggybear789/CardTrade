@@ -989,6 +989,37 @@ export class StripeService implements PaymentService, PayerService {
     }
   }
 
+  /**
+   * ESC-34: uncaptured collateral holds on this platform account. Search is
+   * eventually consistent and may lag by a minute, which is why the sweep only looks
+   * at holds older than an hour. Throws on a provider error.
+   */
+  async listUncapturedHolds(params: { olderThan: string }): Promise<
+    Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>
+  > {
+    const before = Math.floor(Date.parse(params.olderThan) / 1000);
+    const out: Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }> = [];
+    let page: string | undefined;
+    for (let i = 0; i < 20; i += 1) {
+      const result = await this.stripe.paymentIntents.search({
+        query: `status:'requires_capture' AND metadata['cardtrade_kind']:'HOLD' AND created<${before}`,
+        limit: 100,
+        ...(page ? { page } : {}),
+      });
+      for (const intent of result.data) {
+        out.push({
+          holdId: intent.id,
+          ref: intent.metadata?.cardtrade_ref ?? null,
+          amount: intent.amount,
+          createdAt: new Date(intent.created * 1000).toISOString(),
+        });
+      }
+      if (!result.has_more || !result.next_page) break;
+      page = result.next_page;
+    }
+    return out;
+  }
+
   /** Claw a payout back (ESC-14). Staff-initiated; keyed so a retry cannot double-reverse. */
   async reversePayout(params: { transferId: string; amount: Cents; nonce: string }): Promise<TransferResult> {
     try {

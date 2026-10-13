@@ -411,6 +411,16 @@ export class InMemoryService
     return result;
   }
 
+  /** ESC-34: open holds, for the orphan sweep. Test control: `failListUncaptured`. */
+  failListUncaptured = false;
+
+  async listUncapturedHolds(): Promise<Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>> {
+    if (this.failListUncaptured) throw new Error('search unavailable');
+    return [...this.holds.values()]
+      .filter((hold) => hold.status === 'ACTIVE')
+      .map((hold) => ({ holdId: hold.holdId, ref: null, amount: hold.amount, createdAt: new Date(0).toISOString() }));
+  }
+
   /** Read a collection back (ESC-03, ESC-37). */
   async readCollection(paymentRef: string): Promise<CollectionStatus> {
     const challenge = this.challenges.get(paymentRef);

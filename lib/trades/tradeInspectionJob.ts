@@ -27,6 +27,7 @@ import { sweepCustodyEscalation } from './custodyEscalationSweep';
 import { expireHandoverChangeProposals } from './handoverChanges';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 import { backfillPersonKeys } from '@/lib/identity/personKeyBackfill';
+import { runOrphanHoldSweep } from './orphanHoldSweep';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** One pass of the job. */
@@ -50,6 +51,8 @@ export const TRADE_INSPECTION_JOB_STEPS: readonly TradeInspectionJobStep[] = [
   { key: 'handoverProposals', run: () => expireHandoverChangeProposals() },
   // ESC-15: person keys a verification came back without, inside Stripe's 48h window.
   { key: 'personKeys', run: () => backfillPersonKeys() },
+  // ESC-34: daily at 03 UTC, release card holds no live trade row accounts for.
+  { key: 'orphanHolds', run: () => runOrphanHoldSweep() },
 ];
 
 /**

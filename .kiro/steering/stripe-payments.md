@@ -260,6 +260,23 @@ and every outcome routes it (NO_EXCHANGE and abandon refund; FRAUD goes to the w
 side). `PAYOUT_MODE` plays no part. `settleTradeCash` survives only for trades agreed
 before the switch (no settlement row).
 
+**Off-session means holds and the Trade_Fee, nothing else** (ESC-29). Every binding
+refuses `requestTransfer` with a `merchantRef` and no `presence` before any API call;
+the only exception is `legacyOffSessionToMember`, set by `settleTradeCash` alone (a
+source-scan test pins that). The Trade_Fee is charged after the holds and is a LOCK
+PRECONDITION: a decline is handled as that trader's hold failure, and every fee
+attempt has its own key (`tradefee:<trade>:<trader>:<n>`).
+
+**Orphan authorisations** (ESC-34): `listUncapturedHolds` (Stripe Search on
+`requires_capture` plus the HOLD metadata kind) feeds a daily 03 UTC sweep in the `:17`
+job that voids provider holds with no ACTIVE `pre_auth_holds` row. A region whose search
+fails is skipped and logged; a failed row read is never read as "nothing live". Every
+`voidHold` result is honoured: a non-VOIDED void keeps the row and flags the trade.
+
+**Inspection never outlives collateral** (ESC-17b): the inspection deadline is clamped to
+the earliest live hold expiry minus `collateral_margin_hours()`, and the clamp beats the
+24-hour floor (0142, mirrored in `deriveTradeInspectionDeadline`).
+
 **Do not "improve" this by moving to destination charges with delayed payouts.**
 This has been proposed and rejected twice, and the second time only after checking
 Stripe's own documentation, so here is the reasoning in full:

@@ -146,6 +146,8 @@ Fulfilment: trades are `IN_PERSON` only (`TRADE_HANDOVER_METHODS`). Cash, declar
 
 **A cash leg is paid before the holds and held by the platform** (ESC-05/06, `trade_cash_settlements`, 0139). After TERMS_AGREED the paying trader pays the cash buyer-present in the room by `pay_by` (`BOND_PLACEMENT_LEAD_HOURS` before the meeting); collateral is placed only once it is collected, and an unpaid leg at `pay_by` abandons the trade. Completion releases it to the receiver through the release policy; a cancelled or unwound trade refunds it; on fraud it goes to the wronged trader. A payment landing after the trade ended is refunded by trigger.
 
+**Side values are frozen at TERMS_AGREED** (ESC-18, 0141: `trades.initiator_side_minor` / `counterpart_side_minor`), and collateral and the Trade_Fee are sized from them, never live FMV. A price edit on a card in a live trade is refused (`item-in-live-trade`); in NEGOTIATING it voids both acceptances. A binder side includes the cash leg, and both sides must be at least `MIN_TRADE_SIDE_VALUE_MINOR` (ESC-09). An offered card must be AVAILABLE, and starting collateral refuses when another contract already holds one of the cards (`short-reservation`, ESC-19). The Trade_Fee must settle before a trade locks (ESC-29). Arbitration ranks a disputed trade whose collateral lapses within two days at the top (ESC-21).
+
 See [2-Way Trade Escrow](#2-way-trade-escrow) for collateral, inspection, shopfront trades, and the in-person vs delivery split.
 
 ### Private deals

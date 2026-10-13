@@ -400,6 +400,13 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     return result;
   }
 
+  /** ESC-34: the simulated open holds, for the orphan sweep. */
+  async listUncapturedHolds(): Promise<Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>> {
+    return [...this.holds.values()]
+      .filter((hold) => hold.status === 'ACTIVE')
+      .map((hold) => ({ holdId: hold.holdId, ref: null, amount: hold.amount, createdAt: new Date(0).toISOString() }));
+  }
+
   /** Read a simulated collection back (ESC-03, ESC-37). Never REQUIRES_ACTION. */
   async readCollection(paymentRef: string): Promise<CollectionStatus> {
     const collected = this.money.get(paymentRef);

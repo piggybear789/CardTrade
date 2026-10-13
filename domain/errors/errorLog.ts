@@ -222,6 +222,16 @@ const EXPECTED_CODES = new Set([
   // ESC-05: the trade cash leg was declined, or not paid in time.
   'cash-declined',
   'trade-cash-pay-by-passed',
+  // WP3. ESC-18 / ESC-19: a price edit on a card in a live trade, an offered card
+  // already taken, a reservation another contract beat us to.
+  'item-in-live-trade',
+  'initiator-item-unavailable',
+  'short-reservation',
+  // ESC-29: a declined Trade_Fee, handled as a hold failure.
+  'fee-declined',
+  // ESC-34: the orphan sweep released a hold, or skipped a region it could not read.
+  'orphan-hold-voided',
+  'orphan-sweep-skipped',
 ]);
 
 /**

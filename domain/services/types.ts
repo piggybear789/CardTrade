@@ -704,6 +704,14 @@ export interface PaymentService {
    */
   readHoldExpiry?(holdId: string): Promise<{ expiresAt: string | null }>;
   /**
+   * ESC-34: every uncaptured collateral authorisation the provider holds, older than
+   * `olderThan`. The orphan sweep compares it with `pre_auth_holds` and voids what no
+   * live row accounts for. Throws on a provider error; the sweep logs and skips.
+   */
+  listUncapturedHolds?(params: { olderThan: string }): Promise<
+    Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>
+  >;
+  /**
    * Read what the platform currently holds with the provider.
    *
    * The only figure in the system the provider owns rather than we do, and therefore

@@ -16,6 +16,8 @@ import type { CashSaleDisputeOutcome } from './cashSaleOrchestrator';
 export type CashSaleEventCode =
   | 'AGREEMENT_CREATED'
   | 'TERMS_UPDATED'
+  /** ESC-28: staff-only risk signal; hidden from participants by the 0134 policy. */
+  | 'POSTAGE_OUTLIER'
   | 'PRICE_PROPOSED'
   | 'TERMS_ACCEPTED'
   | 'PAYMENT_REQUESTED'

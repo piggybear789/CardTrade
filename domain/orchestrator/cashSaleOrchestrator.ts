@@ -11,6 +11,7 @@ import type { CashSaleEventCode } from './cashSaleEvents';
 import { decideRelease, exceedsNewSellerExposure, type ReleaseFacts } from '../payouts/releasePolicy';
 import { decideThreeDS } from '../payments/scaPolicy';
 import { returnInspectionOpen, returnRefundDue } from '../fulfilment/inspection';
+import { isPostageOutlier, postageCapMinor } from '../fees/postagePolicy';
 import {
   checkRegionCompatibility,
   regionCurrency,
@@ -1594,6 +1595,16 @@ export async function updateCashSaleTerms(
         detail: 'Only the seller can set postage, because they choose the carrier.',
       };
     }
+    // ESC-28: postage is bounded by the item price (and an absolute cap), so it
+    // cannot carry the real price past the fee.
+    const postageCap = postageCapMinor(sale.agreedPriceCents);
+    if ((terms.shippingCostCents ?? 0) > postageCap) {
+      return {
+        ok: false,
+        error: 'INVALID_TERMS',
+        detail: `Postage can be at most ${(postageCap / 100).toFixed(2)} for this sale.`,
+      };
+    }
     if (
       params.actorId === sale.buyerId &&
       !terms.deliveryAddress &&
@@ -1651,6 +1662,21 @@ export async function updateCashSaleTerms(
         ? `shipping for ${formatCents(terms.shippingCostCents)}`
         : `meeting in person at ${terms.meetingLocation}`,
   });
+  // ESC-28: a postage figure out of proportion to the item is recorded for staff.
+  // Never a refusal; the mirror and participant policy keep it out of the room (0134).
+  if (
+    terms.fulfillmentMethod === 'DELIVERY' &&
+    isPostageOutlier(sale.agreedPriceCents, terms.shippingCostCents ?? 0)
+  ) {
+    await deps.repository.logEvent({
+      cashSaleId: sale.id,
+      actorId: null,
+      event: 'POSTAGE_OUTLIER',
+      fromStatus: updated.sale.status,
+      toStatus: updated.sale.status,
+      detail: `postage ${formatCents(terms.shippingCostCents)} on an item of ${formatCents(sale.agreedPriceCents)}`,
+    });
+  }
   return { ok: true, sale: updated.sale };
 }
 

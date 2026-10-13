@@ -268,7 +268,7 @@ export const proposeTrade = withActionLog('trades.proposeTrade', async function 
       ok: false,
       error: 'item-unavailable',
       detail:
-        'This listing has multiple items. Open a trade offer on it so you can say which cards you want.',
+        'This is a binder or bulk listing, and nothing in it is held. Open a trade offer on it so you can say which cards you want.',
     };
   }
 

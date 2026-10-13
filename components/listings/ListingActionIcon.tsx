@@ -1,4 +1,4 @@
-import { Children, type ComponentPropsWithoutRef, type ReactNode, type Ref } from 'react';
+import { Children, isValidElement, type ComponentPropsWithoutRef, type ReactNode, type Ref } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 
@@ -135,7 +135,11 @@ export function ListingActionRow({
       )}
     >
       {actions.map((action, index) => (
-        <div key={index} className="min-w-0 md:max-w-32 md:flex-1 md:basis-0">
+        // The key `Children.toArray` assigned, so a sibling chip toggling cannot
+        // remount (and close) another chip's dialog.
+        <div
+          key={isValidElement(action) && action.key != null ? action.key : index}
+          className="min-w-0 md:max-w-32 md:flex-1 md:basis-0">
           {action}
         </div>
       ))}

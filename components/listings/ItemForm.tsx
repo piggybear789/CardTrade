@@ -85,7 +85,7 @@ import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { formatMoney, itemImageUrl } from "@/lib/format";
-import { feesWaivedForBeta, platformFeeRateLabel } from "@/lib/fees/feeLabels";
+import { betaFeeNote, feesWaivedForBeta, platformFeeRateLabel } from "@/lib/fees/feeLabels";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
@@ -229,7 +229,7 @@ function PriceReadout({ cents, currency }: { cents: number | null; currency: str
       </div>
       <p className="text-meta text-muted-foreground">
         {feesWaivedForBeta()
-          ? `No fees during beta (normally ${platformFeeRateLabel(currency)}).`
+          ? `${betaFeeNote()}.`
           : `The ${platformFeeRateLabel(currency)} buyer fee is added to your price. Card processing is shown on your statement.`}
       </p>
     </div>

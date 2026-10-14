@@ -176,7 +176,8 @@ describe('trade accept dialog — cost disclosure', () => {
 
     const dialog = await openAcceptDialog(user);
 
-    expect(within(dialog).queryByText(/NoDitto fee/i)).toBeNull();
+    // The fee ROW is what must be absent; the open-beta sentence names the fee too.
+    expect(within(dialog).queryByText(/^NoDitto fee/)).toBeNull();
     expect(within(dialog).queryByText('$0.00')).toBeNull();
     expect(
       within(dialog).getByText(/we place a temporary card hold/i),

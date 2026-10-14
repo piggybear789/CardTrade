@@ -153,23 +153,23 @@ describe('what the buyer is shown', () => {
     expect(platformFeeRateLabel('aud')).not.toMatch(/min/i);
   });
 
-  it('says plainly that fees are waived for now and names the normal rate', () => {
+  it('says NoDitto is in open beta, that NoDitto fees are waived, and names the normal rate', () => {
     expect(feesWaivedForBeta()).toBe(BETA_FEE_WAIVER);
-    expect(betaFeeNote()).toBe('No fees for now (normally 5%)');
+    expect(betaFeeNote()).toBe('Open beta: NoDitto fees waived (normally 5%)');
     expect(LISTING_BETA_FEE_NOTE).toBe(feeWaiverExplanation());
-    expect(NO_FEE_DURING_BETA).toBe('no fees for now (normally 5%)');
-    expect(TILE_BETA_FEE_NOTE).toBe('no fees for now');
+    expect(NO_FEE_DURING_BETA).toBe('NoDitto fees waived in open beta (normally 5%)');
+    expect(TILE_BETA_FEE_NOTE).toBe('no fees in open beta');
     expect(feeWaiverExplanation()).toBe(
-      "We're waiving fees for now, and we'll tell you before standard fees apply.",
+      "NoDitto is in open beta, so NoDitto fees are waived. We'll tell you before standard fees apply.",
     );
     expect(TERMS_BETA_FEE_SENTENCE).toContain('members will be told before standard fees apply');
-    expect(platformFeeRowRate(0)).toBe('waived for now, normally 5%');
+    expect(platformFeeRowRate(0)).toBe('waived in open beta, normally 5%');
     expect(platformFeeRowRate(500)).toBe('5%');
-    expect(tradeFeeRowRate(0)).toBe('waived for now, normally 5%');
+    expect(tradeFeeRowRate(0)).toBe('waived in open beta, normally 5%');
     expect(tradeFeeRowRate(500)).toBe('5%');
   });
 
-  it('never says beta, prints a $0.00 fee or a minimum in fee-waiver copy', () => {
+  it('never says "all fees", prints a $0.00 fee or a minimum in fee-waiver copy', () => {
     for (const text of [
       betaFeeNote(),
       feeWaiverExplanation(),
@@ -184,7 +184,7 @@ describe('what the buyer is shown', () => {
       platformFeeRowRate(0),
       tradeFeeRowRate(0),
     ]) {
-      expect(text).not.toMatch(/\$0\.00|min|beta/i);
+      expect(text).not.toMatch(/\$0\.00|min|all fees/i);
     }
   });
 });

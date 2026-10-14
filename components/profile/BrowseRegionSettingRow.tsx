@@ -15,10 +15,10 @@
 // nobody picks a region and then learns at checkout that it cannot complete a deal.
 // The contract guards (`checkRegionCompatibility`) refuse regardless.
 
-import { useMemo, useState, useTransition, type ReactNode } from 'react';
+import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, GlobalIcon, Location01Icon, Search01Icon } from '@hugeicons/core-free-icons';
+import { CheckIcon, GlobalIcon, Location01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { REGIONS, regionLabel, type RegionSource } from '@/domain/region';
@@ -32,11 +32,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-const OPEN_REGIONS = REGIONS.filter((r) => r.tradingEnabled);
-const BROWSE_ONLY_REGIONS = REGIONS.filter((r) => !r.tradingEnabled);
+// By NAME, not by code: sorted by code, Switzerland (CH) sat between Canada and Czechia.
+const byLabel = (a: (typeof REGIONS)[number], b: (typeof REGIONS)[number]) => a.label.localeCompare(b.label);
+const OPEN_REGIONS = REGIONS.filter((r) => r.tradingEnabled).sort(byLabel);
+const BROWSE_ONLY_REGIONS = REGIONS.filter((r) => !r.tradingEnabled).sort(byLabel);
 
 export interface BrowseRegionSettingRowProps {
   /** The remembered choice: a region code, `all`, or `auto`. */
@@ -54,7 +55,6 @@ export function BrowseRegionSettingRow({
 }: BrowseRegionSettingRowProps) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
   const [isPending, startTransition] = useTransition();
 
   const automaticLabel = automatic.code ? regionLabel(automatic.code) : 'All regions';
@@ -72,18 +72,6 @@ export function BrowseRegionSettingRow({
         ? 'All regions'
         : regionLabel(choice);
 
-  const needle = query.trim().toLowerCase();
-  const matches = useMemo(() => {
-    const test = (r: (typeof REGIONS)[number]) =>
-      needle === '' ||
-      r.label.toLowerCase().includes(needle) ||
-      r.code.toLowerCase() === needle;
-    return {
-      open: OPEN_REGIONS.filter(test),
-      browseOnly: BROWSE_ONLY_REGIONS.filter(test),
-    };
-  }, [needle]);
-
   function select(next: string) {
     if (next === choice) {
       setOpen(false);
@@ -98,11 +86,6 @@ export function BrowseRegionSettingRow({
       setOpen(false);
       router.refresh();
     });
-  }
-
-  function onOpenChange(next: boolean) {
-    setOpen(next);
-    if (!next) setQuery('');
   }
 
   const renderRegion = (region: (typeof REGIONS)[number]) => (
@@ -122,8 +105,6 @@ export function BrowseRegionSettingRow({
     />
   );
 
-  const nothingFound = matches.open.length === 0 && matches.browseOnly.length === 0;
-
   return (
     <>
       <SettingsListRow
@@ -133,13 +114,13 @@ export function BrowseRegionSettingRow({
         value={value}
         onClick={() => setOpen(true)}
       />
-      <Dialog open={open} onOpenChange={onOpenChange}>
+      <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Browsing region</DialogTitle>
             <DialogDescription>
-              This changes what you browse, not where you trade. Sales and trades only
-              complete within one region, so postage and payouts stay local.
+              This only changes which listings you see. You can buy from or trade with
+              members in countries your region deals with, wherever you browse.
             </DialogDescription>
           </DialogHeader>
 
@@ -163,37 +144,12 @@ export function BrowseRegionSettingRow({
               onSelect={() => select(ALL_REGIONS)}
             />
 
-            <div className="relative !mt-group">
-              <HugeiconsIcon
-                icon={Search01Icon}
-                className="pointer-events-none absolute left-cozy top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-                aria-hidden
-              />
-              <Input
-                type="search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Find a country"
-                aria-label="Find a country"
-                className="pl-9"
-              />
-            </div>
-
-            {/* Scrolls on its own so the search box and the two fixed choices above
-                stay put while 39 countries move beneath them. */}
-            <div className="-mx-tight max-h-[min(22rem,50dvh)] space-y-tight overflow-y-auto px-tight pb-tight">
-              {matches.open.length > 0 ? (
-                <RegionGroup label="Open for deals">{matches.open.map(renderRegion)}</RegionGroup>
-              ) : null}
-              {matches.browseOnly.length > 0 ? (
-                <RegionGroup label="Browse only">
-                  {matches.browseOnly.map(renderRegion)}
-                </RegionGroup>
-              ) : null}
-              {nothingFound ? (
-                <p className="px-cozy py-group text-center text-body text-muted-foreground">
-                  No country matches “{query.trim()}”.
-                </p>
+            {/* Scrolls on its own so the two fixed choices above stay put. No search:
+                the list is short enough to scan, and a box above it read as a form. */}
+            <div className="-mx-tight !mt-group max-h-[min(22rem,50dvh)] space-y-tight overflow-y-auto border-t border-border px-tight pb-tight">
+              <RegionGroup label="Open for deals">{OPEN_REGIONS.map(renderRegion)}</RegionGroup>
+              {BROWSE_ONLY_REGIONS.length > 0 ? (
+                <RegionGroup label="Browse only">{BROWSE_ONLY_REGIONS.map(renderRegion)}</RegionGroup>
               ) : null}
             </div>
           </div>

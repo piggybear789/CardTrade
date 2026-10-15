@@ -268,7 +268,7 @@ export function TradeDisputeActions({
               aria-pressed={choice === value}
               onClick={() => pick(value)}
               className={cn(
-                'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:border-iris disabled:opacity-60',
+                'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:border-ring disabled:opacity-60',
                 choice === value
                   ? 'border-border bg-accent font-semibold text-accent-foreground'
                   : 'border-border text-foreground/85 hover:bg-muted',
@@ -294,7 +294,7 @@ export function TradeDisputeActions({
                 aria-pressed={subjectId === party.id}
                 onClick={() => pickSubject(party.id)}
                 className={cn(
-                  'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:border-iris disabled:opacity-60',
+                  'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:border-ring disabled:opacity-60',
                   subjectId === party.id
                     ? 'border-border bg-accent font-semibold text-accent-foreground'
                     : 'border-border text-foreground/85 hover:bg-muted',

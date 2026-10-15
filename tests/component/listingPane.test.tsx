@@ -157,13 +157,13 @@ describe('ListingDesktopPane', () => {
     expect(screen.queryByRole('group', { name: 'Listing actions' })).toBeNull();
   });
 
-  it('says nothing is held on a binder or bulk listing, with no fee note', () => {
+  it('labels a binder concisely, with no fee note', () => {
     render(
       <ListingDesktopPane {...props} isShopfront>
         <span />
       </ListingDesktopPane>,
     );
-    expect(screen.getByText(/^Binder or bulk listing · nothing is held/)).toBeInTheDocument();
+    expect(screen.getByText(/^Binder · /)).toBeInTheDocument();
     expect(screen.queryByText(/Multiple items/)).toBeNull();
     expect(screen.queryByText(/buyer fee/)).toBeNull();
     expect(screen.getByText(/until you accept the cards\./)).toBeInTheDocument();
@@ -208,9 +208,10 @@ describe('ListingDetailStack', () => {
     expect(screen.queryByText('Buyer protection:')).toBeNull();
   });
 
-  it('says nothing is held on a binder or bulk listing', () => {
+  it('labels a binder concisely', () => {
     render(<ListingDetailStack {...props} isShopfront showTrust />);
-    expect(screen.getByText(/Binder or bulk listing · nothing is held/)).toBeInTheDocument();
+    expect(screen.getByText(/(^|· )Binder( ·|$)/)).toBeInTheDocument();
+    expect(screen.queryByText(/nothing is held/)).toBeNull();
     expect(screen.queryByText(/buyer fee/)).toBeNull();
   });
 });

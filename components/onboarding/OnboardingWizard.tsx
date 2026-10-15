@@ -775,7 +775,7 @@ export function OnboardingWizard({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-iris"
+                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring"
                         aria-label="Why we need these details"
                       >
                         <HugeiconsIcon icon={InfoIcon} className="size-3.5" aria-hidden />

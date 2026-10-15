@@ -113,7 +113,7 @@ export function OwnItemsPickerDialog({
                     <label
                       className={cn(
                         'flex cursor-pointer items-center gap-cozy rounded-md border border-input bg-card p-snug text-body transition-colors',
-                        'has-[:focus-visible]:border-iris has-[:focus-visible]:outline-none',
+                        'has-[:focus-visible]:border-ring has-[:focus-visible]:outline-none',
                         checked && 'bg-accent text-accent-foreground',
                       )}
                     >

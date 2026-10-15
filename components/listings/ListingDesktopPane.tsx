@@ -88,7 +88,7 @@ export function ListingDesktopPane({
     <div className="hidden h-full flex-col gap-group lg:flex">
       <header className="flex items-center justify-between gap-cozy">
         <div className="min-w-0 flex-1">
-          <h2 className="text-balance text-head font-semibold tracking-tight">
+          <h2 className="line-clamp-2 break-words text-balance text-head font-semibold tracking-tight">
             {title}
           </h2>
           {/* THE PRICE LEADS THE PAGE, AND IT IS WHAT THE BUYER PAYS.
@@ -150,11 +150,11 @@ export function ListingDesktopPane({
             suppressHydrationWarning
           >
             {[
-              // Member copy says "binder or bulk listing" and always says nothing is
-              // held: everywhere else, opening a contract reserves the goods.
-              isShopfront ? 'Binder or bulk listing · nothing is held' : 'Single item',
+              // Kept to one short line. That nothing on a binder is held is said by the
+              // buy bar, at the moment it applies.
+              isShopfront ? 'Binder' : null,
               listedAgo ? `Listed ${listedAgo}` : null,
-              locationLabel ? `Based in ${locationLabel}` : null,
+              locationLabel,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -224,7 +224,7 @@ export function ListingDesktopPane({
                 ) : (
                   <Link
                     href={`/sellers/${sellerId}#reviews`}
-                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-iris"
+                    className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-ring"
                     aria-label="Read seller reviews"
                   >
                     <StarRating

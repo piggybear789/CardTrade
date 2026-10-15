@@ -13,16 +13,20 @@ import { runSchema, type ValidationResult } from './result';
  * Commitment_Point.
  */
 export const TITLE_MIN_LENGTH = 1;
-export const TITLE_MAX_LENGTH = 120;
+// 60: a title is a label (tiles, contract rows, email subjects), not a description.
+// Short enough for one line on a tile. items.title still allows 120 (0001), so rows
+// written before this keep loading; a member editing one is asked to shorten it.
+export const TITLE_MAX_LENGTH = 60;
 
 /**
  * How long a DERIVED title may be before it is cut at a word boundary.
  *
- * Deliberately well under `TITLE_MAX_LENGTH`: this value is a label, shown in
+ * The same as `TITLE_MAX_LENGTH`: this value is a label, shown in
  * notification copy, email subjects, payout rows and arbitration case lists, where
  * something near 120 characters stops being a label and starts being a paragraph.
  */
-export const TITLE_DERIVED_MAX_LENGTH = 80;
+// One under the limit: a cut title gains a trailing ellipsis.
+export const TITLE_DERIVED_MAX_LENGTH = TITLE_MAX_LENGTH - 1;
 
 /** Item description length bounds, inclusive (Req 3.1, 3.3). */
 export const DESCRIPTION_MIN_LENGTH = 1;

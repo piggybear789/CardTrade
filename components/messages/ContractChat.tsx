@@ -155,7 +155,7 @@ export function ContractChatBar({
           aria-label="Back"
           // `size-9 -ml-2.5`, matching `ChatThread`'s bar — see the note there. 36px is
           // the phone control height everywhere else; 44 was a fifth of the row.
-          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-iris md:hidden"
+          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
         >
           <HugeiconsIcon icon={ChevronLeftIcon} className="size-5" strokeWidth={1.75} aria-hidden />
         </Link>
@@ -214,7 +214,7 @@ export function ContractChatBar({
               type="button"
               onClick={openDetails}
               aria-haspopup="dialog"
-              className="absolute inset-0 rounded-md border border-transparent focus:outline-none focus-visible:border-iris"
+              className="absolute inset-0 rounded-md border border-transparent focus:outline-none focus-visible:border-ring"
             >
               <span className="sr-only">Contract details</span>
             </button>
@@ -444,7 +444,7 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full border border-transparent bg-primary px-cozy py-snug text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-iris"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full border border-transparent bg-primary px-cozy py-snug text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-ring"
           >
             <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}

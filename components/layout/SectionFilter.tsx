@@ -292,7 +292,7 @@ export function SectionTabs({
             aria-current={current ? 'page' : undefined}
             className={cn(
               SECTION_TABS_ITEM_SHAPE,
-              'transition-colors active:opacity-70 focus:outline-none focus-visible:border-iris',
+              'transition-colors active:opacity-70 focus:outline-none focus-visible:border-ring',
               current
                 ? 'text-foreground'
                 : 'text-muted-foreground hover:text-foreground',

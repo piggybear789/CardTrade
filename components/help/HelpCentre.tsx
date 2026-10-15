@@ -312,7 +312,7 @@ export function HelpCentre({
               aria-pressed={selected}
               onClick={() => setTopic(selected ? null : entry.id)}
               className={cn(
-                'inline-flex h-9 items-center rounded-full border px-group text-body font-medium transition-colors focus:outline-none focus-visible:border-iris',
+                'inline-flex h-9 items-center rounded-full border px-group text-body font-medium transition-colors focus:outline-none focus-visible:border-ring',
                 selected
                   ? 'border-foreground bg-foreground text-primary-foreground'
                   : 'border-border bg-card text-foreground hover:border-foreground/40',

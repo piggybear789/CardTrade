@@ -15,6 +15,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { Json } from '@/lib/supabase/database.types';
 import type { ItemFormDraftFields } from '@/lib/listings/useItemFormDraft';
+import { TITLE_MAX_LENGTH } from '@/domain/validation/item';
 
 /** How many drafts one seller may keep. A draft list is a shelf, not an archive. */
 const DRAFTS_MAX = 20;
@@ -35,7 +36,7 @@ export type ListingDraftResult<T> =
 function sanitize(fields: ItemFormDraftFields): Record<string, Json> {
   const text = (value: unknown, max: number) => (typeof value === 'string' ? value.slice(0, max) : '');
   return {
-    title: text(fields.title, 120),
+    title: text(fields.title, TITLE_MAX_LENGTH),
     description: text(fields.description, 2000),
     game: text(fields.game, 60),
     condition: text(fields.condition, 40),

@@ -47,7 +47,7 @@ export function SignedInHeaderTools({
         <Link
           href="/saved"
           aria-label="Saved listings"
-          className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris md:inline-flex"
+          className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-ring md:inline-flex"
         >
           <HugeiconsIcon icon={HeartIcon} className="size-5" aria-hidden />
         </Link>
@@ -56,7 +56,7 @@ export function SignedInHeaderTools({
         <Link
           href="/messages"
           aria-label="Messages"
-          className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris md:inline-flex"
+          className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-ring md:inline-flex"
         >
           <HugeiconsIcon icon={MessageCircleIcon} className="size-5" aria-hidden />
         </Link>

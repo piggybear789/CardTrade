@@ -75,9 +75,9 @@ export function ListingDetailStack({
   /** The photo carousel, which heads the stack. */
   media?: ReactNode;
 }) {
-  // Member copy says "binder or bulk listing", matching the listing form, and always
-  // says nothing is held: everywhere else, opening a contract reserves the goods.
-  const kindLabel = isShopfront ? 'Binder or bulk listing · nothing is held' : 'Single item';
+  // Kept to one short line. That nothing on a binder is held is said by the buy bar,
+  // at the moment it applies.
+  const kindLabel = isShopfront ? 'Binder' : null;
   const savesLabel = watchCount === 1 ? '1 save' : `${watchCount} saves`;
   // Relative, and hydration-suppressed where it renders — see the same note in
   // `ListingDesktopPane`. Every resale reference carries listing age: a card listed
@@ -94,7 +94,7 @@ export function ListingDetailStack({
     category,
     kindLabel,
     listedAgo ? `Listed ${listedAgo}` : null,
-    locationLabel ? `Based in ${locationLabel}` : null,
+    locationLabel,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -109,7 +109,7 @@ export function ListingDetailStack({
 
       <h2
         className={cn(
-          'text-balance text-subhead font-semibold tracking-tight md:text-head',
+          'line-clamp-2 break-words text-balance text-subhead font-semibold tracking-tight md:text-head',
           media ? 'mt-group' : null,
         )}
       >
@@ -184,7 +184,7 @@ export function ListingDetailStack({
       <Link
         href={isOwner ? '/profile' : `/sellers/${sellerId}`}
         transitionTypes={['nav-forward']}
-        className="mt-group flex min-w-0 items-center gap-cozy rounded-lg border border-border bg-card p-cozy transition-colors hover:bg-muted/60 focus:outline-none focus-visible:border-iris"
+        className="mt-group flex min-w-0 items-center gap-cozy rounded-lg border border-border bg-card p-cozy transition-colors hover:bg-muted/60 focus:outline-none focus-visible:border-ring"
       >
         <Avatar avatarPath={sellerAvatarPath} displayName={name} size="md" />
         <span className="flex min-w-0 flex-1 flex-col gap-tight">

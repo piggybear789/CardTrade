@@ -255,7 +255,7 @@ const config: Config = {
       // at, so focusing a field read as its edge fading. Softness comes from a thin
       // edge and a faint halo (`ring-iris/20`), never from a weak indicator.
       ringColor: {
-        DEFAULT: "hsl(var(--iris))",
+        DEFAULT: "hsl(var(--ring))",
       },
       ringOpacity: {
         DEFAULT: "1",

@@ -109,7 +109,7 @@ const buttonVariants = cva(
         destructive:
           "border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground",
         "destructive-quiet":
-          "border border-input bg-card text-destructive hover:border-destructive/60 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+          "border border-input bg-card text-destructive hover:border-destructive/60 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
         // `hover:border-foreground/60`, not a violet edge. These two are the
         // QUIET variants — the ones used where `default` would be too loud — and
         // turning their border violet on hover put them back in the primary's
@@ -117,12 +117,12 @@ const buttonVariants = cva(
         // carried by the fill (`bg-accent` / `bg-secondary/75`); the edge only has
         // to firm up, which means going DARKER than the 3:1 `--input` it rests at.
         outline:
-          "border border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+          "border border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
         secondary:
-          "border border-input bg-secondary text-secondary-foreground hover:border-foreground/60 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+          "border border-input bg-secondary text-secondary-foreground hover:border-foreground/60 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
-        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-iris focus-visible:ring-1 focus-visible:ring-iris",
+          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
+        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
       },
       size: {
         // 40px on touch, 36px from `md`. The content box has to hold a 14px line

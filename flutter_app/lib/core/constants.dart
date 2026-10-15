@@ -18,7 +18,7 @@ abstract final class AppConstants {
 
   // ─── Validation Limits ─────────────────────────────────────────────────────
   /// Maximum title length for listings.
-  static const int titleMaxLength = 120;
+  static const int titleMaxLength = 60;
 
   /// Maximum description length for listings.
   static const int descriptionMaxLength = 2000;

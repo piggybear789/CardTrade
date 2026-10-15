@@ -29,7 +29,7 @@ export function HelpMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Help"
-        className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-iris data-[state=open]:bg-white/10"
+        className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-mist/75 transition-colors hover:bg-white/10 hover:text-mist focus:outline-none focus-visible:border-ring data-[state=open]:bg-white/10"
       >
         <HugeiconsIcon icon={HelpCircleIcon} className="size-5" aria-hidden />
       </DropdownMenuTrigger>

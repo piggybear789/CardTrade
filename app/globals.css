@@ -47,8 +47,10 @@
     --secondary-foreground: 248.75 31.5789% 29.8039%;
     --muted: 240 11% 95.3%;
     --muted-foreground: 240 6% 41%;
-    --accent: 246 60% 96.6%;
-    --accent-foreground: 248.4 59.5238% 50.5882%;
+    /* NEUTRAL. Hover and selected states read as a quiet grey, not a lavender wash
+       with violet text. Violet text has its own token, `--iris-ink`, below. */
+    --accent: 240 11% 95.3%;
+    --accent-foreground: 234.5455 17.4603% 12.3529%;
     --destructive: 358 70% 47%;
     --destructive-foreground: 0 0% 100%;
     /* `--border` is the hairline for dividers and containers. `--input` is the
@@ -56,7 +58,8 @@
        variants — so a field and the button beside it read as one family. */
     --border: 240 9% 90.5%;
     --input: 240 6% 58%;
-    --ring: 250.1613 75.6098% 67.8431%;
+    /* The focus colour: a neutral graphite edge, never a violet glow. 6.9:1 on a card. */
+    --ring: 240 6% 32%;
     --chart-1: 250.1613 75.6098% 67.8431%;
     --chart-2: 249.863 73.7374% 80.5882%;
     --chart-3: 248.75 31.5789% 29.8039%;
@@ -66,20 +69,20 @@
     --sidebar-foreground: 240 13.1034% 28.4314%;
     --sidebar-primary: 250 68% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 246 60% 96.6%;
-    --sidebar-accent-foreground: 248.4 59.5238% 50.5882%;
+    --sidebar-accent: 240 11% 95.3%;
+    --sidebar-accent-foreground: 234.5455 17.4603% 12.3529%;
     --sidebar-border: 240 9% 90.5%;
-    --sidebar-ring: 250.1613 75.6098% 67.8431%;
+    --sidebar-ring: 240 6% 32%;
     --radius: 0.5rem;
     --spacing: 0.25rem;
 
     /* APP-SPECIFIC. */
     /* Dark chrome: the header bar, overlays, letterboxing, the `contrast` button. */
     --obsidian: 240 19% 8%;
-    /* The focus indicator and violet markers — the theme's ring. */
-    --iris: var(--ring);
-    /* Violet as text — the theme's accent-foreground. */
-    --iris-ink: var(--accent-foreground);
+    /* Violet markers (brand accents, link underlines). NOT the focus colour: that is`--ring`. */
+    --iris: 250.1613 75.6098% 67.8431%;
+    /* Violet as text. Its own value now that `--accent-foreground` is neutral. */
+    --iris-ink: 248.4 59.5238% 50.5882%;
     /* jade: verified identity, settled, completed. */
     --trust: 156 44% 31%;
     /* amber: "this is your move" as a signal, never a button fill. */
@@ -129,13 +132,13 @@
     --secondary-foreground: 240 31.5789% 92.549%;
     --muted: 244 26.3158% 11.1765%;
     --muted-foreground: 240 18.3908% 65.8824%;
-    --accent: 245.2941 33.3333% 20%;
-    --accent-foreground: 249.863 73.7374% 80.5882%;
+    --accent: 244 18% 16%;
+    --accent-foreground: 240 31.5789% 92.549%;
     --destructive: 0 63.2911% 30.9804%;
     --destructive-foreground: 0 0% 100%;
     --border: 243 23.2558% 16.8627%;
     --input: 244.1379 25.6637% 22.1569%;
-    --ring: 250.1613 75.6098% 67.8431%;
+    --ring: 240 12% 72%;
     --chart-1: 250.1613 75.6098% 67.8431%;
     --chart-2: 249.3443 57.0093% 58.0392%;
     --chart-3: 249.863 73.7374% 80.5882%;
@@ -148,7 +151,9 @@
     --sidebar-accent: 245.7143 28% 14.7059%;
     --sidebar-accent-foreground: 240 31.5789% 92.549%;
     --sidebar-border: 243 23.2558% 16.8627%;
-    --sidebar-ring: 250.1613 75.6098% 67.8431%;
+    --sidebar-ring: 240 12% 72%;
+    --iris: 250.1613 75.6098% 67.8431%;
+    --iris-ink: 249.863 73.7374% 80.5882%;
     --font-sans: Inter, sans-serif;
     --font-serif: Inter, sans-serif;
     --font-mono: Inter, sans-serif;

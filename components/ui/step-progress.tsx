@@ -64,7 +64,7 @@ export function StepProgress({
               onClick={() => onSelect(n)}
               disabled={!canSelect(n)}
               aria-current={n === current ? 'step' : undefined}
-              className="flex min-h-8 w-full min-w-0 flex-col gap-tight rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-iris disabled:cursor-not-allowed"
+              className="flex min-h-8 w-full min-w-0 flex-col gap-tight rounded-sm text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed"
             >
               <span className={cn('w-full', bar(n))} aria-hidden />
               <span

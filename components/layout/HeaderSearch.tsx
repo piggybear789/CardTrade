@@ -442,7 +442,7 @@ function HeaderSearchInner({
   /** Shared row styling for every option, highlighted or not. */
   const optionClass = (active: boolean) =>
     cn(
-      'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-snug py-snug text-left focus:outline-none focus-visible:border-iris',
+      'flex min-h-11 w-full items-center gap-2.5 rounded-md border border-transparent px-snug py-snug text-left focus:outline-none focus-visible:border-ring',
       appearance === 'default'
         ? active
           ? 'bg-accent'
@@ -536,7 +536,7 @@ function HeaderSearchInner({
           onClick={clearQuery}
           aria-label="Clear search"
           className={cn(
-            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-iris',
+            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-ring',
             trailing ? 'right-9' : 'right-1',
           )}
         >

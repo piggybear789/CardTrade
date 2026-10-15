@@ -34,7 +34,7 @@ const PasswordInput = React.forwardRef<
         disabled={disabled}
         aria-pressed={visible}
         aria-label={visible ? "Hide password" : "Show password"}
-        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-iris disabled:pointer-events-none"
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none"
       >
         <HugeiconsIcon icon={visible ? EyeOffIcon : EyeIcon} className="size-4" aria-hidden />
       </button>

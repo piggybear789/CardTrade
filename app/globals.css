@@ -384,6 +384,29 @@
     background-color: hsl(var(--iris) / 0.06);
   }
 
+  /* The credentials screens' backdrop: a soft pastel mesh behind the form, the way
+     Gumloop, Hume and Craft frame sign-up. Iris anchors it so it reads as NoDitto;
+     a sky blue and a rose keep it from being one flat violet wash. Decorative only,
+     drawn behind the content and never under body text at an opacity that costs
+     contrast (the cards are opaque). Dark mode uses the same shape at lower alpha so
+     it glows rather than tints. */
+  .auth-backdrop {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(60% 55% at 12% 18%, hsl(var(--iris) / 0.28), transparent 70%),
+      radial-gradient(50% 50% at 88% 12%, hsl(205 90% 70% / 0.24), transparent 70%),
+      radial-gradient(55% 60% at 82% 88%, hsl(330 85% 75% / 0.22), transparent 70%),
+      radial-gradient(45% 45% at 20% 92%, hsl(265 80% 78% / 0.2), transparent 70%);
+  }
+
+  .dark .auth-backdrop {
+    background-image:
+      radial-gradient(60% 55% at 12% 18%, hsl(var(--iris) / 0.18), transparent 70%),
+      radial-gradient(50% 50% at 88% 12%, hsl(205 90% 55% / 0.12), transparent 70%),
+      radial-gradient(55% 60% at 82% 88%, hsl(330 80% 60% / 0.12), transparent 70%),
+      radial-gradient(45% 45% at 20% 92%, hsl(265 80% 60% / 0.12), transparent 70%);
+  }
+
   /* Hackathon / simulated-provider controls — violet quarantine, never product
      chrome.
      

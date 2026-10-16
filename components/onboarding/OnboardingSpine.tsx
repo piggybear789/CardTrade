@@ -118,7 +118,9 @@ export function OnboardingSpineStep({
           the button — a full-width sibling is what squeezed the heading onto three
           lines in a narrower dialog. */}
       <div className="min-w-0 py-tight">
-        <div className="flex flex-col gap-cozy sm:flex-row sm:items-start sm:justify-between sm:gap-group">
+        {/* The action is CENTRED on the title-plus-description block, not top-aligned
+            to the title: pinned to the top it floated above the copy it belongs to. */}
+        <div className="flex flex-col gap-cozy sm:flex-row sm:items-center sm:justify-between sm:gap-group">
           <div className="min-w-0 flex-1">
             <h3
               className={cn(
@@ -153,7 +155,7 @@ export function OnboardingSpineStep({
           </div>
 
           {active && children ? (
-            <div className="shrink-0 sm:self-start">{children}</div>
+            <div className="shrink-0">{children}</div>
           ) : null}
         </div>
       </div>

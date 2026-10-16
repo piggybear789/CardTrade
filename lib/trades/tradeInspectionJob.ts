@@ -13,7 +13,9 @@
 //      The one CRITICAL pass: a failure fails the job, as before.
 //   4…  cash-sale inspection notices, the fee retry, collateral placement, the
 //      handover advance, stale-collateral handling, and expiring undecided handover
-//      change proposals. Each isolated, so one failing pass cannot cost the others.
+//      change proposals, person-key backfill, orphan holds, and scam-report retention
+//      plus match-key backfill (0154). Each isolated, so one failing pass cannot cost
+//      the others.
 //
 // `server-only`.
 
@@ -28,6 +30,7 @@ import { expireHandoverChangeProposals } from './handoverChanges';
 import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 import { backfillPersonKeys } from '@/lib/identity/personKeyBackfill';
 import { runOrphanHoldSweep } from './orphanHoldSweep';
+import { sweepScamReports } from '@/lib/scamReports/retention';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** One pass of the job. */
@@ -53,6 +56,8 @@ export const TRADE_INSPECTION_JOB_STEPS: readonly TradeInspectionJobStep[] = [
   { key: 'personKeys', run: () => backfillPersonKeys() },
   // ESC-34: daily at 03 UTC, release card holds no live trade row accounts for.
   { key: 'orphanHolds', run: () => runOrphanHoldSweep() },
+  // 0154: delete scam reports closed 90+ days ago, then backfill member match keys.
+  { key: 'scamReports', run: () => sweepScamReports() },
 ];
 
 /**

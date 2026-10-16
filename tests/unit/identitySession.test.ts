@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   identitySessionCreateParams,
   identitySessionIdempotencyKey,
+  sessionReturnsTo,
 } from '@/domain/services/stripe/identitySession';
 
 describe('identitySessionCreateParams', () => {
@@ -21,7 +22,21 @@ describe('identitySessionCreateParams', () => {
         require_live_capture: false,
       },
     });
-    expect(body.metadata).toEqual({ cardtrade_profile_id: 'profile-1' });
+    expect(body.metadata).toEqual({
+      cardtrade_profile_id: 'profile-1',
+      cardtrade_return_url: 'http://localhost:3000/onboarding?identity=complete',
+    });
+  });
+
+  it('only treats a session stamped with the same return URL as returning here', () => {
+    const here = 'http://localhost:3000/identity/return';
+    expect(sessionReturnsTo({ cardtrade_return_url: here }, here)).toBe(true);
+    expect(
+      sessionReturnsTo({ cardtrade_return_url: 'https://noditto.app/identity/return' }, here),
+    ).toBe(false);
+    // Unstamped sessions predate the stamp; their origin is unknowable.
+    expect(sessionReturnsTo({ cardtrade_profile_id: 'profile-1' }, here)).toBe(false);
+    expect(sessionReturnsTo(null, here)).toBe(false);
   });
 
   it('uses the dashboard flow when one is configured', () => {

@@ -44,8 +44,41 @@ export default function PrivacyPage() {
         <li>Show verification status and disclosed identity to counterparties.</li>
         <li>Process payments, card holds, collections, refunds, and payouts via Stripe.</li>
         <li>Review disputes and staff-confirmed fraud findings.</li>
+        <li>Prevent fraud, including checking accounts against scam reports.</li>
         <li>Send transactional email such as password reset and contract notices.</li>
       </ul>
+
+      <h2>Fraud prevention and scam reports</h2>
+      <p>
+        To spot repeat scammers, we turn some of your details into one-way codes
+        (fingerprints) that can be compared but not read back: the contact email
+        on your account, the usernames in your profile links, and, for an
+        Australian payout account, its BSB and the last four digits of the
+        account number. We also keep fingerprints of the card and payout account
+        Stripe reports for you. We never store your full bank account number.
+      </p>
+      <p>
+        Members can report a scam that happened outside NoDitto. A report holds
+        the reporter&apos;s account, what they told us, their screenshots, and
+        the payment details and usernames the scammer used, stored only as
+        fingerprints with a partly hidden hint for our team. Reports are seen by
+        NoDitto staff only. We never publish them, and nothing is decided
+        automatically.
+      </p>
+      <p>
+        If your details match a report, our team may look into it. Before we
+        decide anything against you, we tell you that a report involves details
+        linked to your account and give you 14 days to tell us your side. We
+        won&apos;t tell you who sent the report or what it says, just as we
+        wouldn&apos;t tell anyone you reported them.
+      </p>
+      <p>
+        Open reports are kept while they help prevent repeat fraud. A report we
+        dismiss, or one the reporter withdraws, is deleted 90 days later with
+        its screenshots, and a match we clear is deleted straight away. If you
+        think a report about you is wrong, contact us through the Help page and
+        we&apos;ll review it, and delete it if it is.
+      </p>
 
       <h2>What we do not do</h2>
       <p>

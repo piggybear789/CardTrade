@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Scratch dump artifact, regenerated locally
 copy-all.txt
+
+# Local git worktrees (full repo copies), never committed
+/.worktrees/

@@ -1,6 +1,6 @@
 // app/admin/loading.tsx
 //
-// Operations console chrome: section header with the Cases hand-off, the five queue
+// Operations console chrome: section header with the Cases hand-off, the six queue
 // tabs, then the body of whichever queue `?tab=` names.
 //
 // USES THE SHARED HEADER AND FILTER SKELETONS rather than redrawing them. The
@@ -143,7 +143,7 @@ export default function AdminLoading() {
           the width reserved — the strip scrolls on a phone, where an over-wide tab costs
           scroll extent rather than layout. */}
       <SectionFilterSkeleton
-        labels={['Payouts', 'Reports', 'Feedback', 'Errors', 'Reconciliation']}
+        labels={['Payouts', 'Reports', 'Feedback', 'Errors', 'Reconciliation', 'Trusted sellers', 'Scams']}
       />
 
       <ConsoleTabSkeletonSwitch
@@ -205,6 +205,33 @@ export default function AdminLoading() {
               <QueueIntroSkeleton
                 headingWidth="w-1/2"
                 lines={['w-full', 'w-full', 'w-full', 'w-1/3']}
+                desktopLines={2}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+          trusted: (
+            <>
+              <QueueIntroSkeleton
+                headingWidth="w-1/3"
+                lines={['w-full', 'w-full', 'w-full', 'w-1/2']}
+                desktopLines={2}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+          scams: (
+            <>
+              <QueueIntroSkeleton
+                headingWidth="w-1/2"
+                // The Open / All view links: `size="sm"`, own row on a phone.
+                trailing={
+                  <div className="flex w-full flex-wrap gap-tight md:w-auto">
+                    <Skeleton className="h-9 w-14 rounded-md md:h-8" />
+                    <Skeleton className="h-9 w-10 rounded-md md:h-8" />
+                  </div>
+                }
+                lines={['w-full', 'w-full', 'w-full', 'w-full', 'w-1/2']}
                 desktopLines={2}
               />
               <QueueCardsSkeleton />

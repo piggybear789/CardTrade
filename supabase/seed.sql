@@ -308,3 +308,54 @@ on conflict (id) do nothing;
 update items
 set location_country_code = 'AU'
 where location_country_code is null;
+
+-- =============================================================================
+-- Trusted Sellers (0152) — demo directory
+-- =============================================================================
+-- Eight demo sellers approved (six AU, two US, so the directory's "Sells to you"
+-- filter has something to split) and Grace left PENDING for the admin queue. The
+-- handles are deliberately `noditto.demo.*` so they cannot be mistaken for a real
+-- seller's account. Approval is written as the review row; the 0152 trigger derives
+-- `profiles.trusted_seller_at` from it, exactly as a staff decision would.
+--
+-- Cleanup (also undoes the same seed applied to a hosted project):
+--   delete from cardtrade.trusted_seller_reviews where staff_notes like 'DEMO SEED:%';
+--   update cardtrade.profiles set social_links = social_links - 'instagram'
+--    where social_links->>'instagram' like 'noditto.demo.%';
+-- Deleting a review does not fire the sync trigger, so also run:
+--   update cardtrade.profiles set trusted_seller_at = null
+--    where id not in (select profile_id from cardtrade.trusted_seller_reviews where status = 'APPROVED');
+
+with demo(id, handle, days_ago) as (values
+  ('11111111-1111-1111-1111-111111111111'::uuid, 'noditto.demo.alice', 40),
+  ('22222222-2222-2222-2222-222222222222'::uuid, 'noditto.demo.bob', 32),
+  ('33333333-3333-3333-3333-333333333333'::uuid, 'noditto.demo.carol', 25),
+  ('44444444-4444-4444-4444-444444444444'::uuid, 'noditto.demo.dave', 18),
+  ('55555555-5555-5555-5555-555555555555'::uuid, 'noditto.demo.erin', 12),
+  ('66666666-6666-6666-6666-666666666666'::uuid, 'noditto.demo.frank', 9),
+  ('bbbbbbb1-0000-0000-0000-000000000001'::uuid, 'noditto.demo.uma', 6),
+  ('bbbbbbb2-0000-0000-0000-000000000002'::uuid, 'noditto.demo.victor', 3)
+),
+links as (
+  update cardtrade.profiles p
+     set social_links = coalesce(p.social_links, '{}'::jsonb) || jsonb_build_object('instagram', d.handle)
+    from demo d
+   where p.id = d.id
+  returning p.id
+)
+insert into cardtrade.trusted_seller_reviews
+  (profile_id, instagram_handle, status, requested_at, decided_at, staff_notes)
+select d.id, d.handle, 'APPROVED',
+       now() - make_interval(days => d.days_ago + 2), now() - make_interval(days => d.days_ago),
+       'DEMO SEED: example.com demo account approved to preview the directory. Remove with the cleanup in seed.sql.'
+  from demo d
+ where exists (select 1 from cardtrade.profiles p where p.id = d.id)
+on conflict (profile_id) do nothing;
+
+update cardtrade.profiles
+   set social_links = coalesce(social_links, '{}'::jsonb) || jsonb_build_object('instagram', 'noditto.demo.grace')
+ where id = '77777777-7777-7777-7777-777777777777';
+insert into cardtrade.trusted_seller_reviews (profile_id, instagram_handle, staff_notes)
+select '77777777-7777-7777-7777-777777777777', 'noditto.demo.grace', 'DEMO SEED: pending review for the admin queue.'
+ where exists (select 1 from cardtrade.profiles where id = '77777777-7777-7777-7777-777777777777')
+on conflict (profile_id) do nothing;

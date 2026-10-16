@@ -8,7 +8,9 @@
 
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { refreshMemberMatchKeys } from '@/lib/risk/scamMatching';
 import {
   buildSocialLinksPayload,
   isValidLinkValue,
@@ -50,6 +52,11 @@ export const updateSocialLinks = withActionLog('socialLinks.updateSocialLinks', 
   if (error) {
     return fail('persistence-error', 'Could not save your social links.');
   }
+
+  // Handles are scam-report match keys (0154). After the response, and it never
+  // throws, so a matching failure cannot fail the save.
+  const userId = user.id;
+  after(() => refreshMemberMatchKeys(userId));
 
   revalidatePath('/profile');
   revalidatePath(`/sellers/${user.id}`);

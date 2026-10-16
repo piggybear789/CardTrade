@@ -23,13 +23,17 @@
 // Every export is an async Server Action; shared shapes are `export type` only.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
+import { TRUSTED_DIRECTORY_CACHE_TAG } from '@/lib/trustedSellers/directory';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { removeAvatarObject } from '@/lib/storage/profileImages';
-import { permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
+import { enforceProfileFraudBan, permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
+import { clusterStrengthForReport } from '@/lib/risk/scamClusters';
+import { removeScamEvidence } from '@/lib/storage/scamReportEvidence';
+import { SCAM_REPORT_LIMITS, canFraudBan, type ScamMatchStrength } from '@/domain/risk/scamReports';
 import { requireStaff } from '@/lib/staffGate';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import type { CashSaleDisputeOutcome, TrackingFlagDecision } from '@/domain/orchestrator/cashSaleOrchestrator';
@@ -62,6 +66,14 @@ import {
   tradeValueMinor,
 } from '@/lib/arbitration/approvals';
 import { canApprove, type ResolutionAction } from '@/domain/arbitration/approvalPolicy';
+import {
+  asTrustedSellerDecision,
+  TRUSTED_SELLER_NOTES_MAX_LENGTH,
+  trustedSellerApprovalBlocker,
+  trustedSellerDecisionOutcome,
+  type TrustedSellerDecision,
+  type TrustedSellerReviewStatus,
+} from '@/domain/trustedSellers/trustedSellerReview';
 
 /**
  * Admin action error codes.
@@ -88,7 +100,9 @@ export type AdminActionError =
   /** ESC-23: approval refusals from `canApprove`. */
   | 'SAME_STAFFER'
   | 'COOLING_OFF'
-  | 'RECUSED';
+  | 'RECUSED'
+  /** Trusted Seller (0152): approval needs the member's identity verified first. */
+  | 'identity-unverified';
 
 /** Discriminated result returned by every admin action. */
 export type AdminActionResult<T = { id: string }> =
@@ -587,6 +601,168 @@ export const setExposureLimitOverride = withActionLog('admin.setExposureLimitOve
   if (!data) return { ok: false, error: 'not-found' };
   revalidatePath('/admin');
   return { ok: true, data: { id: profileId, limitMinor } };
+});
+
+/** What the member is told about each Trusted Seller decision. Never the reason. */
+const TRUSTED_SELLER_NOTIFICATION: Record<TrustedSellerDecision, { title: string; body: string }> = {
+  APPROVE: {
+    title: "You're a Trusted Seller",
+    body: 'Our team reviewed your application. Your Trusted Seller badge now shows on your profile and listings.',
+  },
+  DECLINE: {
+    title: 'Trusted Seller application',
+    body: "We couldn't approve your Trusted Seller application this time. You can keep selling as normal.",
+  },
+  REVOKE: {
+    title: 'Trusted Seller badge removed',
+    body: 'Your Trusted Seller badge has been removed. You can keep selling as normal.',
+  },
+};
+
+/**
+ * Decide a Trusted Seller review (0152). Admin-only.
+ *
+ * Writes the review row and nothing else: `profiles.trusted_seller_at` follows from it
+ * by trigger, so the badge cannot disagree with the decision. Approval refuses a member
+ * who is not identity-verified, is suspended or has closed their account, and the
+ * database refuses the same three again.
+ *
+ * The status update is conditional on the status it was read at, so two admins
+ * deciding the same row at once cannot both win.
+ */
+export const decideTrustedSeller = withActionLog('admin.decideTrustedSeller', async function decideTrustedSeller(
+  reviewId: string,
+  decisionInput: TrustedSellerDecision,
+): Promise<AdminActionResult<{ id: string; status: TrustedSellerReviewStatus }>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const decision = asTrustedSellerDecision(decisionInput);
+  if (!decision) {
+    return { ok: false, error: 'invalid-input', field: 'decision', message: 'Unknown decision.' };
+  }
+
+  const admin = createAdminClient();
+  const { data: review, error: readError } = await admin
+    .from('trusted_seller_reviews')
+    .select('id, profile_id, status')
+    .eq('id', reviewId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: 'persistence-error', message: readError.message };
+  if (!review) return { ok: false, error: 'not-found' };
+
+  const next = trustedSellerDecisionOutcome(review.status, decision);
+  if (!next) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: `This application is already ${review.status.toLowerCase()}. Reload to see the latest.`,
+    };
+  }
+
+  if (next === 'APPROVED') {
+    const { data: profile, error: profileError } = await admin
+      .from('profiles')
+      .select('identity_check_status, fraud_banned_at, closed_at')
+      .eq('id', review.profile_id)
+      .maybeSingle();
+    if (profileError) return { ok: false, error: 'persistence-error', message: profileError.message };
+    if (!profile) return { ok: false, error: 'not-found' };
+    const blocker = trustedSellerApprovalBlocker({
+      identityVerified: profile.identity_check_status === 'VERIFIED',
+      fraudBanned: Boolean(profile.fraud_banned_at),
+      closed: Boolean(profile.closed_at),
+    });
+    if (blocker === 'identity-unverified') {
+      return {
+        ok: false,
+        error: 'identity-unverified',
+        message: "They haven't passed the ID check yet. Approve once they have.",
+      };
+    }
+    if (blocker) {
+      return {
+        ok: false,
+        error: 'invalid-input',
+        message:
+          blocker === 'account-suspended'
+            ? 'This account is suspended and cannot be approved.'
+            : 'This account is closed and cannot be approved.',
+      };
+    }
+  }
+
+  const { data: updated, error: writeError } = await admin
+    .from('trusted_seller_reviews')
+    .update({
+      status: next,
+      decided_at: new Date().toISOString(),
+      decided_by: gate.adminId,
+      decision_reason: null,
+    })
+    .eq('id', review.id)
+    .eq('status', review.status)
+    .select('id')
+    .maybeSingle();
+  if (writeError) return { ok: false, error: 'persistence-error', message: writeError.message };
+  if (!updated) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: 'Someone else changed this application. Reload to see the latest.',
+    };
+  }
+
+  const notice = TRUSTED_SELLER_NOTIFICATION[decision];
+  await createNotification({
+    userId: review.profile_id,
+    type: 'SYSTEM',
+    title: notice.title,
+    body: notice.body,
+    link: '/trusted-sellers/apply',
+  });
+
+  revalidatePath('/admin');
+  revalidatePath(`/sellers/${review.profile_id}`);
+  // The public directory is cached; a decision must show on it at once.
+  revalidateTag(TRUSTED_DIRECTORY_CACHE_TAG, { expire: 0 });
+  return { ok: true, data: { id: review.id, status: next } };
+});
+
+/**
+ * Save the staff working notes on a Trusted Seller review (0152). Admin-only.
+ *
+ * Notes never reach the member: the column has no member grant. Blank clears them.
+ */
+export const saveTrustedSellerNotes = withActionLog('admin.saveTrustedSellerNotes', async function saveTrustedSellerNotes(
+  reviewId: string,
+  notes: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const trimmed = typeof notes === 'string' ? notes.trim() : '';
+  if (trimmed.length > TRUSTED_SELLER_NOTES_MAX_LENGTH) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      field: 'notes',
+      message: `Keep notes under ${TRUSTED_SELLER_NOTES_MAX_LENGTH.toLocaleString('en-AU')} characters.`,
+    };
+  }
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('trusted_seller_reviews')
+    .update({ staff_notes: trimmed || null })
+    .eq('id', reviewId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+
+  revalidatePath('/admin');
+  return { ok: true, data: { id: data.id } };
 });
 
 /**
@@ -1527,4 +1703,434 @@ export const rejectStaffResolution = withActionLog('admin.rejectStaffResolution'
   }
   revalidatePath('/admin/arbitration');
   return { ok: true, data: { id: proposalId } };
+});
+
+// ---------------------------------------------------------------------------
+// Off-platform scam reports (scam-reports spec). Admin-only, like the rest of the
+// console. Nothing here runs on its own: every action is a staff decision, and a
+// staff member who is the reporter or the matched member is refused (recusal).
+// ---------------------------------------------------------------------------
+
+/** The reporter and the matched member of one report, for recusal. */
+async function scamReportParties(reportId: string): Promise<{ reporterId: string | null } | null> {
+  const { data, error } = await createAdminClient()
+    .from('scam_reports')
+    .select('reporter_id')
+    .eq('id', reportId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { reporterId: data.reporter_id };
+}
+
+function recusedFromScamReport(staffId: string, parties: { reporterId: string | null }, profileId?: string): boolean {
+  return staffId === parties.reporterId || (profileId !== undefined && staffId === profileId);
+}
+
+/** Mark a report reviewed or corroborated. */
+export const reviewScamReport = withActionLog('admin.reviewScamReport', async function reviewScamReport(
+  reportId: string,
+  status: 'REVIEWED' | 'CORROBORATED',
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (status !== 'REVIEWED' && status !== 'CORROBORATED') {
+    return { ok: false, error: 'invalid-input', message: 'Unknown status.' };
+  }
+  const parties = await scamReportParties(reportId);
+  if (!parties) return { ok: false, error: 'not-found' };
+  if (recusedFromScamReport(gate.adminId, parties)) {
+    return { ok: false, error: 'RECUSED', message: 'You filed this report, so you cannot review it.' };
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await createAdminClient()
+    .from('scam_reports')
+    .update({ status, reviewed_by: gate.adminId, reviewed_at: now, updated_at: now })
+    .eq('id', reportId)
+    .not('status', 'in', '(DISMISSED,WITHDRAWN)')
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'invalid-input', message: 'This report was dismissed or withdrawn.' };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: data.id } };
+});
+
+/** Private staff notes on a report. Blank clears them. */
+export const saveScamReportNotes = withActionLog('admin.saveScamReportNotes', async function saveScamReportNotes(
+  reportId: string,
+  notes: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const trimmed = typeof notes === 'string' ? notes.trim() : '';
+  if (trimmed.length > SCAM_REPORT_LIMITS.narrativeMax) {
+    return { ok: false, error: 'invalid-input', field: 'notes', message: 'Keep notes under 4,000 characters.' };
+  }
+  const { data, error } = await createAdminClient()
+    .from('scam_reports')
+    .update({ staff_notes: trimmed || null, updated_at: new Date().toISOString() })
+    .eq('id', reportId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: data.id } };
+});
+
+/**
+ * Dismiss a report as wrong, unsupported or malicious. Its matches are deleted at once
+ * and the report itself is deleted by the `:17` job 90 days later. Members it matched
+ * who had been notified are told it was cleared.
+ */
+export const dismissScamReport = withActionLog('admin.dismissScamReport', async function dismissScamReport(
+  reportId: string,
+  reason: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const why = typeof reason === 'string' ? reason.trim() : '';
+  if (!why || why.length > 500) {
+    return { ok: false, error: 'invalid-input', field: 'reason', message: 'Give a short reason (up to 500 characters).' };
+  }
+  const parties = await scamReportParties(reportId);
+  if (!parties) return { ok: false, error: 'not-found' };
+  if (recusedFromScamReport(gate.adminId, parties)) {
+    return { ok: false, error: 'RECUSED', message: 'You filed this report, so you cannot decide it.' };
+  }
+
+  const admin = createAdminClient();
+  const now = new Date().toISOString();
+  const { data, error } = await admin
+    .from('scam_reports')
+    .update({
+      status: 'DISMISSED',
+      dismiss_reason: why,
+      dismissed_at: now,
+      reviewed_by: gate.adminId,
+      reviewed_at: now,
+      updated_at: now,
+    })
+    .eq('id', reportId)
+    .not('status', 'in', '(DISMISSED,WITHDRAWN)')
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'invalid-input', message: 'This report was already dismissed or withdrawn.' };
+
+  const { data: matches, error: matchReadError } = await admin
+    .from('scam_report_matches')
+    .delete()
+    .eq('report_id', reportId)
+    .select('profile_id, notified_at');
+  if (matchReadError) return { ok: false, error: 'persistence-error', message: matchReadError.message };
+  for (const match of matches ?? []) {
+    if (!match.notified_at) continue;
+    await createNotification({
+      userId: match.profile_id,
+      type: 'SYSTEM',
+      title: 'Report cleared',
+      body: 'We looked into the report we told you about and closed it. There’s nothing more you need to do.',
+      link: null,
+    });
+  }
+
+  revalidatePath('/admin');
+  return { ok: true, data: { id: data.id } };
+});
+
+/**
+ * Dismiss one match: the wrong person, or someone being impersonated. The match is
+ * deleted, never kept, and the member is told if they had been notified.
+ */
+export const dismissScamReportMatch = withActionLog('admin.dismissScamReportMatch', async function dismissScamReportMatch(
+  reportId: string,
+  profileId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const parties = await scamReportParties(reportId);
+  if (!parties) return { ok: false, error: 'not-found' };
+  if (recusedFromScamReport(gate.adminId, parties, profileId)) {
+    return { ok: false, error: 'RECUSED', message: 'You are a party to this report, so you cannot decide it.' };
+  }
+
+  const { data, error } = await createAdminClient()
+    .from('scam_report_matches')
+    .delete()
+    .eq('report_id', reportId)
+    .eq('profile_id', profileId)
+    .select('notified_at')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  if (data.notified_at) {
+    await createNotification({
+      userId: profileId,
+      type: 'SYSTEM',
+      title: 'Report cleared',
+      body: 'We looked into the report we told you about and found it wasn’t about you. There’s nothing more you need to do.',
+      link: null,
+    });
+  }
+  revalidatePath('/admin');
+  return { ok: true, data: { id: reportId } };
+});
+
+/**
+ * Tell a matched member there is a report and give them 14 days to respond. The notice
+ * names no reporter, identifier or story (Req 8.1).
+ */
+export const notifyScamReportMatch = withActionLog('admin.notifyScamReportMatch', async function notifyScamReportMatch(
+  reportId: string,
+  profileId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const parties = await scamReportParties(reportId);
+  if (!parties) return { ok: false, error: 'not-found' };
+  if (recusedFromScamReport(gate.adminId, parties, profileId)) {
+    return { ok: false, error: 'RECUSED', message: 'You are a party to this report, so you cannot decide it.' };
+  }
+
+  const now = new Date();
+  const due = new Date(now.getTime() + SCAM_REPORT_LIMITS.responseDays * 86_400_000);
+  const { data, error } = await createAdminClient()
+    .from('scam_report_matches')
+    .update({ notified_at: now.toISOString(), response_due_at: due.toISOString() })
+    .eq('report_id', reportId)
+    .eq('profile_id', profileId)
+    .is('notified_at', null)
+    .select('report_id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'invalid-input', message: 'They have already been told.' };
+
+  await createNotification({
+    userId: profileId,
+    type: 'SYSTEM',
+    title: 'We need to check something with you',
+    body: `We've received a report involving details linked to your account. Tell us your side by ${due.toLocaleDateString('en-AU', { day: 'numeric', month: 'long' })}.`,
+    link: `/report-scam/response/${reportId}`,
+  });
+  revalidatePath('/admin');
+  return { ok: true, data: { id: reportId } };
+});
+
+/** Record that staff believe the match is the right person. Acts on nothing by itself. */
+export const confirmScamReportMatch = withActionLog('admin.confirmScamReportMatch', async function confirmScamReportMatch(
+  reportId: string,
+  profileId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const parties = await scamReportParties(reportId);
+  if (!parties) return { ok: false, error: 'not-found' };
+  if (recusedFromScamReport(gate.adminId, parties, profileId)) {
+    return { ok: false, error: 'RECUSED', message: 'You are a party to this report, so you cannot decide it.' };
+  }
+  const { data, error } = await createAdminClient()
+    .from('scam_report_matches')
+    .update({ status: 'CONFIRMED', decided_by: gate.adminId, decided_at: new Date().toISOString() })
+    .eq('report_id', reportId)
+    .eq('profile_id', profileId)
+    .select('report_id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: reportId } };
+});
+
+/**
+ * Put a staff hold on (or lift it from) a member's unreleased cash-sale payouts. The
+ * release policy already honours `seller_payout_hold_reason = 'STAFF'`. Lifting only
+ * clears a STAFF hold, never a chargeback or fraud-warning hold.
+ */
+export const setMemberPayoutHold = withActionLog('admin.setMemberPayoutHold', async function setMemberPayoutHold(
+  profileId: string,
+  hold: boolean,
+): Promise<AdminActionResult<{ id: string; affected: number }>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (gate.adminId === profileId) {
+    return { ok: false, error: 'RECUSED', message: 'You cannot hold your own payouts.' };
+  }
+  const admin = createAdminClient();
+  const query = admin
+    .from('cash_sales')
+    .update({ seller_payout_hold_reason: hold ? 'STAFF' : null })
+    .eq('seller_id', profileId)
+    .neq('seller_payout_status', 'SETTLED');
+  const { data, error } = await (hold
+    ? query.is('seller_payout_hold_reason', null)
+    : query.eq('seller_payout_hold_reason', 'STAFF')
+  ).select('id');
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: profileId, affected: (data ?? []).length } };
+});
+
+/**
+ * Propose a fraud ban on off-platform reports (Req 7.3). Refused unless the cluster is
+ * corroborated, the match is not handle-only, and the member has had their say. It is
+ * a PROPOSAL: a second admin approves it with {@link approveScamFraudBan}.
+ */
+export const proposeScamFraudBan = withActionLog('admin.proposeScamFraudBan', async function proposeScamFraudBan(
+  reportId: string,
+  profileId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const parties = await scamReportParties(reportId);
+  if (!parties) return { ok: false, error: 'not-found' };
+  if (recusedFromScamReport(gate.adminId, parties, profileId)) {
+    return { ok: false, error: 'RECUSED', message: 'You are a party to this report, so you cannot decide it.' };
+  }
+
+  const admin = createAdminClient();
+  const { data: match, error: matchError } = await admin
+    .from('scam_report_matches')
+    .select('strength, notified_at, responded_at, response_due_at, ban_proposed_at')
+    .eq('report_id', reportId)
+    .eq('profile_id', profileId)
+    .maybeSingle();
+  if (matchError) return { ok: false, error: 'persistence-error', message: matchError.message };
+  if (!match) return { ok: false, error: 'not-found' };
+  if (match.ban_proposed_at) {
+    return { ok: false, error: 'approval-required', message: 'A ban is already proposed and waiting for a second admin.' };
+  }
+
+  let strength: number;
+  try {
+    strength = await clusterStrengthForReport(reportId, admin);
+  } catch {
+    return { ok: false, error: 'persistence-error', message: 'Could not check how many reports back this up. Try again.' };
+  }
+  const allowed = canFraudBan({
+    clusterStrength: strength,
+    matchStrength: match.strength as ScamMatchStrength,
+    notifiedAt: match.notified_at,
+    respondedAt: match.responded_at,
+    responseDueAt: match.response_due_at,
+    now: new Date(),
+  });
+  if (!allowed.ok) return { ok: false, error: 'invalid-input', message: allowed.reason };
+
+  const { error } = await admin
+    .from('scam_report_matches')
+    .update({ ban_proposed_by: gate.adminId, ban_proposed_at: new Date().toISOString() })
+    .eq('report_id', reportId)
+    .eq('profile_id', profileId)
+    .is('ban_proposed_at', null);
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  revalidatePath('/admin');
+  return { ok: false, error: 'approval-required', message: 'Ban proposed. A second admin needs to approve it.' };
+});
+
+/**
+ * Approve a proposed scam-report fraud ban and carry it out. The approver must be a
+ * different admin, or the same one after the solo cooling-off period when they are
+ * the only staff account (`canApprove`). The guard is re-checked at approval.
+ */
+export const approveScamFraudBan = withActionLog('admin.approveScamFraudBan', async function approveScamFraudBan(
+  reportId: string,
+  profileId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const parties = await scamReportParties(reportId);
+  if (!parties) return { ok: false, error: 'not-found' };
+
+  const admin = createAdminClient();
+  const { data: match, error: matchError } = await admin
+    .from('scam_report_matches')
+    .select('strength, notified_at, responded_at, response_due_at, ban_proposed_by, ban_proposed_at')
+    .eq('report_id', reportId)
+    .eq('profile_id', profileId)
+    .maybeSingle();
+  if (matchError) return { ok: false, error: 'persistence-error', message: matchError.message };
+  if (!match?.ban_proposed_by || !match.ban_proposed_at) {
+    return { ok: false, error: 'invalid-input', message: 'No ban has been proposed.' };
+  }
+
+  let staff: number;
+  let strength: number;
+  try {
+    [staff, strength] = await Promise.all([staffCount(), clusterStrengthForReport(reportId, admin)]);
+  } catch {
+    return { ok: false, error: 'persistence-error', message: 'Could not check the approval. Try again.' };
+  }
+  const refusal = canApprove({
+    status: 'PENDING',
+    proposedBy: match.ban_proposed_by,
+    proposedAt: match.ban_proposed_at,
+    approverId: gate.adminId,
+    participantIds: [parties.reporterId, profileId],
+    staffCount: staff,
+    now: new Date(),
+  });
+  if (refusal === 'SAME_STAFFER') return { ok: false, error: 'SAME_STAFFER', message: 'A different admin needs to approve this.' };
+  if (refusal === 'COOLING_OFF') return { ok: false, error: 'COOLING_OFF', message: 'You can approve your own proposal 24 hours after making it.' };
+  if (refusal === 'RECUSED') return { ok: false, error: 'RECUSED', message: 'You are a party to this report, so you cannot decide it.' };
+  if (refusal) return { ok: false, error: 'approval-invalid', message: 'This proposal can’t be approved.' };
+
+  const allowed = canFraudBan({
+    clusterStrength: strength,
+    matchStrength: match.strength as ScamMatchStrength,
+    notifiedAt: match.notified_at,
+    respondedAt: match.responded_at,
+    responseDueAt: match.response_due_at,
+    now: new Date(),
+  });
+  if (!allowed.ok) return { ok: false, error: 'invalid-input', message: allowed.reason };
+
+  const banned = await enforceProfileFraudBan({ profileId, staffId: gate.adminId });
+  if (!banned.ok) return { ok: false, error: 'persistence-error', message: banned.message };
+
+  const { error } = await admin
+    .from('scam_report_matches')
+    .update({ status: 'CONFIRMED', decided_by: gate.adminId, decided_at: new Date().toISOString() })
+    .eq('report_id', reportId)
+    .eq('profile_id', profileId);
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: reportId } };
+});
+
+/**
+ * Delete a report outright, with its fingerprints, matches and evidence: for a
+ * successful correction request from the person it concerns (Req 9.6).
+ */
+export const deleteScamReport = withActionLog('admin.deleteScamReport', async function deleteScamReport(
+  reportId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const admin = createAdminClient();
+  const { data: report, error } = await admin
+    .from('scam_reports')
+    .select('id, evidence_paths')
+    .eq('id', reportId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!report) return { ok: false, error: 'not-found' };
+
+  const { data: matches } = await admin
+    .from('scam_report_matches')
+    .select('member_response_paths')
+    .eq('report_id', reportId);
+  const paths = [
+    ...(report.evidence_paths ?? []),
+    ...(matches ?? []).flatMap((match) => match.member_response_paths ?? []),
+  ];
+  const storageError = await removeScamEvidence(admin, paths);
+  if (storageError) return { ok: false, error: 'persistence-error', message: storageError };
+
+  // Identifiers and matches go with it (`on delete cascade`).
+  const { error: deleteError } = await admin.from('scam_reports').delete().eq('id', reportId);
+  if (deleteError) return { ok: false, error: 'persistence-error', message: deleteError.message };
+  revalidatePath('/admin');
+  return { ok: true, data: { id: reportId } };
 });

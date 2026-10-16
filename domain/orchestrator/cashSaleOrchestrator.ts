@@ -908,7 +908,13 @@ export interface CashSaleRepository {
   loadSellerExposure?(
     sellerId: string,
     excludeCashSaleId: string,
-  ): Promise<{ qualifyingCompletedSales: number; openCollectedMinor: number; overrideMinor: number | null }>;
+  ): Promise<{
+    qualifyingCompletedSales: number;
+    openCollectedMinor: number;
+    overrideMinor: number | null;
+    /** Staff-approved Trusted Seller (0152): a higher limit, never no limit. */
+    trustedSeller?: boolean;
+  }>;
   /** Record WHEN (or why not) a deferred payout may move. Spends no attempt. */
   recordPayoutDeferral?(params: {
     cashSaleId: string;

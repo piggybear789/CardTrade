@@ -250,6 +250,13 @@ export interface OnboardingWizardProps {
    * rather than offering its button again.
    */
   providerReturn?: ProviderReturn | null;
+  /**
+   * An intent the member already gave before reaching the wizard, which removes the
+   * intent step from the spine. Today only `seller`, for someone who signed up from the
+   * Trusted Seller page (0152): asking "buy or sell?" of a member who just applied to
+   * sell would be a question they have already answered.
+   */
+  presetIntent?: 'seller' | null;
 }
 
 export function OnboardingWizard({
@@ -258,6 +265,7 @@ export function OnboardingWizard({
   regions,
   guessedRegion = null,
   providerReturn = null,
+  presetIntent = null,
 }: OnboardingWizardProps) {
   const router = useRouter();
   const exitPath = redirectTo ?? '/';
@@ -302,7 +310,7 @@ export function OnboardingWizard({
   );
   const [waitlistRegion, setWaitlistRegion] = useState<string | null>(guessedWaitlistRegion);
   const regionChoices = regions;
-  const [intent, setIntent] = useState<Intent>(null);
+  const [intent, setIntent] = useState<Intent>(presetIntent);
   // Whether the seller step reports both its gates satisfied. Owned here rather than
   // re-read, because the surface already knows and two readers of one fact drift.
   //
@@ -314,16 +322,27 @@ export function OnboardingWizard({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const stepIndex = STEPS.indexOf(step);
+  // A preset intent takes the intent step off the spine entirely, so Back never lands
+  // on a question the member was not asked.
+  const spine = presetIntent ? STEPS.filter((s) => s !== 'intent') : STEPS;
+  const stepIndex = spine.indexOf(step);
   // The waitlist answer ends the wizard at the region step, so the intent dot is
   // dropped the moment that tile is chosen — the same honesty rule that keeps
   // `seller-onboarding` out of the count: never show a member a step they will not see.
   const progressSteps =
-    regionChoice === 'waitlist' ? STEPS.filter((s) => s !== 'intent') : STEPS;
+    regionChoice === 'waitlist' ? spine.filter((s) => s !== 'intent') : spine;
   const progressIndex = progressSteps.indexOf(step);
 
+  // Stripe's hosted pages return to this path. With a destination to finish on, carry
+  // it through the round trip, or a Trusted Seller applicant who set up payouts on
+  // Stripe would come back to a wizard that no longer knows where they were going.
+  const sellerReturnPath =
+    presetIntent && redirectTo
+      ? `/onboarding?redirectTo=${encodeURIComponent(redirectTo)}`
+      : '/onboarding';
+
   function goBack() {
-    const previous = STEPS[stepIndex - 1];
+    const previous = spine[stepIndex - 1];
     if (previous) {
       setError(null);
       setStep(previous);
@@ -363,6 +382,12 @@ export function OnboardingWizard({
 
     if (!result.ok) {
       setError(result.message);
+      return;
+    }
+
+    // Intent already given (a Trusted Seller applicant): go straight on as a seller.
+    if (presetIntent) {
+      await handleIntentContinue();
       return;
     }
 
@@ -795,7 +820,7 @@ export function OnboardingWizard({
               </DialogHeader>
 
               <UnifiedOnboardingSurface
-                returnPath="/onboarding"
+                returnPath={sellerReturnPath}
                 returningFrom={providerReturn}
                 onSettledChange={setSellerSettled}
                 onComplete={() => {
@@ -863,9 +888,19 @@ export function OnboardingWizard({
                 <PendingLabel
                   pending={saving}
                   spinner={false}
-                  pendingLabel={regionChoice === 'waitlist' ? 'Joining…' : 'Saving…'}
+                  pendingLabel={
+                    regionChoice === 'waitlist'
+                      ? 'Joining…'
+                      : presetIntent === 'seller'
+                        ? 'Opening Stripe…'
+                        : 'Saving…'
+                  }
                 >
-                  {regionChoice === 'waitlist' ? 'Join the waitlist' : 'Continue'}
+                  {regionChoice === 'waitlist'
+                    ? 'Join the waitlist'
+                    : presetIntent === 'seller'
+                      ? 'Verify Identity'
+                      : 'Continue'}
                 </PendingLabel>
                 <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
@@ -920,7 +955,7 @@ export function OnboardingWizard({
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setStep('intent')}
+                onClick={() => setStep(presetIntent ? 'region' : 'intent')}
                 disabled={sellerSettled === null}
                 aria-hidden={sellerSettled === null || undefined}
                 className={sellerSettled === null ? 'invisible' : undefined}
@@ -928,6 +963,24 @@ export function OnboardingWizard({
                 <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
                 Back
               </Button>
+              {/* A TRUSTED SELLER APPLICANT CAN LEAVE BEFORE PAYOUTS. The review needs
+                  their ID, not their bank details, and the application page says what
+                  is still outstanding — so they are not held here until both steps are
+                  done. Onboarding is already complete at this point. Same reserve rule
+                  as Back: laid out invisible while the status is unknown. */}
+              {presetIntent ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => router.push(exitPath)}
+                  disabled={sellerSettled === null}
+                  aria-hidden={sellerSettled === null || undefined}
+                  className={sellerSettled === null ? 'invisible' : undefined}
+                >
+                  Continue to application
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
+                </Button>
+              ) : null}
             </WizardFooter>
           ) : null}
 

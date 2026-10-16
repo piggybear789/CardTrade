@@ -11,8 +11,10 @@
 
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath } from 'next/cache';
+import { after } from 'next/server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { refreshMemberMatchKeys } from '@/lib/risk/scamMatching';
 import { createClient } from '@/lib/supabase/server';
 import { ensureProfile } from '@/lib/auth/ensureProfile';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -170,6 +172,12 @@ export const updateProfile = withActionLog('profile.updateProfile', async functi
   // The public seller profile is a separate route segment and is not covered by
   // the root layout revalidation above.
   revalidatePath(`/sellers/${user.id}`);
+
+  // The contact email is a scam-report match key (0154). Re-derived after the
+  // response on every save, which is cheaper than reading the old value to compare.
+  // Never throws, so matching cannot fail the save.
+  const userId = user.id;
+  after(() => refreshMemberMatchKeys(userId));
 
   return ok({
     id: data.id,

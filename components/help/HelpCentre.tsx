@@ -56,8 +56,35 @@ interface Answer {
   body: ReactNode;
 }
 
+/** Off-platform scam reports (0154). */
+const SCAM_REPORT_ANSWER: Answer = {
+  id: 'scammed-elsewhere',
+  topic: 'buying',
+  question: 'I was scammed outside NoDitto',
+  keywords: 'scam scammed instagram facebook paypal payid bank transfer report scammer off platform',
+  body: (
+    <>
+      <p>
+        We can&rsquo;t get back money paid outside NoDitto, so call your bank or payment provider
+        first. They can sometimes stop a payment. In Australia, report it to ReportCyber and
+        Scamwatch too.
+      </p>
+      <p>
+        Then{' '}
+        <Link href="/report-scam" className={LINK}>
+          tell us about it
+        </Link>
+        . You&rsquo;ll need to have verified your ID. We check every report by hand, and if the same
+        payment details or handles turn up here, our team looks into it. We never publish reports
+        or tell anyone who sent them.
+      </p>
+    </>
+  ),
+};
+
 function answers(tradeInspectionDays: number): Answer[] {
   return [
+    SCAM_REPORT_ANSWER,
     {
       id: 'holds',
       topic: 'buying',

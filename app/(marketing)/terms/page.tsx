@@ -62,6 +62,22 @@ export default function TermsPage() {
         operational process, not a promise that every loss will be made good.
       </p>
 
+      <h2>Reporting scams</h2>
+      <p>
+        ID-verified members can report a scam that happened outside NoDitto.
+        Reports are reviewed by NoDitto staff and are never published. NoDitto
+        cannot recover money paid outside NoDitto and does not have to act on
+        any report. A report must be true to the best of your knowledge. Filing
+        one you know is false, or to harm someone, breaches these Terms and can
+        lead to your account being closed.
+      </p>
+      <p>
+        If details linked to your account match a report, we may ask you to
+        respond before we decide anything. We may limit selling, hold payouts
+        or, after a staff-confirmed fraud finding approved by a second staff
+        member, suspend an account.
+      </p>
+
       <h2>Accounts</h2>
       <p>
         You must provide accurate account details and keep your password

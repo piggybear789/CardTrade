@@ -7,7 +7,16 @@
 // wrong queue.
 
 /** Which queue the operator is looking at. */
-export type ConsoleTab = 'payouts' | 'reports' | 'feedback' | 'errors' | 'reconciliation';
+export type ConsoleTab =
+  | 'payouts'
+  | 'reports'
+  | 'feedback'
+  | 'errors'
+  | 'reconciliation'
+  /** Trusted Seller reviews (0152). */
+  | 'trusted'
+  /** Off-platform scam reports and member matches (0154). */
+  | 'scams';
 
 /**
  * Narrow an arbitrary `?tab=` value.
@@ -17,7 +26,12 @@ export type ConsoleTab = 'payouts' | 'reports' | 'feedback' | 'errors' | 'reconc
  */
 export function resolveConsoleTab(value: string | string[] | null | undefined): ConsoleTab {
   const raw = Array.isArray(value) ? value[0] : value;
-  return raw === 'reports' || raw === 'feedback' || raw === 'errors' || raw === 'reconciliation'
+  return raw === 'reports' ||
+    raw === 'feedback' ||
+    raw === 'errors' ||
+    raw === 'reconciliation' ||
+    raw === 'trusted' ||
+    raw === 'scams'
     ? raw
     : 'payouts';
 }

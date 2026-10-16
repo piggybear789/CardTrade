@@ -75,22 +75,23 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
       alsoPrefix: ['/listings'],
       except: ['/listings/new', '/listings/mine'],
     },
-    // Private-deal compose is a dialog. Trades still lists open rooms
-    // and unused trade invites.
+    // NO TRADES LINK. Trades is a member's own contract inbox, reached from the
+    // workspace rail and the account menu like Purchases and Sales; the bar keeps to
+    // destinations anyone can use.
     //
-    // THE BAR SHEDS ITS SECONDARY LINKS AS IT NARROWS — Trades below `lg`, Private
-    // Deal below `xl` for a member — so the search beside it keeps a usable width.
-    // Both stay one tap away in the workspace rail and the account menu.
-    ...(isAuthenticated
-      ? [
-          {
-            href: '/trades',
-            label: 'Trades',
-            match: 'prefix' as const,
-            className: 'hidden lg:inline-flex',
-          },
-        ]
-      : []),
+    // THE BAR SHEDS ITS SECONDARY LINKS AS IT NARROWS — Trusted Sellers below `lg`,
+    // Private Deal below `xl` for a member — so the search beside it keeps a usable
+    // width.
+    //
+    // The public Trusted Seller directory (0152), for guests and members alike: it
+    // is where a buyer finds reviewed sellers and a vendor finds how to join. The
+    // site menu carries it on narrower screens.
+    {
+      href: '/trusted-sellers',
+      label: 'Trusted Sellers',
+      match: 'prefix',
+      className: 'hidden lg:inline-flex',
+    },
   ];
 
   return (

@@ -702,7 +702,7 @@ export function createSupabaseCashSaleRepository(
       // would wave through the exact new-seller burst the cap exists to stop.
       const { data: profile, error: profileError } = await client
         .from('profiles')
-        .select('exposure_limit_override_minor')
+        .select('exposure_limit_override_minor, trusted_seller_at')
         .eq('id', sellerId)
         .maybeSingle();
       if (profileError) throw new Error(`[cash sale] loadSellerExposure profile: ${profileError.message}`);
@@ -756,12 +756,16 @@ export function createSupabaseCashSaleRepository(
           buyerRelated: related.has(row.buyer_id as string),
         }));
 
-      const override = (profile as { exposure_limit_override_minor?: number | null } | null)
-        ?.exposure_limit_override_minor;
+      const sellerProfile = profile as {
+        exposure_limit_override_minor?: number | null;
+        trusted_seller_at?: string | null;
+      } | null;
+      const override = sellerProfile?.exposure_limit_override_minor;
       return {
         qualifyingCompletedSales: countQualifyingSales(facts, new Date()),
         openCollectedMinor,
         overrideMinor: override === undefined || override === null ? null : Number(override),
+        trustedSeller: Boolean(sellerProfile?.trusted_seller_at),
       };
     },
 

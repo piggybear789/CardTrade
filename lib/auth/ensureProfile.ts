@@ -15,7 +15,10 @@ import 'server-only';
 // This is a trusted server-side provisioning step keyed to the id Supabase Auth
 // just returned, so the RLS-bypassing client is the right binding.
 
+import { after } from 'next/server';
+
 import { createAdminClient } from '@/lib/supabase/admin';
+import { refreshMemberMatchKeys } from '@/lib/risk/scamMatching';
 
 /** Outcome of {@link ensureProfile}. */
 export type EnsureProfileResult =
@@ -85,6 +88,15 @@ export async function ensureProfile(
       return { ok: true, created: false };
     }
     return { ok: false, message: insertError.message };
+  }
+
+  // A new member's scam-report match keys (0154, Req 6.3), after the response. The
+  // hourly backfill covers any sign-up path that does not come through here, and any
+  // call outside a request (where `after` is unavailable).
+  try {
+    after(() => refreshMemberMatchKeys(userId));
+  } catch {
+    // Not in a request scope; the backfill picks this member up.
   }
 
   return { ok: true, created: true };

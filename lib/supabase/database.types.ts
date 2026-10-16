@@ -177,6 +177,13 @@ export type Database = {
           payee_name_unavailable_logged_at: string | null;
           identity_keys_missing_at: string | null;
           identity_grandfathered_at: string | null;
+          /**
+           * Trusted Seller approval (0152). Derived from `trusted_seller_reviews` by
+           * trigger; never written directly, and no member grant.
+           */
+          trusted_seller_at: string | null;
+          /** When this member's scam-report match keys were last derived (0154). Service role. */
+          match_keys_refreshed_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -243,6 +250,8 @@ export type Database = {
           payee_name_unavailable_logged_at?: string | null;
           identity_keys_missing_at?: string | null;
           identity_grandfathered_at?: string | null;
+          trusted_seller_at?: string | null;
+          match_keys_refreshed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -309,6 +318,8 @@ export type Database = {
           payee_name_unavailable_logged_at?: string | null;
           identity_keys_missing_at?: string | null;
           identity_grandfathered_at?: string | null;
+          trusted_seller_at?: string | null;
+          match_keys_refreshed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2767,6 +2778,217 @@ export type Database = {
         };
         Relationships: [];
       };
+      /**
+       * Trusted Seller reviews (0152). One per member. Service role writes; the member
+       * reads their own row without `staff_notes`, `decided_by` or `decision_reason`.
+       */
+      trusted_seller_reviews: {
+        Row: {
+          id: string;
+          profile_id: string;
+          status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED';
+          /** Legacy (0152). Null on applications made since 0153. */
+          instagram_handle: string | null;
+          staff_notes: string | null;
+          requested_at: string;
+          decided_at: string | null;
+          /** Null when a ban or a closure ended the review. */
+          decided_by: string | null;
+          /** `ACCOUNT_SUSPENDED` / `ACCOUNT_CLOSED` for a system decision. */
+          decision_reason: string | null;
+          updated_at: string;
+          /** 0153: the applicant's own account of their selling. Staff only. */
+          details: string | null;
+          /** 0153: paths in the private `trusted-seller-photos` bucket. Staff only. */
+          photo_paths: string[];
+        };
+        Insert: {
+          id?: string;
+          profile_id: string;
+          status?: 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED';
+          instagram_handle?: string | null;
+          staff_notes?: string | null;
+          requested_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_reason?: string | null;
+          updated_at?: string;
+          details?: string | null;
+          photo_paths?: string[];
+        };
+        Update: {
+          id?: string;
+          profile_id?: string;
+          status?: 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED';
+          instagram_handle?: string | null;
+          staff_notes?: string | null;
+          requested_at?: string;
+          decided_at?: string | null;
+          decided_by?: string | null;
+          decision_reason?: string | null;
+          updated_at?: string;
+          details?: string | null;
+          photo_paths?: string[];
+        };
+        Relationships: [];
+      };
+      /** Off-platform scam reports (0154). Staff only; service role writes. */
+      scam_reports: {
+        Row: {
+          id: string;
+          reporter_id: string | null;
+          status: 'SUBMITTED' | 'REVIEWED' | 'CORROBORATED' | 'DISMISSED' | 'WITHDRAWN';
+          narrative: string;
+          occurred_month: string;
+          amount_minor: number | null;
+          currency: string | null;
+          payment_method: string;
+          scammer_name_text: string | null;
+          evidence_paths: string[];
+          declared_at: string;
+          staff_notes: string | null;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          dismiss_reason: string | null;
+          dismissed_at: string | null;
+          withdrawn_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          reporter_id?: string | null;
+          status?: 'SUBMITTED' | 'REVIEWED' | 'CORROBORATED' | 'DISMISSED' | 'WITHDRAWN';
+          narrative: string;
+          occurred_month: string;
+          amount_minor?: number | null;
+          currency?: string | null;
+          payment_method: string;
+          scammer_name_text?: string | null;
+          evidence_paths: string[];
+          declared_at: string;
+          staff_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          dismiss_reason?: string | null;
+          dismissed_at?: string | null;
+          withdrawn_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          reporter_id?: string | null;
+          status?: 'SUBMITTED' | 'REVIEWED' | 'CORROBORATED' | 'DISMISSED' | 'WITHDRAWN';
+          narrative?: string;
+          occurred_month?: string;
+          amount_minor?: number | null;
+          currency?: string | null;
+          payment_method?: string;
+          scammer_name_text?: string | null;
+          evidence_paths?: string[];
+          declared_at?: string;
+          staff_notes?: string | null;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          dismiss_reason?: string | null;
+          dismissed_at?: string | null;
+          withdrawn_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** HMAC fingerprints in a scam report, with masked hints (0154). */
+      scam_report_identifiers: {
+        Row: { report_id: string; kind: string; platform: string; value_hash: string; hint: string };
+        Insert: { report_id: string; kind: string; platform?: string; value_hash: string; hint: string };
+        Update: { report_id?: string; kind?: string; platform?: string; value_hash?: string; hint?: string };
+        Relationships: [];
+      };
+      /** HMAC fingerprints NoDitto derives for each member (0154). */
+      member_match_keys: {
+        Row: {
+          profile_id: string;
+          kind: string;
+          platform: string;
+          value_hash: string;
+          source: 'CONTACT_EMAIL' | 'SOCIAL_LINK' | 'PAYOUT_ACCOUNT';
+          updated_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          kind: string;
+          platform?: string;
+          value_hash: string;
+          source: 'CONTACT_EMAIL' | 'SOCIAL_LINK' | 'PAYOUT_ACCOUNT';
+          updated_at?: string;
+        };
+        Update: {
+          profile_id?: string;
+          kind?: string;
+          platform?: string;
+          value_hash?: string;
+          source?: 'CONTACT_EMAIL' | 'SOCIAL_LINK' | 'PAYOUT_ACCOUNT';
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** Members matching a scam report (0154). Staff only. Dismissed matches are deleted. */
+      scam_report_matches: {
+        Row: {
+          report_id: string;
+          profile_id: string;
+          kinds: string[];
+          strength: 'STRONG' | 'MEDIUM' | 'WEAK';
+          status: 'OPEN' | 'CONFIRMED';
+          notified_at: string | null;
+          response_due_at: string | null;
+          responded_at: string | null;
+          member_response: string | null;
+          member_response_paths: string[];
+          decided_by: string | null;
+          decided_at: string | null;
+          ban_proposed_by: string | null;
+          ban_proposed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          report_id: string;
+          profile_id: string;
+          kinds: string[];
+          strength: 'STRONG' | 'MEDIUM' | 'WEAK';
+          status?: 'OPEN' | 'CONFIRMED';
+          notified_at?: string | null;
+          response_due_at?: string | null;
+          responded_at?: string | null;
+          member_response?: string | null;
+          member_response_paths?: string[];
+          decided_by?: string | null;
+          decided_at?: string | null;
+          ban_proposed_by?: string | null;
+          ban_proposed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          report_id?: string;
+          profile_id?: string;
+          kinds?: string[];
+          strength?: 'STRONG' | 'MEDIUM' | 'WEAK';
+          status?: 'OPEN' | 'CONFIRMED';
+          notified_at?: string | null;
+          response_due_at?: string | null;
+          responded_at?: string | null;
+          member_response?: string | null;
+          member_response_paths?: string[];
+          decided_by?: string | null;
+          decided_at?: string | null;
+          ban_proposed_by?: string | null;
+          ban_proposed_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       /** ESC-27 (0148): off-platform lure flags. Staff read; service role writes. */
       message_risk_flags: {
         Row: {
@@ -3112,6 +3334,12 @@ export type Database = {
            * publishes tenure rather than a sign-up timestamp.
            */
           member_since: string | null;
+          /**
+           * Staff-approved Trusted Seller (0152): `trusted_seller_at` set and the
+           * account open. A separate fact from `is_verified`, which it never implies
+           * or replaces.
+           */
+          is_trusted_seller: boolean;
         };
         Relationships: [];
       };

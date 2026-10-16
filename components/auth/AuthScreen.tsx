@@ -7,7 +7,8 @@ import type { ReactNode } from 'react';
  * ON THE PAGE, NOT ON A STAGE. These screens used to paint an obsidian backdrop with a
  * gold grid left over from an earlier palette. Under the dark desktop header that read
  * as one dark slab; under the light phone chrome it read as a modal over a blacked-out
- * page. Signing in is a page of the product, so it wears the product's own surface.
+ * page. Signing in is a page of the product, so it wears the product's own surface,
+ * lifted by a soft pastel mesh (`.auth-backdrop` in globals.css) rather than a stage.
  *
  * The height subtracts `--chrome-top` (see globals.css) so a short form centres in
  * the visible space without leaving a permanent sliver of document scroll.
@@ -17,7 +18,7 @@ import type { ReactNode } from 'react';
  */
 export function AuthScreen({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <main className="flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-group py-section sm:px-6">
+    <main className="auth-backdrop flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-group py-section sm:px-6">
       {aside ? (
         // STRETCHED, not centred, from `lg`: the aside is a tinted panel now and has to
         // stand as tall as the form card beside it, so the two read as one composition

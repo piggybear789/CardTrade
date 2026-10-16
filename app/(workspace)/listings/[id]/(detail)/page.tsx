@@ -230,7 +230,7 @@ export default async function ItemDetailPage({
     supabase
       .from("public_profiles")
       .select(
-        "display_name, rating, rating_count, is_verified, identity_first_name, region_code, avatar_path",
+        "display_name, rating, rating_count, is_verified, identity_first_name, region_code, avatar_path, is_trusted_seller",
       )
       .eq("id", item.owner_id)
       .maybeSingle(),
@@ -643,6 +643,7 @@ export default async function ItemDetailPage({
                 }
                 sellerAvatarPath={(sellerRow?.avatar_path as string | null) ?? null}
                 sellerVerified={Boolean(sellerRow?.is_verified)}
+                sellerTrusted={Boolean(sellerRow?.is_trusted_seller)}
                 sellerFirstName={
                   (sellerRow?.identity_first_name as string | null) ?? null
                 }
@@ -732,6 +733,7 @@ export default async function ItemDetailPage({
               }
               sellerAvatarPath={(sellerRow?.avatar_path as string | null) ?? null}
               sellerVerified={Boolean(sellerRow?.is_verified)}
+              sellerTrusted={Boolean(sellerRow?.is_trusted_seller)}
               sellerFirstName={
                 (sellerRow?.identity_first_name as string | null) ?? null
               }

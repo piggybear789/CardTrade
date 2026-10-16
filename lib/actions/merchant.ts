@@ -24,6 +24,8 @@
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { applyPayeeNameCheck } from '@/lib/identity/payeeCheck';
 import { recordRiskSignal } from '@/lib/risk/signals';
+import { refreshMemberMatchKeys } from '@/lib/risk/scamMatching';
+import { after } from 'next/server';
 import { z } from 'zod';
 
 import { createClient } from '@/lib/supabase/server';
@@ -477,6 +479,15 @@ export const refreshPayoutStatus = withActionLog('merchant.refreshPayoutStatus',
   // ESC-03 layer 3: remember the payout account (as an HMAC) for related accounts.
   await applyPayeeNameCheck(user.id, merchant.individualName);
   await recordRiskSignal(user.id, 'PAYOUT_ACCOUNT_FINGERPRINT', merchant.payoutAccountFingerprint);
+
+  // Scam-report match keys (0154). The payout BSB and last 4 are passed only when the
+  // binding exposed them; left out, the stored payout key is kept rather than wiped.
+  // After the response; never throws.
+  const userId = user.id;
+  const payoutBankHint = merchant.payoutBankHint;
+  after(() =>
+    refreshMemberMatchKeys(userId, payoutBankHint !== undefined ? { payoutBankHint } : {}),
+  );
 
   if (!applied.ok) return getMerchantState();
   return getMerchantState();

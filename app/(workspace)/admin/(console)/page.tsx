@@ -53,6 +53,14 @@ import {
 } from '@/components/admin/ErrorsQueue';
 import { DrainPayoutsButton, RetryPayoutButton } from '@/components/admin/PayoutActions';
 import { resolveConsoleTab, type ConsoleTab } from '@/components/admin/consoleTabs';
+import {
+  sortTrustedSellerQueue,
+  TrustedSellersQueue,
+  type TrustedSellerQueueRow,
+} from '@/components/admin/TrustedSellersQueue';
+import { signTrustedSellerPhotoUrls } from '@/lib/storage/trustedSellerPhotos';
+import { ScamReportsQueue } from '@/components/admin/ScamReportsQueue';
+import { loadScamQueue, scamMatchCountsFor, type ScamQueueCluster } from '@/lib/risk/scamQueue';
 import { PageShell } from '@/components/layout/PageShell';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionHeader } from '@/components/layout/SectionHeader';
@@ -136,6 +144,10 @@ interface ConsoleQueue {
   /** The group drilled into with `?group=`, read on its own so a filter cannot hide it. */
   selectedErrorGroup: ErrorGroupRow | null;
   errorOccurrences: ErrorLogRow[];
+  /** Trusted Seller reviews (0152), already sorted for the queue. */
+  trustedReviews: TrustedSellerQueueRow[];
+  /** Off-platform scam report clusters (0154). */
+  scamClusters: ScamQueueCluster[];
 }
 
 const EMPTY_QUEUE: ConsoleQueue = {
@@ -147,7 +159,116 @@ const EMPTY_QUEUE: ConsoleQueue = {
   errorGroups: [],
   selectedErrorGroup: null,
   errorOccurrences: [],
+  trustedReviews: [],
+  scamClusters: [],
 };
+
+/** How many Trusted Seller reviews the tab reads. Decided ones fall off the end first. */
+const TRUSTED_REVIEWS_SHOWN = 200;
+
+/**
+ * Pending Trusted Seller reviews whose member has passed the ID check: the ones that
+ * can be decided now, and the tab's badge count. Two head-light reads, because the
+ * verification status lives on `profiles` and the reviews table has no FK embed in the
+ * hand-maintained types.
+ */
+async function countReadyTrustedReviews(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<number> {
+  const { data: pending } = await admin
+    .from('trusted_seller_reviews')
+    .select('profile_id')
+    .eq('status', 'PENDING')
+    .limit(1000);
+  const ids = (pending ?? []).map((row) => row.profile_id);
+  if (ids.length === 0) return 0;
+  const { count } = await admin
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .in('id', ids)
+    .eq('identity_check_status', 'VERIFIED');
+  return count ?? 0;
+}
+
+/**
+ * The Trusted Seller tab's rows: each review plus the member facts the card shows.
+ * Every read is bounded and keyed by the reviews on screen.
+ */
+async function loadTrustedReviews(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<TrustedSellerQueueRow[]> {
+  const { data: reviews } = await admin
+    .from('trusted_seller_reviews')
+    .select('*')
+    .order('requested_at', { ascending: false })
+    .limit(TRUSTED_REVIEWS_SHOWN);
+  const rows = reviews ?? [];
+  if (rows.length === 0) return [];
+
+  const ids = rows.map((row) => row.profile_id);
+  const [{ data: profiles }, { data: listings }, { data: sales }, scamMatches] = await Promise.all([
+    admin
+      .from('profiles')
+      .select(
+        'id, display_name, identity_check_status, identity_check_name, region_code, created_at, social_links, rating, rating_count',
+      )
+      .in('id', ids),
+    admin.from('items').select('owner_id').in('owner_id', ids).limit(10_000),
+    admin
+      .from('cash_sales')
+      .select('seller_id')
+      .in('seller_id', ids)
+      .eq('status', 'COMPLETED')
+      .limit(10_000),
+    // Open off-platform scam matches (0154): a warning on the card, never a decision.
+    scamMatchCountsFor(admin, ids),
+  ]);
+
+  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const tally = (values: string[]) => {
+    const counts = new Map<string, number>();
+    for (const value of values) counts.set(value, (counts.get(value) ?? 0) + 1);
+    return counts;
+  };
+  const listingCounts = tally((listings ?? []).map((row) => row.owner_id as string));
+  const saleCounts = tally((sales ?? []).map((row) => row.seller_id as string));
+
+  // Application photos live in a private bucket; sign every one on screen at once.
+  const signed = await signTrustedSellerPhotoUrls(
+    admin,
+    rows.flatMap((row) => row.photo_paths ?? []),
+  );
+  const photoUrls = new Map(signed.map((entry) => [entry.path, entry.url]));
+
+  return sortTrustedSellerQueue(
+    rows.map((row) => {
+      const profile = profileById.get(row.profile_id);
+      return {
+        id: row.id,
+        profileId: row.profile_id,
+        status: row.status,
+        instagramHandle: row.instagram_handle,
+        details: row.details,
+        photos: (row.photo_paths ?? []).map((path) => ({ path, url: photoUrls.get(path) ?? null })),
+        staffNotes: row.staff_notes,
+        requestedAt: row.requested_at,
+        decidedAt: row.decided_at,
+        decisionReason: row.decision_reason,
+        displayName: profile?.display_name ?? 'Unknown member',
+        verifiedName: profile?.identity_check_name ?? null,
+        identityVerified: profile?.identity_check_status === 'VERIFIED',
+        regionCode: profile?.region_code ?? null,
+        joinedAt: profile?.created_at ?? null,
+        socialLinks: (profile?.social_links as Record<string, string> | null) ?? null,
+        rating: profile?.rating ?? null,
+        ratingCount: profile?.rating_count ?? 0,
+        listingCount: listingCounts.get(row.profile_id) ?? 0,
+        completedSales: saleCounts.get(row.profile_id) ?? 0,
+        scamMatchCount: scamMatches.get(row.profile_id) ?? 0,
+      };
+    }),
+  );
+}
 
 /**
  * Read only the visible tab's rows.
@@ -230,6 +351,25 @@ async function loadQueueForTab(
       return b.created_at.localeCompare(a.created_at);
     });
     return { ...EMPTY_QUEUE, feedback };
+  }
+
+  if (tab === 'trusted') {
+    return { ...EMPTY_QUEUE, trustedReviews: await loadTrustedReviews(admin) };
+  }
+
+  if (tab === 'scams') {
+    // `?view=all` keeps clusters whose every report was dismissed or withdrawn. The
+    // same `view` param the Errors tab reads, resolved once in `resolveErrorFilters`.
+    try {
+      return {
+        ...EMPTY_QUEUE,
+        scamClusters: await loadScamQueue(admin, { includeClosed: errorFilters.view === 'all' }),
+      };
+    } catch {
+      // Before 0154 is applied the tables do not exist. An empty tab beats a 500 on
+      // the whole console.
+      return EMPTY_QUEUE;
+    }
   }
 
   if (tab === 'payouts') {
@@ -340,6 +480,8 @@ export default async function AdminPage({
     disputedSaleCount,
     disputedTradeCount,
     openChargebackCount,
+    readyTrustedReviews,
+    scamReportCount,
   ] = await Promise.all([
     admin
       .from('reports')
@@ -376,6 +518,13 @@ export default async function AdminPage({
       .from('charge_disputes')
       .select('id', { count: 'exact', head: true })
       .is('closed_at', null),
+    countReadyTrustedReviews(admin),
+    // Scam reports nobody has looked at yet (0154). Errors before 0154 is applied,
+    // which reads as a null count, so the badge shows 0.
+    admin
+      .from('scam_reports')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'SUBMITTED'),
   ]);
 
   const openReports = reportCount.count ?? 0;
@@ -383,6 +532,7 @@ export default async function AdminPage({
   const openErrors = errorGroupCount.count ?? 0;
   const owedReleases = payoutCount.count ?? 0;
   const flaggedTrades = reconciliationCount.count ?? 0;
+  const scamsToReview = scamReportCount.count ?? 0;
   // Everything waiting on a human decision, across all four case kinds. Shown here as a
   // single number with a link out, rather than as four duplicated lists.
   const openCases =
@@ -399,6 +549,8 @@ export default async function AdminPage({
     errorGroups,
     selectedErrorGroup,
     errorOccurrences,
+    trustedReviews,
+    scamClusters,
   } = await queuePromise;
 
   // Resolve display names for the rows actually on screen, so no list shows a raw UUID.
@@ -488,6 +640,14 @@ export default async function AdminPage({
             count: flaggedTrades,
             href: '/admin?tab=reconciliation',
           },
+          {
+            key: 'trusted',
+            label: 'Trusted sellers',
+            shortLabel: 'Trusted',
+            count: readyTrustedReviews,
+            href: '/admin?tab=trusted',
+          },
+          { key: 'scams', label: 'Scams', count: scamsToReview, href: '/admin?tab=scams' },
         ]}
       />
 
@@ -770,6 +930,18 @@ export default async function AdminPage({
             </ul>
           )}
         </section>
+      ) : null}
+
+      {tab === 'trusted' ? (
+        <TrustedSellersQueue rows={trustedReviews} readyCount={readyTrustedReviews} />
+      ) : null}
+
+      {tab === 'scams' ? (
+        <ScamReportsQueue
+          clusters={scamClusters}
+          toReview={scamsToReview}
+          showingClosed={errorFilters.view === 'all'}
+        />
       ) : null}
 
       {tab === 'errors' ? (

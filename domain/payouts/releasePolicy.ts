@@ -56,6 +56,16 @@ export const NEW_SELLER_OPEN_EXPOSURE_MINOR: Readonly<Record<string, number>> = 
   bgn: 250_000,
 };
 
+/**
+ * A Trusted Seller's open-sales limit, as a multiple of the new-seller one (0152).
+ *
+ * A multiple rather than a second per-currency table, so every trading currency is
+ * covered by construction and the two limits cannot drift. AUD 2,000 becomes AUD
+ * 10,000. It raises the cap only: the holdback, chargeback holds and every other
+ * release rule still apply, and a staff override still replaces it outright.
+ */
+export const TRUSTED_SELLER_EXPOSURE_MULTIPLIER = 5;
+
 /** A sale must be at least this old to count toward "established". */
 export const QUALIFYING_SALE_AGE_DAYS = 14;
 /** And at least this much, per currency (minor units). Unlisted never qualifies. */
@@ -156,8 +166,9 @@ export function decideRelease(facts: ReleaseFacts, now: Date): ReleaseDecision {
  *
  * A non-null `overrideMinor` (`profiles.exposure_limit_override_minor`, staff-set) is
  * the limit whatever the currency or history; 0 pauses the seller. Otherwise an
- * established seller is never limited, and a new seller in an unlisted currency is
- * always refused.
+ * established seller is never limited, a Trusted Seller (0152) gets
+ * {@link TRUSTED_SELLER_EXPOSURE_MULTIPLIER} times the new-seller limit, and a new
+ * seller in an unlisted currency is always refused.
  */
 export function exceedsNewSellerExposure(p: {
   qualifyingCompletedSales: number;
@@ -165,14 +176,17 @@ export function exceedsNewSellerExposure(p: {
   addMinor: number;
   currency: string;
   overrideMinor?: number | null;
+  /** `profiles.trusted_seller_at` is set. */
+  trustedSeller?: boolean;
 }): boolean {
   const total = p.openCollectedMinor + p.addMinor;
   if (p.overrideMinor !== null && p.overrideMinor !== undefined) {
     return total > p.overrideMinor;
   }
   if (p.qualifyingCompletedSales >= NEW_SELLER_COMPLETED_SALES_THRESHOLD) return false;
-  const limit = NEW_SELLER_OPEN_EXPOSURE_MINOR[p.currency.toLowerCase()];
-  if (limit === undefined) return true;
+  const base = NEW_SELLER_OPEN_EXPOSURE_MINOR[p.currency.toLowerCase()];
+  if (base === undefined) return true;
+  const limit = p.trustedSeller ? base * TRUSTED_SELLER_EXPOSURE_MULTIPLIER : base;
   return total > limit;
 }
 

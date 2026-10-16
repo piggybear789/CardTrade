@@ -25,6 +25,12 @@ const PROTECTED_PREFIXES = [
   "/saved",
   "/account",
   "/onboarding",
+  // The Trusted Seller form and status page (0152). The public explainer at
+  // `/trusted-sellers` is NOT protected: it is the link NoDitto shares on Instagram.
+  "/trusted-sellers/apply",
+  // Off-platform scam reports and the matched member's response page (0154). Both
+  // need a session.
+  "/report-scam",
   // NOT `/deals`. The composer is open to guests and asks for an account at Get
   // link, after the deal is written. See `finishesOwnOnboarding`.
   // Covers /admin/arbitration too. Middleware only proves there IS a session — the
@@ -222,6 +228,8 @@ export const config = {
     "/saved/:path*",
     "/account/:path*",
     "/onboarding/:path*",
+    "/trusted-sellers/apply/:path*",
+    "/report-scam/:path*",
     "/deals/:path*",
     // `:path*` matches the bare prefix as well as its children, so this covers /admin
     // and /admin/arbitration/... alike.

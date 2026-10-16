@@ -236,6 +236,12 @@ export interface ManagedMerchant {
    */
   payoutAccountFingerprint?: string | null;
   /**
+   * The payout bank account's routing number (BSB) and last 4 digits, for matching
+   * against off-platform scam reports (scam-reports spec, Req 6). Never the full
+   * account number. Best-effort: null when the provider does not expose it.
+   */
+  payoutBankHint?: { routing: string; last4: string } | null;
+  /**
    * The individual's name as the provider holds it on the payee account (ESC-25).
    * Best-effort: null when not exposed, which is NOT a mismatch.
    */

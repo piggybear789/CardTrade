@@ -36,6 +36,7 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
+import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 import { ReviewList } from '@/components/reviews/ReviewList';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionLoadError } from '@/components/layout/SectionHeader';
@@ -129,7 +130,7 @@ export default async function SellerProfilePage({
   const { data: sellerRow } = await supabase
     .from('public_profiles')
     .select(
-      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links, bio, region_code, member_since',
+      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, social_links, bio, region_code, member_since, is_trusted_seller',
     )
     .eq('id', id)
     .maybeSingle();
@@ -341,6 +342,10 @@ export default async function SellerProfilePage({
                 hideNameWhen={displayName}
                 size={14}
               />
+              {/* A second, separate fact: staff reviewed this seller (0152). It is not
+                  the ID check and does not repeat it, so it is not the duplicate mark
+                  the comment above retired. */}
+              <TrustedSellerBadge trusted={Boolean(sellerRow.is_trusted_seller)} size={14} />
             </div>
             {/* `seller.ratingCount` rather than the fetched list: it is the same
                 aggregate, it arrives with the profile row, and reading it here

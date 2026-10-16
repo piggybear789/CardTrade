@@ -9,7 +9,7 @@
 //
 // ONE CONFIDENT SURFACE, modelled on the strongest auth panels on Mobbin (YNAB,
 // Airtable, Hootsuite): a deep brand colour with light text, a real headline, small
-// single-colour icons aligned to the first line of their title, and a quiet proof line
+// single-colour icons centred on their point, and a quiet proof line
 // at the foot. A pale wash was tried first and read as unfinished. Obsidian is the
 // header's own colour, so the panel reads as part of the chrome rather than a sticker,
 // and the iris accent is used only on non-text marks (it is a non-text colour).
@@ -50,7 +50,7 @@ export function AuthTrustPanel() {
 
       <div className="relative flex flex-1 flex-col justify-center">
         <p className="text-meta font-medium uppercase tracking-wide text-mist/70">
-          Why collectors trade on NoDitto
+          Why Trade on NoDitto
         </p>
         <h2
           id="auth-trust-heading"
@@ -61,12 +61,11 @@ export function AuthTrustPanel() {
 
         <ul className="mt-section space-y-group">
           {POINTS.map((point) => (
-            <li key={point.title} className="flex items-start gap-cozy">
-              {/* A fixed 2rem badge, top-aligned. Its centre sits on the title's first
-                  line (`mt-[-0.125rem]` trims the line-height above the cap), so the
-                  icon reads as that line's bullet rather than floating between title
-                  and body as it would if centred in the row. */}
-              <span className="mt-[-0.125rem] grid size-8 shrink-0 place-items-center rounded-md bg-white/10 ring-1 ring-inset ring-white/10">
+            <li key={point.title} className="flex items-center gap-cozy">
+              {/* A fixed 2rem badge, centred on the whole title-plus-body block. Pinning
+                  it to the title line left it straddling the title and the body's first
+                  line, which read as misaligned against both. */}
+              <span className="grid size-8 shrink-0 place-items-center rounded-md bg-white/10 ring-1 ring-inset ring-white/10">
                 <HugeiconsIcon icon={point.icon} className="size-4 text-iris" aria-hidden />
               </span>
               <div className="min-w-0">

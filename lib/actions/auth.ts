@@ -19,6 +19,8 @@
 
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { headers } from 'next/headers';
+import { after } from 'next/server';
+import { refreshMemberMatchKeys } from '@/lib/risk/scamMatching';
 
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -166,6 +168,11 @@ export const signUp = withActionLog('auth.signUp', async function signUp(
       'Account created but profile setup failed. Please try again.',
     );
   }
+
+  // The new member's scam-report match keys (0154, Req 6.3). After the response,
+  // never throws, so it cannot fail a sign-up.
+  const userId = user.id;
+  after(() => refreshMemberMatchKeys(userId));
 
   return ok({
     userId: user.id,

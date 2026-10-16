@@ -48,6 +48,9 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   // The deal composer. Opened through `DEAL_OPEN_PATH`, a constant the link scanner
   // cannot follow, and from bookmarks.
   '/deals',
+  // NOTIFICATION-LINK entry point (0154): reached only from the notice staff send a
+  // matched member, whose `link:` the scanner does not read as a navigation site.
+  '/report-scam/response/[id]',
 ]);
 
 /** Recursively collect files under `dir` whose extension is in `exts`. */
@@ -274,6 +277,10 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/terms': 'Opened as an external web URL from Settings, not a native route',
   '/t/[token]': 'Web landing page for external private deal invite links',
   '/deals': 'Private deal composer; mobile uses its native deal modal',
+  '/trusted-sellers': 'Public Trusted Seller directory, shared as a web link on Instagram',
+  '/trusted-sellers/apply': 'Trusted Seller application, reached from the web directory',
+  '/report-scam': 'Off-platform scam report form, web-only for now',
+  '/report-scam/response/[id]': 'Matched member response page, opened from a notification link',
 };
 
 describe('mobile route parity', () => {

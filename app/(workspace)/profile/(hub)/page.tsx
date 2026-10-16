@@ -25,7 +25,7 @@
 
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
-import { BellIcon, HandCoinsIcon, HeartIcon, HelpCircleIcon, ShieldCheckIcon, TagsIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
+import { BellIcon, CheckmarkBadge01Icon, HandCoinsIcon, HeartIcon, HelpCircleIcon, ShieldCheckIcon, TagsIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -148,6 +148,7 @@ export default async function ProfilePage({
     tradingRegion,
     unreadNotifications,
     offersWaiting,
+    trustedReview,
   ] = await Promise.all([
     supabase
       .from('profiles')
@@ -180,6 +181,13 @@ export default async function ProfilePage({
       .eq('status', 'PENDING')
       .neq('offered_by', user.id)
       .or(`seller_id.eq.${user.id},buyer_id.eq.${user.id}`),
+    // The member's own Trusted Seller review (0152), if they applied. Status only:
+    // staff notes have no member grant.
+    supabase
+      .from('trusted_seller_reviews')
+      .select('status')
+      .eq('profile_id', user.id)
+      .maybeSingle(),
   ]);
 
   const profile = profileResult.data;
@@ -326,6 +334,7 @@ export default async function ProfilePage({
                 payoutContextReadOk={payoutContext.ok}
                 demoEnabled={paymentDemoEnabled}
                 providerReturn={providerReturn}
+                trustedReviewStatus={trustedReview.data?.status ?? null}
               />
             ),
 
@@ -500,6 +509,7 @@ function VerificationPanel({
   payoutContextReadOk,
   demoEnabled,
   providerReturn,
+  trustedReviewStatus,
 }: {
   identityVerified: boolean;
   /** Whether the last identity attempt was declined — see `VerificationSequence`. */
@@ -518,6 +528,8 @@ function VerificationPanel({
   demoEnabled: boolean;
   /** The hosted flow just returned from, for the sequence's first frame. */
   providerReturn: ProviderReturn | null;
+  /** The member's Trusted Seller review (0152), or null when they never applied. */
+  trustedReviewStatus: 'PENDING' | 'APPROVED' | 'DECLINED' | 'REVOKED' | null;
 }) {
   // Built up rather than interpolated blind, because every part of it is optional: a
   // member grandfathered in before 0069 has no document-backed name, and a webhook that
@@ -605,6 +617,38 @@ function VerificationPanel({
           Verification is unavailable right now. Reload to try again.
         </SettingsPlaceholder>
       )}
+
+      {/* TRUSTED SELLER, ONLY FOR A MEMBER WHO APPLIED. It is a staff review layered
+          on the two checks above, not a third check, so a member who never asked for
+          one is not shown an unfinished step. The row links to the full status. */}
+      {trustedReviewStatus ? (
+        <SettingsGroup>
+          <SettingsListRow
+            href="/trusted-sellers/apply"
+            icon={CheckmarkBadge01Icon}
+            tone={trustedReviewStatus === 'APPROVED' ? 'verified' : 'neutral'}
+            label="Trusted Seller"
+            description={
+              trustedReviewStatus === 'APPROVED'
+                ? 'Our team reviewed your selling history.'
+                : trustedReviewStatus === 'PENDING'
+                  ? identityVerified
+                    ? 'Our team is reviewing your application.'
+                    : 'Verify your ID so we can review your application.'
+                  : "Your application wasn't approved."
+            }
+            trailing={
+              trustedReviewStatus === 'APPROVED' ? (
+                <Badge variant="trust">Approved</Badge>
+              ) : trustedReviewStatus === 'PENDING' ? (
+                <Badge variant="secondary">In review</Badge>
+              ) : (
+                <Badge variant="outline">Not approved</Badge>
+              )
+            }
+          />
+        </SettingsGroup>
+      ) : null}
 
       {/* The crank that drives a mock check forward, since `MockService` lands
           every check PENDING on purpose. Dropped once verified — there is

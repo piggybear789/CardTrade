@@ -58,6 +58,32 @@ export function identitySessionCreateParams(params: {
           },
         }),
     return_url: params.returnUrl,
-    metadata: { cardtrade_profile_id: params.profileId },
+    metadata: {
+      cardtrade_profile_id: params.profileId,
+      // Stripe fixes `return_url` at creation, does not return it on the session, and
+      // will not update it. Stamping it here is the only way a later resume can tell
+      // whether the session would send the member back to THIS deployment. See
+      // `sessionReturnsTo`.
+      [IDENTITY_RETURN_URL_METADATA_KEY]: params.returnUrl,
+    },
   };
+}
+
+/** Metadata key carrying the `return_url` a session was created with. */
+export const IDENTITY_RETURN_URL_METADATA_KEY = 'cardtrade_return_url';
+
+/**
+ * Whether a session will return the member to `returnUrl`.
+ *
+ * WHY THIS EXISTS. Local development and production share one database, so the
+ * `identity_check_session_id` on a profile may have been opened by the OTHER
+ * deployment. Resuming it reuses that deployment's `return_url`, and a member testing
+ * on localhost finished the hosted flow on noditto.app. A session with no stamp
+ * predates the stamp and is treated as foreign, because its origin is unknowable.
+ */
+export function sessionReturnsTo(
+  metadata: Stripe.Metadata | null | undefined,
+  returnUrl: string,
+): boolean {
+  return metadata?.[IDENTITY_RETURN_URL_METADATA_KEY] === returnUrl;
 }

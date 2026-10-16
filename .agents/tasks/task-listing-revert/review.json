@@ -1,0 +1,11 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    {
+      "severity": "non-blocking",
+      "label": "Unrelated work in the tree",
+      "detail": "Staged CatalogControls/CatalogResults/browseEvents, unstaged lib/actions/listings.ts and deals files belong to other tasks; keep them out of this task's commits."
+    }
+  ],
+  "reviewDoc": "c:\\dev\\Marketplace\\.agents\\tasks\\task-listing-revert/review.md"
+}

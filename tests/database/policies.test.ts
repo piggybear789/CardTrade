@@ -56,6 +56,13 @@ const TABLES_REQUIRING_RLS = [
   'identity_bans',
   // 0123: messages and stacks can quote data, and report notes are member prose.
   'error_logs',
+  // 0152: staff working notes about a named member.
+  'trusted_seller_reviews',
+  // 0154: off-platform scam reports, their fingerprints, member match keys, matches.
+  'scam_reports',
+  'scam_report_identifiers',
+  'member_match_keys',
+  'scam_report_matches',
 ];
 
 /**

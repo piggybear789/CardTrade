@@ -1,0 +1,11 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    { "severity": "non-blocking", "confidence": "possible", "label": "Phone skeleton omits the phone Message row", "detail": "PhoneStackSkeleton reserves nothing for the md:hidden MessageSellerButton at mt-snug under the seller row, so the description may shift about 44px on swap for signed-in buyers. Not introduced by this diff; consider reserving mt-snug h-10." },
+    { "severity": "non-blocking", "confidence": "confirmed", "label": "Fee note shown to owners and unavailable listings", "detail": "ListingFeeNote is now gated only on !isShopfront (was !isOwner on desktop, showTrust on phone). This is deliberate per the plan and display-only, because the popover was already universal." },
+    { "severity": "non-blocking", "confidence": "confirmed", "label": "Binder copy says 'Multiple items'", "detail": "The product rules ask for 'binder or bulk listing'. The plan kept 'Multiple items' to match ItemCard/ItemForm, and 'nothing is held' is now on the page. A copy change app-wide is a separate user decision." },
+    { "severity": "nit", "confidence": "confirmed", "label": "Seller name fallback differs between layouts", "detail": "ListingDetailStack passes 'Seller' and ListingDesktopPane passes 'Unknown seller' into the shared ListingSellerRow. Pick one." },
+    { "severity": "non-blocking", "confidence": "confirmed", "label": "Visual check not done", "detail": "No dev server ran, so the rendered pane and the skeleton-to-page swap are unverified in a browser. The user should eyeball the available, sold, binder and owner states at >=1024px and ~390px." }
+  ],
+  "reviewDoc": "c:\\dev\\Marketplace\\.agents\\tasks\\task-listing-pane-redesign\\review.md"
+}

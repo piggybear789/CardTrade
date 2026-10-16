@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
+import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { StarRating } from '@/components/listings/StarRating';
 import { ReportDialog } from '@/components/reports/ReportDialog';
@@ -35,6 +36,7 @@ export function ListingDesktopPane({
   sellerDisplayName,
   sellerAvatarPath,
   sellerVerified,
+  sellerTrusted = false,
   sellerFirstName,
   sellerRating,
   sellerRatingCount,
@@ -63,6 +65,8 @@ export function ListingDesktopPane({
   sellerDisplayName: string | null;
   sellerAvatarPath: string | null;
   sellerVerified: boolean;
+  /** `public_profiles.is_trusted_seller` (0152). */
+  sellerTrusted?: boolean;
   sellerFirstName: string | null;
   sellerRating: number | null;
   sellerRatingCount: number | undefined;
@@ -208,6 +212,12 @@ export function ListingDesktopPane({
                 <IdentityBadge
                   verified={sellerVerified}
                   firstName={sellerFirstName}
+                  size={14}
+                  iconOnly
+                  className="shrink-0"
+                />
+                <TrustedSellerBadge
+                  trusted={sellerTrusted}
                   size={14}
                   iconOnly
                   className="shrink-0"

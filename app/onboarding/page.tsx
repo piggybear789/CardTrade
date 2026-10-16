@@ -16,6 +16,7 @@
 // `UnifiedOnboardingSurface` re-reads the identity and payout status from the provider
 // on mount and that read is what decides. Anyone can type `?payouts=complete`.
 
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import type { Step } from '@/components/onboarding/OnboardingWizard';
@@ -25,6 +26,7 @@ import { listSelectableRegions } from '@/lib/actions/regionOptions';
 import { geoRegionFromRequest } from '@/lib/location/resolveRegion';
 import { ensureProfile } from '@/lib/auth/ensureProfile';
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
+import { isTrustedSellerApplyPath } from '@/lib/trustedSellers/paths';
 
 // Profile setup destinations that onboarding itself supersedes. A member sent to
 // `/onboarding` by the gate in `proxy.ts` was, more often than not, trying to reach the
@@ -114,7 +116,15 @@ export default async function OnboardingPage({
   // Completed members who type /onboarding (or follow a stale bookmark) should
   // not restart the welcome wizard. Stripe return visits still land on the
   // seller step so hosted identity/payout can finish.
-  if (!returningFromProvider) {
+  //
+  // NEVER DURING A SERVER ACTION. `completeOnboarding` revalidates the root layout,
+  // so Next re-renders THIS page inside the action's own response — the very action
+  // that just set `onboarding_completed_at`. A seller pressing "Verify Identity" was
+  // shown the seller step for a beat and then redirected to the catalog by this
+  // guard, before Stripe Identity could open. The guard is for arriving here by URL;
+  // a re-render of a wizard the member is already in is not that.
+  const inServerAction = (await headers()).has('next-action');
+  if (!returningFromProvider && !inServerAction) {
     const profile = await getCachedProfile();
     if (profile?.onboarding_completed_at) {
       redirect(nextPath ?? '/');
@@ -139,6 +149,9 @@ export default async function OnboardingPage({
       regions={regions}
       guessedRegion={guessedRegion}
       providerReturn={providerReturn}
+      // Someone who signed up to apply as a Trusted Seller (0152) has already said
+      // they sell, so the wizard does not ask "buy or sell?" again.
+      presetIntent={isTrustedSellerApplyPath(nextPath) ? 'seller' : null}
     />
   );
 }

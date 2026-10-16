@@ -4,6 +4,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
 import { ExpandableDescription } from '@/components/listings/ExpandableDescription';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
+import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
 import { displayLegalName, formatMoney, formatRelativeTime } from '@/lib/format';
@@ -39,6 +40,7 @@ export function ListingDetailStack({
   sellerDisplayName,
   sellerAvatarPath,
   sellerVerified,
+  sellerTrusted = false,
   sellerFirstName,
   sellerRating,
   sellerRatingCount,
@@ -68,6 +70,8 @@ export function ListingDetailStack({
   sellerDisplayName: string | null;
   sellerAvatarPath: string | null;
   sellerVerified: boolean;
+  /** `public_profiles.is_trusted_seller` (0152). */
+  sellerTrusted?: boolean;
   sellerFirstName: string | null;
   sellerRating: number | null;
   sellerRatingCount: number | undefined;
@@ -196,6 +200,12 @@ export function ListingDetailStack({
               size={13}
               iconOnly
               hideNameWhen={name}
+              className="shrink-0"
+            />
+            <TrustedSellerBadge
+              trusted={sellerTrusted}
+              size={13}
+              iconOnly
               className="shrink-0"
             />
           </span>

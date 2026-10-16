@@ -239,6 +239,14 @@ export default function SafetyPage() {
                 not a replacement for the police, so if you&rsquo;ve been the victim of serious fraud,
                 report it to them and to ReportCyber as well.
               </p>
+              <p>
+                If you were scammed outside NoDitto, we still can&rsquo;t get your money back, but you
+                can{' '}
+                <Link href="/report-scam" className="font-medium text-iris-ink underline-offset-4 hover:underline">
+                  tell us about it
+                </Link>
+                . We check every report by hand and watch for the same person turning up here.
+              </p>
             </Guide>
           </div>
         </PageSection>

@@ -1,0 +1,11 @@
+{
+  "verdict": "APPROVED",
+  "findings": [
+    "Non-blocking: PayoutsDashboard shows a 'Fee' column and 'Buyer paid $X, less $0.00 fee' for beta sales with no beta wording; consider hiding a zero fee (as AccountStatement.Breakdown does) or labelling it as waived during beta.",
+    "Non-blocking: catalog tile ('no fees in beta') and OffersSection buyer row ('..., no fee during beta') do not name the standard 5% rate; acceptable on compact surfaces, or use betaFeeNote() on the offers row.",
+    "Deliberate: the ItemForm.tsx PriceReadout copy edit is uncommitted inside the user's WIP; it must ship with that work or the item form keeps saying 'The 5% buyer fee is added to your price'.",
+    "Recorded: flutter test not run; goldens (e.g. trade_room_before_collateral) need 'flutter test --update-goldens' in flutter_app/.",
+    "Documented: unpaid AGREEMENT rows opened before deploy keep and charge their stored 5% fee until terms change (consistent with check 9)."
+  ],
+  "reviewDoc": "c:\\dev\\Marketplace\\.agents\\tasks\\task-beta-fee-waiver\\review.md"
+}

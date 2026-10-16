@@ -25,7 +25,10 @@ export default async function HelpPage() {
       <p className="mt-snug text-body text-muted-foreground md:mt-cozy md:text-lead">
         Short answers on buying, selling, trades, payouts and your account.
       </p>
-      <HelpCentre signedIn={Boolean(user)} tradeInspectionDays={TRADE_INSPECTION_HOURS / 24} />
+      <HelpCentre
+        signedIn={Boolean(user)}
+        tradeInspectionDays={TRADE_INSPECTION_HOURS / 24}
+      />
     </article>
   );
 }

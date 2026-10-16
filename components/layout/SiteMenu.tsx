@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, BanknoteIcon, HelpCircleIcon, MenuIcon, Settings01Icon, ShieldCheckIcon, XIcon } from '@hugeicons/core-free-icons';
+import { ArrowDown01Icon, BanknoteIcon, CheckmarkBadge01Icon, HelpCircleIcon, MenuIcon, Settings01Icon, ShieldCheckIcon, XIcon } from '@hugeicons/core-free-icons';
 
 import { StartDealButton } from '@/components/deals/StartDealButton';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
@@ -211,6 +211,9 @@ export function SiteMenu({
                   <Link href="/">Marketplace</Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
+                  <Link href="/trusted-sellers">Trusted Sellers</Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <Link href="/listings/new">Sell an item</Link>
                 </Button>
                 <StartDealButton
@@ -293,6 +296,12 @@ export function SiteMenu({
                   <Link href="/safety">
                     <HugeiconsIcon icon={ShieldCheckIcon} aria-hidden />
                     Staying safe
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
+                  <Link href="/trusted-sellers">
+                    <HugeiconsIcon icon={CheckmarkBadge01Icon} aria-hidden />
+                    Trusted Sellers
                   </Link>
                 </Button>
                 <FeedbackDialog appearance="menu-row" onOpen={() => setOpen(false)} />

@@ -75,6 +75,7 @@ import { identityFingerprints } from '../../identity/identityFingerprint';
 import {
   identitySessionCreateParams,
   identitySessionIdempotencyKey,
+  sessionReturnsTo,
 } from './identitySession';
 
 /**
@@ -266,7 +267,10 @@ export class StripeService implements PaymentService, PayerService {
     let supersedes: string | null = null;
 
     if (params.existingSessionId) {
-      const resumed = await this.resumeIdentitySession(params.existingSessionId);
+      const resumed = await this.resumeIdentitySession(
+        params.existingSessionId,
+        params.returnUrl,
+      );
       if (resumed) return resumed;
       supersedes = params.existingSessionId;
     }
@@ -292,7 +296,7 @@ export class StripeService implements PaymentService, PayerService {
     // Idempotent replay of a session that was opened (or consumed) in the JS modal
     // has no hosted URL. Retrieve it for a fresh one — the same remedy as the resume
     // path above — and open a genuinely new session only if it is beyond use.
-    const replayed = await this.resumeIdentitySession(session.id);
+    const replayed = await this.resumeIdentitySession(session.id, params.returnUrl);
     if (replayed) return replayed;
 
     const fresh = await this.stripe.identity.verificationSessions.create(body, {
@@ -312,13 +316,24 @@ export class StripeService implements PaymentService, PayerService {
    * A DECLINED session belongs to the first category, not the second: the provider
    * accepts another submission against it and keeps the attempt history there.
    */
-  private async resumeIdentitySession(sessionId: string): Promise<IdentityCheck | null> {
+  private async resumeIdentitySession(
+    sessionId: string,
+    returnUrl: string,
+  ): Promise<IdentityCheck | null> {
     const session = await this.stripe.identity.verificationSessions.retrieve(sessionId, {
       expand: ['verified_outputs'],
     });
     const check = this.toIdentityCheck(session);
 
     if (check.progress === 'UNUSABLE') return null;
+
+    // A session still waiting on the member would send them back to whichever
+    // deployment OPENED it — `return_url` is fixed at creation. Replace one that
+    // returns elsewhere (e.g. opened on noditto.app, resumed from localhost). One that
+    // is processing or decided needs no hosted page, so it is resumed regardless.
+    if (session.status === 'requires_input' && !sessionReturnsTo(session.metadata, returnUrl)) {
+      return null;
+    }
 
     // Something the member must act on, with nowhere to send them, is not resumable —
     // report it dead rather than handing back a session that cannot be opened.
@@ -1622,10 +1637,54 @@ export class StripeService implements PaymentService, PayerService {
       const account = await this.stripe.v2.core.accounts.retrieve(merchantRef, {
         include: ['identity', 'configuration.recipient', 'requirements'],
       });
-      return fromV2Account(account);
+      return { ...fromV2Account(account), ...(await this.readPayoutBankAccount(merchantRef)) };
     } catch (err) {
       this.warn('getManagedMerchant', merchantRef, err);
       return null;
+    }
+  }
+
+  /**
+   * The connected account's payout bank account, as two best-effort facts for fraud
+   * matching: Stripe's opaque bank-account fingerprint (ESC-03 related accounts) and,
+   * for an Australian account only, the BSB plus last 4 (scam reports, 0154).
+   *
+   * Read through the v1 external-accounts endpoint, which Stripe documents as working
+   * for a v2 Account (the response comes back in the v1 shape). The account number
+   * itself is never returned by Stripe and never read here.
+   *
+   * WHY AU ONLY for the hint. Scam reports normalise a bank account as a 6-digit BSB
+   * plus an account number. A UK sort code is also 6 digits, so a GB payout account
+   * would produce a key that could collide with an unrelated Australian BSB.
+   *
+   * NEVER FAILS THE READ. An error leaves both fields out, which callers read as "not
+   * read this time" and keep whatever they already stored.
+   */
+  private async readPayoutBankAccount(
+    merchantRef: string,
+  ): Promise<Pick<ManagedMerchant, 'payoutAccountFingerprint' | 'payoutBankHint'>> {
+    try {
+      const list = await this.stripe.accounts.listExternalAccounts(merchantRef, {
+        object: 'bank_account',
+        limit: 10,
+      });
+      const banks = list.data.filter(
+        (entry): entry is Stripe.BankAccount => entry.object === 'bank_account',
+      );
+      if (banks.length === 0) return { payoutAccountFingerprint: null, payoutBankHint: null };
+      const bank = banks.find((entry) => entry.default_for_currency) ?? banks[0];
+      const routing = (bank.routing_number ?? '').replace(/\D/g, '');
+      const last4 = bank.last4 ?? '';
+      return {
+        payoutAccountFingerprint: bank.fingerprint ?? null,
+        payoutBankHint:
+          bank.country?.toUpperCase() === 'AU' && /^\d{6}$/.test(routing) && /^\d{4}$/.test(last4)
+            ? { routing, last4 }
+            : null,
+      };
+    } catch (err) {
+      this.warn('readPayoutBankAccount', merchantRef, err);
+      return {};
     }
   }
 

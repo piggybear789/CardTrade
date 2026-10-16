@@ -10,9 +10,12 @@ import 'server-only';
 // never verify, so a banned scammer can still browse and buy under a new email
 // until they hit Identity — that hole is recorded, not accidental.
 
+import { revalidateTag } from 'next/cache';
+
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import { regionForProfile } from '@/lib/regionBinding';
+import { TRUSTED_DIRECTORY_CACHE_TAG } from '@/lib/trustedSellers/directory';
 
 /** 100 years — Supabase's documented maximum practical permanent-ban duration. */
 export const PERMANENT_FRAUD_BAN_DURATION = '876000h';
@@ -82,6 +85,16 @@ export async function enforceProfileFraudBan(params: {
 
     if (profileError) {
       return { ok: false, message: profileError.message };
+    }
+
+    // The ban revoked any Trusted Seller status in the same transaction (0152); drop
+    // the cached public directory so a banned seller is not listed for its TTL.
+    // Best-effort: some callers run outside a request scope, where this can throw,
+    // and the cache expires on its own regardless.
+    try {
+      revalidateTag(TRUSTED_DIRECTORY_CACHE_TAG, { expire: 0 });
+    } catch {
+      // Cache invalidation is not part of the ban.
     }
   }
 

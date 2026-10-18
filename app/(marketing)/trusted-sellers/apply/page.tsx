@@ -217,7 +217,7 @@ export default async function TrustedSellerApplyPage({
                 </Button>
               ) : null}
               <Button asChild variant="ghost">
-                <Link href="/trusted-sellers">See the list</Link>
+                <Link href="/references">See References</Link>
               </Button>
             </div>
           </section>

@@ -143,7 +143,7 @@ export default function AdminLoading() {
           the width reserved — the strip scrolls on a phone, where an over-wide tab costs
           scroll extent rather than layout. */}
       <SectionFilterSkeleton
-        labels={['Payouts', 'Reports', 'Feedback', 'Errors', 'Reconciliation', 'Trusted sellers', 'Scams']}
+        labels={['Payouts', 'Reports', 'Feedback', 'Errors', 'Reconciliation', 'Trusted sellers', 'References', 'Scams']}
       />
 
       <ConsoleTabSkeletonSwitch
@@ -215,6 +215,16 @@ export default function AdminLoading() {
               <QueueIntroSkeleton
                 headingWidth="w-1/3"
                 lines={['w-full', 'w-full', 'w-full', 'w-1/2']}
+                desktopLines={2}
+              />
+              <QueueCardsSkeleton />
+            </>
+          ),
+          references: (
+            <>
+              <QueueIntroSkeleton
+                headingWidth="w-1/3"
+                lines={['w-full', 'w-full', 'w-1/2']}
                 desktopLines={2}
               />
               <QueueCardsSkeleton />

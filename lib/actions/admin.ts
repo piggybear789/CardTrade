@@ -23,11 +23,10 @@
 // Every export is an async Server Action; shared shapes are `export type` only.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
-import { revalidatePath, revalidateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
-import { TRUSTED_DIRECTORY_CACHE_TAG } from '@/lib/trustedSellers/directory';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { enforceProfileFraudBan, permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
@@ -724,8 +723,6 @@ export const decideTrustedSeller = withActionLog('admin.decideTrustedSeller', as
 
   revalidatePath('/admin');
   revalidatePath(`/sellers/${review.profile_id}`);
-  // The public directory is cached; a decision must show on it at once.
-  revalidateTag(TRUSTED_DIRECTORY_CACHE_TAG, { expire: 0 });
   return { ok: true, data: { id: review.id, status: next } };
 });
 
@@ -2133,4 +2130,131 @@ export const deleteScamReport = withActionLog('admin.deleteScamReport', async fu
   if (deleteError) return { ok: false, error: 'persistence-error', message: deleteError.message };
   revalidatePath('/admin');
   return { ok: true, data: { id: reportId } };
+});
+
+// ---------------------------------------------------------------------------
+// References (0155): handle claims, proof checks, disputed references.
+// The queues are staff work, so they live here behind requireAdmin. Deciding
+// a claim writes the claim itself; the DB trigger then moves the handle's
+// references onto the claimant's profile.
+// ---------------------------------------------------------------------------
+
+/** Approve or decline a bio-code handle claim. Approval claims the handle. */
+export const decideHandleClaim = withActionLog('admin.decideHandleClaim', async function decideHandleClaim(
+  requestId: string,
+  decision: 'APPROVE' | 'DECLINE',
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const admin = createAdminClient();
+  const { data: request, error } = await admin
+    .from('handle_claim_requests')
+    .select('id, claim_id, claimant_id, status')
+    .eq('id', requestId)
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!request) return { ok: false, error: 'not-found' };
+  if (request.status !== 'PENDING') {
+    return { ok: false, error: 'invalid-input', message: 'This claim was already decided.' };
+  }
+
+  const { data: claim } = await admin
+    .from('social_claims')
+    .select('platform, handle, claimed_profile_id')
+    .eq('id', request.claim_id)
+    .maybeSingle();
+  if (!claim) return { ok: false, error: 'not-found' };
+
+  if (decision === 'APPROVE') {
+    if (claim.claimed_profile_id && claim.claimed_profile_id !== request.claimant_id) {
+      return { ok: false, error: 'invalid-input', message: 'This handle was claimed by someone else.' };
+    }
+    const { error: claimError } = await admin
+      .from('social_claims')
+      .update({
+        claimed_profile_id: request.claimant_id,
+        claim_method: 'BIO_CODE',
+        claimed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', request.claim_id)
+      .is('claimed_profile_id', null);
+    if (claimError) return { ok: false, error: 'persistence-error', message: claimError.message };
+  }
+
+  const { error: decideError } = await admin
+    .from('handle_claim_requests')
+    .update({
+      status: decision === 'APPROVE' ? 'APPROVED' : 'DECLINED',
+      decided_by: gate.adminId,
+      decided_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', requestId)
+    .eq('status', 'PENDING');
+  if (decideError) return { ok: false, error: 'persistence-error', message: decideError.message };
+
+  await createNotification({
+    userId: request.claimant_id,
+    type: 'SYSTEM',
+    title: decision === 'APPROVE' ? 'Your handle is claimed' : 'Your handle claim wasn\u2019t approved',
+    body:
+      decision === 'APPROVE'
+        ? `@${claim.handle} on ${claim.platform} is now linked to your verified profile, with its references.`
+        : `We couldn't confirm @${claim.handle} on ${claim.platform} is yours. You can try again with a clearer screenshot.`,
+    link: decision === 'APPROVE' ? `/sellers/${request.claimant_id}` : '/references',
+  });
+  revalidatePath('/admin');
+  return { ok: true, data: { id: requestId } };
+});
+
+/** Mark a reference's attached proof as checked (earns the receipt-checked display). */
+export const setReferenceProofChecked = withActionLog('admin.setReferenceProofChecked', async function setReferenceProofChecked(
+  referenceId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('member_references')
+    .update({ proof_status: 'CHECKED', updated_at: new Date().toISOString() })
+    .eq('id', referenceId)
+    .eq('proof_status', 'PENDING')
+    .select('target_profile_id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
+  revalidatePath('/admin');
+  return { ok: true, data: { id: referenceId } };
+});
+
+/** Decide a disputed reference: keep it live, or remove it from every count. */
+export const resolveReferenceDispute = withActionLog('admin.resolveReferenceDispute', async function resolveReferenceDispute(
+  referenceId: string,
+  decision: 'KEEP' | 'REMOVE',
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('member_references')
+    .update(
+      decision === 'KEEP'
+        ? { disputed_at: null, disputed_by: null, updated_at: new Date().toISOString() }
+        : { status: 'REMOVED' as const, updated_at: new Date().toISOString() },
+    )
+    .eq('id', referenceId)
+    .eq('status', 'LIVE')
+    .not('disputed_at', 'is', null)
+    .select('target_profile_id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
+  revalidatePath('/admin');
+  return { ok: true, data: { id: referenceId } };
 });

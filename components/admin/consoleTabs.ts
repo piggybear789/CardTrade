@@ -15,6 +15,8 @@ export type ConsoleTab =
   | 'reconciliation'
   /** Trusted Seller reviews (0152). */
   | 'trusted'
+  /** References: handle claims, proof checks, disputes (0155). */
+  | 'references'
   /** Off-platform scam reports and member matches (0154). */
   | 'scams';
 
@@ -31,6 +33,7 @@ export function resolveConsoleTab(value: string | string[] | null | undefined): 
     raw === 'errors' ||
     raw === 'reconciliation' ||
     raw === 'trusted' ||
+    raw === 'references' ||
     raw === 'scams'
     ? raw
     : 'payouts';

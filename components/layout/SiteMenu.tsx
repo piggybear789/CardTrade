@@ -211,7 +211,7 @@ export function SiteMenu({
                   <Link href="/">Marketplace</Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
-                  <Link href="/trusted-sellers">Trusted Sellers</Link>
+                  <Link href="/references">References</Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <Link href="/listings/new">Sell an item</Link>
@@ -299,9 +299,9 @@ export function SiteMenu({
                   </Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
-                  <Link href="/trusted-sellers">
+                  <Link href="/references">
                     <HugeiconsIcon icon={CheckmarkBadge01Icon} aria-hidden />
-                    Trusted Sellers
+                    References
                   </Link>
                 </Button>
                 <FeedbackDialog appearance="menu-row" onOpen={() => setOpen(false)} />

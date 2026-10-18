@@ -14,7 +14,6 @@
 // different y depending on whether the seller had a trading name. See the note in
 // `SellerTrustBand`.
 
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -22,8 +21,8 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { CARD_GAME_NAMES } from '@/lib/catalog/cardGames';
-import { getReviewsFor } from '@/lib/actions/reviews';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
+import { loadProfileReferenceGraph } from '@/lib/references/graph';
 import { parseSocialLinks } from '@/domain/social/socialLinks';
 import { avatarUrl } from '@/lib/format';
 import { absoluteUrl, DEFAULT_OG_IMAGE } from '@/lib/seo/site';
@@ -37,7 +36,8 @@ import { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
-import { ReviewList } from '@/components/reviews/ReviewList';
+import { ReferenceGraph } from '@/components/references/ReferenceGraph';
+import { ShareExperience } from '@/components/references/ShareExperience';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionLoadError } from '@/components/layout/SectionHeader';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -45,7 +45,6 @@ import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { BackToMarketplace } from '@/components/layout/BackToMarketplace';
-import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import { SellerTrustBand } from '@/components/profile/SellerTrustBand';
 import { SellerProfileActions } from '@/components/profile/SellerProfileActions';
@@ -66,7 +65,7 @@ import type {
  */
 const SOLD_LIMIT = 24;
 
-type SellerTabId = 'listings' | 'sold' | 'reviews';
+type SellerTabId = 'listings' | 'sold';
 
 // `Promise<Metadata>` for the contextual type: `openGraph.type: 'profile'` widens
 // to `string` without it, which Next's generated types then reject.
@@ -121,9 +120,9 @@ export default async function SellerProfilePage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string | string[] }>;
+  searchParams: Promise<{ tab?: string | string[]; experience?: string | string[] }>;
 }) {
-  const [{ id }, { tab: rawTab }] = await Promise.all([params, searchParams]);
+  const [{ id }, { tab: rawTab, experience }] = await Promise.all([params, searchParams]);
   const supabase = await createClient();
 
   // Public, catalog-safe seller identity.
@@ -149,6 +148,7 @@ export default async function SellerProfilePage({
     { data: itemsData, error: itemsError },
     { data: soldData },
     saleStats,
+    referenceGraph,
   ] = await Promise.all([
     // Resolve the viewer so we can offer a report affordance when an
     // authenticated user is viewing *someone else's* profile (never their own),
@@ -192,9 +192,24 @@ export default async function SellerProfilePage({
     // alone, so this fails for a signed-out visitor by design — the error is read as
     // "not disclosed to you" and the figure is omitted, never rendered as zero.
     supabase.rpc('member_sale_stats', { p_profile_id: id }),
+    // The reference graph (0155): incoming vouches merged with escrow
+    // reputation. A failed read hides the section, never the profile.
+    loadProfileReferenceGraph(id).catch(() => null),
   ]);
 
   const isOwner = user?.id === id;
+
+  // The viewer's own ID-check state, for the ShareExperience gate. Only the
+  // boolean leaves this query.
+  let viewerIdentityVerified = false;
+  if (user && !isOwner) {
+    const { data: viewerProfile } = await supabase
+      .from('profiles')
+      .select('identity_check_status')
+      .eq('id', user.id)
+      .maybeSingle();
+    viewerIdentityVerified = viewerProfile?.identity_check_status === 'VERIFIED';
+  }
 
   const seller: CatalogSeller = {
     id: sellerRow.id as string,
@@ -255,12 +270,6 @@ export default async function SellerProfilePage({
           },
         ]
       : []),
-    {
-      id: 'reviews',
-      label: 'Reviews',
-      href: `/sellers/${id}?tab=reviews`,
-      count: seller.ratingCount,
-    },
   ];
 
   // Resolved HERE rather than in the strip so the server's first paint already shows
@@ -307,8 +316,9 @@ export default async function SellerProfilePage({
         <BackToMarketplace />
       </nav>
 
-      {/* Header */}
-      <header className="mb-5 space-y-snug border-b pb-group">
+      {/* Header: identity and the trust band in one card, so everything said about this
+          person reads as one block rather than as loose lines on the page. */}
+      <header className="mb-5 space-y-snug rounded-lg border bg-card p-group">
         <div className="flex flex-col items-stretch gap-cozy sm:flex-row sm:items-start sm:justify-between">
           {/* The avatar sits OUTSIDE the name/rating column so it stays a fixed
               square beside a wrapping name rather than being pushed around by it.
@@ -317,7 +327,7 @@ export default async function SellerProfilePage({
             <Avatar
               avatarPath={seller.avatarPath}
               displayName={displayName}
-              size="md"
+              size="lg"
             />
             <div className="min-w-0 space-y-1.5">
             {/* The shell rail already renders the page h1 ("Seller"), so the
@@ -356,7 +366,7 @@ export default async function SellerProfilePage({
                 live in a panel, and an in-page hash cannot open one. */}
             {seller.ratingCount > 0 ? (
               <Link
-                href={`/sellers/${id}?tab=reviews`}
+                href={`/sellers/${id}#references`}
                 // `flex`, not the default inline `<a>`. An inline box ignores
                 // vertical margin, so this row silently dropped the column's
                 // `space-y-1.5` and sat on an anonymous line box sized by the
@@ -418,7 +428,7 @@ export default async function SellerProfilePage({
               <Link href="/profile">Edit profile</Link>
             </Button>
           ) : (
-            <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
+            <Button asChild size="sm" className="w-full shrink-0 sm:w-auto">
               <Link href={`/sign-in?redirectTo=${encodeURIComponent(`/sellers/${id}`)}`}>
                 Sign in to message
               </Link>
@@ -436,7 +446,55 @@ export default async function SellerProfilePage({
         />
       </header>
 
-      {/* ONE STRIP, THREE PANELS, ALL SERVER-RENDERED ONCE. Switching is local state,
+      {/* THE REFERENCE GRAPH (0155) replaces the old Reviews tab: reputation
+          is who vouches for this person, shown as a network. On-platform
+          reviews still feed it as escrow edges via the loader. */}
+      <div id="references" className="mb-5 scroll-mt-24">
+        {referenceGraph ? (
+          <ReferenceGraph
+            data={referenceGraph}
+            action={
+              <ShareExperience
+                target={{
+                  kind: 'profile',
+                  id,
+                  profileId: id,
+                  handle: referenceGraph.centre.handle,
+                  name: displayName,
+                  platform:
+                    parseSocialLinks(
+                      (sellerRow.social_links as Record<string, string> | null) ?? null,
+                    )[0]?.slug ?? 'instagram',
+                  firstName: seller.identityFirstName,
+                  identityVerified: seller.isVerified,
+                  unclaimed: false,
+                }}
+                viewer={{
+                  signedIn: Boolean(user),
+                  identityVerified: viewerIdentityVerified,
+                  isSelf: isOwner,
+                }}
+                returnPath={`/sellers/${id}`}
+                autoOpen={(Array.isArray(experience) ? experience[0] : experience) === '1'}
+              />
+            }
+          />
+        ) : (
+          <section
+            aria-labelledby="references-heading"
+            className="rounded-xl border border-border bg-card px-group py-section text-center"
+          >
+            <h3 id="references-heading" className="text-lead font-semibold text-foreground">
+              References
+            </h3>
+            <p className="mt-tight text-body text-muted-foreground">
+              The reference graph isn&rsquo;t available right now.
+            </p>
+          </section>
+        )}
+      </div>
+
+      {/* ONE STRIP, TWO PANELS, ALL SERVER-RENDERED ONCE. Switching is local state,
           so a buyer comparing a seller's stock against their reviews does not pay a
           round trip each way. The panels were stacked sections before, which meant
           the reviews sat under however many tiles the seller happened to have. */}
@@ -504,71 +562,8 @@ export default async function SellerProfilePage({
               </div>
             </section>
           ),
-          reviews: (
-            // ONLY THE LIST STREAMS. `getReviewsFor` is a two-stage fetch and awaiting
-            // it inline made the seller's name, badge and entire listings grid wait on
-            // one panel.
-            //
-            // THE SECTION AND ITS HEADING STAY OUTSIDE THE BOUNDARY, and that is not
-            // cosmetic: a first cut put them inside both the fallback and the resolved
-            // child, so `id="reviews-heading"` existed twice while the stream was in
-            // flight. Duplicate ids are invalid and they make `aria-labelledby`
-            // ambiguous. Rendering the frame once and suspending only its contents
-            // avoids both. The count comes from the profile row's aggregate, so the
-            // tab's own label needs no await.
-            <section id="reviews" aria-labelledby="reviews-heading">
-              <h3 id="reviews-heading" className="sr-only">
-                Reviews of {displayName}
-              </h3>
-              <Suspense fallback={<SellerReviewsFallback />}>
-                <SellerReviewsList sellerId={id} displayName={displayName} />
-              </Suspense>
-            </section>
-          ),
         }}
       />
     </MarketplaceShell>
   );
-}
-
-/**
- * Two review rows, in the shape `ReviewList` actually renders them.
- *
- * This was two free-floating `h-24` boxes separated by a 12px gap, but the list
- * is ONE bordered card with hairline-divided rows inside it — so the gap closed
- * to a 1px rule and a border appeared around the pair. Each row is a name, a
- * transaction line, a comment and a timestamp in `space-y-tight p-group`, which
- * is nearer 120px than the 96px an `h-24` reserved.
- */
-function SellerReviewsFallback() {
-  return (
-    <ul className="divide-y rounded-lg border bg-card" aria-busy="true">
-      {[0, 1].map((row) => (
-        <li key={row} className="space-y-tight p-group">
-          {/* Name / transaction line / comment / timestamp are texture in their own
-              line boxes, drawn from the canonical set. */}
-          <div className="flex flex-wrap items-start justify-between gap-snug">
-            <div className="min-w-0">
-              <TextLines className="text-body" widths={['w-1/3']} />
-              <TextLines className="text-body" widths={['w-1/2']} />
-            </div>
-            <Skeleton className="h-4 w-1/3 shrink-0" />
-          </div>
-          <TextLines className="text-body" widths={['w-full']} />
-          <TextLines className="text-meta" widths={['w-1/3']} />
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-async function SellerReviewsList({
-  sellerId,
-  displayName,
-}: {
-  sellerId: string;
-  displayName: string;
-}) {
-  const reviews = await getReviewsFor(sellerId);
-  return <ReviewList reviews={reviews} revieweeName={displayName} />;
 }

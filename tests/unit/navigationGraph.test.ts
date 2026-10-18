@@ -40,6 +40,9 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   '/onboarding', // post-signup / proxy entry; AuthForm uses withRedirect()
   // Join-by-token invite link shared externally (SMS, chat, email)
   '/t/[token]',
+  // Redirect shim to /references for Trusted Seller links already shared
+  // externally (Instagram). Deliberately unlinked: References replaced it.
+  '/trusted-sellers',
   // The trade-offer page for one listing, reached from the "Copy trade link" a seller
   // shares (built from `window.location.origin`, which the scanner cannot follow). In
   // the app the listing opens the same form as a dialog, and the bare route only says
@@ -278,6 +281,8 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/t/[token]': 'Web landing page for external private deal invite links',
   '/deals': 'Private deal composer; mobile uses its native deal modal',
   '/trusted-sellers': 'Public Trusted Seller directory, shared as a web link on Instagram',
+  '/references': 'Public References search over the trust graph (0155), web-first',
+  '/references/[platform]/[handle]': 'Unclaimed handle reference graph (0155), web-first',
   '/trusted-sellers/apply': 'Trusted Seller application, reached from the web directory',
   '/report-scam': 'Off-platform scam report form, web-only for now',
   '/report-scam/response/[id]': 'Matched member response page, opened from a notification link',

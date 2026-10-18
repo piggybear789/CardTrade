@@ -2832,6 +2832,157 @@ export type Database = {
         };
         Relationships: [];
       };
+      /** Social handle claims (0155). Service-role only; public reads via public_social_claims. */
+      social_claims: {
+        Row: {
+          id: string;
+          platform: string;
+          handle: string;
+          handle_norm: string;
+          claimed_profile_id: string | null;
+          created_by: string | null;
+          claim_method: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'STAFF';
+          claimed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          platform: string;
+          handle: string;
+          claimed_profile_id?: string | null;
+          created_by?: string | null;
+          claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'STAFF';
+          claimed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          platform?: string;
+          handle?: string;
+          claimed_profile_id?: string | null;
+          created_by?: string | null;
+          claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'STAFF';
+          claimed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** Positive reference edges (0155). Service-role writes; public reads via reference_edges_public. */
+      member_references: {
+        Row: {
+          id: string;
+          voucher_id: string;
+          target_profile_id: string | null;
+          target_claim_id: string | null;
+          platform: string;
+          sentiment: 'POSITIVE' | 'NEGATIVE';
+          category: string | null;
+          comment: string | null;
+          role: 'BOUGHT' | 'SOLD' | 'TRADED';
+          occurred_month: string;
+          status: 'LIVE' | 'WITHDRAWN' | 'REMOVED';
+          voucher_person_key: string;
+          target_person_key: string | null;
+          deal_count: number;
+          proof_paths: string[];
+          proof_status: 'NONE' | 'PENDING' | 'CHECKED';
+          disputed_at: string | null;
+          disputed_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          voucher_id: string;
+          target_profile_id?: string | null;
+          target_claim_id?: string | null;
+          platform: string;
+          sentiment?: 'POSITIVE' | 'NEGATIVE';
+          category?: string | null;
+          comment?: string | null;
+          role: 'BOUGHT' | 'SOLD' | 'TRADED';
+          occurred_month: string;
+          status?: 'LIVE' | 'WITHDRAWN' | 'REMOVED';
+          voucher_person_key: string;
+          target_person_key?: string | null;
+          deal_count?: number;
+          proof_paths?: string[];
+          proof_status?: 'NONE' | 'PENDING' | 'CHECKED';
+          disputed_at?: string | null;
+          disputed_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          voucher_id?: string;
+          target_profile_id?: string | null;
+          target_claim_id?: string | null;
+          platform?: string;
+          sentiment?: 'POSITIVE' | 'NEGATIVE';
+          category?: string | null;
+          comment?: string | null;
+          role?: 'BOUGHT' | 'SOLD' | 'TRADED';
+          occurred_month?: string;
+          status?: 'LIVE' | 'WITHDRAWN' | 'REMOVED';
+          voucher_person_key?: string;
+          target_person_key?: string | null;
+          deal_count?: number;
+          proof_paths?: string[];
+          proof_status?: 'NONE' | 'PENDING' | 'CHECKED';
+          disputed_at?: string | null;
+          disputed_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** Bio-code handle claim requests (0155). Service-role only; staff decide in /admin. */
+      handle_claim_requests: {
+        Row: {
+          id: string;
+          claim_id: string;
+          claimant_id: string;
+          status: 'PENDING' | 'APPROVED' | 'DECLINED';
+          bio_code: string;
+          screenshot_paths: string[];
+          staff_notes: string | null;
+          decided_by: string | null;
+          decided_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          claim_id: string;
+          claimant_id: string;
+          status?: 'PENDING' | 'APPROVED' | 'DECLINED';
+          bio_code: string;
+          screenshot_paths?: string[];
+          staff_notes?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          claim_id?: string;
+          claimant_id?: string;
+          status?: 'PENDING' | 'APPROVED' | 'DECLINED';
+          bio_code?: string;
+          screenshot_paths?: string[];
+          staff_notes?: string | null;
+          decided_by?: string | null;
+          decided_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       /** Off-platform scam reports (0154). Staff only; service role writes. */
       scam_reports: {
         Row: {
@@ -3354,6 +3505,37 @@ export type Database = {
        */
       discoverable_profiles: {
         Row: Database['cardtrade']['Views']['public_profiles']['Row'];
+        Relationships: [];
+      };
+      /** Social claims (0155): one row per (platform, handle). Public projection. */
+      public_social_claims: {
+        Row: {
+          id: string;
+          platform: string;
+          handle: string;
+          claimed_profile_id: string | null;
+          is_claimed: boolean;
+          claimed_at: string | null;
+        };
+        Relationships: [];
+      };
+      /** Live reference edges (0155). Public projection: no person keys, no proof paths. */
+      reference_edges_public: {
+        Row: {
+          id: string;
+          voucher_id: string;
+          target_profile_id: string | null;
+          target_claim_id: string | null;
+          platform: string;
+          sentiment: 'POSITIVE' | 'NEGATIVE';
+          category: string | null;
+          comment: string | null;
+          role: 'BOUGHT' | 'SOLD' | 'TRADED';
+          occurred_month: string;
+          deal_count: number;
+          proof_status: 'NONE' | 'PENDING' | 'CHECKED';
+          created_at: string;
+        };
         Relationships: [];
       };
       /**

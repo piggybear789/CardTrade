@@ -83,12 +83,12 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
     // Private Deal below `xl` for a member — so the search beside it keeps a usable
     // width.
     //
-    // The public Trusted Seller directory (0152), for guests and members alike: it
-    // is where a buyer finds reviewed sellers and a vendor finds how to join. The
+    // The References search (0155), for guests and members alike: it is where a
+    // buyer checks a seller before a deal and a vendor finds their graph. The
     // site menu carries it on narrower screens.
     {
-      href: '/trusted-sellers',
-      label: 'Trusted Sellers',
+      href: '/references',
+      label: 'References',
       match: 'prefix',
       className: 'hidden lg:inline-flex',
     },

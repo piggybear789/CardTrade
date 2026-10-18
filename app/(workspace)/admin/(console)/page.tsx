@@ -59,6 +59,23 @@ import {
   type TrustedSellerQueueRow,
 } from '@/components/admin/TrustedSellersQueue';
 import { signTrustedSellerPhotoUrls } from '@/lib/storage/trustedSellerPhotos';
+import {
+  ReferencesQueue,
+  type ReferenceClaimRow,
+  type ReferenceDisputeRow,
+  type ReferenceProofRow,
+} from '@/components/admin/ReferencesQueue';
+import { signReferenceImageUrls } from '@/lib/storage/referenceImages';
+import {
+  HANDLE_CLAIM_EVIDENCE_BUCKET,
+  REFERENCE_PROOF_BUCKET,
+} from '@/lib/storage/referenceImagesShared';
+import {
+  formatOccurredMonth,
+  negativeCategoryLabel,
+  platformLabel,
+  roleLabel,
+} from '@/domain/references/reference';
 import { ScamReportsQueue } from '@/components/admin/ScamReportsQueue';
 import { loadScamQueue, scamMatchCountsFor, type ScamQueueCluster } from '@/lib/risk/scamQueue';
 import { PageShell } from '@/components/layout/PageShell';
@@ -148,6 +165,10 @@ interface ConsoleQueue {
   trustedReviews: TrustedSellerQueueRow[];
   /** Off-platform scam report clusters (0154). */
   scamClusters: ScamQueueCluster[];
+  /** References queues (0155): claims with screenshots, pending proofs, disputes. */
+  referenceClaims: ReferenceClaimRow[];
+  referenceProofs: ReferenceProofRow[];
+  referenceDisputes: ReferenceDisputeRow[];
 }
 
 const EMPTY_QUEUE: ConsoleQueue = {
@@ -161,6 +182,9 @@ const EMPTY_QUEUE: ConsoleQueue = {
   errorOccurrences: [],
   trustedReviews: [],
   scamClusters: [],
+  referenceClaims: [],
+  referenceProofs: [],
+  referenceDisputes: [],
 };
 
 /** How many Trusted Seller reviews the tab reads. Decided ones fall off the end first. */
@@ -271,6 +295,112 @@ async function loadTrustedReviews(
 }
 
 /**
+ * The References tab's rows (0155): claim requests that have a screenshot,
+ * references whose proof is waiting to be marked checked, and disputed
+ * references. Names are resolved from the ids on screen; screenshots are
+ * signed for this render only.
+ */
+async function loadReferencesQueue(
+  admin: ReturnType<typeof createAdminClient>,
+): Promise<Pick<ConsoleQueue, 'referenceClaims' | 'referenceProofs' | 'referenceDisputes'>> {
+  const [{ data: claimRows }, { data: proofRows }, { data: disputeRows }] = await Promise.all([
+    admin
+      .from('handle_claim_requests')
+      .select('*')
+      .eq('status', 'PENDING')
+      .order('created_at', { ascending: true })
+      .limit(100),
+    admin
+      .from('member_references')
+      .select('*')
+      .eq('proof_status', 'PENDING')
+      .eq('status', 'LIVE')
+      .order('created_at', { ascending: true })
+      .limit(100),
+    admin
+      .from('member_references')
+      .select('*')
+      .eq('status', 'LIVE')
+      .not('disputed_at', 'is', null)
+      .order('disputed_at', { ascending: true })
+      .limit(100),
+  ]);
+
+  const claims = (claimRows ?? []).filter((row) => (row.screenshot_paths ?? []).length > 0);
+  const proofs = proofRows ?? [];
+  const disputes = disputeRows ?? [];
+
+  const claimIds = claims.map((row) => row.claim_id);
+  const profileIds = new Set<string>();
+  for (const row of claims) profileIds.add(row.claimant_id);
+  for (const row of [...proofs, ...disputes]) {
+    profileIds.add(row.voucher_id);
+    if (row.target_profile_id) profileIds.add(row.target_profile_id);
+  }
+
+  const [{ data: claimTargets }, { data: profiles }, claimShots, proofShots] = await Promise.all([
+    claimIds.length
+      ? admin.from('social_claims').select('id, platform, handle').in('id', claimIds)
+      : Promise.resolve({ data: [] as { id: string; platform: string; handle: string }[] }),
+    profileIds.size
+      ? admin.from('profiles').select('id, display_name').in('id', Array.from(profileIds))
+      : Promise.resolve({ data: [] as { id: string; display_name: string }[] }),
+    signReferenceImageUrls(
+      admin,
+      HANDLE_CLAIM_EVIDENCE_BUCKET,
+      claims.flatMap((row) => row.screenshot_paths ?? []),
+    ),
+    signReferenceImageUrls(
+      admin,
+      REFERENCE_PROOF_BUCKET,
+      proofs.flatMap((row) => row.proof_paths ?? []),
+    ),
+  ]);
+
+  const claimById = new Map((claimTargets ?? []).map((row) => [row.id, row]));
+  const nameById = new Map((profiles ?? []).map((row) => [row.id, row.display_name]));
+  const claimUrlByPath = new Map(claimShots.map((entry) => [entry.path, entry.url]));
+  const proofUrlByPath = new Map(proofShots.map((entry) => [entry.path, entry.url]));
+  const nameFor = (id: string | null) => (id ? (nameById.get(id) ?? 'Unknown member') : 'Unclaimed handle');
+
+  return {
+    referenceClaims: claims.map((row) => {
+      const claim = claimById.get(row.claim_id);
+      return {
+        id: row.id,
+        platform: claim ? platformLabel(claim.platform) : '',
+        handle: claim?.handle ?? '',
+        claimantId: row.claimant_id,
+        claimantName: nameFor(row.claimant_id),
+        bioCode: row.bio_code,
+        screenshots: (row.screenshot_paths ?? []).map((path) => ({ path, url: claimUrlByPath.get(path) ?? null })),
+        createdAt: row.created_at,
+      };
+    }),
+    referenceProofs: proofs.map((row) => ({
+      id: row.id,
+      voucherName: nameFor(row.voucher_id),
+      targetName: nameFor(row.target_profile_id),
+      targetId: row.target_profile_id,
+      platform: platformLabel(row.platform),
+      role: roleLabel(row.role),
+      dateLabel: formatOccurredMonth(row.occurred_month),
+      screenshots: (row.proof_paths ?? []).map((path) => ({ path, url: proofUrlByPath.get(path) ?? null })),
+    })),
+    referenceDisputes: disputes.map((row) => ({
+      id: row.id,
+      voucherName: nameFor(row.voucher_id),
+      targetName: nameFor(row.target_profile_id),
+      targetId: row.target_profile_id,
+      sentiment: row.sentiment,
+      categoryLabel: negativeCategoryLabel(row.category),
+      comment: row.comment,
+      disputedAt: row.disputed_at,
+    })),
+  };
+}
+
+/**
  * Read only the visible tab's rows.
  *
  * Extracted from the page body so it can be STARTED alongside the tab-badge
@@ -355,6 +485,10 @@ async function loadQueueForTab(
 
   if (tab === 'trusted') {
     return { ...EMPTY_QUEUE, trustedReviews: await loadTrustedReviews(admin) };
+  }
+
+  if (tab === 'references') {
+    return { ...EMPTY_QUEUE, ...(await loadReferencesQueue(admin)) };
   }
 
   if (tab === 'scams') {
@@ -482,6 +616,9 @@ export default async function AdminPage({
     openChargebackCount,
     readyTrustedReviews,
     scamReportCount,
+    claimCount,
+    proofCount,
+    disputeCount,
   ] = await Promise.all([
     admin
       .from('reports')
@@ -525,7 +662,26 @@ export default async function AdminPage({
       .from('scam_reports')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'SUBMITTED'),
+    // References work (0155): claims awaiting a bio check, proofs awaiting a
+    // receipt-checked mark, disputed references. Errors before 0155 read as 0.
+    admin
+      .from('handle_claim_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'PENDING'),
+    admin
+      .from('member_references')
+      .select('id', { count: 'exact', head: true })
+      .eq('proof_status', 'PENDING')
+      .eq('status', 'LIVE'),
+    admin
+      .from('member_references')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'LIVE')
+      .not('disputed_at', 'is', null),
   ]);
+
+  const referencesToReview =
+    (claimCount.count ?? 0) + (proofCount.count ?? 0) + (disputeCount.count ?? 0);
 
   const openReports = reportCount.count ?? 0;
   const openFeedback = feedbackCount.count ?? 0;
@@ -551,6 +707,9 @@ export default async function AdminPage({
     errorOccurrences,
     trustedReviews,
     scamClusters,
+    referenceClaims,
+    referenceProofs,
+    referenceDisputes,
   } = await queuePromise;
 
   // Resolve display names for the rows actually on screen, so no list shows a raw UUID.
@@ -646,6 +805,13 @@ export default async function AdminPage({
             shortLabel: 'Trusted',
             count: readyTrustedReviews,
             href: '/admin?tab=trusted',
+          },
+          {
+            key: 'references',
+            label: 'References',
+            shortLabel: 'References',
+            count: referencesToReview,
+            href: '/admin?tab=references',
           },
           { key: 'scams', label: 'Scams', count: scamsToReview, href: '/admin?tab=scams' },
         ]}
@@ -934,6 +1100,10 @@ export default async function AdminPage({
 
       {tab === 'trusted' ? (
         <TrustedSellersQueue rows={trustedReviews} readyCount={readyTrustedReviews} />
+      ) : null}
+
+      {tab === 'references' ? (
+        <ReferencesQueue claims={referenceClaims} proofs={referenceProofs} disputes={referenceDisputes} />
       ) : null}
 
       {tab === 'scams' ? (

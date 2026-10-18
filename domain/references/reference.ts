@@ -1,42 +1,42 @@
 // domain/references/reference.ts
 //
-// References (0155): the pure rules for a vouch. A reference is a positive,
-// structured attestation that the voucher personally dealt with the target:
-// where (platform), what happened (role), and roughly when (month). It goes
-// LIVE immediately. There is no rating, no negative reference, and no free
-// text on a quick vouch — bad experiences are scam reports, not references.
+// References (0155): the pure rules for sharing an experience. An experience
+// records who (profile, claim, or handle), where (platform), what role
+// (Bought / Sold / Traded), sentiment (Positive / Negative), and an optional
+// written note in the member's own words. Both positive and negative
+// experiences go LIVE immediately and are tied to the author's verified ID.
 //
 // Pure: no Supabase, React or service imports.
 
 import { isValidHandle, normalizeHandle, platformBySlug } from '@/domain/social/socialLinks';
 
-/** Where a deal can have happened. The `noditto` value is reserved for the UI's own records. */
+/** Where a deal can have happened. `noditto` is reserved for completed escrow deals. */
 export const REFERENCE_PLATFORMS = [
-  { slug: 'instagram', label: 'Instagram' },
-  { slug: 'facebook', label: 'Facebook' },
-  { slug: 'discord', label: 'Discord' },
-  { slug: 'ebay', label: 'eBay' },
-  { slug: 'whatnot', label: 'Whatnot' },
-  { slug: 'in-person', label: 'In person' },
-  { slug: 'other', label: 'Somewhere else' },
+  { slug: 'instagram', label: 'Instagram', shortLabel: 'IG' },
+  { slug: 'facebook', label: 'Facebook', shortLabel: 'FB' },
+  { slug: 'discord', label: 'Discord', shortLabel: 'Discord' },
+  { slug: 'ebay', label: 'eBay', shortLabel: 'eBay' },
+  { slug: 'whatnot', label: 'Whatnot', shortLabel: 'Whatnot' },
+  { slug: 'in-person', label: 'In person', shortLabel: 'IRL' },
+  { slug: 'other', label: 'Other', shortLabel: 'Other' },
 ] as const;
 
 export type ReferencePlatform = (typeof REFERENCE_PLATFORMS)[number]['slug'];
 
 export const REFERENCE_ROLES = [
-  { slug: 'BOUGHT', label: 'Bought from them' },
-  { slug: 'SOLD', label: 'Sold to them' },
-  { slug: 'TRADED', label: 'Traded with them' },
+  { slug: 'BOUGHT', label: 'Bought from them', shortLabel: 'Bought' },
+  { slug: 'SOLD', label: 'Sold to them', shortLabel: 'Sold' },
+  { slug: 'TRADED', label: 'Traded with them', shortLabel: 'Traded' },
 ] as const;
 
 export type ReferenceRole = (typeof REFERENCE_ROLES)[number]['slug'];
 
 export const NEGATIVE_CATEGORIES = [
   { slug: 'NEVER_ARRIVED', label: 'Item never arrived' },
-  { slug: 'NOT_AS_DESCRIBED', label: 'Fake or not as described' },
+  { slug: 'NOT_AS_DESCRIBED', label: 'Not as described' },
   { slug: 'SWITCHED', label: 'Item was switched' },
-  { slug: 'PAYMENT', label: 'Payment problem' },
-  { slug: 'OTHER', label: 'Something else' },
+  { slug: 'PAYMENT', label: 'Payment issue' },
+  { slug: 'OTHER', label: 'Other issue' },
 ] as const;
 
 export type NegativeCategory = (typeof NEGATIVE_CATEGORIES)[number]['slug'];
@@ -66,11 +66,16 @@ export function isClaimPlatform(value: unknown): value is ClaimPlatform {
 }
 
 export function platformLabel(slug: string): string {
+  if (slug === 'noditto') return 'NoDitto Escrow';
   return REFERENCE_PLATFORMS.find((p) => p.slug === slug)?.label ?? platformBySlug(slug)?.label ?? slug;
 }
 
 export function roleLabel(role: string): string {
   return REFERENCE_ROLES.find((r) => r.slug === role)?.label ?? role;
+}
+
+export function roleShortLabel(role: string): string {
+  return REFERENCE_ROLES.find((r) => r.slug === role)?.shortLabel ?? role;
 }
 
 /** `YYYY-MM` for the current month, or a validated input month not in the future. */
@@ -96,7 +101,8 @@ export function formatOccurredMonth(isoDate: string | null | undefined): string 
 
 export type ReferenceTargetInput =
   | { kind: 'profile'; profileId: string }
-  | { kind: 'claim'; claimId: string };
+  | { kind: 'claim'; claimId: string }
+  | { kind: 'handle'; handle: string };
 
 export interface GiveReferenceInput {
   target: ReferenceTargetInput;
@@ -104,11 +110,11 @@ export interface GiveReferenceInput {
   role: string;
   /** `YYYY-MM`; defaults to the current month. */
   occurredMonth?: string | null;
-  /** Defaults to POSITIVE. A NEGATIVE experience publishes instantly too. */
+  /** Defaults to POSITIVE. Both POSITIVE and NEGATIVE publish immediately. */
   sentiment?: ReferenceSentiment;
-  /** Required when NEGATIVE. */
+  /** Optional category when NEGATIVE (defaults to OTHER). */
   category?: string | null;
-  /** Optional public comment on a NEGATIVE experience (max 500 chars). Ignored for POSITIVE. */
+  /** Public written experience in words (max 500 chars), supported on both sentiments. */
   comment?: string | null;
 }
 
@@ -131,43 +137,69 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export function validateGiveReference(input: GiveReferenceInput): GiveReferenceValidation {
   const target = input?.target;
-  if (
-    !target ||
-    (target.kind !== 'profile' && target.kind !== 'claim') ||
-    typeof (target.kind === 'profile' ? target.profileId : target.claimId) !== 'string' ||
-    !UUID_RE.test((target.kind === 'profile' ? target.profileId : target.claimId) as string)
-  ) {
+  if (!target || typeof target !== 'object') {
     return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
   }
+  if (target.kind === 'profile') {
+    if (typeof target.profileId !== 'string' || !UUID_RE.test(target.profileId)) {
+      return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
+    }
+  } else if (target.kind === 'claim') {
+    if (typeof target.claimId !== 'string' || !UUID_RE.test(target.claimId)) {
+      return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
+    }
+  } else if (target.kind === 'handle') {
+    const cleaned = normalizeHandle(target.handle ?? '');
+    if (!isValidHandle(cleaned)) {
+      return { ok: false, message: 'Enter a valid handle.', field: 'target' };
+    }
+  } else {
+    return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
+  }
+
   if (!isReferencePlatform(input.platform)) {
-    return { ok: false, message: 'Choose where you dealt with them.', field: 'platform' };
+    return { ok: false, message: 'Choose where you did the deal.', field: 'platform' };
   }
   if (!isReferenceRole(input.role)) {
-    return { ok: false, message: 'Choose what happened in the deal.', field: 'role' };
+    return { ok: false, message: 'Choose whether you bought, sold, or traded.', field: 'role' };
   }
   const occurredMonth = normalizeOccurredMonth(input.occurredMonth);
   if (!occurredMonth) {
-    return { ok: false, message: 'Choose a month in the past.', field: 'occurredMonth' };
+    return { ok: false, message: 'Choose a valid month.', field: 'occurredMonth' };
   }
   const sentiment: ReferenceSentiment = input.sentiment === 'NEGATIVE' ? 'NEGATIVE' : 'POSITIVE';
   let category: NegativeCategory | null = null;
-  let comment: string | null = null;
   if (sentiment === 'NEGATIVE') {
     if (
-      typeof input.category !== 'string' ||
-      !(NEGATIVE_CATEGORIES as readonly { slug: string }[]).some((c) => c.slug === input.category)
+      typeof input.category === 'string' &&
+      (NEGATIVE_CATEGORIES as readonly { slug: string }[]).some((c) => c.slug === input.category)
     ) {
-      return { ok: false, message: 'Choose what happened.', field: 'category' };
-    }
-    category = input.category as NegativeCategory;
-    comment = typeof input.comment === 'string' ? input.comment.trim() || null : null;
-    if (comment && comment.length > 500) {
-      return { ok: false, message: 'Keep it to 500 characters or fewer.', field: 'comment' };
+      category = input.category as NegativeCategory;
+    } else {
+      category = 'OTHER';
     }
   }
+
+  const rawComment = typeof input.comment === 'string' ? input.comment.trim() : '';
+  const comment = rawComment.length > 0 ? rawComment : null;
+  if (comment && comment.length > 500) {
+    return { ok: false, message: 'Keep your note to 500 characters or fewer.', field: 'comment' };
+  }
+
+  const normalizedTarget: ReferenceTargetInput =
+    target.kind === 'handle' ? { kind: 'handle', handle: normalizeHandle(target.handle) } : target;
+
   return {
     ok: true,
-    value: { target, platform: input.platform, role: input.role, occurredMonth, sentiment, category, comment },
+    value: {
+      target: normalizedTarget,
+      platform: input.platform,
+      role: input.role,
+      occurredMonth,
+      sentiment,
+      category,
+      comment,
+    },
   };
 }
 
@@ -176,6 +208,12 @@ export function normalizeClaimHandle(platform: string, raw: string): string | nu
   if (!isClaimPlatform(platform)) return null;
   const handle = normalizeHandle(raw ?? '');
   return isValidHandle(handle) ? handle : null;
+}
+
+/** Map any deal platform to a valid `social_claims.platform` column value. */
+export function claimPlatformForDealPlatform(platform: string): ClaimPlatform {
+  if (isClaimPlatform(platform)) return platform;
+  return 'instagram';
 }
 
 /** Max references one member may give per day. Generous for humans, useless for rings. */

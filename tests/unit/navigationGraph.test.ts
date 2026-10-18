@@ -282,7 +282,7 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/deals': 'Private deal composer; mobile uses its native deal modal',
   '/trusted-sellers': 'Public Trusted Seller directory, shared as a web link on Instagram',
   '/references': 'Public References search over the trust graph (0155), web-first',
-  '/references/[platform]/[handle]': 'Unclaimed handle reference graph (0155), web-first',
+  '/references/[handle]': 'Unified cross-platform handle reference graph (0155), web-first',
   '/trusted-sellers/apply': 'Trusted Seller application, reached from the web directory',
   '/report-scam': 'Off-platform scam report form, web-only for now',
   '/report-scam/response/[id]': 'Matched member response page, opened from a notification link',

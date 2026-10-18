@@ -1,10 +1,10 @@
 // domain/references/layout.ts
 //
-// Deterministic radial layout for the reference graph. Ring 1 sits on a
-// circle around the centre node, ring 2 around each ring-1 node. Positions
-// are a pure function of the (already ranked) input, so server and client
-// agree and the graph never jumps between renders. No force simulation:
-// at this scale a calm, stable layout reads better than physics.
+// Deterministic radial vector layout for the reference graph.
+// Ring 1 sits on an elliptical orbit around the centre hub; when more than 6
+// nodes are present, alternating nodes step onto a staggered outer/inner
+// ellipse so horizontal node cards never collide. Ring 2 satellites sit on an
+// outer arc behind their parent away from the hub.
 //
 // Pure: no Supabase, React or service imports.
 
@@ -28,15 +28,14 @@ export interface PlacedNode {
 /** Node radius for a referee with `weight` incoming references. Capped both ways. */
 export function nodeRadius(weight: number): number {
   const w = Math.max(0, weight);
-  return Math.round(Math.min(38, Math.max(14, 14 + Math.sqrt(w) * 4.2)));
+  return Math.round(Math.min(36, Math.max(18, 18 + Math.sqrt(w) * 3.6)));
 }
 
 const TAU = Math.PI * 2;
 
 /**
- * Place ring-1 nodes around (`cx`, `cy`). The first (strongest) node starts
- * at the upper-left and the rest proceed clockwise, alternating sides so the
- * two strongest do not sit next to each other.
+ * Place ring-1 nodes around (`cx`, `cy`) on an elliptical orbit.
+ * Starting angle is upper-left (-140 deg) and proceeds clockwise.
  */
 export function layoutRing(
   nodes: GraphLayoutNodeInput[],
@@ -46,22 +45,22 @@ export function layoutRing(
 ): PlacedNode[] {
   const count = nodes.length;
   if (count === 0) return [];
-  const start = Math.PI * 0.78; // upper-left
+  const start = -Math.PI * 0.72;
   return nodes.map((node, i) => {
-    // Spread evenly, but nudge alternating nodes a little further out so
-    // labels on neighbours do not collide at small counts.
     const angle = start + (i / count) * TAU;
-    const radius = ringRadius * (i % 2 === 1 ? 1.1 : 0.96);
+    const stagger = count > 6 ? (i % 2 === 0 ? 0.92 : 1.14) : i % 2 === 0 ? 0.98 : 1.06;
+    const rx = ringRadius * 1.12 * stagger;
+    const ry = ringRadius * 0.76 * stagger;
     return {
       id: node.id,
-      x: Math.round(cx + Math.cos(angle) * radius),
-      y: Math.round(cy + Math.sin(angle) * radius * 0.82),
+      x: Math.round(cx + Math.cos(angle) * rx),
+      y: Math.round(cy + Math.sin(angle) * ry),
       r: nodeRadius(node.weight),
     };
   });
 }
 
-/** Place ring-2 nodes on a small arc behind their parent, away from centre. */
+/** Place ring-2 satellite nodes on an outer arc behind their parent, away from centre. */
 export function layoutChildren(
   children: GraphLayoutChildInput[],
   placedParents: Map<string, PlacedNode>,
@@ -81,14 +80,16 @@ export function layoutChildren(
     if (!parent) continue;
     const away = Math.atan2(parent.y - cy, parent.x - cx);
     kids.forEach((kid, i) => {
-      const spread = (i - (kids.length - 1) / 2) * 0.62;
+      const spread = (i - (kids.length - 1) / 2) * 0.52;
       const angle = away + spread;
-      const dist = parent.r + 52;
+      const dist = parent.r + 68;
+      const rawX = parent.x + Math.cos(angle) * dist;
+      const rawY = parent.y + Math.sin(angle) * dist;
       placed.push({
         id: kid.id,
-        x: Math.round(parent.x + Math.cos(angle) * dist),
-        y: Math.round(parent.y + Math.sin(angle) * dist),
-        r: Math.round(nodeRadius(kid.weight) * 0.62),
+        x: Math.round(Math.max(58, Math.min(cx * 2 - 58, rawX))),
+        y: Math.round(Math.max(44, Math.min(cy * 2 - 44, rawY))),
+        r: Math.round(nodeRadius(kid.weight) * 0.65),
       });
     });
   }

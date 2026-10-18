@@ -2,25 +2,27 @@
 
 // components/references/ShareExperience.tsx
 //
-// Share your experience (0155): the one action on a reference graph. Two
-// branches from a single door:
-//   * It went well   — a positive reference. Structured facts only, live
-//                      immediately, nobody approves it.
-//   * It went badly  — a negative experience. Category plus an optional
-//                      comment, ALSO live immediately and public, attached
-//                      to the sharer's verified identity.
-// Both go through `giveReference`; both need Stage-1 ID verification first
-// (no payout/Connect onboarding). The platform and month arrive prefilled
-// from wherever the member came from; role is the one real choice.
+// Share your experience (0155): unified Apple/SaaS-style composer modal.
+//   * Side-by-side Positive / Negative sentiment toggle
+//   * Side-by-side Bought / Sold / Traded segmented control
+//   * Text input below to share the experience in words
+//   * Platform pills so deals across Instagram, Facebook, Discord, eBay,
+//     Whatnot, and In-person synthesise into one cross-platform graph.
 
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Cancel01Icon, CheckmarkCircle02Icon, Copy01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import {
+  AlertCircleIcon,
+  Cancel01Icon,
+  CheckmarkCircle02Icon,
+  Copy01Icon,
+  ImageAdd01Icon,
+  ShieldCheckIcon,
+} from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   attachReferenceProof,
   giveReference,
@@ -32,6 +34,7 @@ import {
   NEGATIVE_CATEGORIES,
   REFERENCE_PLATFORMS,
   REFERENCE_ROLES,
+  type ReferenceSentiment,
 } from '@/domain/references/reference';
 import { cn } from '@/lib/utils';
 
@@ -40,10 +43,6 @@ export interface ShareExperienceViewer {
   identityVerified: boolean;
   isSelf: boolean;
 }
-
-type Step = 'choose' | 'well' | 'badly' | 'done';
-
-const ROLE_OPTIONS = REFERENCE_ROLES.map((r) => ({ value: r.slug, label: r.label }));
 
 function currentMonth(): string {
   const now = new Date();
@@ -60,12 +59,14 @@ export function ShareExperience({
   viewer: ShareExperienceViewer;
   /** Where sign-in / verification should bring the member back to. */
   returnPath: string;
-  /** Open the chooser on mount (the member arrived from a reference request link). */
+  /** Open the composer on mount (arrived from a reference request link). */
   autoOpen?: boolean;
 }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [step, setStep] = useState<Step>('choose');
+  const [done, setDone] = useState(false);
+  const [sentiment, setSentiment] = useState<ReferenceSentiment>('POSITIVE');
   const [role, setRole] = useState<string>('BOUGHT');
   const [category, setCategory] = useState<string>('NEVER_ARRIVED');
   const [comment, setComment] = useState('');
@@ -83,15 +84,19 @@ export function ShareExperience({
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    if (autoOpen && viewer.signedIn && !viewer.isSelf) setOpen(true);
+    if (autoOpen && viewer.signedIn && !viewer.isSelf) {
+      setOpen(true);
+      setDone(false);
+    }
   }, [autoOpen, viewer.signedIn, viewer.isSelf]);
 
-  // Your own graph: the action is asking, not vouching.
+  // Owner viewing their own graph: share / QR controls.
   if (viewer.isSelf) {
     const copyLink = async () => {
       try {
         await navigator.clipboard.writeText(`${window.location.origin}${returnPath}?experience=1`);
         setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
       } catch {
         setCopied(false);
       }
@@ -109,22 +114,34 @@ export function ShareExperience({
       setShowQr((current) => !current);
     };
     return (
-      <div className="shrink-0">
-        <div className="flex gap-snug">
-          <Button variant="outline" className="shrink-0" onClick={copyLink}>
-            <HugeiconsIcon icon={Copy01Icon} className="size-4" aria-hidden />
-            {copied ? 'Link copied' : 'Copy your reference link'}
+      <div className="relative shrink-0">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="h-9 rounded-full px-3.5" onClick={copyLink}>
+            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" aria-hidden />
+            {copied ? 'Copied link' : 'Share reference link'}
           </Button>
-          <Button variant="ghost" className="shrink-0" onClick={toggleQr} aria-expanded={showQr}>
-            {showQr ? 'Hide QR' : 'Show QR'}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 rounded-full px-3"
+            onClick={toggleQr}
+            aria-expanded={showQr}
+          >
+            {showQr ? 'Hide QR' : 'QR'}
           </Button>
         </div>
         {showQr && qrUrl ? (
-          <div className="mt-snug rounded-xl border border-border bg-card p-cozy text-center">
+          <div className="absolute right-0 top-11 z-30 w-56 rounded-2xl border border-border bg-card p-4 text-center shadow-lg">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrUrl} alt="QR code for your reference link" width={180} height={180} className="mx-auto" />
-            <p className="mt-tight text-meta text-muted-foreground">
-              At a meetup, they scan this and share an experience on the spot.
+            <img
+              src={qrUrl}
+              alt="QR code for your reference link"
+              width={168}
+              height={168}
+              className="mx-auto rounded-lg"
+            />
+            <p className="mt-2 text-meta text-muted-foreground">
+              Scan at a show or meetup to leave a reference.
             </p>
           </div>
         ) : null}
@@ -134,8 +151,8 @@ export function ShareExperience({
 
   if (!viewer.signedIn) {
     return (
-      <Button asChild className="shrink-0">
-        <Link href={`/sign-in?redirectTo=${encodeURIComponent(returnPath)}`}>
+      <Button asChild size="sm" className="h-9 shrink-0 rounded-full px-4 font-medium shadow-xs">
+        <Link href={`/sign-in?redirectTo=${encodeURIComponent(`${returnPath}?experience=1`)}`}>
           Share your experience
         </Link>
       </Button>
@@ -162,273 +179,357 @@ export function ShareExperience({
     setUploadingProof(false);
   };
 
-  const submit = (sentiment: 'POSITIVE' | 'NEGATIVE') => {
+  const resolveTargetPayload = () => {
+    if (target.kind === 'profile') {
+      return { kind: 'profile' as const, profileId: target.id };
+    }
+    if (target.kind === 'claim') {
+      return { kind: 'claim' as const, claimId: target.id };
+    }
+    return {
+      kind: 'handle' as const,
+      handle: (target.handleSlug ?? target.handle).replace(/^@/, ''),
+    };
+  };
+
+  const submit = () => {
     setError(null);
     startTransition(async () => {
       const result = await giveReference({
-        target:
-          target.kind === 'profile'
-            ? { kind: 'profile', profileId: target.id }
-            : { kind: 'claim', claimId: target.id },
+        target: resolveTargetPayload(),
         platform,
         role,
         occurredMonth: month,
         sentiment,
         category: sentiment === 'NEGATIVE' ? category : null,
-        comment: sentiment === 'NEGATIVE' ? comment : null,
+        comment,
       });
       if (!result.ok) {
         setError(result.message);
         return;
       }
       if (sentiment === 'POSITIVE' && proofPaths.length > 0) {
-        // Best effort: the reference is already live either way; the proof
-        // just upgrades it once staff check it.
         await attachReferenceProof(result.data.referenceId, proofPaths).catch(() => null);
       }
-      setStep('done');
+      setDone(true);
       router.refresh();
     });
   };
 
-  const gate = !viewer.identityVerified ? (
-    <div className="rounded-lg border border-border bg-muted/40 p-cozy">
-      <p className="flex items-center gap-tight text-body font-semibold text-foreground">
-        <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 text-trust" aria-hidden />
-        Verify your ID first
-      </p>
-      <p className="mt-tight text-body text-muted-foreground">
-        Experiences only count from people who passed an ID check. It takes a photo ID and a
-        selfie with Stripe, no bank details. Then you&rsquo;ll come back here.
-      </p>
-      <Button asChild variant="outline" size="sm" className="mt-snug">
-        <Link href="/profile?tab=verification">Verify ID</Link>
-      </Button>
-    </div>
-  ) : null;
+  const resetAndClose = () => {
+    setOpen(false);
+    setDone(false);
+    setError(null);
+  };
 
   return (
     <div className="shrink-0">
-      {!open ? (
-        <Button className="shrink-0" onClick={() => { setOpen(true); setStep('choose'); }}>
-          Share your experience
-        </Button>
-      ) : null}
+      <Button
+        size="sm"
+        className="h-9 shrink-0 rounded-full px-4 font-medium shadow-xs"
+        onClick={() => {
+          setOpen(true);
+          setDone(false);
+          setError(null);
+        }}
+      >
+        Share your experience
+      </Button>
 
       {open ? (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-group sm:items-center" role="dialog" aria-modal="true" aria-label={`Share your experience with ${target.handle}`}>
-          <div className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-xl border border-border bg-card p-group shadow-lg">
-            <div className="flex items-start justify-between gap-cozy">
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 backdrop-blur-[2px] sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Share your experience with ${target.handle}`}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) resetAndClose();
+          }}
+        >
+          <div className="max-h-[92dvh] w-full max-w-[460px] overflow-y-auto rounded-2xl border border-border/80 bg-card p-6 shadow-xl">
+            {/* Modal Header */}
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="text-lead font-semibold text-foreground">
-                  {step === 'done' ? "It's live" : 'Share your experience'}
+                <h3 className="text-[1.125rem] font-semibold tracking-tight text-foreground">
+                  {done ? 'Experience published' : 'Share your experience'}
                 </h3>
-                <p className="mt-0.5 truncate text-body text-muted-foreground">
-                  {target.handle}
-                  {target.name !== target.handle ? ` · ${target.name}` : ''}
-                  {target.unclaimed ? ' · Unclaimed' : ''}
-                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-meta text-muted-foreground">
+                  <span className="font-medium text-foreground/90">{target.handle}</span>
+                  {target.name && target.name !== target.handle.replace(/^@/, '') ? (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>{target.name}</span>
+                    </>
+                  ) : null}
+                  {target.identityVerified ? (
+                    <span className="inline-flex items-center gap-1 font-medium text-trust">
+                      <span aria-hidden>·</span>
+                      <HugeiconsIcon icon={ShieldCheckIcon} className="size-3.5" aria-hidden />
+                      ID verified
+                    </span>
+                  ) : null}
+                </div>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setOpen(false)}
+              <button
+                type="button"
+                onClick={resetAndClose}
                 aria-label="Close"
+                className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <HugeiconsIcon icon={Cancel01Icon} className="size-4" aria-hidden />
-              </Button>
+              </button>
             </div>
 
-            {step !== 'done' && gate ? <div className="mt-group">{gate}</div> : null}
-
-            {step === 'choose' && !gate ? (
-              <div className="mt-group space-y-snug">
-                <button
-                  type="button"
-                  onClick={() => setStep('well')}
-                  className="block w-full rounded-xl border border-border p-cozy text-left transition-colors hover:border-foreground/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="block text-body font-semibold text-foreground">It went well</span>
-                  <span className="mt-0.5 block text-body text-muted-foreground">
-                    Give a reference. Public, live straight away. They don&rsquo;t approve it.
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setStep('badly')}
-                  className="block w-full rounded-xl border border-border p-cozy text-left transition-colors hover:border-foreground/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="block text-body font-semibold text-foreground">It went badly</span>
-                  <span className="mt-0.5 block text-body text-muted-foreground">
-                    Share a negative experience. Public, live straight away, with your verified
-                    name on it.
-                  </span>
-                </button>
-                <p className="text-center text-meta text-muted-foreground">
-                  Only share an experience from a deal you personally completed.
+            {!viewer.identityVerified && !done ? (
+              <div className="mt-5 rounded-xl border border-border bg-muted/40 p-4">
+                <p className="flex items-center gap-2 text-body font-semibold text-foreground">
+                  <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 text-trust" aria-hidden />
+                  Verify your ID first
                 </p>
+                <p className="mt-1.5 text-body text-muted-foreground">
+                  Every reference is backed by a Stripe photo ID and selfie check. No bank or payout
+                  details are required.
+                </p>
+                <Button asChild size="sm" className="mt-3 rounded-lg">
+                  <Link href="/profile?tab=verification">Verify ID with Stripe</Link>
+                </Button>
               </div>
             ) : null}
 
-            {(step === 'well' || step === 'badly') && !gate ? (
-              <div className="mt-group space-y-group">
+            {viewer.identityVerified && !done ? (
+              <div className="mt-5 space-y-4">
+                {/* 1. Positive / Negative side-by-side toggle */}
                 <div>
-                  <p className="mb-snug text-body font-semibold text-foreground" id="exp-role-label">
-                    {step === 'well' ? 'You…' : 'The deal was…'}
-                  </p>
-                  <div className="space-y-tight" role="group" aria-labelledby="exp-role-label">
-                    {ROLE_OPTIONS.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        onClick={() => setRole(option.value)}
-                        aria-pressed={role === option.value}
-                        className={cn(
-                          'block h-11 w-full rounded-lg border px-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                          role === option.value
-                            ? 'border-foreground bg-foreground font-semibold text-background'
-                            : 'border-border bg-card hover:border-foreground/40',
-                        )}
-                      >
-                        {option.label}
-                      </button>
-                    ))}
+                  <label className="mb-1.5 block text-meta font-medium text-muted-foreground">
+                    Outcome
+                  </label>
+                  <div className="grid grid-cols-2 gap-2" role="group" aria-label="Outcome">
+                    <button
+                      type="button"
+                      onClick={() => setSentiment('POSITIVE')}
+                      aria-pressed={sentiment === 'POSITIVE'}
+                      className={cn(
+                        'flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-body font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        sentiment === 'POSITIVE'
+                          ? 'border-trust bg-trust/10 font-semibold text-trust ring-1 ring-trust/25'
+                          : 'border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                      )}
+                    >
+                      <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4" aria-hidden />
+                      Positive
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSentiment('NEGATIVE')}
+                      aria-pressed={sentiment === 'NEGATIVE'}
+                      className={cn(
+                        'flex h-10 items-center justify-center gap-2 rounded-xl border px-3 text-body font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        sentiment === 'NEGATIVE'
+                          ? 'border-destructive bg-destructive/10 font-semibold text-destructive ring-1 ring-destructive/25'
+                          : 'border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                      )}
+                    >
+                      <HugeiconsIcon icon={AlertCircleIcon} className="size-4" aria-hidden />
+                      Negative
+                    </button>
                   </div>
                 </div>
 
-                {step === 'badly' ? (
-                  <>
-                    <div>
-                      <p className="mb-snug text-body font-semibold text-foreground" id="exp-cat-label">
-                        What happened?
-                      </p>
-                      <div className="space-y-tight" role="group" aria-labelledby="exp-cat-label">
-                        {NEGATIVE_CATEGORIES.map((option) => (
+                {/* 2. Bought / Sold / Traded side-by-side segmented control */}
+                <div>
+                  <label className="mb-1.5 block text-meta font-medium text-muted-foreground">
+                    Your role in the deal
+                  </label>
+                  <div
+                    className="grid grid-cols-3 gap-1 rounded-xl border border-border/80 bg-muted/60 p-1"
+                    role="group"
+                    aria-label="Your role in the deal"
+                  >
+                    {REFERENCE_ROLES.map((item) => {
+                      const active = role === item.slug;
+                      return (
+                        <button
+                          key={item.slug}
+                          type="button"
+                          onClick={() => setRole(item.slug)}
+                          aria-pressed={active}
+                          className={cn(
+                            'h-9 rounded-lg text-body transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            active
+                              ? 'bg-card font-semibold text-foreground shadow-xs'
+                              : 'font-medium text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {item.shortLabel}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Optional negative issue tag row when Negative is selected */}
+                {sentiment === 'NEGATIVE' ? (
+                  <div>
+                    <label className="mb-1.5 block text-meta font-medium text-muted-foreground">
+                      What went wrong
+                    </label>
+                    <div className="flex flex-wrap gap-1.5" role="group" aria-label="What went wrong">
+                      {NEGATIVE_CATEGORIES.map((item) => {
+                        const active = category === item.slug;
+                        return (
                           <button
-                            key={option.slug}
+                            key={item.slug}
                             type="button"
-                            onClick={() => setCategory(option.slug)}
-                            aria-pressed={category === option.slug}
+                            onClick={() => setCategory(item.slug)}
+                            aria-pressed={active}
                             className={cn(
-                              'block h-11 w-full rounded-lg border px-cozy text-left text-body transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                              category === option.slug
-                                ? 'border-foreground bg-foreground font-semibold text-background'
-                                : 'border-border bg-card hover:border-foreground/40',
+                              'h-7 rounded-full border px-2.5 text-meta transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                              active
+                                ? 'border-destructive bg-destructive text-destructive-foreground font-medium'
+                                : 'border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
                             )}
                           >
-                            {option.label}
+                            {item.label}
                           </button>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                    <div>
-                      <label htmlFor="exp-comment" className="mb-snug block text-body font-semibold text-foreground">
-                        Say what happened <span className="font-normal text-muted-foreground">(optional, public)</span>
-                      </label>
-                      <textarea
-                        id="exp-comment"
-                        value={comment}
-                        onChange={(event) => setComment(event.target.value)}
-                        maxLength={500}
-                        rows={3}
-                        className="w-full rounded-lg border border-input bg-card px-cozy py-snug text-body text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        placeholder="Keep it to what happened…"
-                      />
-                    </div>
-                  </>
-                ) : null}
-
-                {step === 'well' ? (
-                  <div>
-                    <label htmlFor="exp-proof" className="mb-snug block text-body font-semibold text-foreground">
-                      Add a screenshot <span className="font-normal text-muted-foreground">(optional)</span>
-                    </label>
-                    <Input
-                      id="exp-proof"
-                      type="file"
-                      accept={REFERENCE_IMAGE_ACCEPT}
-                      multiple
-                      onChange={(event) => onProofFiles(event.target.files)}
-                      className="h-11 pt-2"
-                    />
-                    <p className="mt-tight text-meta text-muted-foreground">
-                      {proofNames.length > 0
-                        ? proofNames.join(', ')
-                        : 'DM, payment or tracking. Only NoDitto staff see it. It earns the Receipt checked mark once they check it.'}
-                    </p>
                   </div>
                 ) : null}
 
-                <div className="flex flex-wrap items-center gap-x-cozy gap-y-snug text-body text-muted-foreground">
-                  <label className="flex items-center gap-tight">
-                    Where
-                    <select
-                      value={platform}
-                      onChange={(event) => setPlatform(event.target.value)}
-                      className="h-9 rounded-md border border-input bg-card px-tight text-body text-foreground"
-                    >
-                      {REFERENCE_PLATFORMS.map((p) => (
-                        <option key={p.slug} value={p.slug}>
-                          {p.label}
-                        </option>
-                      ))}
-                    </select>
+                {/* 3. Experience in words (Textarea below) */}
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <label htmlFor="exp-comment" className="text-meta font-medium text-muted-foreground">
+                      Your experience
+                    </label>
+                    <span className="text-meta tabular-nums text-muted-foreground/70">
+                      {comment.length}/500
+                    </span>
+                  </div>
+                  <textarea
+                    id="exp-comment"
+                    value={comment}
+                    onChange={(event) => setComment(event.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    placeholder={
+                      sentiment === 'POSITIVE'
+                        ? 'Share how the deal went (packaging, speed, communication, item condition)...'
+                        : 'Share what happened during the deal...'
+                    }
+                    className="w-full resize-none rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-body text-foreground placeholder:text-muted-foreground/70 transition-colors focus:border-foreground/40 focus:bg-card focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                </div>
+
+                {/* 4. Platform synthesis pills */}
+                <div>
+                  <label className="mb-1.5 block text-meta font-medium text-muted-foreground">
+                    Platform where you dealt
                   </label>
-                  <label className="flex items-center gap-tight">
-                    When
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Platform">
+                    {REFERENCE_PLATFORMS.map((p) => {
+                      const active = platform === p.slug;
+                      return (
+                        <button
+                          key={p.slug}
+                          type="button"
+                          onClick={() => setPlatform(p.slug)}
+                          aria-pressed={active}
+                          className={cn(
+                            'h-7 rounded-full border px-2.5 text-meta transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                            active
+                              ? 'border-foreground bg-foreground font-medium text-background'
+                              : 'border-border bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 5. Compact When + Proof attachment row */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <label className="inline-flex items-center gap-2 text-meta text-muted-foreground">
+                    <span>Month</span>
                     <input
                       type="month"
                       value={month}
                       max={currentMonth()}
                       onChange={(event) => setMonth(event.target.value)}
-                      className="h-9 rounded-md border border-input bg-card px-tight text-body text-foreground"
+                      className="h-8 rounded-lg border border-border bg-card px-2.5 text-meta text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     />
                   </label>
+
+                  {sentiment === 'POSITIVE' ? (
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept={REFERENCE_IMAGE_ACCEPT}
+                        multiple
+                        onChange={(event) => onProofFiles(event.target.files)}
+                        className="sr-only"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadingProof}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-dashed border-border px-2.5 text-meta font-medium text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                      >
+                        <HugeiconsIcon icon={ImageAdd01Icon} className="size-3.5" aria-hidden />
+                        {uploadingProof
+                          ? 'Uploading...'
+                          : proofNames.length > 0
+                            ? `${proofNames.length} screenshot${proofNames.length === 1 ? '' : 's'} attached`
+                            : 'Attach receipt (optional)'}
+                      </button>
+                    </div>
+                  ) : null}
                 </div>
 
                 {error ? (
-                  <p role="alert" className="rounded-lg bg-destructive/10 px-cozy py-snug text-body text-destructive">
+                  <p
+                    role="alert"
+                    className="rounded-xl border border-destructive/20 bg-destructive/10 px-3.5 py-2.5 text-body text-destructive"
+                  >
                     {error}
                   </p>
                 ) : null}
 
-                <Button
-                  className="w-full"
-                  disabled={pending || uploadingProof}
-                  onClick={() => submit(step === 'well' ? 'POSITIVE' : 'NEGATIVE')}
-                >
-                  {pending
-                    ? 'Posting…'
-                    : step === 'well'
-                      ? 'Post reference'
-                      : 'Post experience'}
-                </Button>
-                <button
-                  type="button"
-                  onClick={() => setStep(step === 'well' ? 'badly' : 'well')}
-                  className="w-full text-center text-body text-muted-foreground underline-offset-4 hover:underline"
-                >
-                  {step === 'well'
-                    ? 'Deal went badly? Share a negative experience instead'
-                    : 'Actually, it went well? Give a reference instead'}
-                </button>
+                {/* Footer buttons */}
+                <div className="flex items-center justify-end gap-2 border-t border-border/70 pt-4">
+                  <Button variant="ghost" size="sm" onClick={resetAndClose} className="rounded-lg">
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={pending || uploadingProof}
+                    onClick={submit}
+                    className="rounded-lg px-5"
+                  >
+                    {pending ? 'Publishing...' : 'Publish experience'}
+                  </Button>
+                </div>
               </div>
             ) : null}
 
-            {step === 'done' ? (
-              <div className="mt-group space-y-group text-center">
-                <HugeiconsIcon icon={CheckmarkCircle02Icon} className="mx-auto size-10 text-trust" aria-hidden />
-                <p className="text-body text-muted-foreground">
-                  Your experience is on {target.handle}&rsquo;s graph now, with your verified name
-                  on it. They&rsquo;ve been notified.
-                </p>
-                <Button
-                  className="w-full"
-                  onClick={() => {
-                    setOpen(false);
-                    setStep('choose');
-                  }}
-                >
+            {done ? (
+              <div className="mt-6 space-y-4 text-center">
+                <div className="mx-auto grid size-12 place-items-center rounded-full bg-trust/10 text-trust">
+                  <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-6" aria-hidden />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-body font-medium text-foreground">
+                    Added to {target.handle}&rsquo;s trust graph
+                  </p>
+                  <p className="text-body text-muted-foreground">
+                    Your experience is live across their network with your verified identity.
+                  </p>
+                </div>
+                <Button className="w-full rounded-xl" onClick={resetAndClose}>
                   Done
                 </Button>
               </div>

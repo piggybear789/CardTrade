@@ -71,13 +71,13 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
         }
       : state === 'SOLVENT'
         ? {
-            wrapper: 'border-border bg-muted',
+            wrapper: 'border-border bg-card',
             badge: 'default' as const,
             label: 'Funds covered',
             icon: <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0" aria-hidden />,
           }
         : {
-            wrapper: 'border-border bg-muted',
+            wrapper: 'border-border bg-card',
             badge: 'outline' as const,
             label: 'Unknown',
             icon: <HugeiconsIcon icon={HelpCircleIcon} className="size-4 shrink-0" aria-hidden />,

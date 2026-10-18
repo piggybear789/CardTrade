@@ -9,7 +9,11 @@ import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
 import { listMyNotifications } from '@/lib/actions/notifications';
-import { NotificationCenter } from '@/components/notifications/NotificationCenter';
+import {
+  NotificationCenter,
+  NotificationsProvider,
+  NotificationsToolbar,
+} from '@/components/notifications/NotificationCenter';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import {
   SectionHeader,
@@ -21,6 +25,11 @@ import {
 
 export const metadata = {
   title: 'Notifications · NoDitto',
+};
+
+const SECTION = {
+  title: 'Activity',
+  description: 'Your offers, messages, trades, and sales updates.',
 };
 
 export default async function NotificationsPage() {
@@ -37,31 +46,28 @@ export default async function NotificationsPage() {
 
   return (
     <MarketplaceShell title="Notifications">
-      <SectionHeader
-        title="Activity"
-        description="Your offers, messages, trades, and sales updates."
-      />
-
       {!result.ok ? (
-        <div className="mb-5">
-          <SectionLoadError label="notifications" />
-        </div>
+        <>
+          <SectionHeader {...SECTION} />
+          <div className="mb-5">
+            <SectionLoadError label="notifications" />
+          </div>
+        </>
       ) : (
-        // `flex-1`/`min-h-0` so the empty state's `fill` has height to claim: the
-        // shell column hands its leftover space down only as far as the chain of
-        // flex children reaches, and this wrapper was where it stopped.
-        <div className="flex min-h-0 w-full flex-1 flex-col">
-          {/* `now` COMES FROM HERE, not from the client. The list groups rows by age,
-              and a `new Date()` inside a client component runs once on the server and
-              again in the browser — two different instants, so a row near a bucket
-              boundary could land in one group during SSR and another on hydration.
-              That is a structural mismatch, not a text one. */}
-          <NotificationCenter
-            userId={user.id}
-            initialNotifications={result.notifications}
-            now={new Date().toISOString()}
-          />
-        </div>
+        <NotificationsProvider userId={user.id} initialNotifications={result.notifications}>
+          <SectionHeader {...SECTION} actions={<NotificationsToolbar />} />
+          {/* `flex-1`/`min-h-0` so the empty state's `fill` has height to claim: the
+              shell column hands its leftover space down only as far as the chain of
+              flex children reaches, and this wrapper was where it stopped. */}
+          <div className="flex min-h-0 w-full flex-1 flex-col">
+            {/* `now` COMES FROM HERE, not from the client. The list groups rows by age,
+                and a `new Date()` inside a client component runs once on the server and
+                again in the browser — two different instants, so a row near a bucket
+                boundary could land in one group during SSR and another on hydration.
+                That is a structural mismatch, not a text one. */}
+            <NotificationCenter now={new Date().toISOString()} />
+          </div>
+        </NotificationsProvider>
       )}
     </MarketplaceShell>
   );

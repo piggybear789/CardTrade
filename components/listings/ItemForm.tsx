@@ -207,26 +207,31 @@ const LISTING_KINDS = [
 ];
 
 /**
- * What the price means to each side, while it is typed: what buyers will see on the
+ * What the price means to each side, once one is typed: what buyers will see on the
  * listing, and what the seller receives. The fee is added on top of the seller's
  * price, so a seller entering $100 could not tell whether buyers would see $100 or
- * more — and nothing said they keep the full $100. Both cells always render, with a
- * dash when empty, so typing does not move the field below.
+ * more — and nothing said they keep the full $100.
+ *
+ * Nothing shows until there is a price: two empty figures read as disabled fields. The
+ * line is the last thing in the step, so its arrival moves nothing a seller is using.
+ * The live region stays mounted while empty, or the first figure would not be announced.
  */
 function PriceReadout({ cents, currency }: { cents: number | null; currency: string }) {
   const valid = cents != null && cents > 0;
-  const cell = (label: string, value: string) => (
-    <div className="rounded-md bg-muted px-snug py-tight">
-      <span className="block text-meta text-muted-foreground">{label}</span>
-      <span className="block font-medium tabular-nums">{value}</span>
-    </div>
-  );
   return (
     <div className="space-y-tight">
-      <div className="grid grid-cols-2 gap-snug text-body" aria-live="polite">
-        {cell("Buyers see", valid ? formatMoney(buyerPaysCents(cents, currency), currency) : "—")}
-        {cell("You'll get", valid ? formatMoney(cents, currency) : "—")}
-      </div>
+      <p className="text-body" aria-live="polite">
+        {valid ? (
+          <>
+            Buyers see{" "}
+            <span className="font-medium tabular-nums">
+              {formatMoney(buyerPaysCents(cents, currency), currency)}
+            </span>
+            {" · "}you&apos;ll get{" "}
+            <span className="font-medium tabular-nums">{formatMoney(cents, currency)}</span>
+          </>
+        ) : null}
+      </p>
       <p className="text-meta text-muted-foreground">
         {feesWaivedForBeta()
           ? `${betaFeeNote()}.`
@@ -1052,12 +1057,12 @@ function ItemFormInner({
               // the button's edges and sat directly against the border, which read as
               // the frame gripping the card rather than presenting it.
               //
-              // A 1px SOLID `--input` edge, not a 2px dashed one. This is a control, and
-              // `--input` is the token that says so — it is the same edge every field on
-              // this form wears, at the 3:1 SC 1.4.11 wants. The dashes were carrying
-              // "drop a file here" on a button that says "Add photos" in words directly
-              // beneath the icon, and at 2px they were the heaviest line on the page.
-              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input bg-muted p-cozy text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-accent focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
+              // The `--input` edge, because this is a control: the same edge every field
+              // on this form wears, at the 3:1 SC 1.4.11 wants, and one pixel so it is no
+              // heavier than they are. Empty, it is dashed on white with a violet glyph,
+              // which reads as the place photos go. With a cover it turns solid and the
+              // fill muted, which letterboxes the photo instead of framing a drop target.
+              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} ${coverUrl ? "bg-muted" : "border-dashed bg-card"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input p-cozy text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-accent focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
               // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
               //
               // With no photo the button's own words ("Add photos", below) are its
@@ -1081,7 +1086,7 @@ function ItemFormInner({
                 />
               ) : (
                 <>
-                  <HugeiconsIcon icon={ImagePlusIcon} className="size-8" aria-hidden />
+                  <HugeiconsIcon icon={ImagePlusIcon} className="size-8 text-iris" aria-hidden />
                   <span className="text-body font-medium text-foreground">Add photos</span>
                   {/* THE SHOTS A CARD BUYER LOOKS FOR, named. A blank box said nothing
                       about what to photograph, and the slab label and the corners are

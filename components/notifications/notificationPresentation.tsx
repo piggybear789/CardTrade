@@ -73,39 +73,24 @@ function metaFor(type: string) {
 }
 
 /**
- * The row's own SURFACE — unread, hover and focus — shared by the bell and the centre.
+ * The row's own SURFACE — hover and focus — shared by the bell and the centre.
  *
  * Here rather than in each caller for the reason this module exists: the two had the
- * three states written out twice and identically, so the next change to any of them was
+ * states written out twice and identically, so the next change to any of them was
  * a change in two places. The callers still own their spacing, which is the part that
  * legitimately differs (the panel's rows are tighter than the page's).
  *
- * THE UNREAD WASH IS THE ACCENT TINT, AND IT STAYS VIOLET. It was briefly swapped for
- * ink at 5% on the grounds that a lilac band on every unread row made the panel's
- * dominant colour a tint. Reverted on look: `--foreground` is a plum-black, so a few
- * percent of it over white lands on a near-perfect neutral — which, surrounded by the
- * lilac page, card and hover states this app is built from, reads GREEN. Simultaneous
- * contrast, and an unread row that looks faintly green is worse than one that looks
- * faintly violet, because green means something else in this palette (`--trust`).
+ * NO UNREAD WASH. `--accent` is the neutral grey hover surface, so a tint of it on
+ * every unread row made a list of new things look disabled, and the hover state could
+ * not be told from it. Unread is carried inside the row instead: the `iris` dot, the
+ * semibold title and the `sr-only` "unread" (`NotificationRowBody`).
  *
- * A wash belongs to the family it sits in. `--accent` is the pastel violet SURFACE
- * token, which is exactly what this is, and globals.css allows the hue to TINT freely —
- * the rule it is under governs borders.
- *
- * The one thing the ink version was right about is recorded rather than fixed: because
- * unread and hover are two alphas of one token, a hovered unread row and a hovered read
- * row land on the same value, so the wash stops distinguishing them under the cursor.
- * The semibold title and the `sr-only` "unread" still do, which is why that is
- * acceptable — colour was never carrying this state alone.
- *
- * @param unread Whether the row's notification is unread.
  * @param layout The caller's own spacing and gap utilities.
  */
-export function notificationRowClass(unread: boolean, layout: string) {
+export function notificationRowClass(layout: string) {
   return cn(
     'flex w-full items-start border border-transparent text-left transition-colors',
     'hover:bg-accent focus:outline-none focus-visible:border-ring focus-visible:bg-accent',
-    unread && 'bg-accent/40',
     layout,
   );
 }
@@ -165,6 +150,12 @@ export function NotificationRowBody({
               unread ? 'font-semibold' : 'font-medium',
             )}
           >
+            {/* Read rows keep the dot's slot, so titles line up down the list whether or
+                not the row above them is new. */}
+            <span
+              className={cn('size-2 shrink-0 self-center rounded-full', unread && 'bg-iris')}
+              aria-hidden
+            />
             {/* `self-center` so the glyph optically centres on the cap height of the
                 title beside it rather than sitting on the baseline. */}
             <HugeiconsIcon
@@ -199,7 +190,7 @@ export function NotificationRowBody({
         {notification.target_missing ? (
           // Said in place, because following the link would land on a 404: the sale
           // or trade it pointed at has been removed or is no longer yours to open.
-          <span className="mt-0.5 block text-meta font-medium text-muted-foreground">
+          <span className="mt-1 block w-fit rounded-full border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-muted-foreground">
             No longer available
           </span>
         ) : null}

@@ -92,8 +92,8 @@ test.describe.serial('Private cash deal → sale room', () => {
     await expect(page.getByRole('heading', { name: /is selling/i })).toBeVisible({
       timeout: COLD_ROUTE,
     });
-    await expect(page.getByRole('button', { name: 'Join with Google' })).toBeVisible();
-    await page.getByRole('link', { name: 'Sign in to join' }).click();
+    // Scoped to the page: the guest header has its own "Sign in".
+    await page.getByRole('main').getByRole('link', { name: 'Sign in' }).click();
     await expect(page).toHaveURL(new RegExp(`/sign-in\\?redirectTo=${encodeURIComponent(invitePath).replace(/\//g, '\\/')}`));
     await ctx.close();
   });

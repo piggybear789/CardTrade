@@ -50,7 +50,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
-import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
 import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
 import { HOLD_DECLINED_MESSAGE, type TradeAcceptCopy } from '@/lib/handover/terms';
 import { FEE_WAIVED_HINT, NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
@@ -110,12 +109,8 @@ export interface TradeNegotiationPanelProps {
      * day before the meeting — not at acceptance.
      */
     feeText: string;
-    /**
-     * The rate as members read it, e.g. "5%" or "waived for now, normally 5%",
-     * from `tradeFeeRowRate`, so the label has one source. Falls back to the bare
-     * percentage.
-     */
-    feeRateLabel?: string;
+    /** The fee row's label, from `tradeFeeRowLabel`, so it has one source. */
+    feeLabel: string;
     /**
      * The temporary card hold placed against the viewer's card. Not a charge while the
      * trade runs; charged only if a problem is still open when it is about to expire
@@ -224,38 +219,39 @@ export function TradeNegotiationPanel({
           them again here made the action card a summary with buttons attached
           instead of a place to act. Failures surface as toasts, and the counter
           form carries its own inline validation. */}
-      <div className="flex w-full min-w-0 flex-col items-stretch gap-snug sm:items-end">
-        <SavedCardRow
-          initialStatus={paymentMethod}
-          className="w-full sm:max-w-sm"
-        />
-        <ContractOverflowMenu>
-          {actions.includes('PROPOSE_TERMS') ? (
-            <Button variant="ghost" disabled={isPending} onClick={() => setCounterOpen(true)}>
-              Change cash
+      {/* One row when the column is wide enough; otherwise the card row takes the full
+          width and Accept and ⋯ wrap beneath it, right-aligned. */}
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-snug">
+        <SavedCardRow initialStatus={paymentMethod} className="min-w-0 flex-1 basis-72" />
+        <div className="ml-auto flex shrink-0 items-center gap-snug">
+          {actions.includes('ACCEPT_TERMS') ? (
+            <Button
+              disabled={isPending}
+              aria-busy={isPending}
+              aria-haspopup="dialog"
+              onClick={() => setAcceptOpen(true)}
+            >
+              <PendingLabel pending={isPending}>Accept terms</PendingLabel>
             </Button>
           ) : null}
-          {actions.includes('DECLINE_OFFER') ? (
-            <Button variant="ghost" disabled={isPending} onClick={() => setDeclineOpen(true)}>
-              Decline
-            </Button>
-          ) : null}
-          <ReportDialog
-            targetType="user"
-            targetId={counterpartyId}
-            triggerLabel={`Report ${counterpartyName}`}
-          />
-        </ContractOverflowMenu>
-        {actions.includes('ACCEPT_TERMS') ? (
-          <Button
-            disabled={isPending}
-            aria-busy={isPending}
-            aria-haspopup="dialog"
-            onClick={() => setAcceptOpen(true)}
-          >
-            <PendingLabel pending={isPending}>Accept terms</PendingLabel>
-          </Button>
-        ) : null}
+          <ContractOverflowMenu>
+            {actions.includes('PROPOSE_TERMS') ? (
+              <Button variant="ghost" disabled={isPending} onClick={() => setCounterOpen(true)}>
+                Change cash
+              </Button>
+            ) : null}
+            {actions.includes('DECLINE_OFFER') ? (
+              <Button variant="ghost" disabled={isPending} onClick={() => setDeclineOpen(true)}>
+                Decline
+              </Button>
+            ) : null}
+            <ReportDialog
+              targetType="user"
+              targetId={counterpartyId}
+              triggerLabel={`Report ${counterpartyName}`}
+            />
+          </ContractOverflowMenu>
+        </div>
       </div>
 
       <Dialog open={counterOpen} onOpenChange={setCounterOpen}>
@@ -364,7 +360,7 @@ export function TradeNegotiationPanel({
               ariaLabel="What accepting costs you"
               rows={[
                 {
-                  label: `NoDitto fee (${acceptCost.feeRateLabel ?? `${TRADE_FEE_BPS / 100}%`})`,
+                  label: acceptCost.feeLabel,
                   value: acceptCost.feeText,
                   hint: feesWaivedForBeta()
                     ? FEE_WAIVED_HINT

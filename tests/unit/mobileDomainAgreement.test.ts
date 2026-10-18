@@ -30,7 +30,7 @@ import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { minorUnitDigits, REGIONS } from '@/domain/region';
 import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
-import { FEE_WAIVED_HINT, betaFeeNote, platformFeeRowRate } from '@/lib/fees/feeLabels';
+import { FEE_WAIVED_HINT, betaFeeNote } from '@/lib/fees/feeLabels';
 import { TRANSITIONS } from '@/domain/state-machine/machine';
 import { TERMINAL_STATES } from '@/domain/state-machine/types';
 import {
@@ -242,8 +242,8 @@ describe('the beta fee waiver agrees across the language boundary', () => {
   it('uses the same fee-waiver copy', () => {
     const { source } = dartFeeSchedule();
     expect(source).toContain(`'${betaFeeNote()}'`);
-    expect(source).toContain(`'${platformFeeRowRate(0)}'`);
     expect(source).toContain(`'${FEE_WAIVED_HINT}'`);
+    expect(source).not.toContain('waived in open beta, normally');
   });
 });
 

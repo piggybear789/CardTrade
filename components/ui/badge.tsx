@@ -35,6 +35,12 @@ const badgeVariants = cva(
         // pairing `scripts/palette-contrast.mjs` checks as "text-trust on muted".
         trust:
           "border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.1)] text-trust",
+        // `trust`'s tinted siblings, for a status column where every state should carry
+        // the same weight and differ only by hue. The violet label is `iris-ink`, not
+        // `iris`: a label owes 4.5:1 and `iris` clears only the 3:1 a marker needs.
+        iris: "border-iris/40 bg-iris/10 text-iris-ink",
+        "destructive-soft": "border-destructive/40 bg-destructive/10 text-destructive",
+        muted: "border-border bg-muted text-muted-foreground",
         outline: "border-border text-foreground",
       },
     },

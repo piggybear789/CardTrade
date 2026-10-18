@@ -2,10 +2,11 @@
 //
 // Branded 404. Rendered by Next.js for unmatched routes and any notFound()
 // call. Kept as a Server Component so it stays cheap and works without JS.
+//
+// ONE WAY BACK. The marketplace is the home page, so a second "Back to home"
+// button led to the same place as the first.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CompassIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 
@@ -15,15 +16,11 @@ export const metadata = {
 
 export default function NotFound() {
   // `py-12` on a phone, `py-20` from `sm`. This page has no bottom nav under it,
-  // and 80px of padding either side of a `text-display` heading and two
-  // `size="lg"` buttons pushed both buttons under the fold on a 375x667 screen —
-  // the two things the page exists to offer.
+  // and 80px of padding either side of a `text-display` heading pushed the button
+  // under the fold on a 375x667 screen — the one thing the page exists to offer.
   return (
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center px-group py-12 text-center sm:px-6 sm:py-20">
-      <div className="flex size-14 items-center justify-center rounded-full border bg-muted text-muted-foreground">
-        <HugeiconsIcon icon={CompassIcon} className="size-6" aria-hidden="true" />
-      </div>
-      <p className="mt-6 text-body font-medium text-muted-foreground">Error 404</p>
+      <p className="text-body font-medium text-muted-foreground">Error 404</p>
       <h1 className="mt-group text-balance font-display text-display font-semibold tracking-tight">
         We couldn&apos;t find that page
       </h1>
@@ -31,18 +28,9 @@ export default function NotFound() {
         The link may be broken, or the listing or contract may have been removed.
         Everything on NoDitto stays one click from the marketplace.
       </p>
-      <div className="mt-section flex flex-col gap-cozy sm:flex-row">
-        <Button asChild size="lg">
-          <Link href="/">Browse the marketplace</Link>
-        </Button>
-        <Button asChild size="lg" variant="outline">
-          <Link href="/">Back to home</Link>
-        </Button>
-      </div>
-      <p className="mt-10 inline-flex items-center gap-snug text-body text-muted-foreground">
-        <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden="true" />
-        Every trade on NoDitto shows collateral terms and a Stripe Identity check.
-      </p>
+      <Button asChild size="lg" className="mt-section">
+        <Link href="/">Browse the marketplace</Link>
+      </Button>
     </main>
   );
 }

@@ -5,7 +5,7 @@
 // The in-app NOTIFICATION CENTER entry point for the site header (Phase 4). A
 // bell icon with an unread-count badge that opens a lightweight popover panel
 // listing recent notifications. Each row shows the title, optional body, a
-// relative timestamp, and an unread tint; clicking a row marks it read and
+// relative timestamp, and an unread dot; clicking a row marks it read and
 // navigates to its `link`. A "Mark all read" action clears every unread badge.
 //
 // The list is seeded by the server. Opening the panel refreshes it through a
@@ -188,27 +188,21 @@ export function NotificationBell({
             </div>
           ) : (
             <ul role="list" className="divide-y">
-              {visible.map((n) => {
-                const unread = n.read_at === null;
-                return (
-                  <li key={n.id}>
-                    <Link
-                      // A removed contract would 404; the centre says so in place.
-                      href={n.link && !n.target_missing ? n.link : '/notifications'}
-                      onClick={() => handleSelect(n)}
-                      className={notificationRowClass(
-                        unread,
-                        'gap-snug px-group py-cozy',
-                      )}
-                    >
-                      {/* The centre's row, term for term. The panel clamps the body
-                          because it is 28rem tall at most and three long notifications
-                          would fill it. */}
-                      <NotificationRowBody notification={n} clampBody />
-                    </Link>
-                  </li>
-                );
-              })}
+              {visible.map((n) => (
+                <li key={n.id}>
+                  <Link
+                    // A removed contract would 404; the centre says so in place.
+                    href={n.link && !n.target_missing ? n.link : '/notifications'}
+                    onClick={() => handleSelect(n)}
+                    className={notificationRowClass('gap-snug px-group py-cozy')}
+                  >
+                    {/* The centre's row, term for term. The panel clamps the body
+                        because it is 28rem tall at most and three long notifications
+                        would fill it. */}
+                    <NotificationRowBody notification={n} clampBody />
+                  </Link>
+                </li>
+              ))}
             </ul>
           )}
         </div>

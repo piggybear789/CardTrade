@@ -1,8 +1,8 @@
 // app/notifications/loading.tsx
 //
-// Activity list: heading, the unread count beside Mark all read, then age-bucketed
-// groups of text rows with a timestamp — no thumbnails, status pills, or unread
-// markers.
+// Activity list: heading with the unread count and Mark all read beside it, then
+// age-bucketed groups of text rows with a timestamp — no thumbnails, status pills, or
+// unread markers.
 //
 // GROUPED, NOT ONE FLAT RUN. This used to draw a single bordered list of six rows.
 // `NotificationCenter` renders a `<section>` PER AGE BUCKET — an uppercase `text-meta`
@@ -12,7 +12,7 @@
 // the ordinary case for anyone with a live contract; the real labels are reserved so the
 // headings do not change width on swap.
 
-import { Skeleton, TextLines } from '@/components/ui/skeleton';
+import { TextLines } from '@/components/ui/skeleton';
 import { MarketplaceShellSkeleton } from '@/components/layout/MarketplaceShellSkeleton';
 import {
   NotificationRowSkeleton,
@@ -67,17 +67,14 @@ export default function NotificationsLoading() {
           reaches, and a plain `min-w-0` div is where it stopped. Without it, a member
           with no activity saw a content-height stack become a full-column island. */}
       <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
-        <SectionHeaderSkeleton titleClassName="w-28" />
+        {/* The count and the `size="sm"` button (h-9 on touch, h-8 from md) as one
+            reserve beside the heading. */}
+        <SectionHeaderSkeleton
+          titleClassName="w-28"
+          hasActions
+          actionsClassName="h-9 w-52 md:h-8"
+        />
         <div className="space-y-group">
-          {/* `justify-between`, not `justify-end`. The real row states the unread count
-              on the left — the one figure this page is opened for — so an end-aligned
-              button alone left that line to appear from nothing. */}
-          <div className="flex items-center justify-between gap-cozy">
-            {/* The unread-count line is texture; the button keeps its reserve. */}
-            <TextLines className="text-body" widths={['w-1/3']} />
-            {/* `size="sm"`: h-9 on touch, h-8 from md. */}
-            <Skeleton className="h-9 w-32 shrink-0 rounded-md md:h-8" />
-          </div>
           {/* Bucket-heading widths are texture (each heading is in its own line box);
               they draw from the canonical set. The row counts are the reservation. */}
           <NotificationGroupSkeleton labelWidth="w-1/3" rows={4} desktopRows={7} />

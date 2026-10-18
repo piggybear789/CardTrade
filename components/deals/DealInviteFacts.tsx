@@ -1,22 +1,18 @@
 // components/deals/DealInviteFacts.tsx
 //
-// Labeled recap of an invite. Host copy is first-person ("You are buying");
-// guest copy is about the other person. Empty fields are omitted so the
-// remaining rows stay a real definition list, not a pile.
+// Labeled recap of an invite. Host copy is first-person ("Your card"); guest
+// copy is about the other person. Empty fields are omitted so the remaining
+// rows stay a real definition list, not a pile.
+//
+// No row for the kind of deal: every card that renders this already says it, in
+// its heading ("Sam wants to trade") or in the labels below ("Their card is
+// worth", "Price").
 
 import type { ReactNode } from 'react';
 
 import type { DealInvitePreview } from '@/lib/actions/dealInvites';
 import { StorageImage } from '@/components/ui/storage-image';
 import { formatMoney, itemImageUrl } from '@/lib/format';
-
-function dealLabel(preview: DealInvitePreview, audience: 'host' | 'guest'): string {
-  if (preview.kind === 'TRADE') return 'Trade';
-  if (preview.hostRole === 'BUYER') {
-    return audience === 'host' ? 'You are buying' : 'They want to buy';
-  }
-  return audience === 'host' ? 'You are selling' : 'They want to sell';
-}
 
 function Fact({
   label,
@@ -58,8 +54,6 @@ export function DealInviteFacts({
 
   return (
     <dl className="grid gap-group">
-      <Fact label="Deal">{dealLabel(preview, audience)}</Fact>
-
       {amountCents != null ? (
         <Fact label={amountLabel}>
           <span className="display-value text-head">

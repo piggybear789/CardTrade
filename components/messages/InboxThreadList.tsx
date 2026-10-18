@@ -57,6 +57,14 @@ function statusPill(c: ConversationListEntry) {
   return null;
 }
 
+/**
+ * A row's second line. A thread with nothing said in it yet names the card it is about,
+ * so two empty threads with the same member can still be told apart.
+ */
+function previewFor(c: ConversationListEntry): string {
+  return c.lastMessage?.body ?? c.item?.title ?? 'No messages yet';
+}
+
 function UnreadMark({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
@@ -94,7 +102,7 @@ function MobileThreadRow({
 }) {
   const name = c.other.displayName?.trim() || 'NoDitto member';
   const thumb = c.item ? itemImageUrl(c.item.imagePath) : null;
-  const preview = c.lastMessage?.body ?? 'No messages yet';
+  const preview = previewFor(c);
   const time = formatRelativeTime(c.lastMessage?.createdAt ?? c.lastMessageAt);
   const unread = c.unreadCount > 0;
 
@@ -251,7 +259,7 @@ function RowShell({
 function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
   const name = c.other.displayName?.trim() || 'NoDitto member';
   const thumb = c.item ? itemImageUrl(c.item.imagePath) : null;
-  const preview = c.lastMessage?.body ?? 'No messages yet';
+  const preview = previewFor(c);
   const time = formatRelativeTime(c.lastMessage?.createdAt ?? c.lastMessageAt);
 
   return (

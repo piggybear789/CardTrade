@@ -29,9 +29,9 @@ import {
   feesWaivedForBeta,
   platformFeePhrase,
   platformFeeRateLabel,
-  platformFeeRowRate,
+  platformFeeRowLabel,
   tradeFeeRateLabel,
-  tradeFeeRowRate,
+  tradeFeeRowLabel,
 } from '@/lib/fees/feeLabels';
 
 /** The standard-rate function: what `platformFeeCentsFor` charges once the beta ends. */
@@ -163,10 +163,13 @@ describe('what the buyer is shown', () => {
       "NoDitto is in open beta, so NoDitto fees are waived. We'll tell you before standard fees apply.",
     );
     expect(TERMS_BETA_FEE_SENTENCE).toContain('members will be told before standard fees apply');
-    expect(platformFeeRowRate(0)).toBe('waived in open beta, normally 5%');
-    expect(platformFeeRowRate(500)).toBe('5%');
-    expect(tradeFeeRowRate(0)).toBe('waived in open beta, normally 5%');
-    expect(tradeFeeRowRate(500)).toBe('5%');
+  });
+
+  it('names the rate on a fee row only when a fee was charged', () => {
+    expect(platformFeeRowLabel('Platform fee', 0)).toBe('Platform fee');
+    expect(platformFeeRowLabel('Platform fee', 500)).toBe('Platform fee (5%)');
+    expect(tradeFeeRowLabel('NoDitto fee', 0)).toBe('NoDitto fee');
+    expect(tradeFeeRowLabel('NoDitto fee', 500)).toBe('NoDitto fee (5%)');
   });
 
   it('never says "all fees", prints a $0.00 fee or a minimum in fee-waiver copy', () => {
@@ -181,8 +184,6 @@ describe('what the buyer is shown', () => {
       FEE_POPOVER_WAIVED_TITLE,
       FEE_POPOVER_WAIVED_FOOTNOTE,
       TERMS_BETA_FEE_SENTENCE,
-      platformFeeRowRate(0),
-      tradeFeeRowRate(0),
     ]) {
       expect(text).not.toMatch(/\$0\.00|min|all fees/i);
     }

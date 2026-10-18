@@ -29,7 +29,13 @@ export function SellerProfileActions({ sellerId }: { sellerId: string }) {
   return (
     <div className="flex shrink-0 items-center gap-snug">
       {/* No listing in scope, so the thread is the two members' general one. */}
-      <MessageSellerButton itemId={null} sellerId={sellerId} size="sm" className="flex-1 sm:flex-none" />
+      <MessageSellerButton
+        itemId={null}
+        sellerId={sellerId}
+        size="sm"
+        emphasis="primary"
+        className="flex-1 sm:flex-none"
+      />
       {/* `modal={false}`: the menu hands off to a dialog, and a modal menu's
           pointer-events lock races the dialog's own and can leave the page inert. */}
       <DropdownMenu modal={false}>

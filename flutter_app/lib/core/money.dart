@@ -213,12 +213,12 @@ abstract final class Money {
   /// Hint beside a $0.00 fee row. Mirrors `FEE_WAIVED_HINT` in `lib/fees/feeLabels.ts`.
   static const String feeWaivedHint = 'Waived during open beta.';
 
-  /// Parenthetical for a fee row: "waived in open beta, normally 5%" when the fee
-  /// is 0, else "5%". Decided by the figure, so a stored pre-waiver fee reads "5%".
+  /// A fee row's label: "Platform fee (5%)" when a fee was stored, or the bare name
+  /// when it is 0. Decided by the figure, so a stored pre-waiver fee names the rate.
   ///
-  /// Mirrors `platformFeeRowRate` / `tradeFeeRowRate` in `lib/fees/feeLabels.ts`.
-  static String feeRowRate(int feeCents) =>
-      feeCents == 0 ? 'waived in open beta, normally 5%' : '5%';
+  /// Mirrors `platformFeeRowLabel` / `tradeFeeRowLabel` in `lib/fees/feeLabels.ts`.
+  static String feeRowLabel(String name, int feeCents) =>
+      feeCents == 0 ? name : '$name (5%)';
 
   /// Returns total cost for a cash sale buyer: price + shipping + platform fee.
   static int cashSaleTotal({

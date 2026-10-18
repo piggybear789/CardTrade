@@ -11,11 +11,9 @@
 // in the collapsed history row. This card is only ever about NOW.
 //
 // WHOSE MOVE IT IS LEADS. A step the viewer owns takes the lavender wash, a violet
-// edge and a "Your move" pill; a step the other side owns stays plain under
-// "Waiting on Ada". The label alone used to carry ownership, in the same grey band
-// for both people, and on a phone the line naming who was outstanding was hidden —
-// so the room looked identical whether it was waiting on you or on them. When it is
-// not the viewer's move, the room passes no children and the card shows no buttons.
+// edge and a "Your move" pill. A step the other side owns stays plain with no pill:
+// its title already names who it is waiting for ("Waiting for Ada to pay"). When it
+// is not the viewer's move, the room passes no children and the card shows no buttons.
 
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -69,24 +67,16 @@ const STRIP_TONE: Record<ContractActionTone, string> = {
 const YOUR_MOVE_CARD = 'border-iris/50 bg-accent/60';
 const YOUR_MOVE_STRIP = 'bg-accent/60 shadow-[inset_3px_0_0_hsl(var(--iris))]';
 
-/** Whose move a step is, as the card states it. */
-function ownerOf(step: ContractStep | null): 'you' | 'them' | null {
-  if (!step || step.status !== 'active') return null;
-  if (step.owner === 'you' || step.owner === 'both') return 'you';
-  if (step.owner === 'them') return 'them';
-  return null;
+/** Whether the live step is the viewer's to act on. */
+function isViewersMove(step: ContractStep | null): boolean {
+  return step?.status === 'active' && (step.owner === 'you' || step.owner === 'both');
 }
 
-/** "Your move" or "Waiting on Ada", inline before the step's title. */
-function OwnerPill({ owner, counterpartyName }: { owner: 'you' | 'them'; counterpartyName?: string }) {
+/** "Your move", inline before the step's title. */
+function YourMovePill() {
   return (
-    <span
-      className={cn(
-        'mr-snug inline-flex translate-y-[-1px] items-center rounded-full px-1.5 align-middle text-meta font-semibold leading-5',
-        owner === 'you' ? 'bg-iris/15 text-iris-ink' : 'bg-muted text-muted-foreground',
-      )}
-    >
-      {owner === 'you' ? 'Your move' : `Waiting on ${counterpartyName ?? 'the other party'}`}
+    <span className="mr-snug inline-flex translate-y-[-1px] items-center rounded-full bg-iris/15 px-1.5 align-middle text-meta font-semibold leading-5 text-iris-ink">
+      Your move
     </span>
   );
 }
@@ -122,8 +112,6 @@ export interface ContractActionCardProps {
    * identity strip — no title, no tint, just the controls.
    */
   appearance?: 'card' | 'dock' | 'header';
-  /** The other party's name, for "Waiting on Ada". */
-  counterpartyName?: string;
   className?: string;
 }
 
@@ -238,11 +226,10 @@ export function ContractActionCard({
   children,
   more,
   appearance = 'card',
-  counterpartyName,
   className,
 }: ContractActionCardProps) {
-  const owner = ownerOf(step);
-  const yourMove = owner === 'you' && tone === 'default';
+  const viewersMove = isViewersMove(step);
+  const yourMove = viewersMove && tone === 'default';
   if (appearance === 'header') {
     return (
       <div
@@ -326,7 +313,7 @@ export function ContractActionCard({
                 the wrong title on first paint. A `title` override wins outright,
                 since a flow that supplied its own copy has already decided. */}
             <h3 className="line-clamp-2 text-lead font-semibold leading-tight tracking-tight md:line-clamp-1">
-              {owner ? <OwnerPill owner={owner} counterpartyName={counterpartyName} /> : null}
+              {viewersMove ? <YourMovePill /> : null}
               {title ?? (
                 step?.compactLabel ? (
                   <>
@@ -386,7 +373,7 @@ export function ContractActionCard({
       <CardContent className="flex flex-wrap items-center gap-x-group gap-y-cozy p-group">
         <div className="min-w-0 flex-1 basis-72">
           <h3 className="text-pretty text-subhead font-semibold leading-tight tracking-tight">
-            {owner ? <OwnerPill owner={owner} counterpartyName={counterpartyName} /> : null}
+            {viewersMove ? <YourMovePill /> : null}
             {title ?? step?.label ?? 'This contract is finished'}
           </h3>
           {detail ?? step?.detail ? (

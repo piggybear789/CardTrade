@@ -203,7 +203,7 @@ export default async function ArbitrationQueuePage({
       {shown.length === 0 ? (
         <EmptyState
           icon={<HugeiconsIcon icon={InboxIcon} className="size-6" aria-hidden />}
-          title={scope === 'mine' ? 'Nothing Assigned to You' : 'Queue Is Clear'}
+          title={scope === 'mine' ? 'Nothing assigned to you' : 'Queue is clear'}
           titleAs="h3"
           description={
             scope === 'mine'

@@ -80,21 +80,28 @@ function scopeOf(item: ItemRow): Exclude<ListingScope, 'all' | 'drafts'> {
   return 'live';
 }
 
-/** How a listing's state reads to its owner, and which tone carries it. */
+/**
+ * How a listing's state reads to its owner, and which tone carries it.
+ *
+ * ONE TINTED STYLE, FIVE HUES. A column mixing an outline, a solid violet and a solid red
+ * chip read as three kinds of thing, and solid red read as an error on the page. States
+ * still in play carry colour (green available, violet under contract, red taken down);
+ * finished ones are grey, so "Sold" does not share the green that means "Live".
+ */
 function statusOf(item: ItemRow): { label: string; tone: BadgeProps['variant']; live: boolean } {
   // Staff moderation first: it overrides everything else the row could say, and it is
   // the only state the owner cannot fix themselves.
-  if (item.hidden) return { label: 'Hidden', tone: 'destructive', live: false };
-  if (item.closed_at) return { label: 'Closed', tone: 'secondary', live: false };
-  if (item.status === 'SOLD') return { label: 'Sold', tone: 'trust', live: false };
-  // Filled violet, matching "money is held" everywhere else: a reserved item has a live
+  if (item.hidden) return { label: 'Hidden', tone: 'destructive-soft', live: false };
+  if (item.closed_at) return { label: 'Closed', tone: 'muted', live: false };
+  if (item.status === 'SOLD') return { label: 'Sold', tone: 'muted', live: false };
+  // Violet, matching "money is held" everywhere else: a reserved item has a live
   // contract and a buyer's payment behind it.
-  if (item.status === 'RESERVED') return { label: 'Under contract', tone: 'default', live: false };
+  if (item.status === 'RESERVED') return { label: 'Under contract', tone: 'iris', live: false };
   // A binder is never reserved and never sold — it is open until it is closed — so it
   // says so rather than borrowing the single-item word.
   return {
     label: item.listing_kind === 'SHOPFRONT' ? 'Open' : 'Live',
-    tone: 'outline',
+    tone: 'trust',
     live: true,
   };
 }
@@ -347,7 +354,7 @@ function RowThumb({ item }: { item: ItemRow }) {
 function LiveDot() {
   return (
     <span
-      className="mr-tight inline-block size-1.5 shrink-0 rounded-full bg-iris"
+      className="mr-tight inline-block size-1.5 shrink-0 rounded-full bg-trust"
       aria-hidden="true"
     />
   );

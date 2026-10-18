@@ -88,11 +88,13 @@ void main() {
     test('fee-waiver copy names the normal rate and never says beta', () {
       expect(Money.betaFeeNote(), equals('Open beta: NoDitto fees waived (normally 5%)'));
       expect(Money.feeWaivedHint, equals('Waived during open beta.'));
-      expect(Money.feeRowRate(0), equals('waived in open beta, normally 5%'));
       expect(Money.betaFeeNote().toLowerCase(), isNot(contains('beta')));
       expect(Money.feeWaivedHint.toLowerCase(), isNot(contains('beta')));
-      expect(Money.feeRowRate(0).toLowerCase(), isNot(contains('beta')));
-      expect(Money.feeRowRate(500), equals('5%'));
+    });
+
+    test('a fee row names the rate only when a fee was charged', () {
+      expect(Money.feeRowLabel('Platform fee', 0), equals('Platform fee'));
+      expect(Money.feeRowLabel('Platform fee', 500), equals('Platform fee (5%)'));
     });
   });
 

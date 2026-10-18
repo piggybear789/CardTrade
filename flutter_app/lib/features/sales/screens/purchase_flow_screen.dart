@@ -374,7 +374,7 @@ class _PricePreview extends StatelessWidget {
             Money.format(priceCents, currency),
           ),
           _row(
-            'Platform fee (${Money.feeRowRate(feeCents)})',
+            Money.feeRowLabel('Platform fee', feeCents),
             Money.format(feeCents, currency),
           ),
           // The one row whose right-hand side is a sentence rather than an amount,

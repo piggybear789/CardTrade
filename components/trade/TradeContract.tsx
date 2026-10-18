@@ -55,7 +55,7 @@ import {
   type SavedCardStatus,
 } from '@/components/payments/SavedCardRow';
 import { tradeFeeCentsFor } from '@/domain/trade/tradeFee';
-import { feesWaivedForBeta, tradeFeeRowRate } from '@/lib/fees/feeLabels';
+import { feesWaivedForBeta, tradeFeeRowLabel } from '@/lib/fees/feeLabels';
 import { tradeAcceptCopy } from '@/lib/handover/terms';
 import { HandoverChangeBanner, type HandoverChangeView } from '@/components/trade/HandoverChangeBanner';
 import {
@@ -1109,20 +1109,10 @@ function TradeContractRoom({
                   }
                   actions={
                     <FadeSwap id={`${trade.state}:${step?.id ?? 'complete'}`}>
-                    <ContractActionCard
-                      appearance="dock"
-                      step={step}
-                      counterpartyName={theirName}
-                      tone={STATE_TONE[trade.state]}
-                      // An outcome to read, not a control — it was a paragraph
-                      // child, which now lands in the button column.
-                      note={
-                        trade.state === 'FRAUD_RESOLVED'
-                          ? "The other trader's deposit was paid to you."
-                          : undefined
-                      }
-                    >
-                      {viewer && trade.state === 'NEGOTIATING' ? (
+                    {/* The negotiation panel gets the dock to itself. Its card row is full
+                        width, which leaves the step's title no room beside it. */}
+                    {viewer && trade.state === 'NEGOTIATING' ? (
+                      <div className="px-cozy py-snug">
                         <TradeNegotiationPanel
                           tradeId={tradeId}
                           viewer={viewer}
@@ -1156,7 +1146,7 @@ function TradeContractRoom({
                             goods && theirsValueCents > 0
                               ? {
                                   feeText: formatMoney(myFeeCents, trade.currency),
-                                  feeRateLabel: tradeFeeRowRate(myFeeCents),
+                                  feeLabel: tradeFeeRowLabel('NoDitto fee', myFeeCents),
                                   collateralText: formatMoney(
                                     theirsValueCents,
                                     trade.currency,
@@ -1174,8 +1164,20 @@ function TradeContractRoom({
                           }
                           liveUpdates={connectionStatus === 'live'}
                         />
-                      ) : null}
-
+                      </div>
+                    ) : (
+                    <ContractActionCard
+                      appearance="dock"
+                      step={step}
+                      tone={STATE_TONE[trade.state]}
+                      // An outcome to read, not a control — it was a paragraph
+                      // child, which now lands in the button column.
+                      note={
+                        trade.state === 'FRAUD_RESOLVED'
+                          ? "The other trader's deposit was paid to you."
+                          : undefined
+                      }
+                    >
                       {viewer &&
                       trade.state === 'COLLATERAL_PENDING' &&
                       permittedActionCount === 0 ? (
@@ -1229,6 +1231,7 @@ function TradeContractRoom({
 
                       {trade.state === 'COMPLETED' ? reviewAction : null}
                     </ContractActionCard>
+                    )}
                     </FadeSwap>
                   }
                 />
@@ -1296,9 +1299,9 @@ function TradeContractRoom({
                         // trader receives — so it appears against your column while
                         // being derived from theirs.
                         feeCents: myFeeCents,
-                        feeLabel: `NoDitto fee (${tradeFeeRowRate(myFeeCents)})`,
-                        // During the beta the $0.00 line still shows, labelled as
-                        // waived, so the fee's absence is stated rather than silent.
+                        feeLabel: tradeFeeRowLabel('NoDitto fee', myFeeCents),
+                        // During the beta the $0.00 line still shows, so the fee's
+                        // absence is stated rather than silent.
                         feeWaived: feesWaivedForBeta() && theirsValueCents + cashToMe > 0,
                         emptyLabel: 'You are putting up no goods.',
                       },
@@ -1318,7 +1321,7 @@ function TradeContractRoom({
                         // receive" would put a credit in a column of debits.
                         cashLabel: 'Cash they pay via Stripe',
                         feeCents: theirFeeCents,
-                        feeLabel: `NoDitto fee (${tradeFeeRowRate(theirFeeCents)})`,
+                        feeLabel: tradeFeeRowLabel('NoDitto fee', theirFeeCents),
                         feeWaived: feesWaivedForBeta() && yoursValueCents + cashToThem > 0,
                         emptyLabel: 'They are putting up no goods.',
                       },

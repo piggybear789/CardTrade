@@ -49,8 +49,8 @@ export function DealInviteSkeleton() {
 
 /**
  * The invite card both branches render: `Card` with a `CardHeader` (subhead title,
- * one line of description), a `CardContent` holding `DealInviteSummary` — the
- * "From …" line over `DealInviteFacts` — and a `CardFooter` with one button.
+ * one line of description), a `CardContent` holding `DealInviteFacts` over the host's
+ * verification line, and a `CardFooter` with one button.
  *
  * It replaces a hand-drawn box with `rounded-xl`, `p-6` and two 64px slabs, none of
  * which the real `Card` (`rounded-lg`, `p-group`) or its definition list has. Each fact
@@ -67,15 +67,11 @@ function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: b
         <TextLines className="text-body" widths={['w-1/2']} />
       </div>
 
-      {/* The fact list: each label over its value, both texture at their type scale.
-          The `size-16` thumbnail beside the card fact keeps its reserve. */}
+      {/* The fact list — price, then the card — each label over its value, both
+          texture at their type scale, with the `size-16` thumbnail keeping its reserve.
+          Then the one-line verification status. */}
       <div className="grid gap-group p-group pt-0">
-        <TextLines className="text-body" widths={['w-1/3']} />
         <div className="grid gap-group">
-          <div className="grid gap-tight">
-            <TextLines className="text-body" widths={['w-1/3']} />
-            <TextLines className="text-lead" widths={['w-1/2']} />
-          </div>
           <div className="grid gap-tight">
             <TextLines className="text-body" widths={['w-1/3']} />
             <TextLines className="text-head" widths={['w-1/3']} />
@@ -88,6 +84,7 @@ function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: b
             </div>
           </div>
         </div>
+        <TextLines className="text-body" widths={['w-2/3']} />
       </div>
 
       {/* The join form's footer: the "Nothing is paid or held" note and the Join

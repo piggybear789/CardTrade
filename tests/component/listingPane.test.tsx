@@ -223,4 +223,11 @@ describe('MessageSellerButton', () => {
     expect(button.className).not.toContain('bg-secondary');
     expect(button.className).toContain('bg-card');
   });
+
+  it('is filled where messaging is the page’s main action', () => {
+    render(<MessageSellerButton itemId={null} sellerId="seller-1" emphasis="primary" />);
+    const button = screen.getByRole('button', { name: 'Message seller' });
+    expect(button.className).toContain('bg-primary');
+    expect(button.className).not.toContain('bg-card');
+  });
 });

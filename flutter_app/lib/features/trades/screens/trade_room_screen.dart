@@ -510,7 +510,7 @@ class _TradeMoneySection extends ConsumerWidget {
                   : null,
             ),
             ContractMoneyRow(
-              label: 'Your trade fee (${Money.feeRowRate(yourFeeCents)})',
+              label: Money.feeRowLabel('Your trade fee', yourFeeCents),
               value: Money.format(yourFeeCents, trade.currency),
               total: true,
             ),

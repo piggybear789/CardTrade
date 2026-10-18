@@ -13,7 +13,7 @@
 // rate. It never says "all fees": the Currency_Conversion fee (`domain/fees/fxFee.ts`)
 // is a provider cost passed through and is still charged on a cross-border purchase.
 // Never "$0.00 fee" in prose either. Money tables keep the numeric $0.00 so the arithmetic adds up,
-// and put the waiver in the row label instead. No end date is promised.
+// and name the rate in the row label only when a fee was charged. No end date is promised.
 
 import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
 import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
@@ -65,7 +65,7 @@ export const NO_FEE_DURING_BETA = `NoDitto fees waived in open beta (normally ${
 /** Catalog tile, replaces "incl. fees" while waived. Short form: no room for the rate. */
 export const TILE_BETA_FEE_NOTE = 'no fees in open beta';
 
-/** Hint beside a $0.00 fee row, whose label already names the normal rate. */
+/** Hint beside a $0.00 fee row. */
 export const FEE_WAIVED_HINT = 'Waived during open beta.';
 
 /** FeeInfoPopover while waived. */
@@ -77,19 +77,15 @@ export const FEE_POPOVER_WAIVED_FOOTNOTE = `${feeWaiverExplanation()} Postage, i
 export const TERMS_BETA_FEE_SENTENCE = `NoDitto is in open beta, and NoDitto's platform fees on cash sales and trades are waived. The standard fee is ${rateLabel(PLATFORM_FEE_BPS)}, and members will be told before standard fees apply. The currency conversion fee on a cross-border purchase is a cost passed through and still applies.`;
 
 /**
- * Parenthetical for a Cash_Sale fee row: "waived for now, normally 5%" when the
- * stored fee is 0, else "5%". Decided by the FIGURE, so a contract that stored a fee
- * before the waiver still reads "5%".
+ * A Cash_Sale fee row's label: "Platform fee (5%)" when a fee was stored, or the bare
+ * name when it is 0. Decided by the FIGURE, so a contract that stored a fee before
+ * the waiver still names the rate.
  */
-export function platformFeeRowRate(feeCents: number): string {
-  return feeCents === 0
-    ? `waived in open beta, normally ${rateLabel(PLATFORM_FEE_BPS)}`
-    : rateLabel(PLATFORM_FEE_BPS);
+export function platformFeeRowLabel(name: string, feeCents: number): string {
+  return feeCents === 0 ? name : `${name} (${rateLabel(PLATFORM_FEE_BPS)})`;
 }
 
-/** Same as `platformFeeRowRate`, for a Trade_Fee row. */
-export function tradeFeeRowRate(feeCents: number): string {
-  return feeCents === 0
-    ? `waived in open beta, normally ${rateLabel(TRADE_FEE_BPS)}`
-    : rateLabel(TRADE_FEE_BPS);
+/** Same as `platformFeeRowLabel`, for a Trade_Fee row. */
+export function tradeFeeRowLabel(name: string, feeCents: number): string {
+  return feeCents === 0 ? name : `${name} (${rateLabel(TRADE_FEE_BPS)})`;
 }

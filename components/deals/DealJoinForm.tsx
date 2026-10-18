@@ -16,7 +16,6 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { FieldError } from '@/components/motion/FieldError';
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -38,7 +37,10 @@ import {
 } from '@/components/trade/UnlistedItemDialog';
 import { DealInviteFacts } from '@/components/deals/DealInviteFacts';
 import { DealInviteShare } from '@/components/deals/DealInviteShare';
-import { InviteeVerificationNotice } from '@/components/deals/DealVerificationNotice';
+import {
+  InviteeVerificationNotice,
+  InviteeVerificationStatus,
+} from '@/components/deals/DealVerificationNotice';
 import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
 import { QuickProfileFields } from '@/components/deals/QuickProfileFields';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
@@ -322,25 +324,22 @@ export function PublicDealInvitePreview({ preview }: { preview: DealInvitePrevie
           Nothing is paid or held when you join.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <DealInviteSummary preview={preview} />
+      <CardContent className="grid gap-group">
+        <DealInviteFacts preview={preview} audience="guest" />
+        {preview.kind ? (
+          <InviteeVerificationStatus
+            kind={preview.kind}
+            readiness={preview.hostReadiness}
+            hostName={preview.hostName ?? 'They'}
+          />
+        ) : null}
       </CardContent>
-      <CardFooter className="flex-col items-stretch gap-snug">
-        <GoogleSignInButton mode="sign-up" redirectTo={path}>
-          Join with Google
-        </GoogleSignInButton>
-        <Button asChild variant="outline" className="min-h-11 w-full">
-          <Link href={`/sign-up?redirectTo=${encodeURIComponent(path)}`}>Join with email</Link>
+      {/* Sign-in offers Google and "Create an account", and keeps `redirectTo` through
+          both, so one button covers new and returning members. */}
+      <CardFooter className="flex-col items-stretch">
+        <Button asChild className="min-h-11 w-full">
+          <Link href={`/sign-in?redirectTo=${encodeURIComponent(path)}`}>Sign in</Link>
         </Button>
-        <p className="text-meta text-muted-foreground">
-          Already have an account?{' '}
-          <Link
-            href={`/sign-in?redirectTo=${encodeURIComponent(path)}`}
-            className="font-medium text-foreground underline underline-offset-4"
-          >
-            Sign in to join
-          </Link>
-        </p>
       </CardFooter>
     </Card>
   );

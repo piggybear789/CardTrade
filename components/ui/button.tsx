@@ -61,68 +61,61 @@ import { cn } from "@/lib/utils";
 // INSET, because an outset ring is clipped by any scroll container the control sits
 // flush against — the reason `accordion.tsx` records for avoiding rings at all. An
 // inset ring cannot be clipped by an ancestor, which removes that objection.
+//
+// DISABLED, TWO WAYS, by register.
+//
+// A FILLED variant keeps its own fill at half strength. It is the action a form or
+// dialog is working towards, and greyed out it read as one more outline button, so the
+// main action vanished until it was ready. Half-strength violet still says which
+// control it will be, and holds its shape on a tinted surface because the fill is
+// its own colour, not a surface token.
+//
+// A QUIET variant goes to the `--muted` fill and KEEPS ITS EDGE (`--input`, not
+// `--muted`). A matching border read as a flat slab on white and disappeared on any
+// tinted surface — the contract room's status card is `bg-iris/[0.08]`, at roughly the
+// same lightness — leaving a label floating with nothing around it. `--input` is the
+// edge every control uses, so a disabled control keeps the same edge as its enabled
+// neighbours on whatever surface it sits on. Do NOT fix that by tinting the fill per
+// surface: the fill is one token and the surfaces are many.
+const FILLED_DISABLED = "disabled:opacity-50";
+const QUIET_DISABLED = "disabled:border-input disabled:bg-muted disabled:text-muted-foreground";
+
 const buttonVariants = cva(
-  // DISABLED KEEPS ITS EDGE — `disabled:border-border`, not `disabled:border-muted`.
-  //
-  // The disabled fill is `--muted` (283 34% 96%), a violet-tinted near-white, and the
-  // border matched it. On a white card that reads as a flat slab, which is what it was
-  // designed against. On any TINTED surface it disappears completely: the contract
-  // room's status card is `bg-iris/[0.08]`, which lands at roughly the same lightness
-  // in the same hue family, so "Record shipment" had no fill and no edge — the label
-  // floated in the card with nothing around it and read as a caption rather than a
-  // control that was waiting on the two fields above it.
-  //
-  // `--input` is the edge every control uses (fields, outline, secondary), so a
-  // disabled control keeps the same edge as its enabled neighbours and holds its
-  // shape on whatever surface it sits on. The fill stays
-  // as it was: with an edge, it no longer has to carry the shape by itself.
-  //
-  // Do NOT fix this by tinting the fill per surface. The fill is one token and the
-  // surfaces are many; the edge is what makes it surface-independent.
-  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:border-input disabled:bg-muted disabled:text-muted-foreground disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default:
-          "border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground",
+        default: `border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground ${FILLED_DISABLED}`,
         // Obsidian, for a committing control that sits beside a destructive
         // one. Purple and red are two saturated hues arguing at the same
         // weight; black reads as "the thing to do" and lets the red mean
         // danger on its own.
-        contrast:
-          "border border-obsidian bg-obsidian text-white hover:bg-obsidian/90 active:bg-obsidian/80 focus-visible:ring-2 focus-visible:ring-white",
+        contrast: `border border-obsidian bg-obsidian text-white hover:bg-obsidian/90 active:bg-obsidian/80 focus-visible:ring-2 focus-visible:ring-white ${FILLED_DISABLED}`,
         // ONE FILLED CTA COLOUR. `action` was a pastel amber fill; under the
         // monochrome palette it renders exactly as `default` (ink), so the buy
         // bar and the room's "your move" control read as the primary rather than
         // as a second, louder brand. Kept as a variant name so call sites can still
         // say what the control MEANS. Amber survives as a signal (`--action`), not
         // a button.
-        action:
-          "border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground",
-        success:
-          "border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80 focus-visible:ring-2 focus-visible:ring-white",
+        action: `border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground ${FILLED_DISABLED}`,
+        success: `border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80 focus-visible:ring-2 focus-visible:ring-white ${FILLED_DISABLED}`,
         // FILLED RED IS FOR THE CONFIRMATION, NOT THE TRIGGER. A button that only opens
         // "Delete listing?" or "Report this user" was the loudest control on its
         // screen, louder than the action the member came to take. Triggers use
         // `destructive-quiet`: the outline shape with a red label (5.45:1), so danger
         // still reads, and the red fill waits for the dialog's confirm button.
-        destructive:
-          "border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground",
-        "destructive-quiet":
-          "border border-input bg-card text-destructive hover:border-destructive/60 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
+        destructive: `border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground ${FILLED_DISABLED}`,
+        "destructive-quiet": `border border-input bg-card text-destructive hover:border-destructive/60 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
         // `hover:border-foreground/60`, not a violet edge. These two are the
         // QUIET variants — the ones used where `default` would be too loud — and
         // turning their border violet on hover put them back in the primary's
         // colour at the exact moment the pointer was on them. The hover state is
         // carried by the fill (`bg-accent` / `bg-secondary/75`); the edge only has
         // to firm up, which means going DARKER than the 3:1 `--input` it rests at.
-        outline:
-          "border border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
-        secondary:
-          "border border-input bg-secondary text-secondary-foreground hover:border-foreground/60 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
-        link: "text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
+        outline: `border border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        secondary: `border border-input bg-secondary text-secondary-foreground hover:border-foreground/60 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        ghost: `hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        link: `text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
       },
       size: {
         // 40px on touch, 36px from `md`. The content box has to hold a 14px line

@@ -85,7 +85,7 @@ import { OffPlatformWarning } from '@/components/deals/DealVerificationNotice';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
 
-import { FEE_WAIVED_HINT, platformFeeRowRate } from '@/lib/fees/feeLabels';
+import { FEE_WAIVED_HINT, platformFeeRowLabel } from '@/lib/fees/feeLabels';
 import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
 import { CurrencyNotice, fxFeeRateLabel } from '@/components/payments/CurrencyNotice';
 import { formatMoney, formatContractDateTime, formatShortDate, itemImageUrl } from '@/lib/format';
@@ -902,7 +902,6 @@ function CashSaleRoom({
                 <ContractActionCard
                   appearance="dock"
                   step={step}
-                  counterpartyName={them.name}
                   tone={isLegacy ? 'warning' : actionTone(sale.status, step)}
                   title={isLegacy ? 'This contract cannot be continued' : undefined}
                   detail={
@@ -1502,7 +1501,7 @@ function CashSaleRoom({
                     value: money(sale.shipping_cost_cents),
                   },
                   {
-                    label: `Platform fee (${platformFeeRowRate(sale.platform_fee_cents)})`,
+                    label: platformFeeRowLabel('Platform fee', sale.platform_fee_cents),
                     value: money(sale.platform_fee_cents),
                   },
                   // The buyer's cost of converting into the platform's settlement
@@ -1769,7 +1768,7 @@ function CashSaleRoom({
               ? [{ label: 'Shipping', value: money(sale.shipping_cost_cents) }]
               : []),
             {
-              label: `Platform fee (${platformFeeRowRate(sale.platform_fee_cents)})`,
+              label: platformFeeRowLabel('Platform fee', sale.platform_fee_cents),
               value: money(sale.platform_fee_cents),
               hint:
                 sale.platform_fee_cents === 0

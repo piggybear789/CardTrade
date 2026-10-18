@@ -53,13 +53,13 @@ vi.mock('@/components/reports/ReportDialog', () => ({
 
 import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import type { TradeFacts, TradeViewerContext } from '@/domain/state-machine/types';
-import { FEE_WAIVED_HINT, feesWaivedForBeta, tradeFeeRowRate } from '@/lib/fees/feeLabels';
+import { FEE_WAIVED_HINT, feesWaivedForBeta, tradeFeeRowLabel } from '@/lib/fees/feeLabels';
 
 // What the room passes while fees are waived for the beta, and at the standard rate.
 const WAIVED = feesWaivedForBeta();
 const cost = WAIVED
-  ? { feeText: '$0.00', feeRateLabel: tradeFeeRowRate(0), collateralText: '$700.00' }
-  : { feeText: '$35.00', feeRateLabel: tradeFeeRowRate(3_500), collateralText: '$700.00' };
+  ? { feeText: '$0.00', feeLabel: tradeFeeRowLabel('NoDitto fee', 0), collateralText: '$700.00' }
+  : { feeText: '$35.00', feeLabel: tradeFeeRowLabel('NoDitto fee', 3_500), collateralText: '$700.00' };
 const feeHint = WAIVED ? FEE_WAIVED_HINT : 'Charged when the card hold is placed.';
 
 function facts(overrides: Partial<TradeFacts> = {}): TradeFacts {
@@ -96,7 +96,7 @@ const terms = {
 };
 
 function renderPanel(
-  acceptCost: { feeText: string; feeRateLabel?: string; collateralText: string } | null,
+  acceptCost: { feeText: string; feeLabel: string; collateralText: string } | null,
 ) {
   return render(
     <TradeNegotiationPanel
@@ -128,8 +128,8 @@ describe('trade accept dialog — cost disclosure', () => {
 
     const dialog = await openAcceptDialog(user);
 
-    // The percentage, so the number is checkable rather than merely asserted.
-    expect(within(dialog).getByText(`NoDitto fee (${cost.feeRateLabel})`)).toBeInTheDocument();
+    // The row's label, which names the percentage whenever a fee is charged.
+    expect(within(dialog).getByText(cost.feeLabel)).toBeInTheDocument();
     expect(within(dialog).getByText(cost.feeText)).toBeInTheDocument();
 
     // The bond, which had no pre-acceptance surface at all before this.

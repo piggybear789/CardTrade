@@ -15,7 +15,7 @@ import {
   betaFeeNote,
   feesWaivedForBeta,
   platformFeeRateLabel,
-  platformFeeRowRate,
+  platformFeeRowLabel,
 } from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
 
@@ -45,7 +45,7 @@ export function SaleTermsBreakdown({
     <Breakdown>
       <BreakdownRow label="They pay" value={formatMoney(priceCents + fee, currency)} />
       <BreakdownRow
-        label={`NoDitto fee (${platformFeeRowRate(fee)})`}
+        label={platformFeeRowLabel('NoDitto fee', fee)}
         value={formatMoney(fee, currency)}
       />
       <BreakdownRule />

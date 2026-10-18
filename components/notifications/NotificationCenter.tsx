@@ -4,8 +4,12 @@
 //
 // Full-page NOTIFICATION CENTER list (Phase 4). Renders the caller's
 // notifications, newest-first, with realtime updates via `useNotifications`
-// (seeded from a server-provided initial list) and a "Mark all read" action.
-// Each row links to its `link` and marks itself read on click.
+// (seeded from a server-provided initial list). Each row links to its `link` and
+// marks itself read on click.
+//
+// The unread count and "Mark all read" sit in the section header as
+// `NotificationsToolbar`. `NotificationsProvider` gives the toolbar and the list one
+// subscription: two `useNotifications` calls would keep two separate counts.
 //
 // GROUPED BY AGE, NOT ONE FLAT RUN. Fifty rows of "3d ago" is a wall; the headings give
 // it somewhere to break and a member somewhere to stop reading. The row contents and the
@@ -16,7 +20,7 @@
 // under the cursor on every click and rearranges itself wholesale on "Mark all read".
 // Unread is carried by weight and the row tint instead, which is stable.
 
-import { useState, useTransition } from 'react';
+import { createContext, use, useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { BellOffIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
@@ -32,6 +36,7 @@ import {
 import {
   useNotifications,
   type NotificationRow,
+  type UseNotificationsResult,
 } from '@/lib/realtime/useNotifications';
 import {
   groupNotificationsByAge,
@@ -67,13 +72,73 @@ function collapseRuns(rows: readonly NotificationRow[]): { head: NotificationRow
   return runs;
 }
 
-export function NotificationCenter({
+const NotificationsContext = createContext<UseNotificationsResult | null>(null);
+
+function useNotificationsState(): UseNotificationsResult {
+  const value = use(NotificationsContext);
+  if (!value) {
+    throw new Error('NotificationCenter and NotificationsToolbar must be inside NotificationsProvider');
+  }
+  return value;
+}
+
+export function NotificationsProvider({
   userId,
   initialNotifications,
-  now,
+  children,
 }: {
   userId: string;
   initialNotifications: NotificationRow[];
+  children: ReactNode;
+}) {
+  const value = useNotifications(userId, initialNotifications);
+  return <NotificationsContext value={value}>{children}</NotificationsContext>;
+}
+
+/** The unread count and "Mark all read", for the section header. */
+export function NotificationsToolbar() {
+  const { notifications, unreadCount, markAllReadLocal } = useNotificationsState();
+  const [isPending, startTransition] = useTransition();
+
+  if (notifications.length === 0) return null;
+
+  function handleMarkAll() {
+    markAllReadLocal();
+    startTransition(async () => {
+      const result = await markAllNotificationsRead();
+      if (!result.ok) {
+        toast.error('Could not mark notifications as read.');
+      }
+    });
+  }
+
+  return (
+    <div className="flex items-center gap-cozy">
+      {/* THE COUNT IS STATED, not left to be inferred from the disabled button: it is
+          the one figure a member opens this page for. */}
+      <p className="whitespace-nowrap text-body text-muted-foreground" aria-live="polite">
+        {unreadCount === 0 ? 'All caught up' : `${unreadCount} unread`}
+      </p>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleMarkAll}
+        disabled={isPending || unreadCount === 0}
+      >
+        {isPending ? (
+          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+        ) : (
+          <HugeiconsIcon icon={CheckCheckIcon} aria-hidden />
+        )}
+        Mark all read
+      </Button>
+    </div>
+  );
+}
+
+export function NotificationCenter({
+  now,
+}: {
   /**
    * The instant the page was rendered, ISO 8601, from the server.
    *
@@ -83,10 +148,9 @@ export function NotificationCenter({
   now: string;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
-  const { notifications, unreadCount, markReadLocal, markAllReadLocal } =
-    useNotifications(userId, initialNotifications);
+  const { notifications, markReadLocal } = useNotificationsState();
 
   const [typeFilter, setTypeFilter] = useState<NotificationRow['type'] | 'ALL'>('ALL');
 
@@ -103,16 +167,6 @@ export function NotificationCenter({
     if (head.link && !head.target_missing) {
       navigateWithType(router, head.link, 'nav-forward');
     }
-  }
-
-  function handleMarkAll() {
-    markAllReadLocal();
-    startTransition(async () => {
-      const result = await markAllNotificationsRead();
-      if (!result.ok) {
-        toast.error('Could not mark notifications as read.');
-      }
-    });
   }
 
   // First-run empty only. The notifications page does not mount this on a
@@ -159,30 +213,6 @@ export function NotificationCenter({
           })}
         </div>
       ) : null}
-      {/* THE COUNT IS STATED, not left to be inferred from a disabled button. This row
-          held nothing but "Mark all read", so the one figure a member opens this page
-          for — how much is new — was reachable only by counting tinted rows. */}
-      <div className="flex items-center justify-between gap-cozy">
-        <p className="text-body text-muted-foreground" aria-live="polite">
-          {unreadCount === 0
-            ? 'You are all caught up.'
-            : `${unreadCount} unread`}
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleMarkAll}
-          disabled={isPending || unreadCount === 0}
-        >
-          {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-          ) : (
-            <HugeiconsIcon icon={CheckCheckIcon} aria-hidden />
-          )}
-          Mark all read
-        </Button>
-      </div>
-
       {groups.map((group) => (
         <section key={group.key} aria-labelledby={`notifications-${group.key}`}>
           {/* NOT STICKY. A pinned heading would be the nicer thing on a long run, but
@@ -204,10 +234,7 @@ export function NotificationCenter({
                   <button
                     type="button"
                     onClick={() => handleSelect(head, rest)}
-                    className={notificationRowClass(
-                      unread,
-                      'gap-cozy px-group py-3.5',
-                    )}
+                    className={notificationRowClass('gap-cozy px-group py-3.5')}
                   >
                     <NotificationRowBody
                       notification={unread ? { ...head, read_at: null } : head}

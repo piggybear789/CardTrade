@@ -5,9 +5,10 @@
 // Set a new password using the session `/auth/confirm?type=recovery` just established.
 //
 // The member arrives here already authenticated by the emailed token, so there is no
-// current-password field — proving control of the inbox IS the proof. If that session is
-// missing the action returns NO_SESSION, which means the link expired: the answer is a
-// fresh link, not a retry, so that case routes back to the request form.
+// current-password field — proving control of the inbox IS the proof. The page shows
+// `ResetLinkExpired` instead of this form when there is no session to begin with; if the
+// session lapses while the form is open, the action returns NO_SESSION and the form
+// swaps to the same card. Either way the answer is a fresh link, not a retry.
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
@@ -27,6 +28,25 @@ import {
 } from '@/components/ui/card';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
+
+/** A recovery link with no session behind it: spent, or past its lifetime. */
+export function ResetLinkExpired() {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-subhead">That link has expired</CardTitle>
+        <CardDescription className="text-pretty">
+          Reset links are single-use and short-lived. Request a new one and it will work.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <Button asChild className="w-full">
+          <Link href="/forgot-password">Request a new link</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function UpdatePasswordForm() {
   const router = useRouter();
@@ -62,23 +82,7 @@ export function UpdatePasswordForm() {
     });
   }
 
-  if (expired) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-subhead">That link has expired</CardTitle>
-          <CardDescription className="text-pretty">
-            Reset links are single-use and short-lived. Request a new one and it will work.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild className="w-full">
-            <Link href="/forgot-password">Request a new link</Link>
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
+  if (expired) return <ResetLinkExpired />;
 
   return (
     <Card>

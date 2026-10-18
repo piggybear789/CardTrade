@@ -79,28 +79,40 @@ export function HostVerificationNotice({
   );
 }
 
-/** The other person's view, on the invite. */
-export function InviteeVerificationNotice({
-  kind,
-  readiness,
-  hostName,
-}: {
+interface InviteeVerificationProps {
   kind: DealKind;
   readiness: HostReadiness | null;
   hostName: string;
-}) {
+}
+
+/**
+ * The other person's view, on the join form: where the host stands with Stripe and,
+ * for a swap, the requirement it puts on the person about to join.
+ */
+export function InviteeVerificationNotice(props: InviteeVerificationProps) {
+  if (props.kind !== 'TRADE') return <InviteeVerificationStatus {...props} />;
+  return (
+    <div className="grid gap-tight">
+      <InviteeVerificationStatus {...props} />
+      <p className="text-body text-muted-foreground">
+        Stripe Identity is required for both of you. You can verify after joining.
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Where the host stands with Stripe, and nothing else. The signed-out preview stops
+ * here: the requirement on the joiner is said on the join form, where it applies.
+ */
+export function InviteeVerificationStatus({ kind, readiness, hostName }: InviteeVerificationProps) {
   if (kind === 'TRADE') {
     return (
-      <div className="grid gap-tight">
-        <StatusLine tone={readiness === 'ready' ? 'done' : 'waiting'}>
-          {readiness === 'ready'
-            ? `${hostName} has verified with Stripe Identity.`
-            : `${hostName} hasn't verified with Stripe Identity yet.`}
-        </StatusLine>
-        <p className="text-body text-muted-foreground">
-          Stripe Identity is required for both of you. You can verify after joining.
-        </p>
-      </div>
+      <StatusLine tone={readiness === 'ready' ? 'done' : 'waiting'}>
+        {readiness === 'ready'
+          ? `${hostName} has verified with Stripe Identity.`
+          : `${hostName} hasn't verified with Stripe Identity yet.`}
+      </StatusLine>
     );
   }
 

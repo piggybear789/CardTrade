@@ -54,6 +54,7 @@ export function MessageSellerButton({
   sellerId,
   size = 'lg',
   variant = 'button',
+  emphasis = 'quiet',
   className,
 }: {
   /** The listing the thread is about, or null for the two members' general thread. */
@@ -61,6 +62,11 @@ export function MessageSellerButton({
   sellerId: string;
   /** Trigger button size (button variant only). */
   size?: 'default' | 'sm' | 'lg';
+  /**
+   * `quiet` (outline) beside a listing's Buy now; `primary` (filled) where messaging is
+   * the page's main action, as on a seller's profile. Button variant only.
+   */
+  emphasis?: 'quiet' | 'primary';
   /** Extra classes for the `button` variant (e.g. `w-full`). */
   className?: string;
   /**
@@ -173,20 +179,9 @@ export function MessageSellerButton({
   if (variant === 'inline') {
     return (
       <div className="space-y-snug">
-        {/* `bg-card`, NOT `bg-muted`, and it fixes two things that looked separate.
-            
-            `--muted` is `275 20% 95%` — hue 275 is violet, so the panel read as a
-            lilac slab for no reason: nothing here is selected, active or grouped in a
-            way the tint was signalling.
-            
-            It also made the Send button look broken. `Button`'s base sets
-            `disabled:bg-muted`, and Send is disabled until the field has text, so the
-            disabled fill was the SAME colour as the panel behind it — the control
-            appeared to lose its background rather than to be unavailable. On `card`
-            the disabled fill is a visible step again.
-            
-            The border still separates the panel; on a white page that is the only
-            thing that needs to. */}
+        {/* `bg-card`, NOT `bg-muted`: nothing here is selected, active or grouped in a
+            way a tinted panel would signal. The border still separates the panel; on a
+            white page that is the only thing that needs to. */}
         <div className="rounded-lg border bg-card p-cozy">
           {/* UNIQUE PER INSTANCE, and the listing page mounts two of these — one
               in the `lg:hidden` phone stack, one in the desktop pane. Both used
@@ -234,11 +229,11 @@ export function MessageSellerButton({
 
   return (
     <div className="space-y-snug">
-      {/* Outline: the lavender fill is this app's selected state, and a message is a
-          way to ask, not a choice already made. */}
+      {/* Outline by default: beside Buy now, a message is a way to ask, not the thing
+          the page is for. */}
       <Button
         type="button"
-        variant="outline"
+        variant={emphasis === 'primary' ? 'default' : 'outline'}
         size={size}
         className={className ?? 'w-full sm:w-auto'}
         onClick={handleClick}

@@ -23,18 +23,18 @@ export default function SellerProfileLoading() {
       {/* No wrapper div: the live page hangs the nav, the header and the strip straight
           off `MarketplaceShell`.
 
-          Spacing below is copied from it term for term — `mb-cozy` here, `mb-5 space-y-snug
-          pb-group` on the header, and a 40px avatar (`Avatar size="md"`). */}
+          Spacing below is copied from it term for term — `mb-cozy` here, the header's
+          `mb-5 space-y-snug` card with `p-group`, and a 56px avatar (`Avatar size="lg"`). */}
       <nav className="mb-cozy hidden md:block">
         <TextLines className="text-body" widths={['w-36']} />
       </nav>
 
-      <header className="mb-5 space-y-snug border-b pb-group">
+      <header className="mb-5 space-y-snug rounded-lg border bg-card p-group">
         {/* A column below `sm`, because the Report control stacks under the identity
             block there rather than sitting beside it. */}
         <div className="flex flex-col items-stretch gap-cozy sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-cozy">
-            <Skeleton className="size-10 shrink-0 rounded-full" />
+            <Skeleton className="size-14 shrink-0 rounded-full" />
             {/* `space-y-1.5`, the column's real rhythm. */}
             <div className="min-w-0 flex-1 space-y-1.5">
               <div className="flex flex-wrap items-center gap-snug">

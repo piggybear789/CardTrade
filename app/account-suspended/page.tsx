@@ -5,8 +5,6 @@
 // redirects here before any protected app route can render.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 
@@ -20,10 +18,7 @@ export default function AccountSuspendedPage() {
   return (
     <main className="flex min-h-[80dvh] items-center justify-center px-group py-12">
       <section className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
-        <span className="mx-auto grid size-11 place-items-center rounded-full border border-destructive/40 bg-destructive/10 text-destructive">
-          <HugeiconsIcon icon={ShieldAlertIcon} className="size-5" aria-hidden />
-        </span>
-        <h1 className="mt-group text-head font-semibold">Account permanently suspended</h1>
+        <h1 className="text-head font-semibold">Account permanently suspended</h1>
         <p className="mt-snug text-body text-muted-foreground">
           This account was permanently suspended after a staff-confirmed objective
           fraud finding. It cannot buy, sell, trade, or use member features.

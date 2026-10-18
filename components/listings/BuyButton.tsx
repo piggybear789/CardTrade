@@ -107,9 +107,9 @@ export function BuyButton({
 }
 
 /**
- * The item, what it costs, and the three steps — above the card form and the saved
- * card alike. "Buy now" used to open on a bare "Add a payment method" with no item
- * and no total, so the first thing a buyer saw after committing was a form.
+ * The item and what it costs — above the card form and the saved card alike. "Buy
+ * now" used to open on a bare "Add a payment method" with no item and no total, so
+ * the first thing a buyer saw after committing was a form.
  */
 function OrderSummary({ summary }: { summary: PurchaseSummary }) {
   const money = (cents: number) => formatMoney(cents, summary.currency);
@@ -144,16 +144,6 @@ function OrderSummary({ summary }: { summary: PurchaseSummary }) {
         amountMinor={summary.priceCents + fee}
         buyerCurrency={summary.buyerCurrency}
       />
-      <ol className="grid grid-cols-3 gap-snug text-meta text-muted-foreground" aria-label="How buying works">
-        {['Reserve now, no charge', 'Agree shipping or a meet-up', 'Pay, inspect, done'].map((step, index) => (
-          <li key={step} className="flex items-start gap-tight">
-            <span className="grid size-4 shrink-0 place-items-center rounded-full bg-muted text-[0.625rem] font-semibold text-foreground">
-              {index + 1}
-            </span>
-            <span className="min-w-0">{step}</span>
-          </li>
-        ))}
-      </ol>
     </div>
   );
 }

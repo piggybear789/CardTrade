@@ -37,7 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { displayLegalName, formatMoney } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
-import { NO_FEE_DURING_BETA, betaFeeNote, feesWaivedForBeta } from '@/lib/fees/feeLabels';
+import { NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { makeOffer, type MakeOfferResult } from '@/lib/actions/offers';
 import { OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -73,9 +73,6 @@ export interface MakeOfferDialogProps {
   trigger?: ReactNode;
 }
 
-/** Quick amounts, as a discount off the asking price. */
-const QUICK_DISCOUNTS = [5, 10, 15] as const;
-
 /**
  * A "Make an offer" button that opens a dialog to submit a PENDING offer for
  * {@link itemId}. On success it toasts and routes to `/offers`.
@@ -100,9 +97,6 @@ export function MakeOfferDialog({
   const money = (cents: number) => formatMoney(cents, currency);
   const typedCents = Math.round(Number.parseFloat(amount) * 100);
   const offerCents = Number.isFinite(typedCents) && typedCents > 0 ? typedCents : null;
-  // Whole dollars, rounded down: "5% off" should land on a number a person would say.
-  const quickAmount = (discount: number) =>
-    asking ? Math.floor((asking * (100 - discount)) / 100 / 100) * 100 : 0;
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -176,15 +170,13 @@ export function MakeOfferDialog({
                   <span className="text-muted-foreground">Listed at</span>
                   <span className="font-semibold tabular-nums">{money(buyerPaysCents(asking, currency))}</span>
                 </p>
-                <p className="mt-tight text-meta text-muted-foreground">
-                  {feesWaivedForBeta() ? (
-                    betaFeeNote()
-                  ) : (
-                    <>
-                      Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} NoDitto fee
-                    </>
-                  )}
-                </p>
+                {/* The breakdown only when a fee is added. While fees are waived the two
+                    figures are the same, and the waiver is said once, on the live total. */}
+                {feesWaivedForBeta() ? null : (
+                  <p className="mt-tight text-meta text-muted-foreground">
+                    Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} NoDitto fee
+                  </p>
+                )}
               </div>
             ) : null}
 
@@ -193,31 +185,11 @@ export function MakeOfferDialog({
               <MoneyInput
                 id="offer-amount"
                 min="0.01"
-                placeholder={asking ? String(quickAmount(10) / 100) : '0.00'}
+                placeholder="0.00"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 required
               />
-              {asking ? (
-                <div className="flex flex-wrap gap-snug" role="group" aria-label="Quick offer amounts">
-                  {QUICK_DISCOUNTS.map((discount) => {
-                    const cents = quickAmount(discount);
-                    return (
-                      <Button
-                        key={discount}
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        aria-pressed={offerCents === cents}
-                        className="aria-[pressed=true]:border-foreground aria-[pressed=true]:bg-accent aria-[pressed=true]:text-accent-foreground"
-                        onClick={() => setAmount(String(cents / 100))}
-                      >
-                        {discount}% off
-                      </Button>
-                    );
-                  })}
-                </div>
-              ) : null}
               {/* LIVE, so the buyer sees the figure they would actually be charged
                   while they type, not after the seller accepts. */}
               <p className="min-h-[1lh] text-body text-muted-foreground" aria-live="polite">

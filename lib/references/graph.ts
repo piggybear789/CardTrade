@@ -2,8 +2,8 @@ import 'server-only';
 
 // lib/references/graph.ts
 //
-// Loads a unified, cross-platform reference graph for `/references/[handle]`
-// and `/sellers/[id]`.
+// Loads a unified, cross-platform reference graph for `/references/[handle]`,
+// `/sellers/[id]`, and `/api/references/graph` (walking the graph in place).
 //
 // SYNTHESIS ACROSS ALL PLATFORMS. A person's reference graph merges every
 // deal recorded for their profile and/or matching social handles across
@@ -12,24 +12,33 @@ import 'server-only';
 // experiences stay distinct — a negative experience never nets off a positive
 // reference.
 //
+// STRUCTURE, NOT POSITIONS. The graph says who is drawn per proof tier, each
+// drawn person's own strongest vouchers, and which drawn people have dealt with
+// each other. The browser lays it out for the screen it is on
+// (`domain/references/orbits.ts`), so a phone gets its own layout, not a
+// shrunken desktop one.
+//
 // Reads run on the service role; only public-safe fields leave this module
 // (no person keys, no proof paths, no staff fields).
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
   formatOccurredMonth,
+  isUuid,
   negativeCategoryLabel,
   platformLabel,
   roleLabel,
   roleShortLabel,
 } from '@/domain/references/reference';
 import { isValidHandle, normalizeHandle } from '@/domain/social/socialLinks';
-import { layoutChildren, layoutRing, type PlacedNode } from '@/domain/references/layout';
-
-export const GRAPH_VIEW_WIDTH = 960;
-export const GRAPH_VIEW_HEIGHT = 600;
-const CENTRE_X = GRAPH_VIEW_WIDTH / 2;
-const CENTRE_Y = 300;
+import {
+  orbitKey,
+  pickDrawn,
+  splitConnections,
+  type DrawCandidate,
+  type OrbitTier,
+  type ProofTier,
+} from '@/domain/references/orbits';
 
 export interface PlatformSynthesisItem {
   slug: string;
@@ -80,14 +89,15 @@ export interface ReferenceGraphNode {
   avatarPath: string | null;
   identityVerified: boolean;
   firstName: string | null;
-  /** Their own incoming positive reference count. Drives size. */
+  /** Their own incoming positive reference count. */
   refs: number;
   platform: string;
   platformLabel: string;
   platformShort: string;
   /** Every platform this referee has dealt with the centre person on. */
   platforms: string[];
-  kind: 'receipt' | 'vouch' | 'escrow';
+  /** How the deal was proven; decides the ring the person is drawn on. */
+  kind: ProofTier;
   sentiment: 'POSITIVE' | 'NEGATIVE';
   categoryLabel: string | null;
   comment: string | null;
@@ -96,32 +106,28 @@ export interface ReferenceGraphNode {
   roleShortLabel: string;
   dateLabel: string | null;
   deals: number;
-  x: number;
-  y: number;
-  r: number;
+  /** Their own strongest vouchers who are not drawn on the rings. Empty for an issue. */
   children: ReferenceGraphChild[];
 }
 
 export interface ReferenceGraphChild {
-  id: string;
   profileId: string;
   handle: string;
   handleSlug: string;
   initials: string;
   refs: number;
-  x: number;
-  y: number;
-  r: number;
-  parentId: string;
+  /** How their deal with the parent was proven. */
+  kind: ProofTier;
 }
 
 export interface ReferenceGraphData {
   centre: ReferenceGraphCentre;
+  /** The strongest people per proof tier, up to each tier's cap. */
   nodes: ReferenceGraphNode[];
-  width: number;
-  height: number;
-  centreX: number;
-  centreY: number;
+  /** Pairs of drawn people (profile ids) who have dealt with each other. */
+  links: [string, string][];
+  /** People with references to the centre who are counted but not drawn. */
+  hidden: Record<OrbitTier, number>;
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -139,6 +145,8 @@ const PLATFORM_SHORT: Record<string, string> = {
   youtube: 'YT',
   tiktok: 'TikTok',
 };
+
+const PROOF_STRENGTH: Record<ProofTier, number> = { escrow: 0, receipt: 1, vouch: 2 };
 
 function initialsOf(name: string): string {
   const parts = name.replace(/^@/, '').split(/[\s._-]+/).filter(Boolean);
@@ -217,6 +225,11 @@ interface MergedEdge {
   deals: number;
   proofStatus: string;
   hasEscrow: boolean;
+}
+
+function proofTierOf(edge: Pick<MergedEdge, 'hasEscrow' | 'proofStatus'>): ProofTier {
+  if (edge.hasEscrow) return 'escrow';
+  return edge.proofStatus === 'CHECKED' ? 'receipt' : 'vouch';
 }
 
 /** Incoming counts (positive people, negative people) per profile id. */
@@ -377,8 +390,6 @@ async function assembleGraph(
   target: { profileId: string | null; claimIds: string[] },
 ): Promise<ReferenceGraphData> {
   const merged = await mergedIncoming(admin, target);
-  const positives = merged.filter((e) => e.sentiment === 'POSITIVE');
-  const negatives = merged.filter((e) => e.sentiment === 'NEGATIVE');
 
   const refereeIds = Array.from(new Set(merged.map((e) => e.voucherId)));
   const [profiles, handles, counts] = await Promise.all([
@@ -387,9 +398,38 @@ async function assembleGraph(
     incomingCounts(admin, refereeIds),
   ]);
 
-  // Second degree: who references each referee (positive only, top 2 each).
-  const secondDegree = refereeIds.length
-    ? await mergedIncomingMulti(admin, refereeIds)
+  const validEdges = merged.filter((edge) => profiles.has(edge.voucherId));
+
+  // Synthesise platform breakdown across all valid edges
+  const platformTally = new Map<string, number>();
+  for (const edge of validEdges) {
+    for (const plat of edge.platforms) {
+      platformTally.set(plat, (platformTally.get(plat) ?? 0) + 1);
+    }
+  }
+  const platforms: PlatformSynthesisItem[] = Array.from(platformTally.entries())
+    .map(([slug, count]) => ({
+      slug,
+      label: platformLabel(slug),
+      shortLabel: PLATFORM_SHORT[slug] ?? platformLabel(slug),
+      count,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+  const candidates: (DrawCandidate & { edge: MergedEdge })[] = validEdges.map((edge) => ({
+    key: orbitKey(edge.voucherId, edge.sentiment),
+    tier: edge.sentiment === 'NEGATIVE' ? 'issue' : proofTierOf(edge),
+    standing: counts.get(edge.voucherId)?.positive ?? 0,
+    deals: edge.deals,
+    edge,
+  }));
+  const { drawn, hidden } = pickDrawn(candidates);
+
+  // Second degree, for drawn positives only. A voucher who is drawn too becomes
+  // an arc between the two; the rest become that person's satellites.
+  const drawnIds = drawn.filter((c) => c.tier !== 'issue').map((c) => c.edge.voucherId);
+  const secondDegree = drawnIds.length
+    ? await mergedIncomingMulti(admin, drawnIds)
     : new Map<string, MergedEdge[]>();
   const secondDegreeIds = Array.from(
     new Set(
@@ -410,107 +450,47 @@ async function assembleGraph(
     for (const [k, v] of extraCounts) counts.set(k, v);
   }
 
-  const validEdges = [...positives, ...negatives].filter((edge) => profiles.has(edge.voucherId));
-
-  // Synthesise platform breakdown across all valid edges
-  const platformTally = new Map<string, number>();
-  for (const edge of validEdges) {
-    for (const plat of edge.platforms) {
-      platformTally.set(plat, (platformTally.get(plat) ?? 0) + 1);
-    }
-  }
-  const platforms: PlatformSynthesisItem[] = Array.from(platformTally.entries())
-    .map(([slug, count]) => ({
-      slug,
-      label: platformLabel(slug),
-      shortLabel: PLATFORM_SHORT[slug] ?? platformLabel(slug),
-      count,
-    }))
-    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
-
-  const ranked = validEdges
-    .sort((a, b) => {
-      if (a.sentiment !== b.sentiment) return a.sentiment === 'POSITIVE' ? -1 : 1;
-      return (
-        (counts.get(b.voucherId)?.positive ?? 0) - (counts.get(a.voucherId)?.positive ?? 0) ||
-        b.deals - a.deals
+  const vouchersOf = new Map<string, string[]>();
+  const voucherTier = new Map<string, ProofTier>();
+  for (const id of drawnIds) {
+    const vouchers = (secondDegree.get(id) ?? [])
+      .filter((v) => profiles.has(v.voucherId))
+      .sort(
+        (a, b) =>
+          PROOF_STRENGTH[proofTierOf(a)] - PROOF_STRENGTH[proofTierOf(b)] ||
+          (counts.get(b.voucherId)?.positive ?? 0) - (counts.get(a.voucherId)?.positive ?? 0),
       );
-    })
-    .slice(0, 14);
-
-  const placed = layoutRing(
-    ranked.map((edge) => ({
-      id: `${edge.voucherId}:${edge.sentiment}`,
-      weight: counts.get(edge.voucherId)?.positive ?? 0,
-    })),
-    CENTRE_X,
-    CENTRE_Y,
-    225,
-  );
-  const placedById = new Map<string, PlacedNode>(placed.map((p) => [p.id, p]));
-
-  const ringOneVoucherSet = new Set(ranked.map((e) => e.voucherId));
-  const childInputs: { id: string; parentId: string; weight: number }[] = [];
-  const childEdges = new Map<string, MergedEdge & { parentId: string }>();
-  for (const edge of ranked) {
-    if (edge.sentiment === 'NEGATIVE') continue;
-    const kids = (secondDegree.get(edge.voucherId) ?? [])
-      .filter(
-        (kid) =>
-          kid.voucherId !== centre.profileId &&
-          !ringOneVoucherSet.has(kid.voucherId) &&
-          profiles.has(kid.voucherId),
-      )
-      .slice(0, 2);
-    for (const kid of kids) {
-      const id = `${edge.voucherId}>${kid.voucherId}`;
-      childInputs.push({
-        id,
-        parentId: `${edge.voucherId}:POSITIVE`,
-        weight: counts.get(kid.voucherId)?.positive ?? 0,
-      });
-      childEdges.set(id, { ...kid, parentId: `${edge.voucherId}:POSITIVE` });
-    }
+    for (const v of vouchers) voucherTier.set(`${id}>${v.voucherId}`, proofTierOf(v));
+    vouchersOf.set(id, vouchers.map((v) => v.voucherId));
   }
-  const placedChildren = layoutChildren(childInputs, placedById, CENTRE_X, CENTRE_Y);
-  const parentByChildId = new Map(childInputs.map((c) => [c.id, c.parentId]));
-  const childrenByParent = new Map<string, ReferenceGraphChild[]>();
-  for (const child of placedChildren) {
-    const edge = childEdges.get(child.id);
-    const parentId = parentByChildId.get(child.id);
-    if (!edge || !parentId) continue;
-    const profile = profiles.get(edge.voucherId);
-    const handle = handles.get(edge.voucherId);
-    const handleSlug = handle?.handleSlug ?? profile?.displayName ?? edge.voucherId;
-    const entry: ReferenceGraphChild = {
-      id: child.id,
-      profileId: edge.voucherId,
-      handle: handle?.handle ?? profile?.displayName ?? 'Member',
-      handleSlug,
-      initials: initialsOf(handle?.handle ?? profile?.displayName ?? '?'),
-      refs: counts.get(edge.voucherId)?.positive ?? 0,
-      x: child.x,
-      y: child.y,
-      r: child.r,
-      parentId,
-    };
-    const list = childrenByParent.get(parentId) ?? [];
-    list.push(entry);
-    childrenByParent.set(parentId, list);
-  }
+  const { links, satellites } = splitConnections(drawnIds, vouchersOf, centre.profileId);
 
-  const nodes: ReferenceGraphNode[] = ranked.flatMap((edge) => {
-    const place = placedById.get(`${edge.voucherId}:${edge.sentiment}`);
+  const childOf = (parentId: string, profileId: string): ReferenceGraphChild[] => {
+    const profile = profiles.get(profileId);
+    if (!profile) return [];
+    const handle = handles.get(profileId);
+    return [
+      {
+        profileId,
+        handle: handle?.handle ?? `@${profile.displayName}`,
+        handleSlug: handle?.handleSlug ?? profile.displayName,
+        initials: initialsOf(handle?.handle ?? profile.displayName),
+        refs: counts.get(profileId)?.positive ?? 0,
+        kind: voucherTier.get(`${parentId}>${profileId}`) ?? 'vouch',
+      },
+    ];
+  };
+
+  const nodes: ReferenceGraphNode[] = drawn.flatMap(({ edge, tier }) => {
     const profile = profiles.get(edge.voucherId);
-    if (!place || !profile) return [];
+    if (!profile) return [];
     const handle = handles.get(edge.voucherId);
-    const handleSlug = handle?.handleSlug ?? profile.displayName;
     return [
       {
         id: `${edge.voucherId}:${edge.sentiment}`,
         profileId: edge.voucherId,
         handle: handle?.handle ?? `@${profile.displayName}`,
-        handleSlug,
+        handleSlug: handle?.handleSlug ?? profile.displayName,
         name: profile.displayName,
         initials: initialsOf(handle?.handle ?? profile.displayName),
         avatarPath: profile.avatarPath,
@@ -521,7 +501,7 @@ async function assembleGraph(
         platformLabel: platformLabel(edge.platform),
         platformShort: PLATFORM_SHORT[edge.platform] ?? platformLabel(edge.platform),
         platforms: edge.platforms,
-        kind: edge.hasEscrow ? 'escrow' : edge.proofStatus === 'CHECKED' ? 'receipt' : 'vouch',
+        kind: proofTierOf(edge),
         sentiment: edge.sentiment,
         categoryLabel: edge.categoryLabel,
         comment: edge.comment,
@@ -530,15 +510,15 @@ async function assembleGraph(
         roleShortLabel: roleShortLabel(edge.role),
         dateLabel: formatOccurredMonth(edge.occurredMonth),
         deals: edge.deals,
-        x: place.x,
-        y: place.y,
-        r: place.r,
-        children: childrenByParent.get(`${edge.voucherId}:POSITIVE`) ?? [],
+        children:
+          tier === 'issue'
+            ? []
+            : (satellites.get(edge.voucherId) ?? []).flatMap((id) => childOf(edge.voucherId, id)),
       },
     ];
   });
 
-  const validPositives = positives.filter((e) => profiles.has(e.voucherId));
+  const validPositives = validEdges.filter((e) => e.sentiment === 'POSITIVE');
   const totalPositiveDeals = validPositives.reduce((sum, e) => sum + e.deals, 0);
 
   return {
@@ -546,15 +526,13 @@ async function assembleGraph(
       ...centre,
       referenceCount: Math.max(validPositives.length, totalPositiveDeals),
       peopleCount: validPositives.length,
-      negativeCount: negatives.filter((e) => profiles.has(e.voucherId)).length,
+      negativeCount: validEdges.length - validPositives.length,
       checkedCount: validPositives.filter((e) => e.proofStatus === 'CHECKED' || e.hasEscrow).length,
       platforms,
     },
     nodes,
-    width: GRAPH_VIEW_WIDTH,
-    height: GRAPH_VIEW_HEIGHT,
-    centreX: CENTRE_X,
-    centreY: CENTRE_Y,
+    links,
+    hidden,
   };
 }
 
@@ -577,9 +555,16 @@ async function mergedIncomingMulti(
       .in('reviewee_id', refereeIds)
       .limit(1000),
   ]);
+  // One entry per voucher, keeping the strongest proof any of their deals carries.
   const push = (targetId: string, edge: MergedEdge) => {
     const list = map.get(targetId) ?? [];
-    if (!list.some((e) => e.voucherId === edge.voucherId)) list.push(edge);
+    const existing = list.find((e) => e.voucherId === edge.voucherId);
+    if (!existing) {
+      list.push(edge);
+    } else {
+      existing.hasEscrow = existing.hasEscrow || edge.hasEscrow;
+      if (edge.proofStatus === 'CHECKED') existing.proofStatus = 'CHECKED';
+    }
     map.set(targetId, list);
   };
   for (const edge of edges ?? []) {
@@ -711,8 +696,6 @@ export async function loadClaimReferenceGraph(claimId: string): Promise<Referenc
   );
 }
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 /**
  * Load a unified cross-platform reference graph for `/references/[handle]`.
  * Resolves claimed profiles, unclaimed handles across any platform, or even a
@@ -725,7 +708,7 @@ export async function loadHandleReferenceGraph(rawHandle: string): Promise<Refer
 
   const admin = createAdminClient();
 
-  if (UUID_RE.test(cleaned)) {
+  if (isUuid(cleaned)) {
     const byId = await loadProfileReferenceGraph(cleaned);
     if (byId) return byId;
   }
@@ -868,10 +851,8 @@ export async function loadHandleReferenceGraph(rawHandle: string): Promise<Refer
       linkedHandles: [],
     },
     nodes: [],
-    width: GRAPH_VIEW_WIDTH,
-    height: GRAPH_VIEW_HEIGHT,
-    centreX: CENTRE_X,
-    centreY: CENTRE_Y,
+    links: [],
+    hidden: { escrow: 0, receipt: 0, vouch: 0, issue: 0 },
   };
 }
 

@@ -10,11 +10,13 @@
 // Both positive and negative experiences go LIVE immediately and are linked
 // to the author's verified identity.
 
-import { randomInt } from 'node:crypto';
+import { createHmac, randomInt } from 'node:crypto';
+import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
 import {
@@ -431,7 +433,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
 
   const validation = validateGiveReference(input);
   if (!validation.ok) return fail('invalid-reference', validation.message, validation.field);
-  const { target, platform, role, occurredMonth, sentiment, category, comment } = validation.value;
+  const { target, platform, role, occurredMonth, rating, sentiment, category, comment } = validation.value;
 
   const admin = createAdminClient();
   const { data: voucher, error: voucherError } = await admin
@@ -564,6 +566,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
       .update({
         deal_count: existing.deal_count + 1,
         platform,
+        rating,
         category,
         comment,
         role,
@@ -586,6 +589,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
       target_claim_id: targetClaimId,
       platform,
       sentiment,
+      rating,
       category,
       comment,
       role,
@@ -678,7 +682,6 @@ export const attachReferenceProof = withActionLog('references.attachReferencePro
     .eq('id', referenceId)
     .eq('voucher_id', user.id)
     .eq('status', 'LIVE')
-    .eq('sentiment', 'POSITIVE')
     .select('target_profile_id')
     .maybeSingle();
   if (error) return fail('persistence-error', SAVE_FAILED);
@@ -815,6 +818,523 @@ export const submitHandleClaim = withActionLog('references.submitHandleClaim', a
     screenshotCount: data.screenshot_paths?.length ?? 0,
   });
 });
+
+type ClaimOAuthProvider = 'discord' | 'twitter' | 'facebook' | 'google';
+
+function oauthProviderForPlatform(platform: string): ClaimOAuthProvider {
+  switch (platform) {
+    case 'discord':
+      return 'discord';
+    case 'x':
+      return 'twitter';
+    case 'facebook':
+    case 'instagram':
+      return 'facebook';
+    default:
+      return 'google';
+  }
+}
+
+async function resolveActionOrigin(): Promise<string> {
+  const headerList = await headers();
+  const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
+  if (host) {
+    const proto =
+      headerList.get('x-forwarded-proto') ??
+      (host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https');
+    return `${proto}://${host}`;
+  }
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (configured) return configured.replace(/\/+$/, '');
+  return 'http://localhost:3000';
+}
+
+function hasDirectOAuthEnv(platform: string): {
+  slug: 'discord' | 'x' | 'facebook' | 'instagram' | 'tiktok' | 'ebay';
+  configured: boolean;
+  envNames: [string, string];
+} {
+  if (platform === 'discord') {
+    return {
+      slug: 'discord',
+      configured: Boolean(process.env.DISCORD_CLIENT_ID && process.env.DISCORD_CLIENT_SECRET),
+      envNames: ['DISCORD_CLIENT_ID', 'DISCORD_CLIENT_SECRET'],
+    };
+  }
+  if (platform === 'x') {
+    return {
+      slug: 'x',
+      configured: Boolean(
+        (process.env.TWITTER_CLIENT_ID || process.env.X_CLIENT_ID) &&
+          (process.env.TWITTER_CLIENT_SECRET || process.env.X_CLIENT_SECRET),
+      ),
+      envNames: ['TWITTER_CLIENT_ID', 'TWITTER_CLIENT_SECRET'],
+    };
+  }
+  if (platform === 'tiktok') {
+    return {
+      slug: 'tiktok',
+      configured: Boolean(
+        (process.env.TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_ID) &&
+          process.env.TIKTOK_CLIENT_SECRET,
+      ),
+      envNames: ['TIKTOK_CLIENT_KEY', 'TIKTOK_CLIENT_SECRET'],
+    };
+  }
+  if (platform === 'ebay') {
+    return {
+      slug: 'ebay',
+      configured: Boolean(
+        (process.env.EBAY_CLIENT_ID || process.env.EBAY_APP_ID) &&
+          (process.env.EBAY_CLIENT_SECRET || process.env.EBAY_CERT_ID),
+      ),
+      envNames: ['EBAY_CLIENT_ID', 'EBAY_CLIENT_SECRET'],
+    };
+  }
+  if (platform === 'facebook') {
+    return {
+      slug: 'facebook',
+      configured: Boolean(
+        (process.env.FACEBOOK_CLIENT_ID || process.env.META_CLIENT_ID) &&
+          (process.env.FACEBOOK_CLIENT_SECRET || process.env.META_CLIENT_SECRET),
+      ),
+      envNames: ['FACEBOOK_CLIENT_ID', 'FACEBOOK_CLIENT_SECRET'],
+    };
+  }
+  return {
+    slug: 'instagram',
+    configured: Boolean(
+      (process.env.INSTAGRAM_CLIENT_ID || process.env.FACEBOOK_CLIENT_ID) &&
+        (process.env.INSTAGRAM_CLIENT_SECRET || process.env.FACEBOOK_CLIENT_SECRET),
+    ),
+    envNames: ['INSTAGRAM_CLIENT_ID', 'INSTAGRAM_CLIENT_SECRET'],
+  };
+}
+
+export const startOAuthHandleClaim = withActionLog(
+  'references.startOAuthHandleClaim',
+  async function startOAuthHandleClaim(input: {
+    handle: string;
+    platform: string;
+    returnPath?: string;
+  }): Promise<ActionResult<{ url: string }, ReferenceError>> {
+    const user = await getCachedAuthUser();
+    if (!user) return fail('not-authenticated', 'Sign in to claim this account.');
+
+    const cleanHandle = (input.handle ?? '').trim().replace(/^@/, '');
+    if (!cleanHandle) return fail('invalid-reference', 'Enter a valid handle.');
+
+    const admin = createAdminClient();
+    const [{ data: profile }, { data: existingClaims }] = await Promise.all([
+      admin
+        .from('profiles')
+        .select('identity_check_status, fraud_banned_at, closed_at')
+        .eq('id', user.id)
+        .maybeSingle(),
+      admin
+        .from('social_claims')
+        .select('id, platform, claimed_profile_id')
+        .eq('handle_norm', cleanHandle.toLowerCase()),
+    ]);
+
+    if (!profile || profile.fraud_banned_at || profile.closed_at) {
+      return fail('not-allowed', "This account can't claim handles.");
+    }
+    if (profile.identity_check_status !== 'VERIFIED') {
+      return fail(
+        'identity-unverified',
+        'Verify your ID first so your claimed handle carries your verified identity.',
+      );
+    }
+
+    const alreadyClaimed = (existingClaims ?? []).find((c) => c.claimed_profile_id);
+    if (alreadyClaimed?.claimed_profile_id) {
+      return fail(
+        'not-allowed',
+        alreadyClaimed.claimed_profile_id === user.id
+          ? 'You already claimed this account.'
+          : 'This account is already claimed.',
+      );
+    }
+
+    const origin = await resolveActionOrigin();
+    const safeReturn =
+      input.returnPath && input.returnPath.startsWith('/') && !input.returnPath.startsWith('//')
+        ? input.returnPath
+        : '/references';
+
+    // 1. Direct Next.js OAuth2 flow if credentials are set in .env.local
+    const direct = hasDirectOAuthEnv(input.platform);
+    if (direct.configured) {
+      const startUrl = new URL(`/api/oauth/claim/${direct.slug}`, origin);
+      startUrl.searchParams.set('handle', cleanHandle);
+      startUrl.searchParams.set('next', safeReturn);
+      return ok({ url: startUrl.toString() });
+    }
+
+    // 2. Otherwise check whether the provider is enabled in Supabase Auth settings
+    const provider = oauthProviderForPlatform(input.platform);
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (supabaseUrl && supabaseAnon) {
+      const settingsRes = await fetch(`${supabaseUrl}/auth/v1/settings`, {
+        headers: { apikey: supabaseAnon },
+        cache: 'no-store',
+      }).catch(() => null);
+      if (settingsRes?.ok) {
+        const settings = (await settingsRes.json()) as {
+          external?: Record<string, boolean>;
+        };
+        if (!settings.external?.[provider]) {
+          return fail(
+            'persistence-error',
+            `Add ${direct.envNames[0]} and ${direct.envNames[1]} to .env.local (redirect URI: ${origin}/api/oauth/claim/${direct.slug}).`,
+          );
+        }
+      }
+    }
+
+    const callback = new URL('/auth/callback', origin);
+    if (existingClaims?.[0]?.id) callback.searchParams.set('claimId', existingClaims[0].id);
+    callback.searchParams.set('next', safeReturn);
+
+    const supabase = await createClient();
+    const signedIn = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: callback.toString() },
+    });
+    if (signedIn.error || !signedIn.data?.url) {
+      return fail(
+        'persistence-error',
+        `OAuth2 for ${platformLabel(input.platform)} is not enabled yet.`,
+      );
+    }
+    return ok({ url: signedIn.data.url });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Instagram DM Bot handle claiming (works for personal & professional accounts)
+// ---------------------------------------------------------------------------
+
+const DM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function deterministicDmCode(handleNorm: string): string {
+  const secret =
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    'noditto-ig-dm-secret';
+  const digest = createHmac('sha256', secret).update(`ig-dm:${handleNorm}`).digest();
+  let suffix = '';
+  for (let i = 0; i < 6; i += 1) {
+    suffix += DM_CODE_ALPHABET[digest[i] % DM_CODE_ALPHABET.length];
+  }
+  return `ND-${suffix}`;
+}
+
+export interface InstagramDmClaimSession {
+  code: string;
+  botHandle: string;
+  signedIn: boolean;
+  status: 'PENDING' | 'APPROVED';
+}
+
+export const startInstagramDmClaim = withActionLog(
+  'references.startInstagramDmClaim',
+  async function startInstagramDmClaim(
+    rawHandle: string,
+  ): Promise<ActionResult<InstagramDmClaimSession, ReferenceError>> {
+    const cleanHandle = normalizeClaimHandle('instagram', rawHandle);
+    if (!cleanHandle) return fail('invalid-reference', 'Enter a valid Instagram handle.');
+
+    const handleNorm = cleanHandle.toLowerCase();
+    const botHandle = (process.env.NEXT_PUBLIC_INSTAGRAM_BOT_HANDLE || 'noditto')
+      .trim()
+      .replace(/^@/, '');
+    const code = deterministicDmCode(handleNorm);
+
+    const user = await getCachedAuthUser();
+    if (!user) {
+      return ok({
+        code,
+        botHandle,
+        signedIn: false,
+        status: 'PENDING',
+      });
+    }
+
+    const admin = createAdminClient();
+    let { data: claim } = await admin
+      .from('social_claims')
+      .select('id, claimed_profile_id')
+      .eq('platform', 'instagram')
+      .eq('handle_norm', handleNorm)
+      .maybeSingle();
+
+    if (!claim) {
+      const { data: inserted } = await admin
+        .from('social_claims')
+        .insert({
+          platform: 'instagram',
+          handle: cleanHandle,
+          created_by: user.id,
+          claim_method: 'UNCLAIMED',
+        })
+        .select('id, claimed_profile_id')
+        .maybeSingle();
+      claim = inserted ?? null;
+    }
+
+    if (!claim) return fail('persistence-error', SAVE_FAILED);
+    if (claim.claimed_profile_id === user.id) {
+      return ok({ code, botHandle, signedIn: true, status: 'APPROVED' });
+    }
+    if (claim.claimed_profile_id) {
+      return fail('not-allowed', 'This Instagram account has already been claimed.');
+    }
+
+    const { data: existingReq } = await admin
+      .from('handle_claim_requests')
+      .select('id, bio_code, status')
+      .eq('claim_id', claim.id)
+      .eq('claimant_id', user.id)
+      .eq('status', 'PENDING')
+      .maybeSingle();
+
+    if (existingReq) {
+      if (existingReq.bio_code !== code) {
+        await admin
+          .from('handle_claim_requests')
+          .update({ bio_code: code, updated_at: new Date().toISOString() })
+          .eq('id', existingReq.id);
+      }
+      return ok({ code, botHandle, signedIn: true, status: 'PENDING' });
+    }
+
+    await admin.from('handle_claim_requests').insert({
+      claim_id: claim.id,
+      claimant_id: user.id,
+      bio_code: code,
+    });
+
+    return ok({ code, botHandle, signedIn: true, status: 'PENDING' });
+  },
+);
+
+async function checkInstagramGraphDmForCode(
+  handleNorm: string,
+  expectedCode: string,
+): Promise<boolean> {
+  const token = (
+    process.env.INSTAGRAM_PAGE_ACCESS_TOKEN ||
+    process.env.INSTAGRAM_ACCESS_TOKEN ||
+    ''
+  ).trim();
+  if (!token) return false;
+
+  const url = new URL('https://graph.instagram.com/v20.0/me/conversations');
+  url.searchParams.set('platform', 'instagram');
+  url.searchParams.set('fields', 'participants,messages.limit(10){message,from}');
+  url.searchParams.set('access_token', token);
+
+  const res = await fetch(url, { cache: 'no-store' }).catch(() => null);
+  if (!res?.ok) return false;
+
+  const json = (await res.json()) as {
+    data?: Array<{
+      participants?: { data?: Array<{ username?: string }> };
+      messages?: {
+        data?: Array<{
+          message?: string;
+          from?: { username?: string };
+        }>;
+      };
+    }>;
+  };
+
+  const upperCode = expectedCode.toUpperCase();
+  for (const convo of json.data ?? []) {
+    const participants = (convo.participants?.data ?? []).map((p) =>
+      (p.username ?? '').trim().replace(/^@/, '').toLowerCase(),
+    );
+    const hasHandle = participants.includes(handleNorm);
+    for (const msg of convo.messages?.data ?? []) {
+      const fromUser = (msg.from?.username ?? '').trim().replace(/^@/, '').toLowerCase();
+      if ((fromUser === handleNorm || hasHandle) && (msg.message ?? '').toUpperCase().includes(upperCode)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+export const checkInstagramDmClaim = withActionLog(
+  'references.checkInstagramDmClaim',
+  async function checkInstagramDmClaim(
+    rawHandle: string,
+  ): Promise<ActionResult<{ verified: boolean }, ReferenceError>> {
+    const user = await getCachedAuthUser();
+    if (!user) return fail('not-authenticated', 'Sign in to verify your Instagram DM.');
+
+    const cleanHandle = normalizeClaimHandle('instagram', rawHandle);
+    if (!cleanHandle) return fail('invalid-reference', 'Enter a valid Instagram handle.');
+
+    const handleNorm = cleanHandle.toLowerCase();
+    const admin = createAdminClient();
+
+    const { data: claim } = await admin
+      .from('social_claims')
+      .select('id, claimed_profile_id')
+      .eq('platform', 'instagram')
+      .eq('handle_norm', handleNorm)
+      .maybeSingle();
+
+    if (!claim) return ok({ verified: false });
+    if (claim.claimed_profile_id === user.id) {
+      revalidatePath(`/references/${cleanHandle}`);
+      return ok({ verified: true });
+    }
+
+    const code = deterministicDmCode(handleNorm);
+    const matchedInDm = await checkInstagramGraphDmForCode(handleNorm, code);
+    if (!matchedInDm) {
+      return ok({ verified: false });
+    }
+
+    const now = new Date().toISOString();
+    await Promise.all([
+      admin
+        .from('handle_claim_requests')
+        .update({
+          status: 'APPROVED',
+          staff_notes: `Verified automatically via Instagram DM bot (@${handleNorm})`,
+          decided_at: now,
+          updated_at: now,
+        })
+        .eq('claim_id', claim.id)
+        .eq('claimant_id', user.id)
+        .eq('status', 'PENDING'),
+      admin
+        .from('social_claims')
+        .update({
+          claimed_profile_id: user.id,
+          claim_method: 'DM_BOT',
+          claimed_at: now,
+          updated_at: now,
+        })
+        .eq('id', claim.id)
+        .is('claimed_profile_id', null),
+    ]);
+
+    revalidatePath(`/references/${cleanHandle}`);
+    return ok({ verified: true });
+  },
+);
+
+export const submitManualHandleClaim = withActionLog(
+  'references.submitManualHandleClaim',
+  async function submitManualHandleClaim(input: {
+    handle: string;
+    message?: string;
+    paths: string[];
+  }): Promise<ActionResult<MyHandleClaim, ReferenceError>> {
+    const user = await getCachedAuthUser();
+    if (!user) return fail('not-authenticated', 'Sign in first.');
+
+    const cleanHandle = normalizeClaimHandle('instagram', input.handle);
+    if (!cleanHandle) return fail('invalid-reference', 'Enter a valid handle.');
+
+    const admin = createAdminClient();
+    let verifiedPaths: string[];
+    try {
+      verifiedPaths = await existingReferenceImages(
+        admin,
+        HANDLE_CLAIM_EVIDENCE_BUCKET,
+        user.id,
+        input.paths ?? [],
+      );
+    } catch {
+      return fail('persistence-error', SAVE_FAILED);
+    }
+    if (verifiedPaths.length === 0) {
+      return fail('invalid-reference', 'Attach at least one screenshot or image as proof.');
+    }
+
+    const handleNorm = cleanHandle.toLowerCase();
+    let { data: claim } = await admin
+      .from('social_claims')
+      .select('id, claimed_profile_id')
+      .eq('handle_norm', handleNorm)
+      .limit(1)
+      .maybeSingle();
+
+    if (!claim) {
+      const { data: inserted } = await admin
+        .from('social_claims')
+        .insert({
+          platform: 'instagram',
+          handle: cleanHandle,
+          created_by: user.id,
+          claim_method: 'UNCLAIMED',
+        })
+        .select('id, claimed_profile_id')
+        .maybeSingle();
+      claim = inserted ?? null;
+    }
+
+    if (!claim) return fail('persistence-error', SAVE_FAILED);
+    if (claim.claimed_profile_id) {
+      return fail(
+        'not-allowed',
+        claim.claimed_profile_id === user.id
+          ? 'You already claimed this handle.'
+          : 'This handle is already claimed.',
+      );
+    }
+
+    const note = (input.message ?? '').trim().slice(0, 1000) || null;
+    const { data: existingReq } = await admin
+      .from('handle_claim_requests')
+      .select('id')
+      .eq('claim_id', claim.id)
+      .eq('claimant_id', user.id)
+      .eq('status', 'PENDING')
+      .maybeSingle();
+
+    const { data, error } = existingReq
+      ? await admin
+          .from('handle_claim_requests')
+          .update({
+            screenshot_paths: verifiedPaths.slice(0, 5),
+            staff_notes: note,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingReq.id)
+          .select('id, bio_code, status, screenshot_paths')
+          .single()
+      : await admin
+          .from('handle_claim_requests')
+          .insert({
+            claim_id: claim.id,
+            claimant_id: user.id,
+            bio_code: newBioCode(),
+            screenshot_paths: verifiedPaths.slice(0, 5),
+            staff_notes: note,
+          })
+          .select('id, bio_code, status, screenshot_paths')
+          .single();
+
+    if (error || !data) return fail('persistence-error', SAVE_FAILED);
+
+    revalidatePath(`/references/${cleanHandle}`);
+    return ok({
+      requestId: data.id,
+      bioCode: data.bio_code,
+      status: data.status,
+      screenshotCount: data.screenshot_paths?.length ?? 0,
+    });
+  },
+);
 
 // ---------------------------------------------------------------------------
 // withdraw / dispute

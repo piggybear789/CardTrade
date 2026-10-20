@@ -2841,7 +2841,7 @@ export type Database = {
           handle_norm: string;
           claimed_profile_id: string | null;
           created_by: string | null;
-          claim_method: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'STAFF';
+          claim_method: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'OAUTH' | 'DM_BOT' | 'STAFF';
           claimed_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2852,7 +2852,7 @@ export type Database = {
           handle: string;
           claimed_profile_id?: string | null;
           created_by?: string | null;
-          claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'STAFF';
+          claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'OAUTH' | 'DM_BOT' | 'STAFF';
           claimed_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2863,7 +2863,7 @@ export type Database = {
           handle?: string;
           claimed_profile_id?: string | null;
           created_by?: string | null;
-          claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'STAFF';
+          claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'OAUTH' | 'DM_BOT' | 'STAFF';
           claimed_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2878,7 +2878,8 @@ export type Database = {
           target_profile_id: string | null;
           target_claim_id: string | null;
           platform: string;
-          sentiment: 'POSITIVE' | 'NEGATIVE';
+          sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+          rating: number;
           category: string | null;
           comment: string | null;
           role: 'BOUGHT' | 'SOLD' | 'TRADED';
@@ -2900,7 +2901,8 @@ export type Database = {
           target_profile_id?: string | null;
           target_claim_id?: string | null;
           platform: string;
-          sentiment?: 'POSITIVE' | 'NEGATIVE';
+          sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+          rating?: number;
           category?: string | null;
           comment?: string | null;
           role: 'BOUGHT' | 'SOLD' | 'TRADED';
@@ -2922,7 +2924,8 @@ export type Database = {
           target_profile_id?: string | null;
           target_claim_id?: string | null;
           platform?: string;
-          sentiment?: 'POSITIVE' | 'NEGATIVE';
+          sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+          rating?: number;
           category?: string | null;
           comment?: string | null;
           role?: 'BOUGHT' | 'SOLD' | 'TRADED';
@@ -3527,13 +3530,15 @@ export type Database = {
           target_profile_id: string | null;
           target_claim_id: string | null;
           platform: string;
-          sentiment: 'POSITIVE' | 'NEGATIVE';
+          sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+          rating: number;
           category: string | null;
           comment: string | null;
           role: 'BOUGHT' | 'SOLD' | 'TRADED';
           occurred_month: string;
           deal_count: number;
           proof_status: 'NONE' | 'PENDING' | 'CHECKED';
+          proof_paths: string[];
           created_at: string;
         };
         Relationships: [];

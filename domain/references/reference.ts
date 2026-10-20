@@ -17,7 +17,6 @@ export const REFERENCE_PLATFORMS = [
   { slug: 'discord', label: 'Discord', shortLabel: 'Discord' },
   { slug: 'ebay', label: 'eBay', shortLabel: 'eBay' },
   { slug: 'whatnot', label: 'Whatnot', shortLabel: 'Whatnot' },
-  { slug: 'in-person', label: 'In person', shortLabel: 'IRL' },
   { slug: 'other', label: 'Other', shortLabel: 'Other' },
 ] as const;
 
@@ -40,7 +39,13 @@ export const NEGATIVE_CATEGORIES = [
 ] as const;
 
 export type NegativeCategory = (typeof NEGATIVE_CATEGORIES)[number]['slug'];
-export type ReferenceSentiment = 'POSITIVE' | 'NEGATIVE';
+export type ReferenceSentiment = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+
+export const REFERENCE_SENTIMENTS = [
+  { slug: 'POSITIVE', label: 'Good' },
+  { slug: 'NEUTRAL', label: 'So-so' },
+  { slug: 'NEGATIVE', label: 'Bad' },
+] as const;
 
 export function negativeCategoryLabel(slug: string | null | undefined): string | null {
   return NEGATIVE_CATEGORIES.find((c) => c.slug === slug)?.label ?? null;
@@ -66,7 +71,7 @@ export function isClaimPlatform(value: unknown): value is ClaimPlatform {
 }
 
 export function platformLabel(slug: string): string {
-  if (slug === 'noditto') return 'NoDitto Escrow';
+  if (slug === 'noditto') return 'NoDitto';
   return REFERENCE_PLATFORMS.find((p) => p.slug === slug)?.label ?? platformBySlug(slug)?.label ?? slug;
 }
 
@@ -110,6 +115,8 @@ export interface GiveReferenceInput {
   role: string;
   /** `YYYY-MM`; defaults to the current month. */
   occurredMonth?: string | null;
+  /** 1..5 star rating; derives sentiment when provided. */
+  rating?: number | null;
   /** Defaults to POSITIVE. Both POSITIVE and NEGATIVE publish immediately. */
   sentiment?: ReferenceSentiment;
   /** Optional category when NEGATIVE (defaults to OTHER). */
@@ -126,12 +133,17 @@ export type GiveReferenceValidation =
         platform: ReferencePlatform;
         role: ReferenceRole;
         occurredMonth: string;
+        rating: number;
         sentiment: ReferenceSentiment;
         category: NegativeCategory | null;
         comment: string | null;
       };
     }
-  | { ok: false; message: string; field: 'target' | 'platform' | 'role' | 'occurredMonth' | 'category' | 'comment' };
+  | {
+      ok: false;
+      message: string;
+      field: 'target' | 'platform' | 'role' | 'occurredMonth' | 'rating' | 'category' | 'comment';
+    };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -171,7 +183,34 @@ export function validateGiveReference(input: GiveReferenceInput): GiveReferenceV
   if (!occurredMonth) {
     return { ok: false, message: 'Choose a valid month.', field: 'occurredMonth' };
   }
-  const sentiment: ReferenceSentiment = input.sentiment === 'NEGATIVE' ? 'NEGATIVE' : 'POSITIVE';
+  let rating = 5;
+  if (input.rating !== undefined && input.rating !== null) {
+    if (
+      typeof input.rating !== 'number' ||
+      !Number.isInteger(input.rating) ||
+      input.rating < 1 ||
+      input.rating > 5
+    ) {
+      return { ok: false, message: 'Pick a rating from 1 to 5.', field: 'rating' };
+    }
+    rating = input.rating;
+  } else if (input.sentiment === 'NEGATIVE') {
+    rating = 1;
+  } else if (input.sentiment === 'NEUTRAL') {
+    rating = 3;
+  }
+  const sentiment: ReferenceSentiment =
+    input.rating !== undefined && input.rating !== null
+      ? rating >= 4
+        ? 'POSITIVE'
+        : rating === 3
+          ? 'NEUTRAL'
+          : 'NEGATIVE'
+      : input.sentiment === 'NEGATIVE'
+        ? 'NEGATIVE'
+        : input.sentiment === 'NEUTRAL'
+          ? 'NEUTRAL'
+          : 'POSITIVE';
   let category: NegativeCategory | null = null;
   if (sentiment === 'NEGATIVE') {
     if (
@@ -200,6 +239,7 @@ export function validateGiveReference(input: GiveReferenceInput): GiveReferenceV
       platform: input.platform,
       role: input.role,
       occurredMonth,
+      rating,
       sentiment,
       category,
       comment,

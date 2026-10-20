@@ -2,307 +2,185 @@
 
 // components/references/ReferenceGraph.tsx
 //
-// The Trust Network (0155): everyone who has vouched for a person, drawn as proof
-// orbits (`domain/references/orbits.ts`). Selecting someone lights up who they
-// know; double-clicking (or double-tapping) centres the graph on them, and Back or
-// the trail returns. The experiences list holds the same people as text, for
-// scanning and for assistive tech.
+// The Trust Network (0155): everyone who has vouched for a person, drawn as a
+// small solar system (`domain/references/orbits.ts`). Selecting someone opens a
+// card over the drawing with who they know; double-clicking (or double-tapping)
+// goes to their page, the graph walking there as it loads.
+//
+// `ReferenceGraph` is the network as a section of another page (a storefront),
+// with the experiences listed as text under it; `ReferenceProfile` is a person's
+// references page, built from the same body with a modal trigger to leave a reference.
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   AlertCircleIcon,
-  ArrowLeft01Icon,
   CheckmarkCircle02Icon,
   ShieldCheckIcon,
 } from '@hugeicons/core-free-icons';
 
+import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { PlatformChip, SentimentBadge, plural } from '@/components/references/referenceLabels';
+import { TrustNetworkPanel } from '@/components/references/TrustNetworkPanel';
 import { TrustOrbitsCanvas } from '@/components/references/TrustOrbitsCanvas';
 import { nodeKey, useTrustOrbits, type TrustOrbits } from '@/components/references/useTrustOrbits';
-import { TIER_LABEL, type OrbitTier } from '@/domain/references/orbits';
-import { platformLabel } from '@/domain/references/reference';
-import type { ReferenceGraphData, ReferenceGraphNode } from '@/lib/references/graph';
+import type {
+  ReferenceGraphCentre,
+  ReferenceGraphData,
+  ReferenceGraphNode,
+} from '@/lib/references/graph';
 import { cn } from '@/lib/utils';
 
-const PLATFORM_DOT_COLOR: Record<string, string> = {
-  instagram: '#E1306C',
-  facebook: '#1877F2',
-  discord: '#5865F2',
-  ebay: '#E53238',
-  whatnot: '#F59E0B',
-  'in-person': '#10B981',
-  noditto: '#6366F1',
-  other: '#71717A',
+/** Goes to someone's references page. `keepScroll` holds the page where it is, for a page laid out the same. */
+export function usePageOpener(keepScroll: boolean): (handleSlug: string) => void {
+  const router = useRouter();
+  return (handleSlug) => router.push(`/references/${encodeURIComponent(handleSlug)}`, { scroll: !keepScroll });
+}
+
+/**
+ * How settled text about the person in the middle is: it fades up from faint as
+ * the graph walks to someone new, so the change of name reads as part of the move.
+ */
+export function arrival(orbits: TrustOrbits): number {
+  return orbits.transition ? Math.min(1, 0.3 + orbits.progress * 1.4) : 1;
+}
+
+export function averageGraphRating(nodes: readonly ReferenceGraphNode[]): number | null {
+  if (nodes.length === 0) return null;
+  const total = nodes.reduce((sum, n) => {
+    const fallback = n.sentiment === 'NEGATIVE' ? 1 : n.sentiment === 'NEUTRAL' ? 3 : 5;
+    return sum + (n.rating ?? fallback);
+  }, 0);
+  return total / nodes.length;
+}
+
+const PLATFORM_TINT: Record<string, string> = {
+  instagram: 'text-[#E1306C]',
+  facebook: 'text-[#1877F2]',
+  discord: 'text-[#5865F2]',
+  ebay: 'text-[#E53238]',
+  whatnot: 'text-foreground',
+  noditto: 'text-foreground',
+  x: 'text-foreground',
+  youtube: 'text-[#FF0000]',
+  tiktok: 'text-foreground',
 };
 
-function platformColor(slug: string): string {
-  return PLATFORM_DOT_COLOR[slug] ?? '#6366F1';
-}
-
-function tierOf(node: ReferenceGraphNode): OrbitTier {
-  return node.sentiment === 'NEGATIVE' ? 'issue' : node.kind;
-}
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count === 1 ? one : many}`;
-}
-
-function TierBadge({ tier, category }: { tier: OrbitTier; category?: string | null }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-meta font-semibold',
-        tier === 'issue' && 'bg-destructive/10 text-destructive',
-        tier === 'vouch' && 'bg-muted text-muted-foreground',
-        (tier === 'escrow' || tier === 'receipt') && 'bg-trust/10 text-trust',
-      )}
-    >
-      {tier === 'issue' ? <HugeiconsIcon icon={AlertCircleIcon} className="size-3" aria-hidden /> : null}
-      {tier === 'issue' ? (category ?? TIER_LABEL.issue) : TIER_LABEL[tier]}
-    </span>
-  );
-}
-
-function PlatformChip({ slug }: { slug: string }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-border/80 bg-muted/40 px-2 py-0.5 text-meta font-medium text-foreground">
-      <span className="size-1.5 rounded-full" style={{ backgroundColor: platformColor(slug) }} aria-hidden />
-      {platformLabel(slug)}
-    </span>
-  );
-}
-
-function NetworkHeader({
-  graph,
-  action,
-  walkedFrom,
+export function NetworkStats({
+  centre,
+  nodes = [],
 }: {
-  graph: ReferenceGraphData;
-  action?: ReactNode;
-  walkedFrom: string | null;
+  centre: ReferenceGraphCentre;
+  nodes?: readonly ReferenceGraphNode[];
 }) {
-  const { centre } = graph;
-  const totalEdges = centre.referenceCount + centre.negativeCount;
-  const positivePct = totalEdges > 0 ? Math.round((centre.referenceCount / totalEdges) * 100) : 100;
-
+  const neutralCount = nodes.filter((n) => n.sentiment === 'NEUTRAL').length;
   return (
-    <div className="flex flex-col gap-3 border-b border-border/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-      <div className="min-w-0 space-y-1">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <h3 id="references-heading" className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
-            Trust Network
-          </h3>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-muted/50 px-2.5 py-0.5 text-meta font-medium tabular-nums text-foreground">
-            <span>{centre.referenceCount}</span>
-            <span className="text-muted-foreground">{centre.referenceCount === 1 ? 'reference' : 'references'}</span>
-          </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-muted/50 px-2.5 py-0.5 text-meta font-medium tabular-nums text-foreground">
-            <span>{centre.peopleCount}</span>
-            <span className="text-muted-foreground">{centre.peopleCount === 1 ? 'person' : 'people'}</span>
-          </span>
-          {totalEdges > 0 ? (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-meta font-semibold tabular-nums',
-                centre.negativeCount === 0 ? 'bg-trust/10 text-trust' : 'bg-amber-500/10 text-amber-700',
-              )}
-            >
-              {positivePct}% positive
-            </span>
-          ) : null}
-          {centre.negativeCount > 0 ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive">
-              {centre.negativeCount} negative
-            </span>
-          ) : null}
-        </div>
-        <p className="text-meta text-muted-foreground">
-          {walkedFrom
-            ? `${centre.handle}'s network, opened from ${walkedFrom}.`
-            : 'Closest in are deals done through NoDitto, then receipt-checked deals, then vouches.'}
-        </p>
-      </div>
-      {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
-    </div>
-  );
-}
-
-function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
-  const { trail, graph, showConnections } = orbits;
-  const last = trail.length - 1;
-  const crumbs = trail.length <= 3 ? trail.map((_, index) => index) : [0, -1, last - 1, last];
-  const hiddenTotal = Object.values(graph.hidden).reduce((sum, count) => sum + count, 0);
-
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-5 py-2">
-      {trail.length > 1 ? (
-        <nav aria-label="Networks you opened" className="flex min-w-0 flex-wrap items-center gap-1.5">
-          <Button variant="ghost" size="xs" onClick={orbits.back}>
-            <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
-            Back
-          </Button>
-          <ol className="flex min-w-0 flex-wrap items-center gap-1 text-meta">
-            {crumbs.map((index, position) => (
-              <li key={index < 0 ? 'gap' : trail[index].centre.id} className="flex items-center gap-1">
-                {position > 0 ? (
-                  <span className="text-muted-foreground" aria-hidden>
-                    ›
-                  </span>
-                ) : null}
-                {index < 0 ? (
-                  <span className="text-muted-foreground">…</span>
-                ) : index === last ? (
-                  <span aria-current="page" className="font-semibold text-foreground">
-                    {trail[index].centre.handle}
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => orbits.jumpTo(index)}
-                    className="rounded font-medium text-muted-foreground transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    {trail[index].centre.handle}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ol>
-        </nav>
-      ) : (
-        <p className="text-meta text-muted-foreground">
-          {hiddenTotal > 0
-            ? `Showing the strongest ${graph.nodes.length} of ${graph.nodes.length + hiddenTotal} people.`
-            : `Showing ${graph.nodes.length === 1 ? 'the one person' : `all ${graph.nodes.length} people`} with references.`}
-        </p>
-      )}
-      {graph.nodes.length > 0 ? (
-        <label className="flex cursor-pointer items-center gap-2 text-meta font-medium text-muted-foreground">
-          <Switch checked={showConnections} onCheckedChange={orbits.toggleConnections} />
-          Connections
-        </label>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span
+        title={plural(centre.referenceCount, 'positive reference', 'positive references')}
+        aria-label={plural(centre.referenceCount, 'positive reference', 'positive references')}
+        className="inline-flex items-center gap-1 rounded-full bg-trust/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-trust"
+      >
+        <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" aria-hidden />
+        <span>{centre.peopleCount} positive</span>
+      </span>
+      {neutralCount > 0 ? (
+        <span
+          title={plural(neutralCount, 'neutral reference', 'neutral references')}
+          aria-label={plural(neutralCount, 'neutral reference', 'neutral references')}
+          className="inline-flex items-center gap-1 rounded-full border border-action-border/40 bg-action/35 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-action-foreground"
+        >
+          <span>{neutralCount} neutral</span>
+        </span>
+      ) : null}
+      {centre.negativeCount > 0 ? (
+        <span
+          title={plural(centre.negativeCount, 'negative reference', 'negative references')}
+          aria-label={plural(centre.negativeCount, 'negative reference', 'negative references')}
+          className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive"
+        >
+          <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" aria-hidden />
+          <span>{centre.negativeCount} negative</span>
+        </span>
       ) : null}
     </div>
   );
 }
 
-function NetworkInspector({ orbits }: { orbits: TrustOrbits }) {
-  const { graph, trail, selectedKey, directory, scene, pendingKey, frame } = orbits;
-  const { centre } = graph;
-  const entry = selectedKey ? directory.get(selectedKey) : undefined;
-  const item = selectedKey ? scene.items.get(selectedKey) : undefined;
-  const gesture = frame.compact ? 'Double-tap' : 'Double-click';
-
-  if (!selectedKey || !entry || !item || entry.kind === 'centre') {
-    const previous = trail.length > 1 ? trail[trail.length - 2].centre.handle : null;
-    return (
-      <div className="border-t border-border/80 px-5 py-4">
-        <p className="text-body text-foreground">
-          <span className="font-semibold">{centre.handle}</span>
-          {` · ${plural(centre.peopleCount, 'person vouches', 'people vouch')} for them`}
-          {centre.negativeCount > 0 ? ` · ${plural(centre.negativeCount, 'issue', 'issues')}` : ''}
-        </p>
-        <p className="mt-1 text-meta text-muted-foreground">
-          {previous ? `You walked here from ${previous}. ` : ''}
-          Select someone to see who they know. {gesture} anyone to explore their network.
-        </p>
-      </div>
-    );
-  }
-
-  const pending = pendingKey === selectedKey;
-  const actions = (handleSlug: string) => (
-    <div className="flex shrink-0 items-center gap-3">
-      <Button variant="outline" size="sm" disabled={pending} onClick={() => orbits.centreOn(selectedKey)}>
-        {pending ? 'Opening…' : 'Centre on them'}
-      </Button>
-      <Link
-        href={`/references/${encodeURIComponent(handleSlug)}`}
-        className="text-meta font-semibold text-iris-ink hover:underline"
-      >
-        Profile
-      </Link>
-    </div>
-  );
-
-  if (entry.kind === 'child') {
-    const { child } = entry;
-    const parent = item.parentKey ? directory.get(item.parentKey) : undefined;
-    const parentHandle = parent?.kind === 'node' ? parent.node.handle : entry.parent.handle;
-    return (
-      <div className="flex flex-col gap-3 border-t border-border/80 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
-          <Avatar displayName={child.handle.replace(/^@/, '')} size="md" />
-          <div className="min-w-0 space-y-1">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="truncate text-body font-semibold text-foreground">{child.handle}</span>
-              <TierBadge tier={child.kind} />
-            </div>
-            <p className="text-meta text-muted-foreground">
-              Vouches for {parentHandle}, not {centre.handle} directly ·{' '}
-              {plural(child.refs, 'reference', 'references')} of their own.
-            </p>
-          </div>
-        </div>
-        {actions(child.handleSlug)}
-      </div>
-    );
-  }
-
-  const { node } = entry;
-  const tier = tierOf(node);
-  const linked = scene.crossLinks
-    .flatMap(([a, b]) => (a === selectedKey ? [b] : b === selectedKey ? [a] : []))
-    .flatMap((key) => {
-      const other = directory.get(key);
-      return other?.kind === 'node' ? [other.node.handle] : [];
-    });
-  const ownShown = scene.satelliteLinks.filter(([parent]) => parent === selectedKey).length;
-  const meta = [
-    node.name !== node.handle.replace(/^@/, '') ? node.name : null,
-    plural(node.refs, 'reference', 'references'),
-    node.roleLabel,
-    node.deals > 1 ? `${node.deals} deals` : null,
-    node.dateLabel,
-  ].filter(Boolean);
+function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
+  const { graph, platformFilter, filterByPlatform } = orbits;
+  const platforms = graph.centre.platforms;
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border/80 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex min-w-0 items-start gap-3">
-        <Avatar avatarPath={node.avatarPath} displayName={node.name} size="md" />
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="truncate text-body font-semibold text-foreground">{node.handle}</span>
-            {node.identityVerified ? (
-              <HugeiconsIcon icon={ShieldCheckIcon} className="size-3.5 shrink-0 text-trust" aria-label="ID verified" />
-            ) : null}
-            <TierBadge tier={tier} category={node.categoryLabel} />
-            {node.platforms.map((slug) => (
-              <PlatformChip key={slug} slug={slug} />
-            ))}
-          </div>
-          <p className="text-meta text-muted-foreground">{meta.join(' · ')}</p>
-          {node.comment ? (
-            <blockquote className="rounded-xl border border-border/60 bg-muted/40 px-3 py-2 text-body text-foreground">
-              &ldquo;{node.comment}&rdquo;
-            </blockquote>
-          ) : null}
-          <p className="text-meta text-muted-foreground">
-            {tier === 'issue'
-              ? 'Issues are always shown apart from everyone else and never averaged away.'
-              : [
-                  linked.length > 0 ? `Has also dealt with ${linked.join(', ')}.` : null,
-                  ownShown > 0 ? `${plural(ownShown, 'of their own vouchers is', 'of their own vouchers are')} shown around them.` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' ') || 'No one else here has dealt with them yet.'}
-          </p>
-        </div>
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-5 py-2">
+      <div
+        className="flex flex-wrap items-center gap-1.5"
+        role="group"
+        aria-label="Filter references by platform"
+        style={{ opacity: arrival(orbits) }}
+      >
+        <button
+          type="button"
+          aria-pressed={platformFilter === null}
+          onClick={() => filterByPlatform(null)}
+          className={cn(
+            'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            platformFilter === null
+              ? 'border-foreground bg-foreground text-background'
+              : 'border-border/80 bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+          )}
+        >
+          <span>All</span>
+          <span className="tabular-nums opacity-75">{graph.nodes.length}</span>
+        </button>
+
+        {platforms.map((p) => {
+          const active = platformFilter === p.slug;
+          return (
+            <button
+              key={p.slug}
+              type="button"
+              aria-pressed={active}
+              onClick={() => filterByPlatform(p.slug)}
+              className={cn(
+                'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                active
+                  ? 'border-iris bg-iris/12 text-foreground ring-1 ring-iris/35'
+                  : 'border-border/80 bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+              )}
+            >
+              <SocialPlatformIcon
+                slug={p.slug}
+                className={cn(
+                  p.slug === 'ebay' || p.slug === 'noditto' || p.slug === 'whatnot'
+                    ? 'size-3.5'
+                    : 'size-3',
+                  PLATFORM_TINT[p.slug] ?? 'text-muted-foreground',
+                )}
+              />
+              <span>{p.label}</span>
+              <span className="tabular-nums text-muted-foreground">{p.count}</span>
+            </button>
+          );
+        })}
       </div>
-      {actions(node.handleSlug)}
+
+      <div className="flex items-center gap-4">
+        {orbits.tilted ? (
+          <Button variant="ghost" size="xs" onClick={orbits.resetView}>
+            Reset view
+          </Button>
+        ) : null}
+        <label className="flex cursor-pointer items-center gap-2 text-meta font-medium text-muted-foreground">
+          <Switch checked={orbits.autoSpin} onCheckedChange={orbits.toggleSpin} />
+          Spin
+        </label>
+      </div>
     </div>
   );
 }
@@ -310,7 +188,7 @@ function NetworkInspector({ orbits }: { orbits: TrustOrbits }) {
 function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
   const { graph, selectedKey } = orbits;
   return (
-    <div className="border-t border-border/80 bg-card px-5 py-4">
+    <div className="border-t border-border/80 bg-card px-5 py-4" style={{ opacity: arrival(orbits) }}>
       <h4 className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
         Experiences ({graph.nodes.length})
       </h4>
@@ -348,7 +226,7 @@ function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
                           <Link
                             href={`/references/${encodeURIComponent(node.handleSlug)}`}
                             onClick={(event) => event.stopPropagation()}
-                            className="truncate text-body font-semibold text-foreground hover:underline"
+                            className="break-all text-body font-semibold text-foreground hover:underline"
                           >
                             {node.handle}
                           </Link>
@@ -366,28 +244,17 @@ function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
                       {node.platforms.map((slug) => (
                         <PlatformChip key={slug} slug={slug} />
                       ))}
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-meta font-semibold',
-                          negative ? 'bg-destructive/10 text-destructive' : 'bg-trust/10 text-trust',
-                        )}
-                      >
-                        <HugeiconsIcon icon={negative ? AlertCircleIcon : CheckmarkCircle02Icon} className="size-3" aria-hidden />
-                        {negative ? 'Negative' : 'Positive'}
-                      </span>
+                      <SentimentBadge sentiment={node.sentiment} rating={node.rating} />
                     </div>
                   </div>
 
                   {node.comment ? (
-                    <p className="mt-2.5 text-body text-foreground/90">&ldquo;{node.comment}&rdquo;</p>
+                    <p className="mt-2.5 text-body text-foreground/90">{node.comment}</p>
                   ) : null}
                 </div>
 
                 <div className="mt-2.5 flex items-center justify-between text-meta text-muted-foreground">
-                  <span>
-                    {negative ? (node.categoryLabel ?? TIER_LABEL.issue) : TIER_LABEL[node.kind]}
-                    {node.deals > 1 ? ` · ${node.deals} deals` : ''}
-                  </span>
+                  <span>{negative ? (node.categoryLabel ?? 'Issue') : plural(node.deals, 'deal', 'deals')}</span>
                   {node.dateLabel ? <span>{node.dateLabel}</span> : null}
                 </div>
               </div>
@@ -399,8 +266,7 @@ function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
   );
 }
 
-function EmptyNetwork({ graph }: { graph: ReferenceGraphData }) {
-  const { centre } = graph;
+function EmptyNetwork({ centre }: { centre: ReferenceGraphCentre }) {
   return (
     <div className="relative flex min-h-[340px] flex-col items-center justify-center bg-muted/15 px-6 py-14 text-center">
       <div className="mx-auto mb-3 grid size-14 place-items-center rounded-2xl border border-border bg-card shadow-xs">
@@ -410,9 +276,49 @@ function EmptyNetwork({ graph }: { graph: ReferenceGraphData }) {
       </div>
       <p className="text-body font-semibold text-foreground">{centre.handle}</p>
       <p className="mt-1 max-w-md text-body text-muted-foreground">
-        No experiences recorded yet across Instagram, Facebook, Discord, or NoDitto. If you have done a deal with{' '}
-        {centre.handle}, add the first node to their graph.
+        No references yet for {centre.handle}. Done a deal with them? Be the first to leave a reference.
       </p>
+    </div>
+  );
+}
+
+/** The network under its header: controls, and the drawing with its card. */
+export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
+  const { centre } = orbits.graph;
+  if (orbits.graph.nodes.length === 0) return <EmptyNetwork centre={centre} />;
+  return (
+    <>
+      <NetworkToolbar orbits={orbits} />
+      <div
+        className="relative px-2 py-3 sm:px-4"
+        style={{
+          backgroundImage:
+            'radial-gradient(ellipse at 50% 44%, hsl(var(--iris) / 0.05) 0%, transparent 65%), radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px)',
+          backgroundSize: '100% 100%, 22px 22px',
+        }}
+      >
+        <TrustOrbitsCanvas
+          orbits={orbits}
+          label={`Trust Network for ${centre.handle}: ${plural(centre.peopleCount, 'person vouches', 'people vouch')} for them`}
+        >
+          <TrustNetworkPanel orbits={orbits} />
+        </TrustOrbitsCanvas>
+      </div>
+    </>
+  );
+}
+
+/** The network's title and how well vouched for the person in the middle is, with an optional action. */
+export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; action?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 border-b border-border/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 flex-wrap items-center gap-2.5" style={{ opacity: arrival(orbits) }}>
+        <h3 id="references-heading" className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
+          Trust Network
+        </h3>
+        <NetworkStats centre={orbits.graph.centre} nodes={orbits.graph.nodes} />
+      </div>
+      {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
     </div>
   );
 }
@@ -422,36 +328,18 @@ export function ReferenceGraph({
   action,
 }: {
   data: ReferenceGraphData;
-  /** The ShareExperience control (or the owner's share link control). */
+  /** The ShareExperience control (or the owner's share link control) for this page's person. */
   action?: ReactNode;
 }) {
-  const orbits = useTrustOrbits(data);
-  const { graph, trail } = orbits;
-  const walkedFrom = trail.length > 1 ? trail[0].centre.handle : null;
-  const { centre } = graph;
-  const hasPeople = graph.nodes.length > 0;
-
+  const orbits = useTrustOrbits(data, { openPage: usePageOpener(false) });
   return (
     <section
       aria-labelledby="references-heading"
       className="overflow-hidden rounded-2xl border border-border/90 bg-card shadow-xs"
     >
-      <NetworkHeader graph={graph} action={walkedFrom ? null : action} walkedFrom={walkedFrom} />
-      {hasPeople || walkedFrom ? <NetworkToolbar orbits={orbits} /> : null}
-      {hasPeople ? (
-        <>
-          <div className="bg-muted/15 px-2 py-3 sm:px-4">
-            <TrustOrbitsCanvas
-              orbits={orbits}
-              label={`Trust Network for ${centre.handle}: ${plural(centre.peopleCount, 'person vouches', 'people vouch')} for them`}
-            />
-          </div>
-          <NetworkInspector orbits={orbits} />
-          <ExperienceList orbits={orbits} />
-        </>
-      ) : (
-        <EmptyNetwork graph={graph} />
-      )}
+      <TrustNetworkHeader orbits={orbits} action={orbits.away ? null : action} />
+      <TrustNetworkBody orbits={orbits} />
+      {orbits.graph.nodes.length > 0 ? <ExperienceList orbits={orbits} /> : null}
     </section>
   );
 }

@@ -1,21 +1,24 @@
 // app/api/references/graph/route.ts
 //
-// One member's reference graph as JSON, for walking the Trust Network in place:
-// double-clicking someone loads their graph without leaving the page. It is the
-// same public-safe structure `/references/[handle]` renders server-side.
+// One person's reference graph as JSON, for walking the Trust Network: the graph
+// starts moving toward someone while their page loads. It loads by handle with the
+// loader `/references/[handle]` uses, so the page that arrives draws exactly what
+// the walk already shows.
 
 import { NextResponse, type NextRequest } from 'next/server';
 
-import { isUuid } from '@/domain/references/reference';
-import { loadProfileReferenceGraph } from '@/lib/references/graph';
+import { loadHandleReferenceGraph } from '@/lib/references/graph';
+
+/** Longer than any handle a platform allows; anything past it is not a handle. */
+const MAX_HANDLE_LENGTH = 100;
 
 export async function GET(request: NextRequest) {
-  const profileId = request.nextUrl.searchParams.get('profile');
-  if (!isUuid(profileId)) {
+  const handle = request.nextUrl.searchParams.get('handle')?.trim() ?? '';
+  if (!handle || handle.length > MAX_HANDLE_LENGTH) {
     return NextResponse.json({ error: 'Choose a member to load.' }, { status: 400 });
   }
 
-  const graph = await loadProfileReferenceGraph(profileId);
+  const graph = await loadHandleReferenceGraph(handle);
   if (!graph) {
     return NextResponse.json({ error: 'This member’s references are not available.' }, { status: 404 });
   }

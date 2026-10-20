@@ -1,17 +1,22 @@
 // tests/component/referenceGraph.test.tsx
 //
 // The Trust Network, driven the way a keyboard or screen-reader user drives it:
-// select someone, read the details panel, centre the graph on them (their network
-// comes from /api/references/graph) and come back. The orbit drawing sits on top
-// of these paths, so they have to work on their own.
+// select someone, read the card about them, and open their page (the graph walks
+// into their network, from /api/references/graph, while the page loads). The orbit
+// drawing sits on top of these paths, so they have to work on their own.
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ReferenceGraph } from '@/components/references/ReferenceGraph';
+import { ReferenceProfile } from '@/components/references/ReferenceProfile';
 import type { ReferenceGraphData, ReferenceGraphNode } from '@/lib/references/graph';
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn(), back: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => router }));
+// Publishing is a server action; these paths only need the composer on screen.
+vi.mock('@/lib/actions/references', () => ({ giveReference: vi.fn(), attachReferenceProof: vi.fn() }));
+vi.mock('@/lib/storage/uploadReferenceImage', () => ({ uploadReferenceImage: vi.fn() }));
 
 function node(
   profileId: string,
@@ -79,7 +84,7 @@ function graphFor(
     },
     nodes,
     links,
-    hidden: { escrow: 0, receipt: 0, vouch: 0, issue: 0 },
+    hidden: { people: 0, issues: 0 },
   };
 }
 
@@ -90,7 +95,7 @@ const ROOT = graphFor(
     node('kai', '@kai.collects', 'escrow', {
       refs: 41,
       comment: 'Always sleeved and top-loaded.',
-      children: [{ profileId: 'v1', handle: '@binderboss', handleSlug: 'binderboss', initials: 'BI', refs: 7, kind: 'vouch' }],
+      children: [{ profileId: 'v1', handle: '@binderboss', handleSlug: 'binderboss', initials: 'BI', refs: 7 }],
     }),
     node('gems', '@graded.gems', 'receipt', { refs: 34 }),
   ],
@@ -99,9 +104,8 @@ const ROOT = graphFor(
 
 const KAI = graphFor('kai', '@kai.collects', [node('pb', '@piggybear789', 'escrow'), node('v1', '@binderboss', 'vouch')]);
 
-const KAI_NODE = '@kai.collects, NoDitto, 41 references';
-const ROOT_SUBTITLE = 'Closest in are deals done through NoDitto, then receipt-checked deals, then vouches.';
-const WALKED_SUBTITLE = "@kai.collects's network, opened from @piggybear789.";
+const KAI_NODE = '@kai.collects, 41 references';
+const IN_KAIS_NETWORK = '@binderboss, 10 references';
 
 const setupMatchMedia = window.matchMedia;
 
@@ -126,52 +130,105 @@ beforeEach(() => {
 afterEach(() => {
   window.matchMedia = setupMatchMedia;
   vi.unstubAllGlobals();
+  router.push.mockClear();
 });
 
 describe('ReferenceGraph', () => {
-  it('fills the details panel for whoever is selected, including who else they have dealt with', () => {
+  it('opens a card for whoever is selected, including who else they have dealt with', () => {
     render(<ReferenceGraph data={ROOT} />);
-    expect(screen.queryByRole('button', { name: 'Centre on them' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'About @kai.collects' })).not.toBeInTheDocument();
 
     fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
 
     expect(screen.getByRole('button', { name: KAI_NODE })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByText(/Has also dealt with @graded\.gems\./)).toBeInTheDocument();
-    expect(screen.getAllByText('“Always sleeved and top-loaded.”').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Centre on them' })).toBeInTheDocument();
+    const card = screen.getByRole('region', { name: 'About @kai.collects' });
+    expect(within(card).getByText('Always sleeved and top-loaded.')).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: '@graded.gems' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: '@binderboss' })).toBeInTheDocument();
+    expect(within(card).getByRole('button', { name: 'Open their network' })).toBeInTheDocument();
   });
 
-  it('walks to someone’s network and comes back', async () => {
+  it('moves to someone the card names, and closes', () => {
     render(<ReferenceGraph data={ROOT} />);
     fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
-    fireEvent.click(screen.getByRole('button', { name: 'Centre on them' }));
 
-    expect(await screen.findByText(WALKED_SUBTITLE)).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith('/api/references/graph?profile=kai');
-    expect(screen.getByRole('button', { name: '@binderboss, Vouched, 10 references' })).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('region', { name: 'About @kai.collects' })).getByRole('button', { name: '@graded.gems' }));
+    const card = screen.getByRole('region', { name: 'About @graded.gems' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-
-    expect(screen.getByText(ROOT_SUBTITLE)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument();
+    fireEvent.click(within(card).getByRole('button', { name: 'Close' }));
+    expect(screen.queryByRole('region', { name: /^About / })).not.toBeInTheDocument();
   });
 
-  it('centres on someone activated twice from the keyboard, as a double-click would', async () => {
+  it('opens someone’s page, walking the graph into their network while it loads', async () => {
+    render(<ReferenceGraph data={ROOT} />);
+    fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Open their network' }));
+
+    expect(router.push).toHaveBeenCalledWith('/references/kai.collects', { scroll: true });
+    expect(await screen.findByRole('button', { name: IN_KAIS_NETWORK })).toBeInTheDocument();
+    expect(fetch).toHaveBeenCalledWith('/api/references/graph?handle=kai.collects');
+  });
+
+  it('opens someone activated twice from the keyboard, as a double-click would', async () => {
     render(<ReferenceGraph data={ROOT} />);
     fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
     fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
 
-    expect(await screen.findByText(WALKED_SUBTITLE)).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: IN_KAIS_NETWORK })).toBeInTheDocument();
+    expect(router.push).toHaveBeenCalledTimes(1);
   });
 
-  it('hides the share action while viewing someone else’s network', async () => {
+  it('hides this page’s share action once the graph shows someone else', async () => {
     render(<ReferenceGraph data={ROOT} action={<button type="button">Share an experience</button>} />);
     expect(screen.getByRole('button', { name: 'Share an experience' })).toBeInTheDocument();
 
     fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
-    fireEvent.click(screen.getByRole('button', { name: 'Centre on them' }));
-    await screen.findByText(WALKED_SUBTITLE);
+    fireEvent.click(screen.getByRole('button', { name: 'Open their network' }));
+    await screen.findByRole('button', { name: IN_KAIS_NETWORK });
 
     expect(screen.queryByRole('button', { name: 'Share an experience' })).not.toBeInTheDocument();
+  });
+});
+
+describe('ReferenceProfile', () => {
+  it('heads the page with who they are and their network with how well vouched for', () => {
+    render(<ReferenceProfile data={ROOT} viewer={{ id: 'pb', identityVerified: true }} autoOpen={false} />);
+
+    const header = screen.getByRole('banner');
+    expect(within(header).getByRole('heading', { level: 1, name: '@piggybear789' })).toBeInTheDocument();
+    expect(within(header).getByRole('button', { name: 'Share reference link' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Storefront' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /QR/ })).not.toBeInTheDocument();
+
+    const network = screen.getByRole('region', { name: /Trust Network/ });
+    expect(within(network).getByLabelText('2 positive references')).toBeInTheDocument();
+  });
+
+  it('opens a simplified modal to leave a reference (1..5 star rating + description + image)', () => {
+    render(<ReferenceProfile data={ROOT} viewer={{ id: 'v9', identityVerified: true }} autoOpen={false} />);
+
+    fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Leave a reference' }));
+    const dialog = screen.getByRole('dialog', { name: 'Reference @piggybear789' });
+
+    expect(within(dialog).getByRole('radio', { name: '5 stars' })).toHaveAttribute('aria-checked', 'true');
+    expect(within(dialog).getByRole('radio', { name: '1 star' })).toHaveAttribute('aria-checked', 'false');
+    expect(within(dialog).getByRole('textbox', { name: 'Description' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Add image' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Publish reference' })).toBeEnabled();
+  });
+
+  it('asks a visitor to sign in inside the reference modal', () => {
+    render(<ReferenceProfile data={ROOT} viewer={{ id: null, identityVerified: false }} autoOpen={true} />);
+    const dialog = screen.getByRole('dialog', { name: 'Reference @piggybear789' });
+    expect(within(dialog).getByRole('link', { name: 'Sign in to publish' })).toBeInTheDocument();
+  });
+
+  it('keeps the page where it is when opening someone, since their page is laid out the same', async () => {
+    render(<ReferenceProfile data={ROOT} viewer={{ id: null, identityVerified: false }} autoOpen={false} />);
+    fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Open their network' }));
+
+    expect(router.push).toHaveBeenCalledWith('/references/kai.collects', { scroll: false });
+    expect(await screen.findByRole('heading', { level: 1, name: '@kai.collects' })).toBeInTheDocument();
   });
 });

@@ -1,9 +1,9 @@
 'use client';
 
-// Site-wide jump search. Finds a listing from anywhere: typeahead opens the
-// card, Enter starts a marketplace query. Already on the catalog (`/`), that
-// query is applied in place so the page is not remounted. It is the catalog's
-// only search field. Phone chrome uses `appearance="pill"`.
+// Site-wide jump search. Finds a listing or reference orbit from anywhere:
+// typeahead opens the card or trader's reference orbit, Enter starts a
+// marketplace query. Already on the catalog (`/`), that query is applied in
+// place so the page is not remounted. Phone chrome uses `appearance="pill"`.
 
 import {
   Suspense,
@@ -19,7 +19,12 @@ import {
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Clock01Icon, LayoutGridIcon, Search01Icon, XIcon } from '@hugeicons/core-free-icons';
+import {
+  CheckmarkCircle02Icon,
+  Clock01Icon,
+  Search01Icon,
+  XIcon,
+} from '@hugeicons/core-free-icons';
 
 import {
   suggestCatalogItems,
@@ -27,7 +32,11 @@ import {
   type CatalogSuggestion,
   type SellerSuggestion,
 } from '@/lib/actions/listings';
-import { CARD_GAMES } from '@/lib/catalog/cardGames';
+import {
+  searchReferences,
+  type ReferenceSuggestion,
+} from '@/lib/actions/references';
+import { PlatformChip } from '@/components/references/referenceLabels';
 import { Avatar } from '@/components/ui/avatar';
 import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/browseEvents';
 import { Input } from '@/components/ui/input';
@@ -35,14 +44,11 @@ import { StorageImage } from '@/components/ui/storage-image';
 import { formatMoney, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
-const PLACEHOLDER = 'Search a card, set, or player…';
+const PLACEHOLDER = 'Search cards, @handles, or sellers…';
 
 /** Recent searches, newest first. Versioned key; see `readRecent`. */
 const RECENT_KEY = 'noditto:recent-searches:v1';
 const RECENT_MAX = 5;
-
-/** Games offered on an empty, focused field: the first few of the catalog's list. */
-const GAME_SHORTCUTS = CARD_GAMES.slice(0, 4);
 
 function readRecent(): string[] {
   try {
@@ -68,11 +74,11 @@ function rememberSearch(query: string) {
 /** One selectable row in the dropdown, whatever group it is in. */
 interface SearchOption {
   id: string;
-  group: 'Recent searches' | 'Games' | 'Listings' | 'Sellers' | 'search';
+  group: 'Recent searches' | 'References' | 'Listings' | 'Sellers' | 'search';
   select: () => void;
 }
 const SUGGEST_MIN = 2;
-const DEBOUNCE_MS = 280;
+const DEBOUNCE_MS = 240;
 
 let slashUsers = 0;
 let slashCleanup: (() => void) | null = null;
@@ -156,18 +162,7 @@ export type HeaderSearchAppearance = 'default' | 'inset' | 'pill';
 
 export interface HeaderSearchProps {
   className?: string;
-  /**
-   * Accessible label distinguishing multiple search fields on one page.
-   * Defaults to "Search listings". The header bar instance and the mobile sheet
-   * instance should carry different labels so assistive tech does not announce
-   * two identical controls.
-   */
   ariaLabel?: string;
-  /**
-   * Overrides the default prompt. Listing detail runs a shorter one, because
-   * the trailing Report and Share buttons leave the pill too narrow for the
-   * full sentence.
-   */
   placeholder?: string;
   /** Focus the field on mount — used by the mobile search sheet. */
   autoFocus?: boolean;
@@ -185,7 +180,7 @@ export interface HeaderSearchProps {
 /** Keeps useSearchParams behind Suspense so non-dynamic pages can prerender. */
 export function HeaderSearch({
   className,
-  ariaLabel = 'Search listings',
+  ariaLabel = 'Search listings and references',
   placeholder = PLACEHOLDER,
   autoFocus = false,
   onNavigate,
@@ -251,6 +246,7 @@ function HeaderSearchInner({
   const [loading, setLoading] = useState(false);
   const [hits, setHits] = useState<CatalogSuggestion[]>([]);
   const [sellerHits, setSellerHits] = useState<SellerSuggestion[]>([]);
+  const [refHits, setRefHits] = useState<ReferenceSuggestion[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const [highlight, setHighlight] = useState(0);
 
@@ -282,7 +278,6 @@ function HeaderSearchInner({
       if (trimmed) params.set('q', trimmed);
       else params.delete('q');
       params.delete('page');
-      // The one-shot "arrive focused" flag from the phone Search tab, not a filter.
       params.delete('search');
       const qs = params.toString();
       return qs ? `/?${qs}` : '/';
@@ -298,6 +293,7 @@ function HeaderSearchInner({
     if (trimmed.length < SUGGEST_MIN) {
       setHits([]);
       setSellerHits([]);
+      setRefHits([]);
       setLoading(false);
       setHighlight(0);
       return;
@@ -308,11 +304,13 @@ function HeaderSearchInner({
       void Promise.all([
         suggestCatalogItems({ q: trimmed, region: searchParamsRef.current.get('region') }),
         suggestSellers(trimmed),
-      ]).then(([listings, sellers]) => {
+        searchReferences(trimmed),
+      ]).then(([listings, sellers, references]) => {
         if (gen !== suggestGenRef.current) return;
         setLoading(false);
         setHits(listings.ok ? listings.data : []);
         setSellerHits(sellers.ok ? sellers.data : []);
+        setRefHits(references.ok ? references.data.slice(0, 4) : []);
         setHighlight(0);
       });
     }, DEBOUNCE_MS);
@@ -324,6 +322,10 @@ function HeaderSearchInner({
     if (debounceRef.current != null) window.clearTimeout(debounceRef.current);
     const trimmed = query.trim();
     rememberSearch(trimmed);
+    if (trimmed.startsWith('@') && trimmed.length > 1) {
+      openReference(trimmed.slice(1));
+      return;
+    }
     if (onCatalog && requestCatalogBrowse({ q: trimmed || null })) {
       onNavigate?.();
       return;
@@ -335,6 +337,8 @@ function HeaderSearchInner({
   function clearQuery() {
     setQuery('');
     setHits([]);
+    setSellerHits([]);
+    setRefHits([]);
     setOpen(false);
     setLoading(false);
     suggestGenRef.current += 1;
@@ -355,6 +359,12 @@ function HeaderSearchInner({
     startTransition(() => router.push(`/listings/${id}`));
   }
 
+  function openReference(handleSlug: string) {
+    setOpen(false);
+    onNavigate?.();
+    startTransition(() => router.push(`/references/${encodeURIComponent(handleSlug.replace(/^@/, ''))}`));
+  }
+
   function runSearch(nextQuery: string) {
     setQuery(nextQuery);
     setOpen(false);
@@ -367,17 +377,6 @@ function HeaderSearchInner({
     startTransition(() => router.push(listingsHref(nextQuery)));
   }
 
-  function openGame(name: string) {
-    setOpen(false);
-    setQuery('');
-    if (onCatalog && requestCatalogBrowse({ category: name, q: null })) {
-      onNavigate?.();
-      return;
-    }
-    onNavigate?.();
-    startTransition(() => router.push(`/?category=${encodeURIComponent(name)}`));
-  }
-
   function openSeller(id: string) {
     setOpen(false);
     onNavigate?.();
@@ -386,24 +385,32 @@ function HeaderSearchInner({
 
   const trimmedQuery = query.trim();
   const typing = trimmedQuery.length >= SUGGEST_MIN;
-  // ON FOCUS, BEFORE TYPING: recent searches and a few games, so the field offers a
-  // next step instead of waiting for two characters. While typing: matching games,
-  // listings, sellers, then "search for" — grouped, so a name finds a person and a
-  // game finds the game, not only titles that happen to contain it.
-  const gameMatches = typing
-    ? CARD_GAMES.filter((game) => game.name.toLowerCase().includes(trimmedQuery.toLowerCase())).slice(0, 2)
-    : GAME_SHORTCUTS;
+
   const options: SearchOption[] = typing
     ? [
-        ...gameMatches.map((game) => ({ id: `${listId}-game-${game.slug}`, group: 'Games' as const, select: () => openGame(game.name) })),
-        ...hits.map((hit) => ({ id: `${listId}-hit-${hit.id}`, group: 'Listings' as const, select: () => openListing(hit.id) })),
-        ...sellerHits.map((seller) => ({ id: `${listId}-seller-${seller.id}`, group: 'Sellers' as const, select: () => openSeller(seller.id) })),
+        ...refHits.map((ref) => ({
+          id: `${listId}-ref-${ref.kind}-${ref.id}`,
+          group: 'References' as const,
+          select: () => openReference(ref.handleSlug),
+        })),
+        ...hits.map((hit) => ({
+          id: `${listId}-hit-${hit.id}`,
+          group: 'Listings' as const,
+          select: () => openListing(hit.id),
+        })),
+        ...sellerHits.map((seller) => ({
+          id: `${listId}-seller-${seller.id}`,
+          group: 'Sellers' as const,
+          select: () => openSeller(seller.id),
+        })),
         { id: `${listId}-all`, group: 'search' as const, select: () => runSearch(trimmedQuery) },
       ]
-    : [
-        ...recent.map((term, index) => ({ id: `${listId}-recent-${index}`, group: 'Recent searches' as const, select: () => runSearch(term) })),
-        ...gameMatches.map((game) => ({ id: `${listId}-game-${game.slug}`, group: 'Games' as const, select: () => openGame(game.name) })),
-      ];
+    : recent.map((term, index) => ({
+        id: `${listId}-recent-${index}`,
+        group: 'Recent searches' as const,
+        select: () => runSearch(term),
+      }));
+
   const showList = open && (typing || (trimmedQuery === '' && options.length > 0));
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
@@ -430,7 +437,6 @@ function HeaderSearchInner({
       setHighlight((current) => (current - 1 + options.length) % options.length);
       return;
     }
-    // The last typed option is the form's own submit; Enter there submits as usual.
     if (event.key === 'Enter' && options[highlight] && options[highlight].group !== 'search') {
       event.preventDefault();
       options[highlight].select();
@@ -512,15 +518,6 @@ function HeaderSearchInner({
         spellCheck={false}
         enterKeyHint="search"
         className={cn(
-          // NO font-size on any appearance. All three inherit Input's `text-body`, so
-          // a change to the field type reaches this field too instead of stopping here.
-          //
-          // Worth stating because it has been broken twice: the base string set
-          // `text-body` under a comment claiming the opposite, and the chrome pill set
-          // it again to match the games row — both winning over Input through
-          // tailwind-merge. That resolves to the same size today, but while Input still
-          // floored touch at 16px it pinned the public catalog search, the first thing a
-          // phone visitor taps, at a size iOS Safari zooms in on and does not undo.
           'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
             'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
@@ -586,34 +583,46 @@ function HeaderSearchInner({
               })
             : null}
 
-          {gameMatches.length > 0 ? groupHeading(typing ? 'Games' : 'Browse a game') : null}
-          {gameMatches.map((game) => {
-            const id = `${listId}-game-${game.slug}`;
-            const optionIndex = indexOf(id);
-            return (
-              <li key={id} role="presentation">
-                <button
-                  type="button"
-                  id={id}
-                  role="option"
-                  aria-selected={highlight === optionIndex}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setHighlight(optionIndex)}
-                  onClick={() => openGame(game.name)}
-                  className={optionClass(highlight === optionIndex)}
-                >
-                  <HugeiconsIcon icon={LayoutGridIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate text-body">{game.name}</span>
-                </button>
-              </li>
-            );
-          })}
-
-          {typing && loading && hits.length === 0 && sellerHits.length === 0 ? (
+          {typing && loading && hits.length === 0 && sellerHits.length === 0 && refHits.length === 0 ? (
             <li className="px-cozy py-snug text-meta text-muted-foreground" aria-live="polite">
               Searching…
             </li>
           ) : null}
+
+          {typing && refHits.length > 0 ? groupHeading('References') : null}
+          {typing
+            ? refHits.map((ref) => {
+                const id = `${listId}-ref-${ref.kind}-${ref.id}`;
+                const optionIndex = indexOf(id);
+                return (
+                  <li key={id} role="presentation">
+                    <Link
+                      href={`/references/${encodeURIComponent(ref.handleSlug)}`}
+                      id={id}
+                      role="option"
+                      aria-selected={highlight === optionIndex}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onMouseEnter={() => setHighlight(optionIndex)}
+                      onClick={() => setOpen(false)}
+                      className={optionClass(highlight === optionIndex)}
+                    >
+                      <Avatar avatarPath={ref.avatarPath} displayName={ref.name} size="xs" />
+                      <span className="flex min-w-0 flex-1 items-center gap-1.5">
+                        <span className="truncate text-body font-medium">{ref.handle}</span>
+                        {ref.platforms.slice(0, 3).map((plat) => (
+                          <PlatformChip key={plat} slug={plat} className="size-4" />
+                        ))}
+                      </span>
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-trust/10 px-2 py-0.5 text-meta font-semibold tabular-nums text-trust">
+                        <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" aria-hidden />
+                        {ref.referenceCount}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })
+            : null}
+
           {typing && hits.length > 0 ? groupHeading('Listings') : null}
           {typing
             ? hits.map((hit) => {
@@ -671,16 +680,13 @@ function HeaderSearchInner({
                     >
                       <Avatar avatarPath={seller.avatarPath} displayName={seller.displayName} size="xs" />
                       <span className="min-w-0 flex-1 truncate text-body">{seller.displayName}</span>
-                      {seller.isVerified ? (
-                        <span className="shrink-0 text-meta text-trust">ID verified</span>
-                      ) : null}
                     </Link>
                   </li>
                 );
               })
             : null}
 
-          {typing && !loading && hits.length === 0 && sellerHits.length === 0 && gameMatches.length === 0 ? (
+          {typing && !loading && hits.length === 0 && sellerHits.length === 0 && refHits.length === 0 ? (
             <li className="px-cozy py-snug text-meta text-muted-foreground">
               No close matches. Search anyway, or try fewer words.
             </li>

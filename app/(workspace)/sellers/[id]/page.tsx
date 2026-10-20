@@ -44,7 +44,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { BackToMarketplace } from '@/components/layout/BackToMarketplace';
+import { BackLink } from '@/components/ui/back-link';
 import { SocialLinksDisplay } from '@/components/profile/SocialLinksDisplay';
 import { SellerTrustBand } from '@/components/profile/SellerTrustBand';
 import { SellerProfileActions } from '@/components/profile/SellerProfileActions';
@@ -313,7 +313,7 @@ export default async function SellerProfilePage({
       {/* HIDDEN BELOW `md`, where the hierarchical mobile chrome already renders a
           back chevron to the same place — two back controls stacked on a phone. */}
       <nav className="mb-cozy hidden md:block" aria-label="Breadcrumb">
-        <BackToMarketplace />
+        <BackLink href="/">Back to marketplace</BackLink>
       </nav>
 
       {/* Header: identity and the trust band in one card, so everything said about this

@@ -11,9 +11,11 @@ import { NextResponse, type NextRequest } from 'next/server';
 // surface a stack trace: they redirect back to /sign-in with a fixed
 // `authError` message.
 
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { ensureProfile } from '@/lib/auth/ensureProfile';
 import { finishesOwnOnboarding } from '@/lib/deals/paths';
+import { isUuid } from '@/domain/references/reference';
 
 /** Fallback destination for a User who already has a Profile. */
 const DEFAULT_DESTINATION = '/';
@@ -44,6 +46,10 @@ function isRecoveryPath(target: string | null): boolean {
  * then the forwarded host (correct behind a proxy), then the request URL.
  */
 function resolveOrigin(request: NextRequest): string {
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  if (host && (host.startsWith('localhost:') || host.startsWith('127.0.0.1:'))) {
+    return `http://${host}`;
+  }
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) {
     return configured.replace(/\/+$/, '');
@@ -122,6 +128,55 @@ export async function GET(request: NextRequest) {
     // is not stranded in a half-provisioned state.
     await supabase.auth.signOut();
     return failure('Signed in, but profile setup failed. Please try again.');
+  }
+
+  const claimId = params.get('claimId');
+  if (claimId && isUuid(claimId)) {
+    const admin = createAdminClient();
+    const [{ data: profileRow }, { data: claimRow }] = await Promise.all([
+      admin
+        .from('profiles')
+        .select('identity_check_status, fraud_banned_at, closed_at')
+        .eq('id', user.id)
+        .maybeSingle(),
+      admin
+        .from('social_claims')
+        .select('id, handle_norm, claimed_profile_id')
+        .eq('id', claimId)
+        .maybeSingle(),
+    ]);
+
+    if (
+      profileRow?.identity_check_status === 'VERIFIED' &&
+      !profileRow.fraud_banned_at &&
+      !profileRow.closed_at &&
+      claimRow &&
+      !claimRow.claimed_profile_id
+    ) {
+      const candidateHandles = new Set<string>();
+      for (const identity of user.identities ?? []) {
+        const idData = (identity.identity_data ?? {}) as Record<string, unknown>;
+        for (const key of ['user_name', 'preferred_username', 'username', 'name', 'full_name']) {
+          const val = idData[key];
+          if (typeof val === 'string' && val.trim()) {
+            candidateHandles.add(val.trim().replace(/^@/, '').toLowerCase());
+          }
+        }
+      }
+      if (candidateHandles.size === 0 || candidateHandles.has(claimRow.handle_norm)) {
+        const now = new Date().toISOString();
+        await admin
+          .from('social_claims')
+          .update({
+            claimed_profile_id: user.id,
+            claim_method: 'OAUTH',
+            claimed_at: now,
+            updated_at: now,
+          })
+          .eq('id', claimRow.id)
+          .is('claimed_profile_id', null);
+      }
+    }
   }
 
   // New users go through onboarding, carrying the intended destination so the

@@ -60,12 +60,8 @@ function isActive(pathname: string, link: NavLink): boolean {
   return pathname === link.href || pathname.startsWith(`${link.href}/`);
 }
 
-/** My listings is the seller's inventory, filed under Selling in the rail, so the chip agrees. */
-const SELL: NavLink = { href: '/listings/new', label: 'Sell', match: 'exact', alsoPrefix: ['/listings/mine'] };
-
 export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
   const pathname = usePathname();
-  const sellActive = isActive(pathname, SELL);
 
   const links: NavLink[] = [
     {
@@ -126,23 +122,6 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
         // icon rail, so there is room for this link a breakpoint earlier.
         className={cn('relative hidden', isAuthenticated ? 'xl:inline-flex' : 'lg:inline-flex')}
       />
-      {/* SELL IS AN ACTION, SO IT IS DRAWN AS ONE. As a fourth text link it read as a
-          section beside Marketplace and Trades; outlined, it is the bar's one thing
-          to do, and it sits last so the sections read first. Quiet rather than filled:
-          the page below owns the filled primary. */}
-      <Button
-        asChild
-        variant="ghost"
-        size="sm"
-        className={cn(
-          'ml-snug border border-mist/30 hover:border-mist/60',
-          sellActive && 'border-mist/60 bg-white/10 text-mist',
-        )}
-      >
-        <Link href={SELL.href} aria-current={sellActive ? 'page' : undefined}>
-          {SELL.label}
-        </Link>
-      </Button>
     </nav>
   );
 }

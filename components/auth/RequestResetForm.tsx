@@ -14,10 +14,10 @@
 // sent and where, not whether it matched.
 
 import { useState, useTransition } from 'react';
-import Link from 'next/link';
+import { BackLink } from '@/components/ui/back-link';
 import { useSearchParams } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, LoaderCircleIcon, MailCheckIcon } from '@hugeicons/core-free-icons';
+import { LoaderCircleIcon, MailCheckIcon } from '@hugeicons/core-free-icons';
 
 import { requestPasswordReset, resendConfirmation } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
@@ -88,12 +88,7 @@ export function RequestResetForm() {
             <Button type="button" variant="outline" size="sm" onClick={() => setSent(false)}>
               Send another
             </Button>
-            <Button asChild size="sm" variant="ghost">
-              <Link href="/sign-in">
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" aria-hidden />
-                Back to sign in
-              </Link>
-            </Button>
+            <BackLink href="/sign-in">Back to sign in</BackLink>
           </div>
         </CardContent>
       </Card>
@@ -188,14 +183,9 @@ export function RequestResetForm() {
             )}
           </p>
 
-          <p className="text-center text-body">
-            <Link
-              href="/sign-in"
-              className="text-muted-foreground underline underline-offset-2 hover:text-foreground"
-            >
-              Back to sign in
-            </Link>
-          </p>
+          <div className="flex justify-center">
+            <BackLink href="/sign-in">Back to sign in</BackLink>
+          </div>
         </CardContent>
       </form>
     </Card>

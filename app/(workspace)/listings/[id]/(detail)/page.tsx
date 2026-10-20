@@ -77,7 +77,7 @@ import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
    the meta line in both layouts now, not a plotted map. */
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BackToMarketplace } from "@/components/layout/BackToMarketplace";
+import { BackLink } from "@/components/ui/back-link";
 import { StatusNotice } from "@/components/ui/status-notice";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -547,9 +547,9 @@ export default async function ItemDetailPage({
               Conditional on the same thing the rail is: with one photo there is no rail,
               the photo starts at the column's edge, and an inset here would create the
               notch instead of removing it. */}
-          <BackToMarketplace
-            className={images.length > 1 ? GALLERY_RAIL_BAND_ML : undefined}
-          />
+          <BackLink href="/" className={images.length > 1 ? GALLERY_RAIL_BAND_ML : undefined}>
+            Back to marketplace
+          </BackLink>
 
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-snug">
             <Badge

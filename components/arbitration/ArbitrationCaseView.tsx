@@ -9,7 +9,7 @@
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, Clock01Icon, ExternalLinkIcon, FileTextIcon, GavelIcon, PackageIcon, RotateCcwIcon, ScaleIcon, TriangleAlertIcon, UsersIcon } from '@hugeicons/core-free-icons';
+import { Clock01Icon, ExternalLinkIcon, FileTextIcon, GavelIcon, PackageIcon, RotateCcwIcon, ScaleIcon, TriangleAlertIcon, UsersIcon } from '@hugeicons/core-free-icons';
 
 import type { ArbitrationCaseDetail, ArbitrationShipmentLeg } from '@/lib/actions/arbitration';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
@@ -29,6 +29,7 @@ import { TrackingFlagActions } from '@/components/admin/TrackingFlagActions';
 import { TradeDisputeActions } from '@/components/admin/TradeDisputeActions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { BackLink } from '@/components/ui/back-link';
 import { Button } from '@/components/ui/button';
 import { formatMoney, formatContractDateTime, formatRelativeTime } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -134,13 +135,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
     <div className="space-y-section">
       {/* Back only. The case page header already links to the contract room. */}
       <div>
-        <Link
-          href="/admin/arbitration"
-          className="inline-flex min-h-11 items-center gap-tight text-body text-muted-foreground hover:text-foreground"
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
-          Back to queue
-        </Link>
+        <BackLink href="/admin/arbitration">Back to queue</BackLink>
       </div>
 
       {/* Status strip */}

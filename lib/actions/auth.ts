@@ -429,13 +429,17 @@ function safeNextPath(target: string | null | undefined): string | null {
  * the forwarded/request host from the inbound Server Action request.
  */
 async function resolveOrigin(): Promise<string> {
+  const headerList = await headers();
+  const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
+  if (host && (host.startsWith('localhost:') || host.startsWith('127.0.0.1:'))) {
+    return `http://${host}`;
+  }
+
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) {
     return configured.replace(/\/+$/, '');
   }
 
-  const headerList = await headers();
-  const host = headerList.get('x-forwarded-host') ?? headerList.get('host');
   if (!host) {
     return 'http://localhost:3000';
   }

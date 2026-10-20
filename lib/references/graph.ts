@@ -12,16 +12,17 @@ import 'server-only';
 // experiences stay distinct — a negative experience never nets off a positive
 // reference.
 //
-// STRUCTURE, NOT POSITIONS. The graph says who is drawn per proof tier, each
-// drawn person's own strongest vouchers, and which drawn people have dealt with
-// each other. The browser lays it out for the screen it is on
-// (`domain/references/orbits.ts`), so a phone gets its own layout, not a
-// shrunken desktop one.
+// STRUCTURE, NOT POSITIONS. The graph says who is drawn, each drawn person's own
+// best-vouched vouchers, and which drawn people have dealt with each other. The
+// browser lays it out for the screen it is on (`domain/references/orbits.ts`), so
+// a phone gets its own layout, not a shrunken desktop one.
 //
 // Reads run on the service role; only public-safe fields leave this module
 // (no person keys, no proof paths, no staff fields).
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { signReferenceImageUrls } from '@/lib/storage/referenceImages';
+import { REFERENCE_PROOF_BUCKET } from '@/lib/storage/referenceImagesShared';
 import {
   formatOccurredMonth,
   isUuid,
@@ -31,14 +32,10 @@ import {
   roleShortLabel,
 } from '@/domain/references/reference';
 import { isValidHandle, normalizeHandle } from '@/domain/social/socialLinks';
-import {
-  orbitKey,
-  pickDrawn,
-  splitConnections,
-  type DrawCandidate,
-  type OrbitTier,
-  type ProofTier,
-} from '@/domain/references/orbits';
+import { orbitKey, pickDrawn, splitConnections, type DrawCandidate } from '@/domain/references/orbits';
+
+/** How a deal was evidenced: a NoDitto escrow deal, a staff-checked receipt, or a plain vouch. */
+export type ReferenceProof = 'escrow' | 'receipt' | 'vouch';
 
 export interface PlatformSynthesisItem {
   slug: string;
@@ -96,17 +93,20 @@ export interface ReferenceGraphNode {
   platformShort: string;
   /** Every platform this referee has dealt with the centre person on. */
   platforms: string[];
-  /** How the deal was proven; decides the ring the person is drawn on. */
-  kind: ProofTier;
-  sentiment: 'POSITIVE' | 'NEGATIVE';
+  kind: ReferenceProof;
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+  /** 1..5 star rating given to the centre person. */
+  rating?: number;
   categoryLabel: string | null;
   comment: string | null;
+  /** Signed URLs for any attached reference images (1..3 screenshots/photos). */
+  images?: string[];
   role: string;
   roleLabel: string;
   roleShortLabel: string;
   dateLabel: string | null;
   deals: number;
-  /** Their own strongest vouchers who are not drawn on the rings. Empty for an issue. */
+  /** Their own best-vouched vouchers who are not drawn themselves. Empty for an issue. */
   children: ReferenceGraphChild[];
 }
 
@@ -116,18 +116,16 @@ export interface ReferenceGraphChild {
   handleSlug: string;
   initials: string;
   refs: number;
-  /** How their deal with the parent was proven. */
-  kind: ProofTier;
 }
 
 export interface ReferenceGraphData {
   centre: ReferenceGraphCentre;
-  /** The strongest people per proof tier, up to each tier's cap. */
+  /** The best-vouched people up to the planet cap, then issues up to theirs. */
   nodes: ReferenceGraphNode[];
   /** Pairs of drawn people (profile ids) who have dealt with each other. */
   links: [string, string][];
   /** People with references to the centre who are counted but not drawn. */
-  hidden: Record<OrbitTier, number>;
+  hidden: { people: number; issues: number };
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -138,15 +136,12 @@ const PLATFORM_SHORT: Record<string, string> = {
   discord: 'Discord',
   ebay: 'eBay',
   whatnot: 'Whatnot',
-  'in-person': 'IRL',
-  noditto: 'Escrow',
+  noditto: 'NoDitto',
   other: 'Other',
   x: 'X',
   youtube: 'YT',
   tiktok: 'TikTok',
 };
-
-const PROOF_STRENGTH: Record<ProofTier, number> = { escrow: 0, receipt: 1, vouch: 2 };
 
 function initialsOf(name: string): string {
   const parts = name.replace(/^@/, '').split(/[\s._-]+/).filter(Boolean);
@@ -215,9 +210,11 @@ async function primaryHandles(
 
 interface MergedEdge {
   voucherId: string;
-  sentiment: 'POSITIVE' | 'NEGATIVE';
+  sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
+  rating: number;
   categoryLabel: string | null;
   comment: string | null;
+  proofPaths: string[];
   platform: string;
   platforms: string[];
   role: string;
@@ -227,7 +224,7 @@ interface MergedEdge {
   hasEscrow: boolean;
 }
 
-function proofTierOf(edge: Pick<MergedEdge, 'hasEscrow' | 'proofStatus'>): ProofTier {
+function proofOf(edge: Pick<MergedEdge, 'hasEscrow' | 'proofStatus'>): ReferenceProof {
   if (edge.hasEscrow) return 'escrow';
   return edge.proofStatus === 'CHECKED' ? 'receipt' : 'vouch';
 }
@@ -302,12 +299,12 @@ async function mergedIncoming(
   const reviewsPromise = target.profileId
     ? admin
         .from('reviews')
-        .select('reviewer_id, comment, created_at')
+        .select('reviewer_id, rating, comment, created_at')
         .eq('reviewee_id', target.profileId)
         .order('created_at', { ascending: false })
         .limit(500)
     : Promise.resolve({
-        data: [] as { reviewer_id: string; comment: string | null; created_at: string }[],
+        data: [] as { reviewer_id: string; rating: number; comment: string | null; created_at: string }[],
       });
 
   const [edgeResults, { data: reviews }] = await Promise.all([
@@ -334,13 +331,22 @@ async function mergedIncoming(
       if (!existing.comment && edge.comment) {
         existing.comment = edge.comment;
       }
+      for (const path of edge.proof_paths ?? []) {
+        if (!existing.proofPaths.includes(path)) {
+          existing.proofPaths.push(path);
+        }
+      }
       continue;
     }
     byVoucher.set(key, {
       voucherId: edge.voucher_id,
       sentiment: edge.sentiment,
+      rating:
+        edge.rating ??
+        (edge.sentiment === 'NEGATIVE' ? 1 : edge.sentiment === 'NEUTRAL' ? 3 : 5),
       categoryLabel: negativeCategoryLabel(edge.category),
       comment: edge.comment,
+      proofPaths: [...(edge.proof_paths ?? [])],
       platform: edge.platform,
       platforms: [edge.platform],
       role: edge.role,
@@ -366,8 +372,10 @@ async function mergedIncoming(
       byVoucher.set(key, {
         voucherId: review.reviewer_id,
         sentiment: 'POSITIVE',
+        rating: review.rating ?? 5,
         categoryLabel: null,
         comment: review.comment ?? null,
+        proofPaths: [],
         platform: 'noditto',
         platforms: ['noditto'],
         role: 'BOUGHT',
@@ -418,7 +426,7 @@ async function assembleGraph(
 
   const candidates: (DrawCandidate & { edge: MergedEdge })[] = validEdges.map((edge) => ({
     key: orbitKey(edge.voucherId, edge.sentiment),
-    tier: edge.sentiment === 'NEGATIVE' ? 'issue' : proofTierOf(edge),
+    issue: edge.sentiment === 'NEGATIVE',
     standing: counts.get(edge.voucherId)?.positive ?? 0,
     deals: edge.deals,
     edge,
@@ -426,8 +434,8 @@ async function assembleGraph(
   const { drawn, hidden } = pickDrawn(candidates);
 
   // Second degree, for drawn positives only. A voucher who is drawn too becomes
-  // an arc between the two; the rest become that person's satellites.
-  const drawnIds = drawn.filter((c) => c.tier !== 'issue').map((c) => c.edge.voucherId);
+  // an arc between the two; the rest become the stars around that person.
+  const drawnIds = drawn.filter((c) => !c.issue).map((c) => c.edge.voucherId);
   const secondDegree = drawnIds.length
     ? await mergedIncomingMulti(admin, drawnIds)
     : new Map<string, MergedEdge[]>();
@@ -450,22 +458,18 @@ async function assembleGraph(
     for (const [k, v] of extraCounts) counts.set(k, v);
   }
 
+  const standingOf = (profileId: string) => counts.get(profileId)?.positive ?? 0;
   const vouchersOf = new Map<string, string[]>();
-  const voucherTier = new Map<string, ProofTier>();
   for (const id of drawnIds) {
     const vouchers = (secondDegree.get(id) ?? [])
-      .filter((v) => profiles.has(v.voucherId))
-      .sort(
-        (a, b) =>
-          PROOF_STRENGTH[proofTierOf(a)] - PROOF_STRENGTH[proofTierOf(b)] ||
-          (counts.get(b.voucherId)?.positive ?? 0) - (counts.get(a.voucherId)?.positive ?? 0),
-      );
-    for (const v of vouchers) voucherTier.set(`${id}>${v.voucherId}`, proofTierOf(v));
-    vouchersOf.set(id, vouchers.map((v) => v.voucherId));
+      .map((v) => v.voucherId)
+      .filter((voucherId) => profiles.has(voucherId))
+      .sort((a, b) => standingOf(b) - standingOf(a));
+    vouchersOf.set(id, vouchers);
   }
-  const { links, satellites } = splitConnections(drawnIds, vouchersOf, centre.profileId);
+  const { links, stars } = splitConnections(drawnIds, vouchersOf, centre.profileId);
 
-  const childOf = (parentId: string, profileId: string): ReferenceGraphChild[] => {
+  const childOf = (profileId: string): ReferenceGraphChild[] => {
     const profile = profiles.get(profileId);
     if (!profile) return [];
     const handle = handles.get(profileId);
@@ -474,17 +478,31 @@ async function assembleGraph(
         profileId,
         handle: handle?.handle ?? `@${profile.displayName}`,
         handleSlug: handle?.handleSlug ?? profile.displayName,
-        initials: initialsOf(handle?.handle ?? profile.displayName),
-        refs: counts.get(profileId)?.positive ?? 0,
-        kind: voucherTier.get(`${parentId}>${profileId}`) ?? 'vouch',
+        initials: initialsOf(profile.displayName || handle?.handle || '?'),
+        refs: standingOf(profileId),
       },
     ];
   };
 
-  const nodes: ReferenceGraphNode[] = drawn.flatMap(({ edge, tier }) => {
+  const allProofPaths = Array.from(
+    new Set(drawn.flatMap(({ edge }) => edge.proofPaths.slice(0, 3))),
+  );
+  const signedImages =
+    allProofPaths.length > 0
+      ? await signReferenceImageUrls(admin, REFERENCE_PROOF_BUCKET, allProofPaths)
+      : [];
+  const signedByPath = new Map<string, string>();
+  for (const item of signedImages) {
+    if (item.url) signedByPath.set(item.path, item.url);
+  }
+
+  const nodes: ReferenceGraphNode[] = drawn.flatMap(({ edge, issue }) => {
     const profile = profiles.get(edge.voucherId);
     if (!profile) return [];
     const handle = handles.get(edge.voucherId);
+    const images = edge.proofPaths
+      .slice(0, 3)
+      .flatMap((p) => (signedByPath.has(p) ? [signedByPath.get(p)!] : []));
     return [
       {
         id: `${edge.voucherId}:${edge.sentiment}`,
@@ -492,7 +510,7 @@ async function assembleGraph(
         handle: handle?.handle ?? `@${profile.displayName}`,
         handleSlug: handle?.handleSlug ?? profile.displayName,
         name: profile.displayName,
-        initials: initialsOf(handle?.handle ?? profile.displayName),
+        initials: initialsOf(profile.displayName || handle?.handle || '?'),
         avatarPath: profile.avatarPath,
         identityVerified: profile.identityVerified,
         firstName: profile.firstName,
@@ -501,24 +519,24 @@ async function assembleGraph(
         platformLabel: platformLabel(edge.platform),
         platformShort: PLATFORM_SHORT[edge.platform] ?? platformLabel(edge.platform),
         platforms: edge.platforms,
-        kind: proofTierOf(edge),
+        kind: proofOf(edge),
         sentiment: edge.sentiment,
+        rating: edge.rating,
         categoryLabel: edge.categoryLabel,
         comment: edge.comment,
+        images,
         role: edge.role,
         roleLabel: roleLabel(edge.role),
         roleShortLabel: roleShortLabel(edge.role),
         dateLabel: formatOccurredMonth(edge.occurredMonth),
         deals: edge.deals,
-        children:
-          tier === 'issue'
-            ? []
-            : (satellites.get(edge.voucherId) ?? []).flatMap((id) => childOf(edge.voucherId, id)),
+        children: issue ? [] : (stars.get(edge.voucherId) ?? []).flatMap(childOf),
       },
     ];
   });
 
   const validPositives = validEdges.filter((e) => e.sentiment === 'POSITIVE');
+  const validNegatives = validEdges.filter((e) => e.sentiment === 'NEGATIVE');
   const totalPositiveDeals = validPositives.reduce((sum, e) => sum + e.deals, 0);
 
   return {
@@ -526,7 +544,7 @@ async function assembleGraph(
       ...centre,
       referenceCount: Math.max(validPositives.length, totalPositiveDeals),
       peopleCount: validPositives.length,
-      negativeCount: validEdges.length - validPositives.length,
+      negativeCount: validNegatives.length,
       checkedCount: validPositives.filter((e) => e.proofStatus === 'CHECKED' || e.hasEscrow).length,
       platforms,
     },
@@ -572,8 +590,10 @@ async function mergedIncomingMulti(
     push(edge.target_profile_id, {
       voucherId: edge.voucher_id,
       sentiment: 'POSITIVE',
+      rating: edge.rating ?? 5,
       categoryLabel: null,
       comment: edge.comment,
+      proofPaths: [],
       platform: edge.platform,
       platforms: [edge.platform],
       role: edge.role,
@@ -587,8 +607,10 @@ async function mergedIncomingMulti(
     push(review.reviewee_id, {
       voucherId: review.reviewer_id,
       sentiment: 'POSITIVE',
+      rating: 5,
       categoryLabel: null,
       comment: review.comment ?? null,
+      proofPaths: [],
       platform: 'noditto',
       platforms: ['noditto'],
       role: 'BOUGHT',
@@ -852,7 +874,7 @@ export async function loadHandleReferenceGraph(rawHandle: string): Promise<Refer
     },
     nodes: [],
     links: [],
-    hidden: { escrow: 0, receipt: 0, vouch: 0, issue: 0 },
+    hidden: { people: 0, issues: 0 },
   };
 }
 

@@ -94,6 +94,7 @@ export function ShareExperience({
             <>
               <div className="space-y-group">
                 <Composer.Platform />
+                <Composer.Role />
                 <Composer.Outcome />
                 <Composer.Comment id="share-experience-preview" rows={4} />
                 <Composer.ImageField />
@@ -123,6 +124,7 @@ export function ShareExperience({
             <>
               <div className="space-y-group">
                 <Composer.Platform />
+                <Composer.Role />
                 <Composer.Outcome />
                 <Composer.Comment id="share-experience-comment" rows={4} />
                 <Composer.ImageField />

@@ -30,7 +30,10 @@ alter table cardtrade.member_references
     check (platform in ('instagram', 'facebook', 'discord', 'ebay', 'whatnot', 'noditto', 'other'));
 
 alter table cardtrade.social_claims
+  drop constraint if exists social_claims_platform_check,
   drop constraint if exists social_claims_claim_method_check,
+  add constraint social_claims_platform_check
+    check (platform in ('instagram', 'facebook', 'x', 'youtube', 'tiktok', 'discord', 'ebay')),
   add constraint social_claims_claim_method_check
     check (claim_method in ('UNCLAIMED', 'PROFILE_LINK', 'BIO_CODE', 'OAUTH', 'DM_BOT', 'STAFF'));
 

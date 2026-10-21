@@ -51,8 +51,8 @@ export function negativeCategoryLabel(slug: string | null | undefined): string |
   return NEGATIVE_CATEGORIES.find((c) => c.slug === slug)?.label ?? null;
 }
 
-/** Platforms a social claim (searchable handle) can live on. Mirrors the 0155 CHECK. */
-export const CLAIM_PLATFORMS = ['instagram', 'facebook', 'x', 'youtube', 'tiktok', 'discord'] as const;
+/** Platforms a social claim (searchable handle) can live on. Mirrors the 0155/0156 CHECK. */
+export const CLAIM_PLATFORMS = ['instagram', 'facebook', 'x', 'youtube', 'tiktok', 'discord', 'ebay'] as const;
 export type ClaimPlatform = (typeof CLAIM_PLATFORMS)[number];
 
 export function isReferencePlatform(value: unknown): value is ReferencePlatform {

@@ -24,6 +24,8 @@ import { cn } from '@/lib/utils';
 export interface SegmentedOption<Value extends string> {
   value: Value;
   label: string;
+  /** Optional tally drawn as a small muted pill after the label. */
+  count?: number;
 }
 
 export interface SegmentedControlProps<Value extends string> {
@@ -86,6 +88,16 @@ export function SegmentedControl<Value extends string>({
               className="sr-only"
             />
             <span className="truncate">{option.label}</span>
+            {option.count !== undefined ? (
+              <span
+                className={cn(
+                  'ml-1.5 inline-flex min-w-5 shrink-0 items-center justify-center rounded-full px-1.5 text-meta font-semibold tabular-nums leading-5',
+                  selected ? 'bg-muted text-foreground' : 'bg-card/70 text-muted-foreground',
+                )}
+              >
+                {option.count}
+              </span>
+            ) : null}
           </label>
         );
       })}

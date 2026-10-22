@@ -58,8 +58,12 @@ export default async function HandleReferencePage({
 
   const autoOpen = (Array.isArray(experience) ? experience[0] : experience) === '1';
 
+  // SCALES WITH THE SCREEN. The column is 64rem up to a 1440px screen and then grows with
+  // it (70vw, capped at 96rem), so a large monitor shows the same composition at a larger
+  // size rather than a small card in a sea of background. It is a flex column so the
+  // Trust Network card fills the height left above the footer.
   return (
-    <article className="mx-auto w-full max-w-5xl px-group py-section sm:px-6 md:py-10">
+    <article className="mx-auto flex w-full max-w-[clamp(64rem,70vw,96rem)] flex-1 flex-col px-group py-section sm:px-6 md:py-10">
       <ReferenceProfile
         data={graph}
         viewer={{ id: user?.id ?? null, identityVerified: viewerIdentityVerified }}

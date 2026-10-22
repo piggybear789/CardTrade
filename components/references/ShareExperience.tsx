@@ -65,11 +65,7 @@ export function ShareExperience({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          className={cn('h-9 shrink-0 rounded-full px-4 font-medium shadow-xs', className)}
-        >
+        <Button type="button" className={cn('shrink-0', className)}>
           <HugeiconsIcon icon={PlusIcon} className="size-3.5" aria-hidden />
           {label}
         </Button>

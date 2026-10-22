@@ -98,7 +98,7 @@ export function ListingBuyerBar({
   if (!isAuthenticated) {
     return (
       <div data-hide-for-keyboard className={barClass}>
-        <Button asChild className="h-11 w-full">
+        <Button asChild size="lg" className="w-full">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
             <HugeiconsIcon icon={LogInIcon} aria-hidden />
             Sign in to buy

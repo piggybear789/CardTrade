@@ -35,8 +35,10 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { optionTileClass } from '@/components/ui/option-button';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import {
   checkInstagramDmClaim,
   startInstagramDmClaim,
@@ -108,8 +110,6 @@ export function ClaimHandle({
   const [dmVerified, setDmVerified] = useState(false);
   const [pending, startTransition] = useTransition();
   const manualFileRef = useRef<HTMLInputElement | null>(null);
-
-  if (mode === 'claim' && initialClaim?.status === 'APPROVED') return null;
 
   const isLinkMode = mode === 'link';
   const cleanHandle = (isLinkMode ? customHandle : handle).trim().replace(/^@/, '');
@@ -297,16 +297,20 @@ export function ClaimHandle({
     return () => clearInterval(timer);
   }, [open, dmSession, dmVerified, cleanHandle, router]);
 
+  // AFTER every hook, never before: returning early above them changed the number of
+  // hooks React saw between renders, which it reports as a crash.
+  if (mode === 'claim' && initialClaim?.status === 'APPROVED') return null;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {isLinkMode ? (
-          <Button type="button" variant="outline" size="sm" className="h-9 rounded-full px-3.5">
-            <HugeiconsIcon icon={PlusIcon} className="size-3.5" aria-hidden />
+          <Button type="button" variant="outline">
+            <HugeiconsIcon icon={PlusIcon} aria-hidden />
             Link another handle
           </Button>
         ) : (
-          <Button type="button" variant="outline" size="sm" className="h-9 rounded-full px-3.5">
+          <Button type="button" variant="outline">
             Claim this account
           </Button>
         )}
@@ -473,17 +477,17 @@ export function ClaimHandle({
             </DialogHeader>
 
             <div className="space-y-cozy">
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 px-3.5 py-2.5">
+              <div className="flex items-center justify-between gap-2 rounded-md border border-input bg-muted/40 px-3.5 py-2.5">
                 <code className="font-mono text-subhead font-semibold tracking-wider text-foreground">
                   {dmSession.code}
                 </code>
-                <Button type="button" variant="outline" size="sm" onClick={copyCode} className="h-8 gap-1.5">
-                  <HugeiconsIcon icon={Copy01Icon} className="size-3.5" aria-hidden />
+                <Button type="button" variant="outline" size="sm" onClick={copyCode}>
+                  <HugeiconsIcon icon={Copy01Icon} aria-hidden />
                   {copied ? 'Copied' : 'Copy code'}
                 </Button>
               </div>
 
-              <Button asChild variant="outline" className="h-10 w-full justify-between px-3.5">
+              <Button asChild variant="outline" className="w-full justify-between">
                 <a
                   href={`https://ig.me/m/${encodeURIComponent(dmSession.botHandle)}`}
                   target="_blank"
@@ -572,10 +576,13 @@ export function ClaimHandle({
                     type="button"
                     disabled={activeProvider !== null || pending}
                     onClick={() => selectProvider(p.slug)}
-                    className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-border bg-card p-2 text-meta font-medium text-foreground shadow-2xs transition-colors hover:border-foreground/25 hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
+                    className={cn(
+                      'flex aspect-square flex-col items-center justify-center gap-1.5 p-2',
+                      optionTileClass(false),
+                    )}
                   >
                     <span
-                      className={`inline-flex size-8 shrink-0 items-center justify-center rounded-lg ${p.badgeClass}`}
+                      className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md ${p.badgeClass}`}
                     >
                       {p.slug === 'manual' ? (
                         <HugeiconsIcon icon={ImageAdd01Icon} className="size-4" aria-hidden />
@@ -583,7 +590,7 @@ export function ClaimHandle({
                         <SocialPlatformIcon slug={p.slug} className="size-4" />
                       )}
                     </span>
-                    <span className="truncate text-[11px]">
+                    <span className="max-w-full truncate text-meta">
                       {isConnecting ? '…' : p.label}
                     </span>
                   </button>

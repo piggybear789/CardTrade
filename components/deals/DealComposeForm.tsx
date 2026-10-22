@@ -378,7 +378,7 @@ export function DealComposeForm({
             <GoogleSignInButton mode="sign-up" redirectTo={DEAL_RESUME_PATH}>
               Continue with Google
             </GoogleSignInButton>
-            <Button asChild variant="outline" className="min-h-11 w-full">
+            <Button asChild variant="outline" size="lg" className="w-full">
               <Link href={`/sign-up?redirectTo=${encodeURIComponent(DEAL_RESUME_PATH)}`}>
                 Continue with email
               </Link>

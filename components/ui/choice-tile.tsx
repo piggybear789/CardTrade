@@ -12,6 +12,7 @@
 
 import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 
+import { OPTION_SELECTED } from '@/components/ui/option-button';
 import { cn } from '@/lib/utils';
 
 export interface ChoiceTileProps {
@@ -85,9 +86,10 @@ export function ChoiceTile({
         // tile was told apart by colour alone. The iris edge is the "you are here"
         // marker globals.css already allows for a selected gallery thumbnail, and the
         // accent-plus-iris pairing is what GenrePills uses for its active pill.
-        checked
-          ? 'border-foreground bg-accent text-accent-foreground'
-          : 'hover:border-foreground/60 hover:bg-muted/40',
+        // Shared with `OptionButton` (`OPTION_SELECTED`): a 1px foreground edge, an 8%
+        // foreground fill and a semibold label, so the chosen tile differs by edge,
+        // fill and weight rather than by a thicker frame.
+        checked ? OPTION_SELECTED : 'hover:border-foreground/60 hover:bg-muted/40',
         invalid && 'border-destructive',
         // Locked groups (a disabled <fieldset>) look and behave locked.
         'has-[:disabled]:pointer-events-none has-[:disabled]:opacity-70',

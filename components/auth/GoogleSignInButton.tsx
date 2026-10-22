@@ -82,7 +82,8 @@ export function GoogleSignInButton({
   return (
     <Button
       type="button"
-      variant="outline"
+
+
       className="min-h-11 w-full"
       onClick={handleClick}
       disabled={disabled || isPending}

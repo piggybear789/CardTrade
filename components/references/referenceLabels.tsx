@@ -106,6 +106,38 @@ export function SentimentBadge({
   );
 }
 
+const STAR_FILL: Record<ReferenceSentiment, string> = {
+  POSITIVE: 'fill-trust text-trust',
+  NEUTRAL: 'fill-action-foreground text-action-foreground',
+  NEGATIVE: 'fill-destructive text-destructive',
+};
+
+/** A reference's rating as five stars, filled to the rating and tinted by sentiment. */
+export function StarRating({
+  sentiment,
+  rating,
+  className,
+}: {
+  sentiment: ReferenceSentiment;
+  rating?: number;
+  className?: string;
+}) {
+  const stars = rating ?? (sentiment === 'NEGATIVE' ? 1 : sentiment === 'NEUTRAL' ? 3 : 5);
+  const label = `${stars} out of 5 stars`;
+  return (
+    <span role="img" title={label} aria-label={label} className={cn('inline-flex items-center gap-0.5', className)}>
+      {[1, 2, 3, 4, 5].map((value) => (
+        <HugeiconsIcon
+          key={value}
+          icon={StarIcon}
+          className={cn('size-4', value <= stars ? STAR_FILL[sentiment] : 'text-muted-foreground/35')}
+          aria-hidden
+        />
+      ))}
+    </span>
+  );
+}
+
 export function PlatformChip({ slug, className }: { slug: string; className?: string }) {
   const label = platformLabel(slug);
 

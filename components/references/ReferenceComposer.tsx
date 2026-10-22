@@ -20,7 +20,6 @@ import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Cancel01Icon,
-  CheckmarkCircle02Icon,
   Copy01Icon,
   ImageAdd01Icon,
   ShieldCheckIcon,
@@ -30,6 +29,7 @@ import {
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { OptionButton } from '@/components/ui/option-button';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Textarea } from '@/components/ui/textarea';
 import { attachReferenceProof, giveReference, type ReferenceTargetDescriptor } from '@/lib/actions/references';
@@ -263,24 +263,12 @@ function Platform() {
       <div
         role="radiogroup"
         aria-label="Platform"
-        className="grid grid-cols-3 gap-2"
+        className="grid grid-cols-2 gap-snug sm:grid-cols-3"
       >
         {REFERENCE_PLATFORMS.map((p) => {
           const selected = platform === p.slug;
           return (
-            <button
-              key={p.slug}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              onClick={() => setPlatform(p.slug)}
-              className={cn(
-                'flex h-9 items-center gap-2 rounded-lg border px-2.5 text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                selected
-                  ? 'border-iris bg-iris/10 text-foreground ring-1 ring-iris/35'
-                  : 'border-border bg-card text-muted-foreground hover:border-foreground/25 hover:text-foreground',
-              )}
-            >
+            <OptionButton key={p.slug} selected={selected} onClick={() => setPlatform(p.slug)}>
               <SocialPlatformIcon
                 slug={p.slug}
                 className={cn(
@@ -289,7 +277,7 @@ function Platform() {
                 )}
               />
               <span className="truncate">{p.label}</span>
-            </button>
+            </OptionButton>
           );
         })}
       </div>
@@ -304,26 +292,19 @@ function Role() {
   return (
     <div className="space-y-snug">
       <Label>Deal</Label>
-      <div role="radiogroup" aria-label="Deal" className="grid grid-cols-3 gap-2">
+      <div role="radiogroup" aria-label="Deal" className="grid grid-cols-3 gap-snug">
         {REFERENCE_ROLES.map((r) => {
           const selected = role === r.slug;
           return (
-            <button
+            <OptionButton
               key={r.slug}
-              type="button"
-              role="radio"
-              aria-checked={selected}
+              selected={selected}
               aria-label={r.label}
               onClick={() => setRole(r.slug)}
-              className={cn(
-                'flex h-9 items-center justify-center rounded-lg border px-2.5 text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                selected
-                  ? 'border-iris bg-iris/10 text-foreground ring-1 ring-iris/35'
-                  : 'border-border bg-card text-muted-foreground hover:border-foreground/25 hover:text-foreground',
-              )}
+              className="justify-center"
             >
               <span className="truncate">{r.shortLabel}</span>
-            </button>
+            </OptionButton>
           );
         })}
       </div>
@@ -500,9 +481,6 @@ function Published({ onDone }: { onDone: () => void }) {
   const { target } = useDraft();
   return (
     <div className="space-y-group py-2 text-center">
-      <div className="mx-auto grid size-11 place-items-center rounded-full bg-trust/10 text-trust">
-        <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" aria-hidden />
-      </div>
       <div className="space-y-1">
         <p className="text-body font-semibold text-foreground">Added to {target.handle}&rsquo;s network</p>
       </div>
@@ -557,7 +535,7 @@ export function CopyReferenceLink({ returnPath, className }: { returnPath: strin
     }
   };
   return (
-    <Button variant="outline" size="sm" className={cn('h-9 shrink-0 rounded-full px-3.5', className)} onClick={copy}>
+    <Button variant="outline" className={cn('shrink-0', className)} onClick={copy}>
       <HugeiconsIcon icon={Copy01Icon} className="size-3.5" aria-hidden />
       {copied ? 'Copied link' : 'Share reference link'}
     </Button>

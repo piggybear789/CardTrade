@@ -122,12 +122,16 @@ export function ReferenceSearch({
   };
 
   return (
-    <div className="relative mx-auto w-full max-w-xl">
+    // Grows with the screen like the page around it (`app/(marketing)/references/page.tsx`).
+    // Same edge and radius as every other field and card: `border-input`, `rounded-lg`.
+    <div className="relative mx-auto w-full max-w-[clamp(36rem,42vw,54rem)]">
       {/* Search bar */}
-      <div className="group relative flex items-center rounded-2xl border border-border/90 bg-card shadow-md ring-1 ring-foreground/[0.03] transition-all focus-within:border-foreground/40 focus-within:shadow-lg focus-within:ring-4 focus-within:ring-foreground/5">
+      {/* Focus: a softened 1px edge plus a faint halo. The full `--ring` edge doubled by an
+          inset ring read as a heavy dark frame on a field this large. */}
+      <div className="group relative flex items-center rounded-lg border border-input bg-card shadow-market transition-[border-color,box-shadow] focus-within:border-ring/50 focus-within:ring-[3px] focus-within:ring-ring/10">
         <HugeiconsIcon
           icon={Search01Icon}
-          className="pointer-events-none ml-4 size-5 shrink-0 text-muted-foreground transition-colors group-focus-within:text-foreground"
+          className="pointer-events-none ml-4 size-4 shrink-0 text-muted-foreground transition-colors group-focus-within:text-foreground"
           aria-hidden
         />
         <input
@@ -142,7 +146,9 @@ export function ReferenceSearch({
           aria-label="Search a handle or name"
           aria-expanded={showDropdown}
           aria-autocomplete="list"
-          className="h-14 w-full bg-transparent px-3.5 text-[1.0625rem] text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
+          // `text-body`, the same size as the handles in the suggestion list under it, so
+          // what you type and what you pick read as one control.
+          className="h-[clamp(3rem,3vw,3.75rem)] w-full bg-transparent pl-3 pr-4 text-body text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
           autoFocus
         />
         {query ? (
@@ -153,17 +159,11 @@ export function ReferenceSearch({
               setActiveIndex(0);
             }}
             aria-label="Clear search"
-            className="mr-2 inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground transition-colors hover:text-foreground"
+            className="mr-2 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
           >
             <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden />
           </button>
         ) : null}
-        <span
-          aria-hidden
-          className="mr-4 hidden shrink-0 rounded-md border border-border/80 bg-muted/60 px-2 py-0.5 text-meta font-medium text-muted-foreground sm:inline-block"
-        >
-          ↵
-        </span>
       </div>
 
       {/* Dropdown — anchored below the input so filtering never shifts page layout */}
@@ -171,7 +171,7 @@ export function ReferenceSearch({
         <div
           role="listbox"
           aria-label={needle ? 'Matching profiles' : 'Top referred traders'}
-          className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border border-border/90 bg-card/95 shadow-xl ring-1 ring-foreground/5 backdrop-blur-md"
+          className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-lg border border-border bg-card/95 shadow-xl backdrop-blur-md"
         >
           {visibleSuggestions.length > 0 ? (
             <div className="divide-y divide-border/60">

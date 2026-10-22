@@ -50,6 +50,7 @@ import {
   type OrbitHandoff,
 } from '@/components/references/orbitHandoff';
 import type {
+  ReferenceGraphCentre,
   ReferenceGraphChild,
   ReferenceGraphData,
   ReferenceGraphNode,
@@ -301,16 +302,23 @@ export function entryHandleSlug(entry: OrbitEntry): string {
  * The newest graph wins, because a comment or role only means something relative
  * to the person currently at the centre.
  */
-function directoryOf(trail: readonly ReferenceGraphData[]): Map<string, OrbitEntry> {
+function directoryOf(
+  trail: readonly ReferenceGraphData[],
+  /** What the newest graph is drawing: its received or its given references. */
+  currentNodes: readonly ReferenceGraphNode[],
+): Map<string, OrbitEntry> {
   const entries = new Map<string, OrbitEntry>();
+  const newest = trail[trail.length - 1];
   for (const graph of [...trail].reverse()) {
     const centreKey = centreKeyOf(graph);
+    // The centre entry keeps the whole graph: the sun shows their RECEIVED rating either way.
     if (!entries.has(centreKey)) entries.set(centreKey, { kind: 'centre', key: centreKey, graph });
-    for (const node of graph.nodes) {
+    const nodes = graph === newest ? currentNodes : graph.nodes;
+    for (const node of nodes) {
       const key = nodeKey(node);
       if (!entries.has(key)) entries.set(key, { kind: 'node', key, node });
     }
-    for (const node of graph.nodes) {
+    for (const node of nodes) {
       for (const child of node.children) {
         if (!entries.has(child.profileId)) {
           entries.set(child.profileId, { kind: 'child', key: child.profileId, child, parent: node });
@@ -377,6 +385,57 @@ function walkFrom(handoff: OrbitHandoff | null, centreKey: string): OrbitTransit
   };
 }
 
+/** Which references the network draws: the ones left FOR the person, or the ones they LEFT. */
+export type ReferenceDirection = 'received' | 'given';
+
+/** One direction of a graph, in the shape everything below the toolbar draws from. */
+export interface ReferenceView {
+  direction: ReferenceDirection;
+  nodes: readonly ReferenceGraphNode[];
+  links: readonly [string, string][];
+  platforms: ReferenceGraphCentre['platforms'];
+  hidden: { people: number; issues: number };
+  stats: { positive: number; neutral: number; negative: number };
+}
+
+const NO_LINKS: readonly [string, string][] = [];
+const NO_NODES: readonly ReferenceGraphNode[] = [];
+
+export function viewOf(graph: ReferenceGraphData, direction: ReferenceDirection): ReferenceView {
+  if (direction === 'given') {
+    const given = graph.given;
+    return {
+      direction,
+      nodes: given?.nodes ?? NO_NODES,
+      links: NO_LINKS,
+      platforms: given?.platforms ?? [],
+      hidden: given?.hidden ?? { people: 0, issues: 0 },
+      stats: {
+        positive: given?.positiveCount ?? 0,
+        neutral: given?.neutralCount ?? 0,
+        negative: given?.negativeCount ?? 0,
+      },
+    };
+  }
+  return {
+    direction,
+    nodes: graph.nodes,
+    links: graph.links,
+    platforms: graph.centre.platforms,
+    hidden: graph.hidden,
+    stats: {
+      positive: graph.centre.peopleCount,
+      neutral: graph.nodes.filter((n) => n.sentiment === 'NEUTRAL').length,
+      negative: graph.centre.negativeCount,
+    },
+  };
+}
+
+/** How many references a direction holds, drawn or not. */
+export function viewTotal(view: ReferenceView): number {
+  return view.stats.positive + view.stats.neutral + view.stats.negative;
+}
+
 export interface TrustOrbitsOptions {
   /** Goes to someone's page; the graph is already walking toward them. */
   openPage: (handleSlug: string) => void;
@@ -396,6 +455,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const [transition, setTransition] = useState<OrbitTransition | null>(() => walkFrom(inherited, centreKeyOf(root)));
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
+  const [direction, setDirectionState] = useState<ReferenceDirection>('received');
 
   // The page refreshed its graph (after an experience is shared, say): start from it.
   if (root !== rootGraph) {
@@ -407,6 +467,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     setFocusChange(null);
     setPendingKey(null);
     setPlatformFilter(null);
+    setDirectionState('received');
   }
 
   const wide = useSyncExternalStore(subscribeWide, getWide, serverTrue);
@@ -417,17 +478,18 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
 
   const graph = trail[trail.length - 1];
   const centreKey = centreKeyOf(graph);
+  const view = useMemo(() => viewOf(graph, direction), [graph, direction]);
   const visibleNodes = useMemo(
     () =>
       platformFilter
-        ? graph.nodes.filter(
+        ? view.nodes.filter(
             (n) => n.platform === platformFilter || n.platforms.includes(platformFilter),
           )
-        : graph.nodes,
-    [graph.nodes, platformFilter],
+        : view.nodes,
+    [view.nodes, platformFilter],
   );
   const people = useMemo(() => orbitPeople(visibleNodes), [visibleNodes]);
-  const directory = useMemo(() => directoryOf(trail), [trail]);
+  const directory = useMemo(() => directoryOf(trail, view.nodes), [trail, view.nodes]);
 
   const now = useAnimationClock(transition !== null || focusChange !== null);
   const progress = transition === null ? 1 : easeInOut(clamp01((now - transition.start) / transition.duration));
@@ -443,13 +505,13 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
       buildOrbitScene({
         centreKey,
         people,
-        links: graph.links,
+        links: view.links,
         focus: focusKey ? { key: focusKey, open: opening } : null,
         closing: closingKey ? { key: closingKey, open: closingOpen } : null,
         frame,
         view: motion.view,
       }),
-    [centreKey, people, graph.links, focusKey, opening, closingKey, closingOpen, frame, motion.view],
+    [centreKey, people, view.links, focusKey, opening, closingKey, closingOpen, frame, motion.view],
   );
 
   useEffect(() => {
@@ -539,6 +601,8 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     setFocusKey(null);
     setFocusChange(null);
     setPlatformFilter(null);
+    // A new person is met by what others say about them.
+    setDirectionState('received');
   };
 
   const select = (key: string | null) => {
@@ -605,8 +669,22 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     changeFocus(null);
   };
 
+  /** Switches between references left for the person and references they left. */
+  const setDirection = (next: ReferenceDirection) => {
+    if (next === direction) return;
+    setDirectionState(next);
+    // A platform picked on one side may not exist on the other.
+    setPlatformFilter(null);
+    setSelectedKey(null);
+    changeFocus(null);
+  };
+
   return {
     graph,
+    /** The direction being drawn, and its nodes, links, platforms and counts. */
+    view,
+    direction,
+    setDirection,
     visibleNodes,
     platformFilter,
     filterByPlatform,

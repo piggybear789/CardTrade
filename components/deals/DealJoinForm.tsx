@@ -337,7 +337,7 @@ export function PublicDealInvitePreview({ preview }: { preview: DealInvitePrevie
       {/* Sign-in offers Google and "Create an account", and keeps `redirectTo` through
           both, so one button covers new and returning members. */}
       <CardFooter className="flex-col items-stretch">
-        <Button asChild className="min-h-11 w-full">
+        <Button asChild size="lg" className="w-full">
           <Link href={`/sign-in?redirectTo=${encodeURIComponent(path)}`}>Sign in</Link>
         </Button>
       </CardFooter>

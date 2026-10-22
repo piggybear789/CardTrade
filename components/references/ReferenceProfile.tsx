@@ -29,6 +29,7 @@ import {
 import { ShareExperience } from '@/components/references/ShareExperience';
 import { centreKeyOf, useTrustOrbits } from '@/components/references/useTrustOrbits';
 import { Avatar } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { regionLabel } from '@/domain/region';
 import type { MyHandleClaim } from '@/lib/actions/references';
 import type { ReferenceGraphData } from '@/lib/references/graph';
@@ -70,22 +71,24 @@ export function ReferenceProfile({
     ),
   );
 
+  // FILLS THE PAGE. The column is a flex chain down to the Trust Network card, which
+  // takes whatever height is left, so a person with no references yet does not leave a
+  // short card floating above a screen of empty background. Card surfaces use the
+  // `Card` tokens (`rounded-lg`, `border-border`, `shadow-market`) like every other page.
   return (
-    <div className="space-y-4">
-      <header className="relative overflow-hidden rounded-2xl border border-border/90 bg-card p-5 shadow-xs sm:p-6">
+    <div className="flex flex-1 flex-col gap-group">
+      <header className="relative overflow-hidden rounded-lg border border-border bg-card p-group shadow-market sm:p-6">
         <div
           aria-hidden
           className="pointer-events-none absolute -top-20 -right-20 h-44 w-44 rounded-full bg-iris/[0.06] blur-2xl"
         />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 items-center gap-3.5" style={{ opacity: arrival(orbits) }}>
-            <Link
-              href="/references"
-              aria-label="Back to references"
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-border/80 bg-muted/35 text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
-            </Link>
+            <Button asChild variant="outline" size="icon" className="shrink-0">
+              <Link href="/references" aria-label="Back to references">
+                <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+              </Link>
+            </Button>
 
             <Avatar avatarPath={centre.avatarPath} displayName={centre.name} size="lg" />
 
@@ -192,7 +195,7 @@ export function ReferenceProfile({
 
       <section
         aria-labelledby="references-heading"
-        className="overflow-hidden rounded-2xl border border-border/90 bg-card shadow-xs"
+        className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-market"
       >
         <TrustNetworkHeader orbits={orbits} />
         <TrustNetworkBody orbits={orbits} />

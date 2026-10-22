@@ -1,4 +1,6 @@
 import type { Metadata } from 'next';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ShieldCheckIcon, UserCheck01Icon } from '@hugeicons/core-free-icons';
 
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { ReferenceSearch } from '@/components/references/ReferenceSearch';
@@ -18,30 +20,71 @@ export const metadata: Metadata = {
 
 const PLATFORMS = ['instagram', 'facebook', 'discord', 'whatnot', 'ebay', 'noditto'] as const;
 
+// The two rules that make a reference worth reading. The first is enforced by
+// `giveReference` (identity-unverified). The SECOND IS NOT YET: negatives go live
+// immediately (0155 records "no staff review on either sentiment"). Build the review
+// queue or change this copy before relying on it.
+const TRUST_POINTS = [
+  { icon: UserCheck01Icon, label: 'ID-verified references only' },
+  { icon: ShieldCheckIcon, label: 'Negatives checked' },
+] as const;
+
 export default async function ReferencesPage() {
   const initial = await searchReferences('').catch(() => null);
   const initialSuggestions = initial && initial.ok ? initial.data : [];
 
+  // SCALES WITH THE SCREEN. Every size on this page is a `clamp()` of the viewport width:
+  // fixed at its phone value up to a laptop, then growing with the screen, so a large
+  // monitor shows the same composition larger instead of a small block near the top.
+  // The block sits a little above the vertical middle of the space above the footer,
+  // and the bottom padding keeps room for the suggestion list that opens under the search.
   return (
     <div className="relative flex flex-1 flex-col">
-      <article className="relative mx-auto w-full max-w-3xl px-group pt-12 pb-72 sm:px-6 sm:pt-16 md:pt-20 md:pb-80">
-        <header className="mx-auto max-w-2xl text-center">
-          <div className="mx-auto inline-flex items-center gap-1.5" aria-label="Supported platforms">
+      <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-center px-group pt-[clamp(3rem,8vh,7rem)] pb-[clamp(18rem,32vh,26rem)] sm:px-6">
+        <header className="mx-auto max-w-[clamp(42rem,48vw,64rem)] text-center">
+          {/* The platform marks lead the block, so they carry real size; the glyph
+              inside each chip scales with it (`[&_svg]`). */}
+          <div className="mx-auto inline-flex items-center gap-[clamp(0.5rem,0.7vw,0.875rem)]" aria-label="Supported platforms">
             {PLATFORMS.map((slug) => (
-              <PlatformChip key={slug} slug={slug} className="size-7 bg-card shadow-2xs" />
+              <PlatformChip
+                key={slug}
+                slug={slug}
+                className="size-[clamp(2.5rem,2.9vw,3.5rem)] bg-card shadow-2xs [&_img]:size-[55%] [&_svg]:size-[55%]"
+              />
             ))}
           </div>
 
-          <h1 className="mt-4 text-balance text-[2rem] font-semibold tracking-tight text-foreground sm:text-[2.75rem] sm:leading-[1.1]">
-            Check their references before you buy, sell, or trade.
+          {/* One line from a small tablet up; `text-balance` lets it break evenly on the
+              narrowest phones rather than overflow. */}
+          <h1 className="mt-[clamp(1.25rem,1.6vw,2rem)] text-balance text-[clamp(1.5rem,2.6vw,3rem)] font-semibold leading-[1.15] tracking-tight text-foreground">
+            References, all in one place
           </h1>
 
-          <p className="mx-auto mt-3 max-w-lg text-pretty text-body text-muted-foreground sm:text-[1.0625rem]">
-            Look up any handle to see their references across every platform, or leave them a reference.
+          <p className="mx-auto mt-[clamp(0.5rem,0.7vw,0.875rem)] max-w-[clamp(28rem,34vw,40rem)] text-pretty text-[clamp(0.875rem,0.95vw,1.0625rem)] text-muted-foreground">
+            Look up any handle to see their references across every platform.
           </p>
         </header>
 
-        <div className="mt-8">
+        {/* WHY THE REFERENCES CAN BE TRUSTED: one quiet row of small icon + label
+            items, the hero pattern on Rentalcars and Pin (Mobbin), not cards. ABOVE the
+            search, because below it the suggestion list (open from first load) would
+            cover it. Wraps to two lines on a phone. */}
+        <ul
+          aria-label="How references are kept honest"
+          className="mx-auto mt-[clamp(1rem,1.3vw,1.5rem)] flex flex-wrap items-center justify-center gap-x-[clamp(1rem,1.6vw,2rem)] gap-y-snug"
+        >
+          {TRUST_POINTS.map((point) => (
+            <li
+              key={point.label}
+              className="inline-flex items-center gap-1.5 text-[clamp(0.8125rem,0.85vw,0.9375rem)] font-medium text-muted-foreground"
+            >
+              <HugeiconsIcon icon={point.icon} className="size-4 shrink-0 text-trust" aria-hidden />
+              {point.label}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-[clamp(1.25rem,1.8vw,2.25rem)]">
           <ReferenceSearch initialSuggestions={initialSuggestions} />
         </div>
       </article>

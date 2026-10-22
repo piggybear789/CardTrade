@@ -378,7 +378,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         </CardContent>
 
         <CardFooter className="flex flex-col items-center gap-group sm:px-6 sm:pb-6">
-          <Button type="submit" className="min-h-11 w-full" disabled={isPending || !isReady} aria-busy={isPending}>
+          <Button type="submit" size="lg" className="w-full" disabled={isPending || !isReady} aria-busy={isPending}>
             {isPending ? copy.pendingLabel : copy.submitLabel}
           </Button>
           <p className="text-center text-body text-muted-foreground">

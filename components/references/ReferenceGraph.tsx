@@ -5,7 +5,8 @@
 // The Trust Network (0155): everyone who has vouched for a person, drawn as a
 // small solar system (`domain/references/orbits.ts`). Selecting someone opens a
 // card over the drawing with who they know; double-clicking (or double-tapping)
-// goes to their page, the graph walking there as it loads.
+// goes to their page, the graph walking there as it loads. A segmented control in
+// the header switches between references left FOR the person and ones they LEFT.
 //
 // `ReferenceGraph` is the network as a section of another page (a storefront),
 // with the experiences listed as text under it; `ReferenceProfile` is a person's
@@ -24,11 +25,20 @@ import {
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Switch } from '@/components/ui/switch';
 import { PlatformChip, SentimentBadge, plural } from '@/components/references/referenceLabels';
 import { TrustNetworkPanel } from '@/components/references/TrustNetworkPanel';
 import { TrustOrbitsCanvas } from '@/components/references/TrustOrbitsCanvas';
-import { nodeKey, useTrustOrbits, type TrustOrbits } from '@/components/references/useTrustOrbits';
+import {
+  nodeKey,
+  useTrustOrbits,
+  viewOf,
+  viewTotal,
+  type ReferenceDirection,
+  type ReferenceView,
+  type TrustOrbits,
+} from '@/components/references/useTrustOrbits';
 import type {
   ReferenceGraphCentre,
   ReferenceGraphData,
@@ -71,23 +81,17 @@ const PLATFORM_TINT: Record<string, string> = {
   tiktok: 'text-foreground',
 };
 
-export function NetworkStats({
-  centre,
-  nodes = [],
-}: {
-  centre: ReferenceGraphCentre;
-  nodes?: readonly ReferenceGraphNode[];
-}) {
-  const neutralCount = nodes.filter((n) => n.sentiment === 'NEUTRAL').length;
+export function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
+  const { positive, neutral: neutralCount, negative } = stats;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span
-        title={plural(centre.referenceCount, 'positive reference', 'positive references')}
-        aria-label={plural(centre.referenceCount, 'positive reference', 'positive references')}
+        title={plural(positive, 'positive reference', 'positive references')}
+        aria-label={plural(positive, 'positive reference', 'positive references')}
         className="inline-flex items-center gap-1 rounded-full bg-trust/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-trust"
       >
         <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" aria-hidden />
-        <span>{centre.peopleCount} positive</span>
+        <span>{positive} positive</span>
       </span>
       {neutralCount > 0 ? (
         <span
@@ -98,14 +102,14 @@ export function NetworkStats({
           <span>{neutralCount} neutral</span>
         </span>
       ) : null}
-      {centre.negativeCount > 0 ? (
+      {negative > 0 ? (
         <span
-          title={plural(centre.negativeCount, 'negative reference', 'negative references')}
-          aria-label={plural(centre.negativeCount, 'negative reference', 'negative references')}
+          title={plural(negative, 'negative reference', 'negative references')}
+          aria-label={plural(negative, 'negative reference', 'negative references')}
           className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive"
         >
           <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" aria-hidden />
-          <span>{centre.negativeCount} negative</span>
+          <span>{negative} negative</span>
         </span>
       ) : null}
     </div>
@@ -113,8 +117,8 @@ export function NetworkStats({
 }
 
 function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
-  const { graph, platformFilter, filterByPlatform } = orbits;
-  const platforms = graph.centre.platforms;
+  const { view, platformFilter, filterByPlatform } = orbits;
+  const platforms = view.platforms;
 
   return (
     <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-5 py-2">
@@ -136,7 +140,7 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
           )}
         >
           <span>All</span>
-          <span className="tabular-nums opacity-75">{graph.nodes.length}</span>
+          <span className="tabular-nums opacity-75">{view.nodes.length}</span>
         </button>
 
         {platforms.map((p) => {
@@ -186,14 +190,14 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
 }
 
 function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
-  const { graph, selectedKey } = orbits;
+  const { view, selectedKey } = orbits;
   return (
     <div className="border-t border-border/80 bg-card px-5 py-4" style={{ opacity: arrival(orbits) }}>
       <h4 className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
-        Experiences ({graph.nodes.length})
+        {view.direction === 'given' ? 'References given' : 'Experiences'} ({view.nodes.length})
       </h4>
       <ul className="grid gap-2.5 sm:grid-cols-2">
-        {graph.nodes.map((node) => {
+        {view.nodes.map((node) => {
           const key = nodeKey(node);
           const isSelected = key === selectedKey;
           const negative = node.sentiment === 'NEGATIVE';
@@ -266,17 +270,25 @@ function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
   );
 }
 
-function EmptyNetwork({ centre }: { centre: ReferenceGraphCentre }) {
+function EmptyNetwork({
+  centre,
+  direction,
+}: {
+  centre: ReferenceGraphCentre;
+  direction: ReferenceDirection;
+}) {
   return (
-    <div className="relative flex min-h-[340px] flex-col items-center justify-center bg-muted/15 px-6 py-14 text-center">
-      <div className="mx-auto mb-3 grid size-14 place-items-center rounded-2xl border border-border bg-card shadow-xs">
+    <div className="relative flex min-h-[340px] flex-1 flex-col items-center justify-center bg-muted/15 px-6 py-14 text-center">
+      <div className="mx-auto mb-3 grid size-14 place-items-center rounded-lg border border-border bg-card shadow-market">
         <span className="text-lead font-semibold text-foreground">
           {centre.name.replace(/^@/, '').slice(0, 2).toUpperCase()}
         </span>
       </div>
       <p className="text-body font-semibold text-foreground">{centre.handle}</p>
       <p className="mt-1 max-w-md text-body text-muted-foreground">
-        No references yet for {centre.handle}. Done a deal with them? Be the first to leave a reference.
+        {direction === 'given'
+          ? `${centre.handle} hasn't left a reference for anyone yet.`
+          : `No references yet for ${centre.handle}. Done a deal with them? Be the first to leave a reference.`}
       </p>
     </div>
   );
@@ -285,12 +297,13 @@ function EmptyNetwork({ centre }: { centre: ReferenceGraphCentre }) {
 /** The network under its header: controls, and the drawing with its card. */
 export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
   const { centre } = orbits.graph;
-  if (orbits.graph.nodes.length === 0) return <EmptyNetwork centre={centre} />;
+  const { view } = orbits;
+  if (view.nodes.length === 0) return <EmptyNetwork centre={centre} direction={view.direction} />;
   return (
     <>
       <NetworkToolbar orbits={orbits} />
       <div
-        className="relative px-2 py-3 sm:px-4"
+        className="relative flex-1 px-2 py-3 sm:px-4"
         style={{
           backgroundImage:
             'radial-gradient(ellipse at 50% 44%, hsl(var(--iris) / 0.05) 0%, transparent 65%), radial-gradient(hsl(var(--foreground) / 0.08) 1px, transparent 1px)',
@@ -299,12 +312,40 @@ export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
       >
         <TrustOrbitsCanvas
           orbits={orbits}
-          label={`Trust Network for ${centre.handle}: ${plural(centre.peopleCount, 'person vouches', 'people vouch')} for them`}
+          label={
+            view.direction === 'given'
+              ? `Trust Network for ${centre.handle}: references they have left for ${plural(view.nodes.length, 'person', 'people')}`
+              : `Trust Network for ${centre.handle}: ${plural(centre.peopleCount, 'person vouches', 'people vouch')} for them`
+          }
         >
           <TrustNetworkPanel orbits={orbits} />
         </TrustOrbitsCanvas>
       </div>
     </>
+  );
+}
+
+/**
+ * Received (left FOR them) or Given (left BY them). Only a member can have left a
+ * reference, so an unclaimed handle has nothing to switch to and gets no control.
+ */
+function DirectionSwitch({ orbits }: { orbits: TrustOrbits }) {
+  const { graph } = orbits;
+  if (graph.centre.profileId === null) return null;
+  const received = viewTotal(viewOf(graph, 'received'));
+  const given = viewTotal(viewOf(graph, 'given'));
+  return (
+    <SegmentedControl<ReferenceDirection>
+      name={`reference-direction-${orbits.centreKey}`}
+      label={`Which references to show for ${graph.centre.handle}`}
+      options={[
+        { value: 'received', label: 'Received', count: received },
+        { value: 'given', label: 'Given', count: given },
+      ]}
+      value={orbits.direction}
+      onChange={orbits.setDirection}
+      className="w-full sm:w-60"
+    />
   );
 }
 
@@ -316,9 +357,14 @@ export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; ac
         <h3 id="references-heading" className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
           Trust Network
         </h3>
-        <NetworkStats centre={orbits.graph.centre} nodes={orbits.graph.nodes} />
+        <NetworkStats stats={orbits.view.stats} />
       </div>
-      {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+      {orbits.graph.centre.profileId !== null || action ? (
+        <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
+          <DirectionSwitch orbits={orbits} />
+          {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -339,7 +385,7 @@ export function ReferenceGraph({
     >
       <TrustNetworkHeader orbits={orbits} action={orbits.away ? null : action} />
       <TrustNetworkBody orbits={orbits} />
-      {orbits.graph.nodes.length > 0 ? <ExperienceList orbits={orbits} /> : null}
+      {orbits.view.nodes.length > 0 ? <ExperienceList orbits={orbits} /> : null}
     </section>
   );
 }

@@ -5,7 +5,7 @@
 // Claiming an unclaimed handle (0155) OR linking an additional handle (`mode="link"`)
 // onto your own profile:
 // - Discord, X, Facebook: OAuth2 Authorization Code + PKCE
-// - Instagram: Instagram DM Bot (`ND-XXXXXX` code sent to @noditto via DM)
+// - Instagram: Instagram DM Bot (`ND-XXXXXX` code sent to @no.ditto via DM)
 // - Manual: Submit a message + required proof screenshot(s) for staff review
 
 import { useEffect, useRef, useState, useTransition } from 'react';

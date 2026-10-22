@@ -1048,7 +1048,8 @@ export const startInstagramDmClaim = withActionLog(
     if (!cleanHandle) return fail('invalid-reference', 'Enter a valid Instagram handle.');
 
     const handleNorm = cleanHandle.toLowerCase();
-    const botHandle = (process.env.NEXT_PUBLIC_INSTAGRAM_BOT_HANDLE || 'noditto')
+    // NoDitto's Instagram is @no.ditto (with the dot); @noditto is someone else's account.
+    const botHandle = (process.env.NEXT_PUBLIC_INSTAGRAM_BOT_HANDLE || 'no.ditto')
       .trim()
       .replace(/^@/, '');
     const code = deterministicDmCode(handleNorm);

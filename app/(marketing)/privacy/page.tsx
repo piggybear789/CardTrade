@@ -24,9 +24,9 @@ export default function PrivacyPage() {
       lede="This policy explains what personal information NoDitto collects, why we use it, who we share it with, how long we keep it, and the choices and rights you have."
       meta={`Effective ${LEGAL.effectiveDate}`}
       notice={
-        LEGAL.reviewedByCounsel
-          ? undefined
-          : 'Draft. This policy has not yet been reviewed by a lawyer and may change before NoDitto opens to the public.'
+        LEGAL.showDraftNotice
+          ? 'Draft. This policy has not yet been reviewed by a lawyer and may change before NoDitto opens to the public.'
+          : undefined
       }
     >
       <h2 id="who">1. Who we are</h2>

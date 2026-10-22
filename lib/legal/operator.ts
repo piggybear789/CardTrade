@@ -6,7 +6,8 @@
 // CONFIRM EVERY VALUE BEFORE LAUNCH. These are drafting placeholders: the legal entity,
 // its ABN and address, the governing law and the two mailboxes have to be the real
 // ones, and the mailboxes have to exist and be read. `reviewedByCounsel` stays false
-// until a lawyer has signed the documents off; while it is false both pages say so.
+// until a lawyer has signed the documents off; `showDraftNotice` decides whether the
+// pages say so.
 
 export const LEGAL = {
   /** The contracting entity, e.g. "NoDitto Pty Ltd". The brand until confirmed. */
@@ -25,6 +26,12 @@ export const LEGAL = {
   effectiveDate: '21 October 2026',
   /** Flip to true once a lawyer has reviewed both documents. */
   reviewedByCounsel: false,
+  /**
+   * Whether both pages show the "Draft" notice. Turned off by product decision
+   * (2026-10-21) for launch, separately from `reviewedByCounsel`, which stays an honest
+   * record that no lawyer has reviewed the documents yet.
+   */
+  showDraftNotice: false,
 } as const;
 
 /** "NoDitto (ABN 12 345 678 901)", or just the name while the ABN is unset. */

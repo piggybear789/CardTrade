@@ -25,9 +25,9 @@ export default function TermsPage() {
       lede="These Terms are the agreement between you and NoDitto when you use the NoDitto website and apps. Please read them, in particular sections 6 to 9 on payments and section 15 on our liability."
       meta={`Effective ${LEGAL.effectiveDate}`}
       notice={
-        LEGAL.reviewedByCounsel
-          ? undefined
-          : 'Draft. These Terms have not yet been reviewed by a lawyer and may change before NoDitto opens to the public.'
+        LEGAL.showDraftNotice
+          ? 'Draft. These Terms have not yet been reviewed by a lawyer and may change before NoDitto opens to the public.'
+          : undefined
       }
     >
       <h2 id="about">1. About these Terms</h2>

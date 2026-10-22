@@ -3,10 +3,16 @@ import type { ReactNode } from 'react';
 export function PolicyArticle({
   title,
   lede,
+  meta,
+  notice,
   children,
 }: {
   title: string;
   lede?: string;
+  /** e.g. "Effective 21 October 2026". */
+  meta?: string;
+  /** A short boxed notice under the lede, e.g. that counsel has not yet reviewed it. */
+  notice?: string;
   children: ReactNode;
 }) {
   // `px-group` on a phone, matching every other page gutter in the app. At `px-6`
@@ -25,7 +31,11 @@ export function PolicyArticle({
       {lede ? (
         <p className="mt-snug text-body text-muted-foreground md:mt-cozy md:text-lead">{lede}</p>
       ) : null}
-      <div className="mt-section space-y-group text-body text-foreground/90 md:space-y-6 [&_h2]:scroll-mt-24 [&_h2]:text-subhead [&_h2]:font-semibold [&_h2]:text-foreground [&_p]:text-muted-foreground [&_ul]:list-disc [&_ul]:space-y-snug [&_ul]:pl-5 [&_ul]:text-muted-foreground">
+      {meta ? <p className="mt-snug text-meta text-muted-foreground">{meta}</p> : null}
+      {notice ? (
+        <p className="mt-cozy rounded-md border bg-muted p-cozy text-meta text-muted-foreground">{notice}</p>
+      ) : null}
+      <div className="mt-section space-y-group text-body text-foreground/90 md:space-y-6 [&_a]:font-medium [&_a]:text-foreground [&_a]:underline [&_a]:underline-offset-4 [&_h2]:scroll-mt-24 [&_h2]:text-subhead [&_h2]:font-semibold [&_h2]:text-foreground [&_h3]:font-semibold [&_h3]:text-foreground [&_ol]:list-decimal [&_ol]:space-y-snug [&_ol]:pl-5 [&_ol]:text-muted-foreground [&_p]:text-muted-foreground [&_strong]:font-semibold [&_strong]:text-foreground [&_ul]:list-disc [&_ul]:space-y-snug [&_ul]:pl-5 [&_ul]:text-muted-foreground">
         {children}
       </div>
     </article>

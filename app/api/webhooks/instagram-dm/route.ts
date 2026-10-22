@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { getInstagramBotToken } from '@/lib/instagram/botToken';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // app/api/webhooks/instagram-dm/route.ts
@@ -44,11 +45,8 @@ type SenderLookup =
   | { ok: false; errorCode: string; message: string };
 
 async function fetchSenderInstagramUsername(senderIgsid: string): Promise<SenderLookup> {
-  const token = (
-    process.env.INSTAGRAM_PAGE_ACCESS_TOKEN ||
-    process.env.INSTAGRAM_ACCESS_TOKEN ||
-    ''
-  ).trim();
+  // The refreshed token (0160) while it descends from the env token, else the env token.
+  const token = await getInstagramBotToken();
   if (!token) {
     return {
       ok: false,

@@ -254,7 +254,7 @@ export function ClaimHandle({
   };
 
   const copyCode = async () => {
-    if (!dmSession) return;
+    if (!dmSession?.code) return;
     try {
       await navigator.clipboard.writeText(dmSession.code);
       setCopied(true);
@@ -477,15 +477,22 @@ export function ClaimHandle({
             </DialogHeader>
 
             <div className="space-y-cozy">
-              <div className="flex items-center justify-between gap-2 rounded-md border border-input bg-muted/40 px-3.5 py-2.5">
-                <code className="font-mono text-subhead font-semibold tracking-wider text-foreground">
-                  {dmSession.code}
-                </code>
-                <Button type="button" variant="outline" size="sm" onClick={copyCode}>
-                  <HugeiconsIcon icon={Copy01Icon} aria-hidden />
-                  {copied ? 'Copied' : 'Copy code'}
-                </Button>
-              </div>
+              {/* The code is issued per member, so a visitor gets one only after signing in. */}
+              {dmSession.code ? (
+                <div className="flex items-center justify-between gap-2 rounded-md border border-input bg-muted/40 px-3.5 py-2.5">
+                  <code className="font-mono text-subhead font-semibold tracking-wider text-foreground">
+                    {dmSession.code}
+                  </code>
+                  <Button type="button" variant="outline" size="sm" onClick={copyCode}>
+                    <HugeiconsIcon icon={Copy01Icon} aria-hidden />
+                    {copied ? 'Copied' : 'Copy code'}
+                  </Button>
+                </div>
+              ) : (
+                <p className="rounded-md border border-input bg-muted/40 px-3.5 py-2.5 text-body text-muted-foreground">
+                  Sign in to get your one-time code. It&rsquo;s unique to your account.
+                </p>
+              )}
 
               <Button asChild variant="outline" className="w-full justify-between">
                 <a

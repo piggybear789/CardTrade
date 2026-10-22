@@ -23,7 +23,7 @@ export const LEGAL = {
   /** Where privacy requests go. Must be a monitored inbox. */
   privacyEmail: 'privacy@noditto.app',
   /** When this version of both documents took effect. */
-  effectiveDate: '21 October 2026',
+  effectiveDate: '22 October 2026',
   /** Flip to true once a lawyer has reviewed both documents. */
   reviewedByCounsel: false,
   /**

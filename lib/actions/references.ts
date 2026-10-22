@@ -16,6 +16,7 @@ import { revalidatePath } from 'next/cache';
 
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { getInstagramBotToken } from '@/lib/instagram/botToken';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -1020,12 +1021,22 @@ export const startOAuthHandleClaim = withActionLog(
 
 const DM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
-function deterministicDmCode(handleNorm: string): string {
+/**
+ * The one-time code a member DMs to the bot, unique to (handle, CLAIMANT).
+ *
+ * It used to depend on the handle alone, so everyone claiming @someone was shown the
+ * same code. An attacker could start a claim for @someone, wait for the real owner to
+ * DM that shared code, then press "I've sent the DM" first and be approved for a
+ * handle they never controlled. Keyed by claimant, the owner's DM carries a code that
+ * only the owner's own pending request holds. Stable per pair so a reopened dialog
+ * shows the same code.
+ */
+function deterministicDmCode(handleNorm: string, claimantId: string): string {
   const secret =
     process.env.SUPABASE_SERVICE_ROLE_KEY ||
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
     'noditto-ig-dm-secret';
-  const digest = createHmac('sha256', secret).update(`ig-dm:${handleNorm}`).digest();
+  const digest = createHmac('sha256', secret).update(`ig-dm:${handleNorm}:${claimantId}`).digest();
   let suffix = '';
   for (let i = 0; i < 6; i += 1) {
     suffix += DM_CODE_ALPHABET[digest[i] % DM_CODE_ALPHABET.length];
@@ -1034,7 +1045,8 @@ function deterministicDmCode(handleNorm: string): string {
 }
 
 export interface InstagramDmClaimSession {
-  code: string;
+  /** Null until signed in: the code is per claimant, so a visitor has none yet. */
+  code: string | null;
   botHandle: string;
   signedIn: boolean;
   status: 'PENDING' | 'APPROVED';
@@ -1053,17 +1065,17 @@ export const startInstagramDmClaim = withActionLog(
     const botHandle = (process.env.NEXT_PUBLIC_INSTAGRAM_BOT_HANDLE || 'no.ditto')
       .trim()
       .replace(/^@/, '');
-    const code = deterministicDmCode(handleNorm);
 
     const user = await getCachedAuthUser();
     if (!user) {
       return ok({
-        code,
+        code: null,
         botHandle,
         signedIn: false,
         status: 'PENDING',
       });
     }
+    const code = deterministicDmCode(handleNorm, user.id);
 
     const admin = createAdminClient();
     let { data: claim } = await admin
@@ -1127,11 +1139,8 @@ async function checkInstagramGraphDmForCode(
   handleNorm: string,
   expectedCode: string,
 ): Promise<boolean> {
-  const token = (
-    process.env.INSTAGRAM_PAGE_ACCESS_TOKEN ||
-    process.env.INSTAGRAM_ACCESS_TOKEN ||
-    ''
-  ).trim();
+  // The refreshed token (0160) while it descends from the env token, else the env token.
+  const token = await getInstagramBotToken();
   // Each early exit is logged: a silent `false` here is indistinguishable from "the
   // member has not sent the DM yet", which is how a misconfigured bot went unnoticed.
   if (!token) {
@@ -1175,13 +1184,12 @@ async function checkInstagramGraphDmForCode(
 
   const upperCode = expectedCode.toUpperCase();
   for (const convo of json.data ?? []) {
-    const participants = (convo.participants?.data ?? []).map((p) =>
-      (p.username ?? '').trim().replace(/^@/, '').toLowerCase(),
-    );
-    const hasHandle = participants.includes(handleNorm);
     for (const msg of convo.messages?.data ?? []) {
+      // The SENDER must be the handle. This used to also accept any message in a
+      // conversation that merely included the handle as a participant, which let a
+      // code typed by someone else (or by the bot itself) count as proof.
       const fromUser = (msg.from?.username ?? '').trim().replace(/^@/, '').toLowerCase();
-      if ((fromUser === handleNorm || hasHandle) && (msg.message ?? '').toUpperCase().includes(upperCode)) {
+      if (fromUser === handleNorm && (msg.message ?? '').toUpperCase().includes(upperCode)) {
         return true;
       }
     }
@@ -1216,7 +1224,9 @@ export const checkInstagramDmClaim = withActionLog(
       return ok({ verified: true });
     }
 
-    const code = deterministicDmCode(handleNorm);
+    // This member's own code: someone else's DM to the bot, even for the same handle,
+    // carries a different one and cannot approve this request.
+    const code = deterministicDmCode(handleNorm, user.id);
     const matchedInDm = await checkInstagramGraphDmForCode(handleNorm, code);
     if (!matchedInDm) {
       return ok({ verified: false });

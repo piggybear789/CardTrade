@@ -3020,6 +3020,35 @@ export type Database = {
         };
         Relationships: [];
       };
+      /** The Instagram DM claim bot token (0160). One row (`id = 1`). Service role only. */
+      instagram_bot_tokens: {
+        Row: {
+          id: number;
+          access_token: string;
+          /** SHA-256 hex of the env token this row was seeded from. */
+          env_token_sha256: string;
+          expires_at: string | null;
+          refreshed_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          access_token: string;
+          env_token_sha256: string;
+          expires_at?: string | null;
+          refreshed_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          access_token?: string;
+          env_token_sha256?: string;
+          expires_at?: string | null;
+          refreshed_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       /** Off-platform scam reports (0154). Staff only; service role writes. */
       scam_reports: {
         Row: {

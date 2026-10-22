@@ -88,6 +88,18 @@ export default function PrivacyPage() {
           succeeded, and any card disputes or fraud warnings raised against a payment.
         </li>
       </ul>
+      <h3>From Instagram, if you verify a handle by message</h3>
+      <ul>
+        <li>
+          <strong>Handle verification:</strong> if you prove you own an Instagram handle by
+          sending a one-time code to our Instagram account, @no.ditto, Instagram (Meta) passes
+          that message to us. We read the messages sent to @no.ditto only to look for a NoDitto
+          code, and we look up the sender’s Instagram username to check it matches the handle
+          being claimed. We keep the verified username and when it was verified. We do not
+          store the message, and we never send messages from your account or read your other
+          conversations.
+        </li>
+      </ul>
       <h3>Collected automatically</h3>
       <ul>
         <li>
@@ -203,6 +215,11 @@ export default function PrivacyPage() {
           <strong>Discord, X, Instagram, Facebook, TikTok and eBay</strong>: only if you link a
           handle by signing in with one of them, to confirm the handle is yours.
         </li>
+        <li>
+          <strong>Instagram (Meta)</strong>: delivers the messages sent to @no.ditto and the
+          sender’s username, so we can confirm a handle you verify by message. The message
+          stays in our Instagram inbox, held by Meta.
+        </li>
       </ul>
       <p>
         Stripe also acts on its own account for some purposes, such as meeting its own legal
@@ -245,6 +262,10 @@ export default function PrivacyPage() {
           cleared match is deleted straight away.
         </li>
         <li>Rate-limiting records of IP addresses: hours, not days.</li>
+        <li>
+          A verified Instagram handle: while it is linked to your account. A message you sent
+          to @no.ditto stays in our Instagram inbox until we delete it, which we do on request.
+        </li>
       </ul>
       <p>
         When you close your account, your public profile is anonymised straight away. We keep
@@ -264,7 +285,11 @@ export default function PrivacyPage() {
           keep it for a deal, a dispute, fraud prevention or the law;
         </li>
         <li>give you your information in a portable format (UK and EEA); and</li>
-        <li>have a person review an automated decision about you.</li>
+        <li>have a person review an automated decision about you; and</li>
+        <li>
+          remove an Instagram handle you verified, together with the information we received
+          from Instagram to verify it, including the message you sent to @no.ditto.
+        </li>
       </ul>
       <p>
         Email <a href={`mailto:${LEGAL.privacyEmail}`}>{LEGAL.privacyEmail}</a>. We may need to

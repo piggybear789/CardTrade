@@ -14,8 +14,8 @@
 //   4…  cash-sale inspection notices, the fee retry, collateral placement, the
 //      handover advance, stale-collateral handling, and expiring undecided handover
 //      change proposals, person-key backfill, orphan holds, and scam-report retention
-//      plus match-key backfill (0154). Each isolated, so one failing pass cannot cost
-//      the others.
+//      plus match-key backfill (0154), and the Instagram bot token refresh (0160).
+//      Each isolated, so one failing pass cannot cost the others.
 //
 // `server-only`.
 
@@ -31,6 +31,7 @@ import { drainFailedTradeFees } from '@/lib/actions/tradeFees';
 import { backfillPersonKeys } from '@/lib/identity/personKeyBackfill';
 import { runOrphanHoldSweep } from './orphanHoldSweep';
 import { sweepScamReports } from '@/lib/scamReports/retention';
+import { refreshInstagramBotToken } from '@/lib/instagram/botToken';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 
 /** One pass of the job. */
@@ -58,6 +59,8 @@ export const TRADE_INSPECTION_JOB_STEPS: readonly TradeInspectionJobStep[] = [
   { key: 'orphanHolds', run: () => runOrphanHoldSweep() },
   // 0154: delete scam reports closed 90+ days ago, then backfill member match keys.
   { key: 'scamReports', run: () => sweepScamReports() },
+  // 0160: keep the Instagram DM claim bot's 60-day token alive (daily refresh).
+  { key: 'instagramToken', run: () => refreshInstagramBotToken() },
 ];
 
 /**

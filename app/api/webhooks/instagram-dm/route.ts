@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 // app/api/webhooks/instagram-dm/route.ts
@@ -12,41 +13,72 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // 3. Meta posts the `messages` webhook event here; we verify the sender's
 //    Instagram `@username` matches the handle being claimed and approve the
 //    claim automatically.
+//
+// EVERY WAY THIS CAN FAIL IS LOGGED (`webhook.instagram_dm.*`, see /admin?tab=errors).
+// It used to fail silently at every step — a missing secret, a bad signature, a token
+// that could not read the sender, a sender who was not the claimed handle — so a claim
+// sat PENDING forever with nothing saying which step had stopped it. Context is ids
+// only; Meta's own error text is kept because it names the misconfiguration.
 
 const CODE_REGEX = /\b(ND-[A-Z0-9]{6}|noditto-[a-z0-9]{6})\b/i;
 
-function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
-  const appSecret = (
+function appSecret(): string {
+  return (
     process.env.INSTAGRAM_APP_SECRET ||
     process.env.INSTAGRAM_CLIENT_SECRET ||
     process.env.FACEBOOK_CLIENT_SECRET ||
     ''
   ).trim();
-  if (!appSecret) return false;
-  if (!signatureHeader || !signatureHeader.startsWith('sha256=')) return false;
+}
 
-  const expected = createHmac('sha256', appSecret).update(rawBody, 'utf8').digest('hex');
+function verifyWebhookSignature(secret: string, rawBody: string, signatureHeader: string | null): boolean {
+  if (!signatureHeader || !signatureHeader.startsWith('sha256=')) return false;
+  const expected = createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
   const actual = signatureHeader.slice('sha256='.length);
   if (expected.length !== actual.length) return false;
   return timingSafeEqual(Buffer.from(expected, 'utf8'), Buffer.from(actual, 'utf8'));
 }
 
-async function fetchSenderInstagramUsername(senderIgsid: string): Promise<string | null> {
+type SenderLookup =
+  | { ok: true; username: string }
+  | { ok: false; errorCode: string; message: string };
+
+async function fetchSenderInstagramUsername(senderIgsid: string): Promise<SenderLookup> {
   const token = (
     process.env.INSTAGRAM_PAGE_ACCESS_TOKEN ||
     process.env.INSTAGRAM_ACCESS_TOKEN ||
     ''
   ).trim();
-  if (!token) return null;
+  if (!token) {
+    return {
+      ok: false,
+      errorCode: 'NO_ACCESS_TOKEN',
+      message: 'INSTAGRAM_PAGE_ACCESS_TOKEN (or INSTAGRAM_ACCESS_TOKEN) is not set',
+    };
+  }
 
   const url = new URL(`https://graph.instagram.com/v20.0/${encodeURIComponent(senderIgsid)}`);
   url.searchParams.set('fields', 'username');
   url.searchParams.set('access_token', token);
 
-  const res = await fetch(url, { cache: 'no-store' }).catch(() => null);
-  if (!res?.ok) return null;
-  const data = (await res.json()) as { username?: string };
-  return data.username ? data.username.trim().replace(/^@/, '').toLowerCase() : null;
+  let res: Response;
+  try {
+    res = await fetch(url, { cache: 'no-store' });
+  } catch (err: unknown) {
+    return { ok: false, errorCode: 'GRAPH_UNREACHABLE', message: err instanceof Error ? err.message : String(err) };
+  }
+  const data = (await res.json().catch(() => ({}))) as {
+    username?: string;
+    error?: { message?: string; code?: number; type?: string };
+  };
+  if (!res.ok || !data.username) {
+    return {
+      ok: false,
+      errorCode: `GRAPH_${res.status}`,
+      message: data.error?.message ?? `Sender lookup returned ${res.status} with no username`,
+    };
+  }
+  return { ok: true, username: data.username.trim().replace(/^@/, '').toLowerCase() };
 }
 
 interface InstagramWebhookPayload {
@@ -79,14 +111,36 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  if (mode === 'subscribe') {
+    await logBackgroundFailure({
+      name: 'webhook.instagram_dm.verify',
+      errorCode: expectedToken ? 'VERIFY_TOKEN_MISMATCH' : 'NO_VERIFY_TOKEN',
+      message: expectedToken
+        ? 'Meta sent a verify token that does not match INSTAGRAM_WEBHOOK_VERIFY_TOKEN'
+        : 'INSTAGRAM_WEBHOOK_VERIFY_TOKEN is not set',
+    });
+  }
   return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
 
 /** Incoming Instagram DM webhook events. */
 export async function POST(request: NextRequest) {
   const rawBody = await request.text();
-  const sig = request.headers.get('x-hub-signature-256');
-  if (!verifyWebhookSignature(rawBody, sig)) {
+  const secret = appSecret();
+  if (!secret) {
+    await logBackgroundFailure({
+      name: 'webhook.instagram_dm.signature',
+      errorCode: 'NO_APP_SECRET',
+      message: 'INSTAGRAM_APP_SECRET (or INSTAGRAM_CLIENT_SECRET / FACEBOOK_CLIENT_SECRET) is not set',
+    });
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+  }
+  if (!verifyWebhookSignature(secret, rawBody, request.headers.get('x-hub-signature-256'))) {
+    await logBackgroundFailure({
+      name: 'webhook.instagram_dm.signature',
+      errorCode: 'BAD_SIGNATURE',
+      message: 'x-hub-signature-256 did not verify: the app secret is not the one for the app sending this webhook',
+    });
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
   }
 
@@ -98,6 +152,11 @@ export async function POST(request: NextRequest) {
   }
 
   if (payload.object !== 'instagram') {
+    await logBackgroundFailure({
+      name: 'webhook.instagram_dm.payload',
+      errorCode: 'UNEXPECTED_OBJECT',
+      message: `Webhook object was "${String(payload.object)}", expected "instagram"`,
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -113,14 +172,42 @@ export async function POST(request: NextRequest) {
 
       const code = match[1].toUpperCase();
 
-      const { data: claimReq } = await admin
+      // `.limit(2)` rather than `.maybeSingle()`: two people claiming one handle get the
+      // same code, and maybeSingle returns an ERROR (not a row) for two rows, which read
+      // as "no request" and dropped the DM.
+      const { data: requests, error: lookupError } = await admin
         .from('handle_claim_requests')
         .select('id, claim_id, claimant_id, bio_code, status')
         .ilike('bio_code', code)
         .eq('status', 'PENDING')
-        .maybeSingle();
+        .limit(2);
 
-      if (!claimReq) continue;
+      if (lookupError) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.lookup',
+          errorCode: lookupError.code || 'LOOKUP_FAILED',
+          message: lookupError.message,
+        });
+        continue;
+      }
+      if (!requests || requests.length === 0) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.lookup',
+          errorCode: 'NO_PENDING_REQUEST',
+          message: 'A DM carried a claim code that matches no PENDING claim request',
+        });
+        continue;
+      }
+      if (requests.length > 1) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.lookup',
+          errorCode: 'AMBIGUOUS_CODE',
+          message: 'More than one PENDING claim request shares this code; not approving either',
+          context: { claimRequestId: requests[0].id },
+        });
+        continue;
+      }
+      const claimReq = requests[0];
 
       const { data: socialClaim } = await admin
         .from('social_claims')
@@ -130,18 +217,33 @@ export async function POST(request: NextRequest) {
 
       if (!socialClaim || socialClaim.claimed_profile_id) continue;
 
-      const senderUsername = await fetchSenderInstagramUsername(senderId);
-      if (!senderUsername || senderUsername !== socialClaim.handle_norm) {
+      const sender = await fetchSenderInstagramUsername(senderId);
+      if (!sender.ok) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.sender',
+          errorCode: sender.errorCode,
+          message: sender.message,
+          context: { claimRequestId: claimReq.id },
+        });
+        continue;
+      }
+      if (sender.username !== socialClaim.handle_norm) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.sender',
+          errorCode: 'SENDER_MISMATCH',
+          message: 'The DM came from a different Instagram account than the handle being claimed',
+          context: { claimRequestId: claimReq.id },
+        });
         continue;
       }
 
       const now = new Date().toISOString();
-      await Promise.all([
+      const [requestUpdate, claimUpdate] = await Promise.all([
         admin
           .from('handle_claim_requests')
           .update({
             status: 'APPROVED',
-            staff_notes: `Verified automatically via Instagram DM bot (@${senderUsername})`,
+            staff_notes: `Verified automatically via Instagram DM bot (@${sender.username})`,
             decided_at: now,
             updated_at: now,
           })
@@ -157,6 +259,15 @@ export async function POST(request: NextRequest) {
           .eq('id', socialClaim.id)
           .is('claimed_profile_id', null),
       ]);
+      const writeError = requestUpdate.error ?? claimUpdate.error;
+      if (writeError) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.approve',
+          errorCode: writeError.code || 'UPDATE_FAILED',
+          message: writeError.message,
+          context: { claimRequestId: claimReq.id },
+        });
+      }
     }
   }
 

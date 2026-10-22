@@ -14,6 +14,7 @@ import { createHmac, randomInt } from 'node:crypto';
 import { headers } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -1131,7 +1132,16 @@ async function checkInstagramGraphDmForCode(
     process.env.INSTAGRAM_ACCESS_TOKEN ||
     ''
   ).trim();
-  if (!token) return false;
+  // Each early exit is logged: a silent `false` here is indistinguishable from "the
+  // member has not sent the DM yet", which is how a misconfigured bot went unnoticed.
+  if (!token) {
+    await logBackgroundFailure({
+      name: 'references.instagram_dm.inbox',
+      errorCode: 'NO_ACCESS_TOKEN',
+      message: 'INSTAGRAM_PAGE_ACCESS_TOKEN (or INSTAGRAM_ACCESS_TOKEN) is not set',
+    });
+    return false;
+  }
 
   const url = new URL('https://graph.instagram.com/v20.0/me/conversations');
   url.searchParams.set('platform', 'instagram');
@@ -1139,7 +1149,17 @@ async function checkInstagramGraphDmForCode(
   url.searchParams.set('access_token', token);
 
   const res = await fetch(url, { cache: 'no-store' }).catch(() => null);
-  if (!res?.ok) return false;
+  if (!res?.ok) {
+    const body = res
+      ? ((await res.json().catch(() => ({}))) as { error?: { message?: string } })
+      : null;
+    await logBackgroundFailure({
+      name: 'references.instagram_dm.inbox',
+      errorCode: res ? `GRAPH_${res.status}` : 'GRAPH_UNREACHABLE',
+      message: body?.error?.message ?? 'Reading the bot inbox failed',
+    });
+    return false;
+  }
 
   const json = (await res.json()) as {
     data?: Array<{

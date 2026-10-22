@@ -124,6 +124,7 @@ describe('cash sale — direct payout mode', () => {
         merchantRef: undefined,
         applicationFee: undefined,
         amount: ITEM.fmvCents + platformFeeCentsFor(ITEM.fmvCents, 'aud'),
+        currency: 'aud',
       },
     ]);
 

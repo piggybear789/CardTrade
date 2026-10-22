@@ -99,8 +99,11 @@ describe('private-deal cash sale — opening the room', () => {
     expect(fake.state.sale).toBeNull();
   });
 
-  it('leaves Buy Now asking for a card up front', async () => {
-    const { deps } = makeWorld({ buyerHasCard: false });
+  it('lets Buy Now open without a card too, and asks for one only at Pay', async () => {
+    // Buy Now used to ask for a card up front, which shut out a buyer paying from their
+    // bank (0158). It now opens like a private deal: nothing is collected, and a card
+    // payment with no card is refused at Pay with the sale untouched.
+    const { deps, state, calls } = makeWorld({ buyerHasCard: false });
 
     const bought = await initiateCashSale(deps, {
       buyerId: BUYER.profileId,
@@ -109,7 +112,9 @@ describe('private-deal cash sale — opening the room', () => {
       buyerConfirmedSellerIdentity: true,
     });
 
-    expect(bought).toMatchObject({ ok: false, error: 'BUYER_NO_PAYMENT_METHOD' });
+    expect(bought.ok).toBe(true);
+    expect(state.item.status).toBe('RESERVED');
+    expect(calls.transfers).toHaveLength(0);
   });
 });
 

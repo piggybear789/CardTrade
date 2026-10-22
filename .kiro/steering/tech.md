@@ -1,10 +1,10 @@
-﻿# Tech Stack
+# Tech Stack
 
 ## Core
 
 - **Next.js 15** (App Router, React Server Components) with **React 19**
 - **TypeScript 5.7**, `strict: true`, `noEmit` (Next/Vitest handle transpilation)
-- **Supabase** â€” PostgreSQL, Auth, Storage, Realtime (`@supabase/supabase-js`, `@supabase/ssr`)
+- **Supabase** — PostgreSQL, Auth, Storage, Realtime (`@supabase/supabase-js`, `@supabase/ssr`)
 - **Tailwind CSS 3** + **shadcn/ui** (Radix primitives, `class-variance-authority`, `tailwind-merge`, CSS variables, slate base color)
 - **Hugeicons** (`@hugeicons/react` `HugeiconsIcon` + icons from `@hugeicons/core-free-icons`), **sonner** toasts, **next-themes**. `lucide-react` is NOT installed; do not import it
 - **zod 4** for schema validation, **react-hook-form** + `@hookform/resolvers` for forms
@@ -30,7 +30,7 @@ ESLint is a flat config (`eslint.config.mjs`) wired to `@next/eslint-plugin-next
 and silently skipped linting, so the build passed while nothing checked unused imports or
 hook rules. `next lint` itself is deprecated and removed in Next 16.
 
-Do **not** run `npm run build` or `npm run typecheck` as a routine verification step â€” they are slow and the user runs them on their own cadence. Validate changes with `npm run test` (or a targeted Vitest project/file) and rely on editor diagnostics for type errors. Only run a build or typecheck when the user explicitly asks for one.
+Do **not** run `npm run build` or `npm run typecheck` as a routine verification step — they are slow and the user runs them on their own cadence. Validate changes with `npm run test` (or a targeted Vitest project/file) and rely on editor diagnostics for type errors. Only run a build or typecheck when the user explicitly asks for one.
 
 Run a single Vitest project or file:
 
@@ -43,14 +43,14 @@ npx vitest --run tests/unit/tradeProposal.test.ts
 
 `vitest.config.ts` defines two projects:
 
-- `domain` â€” Node environment, covers `tests/unit/**` and `tests/property/**` (pure state machine, validators, orchestrators, fast-check properties). No DOM, no Supabase.
-- `component` â€” jsdom environment with globals and `tests/setup.ts` (jest-dom matchers), covers `tests/component/**`.
+- `domain` — Node environment, covers `tests/unit/**` and `tests/property/**` (pure state machine, validators, orchestrators, fast-check properties). No DOM, no Supabase.
+- `component` — jsdom environment with globals and `tests/setup.ts` (jest-dom matchers), covers `tests/component/**`.
 
 Property tests use `fast-check` to assert correctness properties of the domain logic. Domain logic must stay pure so it can be tested without a database.
 
 ## Path aliases
 
-Defined in both `tsconfig.json` and `vitest.config.ts` â€” keep them in sync:
+Defined in both `tsconfig.json` and `vitest.config.ts` — keep them in sync:
 
 `@/domain/*`, `@/lib/*`, `@/components/*`, `@/*`
 
@@ -58,9 +58,9 @@ Defined in both `tsconfig.json` and `vitest.config.ts` â€” keep them in syn
 
 Pick the right client; all of them target the `cardtrade` Postgres schema (`db: { schema: 'cardtrade' }`).
 
-- `lib/supabase/server.ts` â†’ `createClient()` â€” cookie-bound, acts as the signed-in user, RLS enforced. Use in Server Components, Server Actions, Route Handlers.
-- `lib/supabase/browser.ts` â€” client components / Realtime subscriptions.
-- `lib/supabase/admin.ts` â†’ `createAdminClient()` â€” service-role key, **bypasses RLS**. Marked `import 'server-only'`; use only for trusted server tasks (webhook handler, guarded orchestrator writes, Storage uploads). Never import from client code.
+- `lib/supabase/server.ts` → `createClient()` — cookie-bound, acts as the signed-in user, RLS enforced. Use in Server Components, Server Actions, Route Handlers.
+- `lib/supabase/browser.ts` — client components / Realtime subscriptions.
+- `lib/supabase/admin.ts` → `createAdminClient()` — service-role key, **bypasses RLS**. Marked `import 'server-only'`; use only for trusted server tasks (webhook handler, guarded orchestrator writes, Storage uploads). Never import from client code.
 
 Generated DB types live in `lib/supabase/database.types.ts` (`Tables<'items'>`, etc.). Regenerate after schema changes rather than hand-editing.
 
@@ -68,23 +68,23 @@ Generated DB types live in `lib/supabase/database.types.ts` (`Tables<'items'>`, 
 
 Copy `.env.local.example` to `.env.local`:
 
-- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` â€” browser-safe
-- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` â€” browser-safe Google Maps key for Places Autocomplete, Maps Embed API (meeting points), and Maps Static API (suburb previews). Restrict by HTTP referrer in the Google Cloud Console. Enable Places API (New) + Maps Embed API + Maps Static API on the key.
-- `SUPABASE_SERVICE_ROLE_KEY` â€” server-only, RLS-bypassing
-- `PAYMENTS_PROVIDER` â€” `mock` (deterministic simulation) or `stripe` (real Stripe API). In PRODUCTION an unset/keyless provider is `unconfigured` and every payment throws (ESC-16); `/api/health` reports the kind as `payments`
-- `ALLOW_MOCK_PAYMENTS_IN_PRODUCTION` â€” `true` is required, alongside `PAYMENTS_PROVIDER=mock`, for the mock to run on a production build (`next start`, the e2e harness sets it). Never set it on a real deployment
-- `WEBHOOK_SECRET`, `WEBHOOK_URL` â€” HMAC-SHA256 signing and delivery target for simulated webhooks. **There is no default secret** (ESC-16): unset, every mock delivery is refused, so set it in `.env.local` for local demos
-- `STRIPE_SECRET_KEY` â€” server-only. The prefix alone selects the mode (`sk_test_` vs `sk_live_`), so there is no separate environment variable to fall out of sync
-- `STRIPE_WEBHOOK_SECRET` â€” `whsec_...`, verifies the `stripe-signature` header. Get one from `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` â€” the only Stripe value that may reach the browser
-- `STRIPE_IDENTITY_VERIFICATION_FLOW` â€” server-only `vf_...` id of the Dashboard Verification Flow used for the Identity_Gate. Read per region like the other Stripe values, because a flow belongs to one Stripe account. Optional: unset, the binding creates an equivalent inline document session instead, which works but moves the flow's options out of the Dashboard and into code
-- `PAYOUT_MODE` â€” `platform` (default) or `direct` (settle Cash_Sales into the seller's sub-merchant)
-- `DEFAULT_REGION` â€” ISO 3166-1 alpha-2 browse region used when nothing else resolves, i.e. local development and unrecognised IPs. Defaults to `AU`, and an unlisted code falls back rather than emptying the catalog. This is the BROWSE default only; it never becomes anyone's `profiles.region_code`
-- **`STRIPE_SECRET_KEY_<PLATFORM>`** â€” one Stripe platform account per PLATFORM (0068, 0136). UK, EEA, CA and CH members read `STRIPE_SECRET_KEY_US` via `credentialRegionFor`; only regions outside that group would need their own, e.g. `STRIPE_SECRET_KEY_NZ`. The unsuffixed `STRIPE_SECRET_KEY` is the binding for `AU` (`DEFAULT_CONFIG_REGION`) and **does not** serve any other region: a suffixed lookup never falls back, because resolving a GB seller onto the AU platform would look fine at onboarding and fail at the first transfer with the buyer already charged. `STRIPE_WEBHOOK_SECRET_<REGION>`, `STRIPE_CONNECT_WEBHOOK_SECRET_<REGION>` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_<REGION>` follow the same rule. Setting a region's key is what makes it operational â€” `allConfiguredRegionCodes()` discovers regions by scanning the environment, so there is no list to keep in step
-- `STRIPE_CURRENCY` / `STRIPE_ACCOUNT_COUNTRY` â€” legacy fallbacks only. Currency and account country now come from the region table in `domain/region/regions.ts`, because a per-region env var for either would be a second place the mapping `GB â†’ gbp` lives
-- `ERROR_LOGGING` â€” optional `on` / `off` override for automatic error capture into `cardtrade.error_logs` (0123). Unset, it is on only in production (`VERCEL_ENV=production`, or `NODE_ENV=production` off Vercel), so preview deployments stay out of the table. See "Error logging" below. Member reports from the error screen are saved in every environment
-- `STRIPE_IDENTITY_RESTRICTED_KEY` (and `_<REGION>`, no cross-region fallback) â€” server-only restricted `rk_...` key with Identity "read verification results" only. Needed for the person keys behind the fraud blocklist (ESC-15); without it identity checks still pass but `PERSON_KEYS_UNAVAILABLE` is logged. `IDENTITY_FINGERPRINT_SECRET` keys those HMACs and the risk-signal HMACs; keep it stable
-- `JOBS_SECRET` â€” server-only bearer secret for the scheduled money-moving routes (`/api/jobs/cash-sale-payouts`, `/api/jobs/trade-inspections`). Both **fail closed** without it. Set `CRON_SECRET` to the same value, because Vercel Cron sends it as a bearer token on a GET.
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` — browser-safe
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — browser-safe Google Maps key for Places Autocomplete, Maps Embed API (meeting points), and Maps Static API (suburb previews). Restrict by HTTP referrer in the Google Cloud Console. Enable Places API (New) + Maps Embed API + Maps Static API on the key.
+- `SUPABASE_SERVICE_ROLE_KEY` — server-only, RLS-bypassing
+- `PAYMENTS_PROVIDER` — `mock` (deterministic simulation) or `stripe` (real Stripe API). In PRODUCTION an unset/keyless provider is `unconfigured` and every payment throws (ESC-16); `/api/health` reports the kind as `payments`
+- `ALLOW_MOCK_PAYMENTS_IN_PRODUCTION` — `true` is required, alongside `PAYMENTS_PROVIDER=mock`, for the mock to run on a production build (`next start`, the e2e harness sets it). Never set it on a real deployment
+- `WEBHOOK_SECRET`, `WEBHOOK_URL` — HMAC-SHA256 signing and delivery target for simulated webhooks. **There is no default secret** (ESC-16): unset, every mock delivery is refused, so set it in `.env.local` for local demos
+- `STRIPE_SECRET_KEY` — server-only. The prefix alone selects the mode (`sk_test_` vs `sk_live_`), so there is no separate environment variable to fall out of sync
+- `STRIPE_WEBHOOK_SECRET` — `whsec_...`, verifies the `stripe-signature` header. Get one from `stripe listen --forward-to localhost:3000/api/webhooks/stripe`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — the only Stripe value that may reach the browser
+- `STRIPE_IDENTITY_VERIFICATION_FLOW` — server-only `vf_...` id of the Dashboard Verification Flow used for the Identity_Gate. Read per region like the other Stripe values, because a flow belongs to one Stripe account. Optional: unset, the binding creates an equivalent inline document session instead, which works but moves the flow's options out of the Dashboard and into code
+- `PAYOUT_MODE` — `platform` (default) or `direct` (settle Cash_Sales into the seller's sub-merchant)
+- `DEFAULT_REGION` — ISO 3166-1 alpha-2 browse region used when nothing else resolves, i.e. local development and unrecognised IPs. Defaults to `AU`, and an unlisted code falls back rather than emptying the catalog. This is the BROWSE default only; it never becomes anyone's `profiles.region_code`
+- **`STRIPE_SECRET_KEY_<PLATFORM>`** — one Stripe platform account per PLATFORM (0068, 0136). UK, EEA, CA and CH members read `STRIPE_SECRET_KEY_US` via `credentialRegionFor`; only regions outside that group would need their own, e.g. `STRIPE_SECRET_KEY_NZ`. The unsuffixed `STRIPE_SECRET_KEY` is the binding for `AU` (`DEFAULT_CONFIG_REGION`) and **does not** serve any other region: a suffixed lookup never falls back, because resolving a GB seller onto the AU platform would look fine at onboarding and fail at the first transfer with the buyer already charged. `STRIPE_WEBHOOK_SECRET_<REGION>`, `STRIPE_CONNECT_WEBHOOK_SECRET_<REGION>` and `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_<REGION>` follow the same rule. Setting a region's key is what makes it operational — `allConfiguredRegionCodes()` discovers regions by scanning the environment, so there is no list to keep in step
+- `STRIPE_CURRENCY` / `STRIPE_ACCOUNT_COUNTRY` — legacy fallbacks only. Currency and account country now come from the region table in `domain/region/regions.ts`, because a per-region env var for either would be a second place the mapping `GB → gbp` lives
+- `ERROR_LOGGING` — optional `on` / `off` override for automatic error capture into `cardtrade.error_logs` (0123). Unset, it is on only in production (`VERCEL_ENV=production`, or `NODE_ENV=production` off Vercel), so preview deployments stay out of the table. See "Error logging" below. Member reports from the error screen are saved in every environment
+- `STRIPE_IDENTITY_RESTRICTED_KEY` (and `_<REGION>`, no cross-region fallback) — server-only restricted `rk_...` key with Identity "read verification results" only. Needed for the person keys behind the fraud blocklist (ESC-15); without it identity checks still pass but `PERSON_KEYS_UNAVAILABLE` is logged. `IDENTITY_FINGERPRINT_SECRET` keys those HMACs and the risk-signal HMACs; keep it stable
+- `JOBS_SECRET` — server-only bearer secret for the scheduled money-moving routes (`/api/jobs/cash-sale-payouts`, `/api/jobs/trade-inspections`). Both **fail closed** without it. Set `CRON_SECRET` to the same value, because Vercel Cron sends it as a bearer token on a GET.
 
 Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret values back in output.
 
@@ -94,15 +94,15 @@ Everything that goes wrong lands in `cardtrade.error_logs`, grouped by `fingerpr
 
 | Source | Written by |
 |---|---|
-| `SERVER` | `onRequestError` in `instrumentation.ts` â€” any throw in a render, Route Handler or Server Action. `reference` is the Next digest the error screen shows as "Ref" |
+| `SERVER` | `onRequestError` in `instrumentation.ts` — any throw in a render, Route Handler or Server Action. `reference` is the Next digest the error screen shows as "Ref" |
 | `CLIENT` | `instrumentation-client.ts` (uncaught errors, unhandled rejections) and the error screen (render errors), via `POST /api/errors` |
-| `ACTION` | `withActionLog` â€” a Server Action that RETURNED `{ ok: false }`, which is where "the sale didn't go through" lives |
-| `BACKGROUND` | `logBackgroundFailure` â€” jobs, webhooks, payouts, refunds, fees, collateral |
+| `ACTION` | `withActionLog` — a Server Action that RETURNED `{ ok: false }`, which is where "the sale didn't go through" lives |
+| `BACKGROUND` | `logBackgroundFailure` — jobs, webhooks, payouts, refunds, fees, collateral |
 | `REPORT` | "Report this problem" on the error screen, filed into the group of the error it references |
 
 Rules:
 
-- **Every Server Action is exported through `withActionLog`**: `export const x = withActionLog('<module>.<x>', async function x(â€¦) { â€¦ })`. `tests/unit/actionLogCoverage.test.ts` fails on a plain `export async function` in a `'use server'` module and on a name that is not `<module>.<export>`. The name is the console's group key, so keep it stable across renames.
+- **Every Server Action is exported through `withActionLog`**: `export const x = withActionLog('<module>.<x>', async function x(…) { … })`. `tests/unit/actionLogCoverage.test.ts` fails on a plain `export async function` in a `'use server'` module and on a name that is not `<module>.<export>`. The name is the console's group key, so keep it stable across renames.
 - **`domain/` never logs.** It reports failures through injected hooks (`onDrainError`, `onDrainFailure` on the cash-sale orchestrator) or in its return values, and `lib/` / `app/` call `logBackgroundFailure`. Give a new background failure a stable dotted `name` (`payout.seller`, `webhook.ship24.outbound`) and a machine `errorCode`.
 - **`context` is identifiers only** (`cashSaleId`, `tradeId`, `region`). Never arguments, addresses, notes or member messages. `extractIdContext` does this for actions; `boundContext` caps anything else.
 - `lib/errors/errorLog.ts` is the table's ONLY writer (service role). There is no member or anon grant, reads are admin-only, and `error_log_groups` is `security_invoker` and granted to the service role alone.
@@ -114,7 +114,7 @@ Rules:
 
 **`vercel.json` pins `"regions": ["syd1"]`, and that line is load-bearing. Do not remove it.**
 
-Vercel defaults new projects' functions to `iad1` (Washington, D.C.) and runs them in a single region. The Supabase project is in `ap-southeast-2` (Sydney). Left on the default, every database round trip went Virginia â†’ Sydney â†’ Virginia, and the homepage's critical path has roughly six SERIAL round trips before any listing markup exists (middleware auth, middleware profile, layout auth, layout profile, the catalog page, then `enrichWithSellers`).
+Vercel defaults new projects' functions to `iad1` (Washington, D.C.) and runs them in a single region. The Supabase project is in `ap-southeast-2` (Sydney). Left on the default, every database round trip went Virginia → Sydney → Virginia, and the homepage's critical path has roughly six SERIAL round trips before any listing markup exists (middleware auth, middleware profile, layout auth, layout profile, the catalog page, then `enrichWithSellers`).
 
 Measured on the same database with the same queries, from `edge_logs`:
 
@@ -123,36 +123,36 @@ Measured on the same database with the same queries, from `edge_logs`:
 | Sydney (SYD) | 882 | 45 ms |
 | Ashburn (IAD) | 861 | 615 ms |
 
-13Ã— on identical work. The catalog query itself runs in **0.151 ms** â€” `explain (analyze)` over 24 rows in a 432 kB table, using `items_shopfront_open_idx`. So the slow homepage LCP was never the query, the `count: 'exact'`, the unbounded facets scan, or the image tags. It was ~570 ms of Pacific latency multiplied by the number of serial hops.
+13× on identical work. The catalog query itself runs in **0.151 ms** — `explain (analyze)` over 24 rows in a 432 kB table, using `items_shopfront_open_idx`. So the slow homepage LCP was never the query, the `count: 'exact'`, the unbounded facets scan, or the image tags. It was ~570 ms of Pacific latency multiplied by the number of serial hops.
 
-There is no trade-off to weigh here: the database is in Sydney and Sydney is where the database is. Since 0136 US, UK and European members trade too, so their requests now pay the Pacific round trip in reverse; a read replica nearer them is the fix if that shows up, never moving the function region away from the DB, so the functions belong in Sydney for both the data and the audience. If a second trading region ever opens, this becomes a real decision â€” but the answer is a read replica or a region closer to the DB, never a function region far from it.
+There is no trade-off to weigh here: the database is in Sydney and Sydney is where the database is. Since 0136 US, UK and European members trade too, so their requests now pay the Pacific round trip in reverse; a read replica nearer them is the fix if that shows up, never moving the function region away from the DB, so the functions belong in Sydney for both the data and the audience. If a second trading region ever opens, this becomes a real decision — but the answer is a read replica or a region closer to the DB, never a function region far from it.
 
-**The corollary for anyone tuning this page later: count the SERIAL round trips before optimising any single one.** A sequential `await` chain multiplies whatever the per-trip latency is, which is why the two obvious-looking targets are not worth touching at current data volumes â€” `enrichWithSellers` (a second query inside `searchCatalog`) and the layout's `getCachedAuthUser()` â†’ `getCachedProfile()` pair are each ~45 ms now rather than ~615 ms. `getCatalogFacets` reading every `fmv_cents` with no `limit` IS a genuine future problem, but it is a data-volume problem, not a latency one.
+**The corollary for anyone tuning this page later: count the SERIAL round trips before optimising any single one.** A sequential `await` chain multiplies whatever the per-trip latency is, which is why the two obvious-looking targets are not worth touching at current data volumes — `enrichWithSellers` (a second query inside `searchCatalog`) and the layout's `getCachedAuthUser()` → `getCachedProfile()` pair are each ~45 ms now rather than ~615 ms. `getCatalogFacets` reading every `fmv_cents` with no `limit` IS a genuine future problem, but it is a data-volume problem, not a latency one.
 
 Middleware (`proxy.ts`) is separate: it runs on the Edge Network near the USER, not in `syd1`, so its two round trips are not fixed by this setting.
 
 ## Database migrations
 
-SQL migrations are sequential files in `supabase/migrations/`, currently through `0154_scam_reports.sql` (0154 is off-platform scam reports; 0153 the Trusted Seller application text and photos; 0152 is Trusted Seller reviews; 0143â€“0148 are WP4/WP5: seller return window, tracking binding, staff approvals, evidence path guards, default-privilege revoke, message risk flags; 0133â€“0137 are the escrow-hardening WP1 set, 0138â€“0140 WP2 and 0141â€“0142 WP3: frozen side values / scoped reservations / FMV guard, and the inspection clamp: payout release policy, trade cash settlements, risk signals + the `cardtrade_prune_rate_limits` pg_cron job at `:53` and must be applied in order; several are guarded by migration-TEXT tests: `tradeClockAgreement`, `migrationHoldReestimate`, `migrationRestoreUnclaimed`, `migrationHandoverLock`, `migrationTrackingClock`, `eventCopyCoverage`, `memberWriteSurface`). Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
+SQL migrations are sequential files in `supabase/migrations/`, currently through `0159_cash_sale_card_pricing_tiers.sql` (0159 extends the `payment_method_kind` CHECK with the card pricing tiers `CARD_UK_EEA` / `CARD_INTERNATIONAL`; 0158 is cash-sale bank rails; 0157 the processing fee on postage; 0154 is off-platform scam reports; 0153 the Trusted Seller application text and photos; 0152 is Trusted Seller reviews; 0143–0148 are WP4/WP5: seller return window, tracking binding, staff approvals, evidence path guards, default-privilege revoke, message risk flags; 0133–0137 are the escrow-hardening WP1 set, 0138–0140 WP2 and 0141–0142 WP3: frozen side values / scoped reservations / FMV guard, and the inspection clamp: payout release policy, trade cash settlements, risk signals + the `cardtrade_prune_rate_limits` pg_cron job at `:53` and must be applied in order; several are guarded by migration-TEXT tests: `tradeClockAgreement`, `migrationHoldReestimate`, `migrationRestoreUnclaimed`, `migrationHandoverLock`, `migrationTrackingClock`, `eventCopyCoverage`, `memberWriteSurface`). Add a new numbered file rather than editing an applied one. Every new table needs RLS policies. `supabase/seed.sql` holds demo data.
 
-Numbers 0134â€“0136 are used twice: the main-line files (`0134_sold_listing_declines_offers`, `0135_member_can_edit_bio_and_social_links`, `0136_us_platform_cross_border_regions`) and the escrow-hardening ones. Apply by full filename in sort order, e.g. `0134_cash_sale_tracking_clock` then `0134_sold_listing_declines_offers`, `0135_member_can_edit_bio_and_social_links` then `0135_return_details_lockdown`, and so on. 0133 also has two files.
+Numbers 0134–0136 are used twice: the main-line files (`0134_sold_listing_declines_offers`, `0135_member_can_edit_bio_and_social_links`, `0136_us_platform_cross_border_regions`) and the escrow-hardening ones. Apply by full filename in sort order, e.g. `0134_cash_sale_tracking_clock` then `0134_sold_listing_declines_offers`, `0135_member_can_edit_bio_and_social_links` then `0135_return_details_lockdown`, and so on. 0133 also has two files.
 
 **The Supabase MCP `apply_migration` fails on this project** with `42P10: there is no unique or exclusion constraint matching the ON CONFLICT specification`: the tool's history upsert does not match the project's `supabase_migrations.schema_migrations` constraints. It rolls back cleanly. 0121, 0122, 0123, 0124 and 0136 (among others) were therefore applied with `execute_sql` in a single transaction and have NO history row; check the catalog (`to_regclass`), not the history, before assuming a migration is missing.
 
-`lib/supabase/database.types.ts` is hand-maintained and its `Functions` block is part of that: `client.rpc('name', â€¦)` is typed against it, so a new RPC or a new argument must be added there or the call fails `tsc` even though the SQL is correct. Adding a column to `cash_sales` also means adding it to `CASH_SALE_PUBLIC_SELECT` in `lib/supabase/cashSaleProjection.ts`, which is an explicit column list â€” the contract room reads through it and will simply not see the column otherwise.
+`lib/supabase/database.types.ts` is hand-maintained and its `Functions` block is part of that: `client.rpc('name', …)` is typed against it, so a new RPC or a new argument must be added there or the call fails `tsc` even though the SQL is correct. Adding a column to `cash_sales` also means adding it to `CASH_SALE_PUBLIC_SELECT` in `lib/supabase/cashSaleProjection.ts`, which is an explicit column list — the contract room reads through it and will simply not see the column otherwise.
 
-`cardtrade.regions` (0068) mirrors `domain/region/regions.ts`, and the two are pinned by `tests/unit/regionCurrencyAgreement.test.ts`, which parses the migration's INSERT and compares every code, label, currency and minor-unit digit count. The SQL copy exists because the `set_row_currency_from_region` trigger derives `items.currency`, `cash_sales.currency` and `trades.currency` on insert, and a trigger cannot import TypeScript. Change one side and the test fails â€” do not "fix" it by loosening the test, because a drift here means a contract charged in one currency and displayed in another.
+`cardtrade.regions` (0068) mirrors `domain/region/regions.ts`, and the two are pinned by `tests/unit/regionCurrencyAgreement.test.ts`, which parses the migration's INSERT and compares every code, label, currency and minor-unit digit count. The SQL copy exists because the `set_row_currency_from_region` trigger derives `items.currency`, `cash_sales.currency` and `trades.currency` on insert, and a trigger cannot import TypeScript. Change one side and the test fails — do not "fix" it by loosening the test, because a drift here means a contract charged in one currency and displayed in another.
 
 **Money is an integer in the currency's SMALLEST unit, and that is not always cents.** `minorUnitDigits()` is the one place the divisor lives: 2 normally, 0 for JPY. `assertMinorUnitSupported()` throws on a three-decimal currency rather than assuming 2, because that assumption is a silent tenfold error in a money path. Display goes through `formatMoney(minorUnits, currency)`; `formatAud` is a deprecated alias kept only so the remaining call sites compile.
 
 When a migration changes the Identity_Gate expressions (`public_profiles.is_verified`, the two `seller_identity_verified` trigger functions, or that trigger's column list), the denormalisation-agreement property in `tests/property/identityGate.test.ts` reads the newest migration that defines each and evaluates it against `satisfiesIdentityGate`. It fails loudly on an expression it cannot interpret, so keep the SQL in the plain `identity_check_status = 'VERIFIED'::cardtrade.identity_check_status` form. The test additionally **throws** if a Connect column (`merchant_status`, `merchant_settlements_enabled`) reappears in a gate expression, because since 0069 those gate payouts and nothing else.
 
-**That test parses migration TEXT with regexes, and two things in a migration file will break it.** `grant select (col)` contains the literal `select (`, which the trigger-function regex matches across newlines â€” so put column grants at the END of the file, after the functions. And do not write `select (` or `as is_verified` in a migration COMMENT either; prose matches the regex just as well as code does.
+**That test parses migration TEXT with regexes, and two things in a migration file will break it.** `grant select (col)` contains the literal `select (`, which the trigger-function regex matches across newlines — so put column grants at the END of the file, after the functions. And do not write `select (` or `as is_verified` in a migration COMMENT either; prose matches the regex just as well as code does.
 
 ## Escrow hardening operational notes (WP4/WP5)
 
 - The `:47` job also releases return refunds whose seller window closed (`releaseDueReturnRefunds`, per-sale region via `regionForCashSale`), reads back every in-flight return not checked in 6h, and logs `returns.stale` past 14 days.
-- `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (seconds, 1â€“600, default 300) is honoured by the Stripe pipeline.
+- `STRIPE_WEBHOOK_TOLERANCE_SECONDS` (seconds, 1–600, default 300) is honoured by the Stripe pipeline.
 - `SHIP24_WEBHOOK_ALLOW_QUERY_SECRET=true` keeps the old `?token=` secret working during migration. Otherwise the Ship24 secret must arrive as `Authorization: Bearer`.
-- 0147 revokes EXECUTE on new `cardtrade` functions from public/anon/authenticated by default. Every new member-callable function now needs an explicit grant.
+- **0147 does NOT work, and new functions are still callable by everyone by default.** It ran `alter default privileges ... in schema cardtrade revoke execute ...`, but a schema-scoped default can only add privileges, never remove the global PUBLIC grant (probed live 2026-10-22: a new function was executable by anon). So every new `cardtrade` function still needs `revoke all on function ... from public, anon, authenticated;` in its own migration, plus `grant execute ... to service_role` if the server calls it. `tests/unit/functionPrivileges.test.ts` enforces this: it replays every migration's CREATE / DROP / GRANT / REVOKE (`scripts/lib/functionPrivileges.ts`) and fails on any SECURITY DEFINER function members can call that is not on its allow-list (`is_staff`, `is_fraud_banned`, `member_sale_stats`; `is_admin` predates the migrations). The parser throws on SQL it cannot read rather than passing.
 - `/api/errors` refuses an anonymous post with no `Origin`.

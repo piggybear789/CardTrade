@@ -13,6 +13,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
+import { regionForCashSale } from '@/lib/regionBinding';
 
 import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -28,6 +29,7 @@ import type {
   PartySettlementOutcome,
 } from '@/domain/orchestrator/cashSaleOrchestrator';
 import type { CashSaleLineItemInput } from '@/domain/validation/cashSaleLineItems';
+import { isPaymentMethodKind, type PaymentMethodKind } from '@/domain/payments/paymentMethods';
 
 export type CashSaleActionError =
   | 'not-authenticated'
@@ -76,7 +78,9 @@ export type CashSaleActionError =
   /** ESC-12: the tracking number cannot be this contract's. */
   | 'tracking-in-use'
   | 'tracking-already-delivered'
-  | 'tracking-predates-dispute';
+  | 'tracking-predates-dispute'
+  /** 0159: the saved card is priced at a different card tier from the total shown. */
+  | 'card-repriced';
 
 export type CashSaleActionResult =
   | {
@@ -93,10 +97,12 @@ export type CashSaleActionResult =
       /** ESC-02: the shipment was recorded but its tracking is flagged for staff. */
       flagged?: boolean;
       /**
-       * ESC-03: the card issuer asked for a 3-D Secure check. The room runs
-       * `stripe.handleNextAction` with this secret, then `confirmCashSalePayment`.
+       * ESC-03: the card issuer asked for a 3-D Secure check, or (0158) the buyer has
+       * to approve a bank payment. The room runs `stripe.handleNextAction` (card) or
+       * the bank approval (`paymentMethod` is a bank rail) with this secret, then
+       * `confirmCashSalePayment`.
        */
-      nextAction?: { clientSecret: string; publishableKey?: string };
+      nextAction?: { clientSecret: string; publishableKey?: string; paymentMethod?: PaymentMethodKind };
     }
   | { ok: false; error: CashSaleActionError; message?: string };
 
@@ -131,20 +137,31 @@ async function getUserId(): Promise<string | null> {
 /**
  * Build the orchestrator for the contract actions in this module.
  *
- * NO REGION IS PASSED, and that is deliberate rather than an omission. Every
- * provider call in the Cash_Sale orchestrator lives in `resolvePaymentPayer`,
- * `submitClaimedPayment`, `payoutCashSaleSeller` and the dispute refund — none of
- * which are reachable from this module. What is here is terms, line items,
- * acceptances, shipment, receipt, tracking, inspection, handover, cancellation and
- * dispute-raising: all database writes.
+ * PASS THE SALE when the action can reach the provider. Since 0099 payment is the
+ * commitment, so `acceptCashSaleTerms` collects (`submitClaimedPayment`), and
+ * `confirmCashSalePayment` / `getCashSalePaymentAction` read the collection back. Each
+ * of those MUST run on the platform account that holds the sale's money, which is the
+ * sale's frozen currency (`regionForCashSale`): a EUR or USD sale charged through the
+ * default AU account fails with "No such customer" / "No such on_behalf_of" (found end
+ * to end against Stripe test mode, 2026-10-21), with the sale marked failed.
  *
- * Region binding therefore belongs where the money actually moves — `payments.ts`,
- * `admin.ts`, the payout job and the webhook pipeline — and passing one here would
- * imply this call selects a Stripe account when it selects nothing.
+ * The same holds for every action that can release or refund: accepting the item and
+ * the second in-person handover confirmation both pay the seller on completion
+ * (`payoutCashSaleSeller`), and a party's dispute settlement refunds or releases.
+ * Through the default account those failed for every non-AU sale, telling the seller
+ * their payout was rejected until the `:47` drain retried on the right account.
+ *
+ * The rest are database writes (terms, line items, shipment, receipt, tracking,
+ * cancellation, dispute-raising and withdrawal) and select no account, so they keep
+ * the default binding.
  */
-function orchestrator() {
+async function orchestratorFor(cashSaleId: string) {
+  return orchestrator(getPaymentService(await regionForCashSale(cashSaleId)));
+}
+
+function orchestrator(payments = getPaymentService()) {
   return createDefaultCashSaleOrchestrator({
-    payments: getPaymentService(),
+    payments,
     // ESC-12: the carrier's destination disagrees with the contract. Logged for staff,
     // never refused.
     onTrackingWarning: ({ cashSaleId, code, detail }) => {
@@ -212,6 +229,9 @@ function mapError(error: CashSaleError): CashSaleActionError {
     TRACKING_IN_USE: 'tracking-in-use',
     TRACKING_ALREADY_DELIVERED: 'tracking-already-delivered',
     TRACKING_PREDATES_DISPUTE: 'tracking-predates-dispute',
+    // 0159: distinct from stale-terms, because nothing about the deal changed: the
+    // buyer's own card prices differently. The mobile app hands off to the room for it.
+    CARD_REPRICED: 'card-repriced',
     // ESC-37: only the webhook settles against a provider ref, so a member never
     // sees this; mapped for exhaustiveness. The breakage is logged by the pipeline.
     SETTLEMENT_MISMATCH: 'invalid-state',
@@ -476,6 +496,11 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
   confirmedSellerIdentityVersion?: string,
   /** ESC-31: the total shown when the Pay dialog opened. The web room always sends it. */
   expectedAmountCents?: number,
+  /**
+   * 0158: how the buyer chose to pay. Absent is card. `expectedAmountCents` is the
+   * total for this rail, because each rail carries its own fee.
+   */
+  paymentMethod?: PaymentMethodKind,
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
@@ -486,12 +511,18 @@ export const acceptCashSaleTerms = withActionLog('cashSale.acceptCashSaleTerms',
   if (expectedAmountCents !== undefined && !Number.isSafeInteger(expectedAmountCents)) {
     return { ok: false, error: 'invalid-terms' };
   }
+  // A Server Action argument is whatever the caller sent, so the rail is checked here
+  // as a value before the orchestrator checks it against the contract and the buyer.
+  if (paymentMethod !== undefined && !isPaymentMethodKind(paymentMethod)) {
+    return { ok: false, error: 'not-supported', message: 'Choose a way to pay.' };
+  }
   const result = actionResult(
-    await orchestrator().acceptTerms({
+    await (await orchestratorFor(cashSaleId)).acceptTerms({
       actorId: userId,
       cashSaleId,
       termsVersion,
       expectedAmountCents,
+      ...(paymentMethod ? { paymentMethod } : {}),
       ...(confirmedSellerIdentityVersion
         ? {
             sellerIdentityVersion: confirmedSellerIdentityVersion,
@@ -545,7 +576,9 @@ export const confirmCashSalePayment = withActionLog('cashSale.confirmCashSalePay
 ): Promise<CashSaleActionResult> {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  const result = actionResult(await orchestrator().confirmPayment({ actorId: userId, cashSaleId }));
+  const result = actionResult(
+    await (await orchestratorFor(cashSaleId)).confirmPayment({ actorId: userId, cashSaleId }),
+  );
   if (result.ok && result.settledNow) {
     await notifyCashSaleSettled({
       buyerId: result.sale.buyerId,
@@ -563,12 +596,12 @@ export const confirmCashSalePayment = withActionLog('cashSale.confirmCashSalePay
 export const getCashSalePaymentAction = withActionLog('cashSale.getCashSalePaymentAction', async function getCashSalePaymentAction(
   cashSaleId: string,
 ): Promise<
-  | { ok: true; clientSecret: string | null; publishableKey?: string }
+  | { ok: true; clientSecret: string | null; publishableKey?: string; paymentMethod: PaymentMethodKind }
   | { ok: false; error: CashSaleActionError }
 > {
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
-  const result = await orchestrator().getPaymentAction({ actorId: userId, cashSaleId });
+  const result = await (await orchestratorFor(cashSaleId)).getPaymentAction({ actorId: userId, cashSaleId });
   return result.ok ? result : { ok: false, error: mapError(result.error) };
 });
 
@@ -656,7 +689,7 @@ export const acceptCashSaleInspection = withActionLog('cashSale.acceptCashSaleIn
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
   const result = actionResult(
-    await orchestrator().acceptInspection({ actorId: userId, cashSaleId }),
+    await (await orchestratorFor(cashSaleId)).acceptInspection({ actorId: userId, cashSaleId }),
   );
   if (result.ok) {
     await createNotification({
@@ -677,7 +710,7 @@ export const confirmCashSaleHandover = withActionLog('cashSale.confirmCashSaleHa
   const userId = await getUserId();
   if (!userId) return { ok: false, error: 'not-authenticated' };
   const result = actionResult(
-    await orchestrator().confirmHandover({ actorId: userId, cashSaleId }),
+    await (await orchestratorFor(cashSaleId)).confirmHandover({ actorId: userId, cashSaleId }),
   );
   if (result.ok) {
     const recipientId = result.sale.buyerId === userId
@@ -792,7 +825,7 @@ export const settleCashSaleDispute = withActionLog('cashSale.settleCashSaleDispu
     };
   }
   return actionResult(
-    await orchestrator().settleDisputeAsParty({ actorId: userId, cashSaleId, outcome }),
+    await (await orchestratorFor(cashSaleId)).settleDisputeAsParty({ actorId: userId, cashSaleId, outcome }),
   );
 });
 

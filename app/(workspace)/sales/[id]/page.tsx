@@ -65,7 +65,7 @@ export default async function CashSalePage({
   ] = await Promise.all([
     supabase
       .from('public_profiles')
-      .select('id, display_name, rating, rating_count, is_verified, avatar_path, social_links')
+      .select('id, display_name, rating, rating_count, is_verified, avatar_path, social_links, region_code')
       .in('id', [sale.buyer_id, sale.seller_id]),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.buyer_id }),
     supabase.rpc('member_sale_stats', { p_profile_id: sale.seller_id }),
@@ -220,6 +220,8 @@ export default async function CashSalePage({
         disputeEvidence={disputeEvidence}
         returnAddress={returnDetails ?? null}
         sellerPayReadiness={sellerPayReadiness}
+        // 0158: which bank rails the Pay step offers beside card.
+        buyerRegion={(profileById.get(sale.buyer_id)?.region_code as string | null | undefined) ?? null}
         // Just the control — the action card states the step in its own title,
         // so the strip that used to repeat it under the room is gone.
         reviewAction={

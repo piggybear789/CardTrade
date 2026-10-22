@@ -121,8 +121,8 @@ const WAITLIST_REGIONS = REGIONS.filter((region) => !region.tradingEnabled)
 
 /**
  * What choosing an open country means, said under the picker: the currency the member
- * is paid in, who they can deal with, and whether their purchases carry the currency
- * conversion fee. All three are consequences of the country's PLATFORM, which is why
+ * is paid in, who they can deal with, and where the currency conversion fee still
+ * applies (a trade's cash leg; cash sales are charged on behalf of the seller). All three are consequences of the country's PLATFORM, which is why
  * they are derived from it rather than written per country.
  */
 function RegionOutcome({ regionCode }: { regionCode: string }) {
@@ -150,8 +150,9 @@ function RegionOutcome({ regionCode }: { regionCode: string }) {
       </p>
       {converts ? (
         <p className="text-pretty text-muted-foreground">
-          Payments are processed in {settles}, so a purchase in {code} includes a {rate}{' '}
-          currency conversion fee, paid by the buyer. Sellers receive exactly their price.
+          Purchases in {code} are paid in {code}, with no conversion fee. Cash paid as part
+          of a trade is processed in {settles} and includes a {rate} currency conversion fee,
+          paid by the trader paying it.
         </p>
       ) : null}
     </div>

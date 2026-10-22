@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { TERMS_BETA_FEE_SENTENCE, feesWaivedForBeta } from '@/lib/fees/feeLabels';
+import { termsFeeSentence } from '@/lib/fees/feeLabels';
 
 import { PolicyArticle } from '../policy-article';
 
@@ -38,12 +38,8 @@ export default function TermsPage() {
         same as a licensed escrow or trust service.
       </p>
 
-      {feesWaivedForBeta() ? (
-        <>
-          <h2>Fees</h2>
-          <p>{TERMS_BETA_FEE_SENTENCE}</p>
-        </>
-      ) : null}
+      <h2>Fees</h2>
+      <p>{termsFeeSentence()}</p>
 
       <h2>Identity</h2>
       <p>

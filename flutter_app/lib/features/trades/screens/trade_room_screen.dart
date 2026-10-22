@@ -484,15 +484,10 @@ class _TradeMoneySection extends ConsumerWidget {
 
     // A trader's fee is charged on what they RECEIVE, which is the other side.
     final int yourFeeCents = tradeFee(theirSideCents, currency: trade.currency);
-    final String feeRate = Money.tradeFeeRateLabel(trade.currency);
 
     return ContractSection(
       title: 'Money',
-      explainer: Money.betaFeeWaiver
-          ? 'A trade moves goods, not cash. ${Money.betaFeeNote()}.'
-          : 'A trade moves goods, not cash. The platform fee is '
-              '$feeRate of what each trader receives, '
-              'charged when both accept.',
+      explainer: 'A trade moves goods, not cash. ${Money.tradeNoFeeNote}',
       children: <Widget>[
         ContractMoneyTable(
           semanticsLabel: 'Trade money breakdown',
@@ -510,7 +505,7 @@ class _TradeMoneySection extends ConsumerWidget {
                   : null,
             ),
             ContractMoneyRow(
-              label: Money.feeRowLabel('Your trade fee', yourFeeCents),
+              label: 'Your trade fee',
               value: Money.format(yourFeeCents, trade.currency),
               total: true,
             ),

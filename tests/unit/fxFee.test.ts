@@ -77,11 +77,10 @@ describe('the fee figure', () => {
 });
 
 describe('the listed price agrees with the charge', () => {
-  it('includes the conversion fee in the headline for a converted currency', () => {
+  it('carries no conversion fee on a cash sale, which is charged on behalf of the seller', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 10_000_000 }), (price) => {
-        const base = price + platformFeeCentsFor(price, 'eur');
-        expect(buyerPaysCents(price, 'eur')).toBe(base + currencyConversionFeeFor(base, 'eur'));
+        expect(buyerPaysCents(price, 'eur')).toBe(price + platformFeeCentsFor(price, 'eur'));
       }),
     );
   });

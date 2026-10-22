@@ -42,7 +42,7 @@ import {
   itemImageUrl,
 } from "@/lib/format";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
-import { betaFeeNote, feesWaivedForBeta } from "@/lib/fees/feeLabels";
+import { nodittoFeeRateLabel } from "@/lib/fees/feeLabels";
 import { BuyButton, ShopfrontBuyButton } from "@/components/listings/BuyButton";
 import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
 import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
@@ -977,8 +977,8 @@ function ItemActions({
         {/* WHAT THE PRICE MEANS TO EACH SIDE. The headline is the buyer's
             fee-inclusive figure, which is not what the owner gets, and the buyer fee
             note under it is for buyers only; this is the one place both are said.
-            The fee comes out of what the buyer pays, so the seller receives their
-            asking price (before card-processing costs, which the statement shows). */}
+            The buyer pays the service fee on top, so the seller receives their
+            asking price in full. */}
         <dl className="rounded-md border bg-card p-cozy text-body">
           <div className="flex items-baseline justify-between gap-cozy">
             <dt className="text-muted-foreground">Buyers pay</dt>
@@ -989,9 +989,9 @@ function ItemActions({
             <dd className="font-semibold tabular-nums">{formatMoney(fmvCents, currency)}</dd>
           </div>
         </dl>
-        {feesWaivedForBeta() ? (
-          <p className="text-meta text-muted-foreground">{betaFeeNote()}</p>
-        ) : null}
+        <p className="text-meta text-muted-foreground">
+          The difference is the service fee the buyer pays: Stripe&apos;s costs plus {nodittoFeeRateLabel()} to NoDitto.
+        </p>
         <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
           <Button asChild size="lg" className="min-w-0 w-full px-snug">
             <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>

@@ -500,7 +500,7 @@ function ActiveSalesSummary({ model, currency }: { model: PayoutReadModel; curre
                       under the right word: a $56.00 card read as a $58.80 price, and
                       the seller's own agreed figure appeared nowhere in the row. */}
                   <span className="market-label text-right text-muted-foreground">Buyer paid</span>
-                  <span className="market-label text-right text-muted-foreground">Fee</span>
+                  <span className="market-label text-right text-muted-foreground">Processing</span>
                   <span className="market-label text-right text-muted-foreground">You get</span>
                 </div>
                 <ul className="divide-y">
@@ -520,15 +520,16 @@ function ActiveSalesSummary({ model, currency }: { model: PayoutReadModel; curre
                         {/* Below `sm` the two middle columns are gone, so the gross and
                             fee fold into one line here — the seller still gets the
                             arithmetic, just as a sentence rather than a table. */}
-                        {/* A zero fee (fees are waived for now) drops the
-                            "less $0.00 fee" clause, as AccountStatement's Breakdown does. */}
+                        {/* A zero fee (a sale opened before the processing fee)
+                            drops the "less $0.00" clause, as AccountStatement's
+                            Breakdown does. */}
                         <p className="text-meta tabular-nums text-muted-foreground sm:hidden">
                           Buyer paid {money(sale.grossCents)}
                           {sale.feeCents === 0 ? (
                             ', no fee'
                           ) : (
                             <>
-                              , less {money(sale.feeCents)} fee
+                              , less {money(sale.feeCents)} service fee
                             </>
                           )}
                         </p>

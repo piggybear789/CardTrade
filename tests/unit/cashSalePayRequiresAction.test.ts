@@ -75,7 +75,8 @@ describe('buyer-present payment with a 3-D Secure check (ESC-03)', () => {
 
     payments.completeChallenge(paid.sale.transferId!, 'SETTLED');
     const done = await getCashSalePaymentAction(deps, { actorId: BUYER.profileId, cashSaleId: id });
-    expect(done).toEqual({ ok: true, clientSecret: null });
+    // 0158: the action also says which rail the secret belongs to.
+    expect(done).toEqual({ ok: true, clientSecret: null, paymentMethod: 'CARD' });
   });
 
   it('collects on-session with the attempt-suffixed key', async () => {

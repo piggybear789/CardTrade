@@ -85,7 +85,7 @@ import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
 import { formatMoney, itemImageUrl } from "@/lib/format";
-import { betaFeeNote, feesWaivedForBeta, platformFeeRateLabel } from "@/lib/fees/feeLabels";
+import { nodittoFeeRateLabel, processingFeeRateLabel } from "@/lib/fees/feeLabels";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
@@ -233,9 +233,7 @@ function PriceReadout({ cents, currency }: { cents: number | null; currency: str
         ) : null}
       </p>
       <p className="text-meta text-muted-foreground">
-        {feesWaivedForBeta()
-          ? `${betaFeeNote()}.`
-          : `The ${platformFeeRateLabel(currency)} buyer fee is added to your price. Card processing is shown on your statement.`}
+        {`The buyer pays a service fee on top (${processingFeeRateLabel(currency)} by card: Stripe's costs plus about ${nodittoFeeRateLabel()} to NoDitto), so you get your full price.`}
       </p>
     </div>
   );

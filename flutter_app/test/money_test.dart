@@ -68,85 +68,60 @@ void main() {
     });
   });
 
-  group('Money.platformFee()', () {
-    test('is 0 for every price while fees are waived for the beta', () {
-      expect(Money.betaFeeWaiver, isTrue);
-      expect(Money.platformFee(10000, currency: 'aud'), equals(0));
-      expect(Money.platformFee(7777, currency: 'aud'), equals(0));
-      expect(Money.platformFee(1000, currency: null), equals(0));
+  // The same figures `tests/unit/platformFee.test.ts` pins on the server.
+  group('Money.platformFee() — the service fee', () {
+    test('is the clean card rate of price plus postage, across currencies', () {
+      expect(Money.platformFee(1000, currency: 'aud'), equals(90));
+      expect(Money.platformFee(5000, currency: 'aud'), equals(210));
+      expect(Money.platformFee(10000, currency: 'aud'), equals(360));
+      expect(Money.platformFee(100000, currency: 'aud'), equals(3060));
+      expect(Money.platformFee(10000, currency: 'usd'), equals(510));
+      expect(Money.platformFee(10000, currency: 'eur'), equals(360));
+      expect(Money.platformFee(10000, currency: 'gbp'), equals(350));
+      expect(Money.platformFee(100000, currency: 'czk'), equals(4320));
     });
 
-    test('zero price → zero fee', () {
+    test('no currency is AUD', () {
+      expect(Money.platformFee(10000, currency: null), equals(360));
+    });
+
+    test('zero or negative base → zero fee', () {
       expect(Money.platformFee(0, currency: 'aud'), equals(0));
+      expect(Money.platformFee(-5, currency: 'aud'), equals(0));
     });
 
-    test('rate labels name the standard rate and no minimum', () {
-      expect(Money.platformFeeRateLabel('aud'), equals('5%'));
-      expect(Money.tradeFeeRateLabel('aud'), equals('5%'));
+    test('charges the same rate on postage as on the price', () {
+      expect(Money.platformFee(9000, currency: 'aud', shippingCents: 1000), equals(360));
+      expect(
+        Money.platformFee(9000, currency: 'aud', shippingCents: 1000),
+        equals(Money.platformFee(10000, currency: 'aud')),
+      );
     });
 
-    test('fee-waiver copy names the normal rate and never says beta', () {
-      expect(Money.betaFeeNote(), equals('Open beta: NoDitto fees waived (normally 5%)'));
-      expect(Money.feeWaivedHint, equals('Waived during open beta.'));
-      expect(Money.betaFeeNote().toLowerCase(), isNot(contains('beta')));
-      expect(Money.feeWaivedHint.toLowerCase(), isNot(contains('beta')));
-    });
-
-    test('a fee row names the rate only when a fee was charged', () {
-      expect(Money.feeRowLabel('Platform fee', 0), equals('Platform fee'));
-      expect(Money.feeRowLabel('Platform fee', 500), equals('Platform fee (5%)'));
-    });
-  });
-
-  group('Money.standardFee() — the rate once the beta ends', () {
-    test('calculates 5% — 10000 cents → 500 cents', () {
-      expect(Money.standardFeeBps, equals(500));
-      expect(Money.standardFee(10000), equals(500));
-    });
-
-    test('rounds half-up like the server — 7777 cents → 389 cents', () {
-      // 7777 * 500 / 10000 = 388.85 → rounds to 389
-      expect(Money.standardFee(7777), equals(389));
-    });
-
-    test('has no minimum — small sales pay the plain 5%', () {
-      expect(Money.standardFee(1000), equals(50));
-      expect(Money.standardFee(2000), equals(100));
-      expect(Money.standardFee(1), equals(0));
-      expect(Money.standardFee(1999), equals(100));
-    });
-
-    test('zero price → zero fee', () {
-      expect(Money.standardFee(0), equals(0));
-      expect(Money.standardFee(-5), equals(0));
+    test('names the fee and says what is in it', () {
+      expect(Money.processingFeeName, equals('Service fee'));
+      expect(Money.processingFeeHint, contains('1% to NoDitto'));
+      expect(Money.processingRateLabel('aud'), startsWith('3% + '));
+      expect(Money.processingRateLabel('aud'), contains('0.60'));
+      expect(Money.processingRateLabel('usd'), startsWith('4.5% + '));
     });
   });
 
   group('Money.tradeFee()', () {
-    test('is 0 while fees are waived for the beta', () {
+    test('trades carry no fee', () {
       expect(Money.tradeFee(10000, currency: 'aud'), equals(0));
       expect(Money.tradeFee(0, currency: 'aud'), equals(0));
     });
   });
 
   group('Money.cashSaleTotal()', () {
-    test('sums price + shipping + platform fee', () {
-      // price: 10000, shipping: 200, fee: 0 during the beta → total: 10200
+    test('sums price + shipping + the service fee', () {
       final total = Money.cashSaleTotal(
-        priceCents: 10000,
+        priceCents: 9800,
         shippingCents: 200,
         currency: 'aud',
       );
-      expect(total, equals(10200));
-    });
-
-    test('adds no fee on a small sale during the beta', () {
-      final total = Money.cashSaleTotal(
-        priceCents: 1000,
-        shippingCents: 0,
-        currency: 'aud',
-      );
-      expect(total, equals(1000));
+      expect(total, equals(10000 + 349));
     });
   });
 

@@ -30,7 +30,8 @@ import { marked } from '../support/marker';
 import { createListing, STUB_PLACES } from '../support/listings';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
 import { ensureFreshSessions } from '../support/auth';
-import { BETA_FEE_WAIVER } from '../../../domain/fees/betaFeeWaiver';
+import { buyerPaysCents } from '../../../lib/listings/buyerPrice';
+import { formatMoney } from '../../../lib/format';
 
 test.beforeAll(async ({ browser }) => {
   await ensureFreshSessions(browser, [UMA_US_SELLER, VICTOR_US_BUYER, DAVE]);
@@ -79,13 +80,11 @@ test.describe('a US member can list and be found', () => {
     await page.goto(listingUrl);
     await page.waitForLoadState('domcontentloaded');
 
-    // $189.00, not $180.00 — or $180.00 while fees are waived for the beta
-    // (`BETA_FEE_WAIVER`). `ListingDetailStack` shows `buyerPaysCents(priceCents)` for
-    // a SINGLE listing — the seller's asking price plus the Platform_Fee (standard 5%,
-    // PLATFORM_FEE_BPS = 500) — so the figure a buyer reads is the one they will be
-    // charged. This spec asserted the seller's price first and failed; the app was
+    // The asking price plus Stripe's processing fee. `ListingDetailStack` shows
+    // `buyerPaysCents(priceCents)` for a SINGLE listing, so the figure a buyer reads is
+    // the one they will be charged. This spec asserted the seller's price first and failed; the app was
     // right. Worth pinning, because it is the fee being visible BEFORE commitment.
-    const expectedHeadline = BETA_FEE_WAIVER ? '$180.00' : '$189.00';
+    const expectedHeadline = formatMoney(buyerPaysCents(18_000, 'usd'), 'usd').replace(/\s*USD$/, '');
     // FILTERED TO THE VISIBLE PANE. The listing renders TWICE — `ListingDetailStack`
     // for narrow viewports and `ListingDesktopPane` for wide — with the inactive one
     // hidden by CSS rather than unmounted. So `.first()` alone resolves to whichever

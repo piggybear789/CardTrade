@@ -44,7 +44,9 @@ import type {
   IdentityCheck,
   IdentityCheckOutcome,
   IdentityCheckProgress,
+  SavedInstrumentDetails,
 } from '../types';
+import { isBankMethod, type PaymentMethodKind } from '../../payments/paymentMethods';
 import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 
 /** A forced outcome for a simulated payment operation. */
@@ -85,6 +87,12 @@ export interface InMemoryTransfer {
   amount: Cents;
   ref: string;
   status: TransferResult['status'];
+  /** The settlement merchant the collection was made on behalf of, when any. */
+  onBehalfOf?: string;
+  /** The currency the collection was made in, when the caller passed one. */
+  currency?: string;
+  /** The saved card the caller named (0159), when it named one. */
+  sourceId?: string;
 }
 
 /**
@@ -318,6 +326,27 @@ export class InMemoryService
     }
   }
 
+  /**
+   * Where the saved card was issued, as `describeInstrument` reports it (0159). Test
+   * control: undefined reports no country, which prices as a domestic card.
+   */
+  cardCountry: string | undefined = undefined;
+  /** Test control: `describeInstrument` cannot read the card (gone, or the provider failed). */
+  failDescribeInstrument = false;
+
+  /** A saved card's display metadata; the issuing country is {@link cardCountry}. */
+  async describeInstrument(params: {
+    payerId: string;
+    sourceId: string;
+  }): Promise<SavedInstrumentDetails | null> {
+    if (this.failDescribeInstrument || !params.payerId || !params.sourceId) return null;
+    return {
+      brand: 'Visa',
+      last4: '4242',
+      ...(this.cardCountry ? { country: this.cardCountry } : {}),
+    };
+  }
+
   /** Request a bank-to-bank transfer of `amount` (Req 4.2, 8.3). */
   async requestTransfer(params: {
     payerId: string;
@@ -325,17 +354,31 @@ export class InMemoryService
     ref: string;
     nonce: string;
     merchantRef?: string;
+    currency?: string;
     presence?: PaymentPresence;
+    onBehalfOf?: string;
     legacyOffSessionToMember?: boolean;
+    paymentMethod?: PaymentMethodKind;
+    sourceId?: string;
   }): Promise<TransferResult> {
     // ESC-29: the same off-session boundary as the real binding.
     if (params.merchantRef && !params.presence && !params.legacyOffSessionToMember) {
       return { transferId: '', amount: params.amount, status: 'FAILED' };
     }
+    if (params.onBehalfOf && !params.presence) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+    const bank = params.paymentMethod ? isBankMethod(params.paymentMethod) : false;
+    // A bank rail is buyer-present only, as in the real binding.
+    if (bank && !params.presence) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
     const cached = this.cachedByNonce(`transfer:${params.nonce}`);
     if (cached) return cached;
 
-    if (params.presence && this.forceRequiresAction) {
+    // A bank rail always waits for the buyer to approve it in their bank, exactly as
+    // Stripe's unconfirmed intent does; `completeChallenge` plays that approval.
+    if (params.presence && (this.forceRequiresAction || bank)) {
       const transferId = `transfer_${this.nextId()}`;
       const challenged: TransferResult = {
         transferId,
@@ -360,6 +403,9 @@ export class InMemoryService
       amount: params.amount,
       ref: params.ref,
       status: result.status,
+      ...(params.onBehalfOf ? { onBehalfOf: params.onBehalfOf } : {}),
+      ...(params.currency ? { currency: params.currency } : {}),
+      ...(params.sourceId ? { sourceId: params.sourceId } : {}),
     });
     // Collected money is what a later refund or sourced payout is bounded by.
     if (ok) this.ledger.set(result.transferId, { collectedCents: params.amount, spentCents: 0 });

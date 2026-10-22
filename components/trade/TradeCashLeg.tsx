@@ -158,7 +158,7 @@ export function TradeCashLeg({
       {awaitingPayment && iPay && fxFeeCents > 0 ? (
         <CurrencyNotice
           currency={trade.currency}
-          amountMinor={cashAmountCents}
+          fxFeeMinor={fxFeeCents}
           recipient={{ who: 'the other trader', what: 'the agreed cash' }}
           className="mt-cozy"
         />

@@ -143,84 +143,99 @@ abstract final class Money {
     return formatted;
   }
 
-  /// True while every platform fee is waived for the beta.
+  /// The service fee per contract currency, as `[bps, fixedMinor]`: a clean rate of
+  /// price plus postage by a domestic card, plus a fixed part ("3% + A$0.60").
   ///
-  /// Mirrors `BETA_FEE_WAIVER` in `domain/fees/betaFeeWaiver.ts`, and is pinned to it
-  /// by `tests/unit/mobileDomainAgreement.test.ts`. Ending the beta means flipping
-  /// both. ADVISORY: the server decides the fee it charges.
-  static const bool betaFeeWaiver = true;
+  /// Mirrors the domestic card rows of `CARD_FEES` (`serviceFeeRateFor`) in
+  /// `domain/fees/processingFee.ts`, and pinned to it by
+  /// `tests/unit/mobileDomainAgreement.test.ts`. Each rate covers Stripe's costs and
+  /// leaves NoDitto about [nodittoFeeBps]. Every currency here other than aud and usd is
+  /// charged on behalf of its seller, so none pays a conversion fee. ADVISORY: the server
+  /// sizes the fee it charges, and a card issued outside the seller's card zone pays a
+  /// dearer rate there (0159). The server refuses a card total the app did not show,
+  /// with a message pointing at the sale room on the website, which prices every tier.
+  static const Map<String, List<int>> serviceFeeRates = {
+    'aud': [300, 60],
+    'usd': [450, 60],
+    'eur': [300, 60],
+    'gbp': [300, 50],
+    'cad': [450, 70],
+    'chf': [450, 60],
+    'czk': [300, 1320],
+    'dkk': [300, 410],
+    'nok': [400, 620],
+    'sek': [300, 610],
+    'pln': [300, 240],
+    'ron': [300, 270],
+    'bgn': [300, 110],
+  };
 
-  /// The STANDARD fee rate in basis points (5%), once the beta ends.
-  ///
-  /// Mirrors `PLATFORM_FEE_BPS` / `TRADE_FEE_BPS` in the web app.
-  static const int standardFeeBps = 500;
+  /// The rate for a currency missing from [serviceFeeRates]: the most expensive case.
+  static const List<int> serviceFeeRateFallback = [600, 60];
 
-  /// [standardFeeBps] of [baseCents], rounded half-up to the nearest minor unit,
-  /// with no minimum. Zero or negative base → 0. The standard rate, regardless of
-  /// [betaFeeWaiver].
-  ///
-  /// Mirrors `percentageFeeMinor` in `domain/fees/percentageFee.ts`.
-  static int standardFee(int baseCents) {
-    if (baseCents <= 0) return 0;
-    return ((baseCents * standardFeeBps) + 5000) ~/ 10000;
+  /// NoDitto's target share of a cash sale, in basis points. The rates above are set so
+  /// NoDitto keeps about this much. Mirrors `NODITTO_FEE_BPS` in
+  /// `domain/fees/processingFee.ts`.
+  static const int nodittoFeeBps = 100;
+
+  /// The currency conversion fee on a trade's cash leg, in basis points. Mirrors
+  /// `FX_FEE_BPS` in `domain/fees/fxFee.ts`. Cash sales do not pay it.
+  static const int fxFeeBps = 200;
+
+  /// Trades carry no fee. Mirrors `TRADE_FEE_BPS` in `domain/trade/tradeFee.ts`.
+  static const int tradeFeeBps = 0;
+
+  static String _feeCurrency(String? currency) {
+    final String code = (currency ?? '').trim().toLowerCase();
+    return code.isEmpty ? 'aud' : code;
   }
 
-  /// The fee actually applied: 0 while [betaFeeWaiver], else [standardFee].
+  static List<int> _rateFor(String code) =>
+      serviceFeeRates[code] ?? serviceFeeRateFallback;
+
+  /// The service fee on a cash sale paid by card: the clean rate of price plus postage,
+  /// rounded to the nearest cent, plus the fixed part. Zero for a zero base.
   ///
-  /// Mirrors `effectiveFeeBps` in `domain/fees/betaFeeWaiver.ts`.
-  static int _percentageFee(int baseCents) {
-    return betaFeeWaiver ? 0 : standardFee(baseCents);
+  /// Mirrors `platformFeeCentsFor` / `cashSaleFeeMinor` in the web app.
+  static int platformFee(int priceCents, {required String? currency, int shippingCents = 0}) {
+    final int base = (priceCents < 0 ? 0 : priceCents) + (shippingCents < 0 ? 0 : shippingCents);
+    if (base <= 0) return 0;
+    final List<int> rate = _rateFor(_feeCurrency(currency));
+    return ((base * rate[0]) + 5000) ~/ 10000 + rate[1];
   }
 
-  /// Calculates platform fee from item price in the currency's minor units.
-  ///
-  /// 5% of item price (PLATFORM_FEE_BPS = 500), no minimum, and 0 while
-  /// [betaFeeWaiver]. Uses rounding (not
-  /// truncation) to match `platformFeeCentsFor` in
-  /// `domain/orchestrator/cashSaleOrchestrator.ts`. [currency] does not affect
-  /// the result. ADVISORY: the server sizes the fee.
-  static int platformFee(int priceCents, {required String? currency}) {
-    return _percentageFee(priceCents);
-  }
-
-  /// Calculates trade fee for one side (5% of value, no minimum; 0 while
-  /// [betaFeeWaiver]).
-  /// Rounds to match the server's `tradeFeeCentsFor`.
+  /// The fee for one side of a trade: 0, because trades carry no fee.
   static int tradeFee(int valueCents, {required String? currency}) {
-    return _percentageFee(valueCents);
+    if (valueCents <= 0 || tradeFeeBps <= 0) return 0;
+    return ((valueCents * tradeFeeBps) + 5000) ~/ 10000;
   }
 
-  /// The Cash_Sale fee rate as members read it: "5%".
+  /// "3% + $0.60": the card service fee as members read it. Exact: the fee is this rate
+  /// of price plus postage.
   ///
-  /// Mirrors `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
-  static String platformFeeRateLabel(String currency) {
-    return '5%';
+  /// Mirrors `processingFeeRateLabel` in `lib/fees/feeLabels.ts`.
+  static String processingRateLabel(String? currency) {
+    final String code = _feeCurrency(currency);
+    final List<int> rate = _rateFor(code);
+    final double percent = rate[0] / 100;
+    final String percentText = percent == percent.roundToDouble()
+        ? percent.toStringAsFixed(0)
+        : percent.toStringAsFixed(2).replaceAll(RegExp(r'0$'), '');
+    return '$percentText% + ${format(rate[1], code)}';
   }
 
-  /// The per-trader Trade_Fee rate as members read it: "5%".
-  ///
-  /// Mirrors `tradeFeeRateLabel` in `lib/fees/feeLabels.ts`.
-  static String tradeFeeRateLabel(String currency) {
-    return '5%';
-  }
+  /// The fee row's name. Mirrors `PROCESSING_FEE_NAME` in `lib/fees/feeLabels.ts`.
+  static const String processingFeeName = 'Service fee';
 
-  /// "Open beta: NoDitto fees waived (normally 5%)", the sentence prose surfaces use.
-  /// Member copy never says "beta".
-  ///
-  /// Mirrors `betaFeeNote` in `lib/fees/feeLabels.ts`.
-  static String betaFeeNote() => 'Open beta: NoDitto fees waived (normally 5%)';
+  /// Hint beside the fee row. Mirrors `PROCESSING_FEE_HINT` in `lib/fees/feeLabels.ts`.
+  static const String processingFeeHint =
+      "Covers Stripe's payment and payout costs, plus about 1% to NoDitto. Returned if the sale is refunded in full.";
 
-  /// Hint beside a $0.00 fee row. Mirrors `FEE_WAIVED_HINT` in `lib/fees/feeLabels.ts`.
-  static const String feeWaivedHint = 'Waived during open beta.';
+  /// Where a trade would show a fee. Mirrors `TRADE_NO_FEE_NOTE` in `lib/fees/feeLabels.ts`.
+  static const String tradeNoFeeNote =
+      'Trades have no NoDitto fee. The collateral is a card hold, which costs nothing.';
 
-  /// A fee row's label: "Platform fee (5%)" when a fee was stored, or the bare name
-  /// when it is 0. Decided by the figure, so a stored pre-waiver fee names the rate.
-  ///
-  /// Mirrors `platformFeeRowLabel` / `tradeFeeRowLabel` in `lib/fees/feeLabels.ts`.
-  static String feeRowLabel(String name, int feeCents) =>
-      feeCents == 0 ? name : '$name (5%)';
-
-  /// Returns total cost for a cash sale buyer: price + shipping + platform fee.
+  /// Returns total cost for a cash sale buyer: price + shipping + service fee.
   static int cashSaleTotal({
     required int priceCents,
     required int shippingCents,
@@ -228,6 +243,6 @@ abstract final class Money {
   }) {
     return priceCents +
         shippingCents +
-        platformFee(priceCents, currency: currency);
+        platformFee(priceCents, currency: currency, shippingCents: shippingCents);
   }
 }

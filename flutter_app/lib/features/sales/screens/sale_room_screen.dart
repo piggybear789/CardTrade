@@ -212,9 +212,9 @@ class _SaleRoomScreenState extends ConsumerState<SaleRoomScreen> {
   /// The viewer's own total: what a buyer is charged, or what a seller receives.
   ///
   /// Both are server-recorded figures. The seller's is `amount_cents` less the
-  /// platform fee, exactly as `sellerNetCents` in the web room: shipping is a
-  /// pass-through that belongs to the seller and the fee is already computed on
-  /// the item price alone. Nothing here recomputes a fee (Req 7.5).
+  /// service fee, exactly as `sellerNetCents` in the web room: shipping is a
+  /// pass-through that belongs to the seller, and the buyer pays the fee on top.
+  /// Nothing here recomputes a fee (Req 7.5).
   static int _viewerTotalCents(CashSale sale, CashSaleRole role) {
     if (role == CashSaleRole.buyer) return sale.amountCents;
     final int net = sale.amountCents - sale.platformFeeCents;
@@ -233,11 +233,9 @@ class _SaleRoomScreenState extends ConsumerState<SaleRoomScreen> {
         value: Money.format(sale.shippingCostCents, sale.currency),
       ),
       ContractMoneyRow(
-        label: Money.feeRowLabel('Platform fee', sale.platformFeeCents),
+        label: Money.processingFeeName,
         value: Money.format(sale.platformFeeCents, sale.currency),
-        hint: sale.platformFeeCents == 0
-            ? Money.feeWaivedHint
-            : 'Charged on the item price only.',
+        hint: Money.processingFeeHint,
       ),
       ContractMoneyRow(
         label: role == CashSaleRole.buyer ? 'You pay' : 'You receive',

@@ -31,6 +31,7 @@ function report(overrides: Partial<CustodyReport> = {}): CustodyReport {
     currency: 'aud',
     unreadableReason: null,
     unconvertedSales: 0,
+    otherCurrencies: [],
     ...overrides,
   };
 }

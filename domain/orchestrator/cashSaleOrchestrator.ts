@@ -19,9 +19,21 @@ import {
   tradingRegions,
   type RegionCode,
 } from '../region';
-import { percentageFeeMinor } from '../fees/percentageFee';
-import { effectiveFeeBps } from '../fees/betaFeeWaiver';
-import { currencyConversionFeeFor } from '../fees/fxFee';
+import { cashSaleFeeMinor } from '../fees/processingFee';
+import { chargesOnBehalfOfSeller } from '../payments/onBehalfOf';
+import {
+  CARD_METHODS,
+  cardMethodFor,
+  cardTierPhrase,
+  isBankMethod,
+  isCardMethod,
+  paymentMethodDefinition,
+  paymentMethodsFor,
+  paymentRailOf,
+  serviceFeeForMethod,
+  totalForMethod,
+  type PaymentMethodKind,
+} from '../payments/paymentMethods';
 import {
   canReceiveFunds,
   sellerIdentityDisclosure,
@@ -72,34 +84,25 @@ export type CashSaleStatus =
   | 'RETURN_IN_TRANSIT';
 
 /**
- * Platform fee rate in basis points (1 bp = 0.01%), so 500 bp = 5% of the
- * agreed item price. Held in basis points rather than a float percentage so the
- * fee stays exact integer arithmetic end-to-end — no floating-point money.
+ * The fee on a Cash_Sale, in the contract currency's minor units (Req 4.7): the
+ * Service_Fee, which passes Stripe's card and payout costs through to the buyer and
+ * adds NoDitto's own fee on the item price (`domain/fees/processingFee.ts`).
  *
- * This is the STANDARD rate. While `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`)
- * is on, the applied rate is 0.
+ * Stripe's part is charged on what the seller receives: the item price PLUS postage,
+ * because Stripe charges on the whole payment. NoDitto's part is on the price alone.
+ * Re-derived whenever either changes (price, line items, postage) so the stored fee
+ * always matches the contract it sits on.
+ *
+ * Disclosure and charge both call this function, so they cannot disagree. Callers
+ * that cannot know the postage yet (a listing's headline price) pass none, and the
+ * figure they show is the fee before postage.
  */
-export const PLATFORM_FEE_BPS = 500;
-
-/**
- * The Platform_Fee for a given agreed item price, in the contract currency's minor
- * units (Req 4.7).
- *
- * A plain `PLATFORM_FEE_BPS` of the item price, with NO minimum. A per-contract
- * floor was removed deliberately; that small sales may not cover the provider's
- * fixed costs is an accepted trade-off.
- *
- * The fee is charged on the item price only — shipping is a pass-through cost to
- * the carrier, not platform revenue, so it is excluded from the base. Rounded to
- * the nearest minor unit (`Math.round`); a price of 0 yields a fee of 0.
- *
- * BETA WAIVER: the fee is 0 for every price while `BETA_FEE_WAIVER` is on. Disclosure
- * and charge both call this function, so they cannot disagree.
- *
- * `_currency` does not affect the result and is kept so callers keep their signature.
- */
-export function platformFeeCentsFor(agreedPriceCents: Cents, _currency?: string | null): Cents {
-  return percentageFeeMinor(agreedPriceCents, effectiveFeeBps(PLATFORM_FEE_BPS));
+export function platformFeeCentsFor(
+  agreedPriceCents: Cents,
+  currency?: string | null,
+  shippingCents: Cents = 0,
+): Cents {
+  return cashSaleFeeMinor(agreedPriceCents, shippingCents, currency);
 }
 
 export interface BuyerRecord {
@@ -240,6 +243,11 @@ export interface CashSaleRecord {
    * where the record came from a member-scoped read.
    */
   paymentAttempt?: number;
+  /**
+   * How the buyer chose to pay at the last claim (0158), which is also the rail the
+   * stored fee and amount are priced for. Absent or null: card.
+   */
+  paymentMethod?: PaymentMethodKind | null;
   fulfillmentMethod: FulfillmentMethod | null;
   shippingCostCents: Cents;
   shippingNotes: string | null;
@@ -471,7 +479,13 @@ export type CashSaleError =
    * ESC-02: the carrier scanned this parcel before the buyer paid, so it cannot be
    * this sale's shipment (the stale-number attack). Expected; nothing is written.
    */
-  | 'TRACKING_PREDATES_PAYMENT';
+  | 'TRACKING_PREDATES_PAYMENT'
+  /**
+   * 0159: the buyer's saved card is priced at a different card tier from the total they
+   * were shown (the card was issued abroad, or was changed since). Expected; nothing is
+   * written, and the buyer reviews the new total before paying.
+   */
+  | 'CARD_REPRICED';
 
 export type CashSaleResult =
   | {
@@ -500,11 +514,14 @@ export type CashSaleResult =
        */
       flagged?: boolean;
       /**
-       * ESC-03: the issuer asked for a 3-D Secure challenge. The sale stays
-       * PAYMENT_PENDING; the browser runs `handleNextAction` with this secret and
-       * then calls `confirmCashSalePayment`. Never persisted, never logged.
+       * ESC-03: the issuer asked for a 3-D Secure challenge, or (a bank rail, 0158)
+       * the buyer still has to approve the payment in their bank. The sale stays
+       * PAYMENT_PENDING; the browser runs `handleNextAction` (card) or confirms the
+       * rail in Payment Element (bank) with this secret and then calls
+       * `confirmCashSalePayment`. `paymentMethod` says which. Never persisted, never
+       * logged.
        */
-      nextAction?: { clientSecret: string; publishableKey?: string };
+      nextAction?: { clientSecret: string; publishableKey?: string; paymentMethod?: PaymentMethodKind };
     }
   | { ok: false; error: CashSaleError; detail?: string };
 
@@ -616,6 +633,12 @@ export interface CashSaleRepository {
     actorId: string;
     expectedTermsVersion: number;
     terms: NormalizedCashSaleTerms;
+    /**
+     * The fee re-derived for the new postage (0157). The Processing_Fee is charged on
+     * price plus postage, so a postage change moves it; written in the same statement
+     * as the postage so `amount = price + fee + postage` never holds a stale fee.
+     */
+    platformFeeCents: Cents;
   }): Promise<CashSaleTermsUpdateResult>;
   /**
    * Renegotiate the agreed item price. The database bumps the terms version,
@@ -650,6 +673,12 @@ export interface CashSaleRepository {
     requestedAt: string;
     /** ESC-03: the attempt number this claim's nonce was built from. */
     attempt?: number;
+    /**
+     * 0158: the rail the buyer chose, with the fee and total re-priced for it, written
+     * in the same guarded UPDATE so the charge, the stored fee and the seller's net
+     * (`amount - fee`) can never describe different rails. Omitted: unchanged (card).
+     */
+    payment?: { method: PaymentMethodKind; platformFeeCents: Cents; amountCents: Cents };
   }): Promise<CashSaleRecord | null>;
   /**
    * ESC-03: PAYMENT_PENDING back to AGREEMENT after an abandoned challenge was
@@ -1225,19 +1254,27 @@ type AgreementIdentity =
   | { when: 'NOW'; sellerIdentityVersion: string; buyerConfirmedSellerIdentity: boolean }
   | { when: 'AT_PAYMENT' };
 
-/** Buy Now creates a reserved agreement; it does not submit payment. */
+/**
+ * Buy Now creates a reserved agreement; it does not submit payment.
+ *
+ * NO SAVED CARD IS NEEDED TO OPEN IT. Opening collects nothing (payment is the
+ * commitment, 0099), and since 0158 a buyer may pay from their bank instead of a card,
+ * so asking for a card here shut every bank-only buyer out of the listing. The way to
+ * pay is chosen and checked at Pay (`acceptCashSaleTerms`), which refuses a card
+ * payment with no card while leaving the sale untouched so the room can collect one,
+ * exactly as a private deal has always worked. Related accounts are checked again at
+ * Pay, once a card has been added.
+ */
 export async function initiateCashSale(
   deps: CashSaleOrchestratorDeps,
   params: InitiateCashSaleParams,
 ): Promise<CashSaleResult> {
-  const buyer = await deps.repository.loadBuyer(params.buyerId);
-  if (!buyer?.payerId || !buyer.paymentSourceId) {
-    return {
-      ok: false,
-      error: 'BUYER_NO_PAYMENT_METHOD',
-      detail: 'Add a payment method before starting an agreement.',
-    };
-  }
+  // A missing Profile still reaches the region guard, which refuses an unknown region.
+  const buyer = (await deps.repository.loadBuyer(params.buyerId)) ?? {
+    profileId: params.buyerId,
+    payerId: null,
+    paymentSourceId: null,
+  };
 
   return openAgreement(deps, buyer, {
     buyerId: params.buyerId,
@@ -1524,7 +1561,8 @@ export async function replaceCashSaleItems(
     lineItems,
     agreedPriceCents,
     platformFeeCents:
-      deps.platformFeeCents ?? platformFeeCentsFor(agreedPriceCents, sale.currency),
+      deps.platformFeeCents ??
+      platformFeeCentsFor(agreedPriceCents, sale.currency, sale.shippingCostCents),
   });
   if (!updated) return { ok: false, error: 'STALE_TERMS' };
 
@@ -1632,6 +1670,13 @@ export async function updateCashSaleTerms(
     actorId: params.actorId,
     expectedTermsVersion: sale.termsVersion,
     terms,
+    platformFeeCents:
+      deps.platformFeeCents ??
+      platformFeeCentsFor(
+        sale.agreedPriceCents,
+        sale.currency,
+        terms.fulfillmentMethod === 'DELIVERY' ? (terms.shippingCostCents ?? 0) : 0,
+      ),
   });
   if (!updated.ok) {
     if (updated.reason === 'UNAVAILABLE') {
@@ -1814,8 +1859,11 @@ async function submitClaimedPayment(
   deps: CashSaleOrchestratorDeps,
   sale: CashSaleRecord,
 ): Promise<CashSaleResult> {
+  // 0158: the rail the claim was priced for. A bank rail needs no saved card.
+  const method: PaymentMethodKind = sale.paymentMethod ?? 'CARD';
+  const bank = isBankMethod(method);
   const buyer = await deps.repository.loadBuyer(sale.buyerId);
-  if (!buyer?.payerId || !buyer.paymentSourceId) {
+  if (!buyer || (!bank && (!buyer.payerId || !buyer.paymentSourceId))) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
     await syncListingStatus(deps, sale, 'AVAILABLE');
     return { ok: false, error: 'BUYER_NO_PAYMENT_METHOD' };
@@ -1828,7 +1876,13 @@ async function submitClaimedPayment(
     await syncListingStatus(deps, sale, 'AVAILABLE');
     return { ok: false, error: 'SELLER_IDENTITY_CHANGED' };
   }
-  if ((deps.payoutMode ?? 'platform') === 'direct' && !canReceiveFunds(payee)) {
+  // A cross-border seller's sale is charged ON BEHALF OF their connected account
+  // (`domain/payments/onBehalfOf.ts`), which therefore has to exist and be live.
+  const onBehalfOfSeller = chargesOnBehalfOfSeller(sale.currency);
+  if (
+    ((deps.payoutMode ?? 'platform') === 'direct' || onBehalfOfSeller) &&
+    !canReceiveFunds(payee)
+  ) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
     await syncListingStatus(deps, sale, 'AVAILABLE');
     return { ok: false, error: 'SELLER_NOT_PAYABLE' };
@@ -1837,6 +1891,11 @@ async function submitClaimedPayment(
   let target: { payerId: string; merchantRef?: string } | null;
   try {
     target = await resolvePaymentPayer(deps, sale, buyer, payee);
+    // A bank rail is approved in the buyer's own bank, so it needs no Stripe Customer;
+    // one is attached when the buyer already has it.
+    if (!target && bank && (deps.payoutMode ?? 'platform') !== 'direct') {
+      target = { payerId: buyer.payerId ?? '' };
+    }
   } catch (error) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
     await syncListingStatus(deps, sale, 'AVAILABLE');
@@ -1855,15 +1914,22 @@ async function submitClaimedPayment(
   // was no escrow: the money was already gone when a dispute could first arise.
   // Funds now always land in the platform balance and are released explicitly by
   // `payoutCashSaleSeller` once the sale completes (Req 4.3).
-  // The contract total PLUS the Currency_Conversion fee when the platform settles in
-  // another currency. The buyer absorbs the conversion so the seller is paid exactly
-  // the agreed figure; the Pay step disclosed this same number from the same function.
-  const fxFeeCents = currencyConversionFeeFor(sale.amountCents, sale.currency);
+  // The contract total and nothing else. A sale in a currency its platform does not
+  // settle in is charged on behalf of the seller, so it settles in its own currency
+  // and there is no conversion to pay for: no Currency_Conversion fee (it is recorded
+  // as 0, and rows collected before this keep the fee stored on them).
+  const fxFeeCents = 0;
   //
   // BUYER-PRESENT (ESC-03 layer 2). The buyer just pressed Pay, so the collection is
   // on-session and the issuer may challenge it. A stolen card number alone then
   // cannot pay, and a passed challenge moves the fraud liability to the issuer.
   const completedPurchases = (await deps.repository.countCompletedPurchases?.(sale.buyerId)) ?? 0;
+  // THE CARD THAT WAS PRICED IS THE CARD THAT IS CHARGED (0159). The fee was set from
+  // this saved card's issuing country, so it is named rather than left to the payer's
+  // provider-side default. Only on the buyer's own payer: a payer minted per merchant
+  // (`PAYOUT_MODE=direct`) has no card of this id attached.
+  const sourceId =
+    !bank && buyer.paymentSourceId && target.payerId === buyer.payerId ? buyer.paymentSourceId : undefined;
   const transfer = await deps.payments.requestTransfer({
     payerId: target.payerId,
     amount: sale.amountCents + fxFeeCents,
@@ -1878,7 +1944,24 @@ async function submitClaimedPayment(
         currency: sale.currency,
       }),
     },
+    ...(onBehalfOfSeller && payee?.merchantRef ? { onBehalfOf: payee.merchantRef } : {}),
+    ...(bank ? { paymentMethod: method } : {}),
+    ...(sourceId ? { sourceId } : {}),
   });
+
+  // A bank rail the provider would not open (not enabled on the account, or the
+  // seller's account lacks the rail's capability) collected nothing and is no
+  // decline: back to AGREEMENT, item still reserved, so the buyer can pay another way.
+  if (bank && transfer.status === 'FAILED' && deps.repository.abandonPayment) {
+    const reopened = await deps.repository.abandonPayment({ cashSaleId: sale.id });
+    if (reopened) {
+      return {
+        ok: false,
+        error: 'NOT_SUPPORTED',
+        detail: `${paymentMethodDefinition(method).label} isn't available for this sale right now. Nothing was charged. Choose another way to pay.`,
+      };
+    }
+  }
 
   if (transfer.status === 'REQUIRES_ACTION') {
     // Recorded so the challenge can be resumed from a reload or another device
@@ -1887,6 +1970,7 @@ async function submitClaimedPayment(
     const pending = await deps.repository.recordPaymentSubmission({
       cashSaleId: sale.id,
       transferId: transfer.transferId,
+      fxFeeCents,
     });
     return {
       ok: true,
@@ -1896,6 +1980,7 @@ async function submitClaimedPayment(
             nextAction: {
               clientSecret: transfer.clientSecret,
               ...(transfer.publishableKey ? { publishableKey: transfer.publishableKey } : {}),
+              paymentMethod: method,
             },
           }
         : {}),
@@ -1958,10 +2043,19 @@ export async function acceptCashSaleTerms(
     buyerConfirmedSellerIdentity?: boolean;
     /**
      * ESC-31: the total the Buyer was shown when the Pay dialog opened. A charge
-     * for any other amount is refused as STALE_TERMS, even on the same terms
-     * version. Optional so the mobile client keeps working; the web always sends it.
+     * for any other amount is refused as STALE_TERMS (or CARD_REPRICED when it is the
+     * total for another card tier), even on the same terms version. It is the total
+     * FOR `paymentMethod`, since each rail carries its own fee, and for card the total
+     * at the buyer's own card's tier. Optional so the mobile client keeps working; a
+     * card payment without it is held to the stored contract total.
      */
     expectedAmountCents?: Cents;
+    /**
+     * 0158: how the buyer chose to pay. Absent is card, so the mobile client and every
+     * older caller keep paying exactly as before. Any card kind is read as card: the
+     * saved card's issuing country picks its tier (0159).
+     */
+    paymentMethod?: PaymentMethodKind;
   },
 ): Promise<CashSaleResult> {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
@@ -1975,13 +2069,9 @@ export async function acceptCashSaleTerms(
       detail: 'Only the buyer can start payment.',
     };
   }
-  if (params.expectedAmountCents !== undefined && params.expectedAmountCents !== sale.amountCents) {
-    return {
-      ok: false,
-      error: 'STALE_TERMS',
-      detail: 'The seller changed the terms. Review them before paying.',
-    };
-  }
+  // What the buyer chose. Any card kind a caller sends is the choice "Card": which card
+  // tier applies is the card's to decide, below, never the caller's.
+  const rail: PaymentMethodKind = paymentRailOf(params.paymentMethod ?? 'CARD');
   if (sale.status !== 'AGREEMENT') return { ok: false, error: 'INVALID_STATE' };
   if (!sale.fulfillmentMethod) return { ok: false, error: 'INVALID_TERMS' };
   if (sale.fulfillmentMethod === 'DELIVERY' && !sale.deliveryAddressConfigured) {
@@ -2028,12 +2118,101 @@ export async function acceptCashSaleTerms(
   // wrong as the answer to pressing Pay before adding one. Refused here with the sale
   // untouched, so the room can collect a card and the Buyer can pay straight after.
   const buyer = await deps.repository.loadBuyer(sale.buyerId);
-  if (!buyer?.payerId || !buyer.paymentSourceId) {
+  if (!buyer) return { ok: false, error: 'BUYER_NO_PAYMENT_METHOD', detail: 'Add a card before you pay.' };
+  if (rail === 'CARD' && (!buyer.payerId || !buyer.paymentSourceId)) {
     return {
       ok: false,
       error: 'BUYER_NO_PAYMENT_METHOD',
       detail: 'Add a card before you pay.',
     };
+  }
+
+  // THE CARD'S OWN RATE (0159). Stripe charges more for a card issued outside the
+  // seller's card zone, so the saved card's issuing country picks the card tier. It is
+  // read live from the provider, the same read the Pay dialog priced the card with, and
+  // `submitClaimedPayment` charges exactly this card. A provider without the read prices
+  // a domestic card; a card it cannot read is refused with the sale untouched.
+  let method: PaymentMethodKind = rail;
+  if (rail === 'CARD' && deps.payments.describeInstrument) {
+    const card = await deps.payments.describeInstrument({
+      payerId: buyer.payerId!,
+      sourceId: buyer.paymentSourceId!,
+    });
+    if (!card) {
+      return {
+        ok: false,
+        error: 'BUYER_NO_PAYMENT_METHOD',
+        detail: "We couldn't read your saved card, so nothing was charged. Try again, or add the card again.",
+      };
+    }
+    method = cardMethodFor(sale.currency, card.country);
+  }
+
+  // THE RAIL PRICES THE CHARGE (0158). The fee and total are re-derived for the chosen
+  // rail, or the card's tier, by the same function the Pay dialog priced each option
+  // with, so what the buyer saw beside the option is what is compared and charged. A
+  // method the contract is still priced for keeps its stored fee.
+  const methodFeeCents = serviceFeeForMethod(sale, method);
+  const methodAmountCents = totalForMethod(sale, method);
+  // ESC-31: the total the buyer was shown. The web sends the figure beside the option
+  // chosen. A caller that sends none (the mobile app) was shown the stored contract
+  // total while it is priced for a card, else the domestic card total (a row an
+  // abandoned bank attempt re-priced), so a card priced above that is refused rather
+  // than charged unseen.
+  const shownAmountCents =
+    params.expectedAmountCents ??
+    (rail === 'CARD'
+      ? isCardMethod(sale.paymentMethod ?? 'CARD')
+        ? sale.amountCents
+        : totalForMethod(sale, 'CARD')
+      : undefined);
+  if (shownAmountCents !== undefined && shownAmountCents !== methodAmountCents) {
+    // The total for a different card tier means the card, not the terms, moved it.
+    if (rail === 'CARD' && CARD_METHODS.some((tier) => tier !== method && totalForMethod(sale, tier) === shownAmountCents)) {
+      const cards = cardTierPhrase(sale.currency, method);
+      return {
+        ok: false,
+        error: 'CARD_REPRICED',
+        detail: `${cards && method !== 'CARD' ? `Your card was ${cards}, so its service fee is higher.` : "Your card's service fee is different from the one shown."} Nothing was charged. Review the total and pay again.`,
+      };
+    }
+    return {
+      ok: false,
+      error: 'STALE_TERMS',
+      detail: 'The seller changed the terms. Review them before paying.',
+    };
+  }
+
+  // A bank rail is offered only in its own currency, to a buyer whose bank runs it,
+  // under its limit. The dialog lists the same set; this refuses a forged choice.
+  if (
+    !isCardMethod(method) &&
+    !paymentMethodsFor({
+      currency: sale.currency,
+      buyerRegion: buyer.regionCode,
+      amountMinor: methodAmountCents,
+    }).includes(method)
+  ) {
+    return {
+      ok: false,
+      error: 'NOT_SUPPORTED',
+      detail: `${paymentMethodDefinition(method).label} isn't available for this sale. Choose another way to pay.`,
+    };
+  }
+
+  // A CROSS-BORDER SELLER MUST BE PAYABLE FIRST. Their sale is charged on behalf of
+  // their own connected account (`domain/payments/onBehalfOf.ts`), so it cannot be taken
+  // until that account is live. Refused here with the sale untouched, so the Buyer can
+  // pay as soon as the Seller finishes payout setup.
+  if (chargesOnBehalfOfSeller(sale.currency)) {
+    const payee = await deps.repository.loadSellerPayee(sale.sellerId);
+    if (!canReceiveFunds(payee)) {
+      return {
+        ok: false,
+        error: 'SELLER_NOT_PAYABLE',
+        detail: "The seller hasn't finished setting up payouts yet, so this sale can't be paid. Try again once they have.",
+      };
+    }
   }
 
   // ESC-03 layer 3 again at Pay (signals can arrive after the agreement opened), and
@@ -2083,12 +2262,21 @@ export async function acceptCashSaleTerms(
   const nonce =
     deps.createNonce?.() ??
     `cash-sale:${sale.id}:terms:${sale.termsVersion}:attempt:${attempt}`;
+  // Re-price the row for the rail only when it changes anything, so a card payment on
+  // a card-priced contract writes exactly the claim it always did.
+  const repriced =
+    method !== (sale.paymentMethod ?? 'CARD') ||
+    methodFeeCents !== sale.platformFeeCents ||
+    methodAmountCents !== sale.amountCents;
   const claimed = await deps.repository.claimPayment({
     cashSaleId: sale.id,
     termsVersion: sale.termsVersion,
     nonce,
     requestedAt: currentIso(deps),
     attempt,
+    ...(repriced
+      ? { payment: { method, platformFeeCents: methodFeeCents, amountCents: methodAmountCents } }
+      : {}),
   });
   if (!claimed) {
     const current = await deps.repository.loadCashSale(sale.id);
@@ -2137,8 +2325,9 @@ export async function settleCashSale(
   // The buyer is charged the contract total PLUS any Currency_Conversion fee (0136),
   // derived by the same function the charge used, so the binding compares like with like.
   // The fee RECORDED at Pay wins, so a later change to the rate cannot strand an
-  // in-flight sale; derived only for rows written before the column existed.
-  const expectedCollected = sale.amountCents + (sale.fxFeeCents ?? currencyConversionFeeFor(sale.amountCents, sale.currency));
+  // in-flight sale. The column defaults to 0, and sales charged on behalf of the
+  // seller pay none, so an absent value is 0.
+  const expectedCollected = sale.amountCents + (sale.fxFeeCents ?? 0);
   if (params.paymentRef !== sale.transferId || params.amountReceived !== expectedCollected) {
     return {
       ok: false,
@@ -2221,18 +2410,21 @@ export async function getCashSalePaymentAction(
   deps: CashSaleOrchestratorDeps,
   params: { actorId: string; cashSaleId: string },
 ): Promise<
-  | { ok: true; clientSecret: string | null; publishableKey?: string }
+  | { ok: true; clientSecret: string | null; publishableKey?: string; paymentMethod: PaymentMethodKind }
   | { ok: false; error: CashSaleError }
 > {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
   if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
   if (participantRole(sale, params.actorId) !== 'BUYER') return { ok: false, error: 'NOT_PARTICIPANT' };
+  // 0158: whether the secret finishes a card check or opens a bank approval.
+  const paymentMethod: PaymentMethodKind = sale.paymentMethod ?? 'CARD';
   if (sale.status !== 'PAYMENT_PENDING' || !sale.transferId || !deps.payments.readCollection) {
-    return { ok: true, clientSecret: null };
+    return { ok: true, clientSecret: null, paymentMethod };
   }
   const collection = await deps.payments.readCollection(sale.transferId);
   return {
     ok: true,
+    paymentMethod,
     clientSecret: collection.status === 'REQUIRES_ACTION' ? (collection.clientSecret ?? null) : null,
     ...(collection.status === 'REQUIRES_ACTION' && collection.publishableKey
       ? { publishableKey: collection.publishableKey }
@@ -4352,6 +4544,7 @@ export interface CashSaleOrchestrator {
     sellerIdentityVersion?: string;
     buyerConfirmedSellerIdentity?: boolean;
     expectedAmountCents?: Cents;
+    paymentMethod?: PaymentMethodKind;
   }): Promise<CashSaleResult>;
   settleCashSale(params: {
     cashSaleId: string;
@@ -4366,7 +4559,7 @@ export interface CashSaleOrchestrator {
     actorId: string;
     cashSaleId: string;
   }): Promise<
-    | { ok: true; clientSecret: string | null; publishableKey?: string }
+    | { ok: true; clientSecret: string | null; publishableKey?: string; paymentMethod: PaymentMethodKind }
     | { ok: false; error: CashSaleError }
   >;
   /** ESC-14: react to an issuer's early fraud warning on this sale's charge. */

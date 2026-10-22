@@ -17,9 +17,9 @@
 // price-plus-fee a total is a promise the flow cannot keep.
 
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { buyerChargeMinorFor } from '@/domain/fees/fxFee';
 
-// The member-facing rate label is `platformFeeRateLabel` in `lib/fees/feeLabels.ts`.
+// The member-facing rate label is `processingFeeRateLabel` in `lib/fees/feeLabels.ts`.
+// The headline is the fee before postage: postage is agreed later and moves the fee.
 
 /**
  * What the buyer is charged for an item listed at `priceCents` in `currency`: the
@@ -35,11 +35,9 @@ import { buyerChargeMinorFor } from '@/domain/fees/fxFee';
  * rather than this function guessing, because it takes cents and not a listing.
  */
 export function buyerPaysCents(priceCents: number, currency: string | null): number {
-  // Plus the Currency_Conversion fee where this currency's platform settles in
-  // another one (a EUR or GBP listing on the US platform). Same function the
-  // orchestrator charges with, applied to the same price-plus-fee base, so the
-  // headline never rises between reading and paying (shipping aside, as above).
-  return buyerChargeMinorFor(priceCents + platformFeeCentsFor(priceCents, currency), currency);
+  // No Currency_Conversion fee: a EUR or GBP sale is charged on behalf of its seller
+  // and settles in its own currency (`domain/payments/onBehalfOf.ts`).
+  return priceCents + platformFeeCentsFor(priceCents, currency);
 }
 
 /**

@@ -71,6 +71,11 @@ import type {
 } from '../types';
 import type { StripeConfig } from './config';
 import { metadataFor } from './metadata';
+import {
+  isBankMethod,
+  paymentMethodDefinition,
+  type PaymentMethodKind,
+} from '../../payments/paymentMethods';
 import { identityFingerprints } from '../../identity/identityFingerprint';
 import {
   identitySessionCreateParams,
@@ -583,7 +588,8 @@ export class StripeService implements PaymentService, PayerService {
   }
 
   /**
-   * Read a saved card's display metadata (Req 4.13 display path).
+   * Read a saved card's display metadata (Req 4.13 display path), and the country it
+   * was issued in, which prices a cash-sale card payment (0159).
    *
    * OWNERSHIP IS VERIFIED, not assumed. `paymentMethods.retrieve` will happily
    * return any instrument in the account, so the customer on the returned object
@@ -613,6 +619,8 @@ export class StripeService implements PaymentService, PayerService {
         last4: method.card.last4 ?? undefined,
         expMonth: method.card.exp_month ?? undefined,
         expYear: method.card.exp_year ?? undefined,
+        // The issuing country prices a cash-sale card payment (0159).
+        ...(method.card.country ? { country: method.card.country.toUpperCase() } : {}),
       };
     } catch {
       // A retrieve failure is not worth surfacing on a settings page: the stored
@@ -844,7 +852,10 @@ export class StripeService implements PaymentService, PayerService {
     applicationFee?: Cents;
     currency?: string;
     presence?: PaymentPresence;
+    onBehalfOf?: string;
     legacyOffSessionToMember?: boolean;
+    paymentMethod?: PaymentMethodKind;
+    sourceId?: string;
   }): Promise<TransferResult> {
     // ESC-29: off-session is for collateral holds and the Trade_Fee. Money forwarded
     // to a member must be paid by a buyer who is present. Refused before any call.
@@ -852,8 +863,14 @@ export class StripeService implements PaymentService, PayerService {
       return { transferId: '', amount: params.amount, status: 'FAILED' };
     }
     const currency = this.contractCurrency(params.currency);
+    if (params.paymentMethod && isBankMethod(params.paymentMethod)) {
+      return this.startBankCollection({ ...params, paymentMethod: params.paymentMethod, currency });
+    }
     try {
-      const paymentMethod = await this.defaultPaymentMethod(params.payerId);
+      // The card the fee was priced for (0159), else the Customer's default. Stripe
+      // refuses a PaymentMethod that is not attached to `customer`, so naming one cannot
+      // charge another member's card.
+      const paymentMethod = params.sourceId || (await this.defaultPaymentMethod(params.payerId));
       if (!paymentMethod) return { transferId: '', amount: params.amount, status: 'FAILED' };
 
       // ESC-03: a BUYER_PRESENT collection is on-session, so the issuer may
@@ -877,6 +894,10 @@ export class StripeService implements PaymentService, PayerService {
           payment_method_types: CARD_ONLY,
           confirm: true,
           ...presenceParams,
+          // A cross-border seller's sale is charged on behalf of their account, so it is
+          // priced and settled in their country and currency (`domain/payments/onBehalfOf.ts`).
+          // Still a platform charge: the money lands here and nothing is forwarded.
+          ...(params.onBehalfOf ? { on_behalf_of: params.onBehalfOf } : {}),
           description: 'NoDitto payment',
           metadata: metadataFor('TRANSFER', params.ref),
           expand: ['latest_charge'],
@@ -901,8 +922,9 @@ export class StripeService implements PaymentService, PayerService {
         return { transferId: intent.id, amount: params.amount, status: 'FAILED' };
       }
 
-      // A charge in a currency the platform does not settle in is converted on the
-      // spot; record what actually landed so custody can compare like with like.
+      // A charge in a currency the platform does not settle in either was converted on
+      // the spot or (on behalf of a seller) settled in its own currency; record what
+      // actually landed, in which currency, so custody can compare like with like.
       const settlement =
         currency === this.opts.config.currency ? undefined : await this.settledAmountOf(intent);
 
@@ -937,6 +959,60 @@ export class StripeService implements PaymentService, PayerService {
   }
 
   /**
+   * Open a bank-rail collection for the buyer to approve (`domain/payments/paymentMethods.ts`).
+   *
+   * Created UNCONFIRMED with the one rail the buyer chose, so Stripe cannot fall back
+   * to a different (differently priced) method. The browser confirms it in Payment
+   * Element against the buyer's bank, and the read-back or the webhook settles it.
+   * No saved instrument is needed, so the Customer is attached only when we have one.
+   * Buyer-present by construction: refused without `presence`.
+   *
+   * A create error (rail not enabled on the account, a cross-border seller account
+   * without the rail's capability) is FAILED with nothing collected; the orchestrator
+   * puts the sale back to AGREEMENT so the buyer can pay another way.
+   */
+  private async startBankCollection(params: {
+    payerId: string;
+    amount: Cents;
+    ref: string;
+    nonce: string;
+    currency: string;
+    presence?: PaymentPresence;
+    onBehalfOf?: string;
+    paymentMethod: PaymentMethodKind;
+  }): Promise<TransferResult> {
+    if (!params.presence) return { transferId: '', amount: params.amount, status: 'FAILED' };
+    const rail = paymentMethodDefinition(params.paymentMethod);
+    try {
+      const intent = await this.stripe.paymentIntents.create(
+        {
+          amount: params.amount,
+          currency: params.currency,
+          ...(params.payerId ? { customer: params.payerId } : {}),
+          payment_method_types: [rail.stripeType],
+          ...(params.onBehalfOf ? { on_behalf_of: params.onBehalfOf } : {}),
+          description: 'NoDitto payment',
+          metadata: metadataFor('TRANSFER', params.ref),
+        },
+        { idempotencyKey: params.nonce },
+      );
+      if (!intent.client_secret) {
+        return { transferId: intent.id, amount: params.amount, status: 'FAILED' };
+      }
+      return {
+        transferId: intent.id,
+        amount: params.amount,
+        status: 'REQUIRES_ACTION',
+        clientSecret: intent.client_secret,
+        ...(this.opts.config.publishableKey ? { publishableKey: this.opts.config.publishableKey } : {}),
+      };
+    } catch (err) {
+      this.warn('startBankCollection', params.ref, err);
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+  }
+
+  /**
    * Release escrowed funds from the platform balance to a Seller (Req 4.3).
    *
    * `transfers.create` ONLY — deliberately no PaymentIntent. The Buyer was
@@ -958,8 +1034,8 @@ export class StripeService implements PaymentService, PayerService {
     currency?: string;
   }): Promise<TransferResult> {
     try {
-      const sourceTransaction = params.sourcePaymentRef
-        ? await this.chargeForPaymentRef(params.sourcePaymentRef)
+      const source = params.sourcePaymentRef
+        ? await this.sourceChargeOf(params.sourcePaymentRef)
         : undefined;
 
       const transfer = await this.transferExactly({
@@ -968,7 +1044,8 @@ export class StripeService implements PaymentService, PayerService {
         currency: this.contractCurrency(params.currency),
         ref: params.ref,
         idempotencyKey: params.nonce,
-        sourceTransaction,
+        sourceTransaction: source?.chargeId,
+        sourceSettledIn: source?.settledIn,
       });
       if (!transfer) return { transferId: '', amount: params.amount, status: 'FAILED' };
 
@@ -1004,6 +1081,11 @@ export class StripeService implements PaymentService, PayerService {
    * Rounded UP, so the seller is never short a minor unit. The buyer funded the
    * difference through the Currency_Conversion fee (`domain/fees/fxFee.ts`).
    *
+   * EXCEPT when the source charge settled in the contract's own currency: a sale charged
+   * on behalf of a cross-border seller (`domain/payments/onBehalfOf.ts`) lands in the
+   * platform balance as EUR, and a EUR transfer against it goes through as is (verified
+   * in test mode on 2026-10-16). No quote, no conversion.
+   *
    * Returns null when no quote is available rather than guessing a rate: the payout
    * then stays queued and is retried, which is strictly better than paying a seller a
    * figure nobody agreed to.
@@ -1020,13 +1102,18 @@ export class StripeService implements PaymentService, PayerService {
     ref: string;
     idempotencyKey: string;
     sourceTransaction?: string;
+    /** The currency the source charge settled in, when known. */
+    sourceSettledIn?: string;
   }): Promise<{ id: string; settlement?: { amount: Cents; currency: string } } | null> {
     const settles = this.opts.config.currency;
-    if (params.currency === settles) {
+    const sameCurrency =
+      params.currency === settles ||
+      (Boolean(params.sourceTransaction) && params.sourceSettledIn === params.currency);
+    if (sameCurrency) {
       const transfer = await this.stripe.transfers.create(
         {
           amount: params.amount,
-          currency: settles,
+          currency: params.currency,
           destination: params.merchantRef,
           // Ties the transfer to the charge, so it succeeds even before the funds
           // have settled into the platform's available balance.
@@ -1264,8 +1351,8 @@ export class StripeService implements PaymentService, PayerService {
    * platform that collected a payment this morning holds that money, it simply cannot
    * pay it out yet. Excluding it would report a shortfall on a healthy account.
    */
-  async getPlatformBalance(): Promise<PlatformBalance> {
-    const currency = this.opts.config.currency;
+  async getPlatformBalance(requested?: string): Promise<PlatformBalance> {
+    const currency = this.contractCurrency(requested);
     try {
       const balance = await this.stripe.balance.retrieve();
       const sumFor = (entries: { amount: number; currency: string }[] | undefined) =>
@@ -1347,14 +1434,24 @@ export class StripeService implements PaymentService, PayerService {
     }
   }
 
-  /** Resolve the charge behind a collection PaymentIntent, for `source_transaction`. */
-  private async chargeForPaymentRef(paymentRef: string): Promise<string | undefined> {
+  /**
+   * Resolve the charge behind a collection PaymentIntent, for `source_transaction`, and
+   * the currency it settled in (a sale charged on behalf of a cross-border seller
+   * settles in the seller's currency, so its payout needs no conversion).
+   */
+  private async sourceChargeOf(
+    paymentRef: string,
+  ): Promise<{ chargeId?: string; settledIn?: string } | undefined> {
     if (!paymentRef.startsWith('pi_')) return undefined;
     try {
       const intent = await this.stripe.paymentIntents.retrieve(paymentRef, {
-        expand: ['latest_charge'],
+        expand: ['latest_charge.balance_transaction'],
       });
-      return chargeIdOf(intent);
+      const bt = latestCharge(intent)?.balance_transaction;
+      return {
+        chargeId: chargeIdOf(intent),
+        ...(bt && typeof bt === 'object' ? { settledIn: bt.currency } : {}),
+      };
     } catch {
       // Not fatal: fall back to drawing on the available balance.
       return undefined;
@@ -1367,10 +1464,11 @@ export class StripeService implements PaymentService, PayerService {
    * Open a connected account so a User can RECEIVE money — a Cash_Sale Seller,
    * or a fraud victim paid captured collateral (Req 4, 8.3).
    *
-   * Deliberately a RECIPIENT-shaped account: it requests only `transfers`, never
-   * `card_payments`. A marketplace connected account never accepts payments
-   * itself (the platform is merchant of record), and requesting payment
-   * capabilities would impose a much heavier onboarding burden for no benefit.
+   * A RECIPIENT-shaped account for a seller in the platform's own country: it
+   * requests only `transfers`, never `card_payments`, because a heavier onboarding
+   * would buy nothing. A seller in ANOTHER country also gets `card_payments` (see the
+   * configuration below), which their transfers require and their on-behalf-of sales
+   * use.
    *
    * `controller` is set explicitly rather than using the legacy `type`
    * parameter. Platform-owned losses are mandatory for separate charges and
@@ -1403,15 +1501,32 @@ export class StripeService implements PaymentService, PayerService {
       // `stripe_transfers` on a cross-border account without `card_payments`
       // ("capability_not_available_without_other_capability", verified 2026-10-13),
       // because cross-border payouts are unavailable under a recipient service
-      // agreement. The card capability is never used: the account still only
-      // RECEIVES transfers. Onboarding asks such sellers for more (a business category
-      // and website among them), which is the accepted cost of opening their country.
+      // agreement. The card capability is also what lets their sales be charged ON
+      // BEHALF OF the account (`domain/payments/onBehalfOf.ts`), so a EUR sale is priced
+      // and settled in the seller's country with no conversion. The account still never
+      // charges anyone itself. Onboarding asks such sellers for more (a business
+      // category and website among them), which is the accepted cost of opening their
+      // country.
       configuration: {
         recipient: {
           capabilities: { stripe_balance: { stripe_transfers: { requested: true } } },
         },
+        // The EU bank rails a buyer may pay this seller's sales with
+        // (`domain/payments/paymentMethods.ts`) are charged on behalf of this account
+        // too, so the account needs each rail's capability as well as cards'. Without
+        // one, that rail's create fails and the buyer is asked to pay another way.
         ...(crossBorder
-          ? { merchant: { capabilities: { card_payments: { requested: true } } } }
+          ? {
+              merchant: {
+                capabilities: {
+                  card_payments: { requested: true },
+                  ideal_payments: { requested: true },
+                  bancontact_payments: { requested: true },
+                  eps_payments: { requested: true },
+                  p24_payments: { requested: true },
+                },
+              },
+            }
           : {}),
       },
       defaults: {
@@ -1770,9 +1885,12 @@ function resolveAccountCountry(
 /** ESC-29: a charge forwarded to a member without the payer present. */
 function offSessionToMemberRefused(params: {
   merchantRef?: string;
+  onBehalfOf?: string;
   presence?: PaymentPresence;
   legacyOffSessionToMember?: boolean;
 }): boolean {
+  // A charge on behalf of a seller is a cash-sale collection, so it is buyer-present.
+  if (params.onBehalfOf && !params.presence) return true;
   return Boolean(params.merchantRef) && !params.presence && !params.legacyOffSessionToMember;
 }
 
@@ -1793,8 +1911,19 @@ export function collectionStatusOf(intent: Stripe.PaymentIntent): CollectionStat
     case 'processing':
     case 'requires_confirmation':
       return { status: 'PENDING', amountReceived: 0 };
-    case 'canceled':
     case 'requires_payment_method':
+      // A bank-rail collection starts here and returns here when the buyer backs out
+      // of their bank: still theirs to approve, not a failure. It stays resumable
+      // until the abandoned-payment sweep cancels it. A card intent here was declined.
+      if (
+        (intent.payment_method_types ?? []).length > 0 &&
+        !intent.payment_method_types.includes('card') &&
+        intent.client_secret
+      ) {
+        return { status: 'REQUIRES_ACTION', amountReceived: 0, clientSecret: intent.client_secret };
+      }
+      return { status: 'FAILED', amountReceived: 0 };
+    case 'canceled':
       return { status: 'FAILED', amountReceived: 0 };
     default:
       // `requires_capture` is a manual-capture HOLD, never a collection.

@@ -24,7 +24,6 @@
 
 import { beforeEach, describe, expect, it, type Mock, vi } from 'vitest';
 
-import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
 
 import { createFakeAdmin, type FakeAdmin } from './fakes/supabaseChain';
 
@@ -255,7 +254,7 @@ describe('drainFailedTradeFees', () => {
   });
 });
 
-describe.runIf(BETA_FEE_WAIVER)('chargeTradeFees during the beta fee waiver', () => {
+describe('chargeTradeFees while trades carry no fee', () => {
   it('writes no fee row and makes no provider call', async () => {
     admin = createFakeAdmin({
       defaults: { profiles: { data: { payer_id: 'payer_1' } } },

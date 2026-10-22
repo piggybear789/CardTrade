@@ -1,91 +1,120 @@
 // lib/fees/feeLabels.ts
 //
-// How the Platform_Fee and Trade_Fee read to members, e.g. "5%".
+// How NoDitto's fees read to members. The ONLY fee wording, so every surface says the
+// same thing.
 //
-// Derived from the same constants the charge uses (`PLATFORM_FEE_BPS`, `TRADE_FEE_BPS`),
-// so the copy cannot drift from what is collected. There is no fee minimum, so the
-// label is the bare rate.
+// THE MODEL. A cash-sale buyer pays one Service_Fee on top of the price
+// (`domain/fees/processingFee.ts`): a clean rate per currency and way of paying, e.g.
+// "3% + A$0.60" by an Australian card in Australia, which covers Stripe's payment and
+// payout costs and leaves NoDitto about 1% (NODITTO_FEE_BPS). A card issued outside the
+// seller's card zone pays a dearer rate (0159), named by `otherCardRatesNote`. The seller receives exactly their price plus
+// postage. Trades carry no fee: their collateral is a card hold that costs nothing. A
+// trade's cash leg in a converted currency also pays the Currency_Conversion fee
+// (`domain/fees/fxFee.ts`); a cash sale does not, because it is charged on behalf of the
+// seller.
 //
-// BETA WAIVER. Every fee is waived while `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`)
-// is on. The rate labels below still return the STANDARD rate; the strings after them
-// are the ONLY fee-waiver wording, so every surface says the same thing. Member copy
-// says NoDitto is in OPEN BETA and that NoDitto's fees are waived, and names the normal
-// rate. It never says "all fees": the Currency_Conversion fee (`domain/fees/fxFee.ts`)
-// is a provider cost passed through and is still charged on a cross-border purchase.
-// Never "$0.00 fee" in prose either. Money tables keep the numeric $0.00 so the arithmetic adds up,
-// and name the rate in the row label only when a fee was charged. No end date is promised.
+// The rate labels are read from the same table the charge uses, so the copy cannot drift
+// from what is collected, and they are EXACT: the fee is the label's rate applied to
+// price plus postage, rounded to the cent. Copy never says "about" a rate.
 
-import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
-import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
+import { NODITTO_FEE_BPS, bpsLabel, processingRateParts } from '@/domain/fees/processingFee';
+import {
+  cardTierPhrase,
+  isCardMethod,
+  paymentMethodDefinition,
+  type PaymentMethodKind,
+} from '@/domain/payments/paymentMethods';
+import { formatMoney } from '@/lib/format';
 
-function rateLabel(rateBps: number): string {
-  return `${rateBps / 100}%`;
-}
+/** The fee's name in money tables and breakdowns. */
+export const PROCESSING_FEE_NAME = 'Service fee';
 
-/** The Cash_Sale fee as members read it: "5%". */
-export function platformFeeRateLabel(_currency?: string | null): string {
-  return rateLabel(PLATFORM_FEE_BPS);
-}
-
-/** The Cash_Sale fee as a phrase for prose: "5% of the item price". */
-export function platformFeePhrase(_currency?: string | null): string {
-  return `${PLATFORM_FEE_BPS / 100}% of the item price`;
-}
-
-/** The per-trader Trade_Fee as members read it: "5%". */
-export function tradeFeeRateLabel(_currency?: string | null): string {
-  return rateLabel(TRADE_FEE_BPS);
-}
-
-/** Whether fees are waived for the beta. Read at call time, from the one switch. */
-export function feesWaivedForBeta(): boolean {
-  return BETA_FEE_WAIVER;
-}
-
-/** "Open beta: NoDitto fees waived (normally 5%)" — the sentence prose surfaces use. */
-export function betaFeeNote(): string {
-  return `Open beta: NoDitto fees waived (normally ${rateLabel(PLATFORM_FEE_BPS)})`;
+/** "1%": NoDitto's own share of the fee, approximately (the rates are rounded). */
+export function nodittoFeeRateLabel(): string {
+  return bpsLabel(NODITTO_FEE_BPS);
 }
 
 /**
- * The explanatory form, for the popover and help: "We're waiving fees for now. The
- * standard fee is 5%, and we'll tell you before it applies."
+ * "3% + A$0.60": the whole fee for a sale in `currency` paid with `method` (card by
+ * default), of price plus postage. Exact.
  */
-export function feeWaiverExplanation(): string {
-  return `NoDitto is in open beta, so NoDitto fees are waived. We'll tell you before standard fees apply.`;
+export function processingFeeRateLabel(
+  currency?: string | null,
+  method: PaymentMethodKind = 'CARD',
+): string {
+  const code = currency?.trim().toLowerCase() || 'aud';
+  const { percent, fixedMinor } = processingRateParts(code, method);
+  return `${percent} + ${formatMoney(fixedMinor, code)}`;
 }
-
-/** Under a listing's price while waived: the waiver explanation alone. */
-export const LISTING_BETA_FEE_NOTE = feeWaiverExplanation();
-
-/** Lower-case clause after a figure: "You'd pay $X, no fees for now (normally 5%)". */
-export const NO_FEE_DURING_BETA = `NoDitto fees waived in open beta (normally ${rateLabel(PLATFORM_FEE_BPS)})`;
-
-/** Catalog tile, replaces "incl. fees" while waived. Short form: no room for the rate. */
-export const TILE_BETA_FEE_NOTE = 'no fees in open beta';
-
-/** Hint beside a $0.00 fee row. */
-export const FEE_WAIVED_HINT = 'Waived during open beta.';
-
-/** FeeInfoPopover while waived. */
-export const FEE_POPOVER_WAIVED_TRIGGER = 'Fees waived in open beta. Show breakdown';
-export const FEE_POPOVER_WAIVED_TITLE = 'NoDitto fees waived in open beta';
-export const FEE_POPOVER_WAIVED_FOOTNOTE = `${feeWaiverExplanation()} Postage, if any, is agreed with the seller before you pay. A cross-border purchase still pays the currency conversion fee, which covers the conversion at cost.`;
-
-/** Terms page. Keeps the notice that members will be told before standard fees apply. */
-export const TERMS_BETA_FEE_SENTENCE = `NoDitto is in open beta, and NoDitto's platform fees on cash sales and trades are waived. The standard fee is ${rateLabel(PLATFORM_FEE_BPS)}, and members will be told before standard fees apply. The currency conversion fee on a cross-border purchase is a cost passed through and still applies.`;
 
 /**
- * A Cash_Sale fee row's label: "Platform fee (5%)" when a fee was stored, or the bare
- * name when it is 0. Decided by the FIGURE, so a contract that stored a fee before
- * the waiver still names the rate.
+ * The dearer card rates on a contract in `currency` (0159), e.g. "Cards issued outside
+ * Australia: 5% + $0.60 AUD." Stripe charges more for a card from outside the seller's
+ * card zone, and so does the fee. Empty for a currency with no card zone.
  */
-export function platformFeeRowLabel(name: string, feeCents: number): string {
-  return feeCents === 0 ? name : `${name} (${rateLabel(PLATFORM_FEE_BPS)})`;
+export function otherCardRatesNote(currency?: string | null): string {
+  return (['CARD_UK_EEA', 'CARD_INTERNATIONAL'] as const)
+    .map((method) => {
+      const cards = cardTierPhrase(currency, method);
+      if (!cards) return null;
+      return `Cards ${cards}: ${processingFeeRateLabel(currency, method)}.`;
+    })
+    .filter((line): line is string => Boolean(line))
+    .join(' ');
 }
 
-/** Same as `platformFeeRowLabel`, for a Trade_Fee row. */
-export function tradeFeeRowLabel(name: string, feeCents: number): string {
-  return feeCents === 0 ? name : `${name} (${rateLabel(TRADE_FEE_BPS)})`;
+/**
+ * Which cards a card tier's rate is for, as a clause: "the rate for a card issued
+ * outside Australia". Empty for a domestic card or a bank rail, which need no clause.
+ */
+export function cardTierClause(currency: string | null | undefined, method: PaymentMethodKind): string {
+  if (!isCardMethod(method) || method === 'CARD') return '';
+  const cards = cardTierPhrase(currency, method);
+  return cards ? `the rate for a card ${cards}` : '';
+}
+
+/** What the fee is, in a few sentences, for prose and popovers. */
+export function processingFeeExplanation(currency?: string | null): string {
+  const domestic = cardTierPhrase(currency, 'CARD');
+  const others = otherCardRatesNote(currency);
+  return `The service fee is ${processingFeeRateLabel(currency)} of the price and postage by ${domestic ? `a card ${domestic}` : 'card'}.${others ? ` ${others}` : ''} It covers what Stripe charges to take the payment and pay the seller, plus about ${nodittoFeeRateLabel()} to NoDitto. Paying from your bank, where offered, can cost less.`;
+}
+
+/** Hint beside the fee row in a contract's money table. */
+export const PROCESSING_FEE_HINT = `Covers Stripe's payment and payout costs, plus about ${bpsLabel(NODITTO_FEE_BPS)} to NoDitto. Returned if the sale is refunded in full.`;
+
+/**
+ * What a dispute means on a rail, said to the BUYER, whose protection is NoDitto's
+ * escrow on every rail. The difference is only what their bank can do on top.
+ */
+export function paymentMethodProtectionNote(method: PaymentMethodKind): string {
+  switch (paymentMethodDefinition(method).disputes) {
+    case 'NONE':
+      return 'Final once approved in your bank. Your protection is the NoDitto hold: the seller is paid only after you accept the item.';
+    case 'FINAL':
+      return 'Your protection is the NoDitto hold: the seller is paid only after you accept the item.';
+    case 'CONTESTABLE':
+    default:
+      return 'The seller is paid only after you accept the item.';
+  }
+}
+
+/** Where a trade would show a fee. */
+export const TRADE_NO_FEE_NOTE =
+  "Trades have no NoDitto fee. The collateral is a card hold, which costs nothing.";
+
+/** Terms page, Fees section. */
+export function termsFeeSentence(): string {
+  return (
+    'On a cash sale the buyer pays a service fee on top of the price: a fixed rate of the ' +
+    `price and postage for each way of paying (for example ${processingFeeRateLabel('aud')} ` +
+    'by an Australian card in Australia). A card issued outside the seller\'s country, or ' +
+    'for a European seller outside the EEA or the UK, pays a higher rate, because Stripe ' +
+    'charges more for it. It covers what Stripe charges to take the payment and pay the ' +
+    `seller, plus about ${nodittoFeeRateLabel()} to NoDitto. Every way of paying is shown ` +
+    'with its rate and total before the buyer pays. The seller receives their price and ' +
+    'postage in full. Trades have no fee. Cash paid as part of a cross-border trade also ' +
+    'pays the currency conversion fee, which covers the conversion at cost. If Stripe ' +
+    'changes its pricing, the rates may change for sales agreed after that.'
+  );
 }

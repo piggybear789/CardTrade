@@ -13,6 +13,7 @@ import { test, expect } from '../support/fixtures';
 import { ALICE, BOB, CAROL, DAVE, ERIN, storageStatePath } from '../support/users';
 import { createListing } from '../support/listings';
 import { messageSellerComposer } from '../support/messageSeller';
+import { openBuyCheckout } from '../support/payments';
 
 /** Dump headings, buttons, links, inputs and dialogs with their accessible names. */
 async function dumpPage(page: import('@playwright/test').Page, label: string) {
@@ -486,17 +487,8 @@ test.describe('inspect cash sale room', () => {
   
   await bp.goto(`/listings/${itemId}`);
   await bp.waitForLoadState('domcontentloaded');
-  await bp.getByRole('button', { name: 'Buy now' }).click();
-  
-  const dlg = bp.getByRole('dialog');
-  const addCard = dlg.getByRole('heading', { name: 'Add a payment method' });
-  const checkout = dlg.getByRole('heading', { name: 'Start a purchase contract' });
-  await expect(addCard.or(checkout)).toBeVisible({ timeout: 25_000 });
-  if (await addCard.isVisible().catch(() => false)) {
-    await dlg.getByRole('button', { name: /Save demo card/i }).click();
-    await expect(checkout).toBeVisible({ timeout: 25_000 });
-  }
-  await dlg.getByRole('checkbox').check();
+  // A card is not needed to open the contract (0158); the checkout opens directly.
+  const dlg = await openBuyCheckout(bp);
   await dlg.getByRole('button', { name: 'Reserve item and agree terms' }).click();
   await bp.waitForURL(/\/sales\/[0-9a-f-]{36}/, { timeout: 40_000 });
   const saleUrl = new URL(bp.url()).pathname;

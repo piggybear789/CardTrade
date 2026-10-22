@@ -53,7 +53,6 @@ import {
 } from '@/components/trade/UnlistedItemDialog';
 import { StorageImage } from '@/components/ui/storage-image';
 import { formatMoney, itemImageUrl } from '@/lib/format';
-import { feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
 import { deriveItemTitle } from '@/domain/validation';
@@ -374,14 +373,8 @@ export function TradeOfferForm({
             numbers stop looking like a mistake. */}
         {!isShopfront ? (
           <p className="text-meta text-muted-foreground">
-            {feesWaivedForBeta() ? (
-              <>Valued at the seller&apos;s asking price.</>
-            ) : (
-              <>
-                Valued at the seller&apos;s asking price. The listing&apos;s price includes the
-                cash buyer fee; trades carry their own fee, charged when you both accept.
-              </>
-            )}
+            Valued at the seller&apos;s asking price. The listing&apos;s price includes the
+            service fee a cash buyer pays; trades have no fee.
           </p>
         ) : null}
       </section>

@@ -167,6 +167,20 @@ export function translateStripeEvent(event: Stripe.Event): WebhookEvent[] {
       const intent = event.data.object as Stripe.PaymentIntent;
       const meta = decodeMetadata(intent.metadata);
       if (!meta) return [];
+      // A BANK-RAIL collection (0158) that failed back to `requires_payment_method`
+      // is the buyer backing out of, or being declined by, their bank. The intent is
+      // still theirs to approve, so it is not a failed sale: `readCollection` reports
+      // it resumable, and the abandoned-payment sweep returns the sale to AGREEMENT if
+      // it is never finished. Failing it here would relist goods over a cancelled tap.
+      const types = intent.payment_method_types ?? [];
+      if (
+        meta.kind !== 'HOLD' &&
+        intent.status === 'requires_payment_method' &&
+        types.length > 0 &&
+        !types.includes('card')
+      ) {
+        return [];
+      }
       const reason =
         intent.last_payment_error?.message ??
         intent.last_payment_error?.code ??

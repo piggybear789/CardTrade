@@ -424,7 +424,7 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
-    async updateTerms({ expectedTermsVersion, terms }) {
+    async updateTerms({ expectedTermsVersion, terms, platformFeeCents }) {
       const sale = state.sale;
       if (!sale || sale.status !== 'AGREEMENT') {
         return { ok: false as const, reason: 'STALE' as const };
@@ -441,8 +441,9 @@ export function makeCashSaleRepository(options: {
           terms.fulfillmentMethod === 'DELIVERY'
             ? Boolean(deliveryAddress) || sale.deliveryAddressConfigured
             : false,
-        amountCents:
-          sale.agreedPriceCents + sale.platformFeeCents + terms.shippingCostCents,
+        // Mirrors 0157: the fee is re-derived for the new postage in the same write.
+        platformFeeCents,
+        amountCents: sale.agreedPriceCents + platformFeeCents + terms.shippingCostCents,
         termsVersion: sale.termsVersion + 1,
         version: sale.version + 1,
         buyerTermsAcceptedVersion: null,
@@ -459,7 +460,7 @@ export function makeCashSaleRepository(options: {
       // Matches the trigger: a price change bumps the version and clears ticks.
       // The percentage Platform_Fee is re-derived
       // from the new price, mirroring the Supabase repository.
-      const feeCents = platformFeeCentsFor(agreedPriceCents, sale.currency);
+      const feeCents = platformFeeCentsFor(agreedPriceCents, sale.currency, sale.shippingCostCents);
       state.sale = {
         ...sale,
         agreedPriceCents,
@@ -516,7 +517,7 @@ export function makeCashSaleRepository(options: {
       };
       return state.sale;
     },
-    async claimPayment({ termsVersion, nonce, requestedAt, attempt }) {
+    async claimPayment({ termsVersion, nonce, requestedAt, attempt, payment }) {
       const sale = state.sale;
       if (
         !sale ||
@@ -532,6 +533,14 @@ export function makeCashSaleRepository(options: {
         paymentNonce: nonce,
         paymentRequestedAt: requestedAt,
         ...(attempt !== undefined ? { paymentAttempt: attempt } : {}),
+        // Mirrors 0158: the chosen rail, fee and total land in the same guarded write.
+        ...(payment
+          ? {
+              paymentMethod: payment.method,
+              platformFeeCents: payment.platformFeeCents,
+              amountCents: payment.amountCents,
+            }
+          : {}),
       };
       return state.sale;
     },
@@ -811,6 +820,8 @@ export function makePayments(
       merchantRef?: string;
       applicationFee?: number;
       amount: number;
+      currency?: string;
+      onBehalfOf?: string;
     }[],
     /**
      * Seller releases out of the platform balance, recorded SEPARATELY from
@@ -838,6 +849,8 @@ export function makePayments(
       nonce: string;
       merchantRef?: string;
       applicationFee?: number;
+      currency?: string;
+      onBehalfOf?: string;
     }) {
       calls.transfers.push({
         payerId: params.payerId,
@@ -845,6 +858,8 @@ export function makePayments(
         merchantRef: params.merchantRef,
         applicationFee: params.applicationFee,
         amount: params.amount,
+        ...(params.currency ? { currency: params.currency } : {}),
+        ...(params.onBehalfOf ? { onBehalfOf: params.onBehalfOf } : {}),
       });
       return {
         transferId: 'transfer-1',

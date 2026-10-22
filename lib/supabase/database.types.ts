@@ -998,6 +998,18 @@ export type Database = {
           fraud_warning_received_at: string | null;
           /** ESC-03: per-attempt payment idempotency (0138). Server-only. */
           payment_attempt: number;
+          /** 0158: how the buyer chose to pay at the last claim; 0159 adds the card tiers. Null: a domestic card. */
+          payment_method_kind:
+            | 'CARD'
+            | 'CARD_UK_EEA'
+            | 'CARD_INTERNATIONAL'
+            | 'US_BANK'
+            | 'IDEAL'
+            | 'BANCONTACT'
+            | 'EPS'
+            | 'P24'
+            | 'PAYTO'
+            | null;
           /** Return-conditional refund leg (0088). Separate from the outbound
               columns above so a return event cannot overwrite the original
               delivery record that inspection and arbitration depend on. */
@@ -1133,6 +1145,17 @@ export type Database = {
           seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
           fraud_warning_received_at?: string | null;
           payment_attempt?: number;
+          payment_method_kind?:
+            | 'CARD'
+            | 'CARD_UK_EEA'
+            | 'CARD_INTERNATIONAL'
+            | 'US_BANK'
+            | 'IDEAL'
+            | 'BANCONTACT'
+            | 'EPS'
+            | 'P24'
+            | 'PAYTO'
+            | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;
@@ -1243,6 +1266,17 @@ export type Database = {
           seller_payout_hold_reason?: 'CHARGE_DISPUTE' | 'FRAUD_WARNING' | 'STAFF' | null;
           fraud_warning_received_at?: string | null;
           payment_attempt?: number;
+          payment_method_kind?:
+            | 'CARD'
+            | 'CARD_UK_EEA'
+            | 'CARD_INTERNATIONAL'
+            | 'US_BANK'
+            | 'IDEAL'
+            | 'BANCONTACT'
+            | 'EPS'
+            | 'P24'
+            | 'PAYTO'
+            | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
           return_tracking_status?: string | null;
@@ -3642,6 +3676,8 @@ export type Database = {
           p_delivery_country_code?: string | null;
           p_delivery_lat?: number | null;
           p_delivery_lng?: number | null;
+          /** 0157: the fee re-derived for the new postage. Omitted keeps the stored fee. */
+          p_platform_fee_cents?: number | null;
         };
         Returns: Database['cardtrade']['Tables']['cash_sales']['Row'][];
       };

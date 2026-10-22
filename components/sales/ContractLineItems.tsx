@@ -33,7 +33,7 @@ import {
   type CashSaleLineItemInput,
 } from '@/domain/validation/cashSaleLineItems';
 import { CURRENCY_CODE, formatMoney } from '@/lib/format';
-import { betaFeeNote, feesWaivedForBeta, platformFeeRateLabel } from '@/lib/fees/feeLabels';
+import { processingFeeRateLabel } from '@/lib/fees/feeLabels';
 import { Label } from '@/components/ui/label';
 import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
@@ -195,14 +195,8 @@ export function ContractRequestFields({
         <p id={`${priceId}-hint`} className="text-body text-muted-foreground">
           The price for the lot
           {offerCents > 0 ? ` — ${formatMoney(offerCents, currency)}` : ''}.{' '}
-          {feesWaivedForBeta() ? (
-            <>Any postage is added on top when you agree terms. {betaFeeNote()}.</>
-          ) : (
-            <>
-              The platform fee ({platformFeeRateLabel(currency)}) and any postage are added on
-              top when you agree terms.
-            </>
-          )}
+          The service fee ({processingFeeRateLabel(currency)} by card) and any postage are
+          added on top when you agree terms.
         </p>
       </div>
 

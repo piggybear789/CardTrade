@@ -53,14 +53,11 @@ vi.mock('@/components/reports/ReportDialog', () => ({
 
 import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import type { TradeFacts, TradeViewerContext } from '@/domain/state-machine/types';
-import { FEE_WAIVED_HINT, feesWaivedForBeta, tradeFeeRowLabel } from '@/lib/fees/feeLabels';
+import { TRADE_NO_FEE_NOTE } from '@/lib/fees/feeLabels';
 
-// What the room passes while fees are waived for the beta, and at the standard rate.
-const WAIVED = feesWaivedForBeta();
-const cost = WAIVED
-  ? { feeText: '$0.00', feeLabel: tradeFeeRowLabel('NoDitto fee', 0), collateralText: '$700.00' }
-  : { feeText: '$35.00', feeLabel: tradeFeeRowLabel('NoDitto fee', 3_500), collateralText: '$700.00' };
-const feeHint = WAIVED ? FEE_WAIVED_HINT : 'Charged when the card hold is placed.';
+// What the room passes: trades carry no fee, and the row says so.
+const cost = { feeText: '$0.00', feeLabel: 'NoDitto fee', collateralText: '$700.00' };
+const feeHint = TRADE_NO_FEE_NOTE;
 
 function facts(overrides: Partial<TradeFacts> = {}): TradeFacts {
   const noOne = { initiator: false, counterpart: false };
@@ -148,7 +145,7 @@ describe('trade accept dialog — cost disclosure', () => {
     // Exact strings, not a loose match: the description prose also mentions charging,
     // and a regex passes on that while saying nothing about the hints that sit beside
     // the two figures — which is the part a reader actually uses to tell them apart.
-    // Design §1.12 / ESC-01: the fee lands with the card hold (or is waived for beta).
+    // Design §1.12 / ESC-01: the fee row says trades have no fee.
     expect(within(dialog).getByText(feeHint)).toBeInTheDocument();
     expect(
       within(dialog).getByText(/^A temporary card hold, not a charge\./),

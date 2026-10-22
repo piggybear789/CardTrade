@@ -257,6 +257,14 @@
     margin-right: 0 !important;
   }
 
+  /* NO FOCUS OUTLINE ON A POINTER CLICK. The browser's default outline (a heavy
+     black ring) was drawing on anything with a tabindex the moment it was
+     clicked, e.g. the reference-graph nodes, which read as a broken "selected"
+     state. Keyboard focus still matches :focus-visible and keeps its ring. */
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
   html[data-keyboard-open='true'] {
     /* The software keyboard becomes the bottom chrome. Do not reserve the hub's
        56px while it is hidden, or a chat composer loses that space twice. */

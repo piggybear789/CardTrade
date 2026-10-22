@@ -113,19 +113,19 @@ test.describe.serial('Cash sale lifecycle', () => {
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: RENDERED });
   
-  // The dialog fetches payment-method status on open and swaps its whole body on
-  // the answer, so wait for one of the two possible headings rather than assuming
-  // which. Seeded members carry a mock payer but no attached instrument, so a
-  // first-time buyer lands on the card form.
-  const addCard = dialog.getByRole('heading', { name: 'Add a payment method' });
+  // The dialog reads the saved card on open and then shows the checkout. A card is not
+  // needed to open the contract (0158), so a first-time buyer sees "No card needed yet"
+  // with an optional "Add a card". This spec pays by card later, so it adds one here.
   const checkout = dialog.getByRole('heading', { name: 'Start a purchase contract' });
-  await expect(addCard.or(checkout)).toBeVisible({ timeout: 25_000 });
+  await expect(checkout).toBeVisible({ timeout: 25_000 });
+  const addCard = dialog.getByRole('button', { name: 'Add a card' });
   if (await addCard.isVisible().catch(() => false)) {
+    await addCard.click();
     // Under the mock provider the card form offers a single button, because real
     // card fields are rendered by Stripe in its own iframe and there is nothing
     // for a test to type.
     await dialog.getByRole('button', { name: /Save demo card/i }).click();
-    await expect(checkout).toBeVisible({ timeout: 25_000 });
+    await expect(dialog.getByRole('button', { name: 'Change' })).toBeVisible({ timeout: 25_000 });
   }
   
   // THE DISCLOSURE IS ASSERTED, NOT ACKNOWLEDGED — and the change is worth knowing.

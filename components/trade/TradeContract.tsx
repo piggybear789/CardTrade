@@ -55,7 +55,6 @@ import {
   type SavedCardStatus,
 } from '@/components/payments/SavedCardRow';
 import { tradeFeeCentsFor } from '@/domain/trade/tradeFee';
-import { feesWaivedForBeta, tradeFeeRowLabel } from '@/lib/fees/feeLabels';
 import { tradeAcceptCopy } from '@/lib/handover/terms';
 import { HandoverChangeBanner, type HandoverChangeView } from '@/components/trade/HandoverChangeBanner';
 import {
@@ -883,7 +882,7 @@ function TradeContractRoom({
     cashAmountCents: goods?.cashAmountCents ?? 0,
   });
 
-  // Each trader's fee is 5% of what THEY receive, so the viewer's own fee is sized
+  // Each trader's fee is `TRADE_FEE_BPS` (0) of what THEY receive, so the viewer's own fee is sized
   // from the other side's bundle plus any cash coming to them. Derived here rather
   // than read from `trade_fees`, because the fee has to be disclosed BEFORE it is
   // charged — the row does not exist until both sides have accepted.
@@ -1146,7 +1145,7 @@ function TradeContractRoom({
                             goods && theirsValueCents > 0
                               ? {
                                   feeText: formatMoney(myFeeCents, trade.currency),
-                                  feeLabel: tradeFeeRowLabel('NoDitto fee', myFeeCents),
+                                  feeLabel: 'NoDitto fee',
                                   collateralText: formatMoney(
                                     theirsValueCents,
                                     trade.currency,
@@ -1298,11 +1297,9 @@ function TradeContractRoom({
                         // Disclosed on the side that PAYS it, sized on what that
                         // trader receives — so it appears against your column while
                         // being derived from theirs.
+                        // Trades have no fee, so this is 0 and the panel draws no
+                        // fee line; kept wired so a fee could return in one place.
                         feeCents: myFeeCents,
-                        feeLabel: tradeFeeRowLabel('NoDitto fee', myFeeCents),
-                        // During the beta the $0.00 line still shows, so the fee's
-                        // absence is stated rather than silent.
-                        feeWaived: feesWaivedForBeta() && theirsValueCents + cashToMe > 0,
                         emptyLabel: 'You are putting up no goods.',
                       },
                       {
@@ -1321,8 +1318,6 @@ function TradeContractRoom({
                         // receive" would put a credit in a column of debits.
                         cashLabel: 'Cash they pay via Stripe',
                         feeCents: theirFeeCents,
-                        feeLabel: tradeFeeRowLabel('NoDitto fee', theirFeeCents),
-                        feeWaived: feesWaivedForBeta() && yoursValueCents + cashToThem > 0,
                         emptyLabel: 'They are putting up no goods.',
                       },
                     ]}

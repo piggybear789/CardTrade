@@ -123,6 +123,24 @@ export const STUB_PLACES: Record<string, StubbedPlace> = {
     lng: -122.6784,
     countryCode: 'US',
   },
+  // EU places for the bank-rail run against real Stripe (tests/e2e/stripe/). The
+  // secondary text LEADS with the city so `fillPlace`'s query selects it.
+  amsterdam: {
+    placeId: 'ChIJ_e2e_amsterdam_test_place_id',
+    mainText: 'Damrak 1',
+    secondaryText: 'Amsterdam 1012 LG, Netherlands',
+    lat: 52.3747,
+    lng: 4.8986,
+    countryCode: 'NL',
+  },
+  berlin: {
+    placeId: 'ChIJ_e2e_berlin_test_place_id',
+    mainText: 'Unter den Linden 1',
+    secondaryText: 'Berlin 10117, Germany',
+    lat: 52.5170,
+    lng: 13.3889,
+    countryCode: 'DE',
+  },
 };
 
 /**
@@ -137,6 +155,8 @@ const COUNTRY_NAMES: Record<string, string> = {
   AU: 'Australia',
   GB: 'United Kingdom',
   US: 'United States',
+  NL: 'Netherlands',
+  DE: 'Germany',
 };
 
 /** The label `PlaceSearch` renders and `PlaceValue.label` ends up holding. */

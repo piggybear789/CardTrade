@@ -3,9 +3,8 @@
 // The listing page's right-hand pane and phone stack, restored to the design before
 // 81ca4e8 (Watch and Report beside the title, seller card, actions pinned to the
 // bottom), with three pieces kept from the later redesign: the fee-inclusive price,
-// the muted "Includes $X buyer fee" note under it, and the one-line buyer protection
-// strip. While fees are waived for the beta (`BETA_FEE_WAIVER`) the note reads
-// "No fees for now (normally 5%)" instead, so the assertions branch on the switch.
+// the muted "Includes $X service fee" note under it, and the one-line buyer
+// protection strip.
 
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -41,30 +40,22 @@ import { ListingDesktopPane } from '@/components/listings/ListingDesktopPane';
 import { ListingDetailStack } from '@/components/listings/ListingDetailStack';
 import { MessageSellerButton } from '@/components/messages/MessageSellerButton';
 import { ListingFeeNote, ListingProtectionLine } from '@/components/listings/ListingTrust';
-import {
-  FEE_POPOVER_WAIVED_TRIGGER,
-  LISTING_BETA_FEE_NOTE,
-  feesWaivedForBeta,
-} from '@/lib/fees/feeLabels';
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { formatMoney } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
 
-/** The note under a single listing's price, on whichever side of the beta switch. */
-const feeNote = (standardText: string) =>
-  feesWaivedForBeta() ? LISTING_BETA_FEE_NOTE : standardText;
+/** The note under a single listing's price: the service fee on that price. */
+const feeNote = (priceCents: number) =>
+  `Includes ${formatMoney(platformFeeCentsFor(priceCents, 'aud'), 'aud')} service fee`;
 
 describe('ListingFeeNote', () => {
-  it('names the buyer fee in muted text with the breakdown trigger', () => {
+  it('names the service fee in muted text with the breakdown trigger', () => {
     const { container } = render(<ListingFeeNote priceCents={40_000_000} currency="aud" />);
-    expect(screen.getByText(feeNote('Includes $20,000.00 buyer fee'))).toBeInTheDocument();
+    expect(screen.getByText(feeNote(40_000_000))).toBeInTheDocument();
     expect(
-      screen.getByRole('button', {
-        name: feesWaivedForBeta()
-          ? FEE_POPOVER_WAIVED_TRIGGER
-          : 'Price includes the NoDitto fee. Show breakdown',
-      }),
+      screen.getByRole('button', { name: "Price includes the service fee. Show breakdown" }),
     ).toBeInTheDocument();
-    expect(container.textContent).not.toContain('$0.00 buyer fee');
+    expect(container.textContent?.toLowerCase()).not.toContain('beta');
     expect(container.querySelector('.text-trust')).toBeNull();
   });
 });
@@ -100,7 +91,7 @@ describe('ListingDesktopPane', () => {
     ...sellerProps,
     title: 'Charizard',
     description: 'Clean slab.',
-    // $4,000.00 asking; the buyer pays $4,200.00 with the 5% fee, or $4,000.00 during the beta.
+    // $4,000.00 asking; the buyer pays it plus the service fee.
     priceCents: 400_000,
     currency: 'aud',
     isShopfront: false,
@@ -113,14 +104,14 @@ describe('ListingDesktopPane', () => {
     createdAt: null,
   };
 
-  it('leads with the fee-inclusive price and the buyer fee note under it', () => {
+  it('leads with the fee-inclusive price and the service fee note under it', () => {
     const { container } = render(
       <ListingDesktopPane {...props}>
         <button type="button">Buy now</button>
       </ListingDesktopPane>,
     );
     expect(container.textContent).toContain(formatMoney(buyerPaysCents(400_000, 'aud'), 'aud'));
-    expect(screen.getByText(feeNote('Includes $200.00 buyer fee'))).toBeInTheDocument();
+    expect(screen.getByText(feeNote(400_000))).toBeInTheDocument();
   });
 
   it('puts Save and Report beside the title', () => {
@@ -152,7 +143,7 @@ describe('ListingDesktopPane', () => {
         <span />
       </ListingDesktopPane>,
     );
-    expect(screen.queryByText(/buyer fee/)).toBeNull();
+    expect(screen.queryByText(/service fee/)).toBeNull();
     expect(screen.queryByText('Buyer protection:')).toBeNull();
     expect(screen.queryByRole('group', { name: 'Listing actions' })).toBeNull();
   });
@@ -165,7 +156,7 @@ describe('ListingDesktopPane', () => {
     );
     expect(screen.getByText(/^Binder · /)).toBeInTheDocument();
     expect(screen.queryByText(/Multiple items/)).toBeNull();
-    expect(screen.queryByText(/buyer fee/)).toBeNull();
+    expect(screen.queryByText(/service fee/)).toBeNull();
     expect(screen.getByText(/until you accept the cards\./)).toBeInTheDocument();
   });
 
@@ -198,13 +189,13 @@ describe('ListingDetailStack', () => {
 
   it('shows the fee note and the protection strip to a buyer who can buy', () => {
     render(<ListingDetailStack {...props} showTrust />);
-    expect(screen.getByText(feeNote('Includes $200.00 buyer fee'))).toBeInTheDocument();
+    expect(screen.getByText(feeNote(400_000))).toBeInTheDocument();
     expect(screen.getByText('Buyer protection:')).toBeInTheDocument();
   });
 
   it('shows neither when the viewer cannot buy', () => {
     render(<ListingDetailStack {...props} showTrust={false} />);
-    expect(screen.queryByText(/buyer fee/)).toBeNull();
+    expect(screen.queryByText(/service fee/)).toBeNull();
     expect(screen.queryByText('Buyer protection:')).toBeNull();
   });
 
@@ -212,7 +203,7 @@ describe('ListingDetailStack', () => {
     render(<ListingDetailStack {...props} isShopfront showTrust />);
     expect(screen.getByText(/(^|· )Binder( ·|$)/)).toBeInTheDocument();
     expect(screen.queryByText(/nothing is held/)).toBeNull();
-    expect(screen.queryByText(/buyer fee/)).toBeNull();
+    expect(screen.queryByText(/service fee/)).toBeNull();
   });
 });
 

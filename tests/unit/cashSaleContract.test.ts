@@ -146,11 +146,13 @@ describe('cash sale — agreement stage', () => {
     expect(calls.transfers).toHaveLength(0);
   });
 
-  it('rejects a buyer with no vaulted payment source', async () => {
-    const { repository } = makeCashSaleRepository({
-      buyer: { ...BUYER, paymentSourceId: null },
+  it('opens for a buyer with no saved card, who chooses how to pay at Pay', async () => {
+    // A buyer may pay from their bank (0158), so a card is asked for at Pay, where the
+    // sale stays untouched until one is added, and never to open the contract.
+    const { repository, state } = makeCashSaleRepository({
+      buyer: { ...BUYER, payerId: null, paymentSourceId: null },
     });
-    const { payments } = makePayments();
+    const { payments, calls } = makePayments();
     const result = await initiateCashSale(
       {
         repository,
@@ -159,7 +161,10 @@ describe('cash sale — agreement stage', () => {
       },
       CONFIRMED_PURCHASE,
     );
-    expect(result).toMatchObject({ ok: false, error: 'BUYER_NO_PAYMENT_METHOD' });
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.sale.status).toBe('AGREEMENT');
+    expect(state.item.status).toBe('RESERVED');
+    expect(calls.transfers).toHaveLength(0);
   });
 
   it('rejects a seller buying their own listing', async () => {
@@ -262,10 +267,12 @@ describe('cash sale — terms and dual acceptance', () => {
 
     expect(updated.ok).toBe(true);
     if (!updated.ok) return;
+    // The processing fee covers Stripe's cut of the WHOLE payment, so agreeing postage
+    // re-derives it on price plus postage (0157).
+    const fee = platformFeeCentsFor(ITEM.fmvCents, 'aud', DELIVERY_TERMS.shippingCostCents);
+    expect(updated.sale.platformFeeCents).toBe(fee);
     expect(updated.sale.amountCents).toBe(
-      ITEM.fmvCents +
-        platformFeeCentsFor(ITEM.fmvCents, 'aud') +
-        DELIVERY_TERMS.shippingCostCents,
+      ITEM.fmvCents + fee + DELIVERY_TERMS.shippingCostCents,
     );
   });
 
@@ -655,8 +662,10 @@ describe('cash sale — price renegotiation', () => {
     if (!repriced.ok) return;
     expect(repriced.sale.agreedPriceCents).toBe(8_000);
     expect(repriced.sale.amountCents).toBe(
-      // Repricing re-derives the percentage fee from the NEW price.
-      8_000 + platformFeeCentsFor(8_000, 'aud') + DELIVERY_TERMS.shippingCostCents,
+      // Repricing re-derives the fee from the NEW price plus the agreed postage.
+      8_000 +
+        platformFeeCentsFor(8_000, 'aud', DELIVERY_TERMS.shippingCostCents) +
+        DELIVERY_TERMS.shippingCostCents,
     );
     expect(repriced.sale.status).toBe('AGREEMENT');
     expect(repriced.sale.termsVersion).toBe(withTerms.sale.termsVersion + 1);

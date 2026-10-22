@@ -20,5 +20,16 @@ export async function POST(request: NextRequest) {
       data: { handoff: 'WEB', path: `/sales/${encodeURIComponent(cashSaleId)}` },
     });
   }
+  // 0159: the buyer's card was issued outside the seller's card zone, so it costs more
+  // than the stored total the app shows, and the app sends no expected total to price it
+  // against. Nothing was charged. It stays a refusal (the app reports failures by their
+  // message), pointed at the sale room, which prices the buyer's own card before Pay.
+  if (!result.ok && result.error === 'card-repriced') {
+    return NextResponse.json({
+      ...result,
+      message: `${result.message ?? 'Your card has a different service fee.'} The sale room on the website shows the total for your card.`,
+      handoff: { kind: 'WEB', path: `/sales/${encodeURIComponent(cashSaleId)}` },
+    });
+  }
   return NextResponse.json(result);
 }

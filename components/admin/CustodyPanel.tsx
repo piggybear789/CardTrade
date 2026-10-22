@@ -59,7 +59,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
   // dollar sign would be a wrong number rather than a missing one, which on a
   // solvency panel is the more dangerous of the two.
   const money = (cents: number) => formatMoney(cents, currency);
-  const headingId = `custody-heading-${region}`;
+  const headingId = `custody-heading-${region}-${currency}`;
 
   const tone =
     state === 'SHORTFALL'
@@ -91,7 +91,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
       <div className="mb-cozy flex flex-wrap items-center gap-snug">
         {tone.icon}
         <h3 id={headingId} className="text-lead font-semibold">
-          Money held for members — {regionLabel(region)} platform
+          Money held for members — {regionLabel(region)} platform, {currency.toUpperCase()} balance
         </h3>
         <Badge variant={tone.badge}>{tone.label}</Badge>
         <Badge variant="outline" className="uppercase">

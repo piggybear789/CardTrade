@@ -46,6 +46,18 @@ vi.mock('@/domain/services', () => ({
   getPaymentService: () => ({}),
 }));
 
+// The money actions bind the payment service to the sale's own platform account
+// (`orchestratorFor`), which reads the sale's region from the database. Stubbed: this
+// test is about the wrapper's notification branching, not the binding.
+vi.mock('@/lib/regionBinding', () => ({
+  regionForCashSale: async () => 'AU',
+}));
+
+// The rate limiter talks to the database too, and fails open; stubbed open.
+vi.mock('@/lib/rateLimitDb', () => ({
+  consumeDbRateLimit: async () => true,
+}));
+
 vi.mock('@/domain/orchestrator/supabaseCashSaleRepository', () => ({
   createDefaultCashSaleOrchestrator: () => ({
     acceptTerms: async () => acceptResult,

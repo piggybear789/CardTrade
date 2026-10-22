@@ -90,6 +90,77 @@ Collateral is **card-only** (`payment_method_types: ['card']`). BECS Direct Debi
 does not support manual capture at all, and its 7-year no-questions-asked dispute
 window makes it a poor fit for escrow where the platform is merchant of record.
 
+## Bank rails for cash sales (0158)
+
+A cash sale (only) may be paid from the buyer's bank: `US_BANK` (Instant Bank Payments,
+Stripe type `link`), `IDEAL`, `BANCONTACT`, `EPS`, `P24`, `PAYTO`. The catalog, the
+buyer-region and currency eligibility, and the dispute profile live in
+`domain/payments/paymentMethods.ts`; each rail's clean buyer rate is `BANK_FEES`, and
+its Stripe cost (what the rate is checked against) `STRIPE_BANK_COSTS`, both in
+`domain/fees/processingFee.ts` (verify the costs against the Dashboard before live).
+All six rails were enabled on both TEST accounts (payment method configuration) on
+2026-10-21 and each opened, read back as resumable and cancelled through
+`StripeService`. The LIVE accounts still need iDEAL and Przelewy24 (US) and PayTo (AU)
+turned on in the Dashboard.
+
+- The buyer picks the rail in the Pay dialog. `acceptCashSaleTerms(…, paymentMethod)`
+  re-prices the fee for it (`serviceFeeForMethod` / `totalForMethod`, the same
+  functions the dialog shows), ESC-31 compares the shown total for THAT rail, and
+  `claimPayment` writes `payment_method_kind`, `platform_fee_cents` and `amount_cents`
+  in one guarded UPDATE so the seller's net is right for the rail charged.
+- `requestTransfer({ paymentMethod })` for a bank rail creates the PaymentIntent
+  UNCONFIRMED with exactly that one `payment_method_types` entry (no fallback to a
+  differently priced method) and returns `REQUIRES_ACTION` with the client secret. The
+  room confirms it with Payment Element (`components/sales/BankPaymentForm.tsx`);
+  redirect rails return to `/sales/<id>?payment=return`, which reads the payment back.
+- A bank intent at `requires_payment_method` is RESUMABLE, not failed:
+  `collectionStatusOf` maps it to `REQUIRES_ACTION` and `translateStripeEvent` drops its
+  `payment_intent.payment_failed`. The `:47` sweep cancels it after 30 minutes and the
+  sale returns to AGREEMENT. A card intent there is still a decline.
+- A bank rail the provider will not open (rail not enabled, a cross-border seller
+  account without the rail's capability) collected nothing, so the sale goes back to
+  AGREEMENT with `NOT_SUPPORTED`, never FAILED. Cross-border accounts now request
+  `ideal_payments`, `bancontact_payments`, `eps_payments`, `p24_payments`; accounts
+  created before that need the capability added before EU bank rails work for them.
+- Never add `us_bank_account` (ACH Direct Debit): its returns cannot be contested, and
+  enabling it makes Stripe hide Instant Bank Payments. PayTo disputes are FINAL against
+  the platform; US bank disputes are contested like card chargebacks; the EU rails have
+  no bank dispute process.
+- **US_BANK is defined but NOT OFFERED** (`offered: false`). Payment Element refuses to
+  render `link` on its own ("pass both 'link' and 'card'"), so an intent for that rail
+  alone cannot be approved, and one with card as well lets a buyer pay by card at the
+  bank price. Offering it needs the deferred flow (the buyer picks in Payment Element,
+  then the server prices the intent from the confirmation token's payment method).
+- **A card is priced by where it was issued (0159).** `describeInstrument` returns
+  `country` (Stripe's `card.country`), and `cardMethodFor(currency, country)` picks
+  `CARD`, `CARD_UK_EEA` or `CARD_INTERNATIONAL`, each with its own clean rate and Stripe
+  cost table. The tiers are what CARD is priced as, never a choice: any card kind a
+  caller sends is read as card. `acceptCashSaleTerms` re-reads the saved card, refuses
+  a shown total for another tier as `CARD_REPRICED` (sale untouched), and passes
+  `requestTransfer({ sourceId })` so the charge is made on THAT card, not the
+  Customer's default. A caller with no expected total (mobile) is held to the stored
+  total. `getPaymentMethodStatus` now reads the card through the member's own region's
+  platform; it read the default AU account, so a US/UK/EEA member's card was invisible.
+  Verified in test mode 2026-10-22: `pm_card_visa` on the AU platform cost 454 on
+  A$121.35 (table 455), charged 635; `pm_card_gb` to a German seller priced 520.
+- **Buy Now needs no saved card.** `initiateCashSale` opens the agreement without one,
+  like `openPrivateDealCashSale`; the card (or a bank rail) is required at Pay.
+- **The cash-sale money actions are bound to the SALE'S platform** (`orchestratorFor` in
+  `lib/actions/cashSale.ts`, via `regionForCashSale`): Pay, the read-back, the resume,
+  inspection acceptance and the in-person handover (both pay the seller on completion),
+  and a party's dispute settlement. They used the default AU account, so every EUR/USD
+  sale failed at Pay ("No such on_behalf_of" / "No such customer"), found end to end on
+  2026-10-21. A new provider-reaching action in that module must use `orchestratorFor`.
+- Verified end to end on 2026-10-21 in TEST mode: `npm run smoke:stripe:bank-rails`
+  (every rail and card: Pay, the buyer's approval in a real browser, read-back into
+  escrow, ship, receive, accept, the seller transfer, and a refund over the rail) and
+  `npm run test:e2e:stripe` (PayTo and iDEAL through the real contract room, including
+  the bank redirect and the return to `/sales/<id>?payment=return`). Stripe's test mode
+  reported no fee on the EUR on-behalf-of charges, so the EU rows of `STRIPE_BANK_COSTS`
+  remain unverified estimates; PayTo (A$1.49 on A$118.48) and AU domestic card matched
+  the table exactly. A US-issued card on the AU platform cost A$4.47 against a A$4.05
+  fee: the documented international-card gap is real.
+
 ## Card data never touches our server
 
 Card fields are rendered by Stripe inside its own iframe via Payment Element. The
@@ -200,7 +271,8 @@ Create accounts with `stripe.v2.core.accounts.create`.
   `stripe_transfers` on an account whose country differs from the platform's without
   it (`capability_not_available_without_other_capability`, verified 2026-10-13),
   because cross-border payouts are unavailable under a recipient service agreement.
-  The card capability is never used. `createManagedMerchant` decides this from the
+  The card capability is also what their sales are charged `on_behalf_of` (see
+  below); the account never charges anyone itself. `createManagedMerchant` decides this from the
   account country vs the platform country, and `createMerchantOnboardingLink` reads
   `applied_configurations` so the hosted flow collects both. Do not remove it for a
   "recipient only" tidy-up: every UK/EEA/CA/CH seller would be unpayable.
@@ -218,21 +290,40 @@ platform. Jobs that touch each Stripe account once (payout drain, custody) loop 
 `requestTransfer`, `payoutToMerchant`). Omitting it falls back to the platform's
 settlement currency, which silently charges a GBP sale in USD.
 
-**The platform balance holds its settlement currency only (USD).** A EUR charge is
-converted on arrival; a EUR transfer is refused (`balance_insufficient`, or a currency
-mismatch against a USD `source_transaction`). So a foreign-currency payout is sent in
-USD, sized from a locked FX quote (`/v1/fx_quotes`, a PREVIEW API that only answers
-under a `.preview` version) and tied to it with `fx_quote`, rounded up so the seller
-receives exactly what they are owed. No quote, no payout: it stays queued.
+**A cross-border seller's cash sale is charged ON BEHALF OF their account**
+(`domain/payments/onBehalfOf.ts`, `requestTransfer({ onBehalfOf })` → `on_behalf_of`).
+It is still a separate charge on the platform: the money lands in the platform balance,
+is held, and is released by an explicit transfer. But Stripe prices it at the SELLER's
+country's rates (1.5% + EUR 0.25 for a standard EEA card, instead of 2.9% + 1.5%
+international on the US platform) and settles it in the seller's currency, so nothing is
+converted and there is no Currency_Conversion fee. Verified in test mode on 2026-10-16:
+a EUR 100.00 charge on behalf of a German account landed as EUR 100.00 in the platform
+balance (a plain charge landed as USD 112.17), and a EUR transfer against it went
+through. The decision is the contract currency (`chargesOnBehalfOfSeller`): any currency
+its platform does not settle in belongs to a cross-border seller by construction. The
+cost: the seller must be payable (`canReceiveFunds`) before the buyer can pay
+(`SELLER_NOT_PAYABLE`, refused with the sale untouched). The statement shows the
+account's descriptor (onboarding sets `noditto.app`); Stripe may print the account's
+address and phone for a cross-border settlement merchant, and
+`configuration.merchant.support` is where a NoDitto support address would go.
 
-**The BUYER absorbs the conversion.** `domain/fees/fxFee.ts` (`FX_FEE_BPS = 200`) is
-charged on top of the contract total whenever its currency is not the platform's
-settlement currency, disclosed by `CurrencyNotice` and the money tables from the same
-function, stored as `cash_sales.fx_fee_cents`, and not refunded. It is NOT waived by
-`BETA_FEE_WAIVER`: it passes a provider cost through. `settlement_amount_cents` records
-what the balance received, which custody needs to compare a EUR obligation with a USD
-balance. Known test-mode limit: the quote rate is not applied to test transfers, so test
-sellers receive slightly more than owed; verify the first live payout.
+**The platform's own settlement currency is USD, and other currencies are separate
+balances.** `payoutToMerchant` reads the source charge's balance transaction: one that
+settled in the contract currency (on behalf of the seller) is transferred as is. One that
+was converted (a cash sale collected before on-behalf-of charging, or a trade cash leg)
+is sent in USD, sized from a locked FX quote (`/v1/fx_quotes`, a PREVIEW API that only
+answers under a `.preview` version) and tied to it with `fx_quote`, rounded up so the
+seller receives exactly what they are owed. No quote, no payout: it stays queued.
+Custody reconciles each currency against its own balance (`getCustodyPosition(region,
+currency)`, `getPlatformBalance(currency)`).
+
+**The PAYER absorbs any conversion.** `domain/fees/fxFee.ts` (`FX_FEE_BPS = 200`) now
+applies only to a trade's cash leg in a converted currency, disclosed by `CurrencyNotice`
+from the same function, and not refunded. Cash sales record `fx_fee_cents = 0`; rows
+collected before on-behalf-of charging keep their recorded fee. `settlement_amount_cents`
+/ `settlement_currency` record what the balance received and in which currency. Known
+test-mode limit on the quoted path: the quote rate is not applied to test transfers, so
+test sellers receive slightly more than owed; verify the first live payout.
 - `responsibilities: { fees_collector: 'application', losses_collector: 'application' }`.
   Platform-owned loss liability is mandatory for separate charges and transfers,
   and must be accepted in the Dashboard before creating accounts.

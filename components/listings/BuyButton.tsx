@@ -4,13 +4,16 @@
 //
 // Entry point to a purchase contract (Req 4.1). When the buyer clicks "Buy now":
 //   1. Fetch their payment method status from the server.
-//   2a. Saved method exists → show a compact card widget ("Visa •••• 4242").
-//   2b. No method → show the inline card entry form. Once saved, advance to 2a.
+//   2a. Saved card → show a compact card widget ("Visa •••• 4242"), priced at that
+//       card's own tier (0159): a card issued outside the seller's card zone costs more.
+//   2b. No card → say none is needed yet, with an optional "Add a card".
 //
 // Confirming reserves the item and opens the contract room. No money moves until
-// the buyer pays after handover details are set.
+// the buyer pays after handover details are set, and HOW they pay (card, or their bank
+// where offered, 0158) is chosen then. A card is no longer required to open the
+// contract: that shut every bank-only buyer out of the listing.
 
-import { useEffect, useState, useTransition, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -18,10 +21,9 @@ import { CreditCardIcon, ShieldCheckIcon, ShoppingCart01Icon } from '@hugeicons/
 import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { cashSaleFeeMinor } from '@/domain/fees/processingFee';
+import { cardMethodFor, type PaymentMethodKind } from '@/domain/payments/paymentMethods';
 import { displayLegalName, formatMoney, itemImageUrl } from '@/lib/format';
-import { buyerPaysCents } from '@/lib/listings/buyerPrice';
-import { betaFeeNote, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -30,6 +32,7 @@ import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { CurrencyNotice } from '@/components/payments/CurrencyNotice';
+import { PROCESSING_FEE_NAME, cardTierClause, processingFeeRateLabel } from '@/lib/fees/feeLabels';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
@@ -100,7 +103,8 @@ export function BuyButton({
       description="Reserving holds it for you and opens a contract with the seller. You do not pay yet."
       confirmLabel="Reserve item and agree terms"
       prepareSale={() => ({ ok: true })}
-      header={summary ? <OrderSummary summary={summary} /> : null}
+      header={summary ? (cardMethod) => <OrderSummary summary={summary} cardMethod={cardMethod} /> : undefined}
+      currency={summary?.currency}
       trigger={trigger}
     />
   );
@@ -110,10 +114,20 @@ export function BuyButton({
  * The item and what it costs — above the card form and the saved card alike. "Buy
  * now" used to open on a bare "Add a payment method" with no item and no total, so
  * the first thing a buyer saw after committing was a form.
+ *
+ * Priced by card at `cardMethod`, the buyer's saved card's own tier (0159), so a card
+ * issued abroad shows its dearer fee here rather than first at Pay.
  */
-function OrderSummary({ summary }: { summary: PurchaseSummary }) {
+function OrderSummary({
+  summary,
+  cardMethod,
+}: {
+  summary: PurchaseSummary;
+  cardMethod: PaymentMethodKind;
+}) {
   const money = (cents: number) => formatMoney(cents, summary.currency);
-  const fee = platformFeeCentsFor(summary.priceCents, summary.currency);
+  // Before postage, like the listing headline: postage is agreed later.
+  const fee = cashSaleFeeMinor(summary.priceCents, 0, summary.currency, cardMethod);
   const thumb = itemImageUrl(summary.imagePath);
   return (
     <div className="space-y-cozy">
@@ -126,22 +140,17 @@ function OrderSummary({ summary }: { summary: PurchaseSummary }) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-medium">{summary.title}</p>
           <p className="text-meta text-muted-foreground">
-            {feesWaivedForBeta() ? (
-              betaFeeNote()
-            ) : (
-              <>
-                {money(summary.priceCents)} + {money(fee)} fee
-              </>
-            )}
+            {money(summary.priceCents)} + {money(fee)} {PROCESSING_FEE_NAME.toLowerCase()}
           </p>
         </div>
         <p className="shrink-0 text-lead font-semibold tabular-nums">
-          {money(buyerPaysCents(summary.priceCents, summary.currency))}
+          {money(summary.priceCents + fee)}
         </p>
       </div>
+      {/* No conversion fee on a cash sale: it is charged on behalf of the seller. */}
       <CurrencyNotice
         currency={summary.currency}
-        amountMinor={summary.priceCents + fee}
+        fxFeeMinor={0}
         buyerCurrency={summary.buyerCurrency}
       />
     </div>
@@ -186,6 +195,13 @@ export function ShopfrontBuyButton({
   );
 }
 
+/** The buyer's saved card as the dialog last read it. */
+interface SavedCard {
+  label: string | null;
+  /** Where it was issued (ISO alpha-2), which picks its card tier (0159). */
+  country: string | null;
+}
+
 function PurchaseDialog({
   itemId,
   sellerIdentity,
@@ -194,6 +210,7 @@ function PurchaseDialog({
   prepareSale,
   onReset,
   header,
+  currency,
   trigger,
   children,
 }: {
@@ -203,8 +220,13 @@ function PurchaseDialog({
   confirmLabel: string;
   prepareSale: () => SalePrep;
   onReset?: () => void;
-  /** Shown first in every state of the dialog: the order summary for a single item. */
-  header?: ReactNode;
+  /**
+   * Shown first in every state of the dialog: the order summary for a single item,
+   * priced at the saved card's tier (`cardMethod`).
+   */
+  header?: (cardMethod: PaymentMethodKind) => ReactNode;
+  /** The listing's currency, which the saved card's tier is read against. */
+  currency?: string;
   trigger?: ReactNode;
   children?: ReactNode;
 }) {
@@ -213,34 +235,44 @@ function PurchaseDialog({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [paymentLabel, setPaymentLabel] = useState<string | null>(null);
-  const [hasPaymentMethod, setHasPaymentMethod] = useState<boolean | null>(null);
+  // undefined: not read yet; null: no card saved.
+  const [card, setCard] = useState<SavedCard | null | undefined>(undefined);
   const [loadingStatus, setLoadingStatus] = useState(false);
+  // The optional card form, opened by "Add a card" or "Change". A card is not needed
+  // to open the contract, so the form is always one the buyer can back out of.
+  const [addingCard, setAddingCard] = useState(false);
+
+  const readCard = useCallback((isCancelled: () => boolean = () => false) => {
+    setLoadingStatus(true);
+    getPaymentMethodStatus()
+      .then((result) => {
+        if (isCancelled()) return;
+        setLoadingStatus(false);
+        setCard(
+          result.ok && result.data.hasPaymentMethod
+            ? { label: result.data.label, country: result.data.cardCountry ?? null }
+            : null,
+        );
+      })
+      .catch(() => {
+        if (isCancelled()) return;
+        setLoadingStatus(false);
+        setCard(null);
+      });
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setLoadingStatus(true);
-    getPaymentMethodStatus()
-      .then((result) => {
-        if (cancelled) return;
-        setLoadingStatus(false);
-        if (result.ok) {
-          setHasPaymentMethod(result.data.hasPaymentMethod);
-          setPaymentLabel(result.data.label);
-        } else {
-          setHasPaymentMethod(false);
-          setPaymentLabel(null);
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLoadingStatus(false);
-        setHasPaymentMethod(false);
-        setPaymentLabel(null);
-      });
-    return () => { cancelled = true; };
-  }, [open]);
+    readCard(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [open, readCard]);
+
+  const cardMethod: PaymentMethodKind = currency ? cardMethodFor(currency, card?.country) : 'CARD';
+  const tierClause = currency ? cardTierClause(currency, cardMethod) : '';
+  const headerNode = header?.(cardMethod) ?? null;
 
   function handleBuy() {
     const prepared = prepareSale();
@@ -262,11 +294,6 @@ function PurchaseDialog({
           navigateWithType(router, `/sales/${result.sale.id}`, 'nav-forward');
           return;
         }
-        if (result.error === 'no-payment-method') {
-          setHasPaymentMethod(false);
-          setPaymentLabel(null);
-          return;
-        }
         const errorMsg = result.message ?? cashSaleRefusalMessage(result.error);
         setError(errorMsg);
         toast.error(errorMsg);
@@ -278,9 +305,9 @@ function PurchaseDialog({
     });
   }
 
-  const showCardForm = hasPaymentMethod === false;
-  const showCheckout = hasPaymentMethod === true;
-  const loading = loadingStatus || hasPaymentMethod === null;
+  const loading = loadingStatus || card === undefined;
+  const showCardForm = !loading && addingCard;
+  const showCheckout = !loading && !addingCard;
 
   return (
     <Dialog
@@ -289,6 +316,7 @@ function PurchaseDialog({
         setOpen(next);
         if (!next) {
           setError(null);
+          setAddingCard(false);
           onReset?.();
         }
       }}
@@ -310,7 +338,7 @@ function PurchaseDialog({
               <DialogDescription>{description}</DialogDescription>
             </DialogHeader>
             <div className="space-y-group">
-              {header}
+              {headerNode}
               {children}
               <CheckoutSummarySkeleton />
             </div>
@@ -325,25 +353,22 @@ function PurchaseDialog({
             <DialogHeader>
               <DialogTitle>Add a payment method</DialogTitle>
               <DialogDescription>
-                Stripe stores the card. Nothing is charged until you agree to terms
-                with the seller.
+                Stripe stores the card. It is charged only when you pay, after you and
+                the seller agree the terms.
               </DialogDescription>
             </DialogHeader>
-            {header}
+            {headerNode}
             <AddPaymentMethodForm
               onAttached={() => {
-                setLoadingStatus(true);
-                getPaymentMethodStatus()
-                  .then((result) => {
-                    setLoadingStatus(false);
-                    if (result.ok) {
-                      setHasPaymentMethod(result.data.hasPaymentMethod);
-                      setPaymentLabel(result.data.label);
-                    }
-                  })
-                  .catch(() => setLoadingStatus(false));
+                setAddingCard(false);
+                readCard();
               }}
             />
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAddingCard(false)}>
+                Back
+              </Button>
+            </DialogFooter>
           </>
         ) : showCheckout ? (
           <>
@@ -353,7 +378,7 @@ function PurchaseDialog({
             </DialogHeader>
 
             <div className="space-y-group">
-              {header}
+              {headerNode}
               {children}
 
               <p className="flex items-start gap-tight text-meta text-muted-foreground">
@@ -364,24 +389,24 @@ function PurchaseDialog({
                 </span>
               </p>
 
+              {/* ONE GEOMETRY WITH OR WITHOUT A CARD: two lines and a button, so the
+                  footer does not move when the card read comes back. */}
               <div className="flex items-center gap-cozy rounded-lg border p-cozy">
                 <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium">
-                    {paymentLabel ?? 'Card on file'}
+                    {card ? (card.label ?? 'Card on file') : 'No card needed yet'}
                   </p>
-                  <p className="text-body text-muted-foreground">Stripe method</p>
+                  <p className="text-body text-muted-foreground">
+                    {card
+                      ? tierClause && currency
+                        ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
+                        : 'Stripe method'
+                      : 'You choose how to pay when you pay.'}
+                  </p>
                 </div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setHasPaymentMethod(false);
-                    setPaymentLabel(null);
-                  }}
-                >
-                  Change
+                <Button type="button" variant="ghost" size="sm" onClick={() => setAddingCard(true)}>
+                  {card ? 'Change' : 'Add a card'}
                 </Button>
               </div>
 

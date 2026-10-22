@@ -194,24 +194,10 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
 
   group('Trade Fee', () {
-    test('is 0 while fees are waived for the beta', () {
-      expect(Money.betaFeeWaiver, isTrue);
+    test('trades carry no fee', () {
+      expect(tradeFeeBps, 0);
       expect(tradeFee(10000, currency: 'aud'), 0);
       expect(tradeFee(1999, currency: 'usd'), 0);
-    });
-
-    test('standard rate: 5% of side value, rounded like the server', () {
-      expect(platformFeeBps, Money.standardFeeBps);
-      expect(Money.standardFee(10000), 500); // 5% of $100
-      // 5% of $39.99 = $1.9995 → $2.00, matching `Math.round` in tradeFee.ts.
-      expect(Money.standardFee(3999), 200);
-      // 5% of $19.99 → $1.00 (rounded).
-      expect(Money.standardFee(1999), 100);
-    });
-
-    test('standard rate has no per-trader minimum', () {
-      expect(Money.standardFee(100), 5); // 5% of $1.00 is 5c
-      expect(Money.standardFee(1999), 100);
     });
 
     test('zero and negative values return 0', () {
@@ -226,7 +212,7 @@ void main() {
         currency: 'aud',
       );
       expect(fees.initiatorFeeCents, fees.counterpartFeeCents);
-      expect(fees.initiatorFeeCents, 0); // waived during the beta
+      expect(fees.initiatorFeeCents, 0); // trades carry no fee
     });
   });
 

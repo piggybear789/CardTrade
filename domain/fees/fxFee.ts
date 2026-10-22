@@ -1,7 +1,12 @@
 // domain/fees/fxFee.ts
 //
-// The Currency_Conversion fee: what a BUYER pays on top of the price when the contract's
-// currency is not the currency its Stripe platform settles in.
+// The Currency_Conversion fee: what a PAYER pays on top when the contract's currency is
+// not the currency its Stripe platform settles in.
+//
+// CASH SALES NO LONGER PAY IT. Since they are charged on behalf of the seller
+// (`domain/payments/onBehalfOf.ts`) a EUR sale settles in EUR and nothing is converted.
+// Rows collected before that keep the fee recorded on them (`cash_sales.fx_fee_cents`).
+// It remains for a trade's cash leg, which is still a plain platform charge.
 //
 // WHY IT EXISTS. The US platform's balance holds USD only (verified in test mode,
 // 2026-10-13). A EUR contract on it is converted EUR -> USD when the buyer is charged and
@@ -11,9 +16,9 @@
 // is charged this fee and the payout is sized from a locked FX quote
 // (`StripeService.payoutToMerchant`).
 //
-// NOT WAIVED BY THE BETA. `BETA_FEE_WAIVER` waives NoDitto's own fee. This one passes a
-// provider cost through, the same way shipping does; waiving it would make every
-// cross-currency sale a loss.
+// SEPARATE FROM THE PROCESSING FEE (`processingFee.ts`). That one passes Stripe's card
+// and payout costs through; this one passes the conversion through. Both are costs,
+// not margin, the same way shipping is.
 //
 // WHY A CURRENCY AND NOT A PLATFORM ARGUMENT. Every currency maps to exactly one
 // platform (AUD only to AU; USD, EUR, GBP, CAD, CHF, ... only to US), so the currency

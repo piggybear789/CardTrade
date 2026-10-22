@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { HOLD_DECLINED_MESSAGE, tradeAcceptCopy } from '@/lib/handover/terms';
 import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
-import { tradeFeeRateLabel } from '@/lib/fees/feeLabels';
+import { TRADE_NO_FEE_NOTE } from '@/lib/fees/feeLabels';
 
 const copy = tradeAcceptCopy({ cashMinor: 0, payerIsViewer: false, bondMinor: 50_000, currency: 'aud' });
 const all = [copy.description, copy.collateralHint, copy.feeHint].join(' ');
@@ -26,15 +26,13 @@ describe('tradeAcceptCopy', () => {
     expect(copy.description).toContain(`${BOND_PLACEMENT_LEAD_HOURS} hours`);
   });
 
-  it('names the fee rate from feeLabels and the hold amount', () => {
-    expect(copy.description).toContain(tradeFeeRateLabel('aud'));
+  it('says trades have no fee and names the hold amount', () => {
+    expect(copy.description).toContain('Trades have no fee.');
     expect(copy.description).toContain('$500.00');
   });
 
-  it('says when the fee is charged and that an expiring hold on an open problem is charged', () => {
-    expect(copy.feeHint).toMatch(/^Charged when the card hold is placed\./);
-    // ESC-29: a declined fee means the trade does not lock.
-    expect(copy.feeHint).toMatch(/doesn't lock and you can switch card and retry/);
+  it('explains there is no fee and that an expiring hold on an open problem is charged', () => {
+    expect(copy.feeHint).toBe(TRADE_NO_FEE_NOTE);
     expect(copy.collateralHint).toMatch(/charged and then refunded or paid out/);
   });
 

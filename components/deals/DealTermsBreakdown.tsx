@@ -10,12 +10,11 @@ import type { ReactNode } from 'react';
 
 import { InfoPopover } from '@/components/ui/info-popover';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { tradeFeeCentsFor } from '@/domain/trade/tradeFee';
 import {
-  betaFeeNote,
-  feesWaivedForBeta,
-  platformFeeRateLabel,
-  platformFeeRowLabel,
+  PROCESSING_FEE_NAME,
+  TRADE_NO_FEE_NOTE,
+  processingFeeExplanation,
+  processingFeeRateLabel,
 } from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
 
@@ -34,9 +33,7 @@ export function SaleTermsBreakdown({
   if (!priceCents) {
     return (
       <p className="text-meta text-muted-foreground">
-        {feesWaivedForBeta()
-          ? `${betaFeeNote()}.`
-          : `A NoDitto fee (${platformFeeRateLabel(currency)}) is added for the buyer.`}
+        {`The buyer pays a service fee on top (${processingFeeRateLabel(currency)} by card), so you receive your full price.`}
       </p>
     );
   }
@@ -45,8 +42,9 @@ export function SaleTermsBreakdown({
     <Breakdown>
       <BreakdownRow label="They pay" value={formatMoney(priceCents + fee, currency)} />
       <BreakdownRow
-        label={platformFeeRowLabel('NoDitto fee', fee)}
+        label={PROCESSING_FEE_NAME}
         value={formatMoney(fee, currency)}
+        info={processingFeeExplanation(currency)}
       />
       <BreakdownRule />
       <BreakdownRow
@@ -61,13 +59,8 @@ export function SaleTermsBreakdown({
 
 /**
  * THE HOLD IS YOUR OWN SIDE'S VALUE. `bondPolicy` authorises 100% of a trader's own
- * side, so this sizes YOUR hold, not theirs. The fee is worked on the same declared
- * value, as a flat figure rather than a rate.
- *
- * Strictly the fee is charged on the value each trader RECEIVES (`chargeTradeFees`) —
- * the counterpart's side, which is not known yet. In practice the two sides of a
- * trade run close, so the declared value is the honest preview; the exact fee
- * settles at the Commitment_Point, and the info line says who pays it on what.
+ * side, so this sizes YOUR hold, not theirs. Trades carry no fee (`tradeFee.ts`), and
+ * the row says so rather than disappearing, so the absence is stated.
  */
 export function TradeTermsBreakdown({
   valueCents,
@@ -85,15 +78,7 @@ export function TradeTermsBreakdown({
         value={valueCents ? formatMoney(valueCents, currency) : "Your card's value"}
         info="A hold, not a charge. It's released when the trade completes."
       />
-      <BreakdownRow
-        label="Your fee"
-        value={valueCents ? formatMoney(tradeFeeCentsFor(valueCents, currency), currency) : '—'}
-        info={
-          feesWaivedForBeta()
-            ? `${betaFeeNote()}.`
-            : 'Each of you pays it on the trade value, when the holds go on.'
-        }
-      />
+      <BreakdownRow label="Your fee" value={formatMoney(0, currency)} info={TRADE_NO_FEE_NOTE} />
     </Breakdown>
   );
 }

@@ -300,11 +300,13 @@ test.describe('Identity gate', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: RENDERED });
 
-    // It asks for a payment method (expected for a new member) rather than
-    // refusing with an identity gate message.
+    // It opens the checkout, with no card required yet (the buyer chooses how to pay
+    // at Pay, 0158), rather than refusing with an identity gate message.
     await expect(
-      dialog.getByRole('heading', { name: 'Add a payment method' }),
+      dialog.getByRole('heading', { name: 'Start a purchase contract' }),
     ).toBeVisible({ timeout: 20_000 });
+    await expect(dialog.getByText('No card needed yet')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Reserve item and agree terms' })).toBeEnabled();
 
     // Confirm there is NO identity gate refusal anywhere in the dialog.
     await expect(dialog.getByText(/Verify your identity/)).toHaveCount(0);

@@ -526,12 +526,25 @@ async function loadQueueForTab(
       // anything on the Reports or Reconciliation views.
       ...regions.map((region) => getCustodyPosition(region)),
     ]);
+    const primary = positions
+      .filter((position) => position.ok)
+      .map((position) => (position as { ok: true; data: CustodyReport }).data);
+    // A platform also holds member money in each currency its cross-border sellers'
+    // sales settled in (charged on behalf of the seller), and each is its own balance.
+    const extra = await Promise.all(
+      primary.flatMap((position) =>
+        position.otherCurrencies.map((currency) => getCustodyPosition(position.region, currency)),
+      ),
+    );
     return {
       ...EMPTY_QUEUE,
       owedPayouts: (data ?? []) as CashSaleRow[],
-      custodyPositions: positions
-        .filter((position) => position.ok)
-        .map((position) => (position as { ok: true; data: CustodyReport }).data),
+      custodyPositions: [
+        ...primary,
+        ...extra
+          .filter((position) => position.ok)
+          .map((position) => (position as { ok: true; data: CustodyReport }).data),
+      ],
     };
   }
 
@@ -824,7 +837,7 @@ export default async function AdminPage({
               account, because each region holds its own balance and there is no
               meaningful total across currencies. */}
           {custodyPositions.map((position) => (
-            <CustodyPanel key={position.region} position={position} />
+            <CustodyPanel key={`${position.region}:${position.currency}`} position={position} />
           ))}
 
           <ExposureOverrideForm />
@@ -901,7 +914,7 @@ export default async function AdminPage({
                           </div>
                           <div>
                             <dt className="inline font-medium text-foreground">
-                              Platform fee kept:{' '}
+                              Service fee (Stripe costs + NoDitto):{' '}
                             </dt>
                             <dd className="inline">{formatMoney(sale.platform_fee_cents, sale.currency)}</dd>
                           </div>

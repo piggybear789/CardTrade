@@ -69,7 +69,7 @@ export async function chargeTradeFees(params: {
     counterpartReceivesCents: params.counterpartReceivesCents,
   });
 
-  // A zero fee (every fee during the beta waiver, `domain/fees/betaFeeWaiver.ts`)
+  // A zero fee (every fee while `TRADE_FEE_BPS` is 0, `domain/trade/tradeFee.ts`)
   // writes no row and makes no provider call. Stripe refuses a zero-amount charge, and
   // a 0 row would print "Trade fee $0.00" on both traders' statements.
   const owed = [

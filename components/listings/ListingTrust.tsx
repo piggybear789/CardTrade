@@ -21,21 +21,14 @@ import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import {
-  LISTING_BETA_FEE_NOTE,
-  feesWaivedForBeta,
-  platformFeeRateLabel,
-} from '@/lib/fees/feeLabels';
+import { otherCardRatesNote, processingFeeRateLabel } from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
 import { cn } from '@/lib/utils';
 
 /**
- * "Includes $X buyer fee" under a single listing's fee-inclusive price, with the (i)
- * that breaks the figure down. The headline already contains the fee; this says so.
- *
- * While fees are waived for the beta it reads the waiver explanation instead, so a
- * member never sees "Includes $0.00 buyer fee". Same line, same geometry.
+ * "Includes $X service fee" under a single listing's fee-inclusive price, with the
+ * (i) that breaks the figure down. The headline already contains the fee; this says so.
  */
 export function ListingFeeNote({
   priceCents,
@@ -49,16 +42,15 @@ export function ListingFeeNote({
 }) {
   const feeCents = platformFeeCentsFor(priceCents, currency);
   const fee = formatMoney(feeCents, currency);
-  const waived = feesWaivedForBeta();
   return (
     <p className={cn('flex items-center gap-tight text-meta text-muted-foreground', className)}>
-      <span>{waived ? LISTING_BETA_FEE_NOTE : <>Includes {fee} buyer fee</>}</span>
+      <span>Includes {fee} service fee</span>
       <FeeInfoPopover
         priceText={formatMoney(priceCents, currency)}
         feeText={fee}
         totalText={formatMoney(buyerPaysCents(priceCents, currency), currency)}
-        rateLabel={platformFeeRateLabel(currency)}
-        waived={waived}
+        rateLabel={processingFeeRateLabel(currency)}
+        otherCardsNote={otherCardRatesNote(currency)}
       />
     </p>
   );

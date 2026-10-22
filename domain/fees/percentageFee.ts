@@ -1,13 +1,8 @@
 // domain/fees/percentageFee.ts
 //
-// The ONE rounding rule for the Platform_Fee (Cash_Sale) and the Trade_Fee.
-//
-// NO MINIMUM, DELIBERATELY. A per-currency floor ($1.50 per Cash_Sale, $1.00 per
-// trader) existed briefly and was removed on purpose. Below about $30 a cash sale no
-// longer covers the provider's fixed costs (card ~$0.30, payout ~$0.25); that
-// trade-off is accepted. Do not reintroduce a floor without a product decision.
-//
-// The beta fee waiver is applied to the RATE, before this rule: see `betaFeeWaiver.ts`.
+// The rounding rule for a plain percentage fee, used by the Trade_Fee
+// (`domain/trade/tradeFee.ts`, currently at a rate of 0). The cash-sale fee is the
+// Processing_Fee (`processingFee.ts`), which has its own pass-through formula.
 //
 // Pure module: no I/O, no provider types.
 

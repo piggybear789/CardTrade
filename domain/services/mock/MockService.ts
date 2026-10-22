@@ -54,6 +54,7 @@ import type {
   WebhookEventPayload,
   WebhookEventType,
 } from '../types';
+import type { PaymentMethodKind } from '../../payments/paymentMethods';
 import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 
 // ---------------------------------------------------------------------------
@@ -372,10 +373,20 @@ export class MockService implements PaymentService, PayerService, WebhookEmitter
     applicationFee?: Cents;
     /** Accepted for parity; the simulation never asks for a challenge (ESC-03). */
     presence?: PaymentPresence;
+    /** Accepted for parity; the simulation has one balance and no settlement merchant. */
+    onBehalfOf?: string;
     legacyOffSessionToMember?: boolean;
+    /**
+     * Accepted for parity. The simulation has no bank to approve in, so every rail
+     * settles like a card, which keeps the Pay flow demonstrable without Stripe.js.
+     */
+    paymentMethod?: PaymentMethodKind;
   }): Promise<TransferResult> {
     // ESC-29: the same off-session boundary as the real binding.
     if (params.merchantRef && !params.presence && !params.legacyOffSessionToMember) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+    if (params.onBehalfOf && !params.presence) {
       return { transferId: '', amount: params.amount, status: 'FAILED' };
     }
     const cached = this.nonces.get(`transfer:${params.nonce}`);

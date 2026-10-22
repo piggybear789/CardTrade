@@ -1241,6 +1241,12 @@ export type CustodyReport = CustodyPosition & {
    * are missing from the owed figure. Non-zero means the position is incomplete.
    */
   unconvertedSales: number;
+  /**
+   * Other currencies this platform holds member money in, each reconciled by its own
+   * position (`getCustodyPosition(region, currency)`). Sales charged on behalf of a
+   * cross-border seller settle in the seller's currency, not the platform's.
+   */
+  otherCurrencies: string[];
 };
 
 /**
@@ -1375,6 +1381,12 @@ async function loadCapturedCollateral(
 
 export const getCustodyPosition = withActionLog('admin.getCustodyPosition', async function getCustodyPosition(
   region?: string | null,
+  /**
+   * The balance currency to reconcile; defaults to the platform's settlement currency.
+   * Another currency covers only the sales charged on behalf of sellers that settled
+   * in it: collateral and trade cash are plain platform charges, converted on arrival.
+   */
+  balanceCurrency?: string | null,
 ): Promise<AdminActionResult<CustodyReport>> {
   const gate = await requireAdmin();
   if (!gate.ok) {
@@ -1391,6 +1403,8 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
     DEFAULT_CONFIG_REGION;
   const settles = regionCurrency(code) ?? 'aud';
   const currencies = platforms.get(code) ?? [settles];
+  const view = balanceCurrency?.trim().toLowerCase() || settles;
+  const isSettlementView = view === settles;
 
   const admin = createAdminClient();
 
@@ -1403,8 +1417,8 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
       .in('status', [...COLLECTED_SALE_STATUSES])
       // Scoped to this PLATFORM's contracts, in every currency it holds money for,
       // because they are the only ones whose money is in this account's balance.
-      .in('currency', [...currencies]),
-    getPaymentService(code).getPlatformBalance(),
+      .in('currency', isSettlementView ? [...currencies] : [view]),
+    getPaymentService(code).getPlatformBalance(view),
   ]);
 
   if (error) {
@@ -1413,6 +1427,7 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
 
   const sales: HeldSaleInput[] = [];
   let unconverted = 0;
+  const otherCurrencies = new Set<string>();
   for (const row of rows ?? []) {
     const refundSettled = row.refund_status === 'SETTLED';
     const refundCents = refundSettled ? Number(row.refund_cents ?? 0) : 0;
@@ -1423,8 +1438,32 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
     const fullyDisbursed =
       row.seller_payout_status === 'SETTLED' ||
       (row.status === 'REFUNDED' && refundSettled);
+    const rowCurrency = (row.currency as string).toLowerCase();
+    // Charged on behalf of a cross-border seller: it settled in its own currency, so it
+    // sits in that currency's balance and is reconciled against it, at face value.
+    const settledInOwnCurrency =
+      rowCurrency !== settles && String(row.settlement_currency ?? '').toLowerCase() === rowCurrency;
 
-    if ((row.currency as string).toLowerCase() === settles) {
+    if (!isSettlementView) {
+      if (settledInOwnCurrency) {
+        sales.push({
+          id: row.id as string,
+          collectedCents: contractCents,
+          settledRefundCents: refundCents,
+          fullyDisbursed,
+        });
+      }
+      // A sale in this currency that was CONVERTED (collected before on-behalf-of
+      // charging) is in the settlement currency's balance and counted there.
+      continue;
+    }
+
+    if (settledInOwnCurrency) {
+      if (!fullyDisbursed) otherCurrencies.add(rowCurrency);
+      continue;
+    }
+
+    if (rowCurrency === settles) {
       sales.push({
         id: row.id as string,
         collectedCents: contractCents,
@@ -1457,8 +1496,17 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
   }
 
   // Captured trade collateral (design §1.8, ESC-01). Uncaptured authorisations are
-  // still excluded: only `captured_cents > 0` rows are money in this balance.
-  const collateral = await loadCapturedCollateral(admin, settles, currencies);
+  // still excluded: only `captured_cents > 0` rows are money in this balance. Both it
+  // and trade cash are plain platform charges, converted into the settlement currency,
+  // so another currency's view has neither.
+  const noCollateral: { ok: true; inputs: HeldCollateralInput[]; unconverted: number } = {
+    ok: true,
+    inputs: [],
+    unconverted: 0,
+  };
+  const collateral = isSettlementView
+    ? await loadCapturedCollateral(admin, settles, currencies)
+    : noCollateral;
   if (!collateral.ok) {
     return { ok: false, error: 'persistence-error', message: collateral.message };
   }
@@ -1469,11 +1517,13 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
   // ESC-05/06: trade cash legs the platform collected and has not yet paid out. A
   // leg counts from COLLECTED until RELEASED or REFUNDED; a pending release or refund
   // is still held.
-  const { data: legs, error: legError } = await admin
-    .from('trade_cash_settlements')
-    .select('trade_id, amount_minor, status, currency')
-    .in('currency', [...currencies])
-    .in('status', ['COLLECTED', 'RELEASE_PENDING', 'REFUND_PENDING', 'RELEASED', 'REFUNDED']);
+  const { data: legs, error: legError } = isSettlementView
+    ? await admin
+        .from('trade_cash_settlements')
+        .select('trade_id, amount_minor, status, currency')
+        .in('currency', [...currencies])
+        .in('status', ['COLLECTED', 'RELEASE_PENDING', 'REFUND_PENDING', 'RELEASED', 'REFUNDED'])
+    : { data: [], error: null };
   if (legError) {
     return { ok: false, error: 'persistence-error', message: legError.message };
   }
@@ -1510,6 +1560,7 @@ export const getCustodyPosition = withActionLog('admin.getCustodyPosition', asyn
       currency: balance.currency,
       unreadableReason: balance.status === 'READ' ? null : (balance.reason ?? null),
       unconvertedSales: unconverted,
+      otherCurrencies: [...otherCurrencies].sort(),
     },
   };
 });

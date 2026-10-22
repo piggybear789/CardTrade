@@ -9,6 +9,8 @@
 // Supabase, React, crypto, or fetch). All monetary amounts are integer AUD
 // cents to avoid floating-point drift.
 
+import type { PaymentMethodKind } from '@/domain/payments/paymentMethods';
+
 /** Integer AUD cents (e.g. 199 === $1.99). Never a fractional/float dollar amount. */
 export type Cents = number;
 
@@ -114,8 +116,9 @@ export interface TransferResult {
   /**
    * `REQUIRES_ACTION` (ESC-03) is reachable only from a BUYER_PRESENT
    * {@link PaymentService.requestTransfer}: the issuer asked for a 3-D Secure
-   * challenge, nothing is collected yet, and {@link TransferResult.clientSecret}
-   * lets the browser run it. Off-session calls never return it.
+   * challenge (card), or the buyer still has to approve a bank payment (every bank
+   * rail), nothing is collected yet, and {@link TransferResult.clientSecret} lets the
+   * browser run it. Off-session calls never return it.
    */
   status: 'SETTLED' | 'FAILED' | 'REQUIRES_ACTION';
   /** Present only with `REQUIRES_ACTION`. Never persisted, never logged. */
@@ -394,6 +397,13 @@ export interface SavedInstrumentDetails {
   expMonth?: number;
   /** Four-digit expiry year. */
   expYear?: number;
+  /**
+   * Where the card was issued: upper-case ISO 3166-1 alpha-2 (Stripe's `card.country`).
+   * It prices a cash-sale card payment (0159, `cardMethodFor`), because Stripe charges
+   * more for a card from outside the seller's card zone. Absent when the provider does
+   * not say, which prices as a domestic card.
+   */
+  country?: string;
 }
 
 // The retired payer-gate types lived here: `KycResult`, `IdentityCheckSession`
@@ -591,12 +601,35 @@ export interface PaymentService {
      */
     presence?: PaymentPresence;
     /**
+     * The connected account the charge is made ON BEHALF OF (the settlement merchant),
+     * for a cash sale with a cross-border seller (`domain/payments/onBehalfOf.ts`). The
+     * charge is still the platform's and the money still lands in the platform balance;
+     * the provider prices and settles it in the seller's country and currency. Nothing
+     * is forwarded. Buyer-present only: refused without `presence`.
+     */
+    onBehalfOf?: string;
+    /**
      * @deprecated ESC-29: the ONE permitted off-session charge forwarded to a member,
      * the legacy trade cash leg (`settleTradeCash`) for trades agreed before
      * `trade_cash_settlements`. Every binding refuses a `merchantRef` without
      * `presence` unless this is set, so no new off-session-to-member path can appear.
      */
     legacyOffSessionToMember?: boolean;
+    /**
+     * How the buyer pays (`domain/payments/paymentMethods.ts`). Absent or a card kind
+     * charges the saved card, as before. A bank rail is buyer-present only: nothing is
+     * confirmed server-side, and the result is `REQUIRES_ACTION` with a client secret
+     * the browser confirms against the buyer's bank. A provider refusal for a bank rail
+     * (rail not enabled, seller account lacks the capability) is `FAILED` with nothing
+     * collected, which the caller treats as "pay another way", never as a decline.
+     */
+    paymentMethod?: PaymentMethodKind;
+    /**
+     * The saved card to charge (0159). A cash sale's card fee is priced for one card's
+     * issuing country, so the charge must be made on THAT card and not on whatever the
+     * payer's provider-side default happens to be. Absent: the payer's default card.
+     */
+    sourceId?: string;
   }): Promise<TransferResult>;
 
   /**
@@ -663,10 +696,12 @@ export interface PaymentService {
      */
     sourcePaymentRef?: string;
     /**
-     * Currency the Seller is owed `amount` in (the contract's). When it differs from
-     * the platform's settlement currency, the provider sizes the transfer from a
-     * locked FX quote so the Seller receives exactly `amount` of it, and reports
-     * FAILED rather than paying a different figure when no quote is available.
+     * Currency the Seller is owed `amount` in (the contract's). When the source charge
+     * settled in that currency (a sale charged on behalf of the seller), it is
+     * transferred as is. Otherwise, when it differs from the platform's settlement
+     * currency, the provider sizes the transfer from a locked FX quote so the Seller
+     * receives exactly `amount` of it, and reports FAILED rather than paying a
+     * different figure when no quote is available.
      */
     currency?: string;
   }): Promise<TransferResult>;
@@ -744,13 +779,15 @@ export interface PaymentService {
     Array<{ holdId: string; ref: string | null; amount: Cents; createdAt: string }>
   >;
   /**
-   * Read what the platform currently holds with the provider.
+   * Read what the platform currently holds with the provider, in `currency` (default:
+   * the platform's settlement currency). A platform holds other currencies too once
+   * sales are charged on behalf of cross-border sellers, and each is read on its own.
    *
    * The only figure in the system the provider owns rather than we do, and therefore
    * the only way to check that money believed to be held actually is. See
    * {@link PlatformBalance}.
    */
-  getPlatformBalance(): Promise<PlatformBalance>;
+  getPlatformBalance(currency?: string): Promise<PlatformBalance>;
   /**
    * Vault a tokenised payment instrument against a payer so later charges
    * (collateral holds, cash-sale transfers) have a source to draw on.

@@ -573,19 +573,52 @@ export function dartZeroDecimalCurrencies(): string[] {
 }
 
 /**
- * The beta fee waiver switch and the standard rate, as `core/money.dart` holds them.
+ * The service-fee schedule as `core/money.dart` holds it: the per-currency Stripe
+ * rates, the fallback rate, the conversion, trade and NoDitto rates.
  *
- * Strict: throws if either constant cannot be read, so a renamed field fails the
- * agreement test instead of passing it vacuously. `source` is returned so the test
- * can also pin the beta copy literals.
+ * Strict: throws if any constant cannot be read or the rate map parses empty, so a
+ * renamed field fails the agreement test instead of passing it vacuously. `source` is
+ * returned so the test can also pin the copy literals.
  */
-export function dartFeeSchedule(): { betaFeeWaiver: boolean; standardFeeBps: number; source: string } {
+export function dartFeeSchedule(): {
+  /** Card service-fee rates per currency, as `[bps, fixedMinor]`. */
+  rates: Record<string, [number, number]>;
+  fallback: [number, number];
+  fxFeeBps: number;
+  tradeFeeBps: number;
+  nodittoFeeBps: number;
+  source: string;
+} {
   const source = readFlutter('core/money.dart');
-  const waiver = /static\s+const\s+bool\s+betaFeeWaiver\s*=\s*(true|false)\s*;/.exec(source);
-  if (!waiver) throw new Error('static const bool betaFeeWaiver not found in core/money.dart');
-  const bps = /static\s+const\s+int\s+standardFeeBps\s*=\s*(\d+)\s*;/.exec(source);
-  if (!bps) throw new Error('static const int standardFeeBps not found in core/money.dart');
-  return { betaFeeWaiver: waiver[1] === 'true', standardFeeBps: Number(bps[1]), source };
+  const map = /static\s+const\s+Map<String,\s*List<int>>\s+serviceFeeRates\s*=\s*\{([\s\S]*?)\};/.exec(source);
+  if (!map) throw new Error('static const Map<String, List<int>> serviceFeeRates not found in core/money.dart');
+  const rates: Record<string, [number, number]> = {};
+  for (const entry of map[1].matchAll(/'([a-z]{3})'\s*:\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]/g)) {
+    rates[entry[1]] = [Number(entry[2]), Number(entry[3])];
+  }
+  // Strict, like every parser here: a row with the wrong arity would otherwise be
+  // silently skipped and the agreement test would pass on fewer currencies.
+  const rows = map[1].match(/'[a-z]{3}'\s*:/g)?.length ?? 0;
+  if (rows !== Object.keys(rates).length) {
+    throw new Error(`serviceFeeRates has ${rows} rows but ${Object.keys(rates).length} parsed as [bps, fixedMinor]`);
+  }
+  if (Object.keys(rates).length === 0) throw new Error('serviceFeeRates parsed empty in core/money.dart');
+  const fallback = /static\s+const\s+List<int>\s+serviceFeeRateFallback\s*=\s*\[\s*(\d+)\s*,\s*(\d+)\s*\]\s*;/.exec(source);
+  if (!fallback) throw new Error('static const List<int> serviceFeeRateFallback not found in core/money.dart');
+  const fx = /static\s+const\s+int\s+fxFeeBps\s*=\s*(\d+)\s*;/.exec(source);
+  if (!fx) throw new Error('static const int fxFeeBps not found in core/money.dart');
+  const trade = /static\s+const\s+int\s+tradeFeeBps\s*=\s*(\d+)\s*;/.exec(source);
+  if (!trade) throw new Error('static const int tradeFeeBps not found in core/money.dart');
+  const noditto = /static\s+const\s+int\s+nodittoFeeBps\s*=\s*(\d+)\s*;/.exec(source);
+  if (!noditto) throw new Error('static const int nodittoFeeBps not found in core/money.dart');
+  return {
+    rates,
+    fallback: [Number(fallback[1]), Number(fallback[2])],
+    fxFeeBps: Number(fx[1]),
+    tradeFeeBps: Number(trade[1]),
+    nodittoFeeBps: Number(noditto[1]),
+    source,
+  };
 }
 
 /**

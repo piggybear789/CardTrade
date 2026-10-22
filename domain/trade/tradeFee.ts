@@ -1,68 +1,42 @@
 // domain/trade/tradeFee.ts
 //
-// The Trade_Fee: the platform's cut of a 2-way trade.
+// The Trade_Fee: what each trader pays NoDitto for a 2-way trade. It is ZERO.
 //
-// WHY THIS EXISTS AT ALL. A trade used to generate no revenue, and not by
-// oversight — the only money movement on a trade is a collateral authorisation
-// that gets voided, and you cannot skim a fee from money you release. So a trade
-// fee has to be its own collection.
+// WHY ZERO. NoDitto passes Stripe's costs through and takes no margin of its own
+// (`domain/fees/processingFee.ts`). A swap's only money movement is the collateral: an
+// uncaptured card authorisation that is voided when the trade completes, which Stripe
+// does not charge for. So there is no provider cost on the swap to pass through, and a
+// fee charged to cover nothing would itself incur a Stripe card fee.
 //
-// WHY IT IS NOT TAKEN FROM THE BOND. `partialCapture` on each trader's existing
-// hold would reuse a primitive we already have, and it was rejected twice over:
+// The machinery stays, at a rate of 0: `chargeTradeFees` skips a zero fee (no row, no
+// provider call), and `resolveTradeFees` and the disclosure still call one function, so
+// a fee can be reintroduced by changing `TRADE_FEE_BPS` alone.
 //
-//   1. Authorisations lapse in about seven days and extended authorization is not
-//      available on this account, so a DELIVERY trade completing on day nine would
-//      have nothing left to capture. Fee collection would fail on exactly the
-//      trades that take longest.
-//   2. It would falsify the promise the product rests on — "your bond is released
-//      in full unless something goes wrong". Capturing from the bond on a
-//      SUCCESSFUL trade makes that sentence untrue.
-//
-// So the fee is charged at the Commitment_Point (both sides accepting the same
-// terms), separately from the bond, and is refundable if the trade never ships.
-//
-// SYMMETRY. On a trade there is no seller: both parties give and both receive. The
-// fee is therefore charged to BOTH traders, each on the value they RECEIVE, which
-// is what each one is getting out of the exchange. The two fees are unequal
-// whenever the sides differ in value — that is correct, not a rounding fault.
-//
-// NO MINIMUM. Each trader pays a plain percentage of what they receive. A per-trader
-// floor existed briefly and was removed deliberately (`domain/fees/percentageFee.ts`).
-//
-// BETA WAIVER. While `BETA_FEE_WAIVER` (`domain/fees/betaFeeWaiver.ts`) is on, the
-// default rate is 0, so every trader's fee is 0 and no fee charge is made at all
-// (`chargeTradeFees` skips a zero fee). `TRADE_FEE_BPS` stays the standard rate.
+// A trade's CASH LEG is a real card payment and does cost Stripe's card fee. The payer
+// already pays any Currency_Conversion fee on it (`fxFee.ts`); the card processing on it
+// is absorbed by the platform for now.
 //
 // Pure module: no I/O, no provider types. All amounts are integer minor units of the
 // trade's currency.
 
 import { percentageFeeMinor } from '../fees/percentageFee';
-import { effectiveFeeBps } from '../fees/betaFeeWaiver';
+
+/** Trade fee rate per trader, in basis points. 0: trades carry no NoDitto fee. */
+export const TRADE_FEE_BPS: number = 0;
 
 /**
- * Trade fee rate per trader, in basis points (1 bp = 0.01%), so 500 bp = 5% each.
+ * The fee one Trader owes, in the trade currency's minor units: `rateBps` of the value
+ * received, rounded to the nearest minor unit, with no minimum. 0 at the default rate.
  *
- * Held in basis points rather than a float percentage for the same reason as
- * `PLATFORM_FEE_BPS`: the fee stays exact integer arithmetic end to end.
- */
-export const TRADE_FEE_BPS = 500;
-
-/**
- * The fee one Trader owes, in the trade currency's minor units.
- *
- * `rateBps` of the value received, rounded to the nearest minor unit, with no
- * minimum. A side receiving nothing owes nothing.
- *
- * @param valueReceivedCents total Trade_Side_Value this Trader receives, which
- *   includes any cash coming their way — a trader receiving $1,000 of card plus
- *   $150 cash has received $1,150 of value and is charged on all of it.
+ * @param valueReceivedCents total Trade_Side_Value this Trader receives, including any
+ *   cash coming their way.
  * @param _currency the trade's ISO 4217 code. It does not affect the result and is
  *   kept so callers keep their signature.
  */
 export function tradeFeeCentsFor(
   valueReceivedCents: number,
   _currency: string | null,
-  rateBps: number = effectiveFeeBps(TRADE_FEE_BPS),
+  rateBps: number = TRADE_FEE_BPS,
 ): number {
   return percentageFeeMinor(valueReceivedCents, rateBps);
 }
@@ -85,7 +59,7 @@ export function resolveTradeFees(params: {
   counterpartReceivesCents: number;
   rateBps?: number;
 }): TradeFeeSplit {
-  const rate = params.rateBps ?? effectiveFeeBps(TRADE_FEE_BPS);
+  const rate = params.rateBps ?? TRADE_FEE_BPS;
   return {
     initiatorFeeCents: tradeFeeCentsFor(params.initiatorReceivesCents, null, rate),
     counterpartFeeCents: tradeFeeCentsFor(params.counterpartReceivesCents, null, rate),

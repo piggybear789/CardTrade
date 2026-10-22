@@ -52,7 +52,7 @@ import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
 import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
 import { HOLD_DECLINED_MESSAGE, type TradeAcceptCopy } from '@/lib/handover/terms';
-import { FEE_WAIVED_HINT, NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
+import { TRADE_NO_FEE_NOTE } from '@/lib/fees/feeLabels';
 import {
   acceptTradeTerms,
   declineTradeOffer,
@@ -109,7 +109,7 @@ export interface TradeNegotiationPanelProps {
      * day before the meeting — not at acceptance.
      */
     feeText: string;
-    /** The fee row's label, from `tradeFeeRowLabel`, so it has one source. */
+    /** The fee row's label. Trades have no fee, and the row says so. */
     feeLabel: string;
     /**
      * The temporary card hold placed against the viewer's card. Not a charge while the
@@ -345,9 +345,7 @@ export function TradeNegotiationPanel({
             <DialogTitle>Accept these terms?</DialogTitle>
             <DialogDescription>
               {acceptCost?.copy?.description ??
-                (feesWaivedForBeta()
-                  ? `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold, with ${NO_FEE_DURING_BETA}.`
-                  : `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold and charge the fee.`)}{' '}
+                `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold. Trades have no fee.`}{' '}
               Replace the card here if you do not want this one used.
             </DialogDescription>
           </DialogHeader>
@@ -362,9 +360,7 @@ export function TradeNegotiationPanel({
                 {
                   label: acceptCost.feeLabel,
                   value: acceptCost.feeText,
-                  hint: feesWaivedForBeta()
-                    ? FEE_WAIVED_HINT
-                    : (acceptCost.copy?.feeHint ?? 'Charged when the card hold is placed.'),
+                  hint: acceptCost.copy?.feeHint ?? TRADE_NO_FEE_NOTE,
                 },
                 {
                   label: 'Trade collateral',

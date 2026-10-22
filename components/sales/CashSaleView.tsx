@@ -80,13 +80,32 @@ import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
 import { cashSaleErrorMessage } from './errorCopy';
 import { HandoverFailedDialog } from './HandoverFailedDialog';
 import { PayCardSection, usePayCard, VerifiedSellerConfirmation } from './PayStepDetails';
+import { PayMethodOptions } from './PayMethodOptions';
+import { BankPaymentDialog, type BankPaymentSession } from './BankPaymentDialog';
+import {
+  cardMethodFor,
+  isBankMethod,
+  paymentMethodDefinition,
+  paymentMethodsFor,
+  serviceFeeForMethod,
+  storedPaymentMethod,
+  totalForMethod,
+  type MethodPricingFacts,
+  type PaymentMethodKind,
+} from '@/domain/payments/paymentMethods';
 import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDialog';
 import { OffPlatformWarning } from '@/components/deals/DealVerificationNotice';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
 
-import { FEE_WAIVED_HINT, platformFeeRowLabel } from '@/lib/fees/feeLabels';
-import { currencyConversionFeeFor } from '@/domain/fees/fxFee';
+import {
+  PROCESSING_FEE_HINT,
+  PROCESSING_FEE_NAME,
+  cardTierClause,
+  otherCardRatesNote,
+  paymentMethodProtectionNote,
+  processingFeeRateLabel,
+} from '@/lib/fees/feeLabels';
 import { CurrencyNotice, fxFeeRateLabel } from '@/components/payments/CurrencyNotice';
 import { formatMoney, formatContractDateTime, formatShortDate, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -405,6 +424,11 @@ export interface CashSaleViewProps {
    * then confirms the verified name it carries.
    */
   sellerPayReadiness?: SellerPayReadiness | null;
+  /**
+   * The buyer's trading region (0158), which is where their bank account is. Decides
+   * which bank rails the Pay step offers beside card. Null offers card only.
+   */
+  buyerRegion?: string | null;
 }
 
 /**
@@ -464,6 +488,7 @@ function CashSaleRoom({
   returnAddress = null,
   reviewAction,
   sellerPayReadiness = null,
+  buyerRegion = null,
 }: CashSaleViewProps) {
   const router = useRouter();
   const { focusSection } = useContractFocus();
@@ -642,16 +667,84 @@ function CashSaleRoom({
   // fee is already computed on the item price alone.
   const sellerNetCents = Math.max(sale.amount_cents - sale.platform_fee_cents, 0);
 
-  // The Currency_Conversion fee and what the buyer's card is actually charged. From
-  // the same function the orchestrator charges with, applied to the same contract
-  // total, so the room can never quote a figure the charge disagrees with (0136).
-  // Once the buyer has paid, the room shows the fee RECORDED at Pay, so a later change
-  // to the rate never rewrites what they were charged. Before that it is the quote.
-  const fxFeeCents =
-    sale.status === 'AGREEMENT'
-      ? currencyConversionFeeFor(sale.amount_cents, sale.currency)
-      : (sale.fx_fee_cents ?? currencyConversionFeeFor(sale.amount_cents, sale.currency));
-  const buyerChargeCents = sale.amount_cents + fxFeeCents;
+  // The Currency_Conversion fee and what the buyer's card is actually charged (0136).
+  // A sale paid now pays none: it is charged on behalf of the seller and settles in its
+  // own currency (`domain/payments/onBehalfOf.ts`). A sale collected before that shows
+  // the fee RECORDED at Pay, so the room never rewrites what the buyer was charged.
+  const fxFeeCents = sale.status === 'AGREEMENT' ? 0 : (sale.fx_fee_cents ?? 0);
+
+  // HOW THE BUYER PAYS (0158). Each rail carries its own service fee, priced by the
+  // same function the server charges with, so every figure below is what that rail
+  // charges. Before payment the room quotes card (the default rail); once paid it shows
+  // what was stored for the rail actually used.
+  const pricing: MethodPricingFacts = {
+    agreedPriceCents: sale.agreed_price_cents,
+    shippingCostCents: sale.shipping_cost_cents,
+    platformFeeCents: sale.platform_fee_cents,
+    amountCents: sale.amount_cents,
+    currency: sale.currency,
+    paymentMethod: storedPaymentMethod(sale.payment_method_kind),
+  };
+  const paidWith = storedPaymentMethod(sale.payment_method_kind);
+  // Before payment the Payment section quotes a domestic card and names the dearer card
+  // rates beside it; the Pay dialog prices the buyer's own card.
+  const shownFeeCents = editable ? serviceFeeForMethod(pricing, 'CARD') : sale.platform_fee_cents;
+  const buyerChargeCents = (editable ? totalForMethod(pricing, 'CARD') : sale.amount_cents) + fxFeeCents;
+  const otherCards = otherCardRatesNote(sale.currency);
+  const offeredMethods: PaymentMethodKind[] =
+    iAmBuyer && editable ? paymentMethodsFor({ currency: sale.currency, buyerRegion }) : ['CARD'];
+  const payMethods = offeredMethods.filter((method) => {
+    const limit = paymentMethodDefinition(method).maxAmountMinor;
+    return limit === undefined || totalForMethod(pricing, method) <= limit;
+  });
+  const [payMethod, setPayMethod] = useState<PaymentMethodKind>('CARD');
+  const chosenMethod: PaymentMethodKind = payMethods.includes(payMethod) ? payMethod : 'CARD';
+  // THE BUYER'S OWN CARD PRICES CARD (0159). Stripe charges more for a card issued
+  // outside the seller's card zone, so the saved card's issuing country picks the card
+  // tier, by the same function the server re-reads the card with before charging. Until
+  // the card is read (or with none saved) card quotes the domestic rate, and Pay stays
+  // disabled, so no total is ever paid on a guess.
+  const cardMethod: PaymentMethodKind = cardMethodFor(
+    sale.currency,
+    payCard.card.state === 'saved' ? payCard.card.country : null,
+  );
+  const priceAs = (method: PaymentMethodKind): PaymentMethodKind => (method === 'CARD' ? cardMethod : method);
+  const chosenFeeCents = serviceFeeForMethod(pricing, priceAs(chosenMethod));
+  const chosenChargeCents = totalForMethod(pricing, priceAs(chosenMethod)) + fxFeeCents;
+  const chosenRail = paymentMethodDefinition(chosenMethod);
+  const chosenTierClause = cardTierClause(sale.currency, priceAs(chosenMethod));
+  // The second Pay step for a bank rail: approving the amount in the buyer's bank.
+  const [bankSession, setBankSession] = useState<BankPaymentSession | null>(null);
+
+  // BACK FROM THE BANK. A redirect rail returns here with `?payment=return`; read the
+  // payment back once, then drop the marker so a reload does not repeat it. The server
+  // read decides; the webhook settles it too if this tab never comes back.
+  const returnHandled = useRef(false);
+  useEffect(() => {
+    if (returnHandled.current || !iAmBuyer || sale.status !== 'PAYMENT_PENDING') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') !== 'return') return;
+    returnHandled.current = true;
+    window.history.replaceState(null, '', window.location.pathname);
+    void confirmCashSalePayment(sale.id).then((result) => {
+      if (!result.ok) toast.error(messageFor(result));
+      else if (result.sale.status === 'PAYMENT_PENDING') {
+        toast('Waiting for your bank to confirm. This page updates by itself.');
+      }
+      router.refresh();
+    });
+  }, [iAmBuyer, router, sale.id, sale.status]);
+
+  /** After the bank step: say plainly where the payment is up to. */
+  function finishBankPayment(result: CashSaleActionResult) {
+    setBankSession(null);
+    if (!result.ok) {
+      toast.error(messageFor(result));
+    } else if (result.sale.status === 'PAYMENT_PENDING') {
+      toast('Waiting for your bank to confirm. This page updates by itself.');
+    }
+    router.refresh();
+  }
 
   // The countdown to automatic completion now comes from the shared
   // `InspectionCountdown`, which both this room and the trade room render from the
@@ -1081,6 +1174,16 @@ function CashSaleRoom({
                       onClick={() =>
                         run('complete-payment', async () => {
                           const action = await getCashSalePaymentAction(sale.id);
+                          // A bank approval still outstanding reopens the bank step,
+                          // on this device or another one.
+                          if (action.ok && action.clientSecret && isBankMethod(action.paymentMethod)) {
+                            setBankSession({
+                              clientSecret: action.clientSecret,
+                              method: action.paymentMethod,
+                              ...(action.publishableKey ? { publishableKey: action.publishableKey } : {}),
+                            });
+                            return confirmCashSalePayment(sale.id);
+                          }
                           if (action.ok && action.clientSecret) {
                             return completePaymentChallenge(sale.id, {
                               clientSecret: action.clientSecret,
@@ -1479,7 +1582,7 @@ function CashSaleRoom({
           <ContractDetailRow
             id={CASH_SALE_SECTIONS.payment}
             label="Payment"
-            summary={`${money(buyerChargeCents)} · buyer pays via Stripe`}
+            summary={`${money(buyerChargeCents)} · ${editable ? 'buyer pays via Stripe' : `paid by ${paymentMethodDefinition(paidWith).label}`}`}
             action={
               editable && !fromShopfront && !iAmBuyer ? (
                 <CashSalePriceDialog
@@ -1501,8 +1604,21 @@ function CashSaleRoom({
                     value: money(sale.shipping_cost_cents),
                   },
                   {
-                    label: platformFeeRowLabel('Platform fee', sale.platform_fee_cents),
-                    value: money(sale.platform_fee_cents),
+                    label: editable ? `${PROCESSING_FEE_NAME} (by card)` : PROCESSING_FEE_NAME,
+                    value: money(shownFeeCents),
+                    // 0159: the figure is a domestic card's; a card from abroad costs
+                    // more, and the Pay step prices the buyer's own card.
+                    ...(editable && (otherCards || payMethods.length > 1)
+                      ? {
+                          hint: [
+                            otherCards,
+                            payMethods.length > 1 ? 'Paying from your bank can cost less.' : '',
+                            iAmBuyer ? 'Every option is priced for you before you pay.' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' '),
+                        }
+                      : {}),
                   },
                   // The buyer's cost of converting into the platform's settlement
                   // currency. Paid by the buyer so the seller's figure below is exact.
@@ -1515,7 +1631,9 @@ function CashSaleRoom({
                       ]
                     : []),
                   {
-                    label: `Buyer pays via Stripe, in ${sale.currency.toUpperCase()}`,
+                    label: editable
+                      ? `Buyer pays via Stripe, in ${sale.currency.toUpperCase()}`
+                      : `Buyer paid by ${paymentMethodDefinition(paidWith).label}, in ${sale.currency.toUpperCase()}`,
                     value: money(buyerChargeCents),
                     total: true,
                   },
@@ -1717,18 +1835,29 @@ function CashSaleRoom({
           if (!next) setConfirmedSeller(false);
         }}
         title="Accept these terms and pay?"
-        description={`This charges ${money(buyerChargeCents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`}
-        confirmLabel={`Accept terms and pay ${money(buyerChargeCents)}`}
+        description={
+          chosenMethod === 'CARD'
+            ? `This charges ${money(chosenChargeCents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`
+            : `Next you approve ${money(chosenChargeCents)} with ${chosenRail.label}. Nothing is taken until you approve it in your bank, and NoDitto holds it until the item is handed over. You can still raise a dispute if something goes wrong.`
+        }
+        confirmLabel={
+          chosenMethod === 'CARD'
+            ? `Accept terms and pay ${money(chosenChargeCents)}`
+            : `Accept terms, continue to ${chosenRail.label}`
+        }
         confirmDisabled={
-          payCard.card.state !== 'saved' || (pendingSellerIdentity != null && !confirmedSeller)
+          (chosenMethod === 'CARD' && payCard.card.state !== 'saved') ||
+          (pendingSellerIdentity != null && !confirmedSeller)
         }
         pending={busy('accept')}
         helpHref="/help#holds"
         onConfirm={() => {
           setConfirming(null);
           setConfirmedSeller(false);
+          const method = chosenMethod;
           run('accept', async () => {
             // ESC-31: pay exactly what the dialog showed, on the version it showed.
+            // The total is the chosen rail's, the figure printed beside it (0158).
             const shown = paySnapshot.current ?? {
               termsVersion: sale.terms_version,
               amountCents: sale.amount_cents,
@@ -1737,9 +1866,24 @@ function CashSaleRoom({
               sale.id,
               shown.termsVersion,
               pendingSellerIdentity?.version,
-              shown.amountCents,
+              // The total for the buyer's own card tier (0159), the figure shown.
+              totalForMethod(pricing, priceAs(method)),
+              method,
             );
-            // ESC-03: the bank asked to check the payment. Run it in place, then
+            // A bank rail: the buyer approves the amount in their bank next.
+            if (paid.ok && paid.nextAction && paid.nextAction.paymentMethod && isBankMethod(paid.nextAction.paymentMethod)) {
+              setBankSession({
+                clientSecret: paid.nextAction.clientSecret,
+                method: paid.nextAction.paymentMethod,
+                ...(paid.nextAction.publishableKey ? { publishableKey: paid.nextAction.publishableKey } : {}),
+                // The claimed sale is priced for this rail; quote it, not the row
+                // this tab last rendered.
+                totalMinor: paid.sale.amountCents + fxFeeCents,
+                feeMinor: paid.sale.platformFeeCents,
+              });
+              return paid;
+            }
+            // ESC-03: the bank asked to check the card payment. Run it in place, then
             // read the payment back; the server read decides the outcome.
             return paid.ok && paid.nextAction
               ? completePaymentChallenge(sale.id, paid.nextAction)
@@ -1760,6 +1904,16 @@ function CashSaleRoom({
             only ever seen the item price — which is 5% below what they are about to
             be charged. The fee has to be named on the path to the charge, not
             somewhere the charge can be reached without visiting. */}
+        {/* THE CHOICE OF RAIL, each priced in full (0158). Only rendered when the buyer
+            has more than card, so a card-only buyer sees the dialog as before. */}
+        <PayMethodOptions
+          methods={payMethods}
+          selected={chosenMethod}
+          onSelect={setPayMethod}
+          pricing={pricing}
+          cardMethod={cardMethod}
+          disabled={busy('accept')}
+        />
         <ContractMoneyTable
           ariaLabel="What you are about to be charged"
           rows={[
@@ -1768,12 +1922,12 @@ function CashSaleRoom({
               ? [{ label: 'Shipping', value: money(sale.shipping_cost_cents) }]
               : []),
             {
-              label: platformFeeRowLabel('Platform fee', sale.platform_fee_cents),
-              value: money(sale.platform_fee_cents),
-              hint:
-                sale.platform_fee_cents === 0
-                  ? FEE_WAIVED_HINT
-                  : 'Returned if the sale is refunded in full.',
+              label: payMethods.length > 1 ? `${PROCESSING_FEE_NAME} (${chosenRail.label})` : PROCESSING_FEE_NAME,
+              value: money(chosenFeeCents),
+              // The rate this rail (or this card's tier) is priced at, so the figure can
+              // be checked rather than taken on trust. Exact: the fee is this rate of
+              // price and postage.
+              hint: `${processingFeeRateLabel(sale.currency, priceAs(chosenMethod))} of the price${isDelivery ? ' and postage' : ''}${chosenTierClause ? `, ${chosenTierClause}` : ''}. ${PROCESSING_FEE_HINT}`,
             },
             ...(fxFeeCents > 0
               ? [
@@ -1785,19 +1939,39 @@ function CashSaleRoom({
                 ]
               : []),
             {
-              label: `Charged now, in ${sale.currency.toUpperCase()}`,
-              value: money(buyerChargeCents),
+              label:
+                chosenMethod === 'CARD'
+                  ? `Charged now, in ${sale.currency.toUpperCase()}`
+                  : `You approve in your bank, in ${sale.currency.toUpperCase()}`,
+              value: money(chosenChargeCents),
               total: true,
             },
           ]}
         />
-        <CurrencyNotice currency={sale.currency} amountMinor={sale.amount_cents} />
-        <PayCardSection
-          card={payCard.card}
-          onAttached={payCard.refresh}
-          onReplace={payCard.replace}
-        />
+        <CurrencyNotice currency={sale.currency} fxFeeMinor={fxFeeCents} />
+        {payMethods.length > 1 ? (
+          <p className="text-body text-muted-foreground">{paymentMethodProtectionNote(chosenMethod)}</p>
+        ) : null}
+        {chosenMethod === 'CARD' ? (
+          <PayCardSection
+            card={payCard.card}
+            onAttached={payCard.refresh}
+            onReplace={payCard.replace}
+          />
+        ) : null}
       </ConfirmDialog>
+      <BankPaymentDialog
+        cashSaleId={sale.id}
+        session={bankSession}
+        totalLabel={money(bankSession?.totalMinor ?? sale.amount_cents + fxFeeCents)}
+        feeLabel={money(bankSession?.feeMinor ?? sale.platform_fee_cents)}
+        onOpenChange={(open) => {
+          // Closing leaves the sale PAYMENT_PENDING and resumable with "Complete
+          // payment" until the abandoned-payment sweep returns it to AGREEMENT.
+          if (!open) setBankSession(null);
+        }}
+        onFinished={finishBankPayment}
+      />
       <ConfirmDialog
         open={confirming === 'receive'}
         onOpenChange={(next) => setConfirming(next ? 'receive' : null)}

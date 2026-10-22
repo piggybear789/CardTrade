@@ -230,6 +230,13 @@ export interface PaymentMethodStatus {
    * decoration: the label alone already identifies the card.
    */
   expiry: string | null;
+  /**
+   * Where the card was issued (ISO alpha-2), read live with the expiry and never stored.
+   * A cash sale prices the card by it (0159, `cardMethodFor`), so the Pay dialog can
+   * show this card's own fee; the server re-reads it before charging. Null when unknown,
+   * which prices as a domestic card.
+   */
+  cardCountry: string | null;
 }
 
 /**
@@ -247,36 +254,43 @@ export const getPaymentMethodStatus = withActionLog('payments.getPaymentMethodSt
   const admin = createAdminClient();
   const { data } = await admin
     .from('profiles')
-    .select('payment_source_id, payment_method_label, payer_id')
+    .select('payment_source_id, payment_method_label, payer_id, region_code')
     .eq('id', user.id)
     .maybeSingle();
 
   const hasPaymentMethod = Boolean(data?.payment_source_id);
   const label = (data?.payment_method_label as string | null) ?? null;
 
-  // Expiry is read LIVE and never persisted — see `describeInstrument` on the seam
-  // for why (the steering doc forbids instrument fields like expiry in a table).
+  // Expiry and issuing country are read LIVE and never persisted — see
+  // `describeInstrument` on the seam for why (the steering doc forbids instrument
+  // fields like expiry in a table).
   //
-  // BEST-EFFORT BY DESIGN. This is decoration on a settings row, so a provider
-  // outage must not fail the page or block the rest of the status. Anything that
-  // goes wrong — no payer, no source, a provider without the method, a thrown
-  // request — leaves `expiry` null and the label still renders.
+  // BEST-EFFORT BY DESIGN. A provider outage must not fail the page or block the rest
+  // of the status. Anything that goes wrong — no payer, no source, a provider without
+  // the method, a thrown request — leaves both null and the label still renders. A
+  // null country prices the card as domestic in the Pay dialog; the charge itself is
+  // priced by the server's own read, so a failed read here cannot under-charge.
   let expiry: string | null = null;
+  let cardCountry: string | null = null;
   const payerId = (data?.payer_id as string | null) ?? null;
   const sourceId = (data?.payment_source_id as string | null) ?? null;
   if (payerId && sourceId) {
     try {
-      const payments = getPaymentService();
+      // The card lives on the member's OWN region's platform account, where
+      // `requirePayer` vaulted it. Read through the default binding, a US, UK or EEA
+      // member's card was invisible, so its expiry silently never showed.
+      const payments = getPaymentService((data?.region_code as string | null) ?? null);
       const details = await payments.describeInstrument?.({ payerId, sourceId });
       if (details?.expMonth && details.expYear) {
         const month = String(details.expMonth).padStart(2, '0');
         const year = String(details.expYear).slice(-2);
         expiry = `${month}/${year}`;
       }
+      cardCountry = details?.country ?? null;
     } catch {
       // Deliberately silent: see above.
     }
   }
 
-  return ok({ hasPaymentMethod, label, expiry });
+  return ok({ hasPaymentMethod, label, expiry, cardCountry });
 });

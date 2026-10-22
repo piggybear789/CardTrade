@@ -1,191 +1,217 @@
 // tests/unit/platformFee.test.ts
 //
-// The Cash_Sale Platform_Fee. The STANDARD rate is a plain 5% of the item price with
-// no minimum; during the beta (`BETA_FEE_WAIVER`) the applied fee is 0 for every
-// price. Both sides of the switch are covered so ending the beta is a flip, not a
-// rewrite.
+// The cash-sale fee (Req 4.7) is the Service_Fee: a CLEAN rate of price plus postage per
+// currency and way of paying, e.g. 3% + A$0.60 by card in Australia
+// (`domain/fees/processingFee.ts`). These pin the figures, that every rate is a clean
+// number, that every rate still covers what Stripe charges (so a Stripe price change
+// that would quietly eat the margin fails here), the member-facing wording, and that the
+// retired beta wording is gone for good.
 
-import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
+import { describe, expect, it } from 'vitest';
 
+import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import {
-  PLATFORM_FEE_BPS,
-  platformFeeCentsFor,
-} from '@/domain/orchestrator/cashSaleOrchestrator';
-import { percentageFeeMinor } from '@/domain/fees/percentageFee';
-import { BETA_FEE_WAIVER, effectiveFeeBps } from '@/domain/fees/betaFeeWaiver';
+  NODITTO_FEE_BPS,
+  cashSaleFeeMinor,
+  serviceFeeRateFor,
+  stripeCostMinor,
+} from '@/domain/fees/processingFee';
+import type { PaymentMethodKind } from '@/domain/payments/paymentMethods';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
-import {
-  FEE_POPOVER_WAIVED_FOOTNOTE,
-  FEE_POPOVER_WAIVED_TITLE,
-  FEE_POPOVER_WAIVED_TRIGGER,
-  FEE_WAIVED_HINT,
-  LISTING_BETA_FEE_NOTE,
-  NO_FEE_DURING_BETA,
-  TERMS_BETA_FEE_SENTENCE,
-  TILE_BETA_FEE_NOTE,
-  betaFeeNote,
-  feeWaiverExplanation,
-  feesWaivedForBeta,
-  platformFeePhrase,
-  platformFeeRateLabel,
-  platformFeeRowLabel,
-  tradeFeeRateLabel,
-  tradeFeeRowLabel,
-} from '@/lib/fees/feeLabels';
+import * as feeLabels from '@/lib/fees/feeLabels';
 
-/** The standard-rate function: what `platformFeeCentsFor` charges once the beta ends. */
-const standardFee = (price: number) => percentageFeeMinor(price, PLATFORM_FEE_BPS);
+const CURRENCIES = ['aud', 'usd', 'eur', 'gbp', 'cad', 'chf', 'czk', 'dkk', 'nok', 'sek', 'pln', 'ron', 'bgn'] as const;
 
-describe('the beta fee waiver switch', () => {
-  it('applies the standard rate when off and zero when on', () => {
-    expect(effectiveFeeBps(500, false)).toBe(500);
-    expect(effectiveFeeBps(500, true)).toBe(0);
-    expect(effectiveFeeBps(500)).toBe(BETA_FEE_WAIVER ? 0 : 500);
+/** Every priced rail, card in every currency plus each bank rail in its own. */
+const RAILS: ReadonlyArray<readonly [string, PaymentMethodKind]> = [
+  ...CURRENCIES.map((currency) => [currency, 'CARD'] as const),
+  // 0159: a card from abroad, in every currency, and across the UK–EEA line where the
+  // currency has that tier (it falls back to international where it does not).
+  ...CURRENCIES.map((currency) => [currency, 'CARD_INTERNATIONAL'] as const),
+  ...CURRENCIES.map((currency) => [currency, 'CARD_UK_EEA'] as const),
+  ['usd', 'US_BANK'],
+  ['aud', 'PAYTO'],
+  ['eur', 'IDEAL'],
+  ['eur', 'BANCONTACT'],
+  ['eur', 'EPS'],
+  ['eur', 'P24'],
+  ['pln', 'P24'],
+];
+
+describe('platformFeeCentsFor (the Service_Fee)', () => {
+  it('pins known figures', () => {
+    expect(platformFeeCentsFor(1000, 'aud')).toBe(90);
+    expect(platformFeeCentsFor(5000, 'aud')).toBe(210);
+    expect(platformFeeCentsFor(10_000, 'aud')).toBe(360);
+    expect(platformFeeCentsFor(100_000, 'aud')).toBe(3060);
+    expect(platformFeeCentsFor(10_000, 'usd')).toBe(510);
+    expect(platformFeeCentsFor(10_000, 'eur')).toBe(360);
+    expect(platformFeeCentsFor(10_000, 'gbp')).toBe(350);
+    expect(platformFeeCentsFor(100_000, 'czk')).toBe(4320);
   });
 
-  it('platformFeeCentsFor is the standard rule at the effective rate (property)', () => {
+  it('is the rate of price plus postage, plus the fixed part, exactly', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 0, max: 100_000_000 }),
-        fc.constantFrom('aud', 'usd', 'gbp', 'jpy', null),
-        (price, currency) => {
-          expect(platformFeeCentsFor(price, currency)).toBe(
-            percentageFeeMinor(price, effectiveFeeBps(PLATFORM_FEE_BPS)),
+        fc.integer({ min: 1, max: 5_000_000 }),
+        fc.integer({ min: 0, max: 50_000 }),
+        fc.constantFrom(...RAILS),
+        (price, shipping, [currency, method]) => {
+          const rate = serviceFeeRateFor(currency, method);
+          expect(cashSaleFeeMinor(price, shipping, currency, method)).toBe(
+            Math.round(((price + shipping) * rate.bps) / 10_000) + rate.fixedMinor,
           );
         },
       ),
     );
   });
-});
 
-describe.runIf(BETA_FEE_WAIVER)('platformFeeCentsFor during the beta', () => {
-  it('charges nothing', () => {
-    expect(platformFeeCentsFor(10_000, 'aud')).toBe(0);
-    expect(platformFeeCentsFor(84_500, 'aud')).toBe(0);
-    expect(platformFeeCentsFor(40_000_000, 'aud')).toBe(0);
-    expect(platformFeeCentsFor(1_000)).toBe(0);
+  it('is zero for a zero price', () => {
+    expect(platformFeeCentsFor(0, 'aud')).toBe(0);
   });
 
-  it('is 0 for any price in any currency (property)', () => {
+  it('charges the same rate on postage as on the price', () => {
+    expect(platformFeeCentsFor(9000, 'aud', 1000)).toBe(platformFeeCentsFor(10_000, 'aud'));
+    expect(platformFeeCentsFor(9000, 'aud', 1000)).toBeGreaterThan(platformFeeCentsFor(9000, 'aud'));
+  });
+
+  it('targets about 1% for NoDitto', () => {
+    expect(NODITTO_FEE_BPS).toBe(100);
+  });
+
+  it('treats no currency as AUD', () => {
+    expect(platformFeeCentsFor(10_000, null)).toBe(platformFeeCentsFor(10_000, 'aud'));
+  });
+
+  it('uses clean rates: a half-percent step and a fixed part in tens of minor units', () => {
+    for (const [currency, method] of RAILS) {
+      const rate = serviceFeeRateFor(currency, method);
+      expect(rate.bps % 50, `${method}:${currency}`).toBe(0);
+      expect(rate.fixedMinor % 10, `${method}:${currency}`).toBe(0);
+    }
+    // An unknown currency stays the most expensive case.
+    expect(serviceFeeRateFor('xyz').bps).toBeGreaterThanOrEqual(
+      Math.max(...CURRENCIES.map((currency) => serviceFeeRateFor(currency).bps)),
+    );
+  });
+
+  it("always covers Stripe's cost on every rail from 1.00 up, and leaves NoDitto close to its 1%", () => {
+    // From one whole unit of the currency. Below that (a sale of a few cents) the
+    // rounded fixed parts can fall a cent short, which no real sale reaches.
     fc.assert(
       fc.property(
-        fc.integer({ min: 0, max: 100_000_000 }),
-        fc.constantFrom('aud', 'usd', 'gbp', 'jpy', null),
-        (price, currency) => {
-          expect(platformFeeCentsFor(price, currency)).toBe(0);
+        fc.integer({ min: 100, max: 5_000_000 }),
+        fc.integer({ min: 0, max: 50_000 }),
+        fc.constantFrom(...RAILS),
+        (price, shipping, [currency, method]) => {
+          const base = price + shipping;
+          const fee = cashSaleFeeMinor(price, shipping, currency, method);
+          const kept = fee - stripeCostMinor(base, fee, currency, method);
+          expect(kept).toBeGreaterThanOrEqual(0);
+          // Above 20.00 the rounding moves NoDitto's share by well under a point.
+          if (base >= 2000) {
+            expect(kept / base).toBeGreaterThan(0.008);
+            expect(kept / base).toBeLessThan(0.017);
+          }
         },
       ),
     );
   });
 
-  it('adds nothing to the buyer headline', () => {
-    expect(buyerPaysCents(1_000, 'aud')).toBe(1_000);
-    expect(buyerPaysCents(10_000, 'aud')).toBe(10_000);
-  });
-});
-
-describe('the standard Platform_Fee rate', () => {
-  it('is 5% of the item price', () => {
-    expect(PLATFORM_FEE_BPS).toBe(500);
-    expect(standardFee(10_000)).toBe(500);
-    expect(standardFee(84_500)).toBe(4_225);
+  it('makes the bank rails that cost Stripe less cheaper than card', () => {
+    expect(cashSaleFeeMinor(10_000, 0, 'usd', 'US_BANK')).toBeLessThan(cashSaleFeeMinor(10_000, 0, 'usd'));
+    expect(cashSaleFeeMinor(10_000, 0, 'aud', 'PAYTO')).toBeLessThan(cashSaleFeeMinor(10_000, 0, 'aud'));
+    expect(cashSaleFeeMinor(10_000, 0, 'eur', 'IDEAL')).toBeLessThan(cashSaleFeeMinor(10_000, 0, 'eur'));
   });
 
-  it('has no minimum: small contracts pay the plain 5%', () => {
-    expect(standardFee(1)).toBe(0);
-    expect(standardFee(9)).toBe(0);
-    expect(standardFee(10)).toBe(1); // 0.5 rounds up
-    expect(standardFee(1_000)).toBe(50);
-    expect(standardFee(2_000)).toBe(100);
-    expect(standardFee(3_000)).toBe(150);
-    expect(standardFee(3_010)).toBe(151); // 150.5 rounds up
+  it('prices a card from abroad above a domestic one, and the UK–EEA tier between them', () => {
+    for (const currency of CURRENCIES) {
+      const domestic = cashSaleFeeMinor(10_000, 0, currency);
+      const middle = cashSaleFeeMinor(10_000, 0, currency, 'CARD_UK_EEA');
+      const abroad = cashSaleFeeMinor(10_000, 0, currency, 'CARD_INTERNATIONAL');
+      expect(abroad, currency).toBeGreaterThan(domestic);
+      expect(middle, currency).toBeGreaterThanOrEqual(domestic);
+      expect(middle, currency).toBeLessThanOrEqual(abroad);
+    }
+    expect(platformFeeCentsFor(10_000, 'aud')).toBe(360);
+    expect(cashSaleFeeMinor(10_000, 0, 'aud', 'CARD_INTERNATIONAL')).toBe(560);
+    expect(cashSaleFeeMinor(10_000, 0, 'eur', 'CARD_UK_EEA')).toBe(460);
+    // A currency with no neighbour zone prices that tier as international.
+    expect(serviceFeeRateFor('aud', 'CARD_UK_EEA')).toEqual(serviceFeeRateFor('aud', 'CARD_INTERNATIONAL'));
   });
 
-  it('charges nothing on a zero price', () => {
-    expect(standardFee(0)).toBe(0);
+  it('falls back to the card rate for a rail with no row in that currency', () => {
+    expect(serviceFeeRateFor('gbp', 'IDEAL')).toEqual(serviceFeeRateFor('gbp'));
   });
 
-  it('is exactly Math.round(price * 500 / 10_000), with no floor (property)', () => {
+  it('never falls as the price rises', () => {
     fc.assert(
-      fc.property(fc.integer({ min: 0, max: 100_000_000 }), (price) => {
-        const fee = standardFee(price);
-        expect(Number.isInteger(fee)).toBe(true);
-        expect(fee).toBe(Math.round((price * PLATFORM_FEE_BPS) / 10_000));
+      fc.property(fc.integer({ min: 0, max: 5_000_000 }), fc.constantFrom(...RAILS), (price, [currency, method]) => {
+        expect(cashSaleFeeMinor(price + 1, 0, currency, method)).toBeGreaterThanOrEqual(
+          cashSaleFeeMinor(price, 0, currency, method),
+        );
       }),
     );
   });
-
-  it('is non-decreasing in price (property)', () => {
-    fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 10_000_000 }),
-        fc.integer({ min: 0, max: 10_000_000 }),
-        (a, b) => {
-          const [lo, hi] = a <= b ? [a, b] : [b, a];
-          expect(standardFee(lo)).toBeLessThanOrEqual(standardFee(hi));
-        },
-      ),
-    );
-  });
 });
 
-describe('percentageFeeMinor', () => {
-  it('yields zero at a zero rate or a non-positive base', () => {
-    expect(percentageFeeMinor(10_000, 0)).toBe(0);
-    expect(percentageFeeMinor(0, 500)).toBe(0);
-    expect(percentageFeeMinor(-5, 500)).toBe(0);
-  });
-});
-
-describe('what the buyer is shown', () => {
-  it('folds the effective fee into the fee-inclusive headline', () => {
-    expect(buyerPaysCents(1_000, 'aud')).toBe(1_000 + platformFeeCentsFor(1_000, 'aud'));
+describe('buyerPaysCents', () => {
+  it('is the price plus the fee, with no conversion fee in any currency', () => {
     expect(buyerPaysCents(10_000, 'aud')).toBe(10_000 + platformFeeCentsFor(10_000, 'aud'));
+    expect(buyerPaysCents(10_000, 'eur')).toBe(10_000 + platformFeeCentsFor(10_000, 'eur'));
+  });
+});
+
+describe('fee labels', () => {
+  it('state the exact clean rate from the same table the charge uses', () => {
+    expect(feeLabels.PROCESSING_FEE_NAME).toBe('Service fee');
+    expect(feeLabels.processingFeeRateLabel('aud')).toBe('3% + $0.60 AUD');
+    expect(feeLabels.processingFeeRateLabel('usd')).toMatch(/^4\.5% \+ /);
+    expect(feeLabels.processingFeeRateLabel('eur')).toMatch(/^3% \+ /);
+    expect(feeLabels.processingFeeRateLabel('eur', 'IDEAL')).toMatch(/^1\.5% \+ /);
+    expect(feeLabels.processingFeeRateLabel('aud', 'PAYTO')).toMatch(/^2\.5% \+ /);
+    expect(feeLabels.nodittoFeeRateLabel()).toBe('1%');
+    expect(feeLabels.processingFeeExplanation('aud')).toContain('3% + $0.60 AUD');
+    expect(feeLabels.processingFeeExplanation('aud')).toContain('1% to NoDitto');
+    expect(feeLabels.PROCESSING_FEE_HINT).toContain('1% to NoDitto');
+    expect(feeLabels.termsFeeSentence()).toContain('1% to NoDitto');
   });
 
-  it('names the bare standard rate, with no minimum', () => {
-    expect(platformFeeRateLabel('aud')).toBe('5%');
-    expect(tradeFeeRateLabel('aud')).toBe('5%');
-    expect(platformFeeRateLabel('usd')).toBe('5%');
-    expect(platformFeeRateLabel()).toBe('5%');
-    expect(platformFeePhrase('aud')).toBe('5% of the item price');
-    expect(platformFeeRateLabel('aud')).not.toMatch(/min/i);
+  it('never call the rate approximate or the fee "at cost"', () => {
+    // "about 1% to NoDitto" is right (the rates are rounded); "about 3% + ..." is not.
+    expect(feeLabels.processingFeeExplanation('aud').toLowerCase()).not.toMatch(/about \d+(\.\d+)?% \+/);
+    expect(feeLabels.processingFeeExplanation('aud').toLowerCase()).not.toContain('at cost');
+    expect(feeLabels.PROCESSING_FEE_HINT.toLowerCase()).not.toContain('at cost');
   });
 
-  it('says NoDitto is in open beta, that NoDitto fees are waived, and names the normal rate', () => {
-    expect(feesWaivedForBeta()).toBe(BETA_FEE_WAIVER);
-    expect(betaFeeNote()).toBe('Open beta: NoDitto fees waived (normally 5%)');
-    expect(LISTING_BETA_FEE_NOTE).toBe(feeWaiverExplanation());
-    expect(NO_FEE_DURING_BETA).toBe('NoDitto fees waived in open beta (normally 5%)');
-    expect(TILE_BETA_FEE_NOTE).toBe('no fees in open beta');
-    expect(feeWaiverExplanation()).toBe(
-      "NoDitto is in open beta, so NoDitto fees are waived. We'll tell you before standard fees apply.",
-    );
-    expect(TERMS_BETA_FEE_SENTENCE).toContain('members will be told before standard fees apply');
-  });
-
-  it('names the rate on a fee row only when a fee was charged', () => {
-    expect(platformFeeRowLabel('Platform fee', 0)).toBe('Platform fee');
-    expect(platformFeeRowLabel('Platform fee', 500)).toBe('Platform fee (5%)');
-    expect(tradeFeeRowLabel('NoDitto fee', 0)).toBe('NoDitto fee');
-    expect(tradeFeeRowLabel('NoDitto fee', 500)).toBe('NoDitto fee (5%)');
-  });
-
-  it('never says "all fees", prints a $0.00 fee or a minimum in fee-waiver copy', () => {
-    for (const text of [
-      betaFeeNote(),
-      feeWaiverExplanation(),
-      LISTING_BETA_FEE_NOTE,
-      NO_FEE_DURING_BETA,
-      TILE_BETA_FEE_NOTE,
-      FEE_WAIVED_HINT,
-      FEE_POPOVER_WAIVED_TRIGGER,
-      FEE_POPOVER_WAIVED_TITLE,
-      FEE_POPOVER_WAIVED_FOOTNOTE,
-      TERMS_BETA_FEE_SENTENCE,
-    ]) {
-      expect(text).not.toMatch(/\$0\.00|min|all fees/i);
+  it('never say beta, waived, or that NoDitto takes nothing', () => {
+    const strings = [
+      feeLabels.PROCESSING_FEE_NAME,
+      feeLabels.PROCESSING_FEE_HINT,
+      feeLabels.TRADE_NO_FEE_NOTE,
+      feeLabels.processingFeeRateLabel('aud'),
+      feeLabels.processingFeeExplanation('aud'),
+      feeLabels.termsFeeSentence(),
+    ];
+    for (const text of strings) {
+      expect(text.toLowerCase()).not.toContain('beta');
+      expect(text.toLowerCase()).not.toContain('waived');
+      expect(text.toLowerCase()).not.toContain("doesn't take a cut");
+      expect(text.toLowerCase()).not.toContain('takes nothing');
     }
+  });
+
+  it('exports nothing from the retired beta waiver', () => {
+    const retired = [
+      'feesWaivedForBeta',
+      'betaFeeNote',
+      'feeWaiverExplanation',
+      'NO_FEE_DURING_BETA',
+      'FEE_WAIVED_HINT',
+      'TERMS_BETA_FEE_SENTENCE',
+      'LISTING_BETA_FEE_NOTE',
+    ];
+    for (const name of retired) expect(feeLabels).not.toHaveProperty(name);
   });
 });

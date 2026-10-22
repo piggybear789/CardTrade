@@ -144,6 +144,33 @@ export async function confirmUserEmail(userId: string): Promise<void> {
   }
 }
 
+/** A value from the environment or `.env.local`, for specs that call a provider. */
+export function envValue(name: string): string | undefined {
+  return process.env[name] ?? readEnvFile()[name];
+}
+
+/**
+ * Update rows matching raw PostgREST query syntax, with the service role. For
+ * ARRANGING a state, and restoring it after (see the rule on {@link rest}).
+ */
+export async function updateRows<T = Record<string, unknown>>(
+  table: string,
+  query: string,
+  patch: Record<string, unknown>,
+): Promise<T[]> {
+  return (await rest<T[]>('PATCH', `${table}?${query}`, patch)) ?? [];
+}
+
+/** Insert one row with the service role and return it. For ARRANGING a state only. */
+export async function insertRow<T = Record<string, unknown>>(
+  table: string,
+  row: Record<string, unknown>,
+): Promise<T> {
+  const [inserted] = (await rest<T[]>('POST', table, row)) ?? [];
+  if (!inserted) throw new Error(`insert into ${table} returned nothing`);
+  return inserted;
+}
+
 /** Rows from a table, filtered with raw PostgREST query syntax. */
 export async function selectRows<T = Record<string, unknown>>(
   table: string,

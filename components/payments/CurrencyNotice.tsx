@@ -1,17 +1,18 @@
 // components/payments/CurrencyNotice.tsx
 //
-// The ONE place a buyer is told what currency they pay in and what converting it costs.
+// The ONE place a payer is told what currency they pay in and what converting it costs.
 //
 // Two separate facts, and the copy keeps them apart:
 //
-//   1. The Currency_Conversion fee. Charged by NoDitto when the contract's currency is
-//      not the one its Stripe platform settles in (a EUR or GBP sale on the US
-//      platform). The buyer absorbs it so the seller is paid exactly the agreed price.
-//      Its figure comes from `currencyConversionFeeFor`, the function the orchestrator
-//      charges with, so the disclosure cannot drift from the charge.
-//   2. The buyer's own bank. If their card is not in the contract's currency, their
+//   1. The Currency_Conversion fee. Charged by NoDitto on a trade's cash leg when the
+//      trade's currency is not the one its Stripe platform settles in (a EUR or GBP
+//      leg on the US platform). A cash sale no longer pays it: it is charged on behalf
+//      of the seller and settles in its own currency (`domain/payments/onBehalfOf.ts`).
+//      The figure is passed in by the caller, from the same function its charge uses,
+//      so the disclosure cannot drift from the charge.
+//   2. The payer's own bank. If their card is not in the contract's currency, their
 //      bank converts and may add a foreign-transaction fee. We do not know the card's
-//      currency, so this is said whenever the buyer's region uses a different currency
+//      currency, so this is said whenever the payer's region uses a different currency
 //      from the contract, and never quoted as a figure.
 //
 // Server-safe (no hooks), so it renders inside Server and Client Components alike.
@@ -19,7 +20,7 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Exchange01Icon } from '@hugeicons/core-free-icons';
 
-import { FX_FEE_BPS, currencyConversionFeeFor } from '@/domain/fees/fxFee';
+import { FX_FEE_BPS } from '@/domain/fees/fxFee';
 import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -30,11 +31,11 @@ export function fxFeeRateLabel(): string {
 }
 
 export interface CurrencyNoticeProps {
-  /** The contract's currency: what the buyer is charged in. */
+  /** The contract's currency: what the payer is charged in. */
   currency: string;
-  /** The contract total before conversion (price + fee + shipping), minor units. */
-  amountMinor: number;
-  /** The buyer's own region currency, when known, to decide the bank note. */
+  /** The Currency_Conversion fee charged on top, in minor units. 0 when none. */
+  fxFeeMinor: number;
+  /** The payer's own region currency, when known, to decide the bank note. */
   buyerCurrency?: string | null;
   /** Who is paid the agreed figure, and what it is called. Defaults to a cash sale. */
   recipient?: { who: string; what: string };
@@ -42,18 +43,18 @@ export interface CurrencyNoticeProps {
 }
 
 /**
- * What the buyer pays in, and any conversion cost. Renders nothing when there is
- * nothing to disclose: same currency as the buyer's region and no conversion fee.
+ * What the payer pays in, and any conversion cost. Renders nothing when there is
+ * nothing to disclose: same currency as the payer's region and no conversion fee.
  */
 export function CurrencyNotice({
   currency,
-  amountMinor,
+  fxFeeMinor,
   buyerCurrency,
   recipient = { who: 'the seller', what: 'the agreed price' },
   className,
 }: CurrencyNoticeProps) {
   const code = currency.trim().toUpperCase();
-  const fxFee = currencyConversionFeeFor(amountMinor, currency);
+  const fxFee = Math.max(Math.trunc(fxFeeMinor), 0);
   const buyerCode = buyerCurrency?.trim().toUpperCase() || null;
   const foreignToBuyer = Boolean(buyerCode && buyerCode !== code);
 

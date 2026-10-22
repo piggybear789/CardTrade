@@ -46,6 +46,9 @@ export const CASH_SALE_PUBLIC_SELECT = [
   'return_inspection_deadline_at',
   // 0136. The Currency_Conversion fee recorded at Pay; the room shows the stored figure.
   'fx_fee_cents',
+  // 0158. How the buyer paid, which is also the rail the stored fee is priced for. The
+  // room prices every Pay option from it and resumes a bank approval with it.
+  'payment_method_kind',
   // 0132. The seller's ship-by date, shown on the posting step, and whether it lapsed.
   'ship_by_at', 'ship_lapsed_at',
   // 0064. Drives the contract room's whole reading of itself: a shopfront

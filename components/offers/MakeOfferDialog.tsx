@@ -37,7 +37,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { displayLegalName, formatMoney } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
-import { NO_FEE_DURING_BETA, feesWaivedForBeta } from '@/lib/fees/feeLabels';
 import { makeOffer, type MakeOfferResult } from '@/lib/actions/offers';
 import { OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -170,13 +169,9 @@ export function MakeOfferDialog({
                   <span className="text-muted-foreground">Listed at</span>
                   <span className="font-semibold tabular-nums">{money(buyerPaysCents(asking, currency))}</span>
                 </p>
-                {/* The breakdown only when a fee is added. While fees are waived the two
-                    figures are the same, and the waiver is said once, on the live total. */}
-                {feesWaivedForBeta() ? null : (
-                  <p className="mt-tight text-meta text-muted-foreground">
-                    Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} NoDitto fee
-                  </p>
-                )}
+                <p className="mt-tight text-meta text-muted-foreground">
+                  Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} service fee
+                </p>
               </div>
             ) : null}
 
@@ -199,11 +194,7 @@ export function MakeOfferDialog({
                     <span className="font-semibold text-foreground tabular-nums">
                       {money(buyerPaysCents(offerCents, currency))}
                     </span>
-                    {feesWaivedForBeta() ? (
-                      <>, {NO_FEE_DURING_BETA}.</>
-                    ) : (
-                      <> including the {money(platformFeeCentsFor(offerCents, currency))} fee.</>
-                    )}
+                    <> including the {money(platformFeeCentsFor(offerCents, currency))} service fee.</>
                   </>
                 ) : null}
               </p>

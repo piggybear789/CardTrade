@@ -7,7 +7,7 @@
 // living in exactly ONE place: the transition table, the bond policy, the
 // Identity_Gate, the region registry, the trade fee, the binder rule, the fulfilment
 // validator. `core/money.dart` re-derives `minorUnitDigits` on top of that, and
-// mirrors the beta fee switch (`BETA_FEE_WAIVER` in `domain/fees/betaFeeWaiver.ts`). The
+// mirrors the service-fee table (`serviceFeeRateFor` in `domain/fees/processingFee.ts`). The
 // ports were faithful when they were written — that is not the problem. The problem
 // is that nothing would notice if they stopped being faithful, and a money rule with
 // two definitions and no pin between them is the exact shape of bug this codebase
@@ -26,11 +26,12 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
-import { PLATFORM_FEE_BPS } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { NODITTO_FEE_BPS, serviceFeeRateFor } from '@/domain/fees/processingFee';
+import { FX_FEE_BPS } from '@/domain/fees/fxFee';
+import { chargesOnBehalfOfSeller } from '@/domain/payments/onBehalfOf';
 import { minorUnitDigits, REGIONS } from '@/domain/region';
 import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
-import { FEE_WAIVED_HINT, betaFeeNote } from '@/lib/fees/feeLabels';
+import { PROCESSING_FEE_HINT, PROCESSING_FEE_NAME, TRADE_NO_FEE_NOTE } from '@/lib/fees/feeLabels';
 import { TRANSITIONS } from '@/domain/state-machine/machine';
 import { TERMINAL_STATES } from '@/domain/state-machine/types';
 import {
@@ -229,21 +230,48 @@ describe('the Dart region registry is the TypeScript region registry', () => {
   });
 });
 
-describe('the beta fee waiver agrees across the language boundary', () => {
-  // Ending the beta is a flip of `BETA_FEE_WAIVER` AND `Money.betaFeeWaiver`. If only
-  // one moved, the app would show one fee while the server charged another.
-  it('holds the same switch and the same standard rate', () => {
+describe('the processing fee agrees across the language boundary', () => {
+  // `Money.serviceFeeRates` is a hand-port of the card rows of `serviceFeeRateFor`. If
+  // the two drifted, the app would show one fee while the server charged another.
+  it('holds the same clean card rate for every currency', () => {
     const schedule = dartFeeSchedule();
-    expect(schedule.betaFeeWaiver).toBe(BETA_FEE_WAIVER);
-    expect(schedule.standardFeeBps).toBe(PLATFORM_FEE_BPS);
-    expect(schedule.standardFeeBps).toBe(TRADE_FEE_BPS);
+    for (const [currency, [bps, fixedMinor]] of Object.entries(schedule.rates)) {
+      expect(serviceFeeRateFor(currency), currency).toEqual({ bps, fixedMinor });
+    }
+    const [bps, fixedMinor] = schedule.fallback;
+    expect(serviceFeeRateFor('xyz')).toEqual({ bps, fixedMinor });
   });
 
-  it('uses the same fee-waiver copy', () => {
+  it('lists every currency the server prices', () => {
+    const dart = Object.keys(dartFeeSchedule().rates).sort();
+    for (const region of REGIONS) {
+      if (!region.tradingEnabled) continue;
+      expect(dart, region.code).toContain(region.currency.toLowerCase());
+    }
+  });
+
+  it('charges on behalf of the seller exactly where the server does', () => {
+    // Every listed currency except aud and usd is charged on behalf of its seller, so
+    // the Dart fee applies no conversion fee to any of them, and neither does the server.
+    for (const currency of Object.keys(dartFeeSchedule().rates)) {
+      expect(chargesOnBehalfOfSeller(currency), currency).toBe(currency !== 'aud' && currency !== 'usd');
+    }
+  });
+
+  it("holds the same conversion, trade and NoDitto rates", () => {
+    const schedule = dartFeeSchedule();
+    expect(schedule.fxFeeBps).toBe(FX_FEE_BPS);
+    expect(schedule.tradeFeeBps).toBe(TRADE_FEE_BPS);
+    expect(schedule.nodittoFeeBps).toBe(NODITTO_FEE_BPS);
+  });
+
+  it('uses the same fee copy and never the retired beta wording', () => {
     const { source } = dartFeeSchedule();
-    expect(source).toContain(`'${betaFeeNote()}'`);
-    expect(source).toContain(`'${FEE_WAIVED_HINT}'`);
-    expect(source).not.toContain('waived in open beta, normally');
+    expect(source).toContain(`'${PROCESSING_FEE_NAME}'`);
+    expect(source).toContain(`"${PROCESSING_FEE_HINT}"`);
+    expect(source).toContain(`'${TRADE_NO_FEE_NOTE}'`);
+    expect(source.toLowerCase()).not.toContain('open beta');
+    expect(source).not.toContain('betaFeeWaiver');
   });
 });
 

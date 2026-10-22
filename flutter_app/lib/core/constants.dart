@@ -2,9 +2,8 @@
 ///
 /// Matches the web app's marketplace-constants.ts values.
 abstract final class AppConstants {
-  // ─── Platform Fees ─────────────────────────────────────────────────────────
-  /// Platform fee in basis points (5%).
-  static const int platformFeeBps = 500;
+  // Fees live in `core/money.dart` (`Money.serviceFeeRates`, `Money.nodittoFeeBps`):
+  // a clean rate per currency that covers Stripe's costs and about 1% to NoDitto.
 
   // ─── Inspection Windows ────────────────────────────────────────────────────
   /// Cash sale inspection window in days.

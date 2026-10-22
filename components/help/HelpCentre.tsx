@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/accordion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { feeWaiverExplanation, feesWaivedForBeta } from '@/lib/fees/feeLabels';
+import { processingFeeExplanation } from '@/lib/fees/feeLabels';
 import { cn } from '@/lib/utils';
 
 type TopicId = 'buying' | 'selling' | 'trades' | 'payouts-id' | 'account';
@@ -96,9 +96,7 @@ function answers(tradeInspectionDays: number): Answer[] {
             You pay through Stripe when the deal is agreed. Stripe holds the payment and
             the seller is paid only after you accept the card, or your inspection window
             ends without a dispute.{' '}
-            {feesWaivedForBeta()
-              ? feeWaiverExplanation()
-              : 'The buyer fee is included in the price you see before paying.'}
+            {processingFeeExplanation()} It&rsquo;s included in the price you see before paying.
           </p>
           <p>
             What that hold legally is, and is not, is set out in the{' '}

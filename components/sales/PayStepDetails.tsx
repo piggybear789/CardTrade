@@ -32,7 +32,11 @@ const AddPaymentMethodForm = dynamic(
 export type PayCard =
   | { state: 'loading' }
   | { state: 'none' }
-  | { state: 'saved'; label: string | null };
+  /**
+   * `country` is where the card was issued, which picks its card tier (0159,
+   * `cardMethodFor`); null when unknown, which prices as a domestic card.
+   */
+  | { state: 'saved'; label: string | null; country: string | null };
 
 /** The buyer's saved card, read when the Pay step opens and again after adding one. */
 export function usePayCard(active: boolean): {
@@ -51,7 +55,7 @@ export function usePayCard(active: boolean): {
         if (cancelled) return;
         setCard(
           result.ok && result.data.hasPaymentMethod
-            ? { state: 'saved', label: result.data.label }
+            ? { state: 'saved', label: result.data.label, country: result.data.cardCountry ?? null }
             : { state: 'none' },
         );
       })

@@ -58,6 +58,8 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
     'This seller has reached their limit for new sellers. Try again after their current sales complete.',
   'tracking-predates-payment':
     'That tracking number was scanned by the carrier before this sale was paid for, so it cannot be this parcel. Check the number.',
+  'card-repriced':
+    "Your card's service fee is different from the one shown. Nothing was charged. Review the total and pay again.",
 };
 
 /**

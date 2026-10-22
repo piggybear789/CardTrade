@@ -359,3 +359,130 @@ insert into cardtrade.trusted_seller_reviews (profile_id, instagram_handle, staf
 select '77777777-7777-7777-7777-777777777777', 'noditto.demo.grace', 'DEMO SEED: pending review for the admin queue.'
  where exists (select 1 from cardtrade.profiles where id = '77777777-7777-7777-7777-777777777777')
 on conflict (profile_id) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- References web (0155): the demo accounts vouch for EACH OTHER, so any one of
+-- their graphs shows referees who are themselves connected (peer links) rather
+-- than a bare star. About 80% of ordered pairs get a positive edge, across
+-- every platform, and three pairs carry a NEGATIVE edge instead so the red
+-- state is visible: dave has two bad references and carol one. Pairs that
+-- already have a live reference are left alone.
+--
+-- Person keys are synthetic (`demo-seed:<profile id>`), which is also the
+-- cleanup handle:
+--   delete from cardtrade.member_references where voucher_person_key like 'demo-seed:%';
+-- ---------------------------------------------------------------------------
+insert into cardtrade.social_claims (platform, handle, claimed_profile_id, claim_method, claimed_at)
+select 'instagram', p.social_links->>'instagram', p.id, 'PROFILE_LINK', now()
+  from cardtrade.profiles p
+ where p.social_links->>'instagram' like 'noditto.demo.%'
+on conflict (platform, handle_norm) do nothing;
+
+with people(id, n) as (
+  select v.id, v.n
+    from (values
+      ('11111111-1111-1111-1111-111111111111'::uuid, 1),  -- alice
+      ('22222222-2222-2222-2222-222222222222'::uuid, 2),  -- bob
+      ('33333333-3333-3333-3333-333333333333'::uuid, 3),  -- carol
+      ('44444444-4444-4444-4444-444444444444'::uuid, 4),  -- dave
+      ('55555555-5555-5555-5555-555555555555'::uuid, 5),  -- erin
+      ('66666666-6666-6666-6666-666666666666'::uuid, 6),  -- frank
+      ('77777777-7777-7777-7777-777777777777'::uuid, 7),  -- grace
+      ('bbbbbbb1-0000-0000-0000-000000000001'::uuid, 8),  -- uma
+      ('bbbbbbb2-0000-0000-0000-000000000002'::uuid, 9)   -- victor
+    ) as v(id, n)
+   where exists (select 1 from cardtrade.profiles p where p.id = v.id)
+),
+negatives(voucher_n, target_n, category, comment) as (values
+  (6, 4, 'NEVER_ARRIVED', 'Paid by PayID for a Charizard, it never shipped and then I was blocked.'),
+  (9, 3, 'NOT_AS_DESCRIBED', 'Listed as Near Mint, arrived with a crease right across the middle.'),
+  (8, 4, 'SWITCHED', 'Showed one copy on video, a different damaged copy arrived.')
+),
+positive_comments(i, comment) as (values
+  (0, 'Shipped same day, double-boxed. Would deal again.'),
+  (1, 'Smooth trade, cards exactly as pictured.'),
+  (2, 'Met at the LGS, quick and friendly.'),
+  (3, 'Paid instantly, great communication.'),
+  (4, 'Fair price and fast postage.'),
+  (5, null),
+  (6, 'Third deal with them, always reliable.'),
+  (7, 'Honest about condition, sleeved and toploaded.')
+),
+pairs as (
+  select v.id as voucher_id, t.id as target_id, v.n as vn, t.n as tn
+    from people v
+    join people t on t.id <> v.id
+   where (v.n * 7 + t.n * 3) % 5 <> 0
+     and not exists (select 1 from negatives x where x.voucher_n = v.n and x.target_n = t.n)
+     -- A pair that already has a live reference (any sentiment) keeps it.
+     and not exists (
+       select 1 from cardtrade.member_references m
+        where m.voucher_id = v.id and m.target_profile_id = t.id and m.status = 'LIVE'
+     )
+)
+insert into cardtrade.member_references
+  (voucher_id, target_profile_id, platform, sentiment, category, comment, role,
+   occurred_month, voucher_person_key, target_person_key, deal_count, proof_status)
+select p.voucher_id,
+       p.target_id,
+       (array['instagram', 'facebook', 'discord', 'ebay', 'whatnot', 'in-person'])[1 + (p.vn + p.tn) % 6],
+       'POSITIVE',
+       null,
+       c.comment,
+       (array['BOUGHT', 'SOLD', 'TRADED'])[1 + (p.vn * 2 + p.tn) % 3],
+       date_trunc('month', now() - make_interval(months => (p.vn + p.tn * 2) % 9))::date,
+       'demo-seed:' || p.voucher_id,
+       'demo-seed:' || p.target_id,
+       1 + (p.vn * p.tn) % 3,
+       case when (p.vn + p.tn) % 4 = 0 then 'CHECKED' else 'NONE' end
+  from pairs p
+  join positive_comments c on c.i = (p.vn * 3 + p.tn) % 8
+union all
+select v.id, t.id, 'instagram', 'NEGATIVE', x.category, x.comment, 'BOUGHT',
+       date_trunc('month', now() - interval '1 month')::date,
+       'demo-seed:' || v.id, 'demo-seed:' || t.id, 1, 'NONE'
+  from negatives x
+  join people v on v.n = x.voucher_n
+  join people t on t.n = x.target_n
+ where not exists (
+   select 1 from cardtrade.member_references m
+    where m.voucher_id = v.id and m.target_profile_id = t.id and m.status = 'LIVE'
+ )
+on conflict do nothing;
+
+-- Mixed references against the `joys_joys` test account, so a graph with
+-- several red lines is on hand: three demo accounts report a bad deal and
+-- three vouch. Skipped where that account does not exist. Same cleanup as
+-- above (`demo-seed:` person keys).
+with target as (
+  select id from cardtrade.profiles
+   where display_name = 'joys_joys' and fraud_banned_at is null and closed_at is null
+   limit 1
+),
+refs(voucher_id, sentiment, category, platform, role, months_ago, comment) as (values
+  ('44444444-4444-4444-4444-444444444444'::uuid, 'NEGATIVE', 'NEVER_ARRIVED', 'instagram', 'BOUGHT', 1,
+   'Paid $180 by PayID for an Umbreon VMAX. Tracking number was fake and they stopped replying.'),
+  ('66666666-6666-6666-6666-666666666666'::uuid, 'NEGATIVE', 'NOT_AS_DESCRIBED', 'facebook', 'BOUGHT', 2,
+   'Photos showed a clean slab, the one that arrived had a cracked case.'),
+  ('bbbbbbb2-0000-0000-0000-000000000002'::uuid, 'NEGATIVE', 'PAYMENT', 'discord', 'SOLD', 3,
+   'Agreed a trade plus cash, sent my side, the cash never came.'),
+  ('11111111-1111-1111-1111-111111111111'::uuid, 'POSITIVE', null, 'in-person', 'TRADED', 5,
+   'Quick swap at the card show, no issues.'),
+  ('33333333-3333-3333-3333-333333333333'::uuid, 'POSITIVE', null, 'ebay', 'BOUGHT', 6,
+   'Shipped fast, well packed.'),
+  ('77777777-7777-7777-7777-777777777777'::uuid, 'POSITIVE', null, 'whatnot', 'BOUGHT', 4, null)
+)
+insert into cardtrade.member_references
+  (voucher_id, target_profile_id, platform, sentiment, category, comment, role,
+   occurred_month, voucher_person_key, target_person_key, deal_count, proof_status)
+select r.voucher_id, t.id, r.platform, r.sentiment, r.category, r.comment, r.role,
+       date_trunc('month', now() - make_interval(months => r.months_ago))::date,
+       'demo-seed:' || r.voucher_id, 'demo-seed:' || t.id, 1, 'NONE'
+  from refs r
+  cross join target t
+ where exists (select 1 from cardtrade.profiles p where p.id = r.voucher_id)
+   and not exists (
+     select 1 from cardtrade.member_references m
+      where m.voucher_id = r.voucher_id and m.target_profile_id = t.id and m.status = 'LIVE'
+   )
+on conflict do nothing;

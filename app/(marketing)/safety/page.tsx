@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { TRADE_INSPECTION_FLOOR_HOURS, TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
-import { betaFeeNote, feesWaivedForBeta, platformFeePhrase } from '@/lib/fees/feeLabels';
+import { nodittoFeeRateLabel } from '@/lib/fees/feeLabels';
 
 import { Guide, PageSection, Prose } from './stage-rail';
 
@@ -33,12 +33,10 @@ export const metadata: Metadata = {
 const strong = 'font-semibold text-foreground';
 
 export default function SafetyPage() {
-  const buyerFee = feesWaivedForBeta()
-    ? `${betaFeeNote()}, and postage is passed through at cost.`
-    : 'The price you see is what you pay, and postage is passed through at cost.';
-  const sellerFee = feesWaivedForBeta()
-    ? `${betaFeeNote()}, so you'll receive the full item price.`
-    : `NoDitto keeps ${platformFeePhrase('aud')}.`;
+  const buyerFee =
+    `The price you see includes the service fee, a fixed rate shown before you pay that covers Stripe's costs plus about ${nodittoFeeRateLabel()} to NoDitto. Postage is passed through at cost.`;
+  const sellerFee =
+    "You'll receive your full price and postage. The buyer pays the service fee on top.";
 
   return (
     <article className="mx-auto max-w-2xl px-group py-section sm:px-6 md:py-12">

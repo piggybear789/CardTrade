@@ -29,6 +29,8 @@
     "smoke:stripe:us": "tsx --env-file=.env.local scripts/smoke-stripe-test.ts US",
     "smoke:stripe:connect": "tsx --env-file=.env.local scripts/smoke-stripe-connect.ts",
     "smoke:stripe:connect:us": "tsx --env-file=.env.local scripts/smoke-stripe-connect.ts US",
+    "smoke:stripe:bank-rails": "tsx --env-file=.env.local scripts/smoke-stripe-bank-rails.ts",
+    "test:e2e:stripe": "playwright test -c playwright.stripe.config.ts",
     "verify:regions": "tsx --env-file=.env.local scripts/verify-stripe-region.ts"
   },
   "dependencies": {

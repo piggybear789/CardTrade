@@ -12,7 +12,7 @@ import { ensureFreshSessions } from './auth';
 import { createListing, itemIdFromUrl } from './listings';
 import { marked } from './marker';
 import { messageSellerFromListing } from './messageSeller';
-import { ensureSavedCard } from './payments';
+import { ensureSavedCard, openBuyCheckout } from './payments';
 import { ALICE, BOB, storageStatePath } from './users';
 import { COLD_ROUTE, RENDERED } from './waiting';
 
@@ -35,16 +35,7 @@ async function openCashSale(page: Page, itemId: string): Promise<string> {
   await ensureSavedCard(page, itemId);
   await page.goto(`/listings/${itemId}`);
   await page.waitForLoadState('domcontentloaded');
-  await page.getByRole('button', { name: /^Buy( now)?$/ }).first().click();
-
-  const dialog = page.getByRole('dialog');
-  const addCard = dialog.getByRole('heading', { name: 'Add a payment method' });
-  const checkout = dialog.getByRole('heading', { name: 'Start a purchase contract' });
-  await expect(addCard.or(checkout)).toBeVisible({ timeout: 25_000 });
-  if (await addCard.isVisible().catch(() => false)) {
-    await dialog.getByRole('button', { name: /Save demo card/i }).click();
-    await expect(checkout).toBeVisible({ timeout: 25_000 });
-  }
+  const dialog = await openBuyCheckout(page);
   await dialog.getByRole('button', { name: 'Reserve item and agree terms' }).click();
   await expect(page).toHaveURL(/\/sales\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
   return new URL(page.url()).pathname;

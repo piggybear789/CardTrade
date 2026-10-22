@@ -246,6 +246,8 @@ const EXPECTED_CODES = new Set([
   // ESC-34: the orphan sweep released a hold, or skipped a region it could not read.
   'orphan-hold-voided',
   'orphan-sweep-skipped',
+  // 0159: the buyer's card is priced at another card tier than the total they saw.
+  'card-repriced',
 ]);
 
 /**

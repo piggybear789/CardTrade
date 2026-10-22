@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 
-import { BETA_FEE_WAIVER } from '@/domain/fees/betaFeeWaiver';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { askingPriceRange, buyerPaysCents, listedPriceCents } from '@/lib/listings/buyerPrice';
 
@@ -16,8 +15,9 @@ describe('listedPriceCents', () => {
     expect(listedPriceCents(350_000, 'aud', true)).toBe(350_000);
   });
 
-  it('adds the effective fee on cheap singles (none during the beta)', () => {
-    expect(listedPriceCents(500, 'aud', false)).toBe(BETA_FEE_WAIVER ? 500 : 525);
+  it("adds Stripe's processing fee on cheap singles", () => {
+    expect(listedPriceCents(500, 'aud', false)).toBe(500 + platformFeeCentsFor(500, 'aud'));
+    expect(listedPriceCents(500, 'aud', false)).toBeGreaterThan(500);
   });
 });
 

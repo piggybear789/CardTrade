@@ -22,14 +22,11 @@
 import { settlementFor } from './helpers/settle';
 import { describe, expect, it } from 'vitest';
 
-import { effectiveFeeBps } from '@/domain/fees/betaFeeWaiver';
-import { percentageFeeMinor } from '@/domain/fees/percentageFee';
 import {
   acceptCashSaleInspection,
   acceptCashSaleTerms,
   initiateCashSale,
   payoutCashSaleSeller,
-  PLATFORM_FEE_BPS,
   platformFeeCentsFor,
   recordCashSaleReceipt,
   recordCashSaleShipment,
@@ -189,6 +186,7 @@ async function runLifecycle(currency: string) {
     currency: state.sale!.currency,
     agreedPriceCents: state.sale!.agreedPriceCents,
     platformFeeCents: state.sale!.platformFeeCents,
+    shippingCostCents: state.sale!.shippingCostCents,
     amountCents: state.sale!.amountCents,
     netCents: sellerNetCentsFor(state.sale!),
     releasedOk: released.ok,
@@ -216,14 +214,16 @@ describe('Cash_Sale lifecycle is identical in every trading region', () => {
     expect(run.currency).toBe('usd');
   });
 
-  it('takes the same route and the same figures in AU and US, differing only in currency', async () => {
+  it('takes the same route in AU and US, and pays the seller the same figure', async () => {
     const [au, us] = await Promise.all([runLifecycle('aud'), runLifecycle('usd')]);
 
     expect(us.statuses).toEqual(au.statuses);
     expect(us.agreedPriceCents).toBe(au.agreedPriceCents);
-    expect(us.platformFeeCents).toBe(au.platformFeeCents);
-    expect(us.amountCents).toBe(au.amountCents);
+    // The fee differs (each platform's Stripe costs), so the buyer's total does too.
+    // What the seller nets is price plus postage everywhere.
     expect(us.netCents).toBe(au.netCents);
+    expect(us.netCents).toBe(us.agreedPriceCents + us.shippingCostCents);
+    expect(us.amountCents).toBe(us.agreedPriceCents + us.platformFeeCents + us.shippingCostCents);
     expect(us.releasedOk).toBe(au.releasedOk);
 
     // The one thing that must differ.
@@ -231,18 +231,16 @@ describe('Cash_Sale lifecycle is identical in every trading region', () => {
     expect(us.currency).toBe('usd');
   });
 
-  it('charges the same percentage fee whatever the currency', async () => {
-    // PLATFORM_FEE_BPS is a proportion, so it is currency-agnostic by construction.
-    // There is no per-currency minimum, so the fee is the plain percentage in all
-    // four worlds.
+  it("charges each currency its own platform's Stripe costs", async () => {
+    // The Processing_Fee passes Stripe's costs through, and those differ by platform
+    // and card origin, so the fee is per currency. What must hold everywhere is that
+    // the stored fee is the one the shared function derives for that contract.
     for (const currency of ['aud', 'usd', 'gbp', 'jpy']) {
       const run = await runLifecycle(currency);
       expect(run.platformFeeCents).toBe(
-        platformFeeCentsFor(run.agreedPriceCents, run.currency),
+        platformFeeCentsFor(run.agreedPriceCents, run.currency, run.shippingCostCents),
       );
-      expect(run.platformFeeCents).toBe(
-        percentageFeeMinor(run.agreedPriceCents, effectiveFeeBps(PLATFORM_FEE_BPS)),
-      );
+      expect(run.platformFeeCents).toBeGreaterThan(0);
     }
   });
 });

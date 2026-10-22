@@ -31,6 +31,7 @@ import { FALLBACK_REGION, regionCurrency } from '@/domain/region';
 import type { MerchantRecord } from './merchantOnboarding';
 import { countQualifyingSales, type CompletedSaleFact } from '@/domain/payouts/releasePolicy';
 import { IN_PERSON_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
+import { storedPaymentMethod } from '@/domain/payments/paymentMethods';
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 type CashSaleRow = Tables<'cash_sales'>;
@@ -107,6 +108,8 @@ function toCashSale(row: CashSaleRow): CashSaleRecord {
     paymentSettledAt: row.payment_settled_at,
     // Service-role reads select `*`; a narrower projection simply omits it.
     paymentAttempt: (row as { payment_attempt?: number }).payment_attempt ?? 0,
+    // 0158. Lenient: a row written before the column, or an unknown value, is card.
+    paymentMethod: storedPaymentMethod(row.payment_method_kind),
     fulfillmentMethod: row.fulfillment_method,
     shippingCostCents: row.shipping_cost_cents,
     shippingNotes: row.shipping_notes,
@@ -438,7 +441,7 @@ export function createSupabaseCashSaleRepository(
         .maybeSingle();
       return data ? toCashSale(data as CashSaleRow) : null;
     },
-    async updateTerms({ cashSaleId, actorId, expectedTermsVersion, terms }) {
+    async updateTerms({ cashSaleId, actorId, expectedTermsVersion, terms, platformFeeCents }) {
       const { data, error } = await client.rpc('update_cash_sale_terms', {
         p_cash_sale_id: cashSaleId,
         p_actor_id: actorId,
@@ -456,6 +459,8 @@ export function createSupabaseCashSaleRepository(
         p_delivery_country_code: terms.deliveryAddress?.countryCode ?? null,
         p_delivery_lat: terms.deliveryAddress?.lat ?? null,
         p_delivery_lng: terms.deliveryAddress?.lng ?? null,
+        // 0157: the fee for the new postage, written with it.
+        p_platform_fee_cents: platformFeeCents,
       });
       if (error) return { ok: false as const, reason: 'UNAVAILABLE' as const };
       const row = (data as CashSaleRow[] | null)?.[0];
@@ -480,10 +485,10 @@ export function createSupabaseCashSaleRepository(
     async updateAgreedPrice({ cashSaleId, expectedTermsVersion, agreedPriceCents }) {
       const current = await selectSale(client, cashSaleId);
       if (!current || current.status !== 'AGREEMENT') return null;
-      // The Platform_Fee is a percentage of the item price, so a renegotiated price must re-derive it. Carrying the old fee
-      // forward would bill the buyer a percentage of a price that no longer exists
-      // and would break the `amount = price + fee + shipping` constraint's intent.
-      const feeCents = platformFeeCentsFor(agreedPriceCents, current.currency);
+      // The Processing_Fee is charged on price plus postage, so a renegotiated price
+      // must re-derive it. Carrying the old fee forward would bill the buyer for a
+      // price that no longer exists.
+      const feeCents = platformFeeCentsFor(agreedPriceCents, current.currency, current.shippingCostCents);
       const { data } = await client
         .from('cash_sales')
         .update({
@@ -499,7 +504,7 @@ export function createSupabaseCashSaleRepository(
       return data ? toCashSale(data as CashSaleRow) : null;
     },
 
-    async claimPayment({ cashSaleId, termsVersion, nonce, requestedAt, attempt }) {
+    async claimPayment({ cashSaleId, termsVersion, nonce, requestedAt, attempt, payment }) {
       const { data } = await client
         .from('cash_sales')
         .update({
@@ -508,6 +513,16 @@ export function createSupabaseCashSaleRepository(
           payment_requested_at: requestedAt,
           // ESC-03: written in the same guarded UPDATE as the nonce it keys.
           ...(attempt !== undefined ? { payment_attempt: attempt } : {}),
+          // 0158: the chosen rail and the fee and total priced for it, in the same
+          // write, so `amount - fee` (the seller's net) always describes this rail.
+          // Neither column is watched by `cash_sales_reset_acceptances`.
+          ...(payment
+            ? {
+                payment_method_kind: payment.method,
+                platform_fee_cents: payment.platformFeeCents,
+                amount_cents: payment.amountCents,
+              }
+            : {}),
         })
         .eq('id', cashSaleId)
         .eq('status', 'AGREEMENT')

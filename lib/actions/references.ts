@@ -16,6 +16,7 @@ import { revalidatePath } from 'next/cache';
 
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { withActionLog } from '@/lib/errors/withActionLog';
+import { instagramBotHandle, isInstagramBotHandle } from '@/lib/instagram/botHandle';
 import { getInstagramBotToken } from '@/lib/instagram/botToken';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
@@ -1061,10 +1062,11 @@ export const startInstagramDmClaim = withActionLog(
     if (!cleanHandle) return fail('invalid-reference', 'Enter a valid Instagram handle.');
 
     const handleNorm = cleanHandle.toLowerCase();
-    // NoDitto's Instagram is @no.ditto (with the dot); @noditto is someone else's account.
-    const botHandle = (process.env.NEXT_PUBLIC_INSTAGRAM_BOT_HANDLE || 'no.ditto')
-      .trim()
-      .replace(/^@/, '');
+    const botHandle = instagramBotHandle();
+    // The bot cannot prove it owns itself by DM (see lib/instagram/botHandle.ts).
+    if (isInstagramBotHandle(handleNorm)) {
+      return fail('not-allowed', "That's NoDitto's own Instagram account, so it can't be claimed here.");
+    }
 
     const user = await getCachedAuthUser();
     if (!user) {
@@ -1189,6 +1191,8 @@ async function checkInstagramGraphDmForCode(
       // conversation that merely included the handle as a participant, which let a
       // code typed by someone else (or by the bot itself) count as proof.
       const fromUser = (msg.from?.username ?? '').trim().replace(/^@/, '').toLowerCase();
+      // The bot's own messages are never proof of anything.
+      if (isInstagramBotHandle(fromUser)) continue;
       if (fromUser === handleNorm && (msg.message ?? '').toUpperCase().includes(upperCode)) {
         return true;
       }
@@ -1209,6 +1213,10 @@ export const checkInstagramDmClaim = withActionLog(
     if (!cleanHandle) return fail('invalid-reference', 'Enter a valid Instagram handle.');
 
     const handleNorm = cleanHandle.toLowerCase();
+    // Never approve the bot's own handle (see lib/instagram/botHandle.ts).
+    if (isInstagramBotHandle(handleNorm)) {
+      return fail('not-allowed', "That's NoDitto's own Instagram account, so it can't be claimed here.");
+    }
     const admin = createAdminClient();
 
     const { data: claim } = await admin

@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { isInstagramBotHandle } from '@/lib/instagram/botHandle';
 import { getInstagramBotToken } from '@/lib/instagram/botToken';
 import { createAdminClient } from '@/lib/supabase/admin';
 
@@ -82,11 +83,32 @@ async function fetchSenderInstagramUsername(senderIgsid: string): Promise<Sender
 interface InstagramWebhookPayload {
   object?: string;
   entry?: Array<{
+    /** The connected account this event is for: the bot, @no.ditto. */
+    id?: string;
     messaging?: Array<{
       sender?: { id?: string };
+      recipient?: { id?: string };
       message?: { text?: string; is_echo?: boolean };
     }>;
   }>;
+}
+
+/**
+ * Ids (never text) describing an event whose sender turned out to be the bot. Kept so
+ * that if Meta sends one again, the error log shows exactly what it sent.
+ */
+function selfSenderContext(
+  entryId: string | undefined,
+  event: { sender?: { id?: string }; recipient?: { id?: string }; message?: { is_echo?: boolean } },
+  claimRequestId?: string,
+): Record<string, unknown> {
+  return {
+    entryId: entryId ?? null,
+    senderId: event.sender?.id ?? null,
+    recipientId: event.recipient?.id ?? null,
+    isEcho: event.message?.is_echo ?? null,
+    ...(claimRequestId ? { claimRequestId } : {}),
+  };
 }
 
 /** Meta Webhook Verification handshake (`hub.mode=subscribe`). */
@@ -168,6 +190,18 @@ export async function POST(request: NextRequest) {
       const match = text.match(CODE_REGEX);
       if (!match || !senderId) continue;
 
+      // The bot is never a member proving a handle. An event whose sender IS the account
+      // it was delivered for is the bot's own message, echo flag or not.
+      if (entry.id && senderId === entry.id) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.sender',
+          errorCode: 'SENDER_IS_BOT',
+          message: 'A claim code arrived in an event sent by the bot account itself; ignored',
+          context: selfSenderContext(entry.id, event),
+        });
+        continue;
+      }
+
       const code = match[1].toUpperCase();
 
       // `.limit(2)` rather than `.maybeSingle()`: two people claiming one handle get the
@@ -215,6 +249,17 @@ export async function POST(request: NextRequest) {
 
       if (!socialClaim || socialClaim.claimed_profile_id) continue;
 
+      // The bot's own handle is never claimable by DM (lib/instagram/botHandle.ts).
+      if (isInstagramBotHandle(socialClaim.handle_norm)) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.lookup',
+          errorCode: 'BOT_HANDLE_CLAIM',
+          message: "A DM claim targeted the bot's own handle; not approving it",
+          context: { claimRequestId: claimReq.id },
+        });
+        continue;
+      }
+
       const sender = await fetchSenderInstagramUsername(senderId);
       if (!sender.ok) {
         await logBackgroundFailure({
@@ -222,6 +267,17 @@ export async function POST(request: NextRequest) {
           errorCode: sender.errorCode,
           message: sender.message,
           context: { claimRequestId: claimReq.id },
+        });
+        continue;
+      }
+      // Caught by username as well as by id, so a sender id that resolves to the bot in
+      // a form we did not anticipate is still refused.
+      if (isInstagramBotHandle(sender.username)) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.sender',
+          errorCode: 'SENDER_IS_BOT',
+          message: 'The DM sender resolved to the bot account itself; ignored',
+          context: selfSenderContext(entry.id, event, claimReq.id),
         });
         continue;
       }

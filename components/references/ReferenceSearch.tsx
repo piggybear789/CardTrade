@@ -37,6 +37,16 @@ export function ReferenceSearch({
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestSeq = useRef(0);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Focus the search on arrival with a mouse and keyboard only. On a touch screen
+  // `autoFocus` raised the software keyboard over the "Most referenced" list before the
+  // member had looked at the page, the same reason the dialogs focus their container.
+  useEffect(() => {
+    if (window.matchMedia('(pointer: fine)').matches) {
+      inputRef.current?.focus({ preventScroll: true });
+    }
+  }, []);
 
   const needle = query.trim().replace(/^@/, '');
   const needleLower = needle.toLowerCase();
@@ -149,7 +159,7 @@ export function ReferenceSearch({
           // `text-body`, the same size as the handles in the suggestion list under it, so
           // what you type and what you pick read as one control.
           className="h-[clamp(3rem,3vw,3.75rem)] w-full bg-transparent pl-3 pr-4 text-body text-foreground placeholder:text-muted-foreground/75 focus:outline-none"
-          autoFocus
+          ref={inputRef}
         />
         {query ? (
           <button
@@ -159,20 +169,29 @@ export function ReferenceSearch({
               setActiveIndex(0);
             }}
             aria-label="Clear search"
-            className="mr-2 inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+            className="mr-1 inline-flex size-10 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring sm:mr-2 sm:size-8"
           >
             <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden />
           </button>
         ) : null}
       </div>
 
-      {/* Dropdown — anchored below the input so filtering never shifts page layout */}
+      {/* RESULTS. From `sm`: a dropdown anchored below the input, so filtering never
+          shifts the centred page. PHONE: in the page flow under the search, so the list
+          scrolls with the page instead of floating over the footer and keyboard. */}
       {showDropdown ? (
         <div
           role="listbox"
           aria-label={needle ? 'Matching profiles' : 'Top referred traders'}
-          className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-lg border border-border bg-card/95 shadow-xl backdrop-blur-md"
+          className="relative mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-market sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:shadow-xl sm:backdrop-blur-md"
         >
+          {!needle && visibleSuggestions.length > 0 ? (
+            // Visible caption only: the listbox's own label already names it, and a
+            // listbox may hold nothing but options for assistive tech.
+            <p aria-hidden className="px-4 pb-1 pt-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
+              Most referenced
+            </p>
+          ) : null}
           {visibleSuggestions.length > 0 ? (
             <div className="divide-y divide-border/60">
               {visibleSuggestions.map((s, i) => {

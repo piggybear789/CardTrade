@@ -20,6 +20,7 @@ import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 import { ClaimHandle } from '@/components/references/ClaimHandle';
 import { PlatformChip, plural } from '@/components/references/referenceLabels';
 import {
+  ExperienceList,
   TrustNetworkBody,
   TrustNetworkHeader,
   arrival,
@@ -83,14 +84,29 @@ export function ReferenceProfile({
           className="pointer-events-none absolute -top-20 -right-20 h-44 w-44 rounded-full bg-iris/[0.06] blur-2xl"
         />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3.5" style={{ opacity: arrival(orbits) }}>
-            <Button asChild variant="outline" size="icon" className="shrink-0">
+          {/* PHONE: a 40px back button (a touch target, not the 36px pointer one), a 48px
+              avatar and a tighter gap, which hands the handle ~20px more of a ~311px row. */}
+          <div className="flex min-w-0 items-center gap-cozy sm:gap-3.5" style={{ opacity: arrival(orbits) }}>
+            {/* A borderless round button with a 20px chevron, nudged into the card's
+                margin, at every width. The outlined square with a 16px arrow, beside
+                the round avatar, read as an empty form control rather than "back". */}
+            <Button
+              asChild
+              variant="ghost"
+              size="icon"
+              className="-ml-2 size-10 shrink-0 rounded-full md:size-9 [&_svg]:size-5"
+            >
               <Link href="/references" aria-label="Back to references">
                 <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
               </Link>
             </Button>
 
-            <Avatar avatarPath={centre.avatarPath} displayName={centre.name} size="lg" />
+            <Avatar
+              avatarPath={centre.avatarPath}
+              displayName={centre.name}
+              size="lg"
+              className="max-sm:size-12"
+            />
 
             <div className="min-w-0 space-y-1.5">
               <div className="flex flex-wrap items-center gap-1.5">
@@ -137,10 +153,12 @@ export function ReferenceProfile({
                 ) : null}
                 {altHandles.length > 0 ? (
                   <>
-                    <span aria-hidden className="text-border">
+                    <span aria-hidden className="hidden text-border sm:inline">
                       ·
                     </span>
-                    <span className="text-meta text-muted-foreground">
+                    {/* Its own line on a phone, and allowed to break inside a long
+                        handle: a single 27-character handle overflowed the column. */}
+                    <span className="basis-full text-meta text-muted-foreground [overflow-wrap:anywhere] sm:basis-auto">
                       Also known as{' '}
                       <span className="font-medium text-foreground">
                         {altHandles.join(', ')}
@@ -152,7 +170,10 @@ export function ReferenceProfile({
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center gap-2">
+          {/* PHONE: full-width stacked actions, the primary one last and nearest the
+              thumb (Vinted's Follow, Etsy's Message seller). Two buttons used to wrap
+              into ragged left-aligned rows of different widths. */}
+          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center [&>button]:w-full sm:[&>button]:w-auto">
             {centre.unclaimed ? (
               <ClaimHandle
                 key={`claim-${centre.handleSlug}`}
@@ -199,6 +220,16 @@ export function ReferenceProfile({
       >
         <TrustNetworkHeader orbits={orbits} />
         <TrustNetworkBody orbits={orbits} />
+        {/* PHONES READ A LIST. On a 375px screen the drawing's labels render at ~9px and
+            its dots are ~27px targets, so the references themselves were close to
+            unreadable. Below `sm` every reference is also listed as a card under the
+            drawing (the review list every marketplace app uses); tapping one selects it
+            in the drawing. Desktop keeps the drawing alone. */}
+        {orbits.view.nodes.length > 0 ? (
+          <div className="sm:hidden">
+            <ExperienceList orbits={orbits} selectable={false} />
+          </div>
+        ) : null}
       </section>
     </div>
   );

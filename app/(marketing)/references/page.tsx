@@ -38,9 +38,15 @@ export default async function ReferencesPage() {
   // monitor shows the same composition larger instead of a small block near the top.
   // The block sits a little above the vertical middle of the space above the footer,
   // and the bottom padding keeps room for the suggestion list that opens under the search.
+  //
+  // PHONES CENTRE THE WHOLE BLOCK, LIST INCLUDED. From `sm` the suggestion list floats
+  // over the page, so the bottom padding reserves room for it. On a phone the list sits
+  // in the page flow under the search, so it is part of the block being centred and
+  // nothing needs reserving: equal padding top and bottom, and `justify-center` splits
+  // the leftover height evenly instead of leaving it all under the list.
   return (
     <div className="relative flex flex-1 flex-col">
-      <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-center px-group pt-[clamp(3rem,8vh,7rem)] pb-[clamp(18rem,32vh,26rem)] sm:px-6">
+      <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-center px-group py-section sm:px-6 sm:pt-[clamp(3rem,8vh,7rem)] sm:pb-[clamp(18rem,32vh,26rem)]">
         <header className="mx-auto max-w-[clamp(42rem,48vw,64rem)] text-center">
           {/* The platform marks lead the block, so they carry real size; the glyph
               inside each chip scales with it (`[&_svg]`). */}
@@ -56,7 +62,10 @@ export default async function ReferencesPage() {
 
           {/* One line from a small tablet up; `text-balance` lets it break evenly on the
               narrowest phones rather than overflow. */}
-          <h1 className="mt-[clamp(1.25rem,1.6vw,2rem)] text-balance text-[clamp(1.5rem,2.6vw,3rem)] font-semibold leading-[1.15] tracking-tight text-foreground">
+          {/* PHONE: 32px. The clamp's 24px floor is sized for a laptop column and read
+              as body-ish on a phone, where this line is the page's only heading. It
+              breaks onto two balanced lines at 375px. */}
+          <h1 className="mt-[clamp(1.25rem,1.6vw,2rem)] text-balance text-[clamp(1.5rem,2.6vw,3rem)] font-semibold leading-[1.15] tracking-tight text-foreground max-sm:text-[2rem]">
             References, all in one place
           </h1>
 

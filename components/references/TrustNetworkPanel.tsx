@@ -164,7 +164,7 @@ function Header({
         <p className="text-meta text-muted-foreground">{meta}</p>
       </div>
       <OpenNetwork orbits={orbits} personKey={person.key} />
-      <Button variant="ghost" size="icon" className="-mr-1.5 shrink-0" aria-label="Close" onClick={onClose}>
+      <Button variant="ghost" size="icon" className="-mr-1.5 shrink-0 max-sm:size-10" aria-label="Close" onClick={onClose}>
         <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
       </Button>
     </header>
@@ -266,7 +266,10 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
       </PanelCard>
 
       <Dialog open={lightboxUrl !== null} onOpenChange={(open) => !open && setLightboxUrl(null)}>
-        <DialogContent className="sm:max-w-xl p-2">
+        {/* `center`, the documented media-viewer presentation: as the default phone
+            sheet the image docked to the bottom, and `p-2` overrode the sheet's
+            safe-area bottom padding, so the photo ran under the home indicator. */}
+        <DialogContent mobile="center" className="p-2 sm:p-2">
           <DialogTitle className="sr-only">Reference attachment from {node.handle}</DialogTitle>
           {lightboxUrl ? (
             // eslint-disable-next-line @next/next/no-img-element

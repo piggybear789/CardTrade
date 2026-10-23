@@ -12,7 +12,7 @@
 // with the experiences listed as text under it; `ReferenceProfile` is a person's
 // references page, built from the same body with a modal trigger to leave a reference.
 
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -116,14 +116,22 @@ export function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
   );
 }
 
+/**
+ * One filter pill. PHONE: 36px tall in a single row that swipes sideways (the Depop
+ * filter row), instead of 28px pills wrapping onto three rows above the drawing.
+ * From `sm` the compact wrapping pills come back.
+ */
+const FILTER_PILL =
+  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-cozy text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-7 sm:px-2.5';
+
 function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
   const { view, platformFilter, filterByPlatform } = orbits;
   const platforms = view.platforms;
 
   return (
-    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-5 py-2">
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-group py-2 sm:px-5">
       <div
-        className="flex flex-wrap items-center gap-1.5"
+        className="-mx-group flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-group [scrollbar-width:none] sm:mx-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         role="group"
         aria-label="Filter references by platform"
         style={{ opacity: arrival(orbits) }}
@@ -133,7 +141,7 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
           aria-pressed={platformFilter === null}
           onClick={() => filterByPlatform(null)}
           className={cn(
-            'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            FILTER_PILL,
             platformFilter === null
               ? 'border-foreground bg-foreground text-background'
               : 'border-border/80 bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
@@ -152,7 +160,7 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
               aria-pressed={active}
               onClick={() => filterByPlatform(p.slug)}
               className={cn(
-                'inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                FILTER_PILL,
                 active
                   ? 'border-iris bg-iris/12 text-foreground ring-1 ring-iris/35'
                   : 'border-border/80 bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
@@ -174,7 +182,10 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
         })}
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* Pointer controls. Hidden on phones: a vertical drag there scrolls the page, so
+          tilt (and so "Reset view") cannot be reached, and the spin switch is the
+          drawing's decoration rather than anything a reader needs. */}
+      <div className="hidden items-center gap-4 sm:flex">
         {orbits.tilted ? (
           <Button variant="ghost" size="xs" onClick={orbits.resetView}>
             Reset view
@@ -189,10 +200,26 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
   );
 }
 
-function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
+/**
+ * Every reference as a readable card. The storefront shows it under the drawing at every
+ * width; the reference profile shows it on PHONES, where it is the way to read references
+ * (a review list, as Fiverr, eBay and Depop do) rather than tapping ~27px dots.
+ */
+export function ExperienceList({
+  orbits,
+  selectable = true,
+}: {
+  orbits: TrustOrbits;
+  /**
+   * Whether a card selects its person in the drawing. Off where the list sits below a
+   * drawing scrolled out of view (the phone profile): the card already says everything
+   * the panel would, and a panel opening off-screen reads as a tap that did nothing.
+   */
+  selectable?: boolean;
+}) {
   const { view, selectedKey } = orbits;
   return (
-    <div className="border-t border-border/80 bg-card px-5 py-4" style={{ opacity: arrival(orbits) }}>
+    <div className="border-t border-border/80 bg-card px-group py-4 sm:px-5" style={{ opacity: arrival(orbits) }}>
       <h4 className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
         {view.direction === 'given' ? 'References given' : 'Experiences'} ({view.nodes.length})
       </h4>
@@ -204,21 +231,30 @@ function ExperienceList({ orbits }: { orbits: TrustOrbits }) {
           return (
             <li key={node.id}>
               <div
-                role="button"
-                tabIndex={0}
-                aria-pressed={isSelected}
-                onClick={() => orbits.select(key)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    orbits.select(key);
-                  }
-                }}
+                {...(selectable
+                  ? {
+                      role: 'button',
+                      tabIndex: 0,
+                      'aria-pressed': isSelected,
+                      onClick: () => orbits.select(key),
+                      onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          orbits.select(key);
+                        }
+                      },
+                    }
+                  : {})}
                 className={cn(
-                  'group flex h-full cursor-pointer flex-col justify-between rounded-xl border p-3.5 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isSelected
-                    ? 'border-foreground/40 bg-muted/30 shadow-2xs'
-                    : 'border-border/80 bg-card hover:border-foreground/25 hover:bg-muted/15',
+                  'group flex h-full flex-col justify-between rounded-xl border p-3.5 transition-all',
+                  selectable
+                    ? cn(
+                        'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        isSelected
+                          ? 'border-foreground/40 bg-muted/30 shadow-2xs'
+                          : 'border-border/80 bg-card hover:border-foreground/25 hover:bg-muted/15',
+                      )
+                    : 'border-border/80 bg-card',
                 )}
               >
                 <div>
@@ -352,7 +388,7 @@ function DirectionSwitch({ orbits }: { orbits: TrustOrbits }) {
 /** The network's title and how well vouched for the person in the middle is, with an optional action. */
 export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; action?: ReactNode }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-border/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-b border-border/80 px-group py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="flex min-w-0 flex-wrap items-center gap-2.5" style={{ opacity: arrival(orbits) }}>
         <h3 id="references-heading" className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
           Trust Network

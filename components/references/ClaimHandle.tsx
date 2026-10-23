@@ -361,7 +361,9 @@ export function ClaimHandle({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {isLinkMode ? (
-          <Button type="button" variant="outline">
+          // FILLED: on their own page this is the owner's main action, and as an
+          // outline it sat at the same weight as "Share reference link" beside it.
+          <Button type="button">
             <HugeiconsIcon icon={PlusIcon} aria-hidden />
             Link another handle
           </Button>

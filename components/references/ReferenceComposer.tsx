@@ -503,92 +503,6 @@ function Publish({ className }: { className?: string }) {
   );
 }
 
-/**
- * The draft read back before it is published. A reference goes live the moment it is
- * published and carries the author's verified name, so the last step shows exactly what
- * other traders will see. Each row's Edit jumps to the step that owns it.
- */
-function Summary({ onEdit }: { onEdit: (step: number) => void }) {
-  const { target, platform, role, rating, sentiment, comment } = useDraft();
-  const platformLabel = REFERENCE_PLATFORMS.find((p) => p.slug === platform)?.label ?? '—';
-  const roleText = REFERENCE_ROLES.find((r) => r.slug === role)?.label ?? role;
-
-  const rows: Array<{ label: string; value: ReactNode; step: number }> = [
-    {
-      label: 'Deal',
-      value: (
-        <span className="inline-flex min-w-0 items-center gap-1.5">
-          {platform ? (
-            <SocialPlatformIcon
-              slug={platform}
-              className={cn('size-3.5 shrink-0', PLATFORM_ICON_TINT[platform] ?? 'text-muted-foreground')}
-            />
-          ) : null}
-          <span className="truncate">
-            {roleText} on {platformLabel}
-          </span>
-        </span>
-      ),
-      step: 1,
-    },
-    {
-      label: 'Rating',
-      value: (
-        <span className="inline-flex items-center gap-1.5">
-          <span className="inline-flex" aria-label={`${rating} out of 5 stars`}>
-            {[1, 2, 3, 4, 5].map((value) => (
-              <HugeiconsIcon
-                key={value}
-                icon={StarIcon}
-                className={cn(
-                  'size-3.5',
-                  value <= rating ? 'fill-iris text-iris-ink' : 'text-muted-foreground/40',
-                )}
-                aria-hidden
-              />
-            ))}
-          </span>
-          <span className="text-muted-foreground">{SENTIMENT_LABEL[sentiment]}</span>
-        </span>
-      ),
-      step: 2,
-    },
-    {
-      label: 'Description',
-      value: comment.trim() ? (
-        <span className="line-clamp-3 whitespace-pre-line">{comment.trim()}</span>
-      ) : (
-        <span className="text-muted-foreground">None</span>
-      ),
-      step: 2,
-    },
-  ];
-
-  return (
-    <div className="space-y-snug">
-      <dl className="divide-y divide-border rounded-lg bg-muted/50">
-        {rows.map((row) => (
-          <div key={row.label} className="flex items-start gap-cozy px-cozy py-2.5">
-            <dt className="w-24 shrink-0 text-meta text-muted-foreground">{row.label}</dt>
-            <dd className="min-w-0 flex-1 text-body text-foreground">{row.value}</dd>
-            <button
-              type="button"
-              onClick={() => onEdit(row.step)}
-              aria-label={`Edit ${row.label.toLowerCase()}`}
-              className="shrink-0 rounded-sm text-meta font-medium text-iris-ink hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              Edit
-            </button>
-          </div>
-        ))}
-      </dl>
-      <p className="text-meta text-muted-foreground">
-        It goes live on {target.handle}&rsquo;s page straight away, with your verified name.
-      </p>
-    </div>
-  );
-}
-
 /** What follows a published reference. */
 function Published({ onDone }: { onDone: () => void }) {
   const { target } = useDraft();
@@ -614,7 +528,6 @@ export const Composer = {
   ImageField,
   Error: ErrorNotice,
   Publish,
-  Summary,
   Published,
 };
 

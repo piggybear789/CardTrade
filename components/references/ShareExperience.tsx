@@ -2,18 +2,15 @@
 
 // components/references/ShareExperience.tsx
 //
-// Leave a reference (0155) as a three-step dialog (`components/ui/dialog`):
+// Leave a reference (0155) as a two-step dialog (`components/ui/dialog`):
 //
-//   1. The deal    — where it happened and whether they bought, sold or traded.
-//   2. Rating      — 1..5 stars and the member's own words.
-//   3. Review      — the reference read back, optional proof screenshots, Publish.
+//   1. The deal  — where it happened and whether they bought, sold or traded.
+//   2. Rating    — 1..5 stars, the member's own words, optional proof, Publish.
 //
 // WHY STEPS. One tall form put six platform buttons, three deal buttons, stars, a text
 // box and an upload in a single column, so the dialog read as a questionnaire and the
-// Publish button sat below the fold on a phone. A reference also goes live the moment
-// it is published, under the author's verified name, so the last step reads it back
-// before it goes out. The draft itself is unchanged: every step edits the same
-// `useReferenceComposer` state, so Back never loses anything.
+// Publish button sat below the fold on a phone. Every step edits the same
+// `useReferenceComposer` draft, so Back never loses anything.
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -30,7 +27,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { StepProgress } from '@/components/ui/step-progress';
 import {
   Composer,
   CopyReferenceLink,
@@ -41,8 +37,7 @@ import {
 import type { ReferenceTargetDescriptor } from '@/lib/actions/references';
 import { cn } from '@/lib/utils';
 
-const STEP_LABELS = ['The deal', 'Rating', 'Review'] as const;
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 
 export function ShareExperience({
   target,
@@ -81,14 +76,13 @@ export function ShareExperience({
   };
 
   const next = () => {
-    if (step === 1 && !draft.requirePlatform()) return;
-    setStep((current) => (current < 3 ? ((current + 1) as Step) : current));
+    if (!draft.requirePlatform()) return;
+    setStep(2);
   };
-  const back = () => setStep((current) => (current > 1 ? ((current - 1) as Step) : current));
 
   // The stepped flow is for someone who can publish, or who is drafting before signing
-  // in. An unverified member gets the ID gate on its own: walking them through three
-  // steps they cannot submit would be the wrong way round.
+  // in. An unverified member gets the ID gate on its own: walking them through steps
+  // they cannot submit would be the wrong way round.
   const stepped = !draft.done && (!viewer.signedIn || viewer.identityVerified);
 
   const description = draft.done
@@ -97,9 +91,7 @@ export function ShareExperience({
       ? 'Share how the transaction went. Your rating helps other traders.'
       : step === 1
         ? `Where did you deal with ${target.handle}, and what did you do?`
-        : step === 2
-          ? 'How did it go? Your rating helps other traders.'
-          : 'Check it over before it goes live.';
+        : 'How did it go? Your rating helps other traders.';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -118,7 +110,7 @@ export function ShareExperience({
             </DialogTitle>
             {stepped ? (
               <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
-                Step {step} of 3
+                Step {step} of 2
               </span>
             ) : null}
           </div>
@@ -128,8 +120,6 @@ export function ShareExperience({
             <DialogDescription className="sr-only">Reference published</DialogDescription>
           )}
         </DialogHeader>
-        {/* Outside the header so it spans the fields' width, as in the deal composer. */}
-        {stepped ? <StepProgress steps={STEP_LABELS} current={step} /> : null}
 
         <Composer.Provider draft={draft}>
           {draft.done ? (
@@ -145,17 +135,13 @@ export function ShareExperience({
                     <Composer.Platform />
                     <Composer.Role />
                   </>
-                ) : step === 2 ? (
+                ) : (
                   <>
                     <Composer.Outcome />
                     <Composer.Comment
                       id={viewer.signedIn ? 'share-experience-comment' : 'share-experience-preview'}
                       rows={4}
                     />
-                  </>
-                ) : (
-                  <>
-                    <Composer.Summary onEdit={(editStep) => setStep(editStep as Step)} />
                     {/* Signed out, uploads would not survive the trip through sign-in
                         (the saved draft holds text only), so they are offered after it. */}
                     {viewer.signedIn ? <Composer.ImageField /> : null}
@@ -170,12 +156,12 @@ export function ShareExperience({
                     Cancel
                   </Button>
                 ) : (
-                  <Button type="button" variant="ghost" disabled={draft.pending} onClick={back}>
+                  <Button type="button" variant="ghost" disabled={draft.pending} onClick={() => setStep(1)}>
                     Back
                   </Button>
                 )}
 
-                {step < 3 ? (
+                {step === 1 ? (
                   <Button type="button" onClick={next}>
                     Next
                   </Button>

@@ -224,10 +224,10 @@ async function fetchVerifiedHandles(
       headers: { Authorization: `Bearer ${tokenJson.access_token}` },
     });
     if (!meRes.ok) return [];
-    const me = (await meRes.json()) as { username?: string; global_name?: string };
-    return [me.username, me.global_name]
-      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-      .map((v) => v.trim().replace(/^@/, '').toLowerCase());
+    // `username` only. `global_name` is a free-text display name anyone can set to
+    // anything, so it proves nothing about a handle.
+    const me = (await meRes.json()) as { username?: string };
+    return verifiedUsernames([me.username]);
   }
 
   if (provider === 'x') {
@@ -253,10 +253,9 @@ async function fetchVerifiedHandles(
       headers: { Authorization: `Bearer ${tokenJson.access_token}` },
     });
     if (!meRes.ok) return [];
-    const me = (await meRes.json()) as { data?: { username?: string; name?: string } };
-    return [me.data?.username, me.data?.name]
-      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-      .map((v) => v.trim().replace(/^@/, '').toLowerCase());
+    // `username` only; `name` is the display name.
+    const me = (await meRes.json()) as { data?: { username?: string } };
+    return verifiedUsernames([me.data?.username]);
   }
 
   if (provider === 'instagram' && process.env.INSTAGRAM_CLIENT_ID) {
@@ -304,12 +303,9 @@ async function fetchVerifiedHandles(
       { headers: { Authorization: `Bearer ${tokenJson.access_token}` } },
     );
     if (!meRes.ok) return [];
-    const me = (await meRes.json()) as {
-      data?: { user?: { username?: string; display_name?: string } };
-    };
-    return [me.data?.user?.username, me.data?.user?.display_name]
-      .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
-      .map((v) => v.trim().replace(/^@/, '').toLowerCase());
+    // `username` only; `display_name` is free text.
+    const me = (await meRes.json()) as { data?: { user?: { username?: string } } };
+    return verifiedUsernames([me.data?.user?.username]);
   }
 
   if (provider === 'ebay') {
@@ -337,34 +333,52 @@ async function fetchVerifiedHandles(
     return me.username ? [me.username.trim().replace(/^@/, '').toLowerCase()] : [];
   }
 
-  // Facebook Graph API
-  const tokenUrl = new URL('https://graph.facebook.com/v20.0/oauth/access_token');
-  tokenUrl.searchParams.set('client_id', creds.clientId);
-  tokenUrl.searchParams.set('client_secret', creds.clientSecret);
-  tokenUrl.searchParams.set('redirect_uri', redirectUri);
-  tokenUrl.searchParams.set('code', code);
+  // Facebook (and Instagram through Facebook Login): Facebook Login returns a display
+  // NAME, never a username, and a name proves nothing about a handle (two people share
+  // one; anyone can rename themselves). This used to compare the name with the handle
+  // and approve on a match. It now verifies nothing, so the callback refuses.
+  return [];
+}
 
-  const tokenRes = await fetch(tokenUrl);
-  if (!tokenRes.ok) return [];
-  const tokenJson = (await tokenRes.json()) as { access_token?: string };
-  if (!tokenJson.access_token) return [];
-
-  const meUrl = new URL('https://graph.facebook.com/me');
-  meUrl.searchParams.set('fields', 'id,name');
-  meUrl.searchParams.set('access_token', tokenJson.access_token);
-  const meRes = await fetch(meUrl);
-  if (!meRes.ok) return [];
-  const me = (await meRes.json()) as { name?: string };
-  return [me.name]
+/** Lower-cased usernames the provider itself reported, blanks dropped. */
+function verifiedUsernames(values: Array<string | undefined>): string[] {
+  return values
     .filter((v): v is string => typeof v === 'string' && v.trim().length > 0)
     .map((v) => v.trim().replace(/^@/, '').toLowerCase());
 }
 
-function claimPlatformColumn(
-  provider: ClaimOAuthProviderSlug,
-): 'discord' | 'x' | 'instagram' | 'facebook' | 'tiktok' {
-  if (provider === 'ebay') return 'instagram';
+/**
+ * The `social_claims.platform` a provider's sign-in proves. One to one: an eBay sign-in
+ * proves an eBay handle and nothing else. (eBay used to be filed as `instagram`, so an
+ * eBay username claimed the Instagram handle of the same name.)
+ */
+function claimPlatformColumn(provider: ClaimOAuthProviderSlug): ClaimOAuthProviderSlug {
   return provider;
+}
+
+/** Redirect back with a reason the claim dialog can show. */
+function claimFailed(url: URL, message: string): NextResponse {
+  url.searchParams.set('claimError', message);
+  return NextResponse.redirect(url);
+}
+
+/**
+ * Whether this member may claim handles at all: the same rule as every other claim
+ * path in `lib/actions/references.ts` (ID-verified, not banned, not closed).
+ */
+async function claimantProblem(userId: string): Promise<string | null> {
+  const { data: profile } = await createAdminClient()
+    .from('profiles')
+    .select('identity_check_status, fraud_banned_at, closed_at')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!profile || profile.fraud_banned_at || profile.closed_at) {
+    return "This account can't claim handles.";
+  }
+  if (profile.identity_check_status !== 'VERIFIED') {
+    return 'Verify your ID first so your claimed handle carries your verified name.';
+  }
+  return null;
 }
 
 export async function GET(
@@ -402,63 +416,85 @@ export async function GET(
       return NextResponse.redirect(fallbackUrl);
     }
 
-    const creds = directProviderCreds(provider);
-    if (!creds) {
-      fallbackUrl.searchParams.set('claimError', 'OAuth provider is not configured.');
-      return NextResponse.redirect(fallbackUrl);
+    // The state cookie must have been minted for THIS provider.
+    if (payload.provider !== provider) {
+      return claimFailed(fallbackUrl, 'OAuth verification was cancelled or expired.');
     }
 
-    const handles = await fetchVerifiedHandles(provider, code, redirectUri, payload.verifier, creds);
-    if (
-      payload.handleNorm !== '*' &&
-      handles.length > 0 &&
-      !handles.includes(payload.handleNorm)
-    ) {
-      fallbackUrl.searchParams.set(
-        'claimError',
-        `Connected @${handles[0]}, which doesn't match @${payload.handleNorm}.`,
-      );
-      return NextResponse.redirect(fallbackUrl);
-    }
-
-    const effectiveHandle =
-      payload.handleNorm === '*' ? (handles[0] ?? '') : payload.handleNorm;
-    if (!effectiveHandle) {
-      fallbackUrl.searchParams.set('claimError', 'Could not verify your handle from the provider.');
-      return NextResponse.redirect(fallbackUrl);
-    }
-
-    if (!payload.userId) {
+    // The member finishing the flow must be the member who started it, still signed in.
+    const supabase = await createClient();
+    const {
+      data: { user: sessionUser },
+    } = await supabase.auth.getUser();
+    if (!payload.userId || !sessionUser || sessionUser.id !== payload.userId) {
       const signInUrl = new URL('/sign-in', origin);
       signInUrl.searchParams.set('redirectTo', payload.returnPath);
       return NextResponse.redirect(signInUrl);
     }
+    const problem = await claimantProblem(payload.userId);
+    if (problem) return claimFailed(fallbackUrl, problem);
+
+    const creds = directProviderCreds(provider);
+    if (!creds) return claimFailed(fallbackUrl, 'OAuth provider is not configured.');
+
+    // FAIL CLOSED. A claim is approved only on a username the provider itself returned.
+    // This used to approve the requested handle whenever the provider returned NOTHING
+    // (a failed token exchange, which anyone could cause by editing `code` in the return
+    // URL), so any unclaimed handle could be taken without proving anything.
+    const handles = await fetchVerifiedHandles(provider, code, redirectUri, payload.verifier, creds);
+    if (handles.length === 0) {
+      return claimFailed(fallbackUrl, 'Could not verify your handle from the provider.');
+    }
+    if (payload.handleNorm !== '*' && !handles.includes(payload.handleNorm)) {
+      return claimFailed(
+        fallbackUrl,
+        `Connected @${handles[0]}, which doesn't match @${payload.handleNorm}.`,
+      );
+    }
+    const effectiveHandle = payload.handleNorm === '*' ? handles[0] : payload.handleNorm;
+    const platform = claimPlatformColumn(provider);
 
     const admin = createAdminClient();
     const now = new Date().toISOString();
-    const { data: updated } = await admin
-      .from('social_claims')
-      .update({
-        claimed_profile_id: payload.userId,
-        claim_method: 'OAUTH',
-        claimed_at: now,
-        updated_at: now,
-      })
-      .eq('handle_norm', effectiveHandle)
-      .is('claimed_profile_id', null)
-      .select('id');
 
-    if (!updated || updated.length === 0) {
-      await admin
-        .from('social_claims')
-        .insert({
-          platform: claimPlatformColumn(provider),
+    // Scoped to the PLATFORM as well as the handle: a Discord sign-in proves a Discord
+    // handle, never the Instagram handle that happens to share its spelling.
+    const { data: existing, error: existingError } = await admin
+      .from('social_claims')
+      .select('id, claimed_profile_id')
+      .eq('platform', platform)
+      .eq('handle_norm', effectiveHandle)
+      .maybeSingle();
+    if (existingError) {
+      return claimFailed(fallbackUrl, 'Something went wrong saving your claim. Try again.');
+    }
+    if (existing?.claimed_profile_id) {
+      return existing.claimed_profile_id === payload.userId
+        ? NextResponse.redirect(fallbackUrl)
+        : claimFailed(fallbackUrl, 'This handle has already been claimed.');
+    }
+
+    const { error: writeError } = existing
+      ? await admin
+          .from('social_claims')
+          .update({
+            claimed_profile_id: payload.userId,
+            claim_method: 'OAUTH',
+            claimed_at: now,
+            updated_at: now,
+          })
+          .eq('id', existing.id)
+          .is('claimed_profile_id', null)
+      : await admin.from('social_claims').insert({
+          platform,
           handle: effectiveHandle,
           claimed_profile_id: payload.userId,
           created_by: payload.userId,
           claim_method: 'OAUTH',
           claimed_at: now,
         });
+    if (writeError) {
+      return claimFailed(fallbackUrl, 'Something went wrong saving your claim. Try again.');
     }
 
     return NextResponse.redirect(fallbackUrl);
@@ -468,7 +504,13 @@ export async function GET(
   const rawHandleParam = (params.get('handle') ?? '').trim();
   const isWildcard = rawHandleParam === '*';
   const rawHandle = isWildcard ? '*' : normalizeHandle(rawHandleParam);
-  const returnPath = params.get('next')?.startsWith('/') ? params.get('next')! : '/references';
+  // Same-site paths only: `//evil.example` and `/\evil.example` also start with "/",
+  // and `new URL()` reads both as another host.
+  const nextParam = params.get('next') ?? '';
+  const returnPath =
+    nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.startsWith('/\\')
+      ? nextParam
+      : '/references';
   if (!isWildcard && !isValidHandle(rawHandle)) {
     return NextResponse.redirect(new URL(returnPath, origin));
   }
@@ -484,11 +526,25 @@ export async function GET(
     );
   }
 
+  // Refuse up front a sign-in that can never verify a username, rather than sending the
+  // member through Facebook's consent screen only to fail on the way back: Facebook
+  // Login returns no username, and Instagram falls back to it without INSTAGRAM_CLIENT_ID.
+  if (provider === 'facebook' || (provider === 'instagram' && !process.env.INSTAGRAM_CLIENT_ID?.trim())) {
+    return claimFailed(
+      new URL(returnPath, origin),
+      'This platform can’t confirm a username. Use Manual to verify it instead.',
+    );
+  }
+
+  const problem = await claimantProblem(user.id);
+  if (problem) return claimFailed(new URL(returnPath, origin), problem);
+
   const creds = directProviderCreds(provider);
   if (!creds) {
-    const back = new URL(returnPath, origin);
-    back.searchParams.set('claimError', 'missing-keys');
-    return NextResponse.redirect(back);
+    return claimFailed(
+      new URL(returnPath, origin),
+      'Signing in with this platform isn’t available yet. Try another way to verify.',
+    );
   }
 
   const nonce = randomBytes(16).toString('base64url');

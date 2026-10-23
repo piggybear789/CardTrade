@@ -4,21 +4,26 @@
 //
 // Claiming an unclaimed handle (0155) OR linking an additional handle (`mode="link"`)
 // onto your own profile:
-// - Discord, X, Facebook: OAuth2 Authorization Code + PKCE
+// - Discord, X: OAuth2 Authorization Code + PKCE
+// - No Facebook: Facebook Login returns a display name, never a username, so it cannot
+//   prove a handle. Facebook handles are claimed through Manual.
 // - Instagram: Instagram DM Bot (`ND-XXXXXX` code sent to @no.ditto via DM)
 // - Manual: Submit a message + required proof screenshot(s) for staff review
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
+  ArrowRight01Icon,
   Cancel01Icon,
   CheckmarkCircle02Icon,
   Copy01Icon,
   ExternalLinkIcon,
   ImageAdd01Icon,
+  LoaderCircleIcon,
   PlusIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -35,7 +40,6 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { optionTileClass } from '@/components/ui/option-button';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -51,31 +55,33 @@ import { uploadReferenceImage } from '@/lib/storage/uploadReferenceImage';
 
 const MANUAL_PROOF_LIMIT = 3;
 
+// Each way to prove a handle, with the one line that says what happens next. The hint
+// is what makes this a choice rather than a row of logos: Instagram is a DM, not a
+// sign-in, and Manual is a staff review, not instant.
 const CLAIM_PROVIDERS = [
   {
     slug: 'instagram',
     label: 'Instagram',
-    badgeClass: 'bg-[#E1306C]/10 text-[#E1306C]',
+    hint: 'Send a one-time code by DM',
+    iconClass: 'text-[#E1306C]',
   },
   {
     slug: 'discord',
     label: 'Discord',
-    badgeClass: 'bg-[#5865F2]/10 text-[#5865F2]',
+    hint: 'Sign in with Discord',
+    iconClass: 'text-[#5865F2]',
   },
   {
     slug: 'x',
     label: 'X',
-    badgeClass: 'bg-foreground/[0.07] text-foreground',
-  },
-  {
-    slug: 'facebook',
-    label: 'Facebook',
-    badgeClass: 'bg-[#1877F2]/10 text-[#1877F2]',
+    hint: 'Sign in with X',
+    iconClass: 'text-foreground',
   },
   {
     slug: 'manual',
     label: 'Manual',
-    badgeClass: 'bg-iris/12 text-iris-ink',
+    hint: 'Upload screenshots for our team to review',
+    iconClass: 'text-muted-foreground',
   },
 ] as const;
 
@@ -156,17 +162,24 @@ export function ClaimHandle({
       }
       setActiveProvider('instagram');
       startTransition(async () => {
-        const res = await startInstagramDmClaim(cleanHandle);
-        setActiveProvider(null);
-        if (!res.ok) {
-          setDmNotice(res.message);
-          return;
+        // `finally`, so a thrown action (a network drop, or a tab left open across a
+        // deploy) cannot leave every option disabled.
+        try {
+          const res = await startInstagramDmClaim(cleanHandle);
+          if (!res.ok) {
+            setDmNotice(res.message);
+            return;
+          }
+          if (res.data.status === 'APPROVED') {
+            setDmVerified(true);
+            router.refresh();
+          }
+          setDmSession(res.data);
+        } catch {
+          setDmNotice("Couldn't start the Instagram check. Refresh the page and try again.");
+        } finally {
+          setActiveProvider(null);
         }
-        if (res.data.status === 'APPROVED') {
-          setDmVerified(true);
-          router.refresh();
-        }
-        setDmSession(res.data);
       });
       return;
     }
@@ -178,6 +191,20 @@ export function ClaimHandle({
     });
     window.location.assign(`/api/oauth/claim/${platform}?${params.toString()}`);
   };
+
+  // A sign-in claim that failed comes back as `?claimError=<reason>`. Nothing read it,
+  // so a refused or unconfigured provider looked like a click that did nothing. Shown
+  // once (a fixed toast id, since the page can mount more than one ClaimHandle), then
+  // dropped from the URL so a refresh does not repeat it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const reason = url.searchParams.get('claimError');
+    if (!reason) return;
+    toast.error(reason, { id: 'claim-error' });
+    url.searchParams.delete('claimError');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+  }, []);
 
   // Auto-open the Instagram DM or Manual claim step when returning from sign-in (`?claim=instagram` or `?claim=manual`)
   useEffect(() => {
@@ -193,12 +220,17 @@ export function ClaimHandle({
     setOpen(true);
     setActiveProvider('instagram');
     startTransition(async () => {
-      const res = await startInstagramDmClaim(cleanHandle);
-      setActiveProvider(null);
-      if (res.ok) {
-        setDmSession(res.data);
-      } else {
-        setDmNotice(res.message);
+      try {
+        const res = await startInstagramDmClaim(cleanHandle);
+        if (res.ok) {
+          setDmSession(res.data);
+        } else {
+          setDmNotice(res.message);
+        }
+      } catch {
+        setDmNotice("Couldn't start the Instagram check. Refresh the page and try again.");
+      } finally {
+        setActiveProvider(null);
       }
     });
   }, [signedIn, isLinkMode, cleanHandle]);
@@ -284,17 +316,41 @@ export function ClaimHandle({
     });
   };
 
-  // Auto-poll every 4s while the signed-in user has the Instagram DM screen open
+  // Auto-check while the signed-in user has the Instagram DM screen open.
+  //
+  // ONE CHECK AT A TIME, never setInterval. Next runs a page's Server Actions one after
+  // another, and this check reads the bot's whole inbox, which can take longer than the
+  // interval. A 4s setInterval therefore queued checks faster than they finished, and
+  // every click after it (Back, a provider, "I've sent the DM") waited behind the
+  // backlog, so the dialog looked frozen with nothing clickable. The next check is now
+  // scheduled only after the previous one returns, and skipped while the tab is hidden.
   useEffect(() => {
     if (!open || !dmSession || !dmSession.signedIn || dmVerified) return;
-    const timer = setInterval(async () => {
-      const res = await checkInstagramDmClaim(cleanHandle);
-      if (res.ok && res.data.verified) {
-        setDmVerified(true);
-        router.refresh();
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const tick = async () => {
+      if (cancelled) return;
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        try {
+          const res = await checkInstagramDmClaim(cleanHandle);
+          if (cancelled) return;
+          if (res.ok && res.data.verified) {
+            setDmVerified(true);
+            router.refresh();
+            return;
+          }
+        } catch {
+          // A failed check is retried on the next tick; the member can also press
+          // "I've sent the DM".
+        }
       }
-    }, 4000);
-    return () => clearInterval(timer);
+      if (!cancelled) timer = setTimeout(tick, 4000);
+    };
+    timer = setTimeout(tick, 4000);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
   }, [open, dmSession, dmVerified, cleanHandle, router]);
 
   // AFTER every hook, never before: returning early above them changed the number of
@@ -367,7 +423,7 @@ export function ClaimHandle({
                       setCustomHandle(event.target.value);
                       setDmNotice(null);
                     }}
-                    placeholder="@serialcollect"
+                    placeholder="@yourhandle"
                     autoComplete="off"
                     spellCheck={false}
                   />
@@ -446,7 +502,6 @@ export function ClaimHandle({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
                 onClick={() => {
                   setManualView(false);
                   setDmNotice(null);
@@ -521,7 +576,6 @@ export function ClaimHandle({
               <Button
                 type="button"
                 variant="ghost"
-                size="sm"
                 onClick={() => {
                   setDmSession(null);
                   setDmNotice(null);
@@ -552,7 +606,7 @@ export function ClaimHandle({
               <DialogTitle>{isLinkMode ? 'Link another handle' : `Claim ${handle}`}</DialogTitle>
               <DialogDescription>
                 {isLinkMode
-                  ? 'Unify references from another handle (e.g. @serial_collect on Instagram and @serialcollect on eBay) onto your profile.'
+                  ? 'Bring the references from another handle you own onto your profile.'
                   : `Verify ownership of ${handle} to link its references to your profile.`}
               </DialogDescription>
             </DialogHeader>
@@ -567,14 +621,18 @@ export function ClaimHandle({
                     setCustomHandle(event.target.value);
                     setDmNotice(null);
                   }}
-                  placeholder="@serial_collect"
+                  placeholder="@yourhandle"
                   autoComplete="off"
                   spellCheck={false}
                 />
               </div>
             ) : null}
 
-            <div className="grid grid-cols-5 gap-2">
+            {/* BORDERLESS ROWS, NOT BOXED TILES. Five outlined squares read as a form
+                grid; a short stack of softly filled rows, each saying what it will do,
+                reads as the sign-in choice it is. The fill carries the hit area, so no
+                row needs an edge of its own. */}
+            <div className="flex flex-col gap-1.5">
               {CLAIM_PROVIDERS.map((p) => {
                 const isConnecting = activeProvider === p.slug;
                 return (
@@ -583,23 +641,40 @@ export function ClaimHandle({
                     type="button"
                     disabled={activeProvider !== null || pending}
                     onClick={() => selectProvider(p.slug)}
+                    aria-busy={isConnecting || undefined}
                     className={cn(
-                      'flex aspect-square flex-col items-center justify-center gap-1.5 p-2',
-                      optionTileClass(false),
+                      'group flex min-h-12 w-full items-center gap-cozy rounded-lg bg-muted/60 px-cozy py-2.5 text-left transition-colors',
+                      'hover:bg-muted',
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                      'disabled:pointer-events-none',
+                      // Only the rows NOT being opened fade, so the chosen one stays legible.
+                      activeProvider !== null && !isConnecting && 'opacity-50',
                     )}
                   >
-                    <span
-                      className={`inline-flex size-8 shrink-0 items-center justify-center rounded-md ${p.badgeClass}`}
-                    >
+                    <span className={cn('inline-flex size-5 shrink-0 items-center justify-center', p.iconClass)}>
                       {p.slug === 'manual' ? (
-                        <HugeiconsIcon icon={ImageAdd01Icon} className="size-4" aria-hidden />
+                        <HugeiconsIcon icon={ImageAdd01Icon} className="size-5" aria-hidden />
                       ) : (
-                        <SocialPlatformIcon slug={p.slug} className="size-4" />
+                        <SocialPlatformIcon slug={p.slug} className="size-5" />
                       )}
                     </span>
-                    <span className="max-w-full truncate text-meta">
-                      {isConnecting ? '…' : p.label}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-body font-medium text-foreground">{p.label}</span>
+                      <span className="block truncate text-meta text-muted-foreground">{p.hint}</span>
                     </span>
+                    {isConnecting ? (
+                      <HugeiconsIcon
+                        icon={LoaderCircleIcon}
+                        className="size-4 shrink-0 animate-spin text-muted-foreground"
+                        aria-hidden
+                      />
+                    ) : (
+                      <HugeiconsIcon
+                        icon={ArrowRight01Icon}
+                        className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
+                    )}
                   </button>
                 );
               })}

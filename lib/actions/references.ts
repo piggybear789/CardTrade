@@ -1159,7 +1159,9 @@ async function checkInstagramGraphDmForCode(
   url.searchParams.set('fields', 'participants,messages.limit(10){message,from}');
   url.searchParams.set('access_token', token);
 
-  const res = await fetch(url, { cache: 'no-store' }).catch(() => null);
+  // Bounded: the claim dialog runs this check in a loop, and Next runs a page's Server
+  // Actions one at a time, so a hung Graph call would hold up every click behind it.
+  const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) }).catch(() => null);
   if (!res?.ok) {
     const body = res
       ? ((await res.json().catch(() => ({}))) as { error?: { message?: string } })

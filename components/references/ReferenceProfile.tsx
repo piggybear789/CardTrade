@@ -18,7 +18,7 @@ import {
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 import { ClaimHandle } from '@/components/references/ClaimHandle';
-import { PlatformChip, plural } from '@/components/references/referenceLabels';
+import { PlatformChip } from '@/components/references/referenceLabels';
 import {
   ExperienceList,
   TrustNetworkBody,
@@ -59,7 +59,6 @@ export function ReferenceProfile({
   const returnPath = `/references/${encodeURIComponent(centre.handleSlug)}`;
   const isSelf = viewer.id !== null && viewer.id === centre.profileId;
   const avgRating = averageGraphRating(nodes);
-  const totalReviews = nodes.length;
   const details = [
     centre.name !== centre.handle.replace(/^@/, '') ? centre.name : null,
     centre.regionCode ? regionLabel(centre.regionCode) : null,
@@ -131,7 +130,7 @@ export function ReferenceProfile({
 
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-muted-foreground">
                 {details.length > 0 ? <span>{details.join(' · ')}</span> : null}
-                {details.length > 0 && (avgRating !== null || totalReviews > 0) ? (
+                {details.length > 0 && avgRating !== null ? (
                   <span aria-hidden className="text-border">
                     ·
                   </span>
@@ -144,11 +143,6 @@ export function ReferenceProfile({
                       aria-hidden
                     />
                     {avgRating.toFixed(1)}
-                  </span>
-                ) : null}
-                {totalReviews > 0 ? (
-                  <span className="tabular-nums text-muted-foreground">
-                    ({plural(totalReviews, 'reference', 'references')})
                   </span>
                 ) : null}
                 {altHandles.length > 0 ? (

@@ -50,7 +50,7 @@ const SIDE_MARGIN = 4;
 const COMPACT_STRETCH = 1.25;
 /**
  * Space kept above the back of the system for a selected planet's fan (a selected
- * planet turns to the back, clear of the details card along the bottom), below
+ * planet turns to the back-left, clear of the details card along the bottom), below
  * the front, and beside the widest point.
  */
 const ROOM = {
@@ -232,6 +232,19 @@ export function yawToFront(angle: number): number {
 /** The yaw that brings a planet resting at `angle` to the back of the system, the top of the frame. */
 export function yawToBack(angle: number): number {
   return -Math.PI / 2 - angle;
+}
+
+/**
+ * Where a SELECTED planet comes to rest: the back-left diagonal, 45 degrees round from
+ * straight behind the sun. Straight behind put the planet directly above the sun, so
+ * its label and its fan of stars stacked on the sun's own; on the diagonal they open
+ * out to the upper left, clear of the sun and of the details card along the bottom.
+ */
+export const SELECTED_REST_ANGLE = (-3 * Math.PI) / 4;
+
+/** The yaw that brings a planet resting at `angle` to {@link SELECTED_REST_ANGLE}. */
+export function yawToSelectedRest(angle: number): number {
+  return SELECTED_REST_ANGLE - angle;
 }
 
 /** The same angle, between -π and π. */
@@ -722,4 +735,26 @@ export function splitConnections(
   }
 
   return { links, stars };
+}
+
+/**
+ * The vertical band the system can occupy, in frame units, whatever way it is turned:
+ * from the room kept above the back of the outer orbit (where a selected planet's fan
+ * of stars opens) down to the room kept under its front (the labels).
+ *
+ * Depends only on the camera, never on yaw, so a layout keyed on it holds still while
+ * the system spins. The details card uses it on phones to lift the drawing clear of
+ * itself: fitting the whole FRAME instead shrank the system by the frame's empty
+ * margins too, and left it tiny.
+ */
+export function systemExtent(scene: Pick<OrbitScene, 'frame' | 'camera'>): { top: number; bottom: number } {
+  const { frame, camera } = scene;
+  const room = ROOM[frame.compact ? 'compact' : 'wide'];
+  const rise = camera.outer * Math.sin(camera.tilt) * camera.stretch;
+  const above = rise * perspectiveScale(-1, camera.tilt) + room.above;
+  const below = rise * perspectiveScale(1, camera.tilt) + room.below;
+  return {
+    top: Math.max(0, camera.cy - camera.zoom * above),
+    bottom: Math.min(frame.height, camera.cy + camera.zoom * below),
+  };
 }

@@ -33,6 +33,7 @@ import {
   splitConnections,
   yawToBack,
   yawToFront,
+  yawToSelectedRest,
   type DrawCandidate,
   type LabelAnchor,
   type OrbitItem,
@@ -186,6 +187,25 @@ describe('buildOrbitScene', () => {
     const planet = open.items.get('p5')!;
     expect(planet.opacity).toBe(1);
     for (const star of starsOf(open.items, 'p5')) expect(star.y).toBeLessThan(planet.y);
+  });
+
+  it('rests a selected planet on the back-left diagonal, its fan inside the frame', () => {
+    const people = Array.from({ length: 8 }, (_, i) => withStars(`p${i}`, 3));
+    for (const frame of [WIDE_FRAME, COMPACT_FRAME]) {
+      const angle = buildOrbitScene(sceneInput(people, { frame })).angles.get('p5')!;
+      const view = { ...DEFAULT_VIEW, yaw: yawToSelectedRest(angle) };
+      const open = buildOrbitScene(sceneInput(people, { frame, view, ...opened('p5') }));
+      const planet = open.items.get('p5')!;
+
+      // Up and to the left of the sun: behind it, and off its vertical so the planet's
+      // label and fan do not stack on the sun's.
+      expect(planet.x).toBeLessThan(open.cx - 1);
+      expect(planet.y).toBeLessThan(open.cy);
+      for (const star of starsOf(open.items, 'p5')) {
+        expect(star.x - star.r).toBeGreaterThanOrEqual(-1);
+        expect(star.y - star.r).toBeGreaterThanOrEqual(-1);
+      }
+    }
   });
 
   it('keeps every body inside the frame however the system is turned', () => {

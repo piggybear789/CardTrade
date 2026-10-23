@@ -350,8 +350,8 @@ export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
           orbits={orbits}
           label={
             view.direction === 'given'
-              ? `Trust Network for ${centre.handle}: references they have left for ${plural(view.nodes.length, 'person', 'people')}`
-              : `Trust Network for ${centre.handle}: ${plural(centre.peopleCount, 'person vouches', 'people vouch')} for them`
+              ? `References for ${centre.handle}: references they have left for ${plural(view.nodes.length, 'person', 'people')}`
+              : `References for ${centre.handle}: ${plural(centre.peopleCount, 'person vouches', 'people vouch')} for them`
           }
         >
           <TrustNetworkPanel orbits={orbits} />
@@ -391,7 +391,7 @@ export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; ac
     <div className="flex flex-col gap-3 border-b border-border/80 px-group py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="flex min-w-0 flex-wrap items-center gap-2.5" style={{ opacity: arrival(orbits) }}>
         <h3 id="references-heading" className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
-          Trust Network
+          References
         </h3>
         <NetworkStats stats={orbits.view.stats} />
       </div>

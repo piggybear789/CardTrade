@@ -7,12 +7,12 @@
 // each handle with its star rating locked directly beneath its body so nothing
 // jumps or shifts alignment as the system spins.
 
-import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
 
 import {
   arcPath,
   spokePath,
-  starPath,
+  systemExtent,
   type OrbitArc,
   type OrbitItem,
   type OrbitRing,
@@ -31,6 +31,17 @@ const CARD = 'hsl(var(--card))';
 const QUIET_TEXT = 'hsl(var(--muted-foreground))';
 const FOCUS_RING = 'hsl(var(--ring))';
 const STAR_FILL = 'hsl(var(--trust) / 0.85)';
+/** A star's disc against its layout radius (`starRadius`, 5 or 6): smaller than any planet. */
+const STAR_DISC_SCALE = 1.2;
+/** A star's invisible tap target, in frame units. */
+const STAR_HIT_RADIUS = 20;
+
+/** Phone, details card open: the system's breathing room above the card... */
+const CARD_CLEARANCE_PX = 16;
+/** ...and below the drawing's top edge. */
+const LIFT_TOP_PX = 4;
+/** The system never shrinks past this to clear the card; past it, the card overlaps. */
+const MIN_LIFT_SCALE = 0.7;
 
 /** How faint everything outside the open planet's connections gets. */
 const DIM_BODY = 0.28;
@@ -247,6 +258,43 @@ export function TrustOrbitsCanvas({
   const { scene, items, transition, progress, centreKey, selectedKey, pendingKey, directory } = orbits;
   const { frame } = scene;
   const fade = transition ? 1 - progress : 0;
+
+  // PHONE: THE DRAWING MAKES ROOM FOR THE CARD. The details card floats over the foot of
+  // the drawing, and on a phone the drawing is only ~380px tall, so the card covered the
+  // sun and half the planets. While it is open the drawing scales down from its top edge
+  // until it ends just above the card, so everything stays in view and nothing below the
+  // drawing moves. It follows the card's own slide (`panel.open`), so the two move as
+  // one. Both heights are read after every paint and stored only when they change.
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const cardHostRef = useRef<HTMLDivElement | null>(null);
+  const [heights, setHeights] = useState({ drawing: 0, card: 0 });
+  useLayoutEffect(() => {
+    const drawing = wrapperRef.current?.offsetHeight ?? 0;
+    const card = cardHostRef.current?.firstElementChild?.getBoundingClientRect().height ?? 0;
+    setHeights((prev) =>
+      Math.abs(prev.drawing - drawing) > 1 || Math.abs(prev.card - card) > 1 ? { drawing, card } : prev,
+    );
+  });
+  // FIT THE SYSTEM, NOT THE FRAME. The first version shrank the whole frame until it
+  // ended above the card, so the frame's empty margins shrank too and the system came
+  // out about half size. Now only the band the system occupies (`systemExtent`, which
+  // holds still while it spins) is fitted: the drawing first slides up into its own
+  // empty top margin, and shrinks only by whatever sliding cannot cover.
+  const lift = (() => {
+    if (!frame.compact || heights.drawing <= 0 || heights.card <= 0) return { scale: 1, shift: 0 };
+    const px = heights.drawing / frame.height;
+    const extent = systemExtent(scene);
+    const top = extent.top * px;
+    const bottom = extent.bottom * px;
+    const roomBottom = heights.drawing - heights.card - CARD_CLEARANCE_PX;
+    if (bottom <= roomBottom) return { scale: 1, shift: 0 };
+    const scale = Math.min(1, Math.max(MIN_LIFT_SCALE, (roomBottom - LIFT_TOP_PX) / (bottom - top)));
+    // Bottom of the system just above the card, but never past the drawing's top.
+    const shift = Math.max(LIFT_TOP_PX - top * scale, roomBottom - bottom * scale);
+    return { scale, shift: Math.min(0, shift) };
+  })();
+  const drawingScale = 1 - (1 - lift.scale) * orbits.panel.open;
+  const drawingShift = lift.shift * orbits.panel.open;
   const focusKey = scene.focus?.key ?? null;
   const selectedParent = selectedKey ? (scene.items.get(selectedKey)?.parentKey ?? null) : null;
   const who = (key: string) => describe(directory.get(key) ?? transition?.previousDirectory.get(key));
@@ -398,10 +446,24 @@ export function TrustOrbitsCanvas({
 
     const selected = key === selectedKey;
     if (item.kind === 'star') {
+      // A MINI PLANET, NOT A SPARKLE. A star is a PERSON one step out (someone who
+      // reviewed this planet, not the sun), and every other person here is a circle.
+      // The 4-point sparkle read as decoration ("new", "AI") rather than someone to
+      // tap. Now: a white disc with a green ring and a green centre, smaller than any
+      // planet, in the planets' own visual language. Selected, it fills green.
+      const rs = item.r * STAR_DISC_SCALE;
       const shape = (
         <>
-          {selected ? <circle cx={item.x} cy={item.y} r={item.r + 6} fill="none" stroke={TRUST} strokeWidth={1.4} /> : null}
-          <path d={starPath(item.x, item.y, item.r * 1.6)} fill={selected ? TRUST : STAR_FILL} />
+          {selected ? <circle cx={item.x} cy={item.y} r={rs + 4} fill="none" stroke={TRUST} strokeWidth={1.4} /> : null}
+          <circle
+            cx={item.x}
+            cy={item.y}
+            r={rs}
+            fill={selected ? TRUST : CARD}
+            stroke={TRUST}
+            strokeWidth={1.4}
+          />
+          <circle cx={item.x} cy={item.y} r={rs * 0.38} fill={selected ? CARD : STAR_FILL} />
         </>
       );
       // Stars still growing in, or folding away, are not yet anything to click.
@@ -423,12 +485,14 @@ export function TrustOrbitsCanvas({
             className="opacity-0 group-focus-visible:opacity-100"
             cx={item.x}
             cy={item.y}
-            r={item.r + 9}
+            r={rs + 7}
             fill="none"
             stroke={FOCUS_RING}
             strokeWidth={2}
           />
-          <circle cx={item.x} cy={item.y} r={Math.max(item.r + 6, 12)} fill="transparent" />
+          {/* ~40px across on a phone (the frame draws at about 1 unit per px there),
+              where the old 24-unit target was well under a fingertip. */}
+          <circle cx={item.x} cy={item.y} r={Math.max(rs + 8, STAR_HIT_RADIUS)} fill="transparent" />
           {shape}
         </g>
       );
@@ -659,13 +723,19 @@ export function TrustOrbitsCanvas({
   const tetherStars = new Set(scene.tethers.map(([, star]) => star));
 
   return (
-    <div className="relative mx-auto w-full max-w-[860px]">
+    <div ref={wrapperRef} className="relative mx-auto w-full max-w-[860px]">
       <svg
         ref={orbits.attach}
         viewBox={`0 0 ${frame.width} ${frame.height}`}
         className="block h-auto w-full cursor-grab touch-pan-y select-none active:cursor-grabbing"
         role="group"
         aria-label={label}
+        // A transform, not a size: layout (and so the page below) never moves.
+        style={
+          drawingScale < 0.999 || drawingShift < -0.5
+            ? { transform: `translateY(${drawingShift}px) scale(${drawingScale})`, transformOrigin: '50% 0%' }
+            : undefined
+        }
         {...orbits.dragHandlers}
       >
         <rect
@@ -701,7 +771,9 @@ export function TrustOrbitsCanvas({
 
         <g pointerEvents="none">{labels}</g>
       </svg>
-      {children}
+      {/* Not positioned, so the absolutely placed card still anchors to the wrapper;
+          it exists only so the card's height can be read. */}
+      <div ref={cardHostRef}>{children}</div>
     </div>
   );
 }

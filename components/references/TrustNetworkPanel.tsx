@@ -4,12 +4,11 @@
 //
 // The small card that floats over the bottom of the Trust Network while someone is
 // selected: who they are, their review of the person in the middle (or, on the
-// Given side, the middle person's review of them), any attached proof images, and
-// who else they are connected to here.
+// Given side, the middle person's review of them), and any attached proof images.
 
 import { useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, Cancel01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Cancel01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -25,8 +24,6 @@ import { cn } from '@/lib/utils';
 
 /** How far the card travels as it slides in, in pixels. */
 const SLIDE_PX = 16;
-/** Avatars shown in a row before the rest are counted. */
-const STACK_LIMIT = 4;
 
 interface Person {
   key: string;
@@ -46,37 +43,6 @@ function personOf(entry: OrbitEntry | undefined): Person | null {
     return { key: entry.key, handle: node.handle, name: node.name, avatarPath: node.avatarPath };
   }
   return { key: entry.key, handle: entry.child.handle, name: entry.child.handle.replace(/^@/, ''), avatarPath: null };
-}
-
-function AvatarStack({ label, people, onPick }: { label: string; people: Person[]; onPick: (key: string) => void }) {
-  if (people.length === 0) return null;
-  const shown = people.slice(0, STACK_LIMIT);
-  const more = people.length - shown.length;
-  return (
-    <div className="flex items-center gap-1.5">
-      <ul className="flex gap-0.5">
-        {shown.map((person) => (
-          <li key={person.key}>
-            <button
-              type="button"
-              title={person.handle}
-              aria-label={person.handle}
-              onClick={() => onPick(person.key)}
-              className="block rounded-full transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <Avatar avatarPath={person.avatarPath} displayName={person.name} size="xs" />
-            </button>
-          </li>
-        ))}
-        {more > 0 ? (
-          <li className="grid size-6 place-items-center rounded-full bg-muted text-meta font-semibold text-muted-foreground">
-            +{more}
-          </li>
-        ) : null}
-      </ul>
-      <span className="text-meta text-muted-foreground">{label}</span>
-    </div>
-  );
 }
 
 /**
@@ -124,7 +90,6 @@ function OpenNetwork({ orbits, personKey }: { orbits: TrustOrbits; personKey: st
           Open<span className="hidden sm:inline"> their network</span>
         </>
       )}
-      <HugeiconsIcon icon={ArrowRight01Icon} className="size-3" aria-hidden />
     </Button>
   );
 }
@@ -175,14 +140,11 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const key = nodeKey(node);
   const negative = node.sentiment === 'NEGATIVE';
-  const peopleFor = (keys: readonly string[]) =>
-    keys.flatMap((other) => {
-      const person = personOf(orbits.directory.get(other));
-      return person ? [person] : [];
-    });
+  // NO AVATAR ROWS. The card used to list "Also reviewed" and "Reviewed by" as rows of
+  // tiny avatars. Both repeated what the drawing's own lines and stars already show,
+  // made the card two rows taller, and were 24px targets. The card is now the person
+  // and their review; the drawing is how you move between people.
   const given = orbits.view.direction === 'given';
-  const dealtWith = peopleFor(orbits.view.links.flatMap(([a, b]) => (a === key ? [b] : b === key ? [a] : [])));
-  const vouchers = peopleFor(orbits.scene.tethers.filter(([planet]) => planet === key).map(([, star]) => star));
   const images = node.images ?? [];
   // WHO goes on the person card; WHEN and HOW MUCH belong to the reference itself.
   // "Of their own" because this sits beside a review of someone ELSE: a bare
@@ -212,12 +174,7 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
           orbits={orbits}
           onClose={onClose}
         />
-        {!negative && (dealtWith.length > 0 || vouchers.length > 0) ? (
-          <div className="flex flex-wrap items-center gap-x-cozy gap-y-tight">
-            <AvatarStack label="Also reviewed" people={dealtWith} onPick={orbits.select} />
-            <AvatarStack label="Reviewed by" people={vouchers} onPick={orbits.select} />
-          </div>
-        ) : null}
+
       </PanelCard>
 
       <PanelCard divided aria-label={given ? `Review of ${node.handle}` : `Review from ${node.handle}`}>
@@ -359,6 +316,8 @@ export function TrustNetworkPanel({ orbits }: { orbits: TrustOrbits }) {
       style={{ opacity: panel.open, transform: `translateY(${(1 - panel.open) * SLIDE_PX}px)` }}
       className={cn(
         // One card, two sections (`PanelCard`): who the person is, then what they said.
+        // Floats over the drawing's foot; on a phone the drawing shrinks upward out of
+        // its way while it is open (`TrustOrbitsCanvas`), so the card covers nothing.
         'absolute inset-x-2 bottom-2 z-10 mx-auto max-w-[520px] overflow-hidden rounded-2xl border border-border/85 bg-card/95 shadow-xl backdrop-blur-md sm:inset-x-3 sm:bottom-3',
         panel.open < 0.5 && 'pointer-events-none',
       )}

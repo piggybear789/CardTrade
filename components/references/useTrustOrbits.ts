@@ -5,8 +5,8 @@
 // State behind the Trust Network graph: who is the sun, who is selected and whose
 // connections are open, how the system is turned, and the animations between those
 // states. The system spins on its own and can be dragged. Selecting a planet pauses
-// it, eases that planet round to the back (clear of the details card along the
-// bottom) and opens its connections.
+// it, eases that planet round to the back-left diagonal (clear of the sun and of the
+// details card along the bottom) and opens its connections.
 //
 // Opening someone's network goes to their page. The graph starts walking toward them
 // at once, from `/api/references/graph` (selecting someone loads it early), while
@@ -35,7 +35,7 @@ import {
   easeOut,
   orbitKey,
   wrapAngle,
-  yawToBack,
+  yawToSelectedRest,
   type OrbitArc,
   type OrbitItem,
   type OrbitPersonInput,
@@ -614,11 +614,12 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     }
     setShownKey(key);
 
-    // A planet opens and swings to the back; one of its stars keeps it open where it is.
+    // A planet opens and swings round to the back-left diagonal (`yawToSelectedRest`);
+    // one of its stars keeps it open where it is.
     if (scene.items.get(key)?.kind === 'planet') {
       changeFocus(key);
       const angle = scene.angles.get(key);
-      if (angle !== undefined) motion.turnTo(yawToBack(angle));
+      if (angle !== undefined) motion.turnTo(yawToSelectedRest(angle));
     }
 
     const handleSlug = pageOf(key);

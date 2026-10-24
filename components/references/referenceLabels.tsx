@@ -86,7 +86,10 @@ export function SentimentBadge({
         role="img"
         title={label}
         aria-label={label}
-        className="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full border border-action-border/40 bg-action/35 px-1.5 text-[11px] font-semibold tabular-nums text-action-foreground"
+        // NO BORDER, like the positive and negative chips. It read `border-action-border/40`,
+        // which is not a class here (the token is `action-edge`), so it fell back to the
+        // grey hairline: a grey ring on the one amber chip.
+        className="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-action/35 px-1.5 text-[11px] font-semibold tabular-nums text-action-foreground"
       >
         <HugeiconsIcon icon={StarIcon} className="size-3 fill-action-foreground" aria-hidden />
         <span>{stars}</span>

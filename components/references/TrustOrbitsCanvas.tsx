@@ -139,13 +139,18 @@ function planetPalette(sentiment: OrbitSentiment) {
       spokeHot: CAUTION_STROKE,
     };
   }
+  // FULL-STRENGTH EDGE, like neutral and negative. Jade is under half as vivid as the
+  // red, and at 72% the outline came out a grey sage at the same lightness as the amber
+  // edge, so positives (most of the graph) looked washed out and differed from neutrals
+  // by hue alone. Full jade sits darker than amber. The fill is a touch stronger for the
+  // same reason; 0.16 still keeps the initials at 4.6:1.
   return {
-    fill: 'hsl(var(--trust) / 0.12)',
-    stroke: 'hsl(var(--trust) / 0.72)',
+    fill: 'hsl(var(--trust) / 0.16)',
+    stroke: TRUST,
     selectedRing: TRUST,
     text: TRUST,
     spoke: 'hsl(var(--trust) / 0.24)',
-    spokeHot: 'hsl(var(--trust) / 0.72)',
+    spokeHot: TRUST,
   };
 }
 

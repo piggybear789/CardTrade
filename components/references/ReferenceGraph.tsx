@@ -97,7 +97,9 @@ export function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
         <span
           title={plural(neutralCount, 'neutral reference', 'neutral references')}
           aria-label={plural(neutralCount, 'neutral reference', 'neutral references')}
-          className="inline-flex items-center gap-1 rounded-full border border-action-border/40 bg-action/35 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-action-foreground"
+          // NO BORDER, matching the positive and negative pills. `border-action-border/40`
+          // is not a class here (the token is `action-edge`), so it drew a grey hairline.
+          className="inline-flex items-center gap-1 rounded-full bg-action/35 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-action-foreground"
         >
           <span>{neutralCount} neutral</span>
         </span>

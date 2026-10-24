@@ -42,6 +42,7 @@ import type { TradeDisputeOutcome } from '@/domain/orchestrator/disputeResolutio
 import { regionForProfile, regionForTrade } from '@/lib/regionBinding';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
 import { payeePairHash, splitFullName } from '@/domain/identity/payeeNameMatch';
+import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import {
   COLLECTED_SALE_STATUSES,
   reconcileCustody,
@@ -2220,6 +2221,29 @@ export const decideHandleClaim = withActionLog('admin.decideHandleClaim', async 
   if (decision === 'APPROVE') {
     if (claim.claimed_profile_id && claim.claimed_profile_id !== request.claimant_id) {
       return { ok: false, error: 'invalid-input', message: 'This handle was claimed by someone else.' };
+    }
+    // Staff approve on a screenshot, so the claimant must be ID-verified, the same rule
+    // `submitManualHandleClaim` applies at submission. Checked again here for a request
+    // filed before that rule, or a claimant who is no longer verified.
+    const { data: claimant, error: claimantError } = await admin
+      .from('profiles')
+      .select('identity_check_status, fraud_banned_at, closed_at')
+      .eq('id', request.claimant_id)
+      .maybeSingle();
+    if (claimantError) return { ok: false, error: 'persistence-error', message: claimantError.message };
+    if (!claimant || claimant.fraud_banned_at || claimant.closed_at) {
+      return { ok: false, error: 'invalid-input', message: "This member's account can't claim handles. Decline the claim." };
+    }
+    if (
+      !satisfiesIdentityGate({
+        identityCheckStatus: (claimant.identity_check_status ?? 'NONE') as IdentityCheckStatus,
+      })
+    ) {
+      return {
+        ok: false,
+        error: 'invalid-input',
+        message: "The claimant hasn't verified their ID, so this claim can't be approved yet. Leave it pending or decline it.",
+      };
     }
     const { error: claimError } = await admin
       .from('social_claims')

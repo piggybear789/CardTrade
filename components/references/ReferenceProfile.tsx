@@ -173,6 +173,7 @@ export function ReferenceProfile({
                 key={`claim-${centre.handleSlug}`}
                 handle={centre.handle}
                 signedIn={viewer.id !== null}
+                identityVerified={viewer.identityVerified}
                 initialClaim={orbits.centreKey === centreKeyOf(data) ? initialClaim : null}
                 returnPath={returnPath}
               />
@@ -181,6 +182,7 @@ export function ReferenceProfile({
                 key={`link-${centre.handleSlug}`}
                 handle={centre.handle}
                 signedIn
+                identityVerified={viewer.identityVerified}
                 mode="link"
                 returnPath={returnPath}
               />
@@ -214,16 +216,13 @@ export function ReferenceProfile({
       >
         <TrustNetworkHeader orbits={orbits} />
         <TrustNetworkBody orbits={orbits} />
-        {/* PHONES READ A LIST. On a 375px screen the drawing's labels render at ~9px and
-            its dots are ~27px targets, so the references themselves were close to
-            unreadable. Below `sm` every reference is also listed as a card under the
-            drawing (the review list every marketplace app uses); tapping one selects it
-            in the drawing. Desktop keeps the drawing alone. */}
-        {orbits.view.nodes.length > 0 ? (
-          <div className="sm:hidden">
-            <ExperienceList orbits={orbits} selectable={false} />
-          </div>
-        ) : null}
+        {/* EVERY REFERENCE AS A CARD, UNDER THE DRAWING, AT EVERY WIDTH: the review list
+            every marketplace app uses. The drawing shows who vouches for whom; the list
+            is where each review is read in full (on a phone the drawing's labels are
+            ~9px and its dots small targets). Two columns from `sm`. Cards do not select
+            in the drawing here: once you have scrolled down to read them it is often off
+            screen, and a selection you cannot see reads as a tap that did nothing. */}
+        {orbits.view.nodes.length > 0 ? <ExperienceList orbits={orbits} selectable={false} /> : null}
       </section>
     </div>
   );

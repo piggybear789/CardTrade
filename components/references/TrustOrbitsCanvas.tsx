@@ -7,7 +7,15 @@
 // each handle with its star rating locked directly beneath its body so nothing
 // jumps or shifts alignment as the system spins.
 
-import { useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 
 import {
   arcPath,
@@ -268,13 +276,27 @@ export function TrustOrbitsCanvas({
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const cardHostRef = useRef<HTMLDivElement | null>(null);
   const [heights, setHeights] = useState({ drawing: 0, card: 0 });
-  useLayoutEffect(() => {
+  const measure = () => {
     const drawing = wrapperRef.current?.offsetHeight ?? 0;
     const card = cardHostRef.current?.firstElementChild?.getBoundingClientRect().height ?? 0;
     setHeights((prev) =>
       Math.abs(prev.drawing - drawing) > 1 || Math.abs(prev.card - card) > 1 ? { drawing, card } : prev,
     );
-  });
+  };
+  useLayoutEffect(measure);
+  // The card can also change height on its own, with nothing here re-rendering: a
+  // selection pauses the spin, so "Show more" on a long review grew the card while the
+  // drawing stayed fitted to the short one. Watch the card itself while it is shown.
+  const shownCard = orbits.panel.key;
+  useEffect(() => {
+    const card = cardHostRef.current?.firstElementChild;
+    if (!card || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => measure());
+    observer.observe(card);
+    return () => observer.disconnect();
+    // `measure` reads refs and a functional state update only, so it never goes stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownCard]);
   // FIT THE SYSTEM, NOT THE FRAME. The first version shrank the whole frame until it
   // ended above the card, so the frame's empty margins shrank too and the system came
   // out about half size. Now only the band the system occupies (`systemExtent`, which
@@ -722,8 +744,11 @@ export function TrustOrbitsCanvas({
   const arcIds = new Set(scene.arcs.map((link) => `${link.a}|${link.b}`));
   const tetherStars = new Set(scene.tethers.map(([, star]) => star));
 
+  // The drawing grows with the window above a laptop: 780px up to about 1560px wide, then
+  // 50vw, capped at 1080px. The page column is already viewport-relative, so this keeps the
+  // graph in proportion with it. Phones are unaffected: the drawing is their full width.
   return (
-    <div ref={wrapperRef} className="relative mx-auto w-full max-w-[860px]">
+    <div ref={wrapperRef} className="relative mx-auto w-full max-w-[min(100%,clamp(780px,50vw,1080px))]">
       <svg
         ref={orbits.attach}
         viewBox={`0 0 ${frame.width} ${frame.height}`}

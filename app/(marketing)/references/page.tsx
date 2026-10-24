@@ -1,7 +1,9 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldCheckIcon, UserCheck01Icon } from '@hugeicons/core-free-icons';
 
+import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { ReferenceSearch } from '@/components/references/ReferenceSearch';
 import { searchReferences } from '@/lib/actions/references';
@@ -46,6 +48,12 @@ export default async function ReferencesPage() {
   // the leftover height evenly instead of leaving it all under the list.
   return (
     <div className="relative flex flex-1 flex-col">
+      {/* The onboarding wizard's "I'm adding a reference" path returns here from the ID
+          check (`?identity=complete`). Read the result from Stripe now rather than
+          waiting on its webhook. Renders nothing. */}
+      <Suspense fallback={null}>
+        <IdentityReturnRefresh />
+      </Suspense>
       <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-center px-group py-section sm:px-6 sm:pt-[clamp(3rem,8vh,7rem)] sm:pb-[clamp(18rem,32vh,26rem)]">
         <header className="mx-auto max-w-[clamp(42rem,48vw,64rem)] text-center">
           {/* The platform marks lead the block, so they carry real size; the glyph

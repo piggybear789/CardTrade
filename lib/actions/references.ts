@@ -30,6 +30,7 @@ import {
   HANDLE_CLAIM_EVIDENCE_BUCKET,
   REFERENCE_PROOF_BUCKET,
 } from '@/lib/storage/referenceImagesShared';
+import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import {
   REFERENCES_PER_DAY,
   claimPlatformForDealPlatform,
@@ -1286,6 +1287,32 @@ export const submitManualHandleClaim = withActionLog(
     if (!cleanHandle) return fail('invalid-reference', 'Enter a valid handle.');
 
     const admin = createAdminClient();
+
+    // A MANUAL CLAIM NEEDS A VERIFIED ID. Staff link the handle on the strength of a
+    // screenshot, which can be faked, so the person asking has to be a checked,
+    // accountable one. The Instagram DM claim deliberately does not ask: the DM is sent
+    // from the account itself, which is the proof. `decideHandleClaim` re-checks at
+    // approval.
+    const { data: claimant, error: claimantError } = await admin
+      .from('profiles')
+      .select('identity_check_status, fraud_banned_at, closed_at')
+      .eq('id', user.id)
+      .maybeSingle();
+    if (claimantError) return fail('persistence-error', SAVE_FAILED);
+    if (!claimant || claimant.fraud_banned_at || claimant.closed_at) {
+      return fail('not-allowed', "This account can't claim handles.");
+    }
+    if (
+      !satisfiesIdentityGate({
+        identityCheckStatus: (claimant.identity_check_status ?? 'NONE') as IdentityCheckStatus,
+      })
+    ) {
+      return fail(
+        'identity-unverified',
+        'Verify your ID first so your claimed handle carries your verified name.',
+      );
+    }
+
     let verifiedPaths: string[];
     try {
       verifiedPaths = await existingReferenceImages(

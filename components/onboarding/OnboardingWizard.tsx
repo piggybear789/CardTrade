@@ -13,13 +13,11 @@
 // Post-signup onboarding presented as one focused modal wizard:
 //   1. Welcome — explain how NoDitto protects cash sales and trades
 //   2. Alias — choose the public display name shown to other members
-//   3. Region — the trading region every contract is scoped to, OR the waitlist for a
-//      region that is not open yet. The waitlist answer finishes onboarding on the
-//      spot and sends the member to the catalog: there is no seller setup to offer
-//      someone who cannot transact, and asking "buy or sell?" of them would be a
-//      question with no true answer.
-//   4. Intent — buyer enters card setup; seller goes straight to Stripe Identity
-//   5. Card Setup (buyer only, skippable) — Stripe Payment Element for vaulting a card
+//   3. Region — the trading region every contract is scoped to. Only open countries are
+//      offered: the "not open yet" waitlist group was removed from the picker.
+//   4. Intent — a buyer goes straight to the catalog; a seller goes to Stripe Identity
+//      and payouts on the next screen; someone adding a reference goes to the Stripe ID
+//      check and then back to References (a reference needs a verified author).
 //
 // ONBOARDING IS REQUIRED TO TRANSACT, NOT TO LOOK, so the wizard has a way out on
 // every step. It previously had no dismiss control, on the reasoning that a member
@@ -41,20 +39,19 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, ArrowLeftRightIcon, ArrowRight01Icon, BanknoteIcon, Globe02Icon, InfoIcon, MapPinIcon, ShieldCheckIcon, ShoppingBag01Icon, Store01Icon } from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, ArrowLeftRightIcon, ArrowRight01Icon, BanknoteIcon, CheckmarkBadge01Icon, InfoIcon, MapPinIcon, ShieldCheckIcon, ShoppingBag01Icon, Store01Icon } from '@hugeicons/core-free-icons';
 
 import { completeOnboarding } from '@/lib/actions/profile';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
-import { joinRegionWaitlist, setTradingRegion } from '@/lib/actions/region';
+import { setTradingRegion } from '@/lib/actions/region';
+import { identityStartHref } from '@/lib/identity/identityStart';
 import { type SelectableRegion } from '@/lib/actions/regionOptions';
 import type { ProviderReturn } from '@/components/onboarding/providerReturn';
 import {
   findRegion,
-  isTradingRegion,
   platformRegion,
   REGIONS,
-  regionLabel,
   settlementCurrency,
 } from '@/domain/region';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -77,9 +74,7 @@ import {
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -87,37 +82,24 @@ import { chargesCurrencyConversion, FX_FEE_BPS } from '@/domain/fees/fxFee';
 import { cn } from '@/lib/utils';
 
 export type Step = 'welcome' | 'username' | 'region' | 'intent' | 'seller-onboarding';
-type Intent = 'buyer' | 'seller' | null;
-
 /**
- * Which kind of answer the region step holds.
- *
- * `trade` is a region the member can transact in; `waitlist` is one NoDitto is not
- * open in yet. They are different answers with different consequences — one writes a
- * trading region and continues to the intent step, the other writes a waitlist row and
- * ends the wizard — so they are one state rather than two nullable region codes that
- * could both be set.
+ * The member's first path. `reference` is someone who came to vouch for a trader: a
+ * reference can only be published by an ID-verified member, so that path goes to the
+ * Stripe ID check and then to References, with no seller or payout setup.
  */
-type RegionChoice = 'trade' | 'waitlist' | null;
+type Intent = 'buyer' | 'seller' | 'reference' | null;
+
+/** Whether the region step holds an open country the member can transact in. */
+type RegionChoice = 'trade' | null;
+
+/** Where the reference path lands after the ID check, absent a references destination. */
+const REFERENCES_PATH = '/references';
 
 // The navigation spine the back button walks, and what the progress rail counts. It is
 // every screen a member is walked THROUGH: `seller-onboarding` is deliberately absent
 // because it sits off the end for sellers only, and counting it would tell a buyer they
 // are on step 4 of 5 of something they will never see.
 const STEPS: Step[] = ['welcome', 'username', 'region', 'intent'];
-
-/**
- * Countries a member can wait for: every region in the registry that is not open.
- *
- * From the pure registry rather than the runtime `regions` prop, and by product intent
- * rather than by Stripe binding, because that is exactly the rule the database trigger
- * on `region_waitlist` enforces — a region can be waited for if and only if it is not
- * `trading_enabled`. The list is bounded to countries Stripe could ever pay out in; a
- * waitlist for anywhere else would be a promise the provider cannot keep.
- */
-const WAITLIST_REGIONS = REGIONS.filter((region) => !region.tradingEnabled)
-  .map((region) => ({ code: region.code, label: region.label }))
-  .sort((a, b) => a.label.localeCompare(b.label));
 
 /**
  * What choosing an open country means, said under the picker: the currency the member
@@ -239,9 +221,9 @@ export interface OnboardingWizardProps {
    * The region the request IP resolves to, or null when there is no guess (local
    * development, a non-Vercel host, an IP outside the registry).
    *
-   * A PRE-SELECTION ONLY. It decides which tile the region step opens on and which
-   * country the waitlist picker starts at; it is never written anywhere. A member
-   * whose guess is wrong — a VPN, a holiday — changes it with one click.
+   * A PRE-SELECTION ONLY. It decides which country the region picker opens on, when
+   * NoDitto is open there; it is never written anywhere. A member whose guess is
+   * wrong — a VPN, a holiday — changes it with one click.
    */
   guessedRegion?: string | null;
   /**
@@ -276,42 +258,34 @@ export function OnboardingWizard({
   // the preview — it is not part of what `completeOnboarding` submits.
   const [avatarPath, setAvatarPath] = useState<string | null>(null);
 
-  // THE IP GUESS PRE-SELECTS THE COUNTRY, open or not, and is never written anywhere by
-  // itself: the member sees it in the picker and confirms or changes it. With dozens
+  // THE IP GUESS PRE-SELECTS THE COUNTRY when it is open, and is never written anywhere
+  // by itself: the member sees it in the picker and confirms or changes it. A guess
+  // outside the open list leaves the picker empty rather than choosing for them. With dozens
   // of open countries the guess is what makes this step a confirmation for most people.
   const guessedOpenRegion =
     guessedRegion && regions.some((region) => region.code === guessedRegion)
       ? guessedRegion
       : null;
-  const guessedWaitlistRegion =
-    guessedRegion && !isTradingRegion(guessedRegion) && findRegion(guessedRegion)
-      ? guessedRegion
-      : null;
-
-  // Which tile is chosen, decided on the first render from what the server already
+  // Which country is chosen, decided on the first render from what the server already
   // knows — this used to settle a tick after mount and move the selection under anyone
-  // who had got there first. A member the IP places in a country that is not open
-  // starts on the waitlist tile with that country filled in; everyone else starts on
-  // the one open region, pre-selected so the step is a confirmation rather than a
-  // decision with one option. It is still SHOWN either way: the trading region is the
-  // jurisdiction payouts and postage are pinned to, and silently assigning it would
-  // make the later "your region is tied to your payout account" refusal come out of
-  // nowhere.
+  // who had got there first. The IP's open country is pre-selected, or the one open
+  // region when there is only one, so the step is a confirmation rather than a decision.
+  // It is still SHOWN either way: the trading region is the jurisdiction payouts and
+  // postage are pinned to, and silently assigning it would make the later "your region
+  // is tied to your payout account" refusal come out of nowhere.
   const [regionChoice, setRegionChoice] = useState<RegionChoice>(
-    guessedOpenRegion
-      ? 'trade'
-      : guessedWaitlistRegion
-        ? 'waitlist'
-        : regions.length === 1
-          ? 'trade'
-          : null,
+    guessedOpenRegion || regions.length === 1 ? 'trade' : null,
   );
   const [regionCode, setRegionCode] = useState<string | null>(
     guessedOpenRegion ?? (regions.length === 1 ? regions[0].code : null),
   );
-  const [waitlistRegion, setWaitlistRegion] = useState<string | null>(guessedWaitlistRegion);
   const regionChoices = regions;
-  const [intent, setIntent] = useState<Intent>(presetIntent);
+  // Arriving from References (signed up to leave a reference) starts on that answer.
+  // A pre-selection only: the step is still shown and any tile can be chosen.
+  const referencesDestination = redirectTo?.startsWith(REFERENCES_PATH) ? redirectTo : null;
+  const [intent, setIntent] = useState<Intent>(
+    presetIntent ?? (referencesDestination ? 'reference' : null),
+  );
   // Whether the seller step reports both its gates satisfied. Owned here rather than
   // re-read, because the surface already knows and two readers of one fact drift.
   //
@@ -327,11 +301,7 @@ export function OnboardingWizard({
   // on a question the member was not asked.
   const spine = presetIntent ? STEPS.filter((s) => s !== 'intent') : STEPS;
   const stepIndex = spine.indexOf(step);
-  // The waitlist answer ends the wizard at the region step, so the intent dot is
-  // dropped the moment that tile is chosen — the same honesty rule that keeps
-  // `seller-onboarding` out of the count: never show a member a step they will not see.
-  const progressSteps =
-    regionChoice === 'waitlist' ? spine.filter((s) => s !== 'intent') : spine;
+  const progressSteps = spine;
   const progressIndex = progressSteps.indexOf(step);
 
   // Stripe's hosted pages return to this path. With a destination to finish on, carry
@@ -362,11 +332,6 @@ export function OnboardingWizard({
   }
 
   async function handleRegionContinue() {
-    if (regionChoice === 'waitlist') {
-      await handleWaitlistContinue();
-      return;
-    }
-
     if (regionChoice !== 'trade' || !regionCode) {
       setError('Choose where you are trading from.');
       return;
@@ -395,45 +360,6 @@ export function OnboardingWizard({
     setStep('intent');
   }
 
-  /**
-   * The waitlist answer: record the region, finish onboarding, go and browse.
-   *
-   * ENDS THE WIZARD HERE. The intent step asks "buy or sell?", and a member in a
-   * region that is not open can do neither — there is no seller setup to walk them
-   * into and no card to ask for. Onboarding is still completed (`completeOnboarding`
-   * is what lets them past the gate in `proxy.ts` at all), and the trading region is
-   * deliberately left unset: see `joinRegionWaitlist` for why a closed region must
-   * never become one.
-   */
-  async function handleWaitlistContinue() {
-    if (!waitlistRegion) {
-      setError('Choose the country you are in.');
-      return;
-    }
-
-    setSaving(true);
-    setError(null);
-
-    const joined = await joinRegionWaitlist(waitlistRegion);
-    if (!joined.ok) {
-      setError(joined.message);
-      setSaving(false);
-      return;
-    }
-
-    const completed = await completeOnboarding(displayName.trim());
-    if (!completed.ok) {
-      setError(completed.message);
-      setSaving(false);
-      return;
-    }
-
-    // `saving` stays true through the navigation: the button reads "Joining…" until
-    // the catalog replaces this screen, rather than snapping back to "Join the
-    // waitlist" for the length of the route change.
-    router.push(exitPath);
-  }
-
   async function handleIntentContinue() {
     if (!intent) return;
 
@@ -444,6 +370,16 @@ export function OnboardingWizard({
     if (!result.ok) {
       setError(result.message);
       setSaving(false);
+      return;
+    }
+
+    if (intent === 'reference') {
+      // STRAIGHT TO THE ID CHECK. A reference is only published by a verified member,
+      // so there is nothing else to set up: `/api/identity/start` opens Stripe and the
+      // member comes back to References (or the reference they came here to leave).
+      // A full navigation, because the destination is off-origin. `saving` stays true
+      // so the button keeps reading "Opening Stripe…" until the page is replaced.
+      window.location.assign(identityStartHref(referencesDestination ?? REFERENCES_PATH));
       return;
     }
 
@@ -631,61 +567,36 @@ export function OnboardingWizard({
               {/* ONE PICKER, NOT A TILE PER COUNTRY. With the US platform serving the
                   UK, the EEA, Canada and Switzerland there are dozens of open countries,
                   and a tile each would be a wall. The IP guess pre-selects the country,
-                  so for most members this is a confirmation. Closed countries sit in
-                  the same list under their own heading and lead to the waitlist. */}
+                  so for most members this is a confirmation. Only open countries are
+                  listed. */}
               <div className="space-y-snug">
                 <Label htmlFor="trading-country">Your country</Label>
                 <Select
-                  value={(regionChoice === 'trade' ? regionCode : waitlistRegion) ?? ''}
+                  value={regionCode ?? ''}
                   onValueChange={(value) => {
                     setError(null);
-                    if (regionChoices.some((region) => region.code === value)) {
-                      setRegionChoice('trade');
-                      setRegionCode(value);
-                    } else {
-                      setRegionChoice('waitlist');
-                      setWaitlistRegion(value);
-                    }
+                    setRegionChoice('trade');
+                    setRegionCode(value);
                   }}
                   disabled={saving}
                 >
                   <SelectTrigger id="trading-country" className="bg-card">
                     <SelectValue placeholder="Choose your country" />
                   </SelectTrigger>
+                  {/* One flat list. The "Open for deals" heading only meant something
+                      beside the "Not open yet" group, which is gone. */}
                   <SelectContent className="z-[60] max-h-80">
-                    {regionChoices.length > 0 ? (
-                      <SelectGroup>
-                        <SelectLabel>Open for deals</SelectLabel>
-                        {regionChoices.map((region) => (
-                          <SelectItem key={region.code} value={region.code}>
-                            {region.label} · {region.currency.toUpperCase()}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    ) : null}
-                    <SelectGroup>
-                      <SelectLabel>Not open yet (join the waitlist)</SelectLabel>
-                      {WAITLIST_REGIONS.map((region) => (
-                        <SelectItem key={region.code} value={region.code}>
-                          {region.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
+                    {regionChoices.map((region) => (
+                      <SelectItem key={region.code} value={region.code}>
+                        {region.label} · {region.currency.toUpperCase()}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               {regionChoice === 'trade' && regionCode ? (
                 <RegionOutcome regionCode={regionCode} />
-              ) : regionChoice === 'waitlist' && waitlistRegion ? (
-                <div className="flex items-start gap-snug rounded-md border bg-muted p-cozy text-body">
-                  <HugeiconsIcon icon={Globe02Icon} className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  <p className="text-pretty text-muted-foreground">
-                    NoDitto isn&apos;t open in {regionLabel(waitlistRegion)} yet. We&apos;ll email
-                    you when it opens. Until then you can browse listings, but not buy, sell or
-                    trade.
-                  </p>
-                </div>
               ) : null}
 
               <fieldset className="contents">
@@ -708,15 +619,12 @@ export function OnboardingWizard({
                 Stated plainly at the point of choosing, because it is not reversible
                 from the UI once a payout account exists — `setTradingRegion` refuses
                 and sends the member to support. Finding that out later would feel
-                like a bug. Only while an open region is the answer: the waitlist tile
-                carries its own consequence, and this one would be untrue of it.
+                like a bug.
               */}
-              {regionChoice !== 'waitlist' ? (
-                <p className="text-pretty text-body text-muted-foreground">
-                  This is tied to your payout account, so it is not something you can
-                  switch later on your own. You can still browse listings in any region.
-                </p>
-              ) : null}
+              <p className="text-pretty text-body text-muted-foreground">
+                This is tied to your payout account, so it is not something you can
+                switch later on your own. You can still browse listings in any region.
+              </p>
 
               {error ? (
                 <p role="alert" className="text-body text-destructive">
@@ -731,7 +639,7 @@ export function OnboardingWizard({
               <DialogHeader className="space-y-snug pr-0 text-center">
                 <DialogTitle className="text-head">What brings you here?</DialogTitle>
                 <DialogDescription className="text-pretty">
-                  You can always do both later. This only gets your first path ready.
+                  You can always do the others later. This only gets your first path ready.
                 </DialogDescription>
               </DialogHeader>
 
@@ -774,6 +682,28 @@ export function OnboardingWizard({
                     <span className="block font-medium">I want to sell or trade</span>
                     <span className="block text-body text-muted-foreground">
                       List items, accept offers, and get paid securely.
+                    </span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIntent('reference')}
+                  className={cn(
+                    'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
+                    intent === 'reference'
+                      ? 'border-foreground bg-accent text-accent-foreground'
+                      : 'hover:border-foreground/60 hover:bg-muted/50',
+                  )}
+                >
+                  <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
+                    <HugeiconsIcon icon={CheckmarkBadge01Icon} className="size-5" aria-hidden />
+                  </span>
+                  <span>
+                    <span className="block font-medium">I&apos;m adding a reference</span>
+                    <span className="block text-body text-muted-foreground">
+                      Vouch for a trader you&apos;ve dealt with. It starts with a quick photo ID
+                      check.
                     </span>
                   </span>
                 </button>
@@ -874,34 +804,17 @@ export function OnboardingWizard({
               <Button
                 type="button"
                 onClick={handleRegionContinue}
-                disabled={
-                  saving ||
-                  (regionChoice === 'waitlist' ? !waitlistRegion : !regionCode || !regionChoice)
-                }
+                disabled={saving || !regionCode || !regionChoice}
                 aria-busy={saving}
               >
-                {/* Named for what it does, because the two answers do different
-                    things: one continues the wizard, the other ends it. "Continue"
-                    on the waitlist tile would promise a next step that is not coming.
-
-                    WIDTH-STABLE: "Continue" → "Saving…" resized the button under the
+                {/* WIDTH-STABLE: "Continue" → "Saving…" resized the button under the
                     pointer and slid Back beside it in the right-aligned footer. */}
                 <PendingLabel
                   pending={saving}
                   spinner={false}
-                  pendingLabel={
-                    regionChoice === 'waitlist'
-                      ? 'Joining…'
-                      : presetIntent === 'seller'
-                        ? 'Opening Stripe…'
-                        : 'Saving…'
-                  }
+                  pendingLabel={presetIntent === 'seller' ? 'Opening Stripe…' : 'Saving…'}
                 >
-                  {regionChoice === 'waitlist'
-                    ? 'Join the waitlist'
-                    : presetIntent === 'seller'
-                      ? 'Verify Identity'
-                      : 'Continue'}
+                  {presetIntent === 'seller' ? 'Verify Identity' : 'Continue'}
                 </PendingLabel>
                 <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>
@@ -925,12 +838,13 @@ export function OnboardingWizard({
                     bought nothing. `Verify Identity` stays different because the
                     action IS different — it leaves for Stripe. Width-stable for the
                     same reason as the region step's button. */}
+                {/* Seller and reference both leave for Stripe, so both say so. */}
                 <PendingLabel
                   pending={saving}
                   spinner={false}
-                  pendingLabel={intent === 'seller' ? 'Opening Stripe…' : 'Saving…'}
+                  pendingLabel={intent === 'seller' || intent === 'reference' ? 'Opening Stripe…' : 'Saving…'}
                 >
-                  {intent === 'seller' ? 'Verify Identity' : 'Continue'}
+                  {intent === 'seller' || intent === 'reference' ? 'Verify Identity' : 'Continue'}
                 </PendingLabel>
                 <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
               </Button>

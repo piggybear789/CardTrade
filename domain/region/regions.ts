@@ -498,12 +498,13 @@ export function checkRegionCompatibility(
  * further detail leaves a member unable to tell a fixable problem from a permanent
  * one (the seller is overseas).
  *
- * A BUYER WITH NO REGION IS ON THE WAITLIST. Since onboarding gained the waitlist
- * tile, the only way to finish it without a trading region is to have said you are
- * somewhere NoDitto is not open (`region_waitlist`, 0118); every earlier member was
- * backfilled to AU by 0067. So the honest sentence is about their region not being
- * open — not "set your region in your profile", which named a control that does not
- * exist and a step they could not have taken.
+ * A BUYER WITH NO REGION IS ON THE WAITLIST. While onboarding offered a waitlist
+ * option (0118 until 2026-10-22, when the picker was cut to open countries only), the
+ * only way to finish it without a trading region was to say you were somewhere
+ * NoDitto is not open (`region_waitlist`); every earlier member was backfilled to AU
+ * by 0067. Those members still exist, so the honest sentence is about their region
+ * not being open — not "set your region in your profile", which named a control that
+ * does not exist and a step they could not have taken.
  */
 export function regionMismatchMessage(mismatch: RegionMismatch): string {
   switch (mismatch.reason) {

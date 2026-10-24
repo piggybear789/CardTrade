@@ -15,14 +15,12 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   Cancel01Icon,
   Copy01Icon,
   ImageAdd01Icon,
-  ShieldCheckIcon,
   StarIcon,
 } from '@hugeicons/core-free-icons';
 
@@ -530,24 +528,6 @@ export const Composer = {
   Publish,
   Published,
 };
-
-/** Shown in place of the composer until the member has verified their ID. */
-export function VerifyIdGate() {
-  return (
-    <div className="rounded-lg border border-border bg-muted/40 p-group">
-      <p className="flex items-center gap-2 text-body font-semibold text-foreground">
-        <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 text-trust" aria-hidden />
-        Verify your ID first
-      </p>
-      <p className="mt-1.5 text-body text-muted-foreground">
-        Every reference is backed by a Stripe photo ID and selfie check. No bank or payout details are required.
-      </p>
-      <Button asChild size="sm" className="mt-cozy">
-        <Link href="/profile?tab=verification">Verify ID with Stripe</Link>
-      </Button>
-    </div>
-  );
-}
 
 /** The owner's link for asking people they have dealt with to leave a reference. */
 export function CopyReferenceLink({ returnPath, className }: { returnPath: string; className?: string }) {

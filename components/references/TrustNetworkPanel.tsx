@@ -6,7 +6,7 @@
 // selected: who they are, their review of the person in the middle (or, on the
 // Given side, the middle person's review of them), and any attached proof images.
 
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { Cancel01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
@@ -66,6 +66,59 @@ function PanelCard({
       className={cn('space-y-1.5 px-3.5 py-3', divided && 'border-t border-border/80')}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * The review's own words: four lines, then "Show more".
+ *
+ * IT WAS CUT AT TWO LINES WITH NO WAY TO READ THE REST. On a desktop the profile page
+ * has no list of references, so a long review (up to 500 characters) could not be read
+ * anywhere. "Show more" appears only when the text is actually cut, and expanding it
+ * caps the text at about eight lines and scrolls inside the card, so a long review
+ * never grows the card over the whole drawing.
+ */
+function ReviewText({ text }: { text: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const ref = useRef<HTMLParagraphElement | null>(null);
+
+  // Measured, not guessed from the length: whether four lines hold it depends on the
+  // card's width, the font and the words, and a "Show more" that reveals nothing is
+  // worse than none. Re-checked on resize, because a rotated phone can change it.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || expanded) return;
+    const check = () => setClipped(el.scrollHeight > el.clientHeight + 1);
+    check();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(check);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [expanded, text]);
+
+  return (
+    <div>
+      <p
+        ref={ref}
+        className={cn(
+          'whitespace-pre-line text-body text-foreground',
+          expanded ? 'max-h-48 overflow-y-auto overscroll-contain pr-1' : 'line-clamp-4',
+        )}
+      >
+        {text}
+      </p>
+      {clipped || expanded ? (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((open) => !open)}
+          className="mt-0.5 inline-flex min-h-8 items-center rounded-sm text-meta font-semibold text-iris-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -194,9 +247,8 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
 
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 space-y-1">
-            {node.comment ? (
-              <p className="line-clamp-2 text-body text-foreground">{node.comment}</p>
-            ) : null}
+            {/* Keyed by person, so moving to someone else starts collapsed again. */}
+            {node.comment ? <ReviewText key={key} text={node.comment} /> : null}
             {referenceMeta ? <p className="text-meta text-muted-foreground">{referenceMeta}</p> : null}
           </div>
           {images.length > 0 ? (

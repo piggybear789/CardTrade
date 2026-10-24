@@ -7,8 +7,11 @@
 // - Discord, X: OAuth2 Authorization Code + PKCE
 // - No Facebook: Facebook Login returns a display name, never a username, so it cannot
 //   prove a handle. Facebook handles are claimed through Manual.
-// - Instagram: Instagram DM Bot (`ND-XXXXXX` code sent to @no.ditto via DM)
-// - Manual: Submit a message + required proof screenshot(s) for staff review
+// - Instagram: Instagram DM Bot (`ND-XXXXXX` code sent to @no.ditto via DM). No ID check:
+//   the DM comes from the account itself, which is the proof.
+// - Manual: Submit a message + required proof screenshot(s) for staff review. Needs a
+//   verified ID, because a screenshot can be faked: an unverified member is taken
+//   straight into the ID check (`/api/identity/start`) and brought back to this step.
 
 import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
@@ -50,6 +53,8 @@ import {
   type InstagramDmClaimSession,
   type MyHandleClaim,
 } from '@/lib/actions/references';
+import { refreshIdentityCheck } from '@/lib/actions/identity';
+import { identityStartHref } from '@/lib/identity/identityStart';
 import { REFERENCE_IMAGE_ACCEPT } from '@/lib/storage/referenceImagesShared';
 import { uploadReferenceImage } from '@/lib/storage/uploadReferenceImage';
 
@@ -88,12 +93,14 @@ const CLAIM_PROVIDERS = [
 export function ClaimHandle({
   handle,
   signedIn = false,
+  identityVerified = false,
   initialClaim,
   returnPath,
   mode = 'claim',
 }: {
   handle: string;
   signedIn?: boolean;
+  /** Whether the viewer passed the ID check. A manual claim needs it. */
   identityVerified?: boolean;
   initialClaim?: MyHandleClaim | null;
   returnPath: string;
@@ -120,6 +127,8 @@ export function ClaimHandle({
   const isLinkMode = mode === 'link';
   const cleanHandle = (isLinkMode ? customHandle : handle).trim().replace(/^@/, '');
   const displayHandle = cleanHandle ? `@${cleanHandle}` : handle;
+  // Where sign-in and the ID check bring a manual claim back to: this page, manual step.
+  const manualResumePath = `${returnPath}?claim=manual`;
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -142,8 +151,14 @@ export function ClaimHandle({
 
     if (platform === 'manual') {
       if (!signedIn) {
-        const resumeUrl = `${returnPath}?claim=manual`;
-        window.location.assign(`/sign-in?redirectTo=${encodeURIComponent(resumeUrl)}`);
+        window.location.assign(`/sign-in?redirectTo=${encodeURIComponent(manualResumePath)}`);
+        return;
+      }
+      // Not ID-checked yet: start the check now and come back to the manual step,
+      // rather than showing a form the server would refuse.
+      if (!identityVerified) {
+        setActiveProvider('manual');
+        window.location.assign(identityStartHref(manualResumePath));
         return;
       }
       setManualView(true);
@@ -206,17 +221,34 @@ export function ClaimHandle({
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
   }, []);
 
-  // Auto-open the Instagram DM or Manual claim step when returning from sign-in (`?claim=instagram` or `?claim=manual`)
+  // Resume a claim after a round trip: back from sign-in (`?claim=instagram` or
+  // `?claim=manual`), or back from the ID check (`?claim=manual&identity=complete`).
+  //
+  // An unverified member back from SIGN-IN with a manual claim goes straight into the ID
+  // check. Back FROM the check, the form opens even if this render still says
+  // unverified: `IdentityReturnRefresh` is reading the result from Stripe right now, and
+  // sending them to the check again would loop. The submit re-checks either way.
+  //
+  // Once per mount (`resumed`), so the re-render that the read-back triggers does not
+  // run it again.
+  const resumed = useRef(false);
   useEffect(() => {
-    if (!signedIn || isLinkMode || typeof window === 'undefined') return;
+    if (resumed.current || !signedIn || typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const claimParam = params.get('claim');
     if (claimParam === 'manual') {
+      resumed.current = true;
+      if (!identityVerified && params.get('identity') !== 'complete') {
+        window.location.assign(identityStartHref(manualResumePath));
+        return;
+      }
       setOpen(true);
       setManualView(true);
       return;
     }
-    if (claimParam !== 'instagram') return;
+    // The DM step needs this page's own handle, which a link dialog does not have.
+    if (claimParam !== 'instagram' || isLinkMode) return;
+    resumed.current = true;
     setOpen(true);
     setActiveProvider('instagram');
     startTransition(async () => {
@@ -233,7 +265,7 @@ export function ClaimHandle({
         setActiveProvider(null);
       }
     });
-  }, [signedIn, isLinkMode, cleanHandle]);
+  }, [signedIn, isLinkMode, cleanHandle, identityVerified, manualResumePath]);
 
   const attachManualFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -270,18 +302,33 @@ export function ClaimHandle({
       return;
     }
     setDmNotice(null);
+    const input = { handle: cleanHandle, message: manualMessage, paths: manualPaths };
     startTransition(async () => {
-      const res = await submitManualHandleClaim({
-        handle: cleanHandle,
-        message: manualMessage,
-        paths: manualPaths,
-      });
-      if (!res.ok) {
-        setDmNotice(res.message);
-        return;
+      // `catch`: a thrown action inside a transition reaches the error boundary and
+      // would replace the page, screenshots and all.
+      try {
+        let res = await submitManualHandleClaim(input);
+        // Refused as unverified straight after the ID check: Stripe's answer may not
+        // have reached us yet. Ask Stripe directly, then try once more, so the member
+        // does not lose the screenshots they just attached.
+        if (!res.ok && res.error === 'identity-unverified') {
+          const read = await refreshIdentityCheck();
+          if (read.ok && read.data.status === 'VERIFIED') {
+            res = await submitManualHandleClaim(input);
+          } else if (read.ok && read.data.progress === 'PROCESSING') {
+            setDmNotice('Stripe is still checking your ID. Try again in a minute.');
+            return;
+          }
+        }
+        if (!res.ok) {
+          setDmNotice(res.message);
+          return;
+        }
+        setManualSubmitted(true);
+        router.refresh();
+      } catch {
+        setDmNotice("Couldn't submit your proof. Refresh the page and try again.");
       }
-      setManualSubmitted(true);
-      router.refresh();
     });
   };
 

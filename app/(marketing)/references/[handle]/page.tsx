@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
 
+import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { loadHandleReferenceGraph } from '@/lib/references/graph';
@@ -64,6 +66,14 @@ export default async function HandleReferencePage({
   // Trust Network card fills the height left above the footer.
   return (
     <article className="mx-auto flex w-full max-w-[clamp(64rem,70vw,96rem)] flex-1 flex-col px-group py-section sm:px-6 md:py-10">
+      {/* Leaving a reference and a manual claim both send an unverified member through
+          the ID check, which returns here with `?identity=complete`. Read the result
+          from Stripe now instead of waiting on its webhook, or the page still says
+          "not verified" to someone who just was. Renders nothing; `useSearchParams`
+          needs the boundary. */}
+      <Suspense fallback={null}>
+        <IdentityReturnRefresh />
+      </Suspense>
       <ReferenceProfile
         data={graph}
         viewer={{ id: user?.id ?? null, identityVerified: viewerIdentityVerified }}

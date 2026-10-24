@@ -2,6 +2,7 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { identityStartHref } from '@/lib/identity/identityStart';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { isValidHandle, normalizeHandle } from '@/domain/social/socialLinks';
@@ -366,6 +367,9 @@ function claimFailed(url: URL, message: string): NextResponse {
  * Whether this member may claim handles at all: the same rule as every other claim
  * path in `lib/actions/references.ts` (ID-verified, not banned, not closed).
  */
+/** What `claimantProblem` returns for a member who has not passed the ID check yet. */
+const IDENTITY_REQUIRED = 'IDENTITY_REQUIRED';
+
 async function claimantProblem(userId: string): Promise<string | null> {
   const { data: profile } = await createAdminClient()
     .from('profiles')
@@ -375,9 +379,8 @@ async function claimantProblem(userId: string): Promise<string | null> {
   if (!profile || profile.fraud_banned_at || profile.closed_at) {
     return "This account can't claim handles.";
   }
-  if (profile.identity_check_status !== 'VERIFIED') {
-    return 'Verify your ID first so your claimed handle carries your verified name.';
-  }
+  // Not a message: the caller starts the check and sends the member back to the page.
+  if (profile.identity_check_status !== 'VERIFIED') return IDENTITY_REQUIRED;
   return null;
 }
 
@@ -432,6 +435,9 @@ export async function GET(
       return NextResponse.redirect(signInUrl);
     }
     const problem = await claimantProblem(payload.userId);
+    if (problem === IDENTITY_REQUIRED) {
+      return NextResponse.redirect(new URL(identityStartHref(payload.returnPath), origin));
+    }
     if (problem) return claimFailed(fallbackUrl, problem);
 
     const creds = directProviderCreds(provider);
@@ -537,6 +543,11 @@ export async function GET(
   }
 
   const problem = await claimantProblem(user.id);
+  // Not verified: start the ID check now and come back to this page, rather than
+  // stopping at a message the member then has to act on.
+  if (problem === IDENTITY_REQUIRED) {
+    return NextResponse.redirect(new URL(identityStartHref(returnPath), origin));
+  }
   if (problem) return claimFailed(new URL(returnPath, origin), problem);
 
   const creds = directProviderCreds(provider);

@@ -2,10 +2,16 @@
 
 // components/references/ShareExperience.tsx
 //
-// Leave a reference (0155) as a two-step dialog (`components/ui/dialog`):
+// Leave a reference (0155). Who is looking decides what the button does:
 //
-//   1. The deal  — where it happened and whether they bought, sold or traded.
-//   2. Rating    — 1..5 stars, the member's own words, optional proof, Publish.
+//   - The owner gets the share-link control (`CopyReferenceLink`), not a composer.
+//   - Signed in but not ID-checked: the button starts the identity check straight away
+//     and brings the member back here (`/api/identity/start`). A reference is only ever
+//     published by a verified person, so there is no dialog to act on first.
+//   - Everyone else gets a two-step dialog (`components/ui/dialog`):
+//       1. The deal  — where it happened, and whether they bought, sold or traded.
+//       2. Rating    — 1..5 stars, the member's own words, optional proof, Publish.
+//     A visitor who is signed out drafts through both steps, then signs in to publish.
 //
 // WHY STEPS. One tall form put six platform buttons, three deal buttons, stars, a text
 // box and an upload in a single column, so the dialog read as a questionnaire and the
@@ -30,11 +36,11 @@ import {
 import {
   Composer,
   CopyReferenceLink,
-  VerifyIdGate,
   useReferenceComposer,
   type ComposerViewer,
 } from '@/components/references/ReferenceComposer';
 import type { ReferenceTargetDescriptor } from '@/lib/actions/references';
+import { identityStartHref } from '@/lib/identity/identityStart';
 import { cn } from '@/lib/utils';
 
 type Step = 1 | 2;
@@ -60,12 +66,38 @@ export function ShareExperience({
   const draft = useReferenceComposer(target);
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(1);
+  const startVerificationHref = identityStartHref(returnPath);
 
+  // Back from sign-in with a reference in progress. A verified member gets the dialog;
+  // an unverified one goes straight to the check, rather than to a card to act on.
+  //
+  // Not when they are back FROM the check (`identity=complete`, e.g. the onboarding
+  // wizard's reference path): `IdentityReturnRefresh` is reading the result from Stripe,
+  // and starting the check again would loop. The dialog opens once the page re-renders
+  // as verified.
   useEffect(() => {
-    if (autoOpen && !viewer.isSelf) setOpen(true);
-  }, [autoOpen, viewer.isSelf]);
+    if (!autoOpen || viewer.isSelf) return;
+    const backFromCheck = new URLSearchParams(window.location.search).get('identity') === 'complete';
+    if (viewer.signedIn && !viewer.identityVerified && !backFromCheck) {
+      window.location.assign(startVerificationHref);
+      return;
+    }
+    setOpen(true);
+  }, [autoOpen, viewer.isSelf, viewer.signedIn, viewer.identityVerified, startVerificationHref]);
 
   if (viewer.isSelf) return <CopyReferenceLink returnPath={returnPath} className={className} />;
+
+  // Signed in but not ID-checked: the button starts the check and comes back here.
+  if (viewer.signedIn && !viewer.identityVerified) {
+    return (
+      <Button asChild className={cn('shrink-0', className)}>
+        <a href={startVerificationHref}>
+          <HugeiconsIcon icon={PlusIcon} className="size-3.5" aria-hidden />
+          {label}
+        </a>
+      </Button>
+    );
+  }
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -79,19 +111,6 @@ export function ShareExperience({
     if (!draft.requirePlatform()) return;
     setStep(2);
   };
-
-  // The stepped flow is for someone who can publish, or who is drafting before signing
-  // in. An unverified member gets the ID gate on its own: walking them through steps
-  // they cannot submit would be the wrong way round.
-  const stepped = !draft.done && (!viewer.signedIn || viewer.identityVerified);
-
-  const description = draft.done
-    ? null
-    : !stepped
-      ? 'Share how the transaction went. Your rating helps other traders.'
-      : step === 1
-        ? `Where did you deal with ${target.handle}, and what did you do?`
-        : 'How did it go? Your rating helps other traders.';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -108,24 +127,26 @@ export function ShareExperience({
             <DialogTitle className="min-w-0 flex-1 truncate">
               {draft.done ? 'Reference published' : `Reference ${target.handle}`}
             </DialogTitle>
-            {stepped ? (
+            {draft.done ? null : (
               <span className="shrink-0 text-meta tabular-nums text-muted-foreground">
                 Step {step} of 2
               </span>
-            ) : null}
+            )}
           </div>
-          {description ? (
-            <DialogDescription>{description}</DialogDescription>
-          ) : (
+          {draft.done ? (
             <DialogDescription className="sr-only">Reference published</DialogDescription>
+          ) : (
+            <DialogDescription>
+              {step === 1
+                ? `Where did you deal with ${target.handle}, and what did you do?`
+                : 'How did it go? Your rating helps other traders.'}
+            </DialogDescription>
           )}
         </DialogHeader>
 
         <Composer.Provider draft={draft}>
           {draft.done ? (
             <Composer.Published onDone={() => handleOpenChange(false)} />
-          ) : !stepped ? (
-            <VerifyIdGate />
           ) : (
             <>
               {/* Keyed by step so each step mounts fresh (star hover state and the like). */}

@@ -135,11 +135,11 @@ export default async function OnboardingPage({
   // load this on mount and, until it landed, its region step rendered the
   // "no regions are open" notice at every member.
   //
-  // THE GEO GUESS IS A PRE-SELECTION AND NOTHING MORE. It picks which tile the
-  // region step opens on — a member in a country NoDitto is not open in lands on
-  // the waitlist tile with their country already chosen — and it never becomes a
-  // trading region (see `domain/region/regions.ts` on why an IP must not). Null
-  // off-Vercel and in local development, where the step opens as it always has.
+  // THE GEO GUESS IS A PRE-SELECTION AND NOTHING MORE. It picks which country the
+  // region picker opens on when NoDitto is open there (a guess outside the open list
+  // leaves the picker empty), and it never becomes a trading region (see
+  // `domain/region/regions.ts` on why an IP must not). Null off-Vercel and in local
+  // development, where the step opens as it always has.
   const [regions, guessedRegion] = await optionsPromise;
 
   return (

@@ -201,9 +201,9 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
 }
 
 /**
- * Every reference as a readable card. The storefront shows it under the drawing at every
- * width; the reference profile shows it on PHONES, where it is the way to read references
- * (a review list, as Fiverr, eBay and Depop do) rather than tapping ~27px dots.
+ * Every reference as a readable card, under the drawing at every width: the review list
+ * Fiverr, eBay and Depop use, and the one place a review is always shown in full. On
+ * the storefront and on the reference profile alike.
  */
 export function ExperienceList({
   orbits,
@@ -221,7 +221,7 @@ export function ExperienceList({
   return (
     <div className="border-t border-border/80 bg-card px-group py-4 sm:px-5" style={{ opacity: arrival(orbits) }}>
       <h4 className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
-        {view.direction === 'given' ? 'References given' : 'Experiences'} ({view.nodes.length})
+        {view.direction === 'given' ? 'References given' : 'References received'} ({view.nodes.length})
       </h4>
       <ul className="grid gap-2.5 sm:grid-cols-2">
         {view.nodes.map((node) => {

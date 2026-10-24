@@ -16,6 +16,9 @@ const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 // Publishing is a server action; these paths only need the composer on screen.
 vi.mock('@/lib/actions/references', () => ({ giveReference: vi.fn(), attachReferenceProof: vi.fn() }));
+// The manual claim re-reads the ID check after a refusal. Nothing here submits one, but
+// the real module is server-only and cannot load in jsdom.
+vi.mock('@/lib/actions/identity', () => ({ refreshIdentityCheck: vi.fn() }));
 vi.mock('@/lib/storage/uploadReferenceImage', () => ({ uploadReferenceImage: vi.fn() }));
 
 function node(

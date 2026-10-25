@@ -51,8 +51,8 @@ export function negativeCategoryLabel(slug: string | null | undefined): string |
   return NEGATIVE_CATEGORIES.find((c) => c.slug === slug)?.label ?? null;
 }
 
-/** Platforms a social claim (searchable handle) can live on. Mirrors the 0155/0156 CHECK. */
-export const CLAIM_PLATFORMS = ['instagram', 'facebook', 'x', 'youtube', 'tiktok', 'discord', 'ebay'] as const;
+/** Platforms a social claim (searchable handle) can live on. Mirrors the 0162 CHECK. */
+export const CLAIM_PLATFORMS = ['instagram', 'facebook', 'x', 'youtube', 'tiktok', 'discord', 'ebay', 'whatnot'] as const;
 export type ClaimPlatform = (typeof CLAIM_PLATFORMS)[number];
 
 export function isReferencePlatform(value: unknown): value is ReferencePlatform {
@@ -262,3 +262,26 @@ export function claimPlatformForDealPlatform(platform: string): ClaimPlatform {
 
 /** Max references one member may give per day. Generous for humans, useless for rings. */
 export const REFERENCES_PER_DAY = 20;
+
+function byCodePoint(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+/**
+ * The person a profile belongs to, chosen exactly as `cardtrade.person_key_for` (0162)
+ * chooses it, because the claim trigger and `giveReference` must name the same person:
+ * a document key first, then by kind and fingerprint in code-point order (the SQL sorts
+ * `collate "C"`), else `profile:<id>`.
+ */
+export function pickPersonKey(
+  profileId: string,
+  rows: readonly { fingerprint: string; kind: string }[],
+): string {
+  const best = [...rows].sort(
+    (a, b) =>
+      Number(b.kind === 'document-id') - Number(a.kind === 'document-id') ||
+      byCodePoint(a.kind, b.kind) ||
+      byCodePoint(a.fingerprint, b.fingerprint),
+  )[0];
+  return best?.fingerprint ?? `profile:${profileId}`;
+}

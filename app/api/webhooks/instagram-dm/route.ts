@@ -243,11 +243,38 @@ export async function POST(request: NextRequest) {
 
       const { data: socialClaim } = await admin
         .from('social_claims')
-        .select('id, handle_norm, claimed_profile_id')
+        .select('id, platform, handle_norm, claimed_profile_id')
         .eq('id', claimReq.claim_id)
         .maybeSingle();
 
       if (!socialClaim || socialClaim.claimed_profile_id) continue;
+
+      // An Instagram DM proves an Instagram username and nothing else: never the Discord
+      // or eBay handle that happens to share its spelling.
+      if (socialClaim.platform !== 'instagram') {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.lookup',
+          errorCode: 'NOT_AN_INSTAGRAM_CLAIM',
+          message: 'A DM code matched a claim request for a handle on another platform; not approving it',
+          context: { claimRequestId: claimReq.id },
+        });
+        continue;
+      }
+
+      const { data: claimant } = await admin
+        .from('profiles')
+        .select('fraud_banned_at, closed_at')
+        .eq('id', claimReq.claimant_id)
+        .maybeSingle();
+      if (!claimant || claimant.fraud_banned_at || claimant.closed_at) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.lookup',
+          errorCode: 'CLAIMANT_NOT_ALLOWED',
+          message: 'The claimant is banned, closed or missing; not approving the claim',
+          context: { claimRequestId: claimReq.id },
+        });
+        continue;
+      }
 
       // The bot's own handle is never claimable by DM (lib/instagram/botHandle.ts).
       if (isInstagramBotHandle(socialClaim.handle_norm)) {
@@ -291,34 +318,44 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // The claim first; the request is approved only once the handle is really linked.
       const now = new Date().toISOString();
-      const [requestUpdate, claimUpdate] = await Promise.all([
-        admin
-          .from('handle_claim_requests')
-          .update({
-            status: 'APPROVED',
-            staff_notes: `Verified automatically via Instagram DM bot (@${sender.username})`,
-            decided_at: now,
-            updated_at: now,
-          })
-          .eq('id', claimReq.id),
-        admin
-          .from('social_claims')
-          .update({
-            claimed_profile_id: claimReq.claimant_id,
-            claim_method: 'DM_BOT',
-            claimed_at: now,
-            updated_at: now,
-          })
-          .eq('id', socialClaim.id)
-          .is('claimed_profile_id', null),
-      ]);
-      const writeError = requestUpdate.error ?? claimUpdate.error;
-      if (writeError) {
+      const { data: claimed, error: claimError } = await admin
+        .from('social_claims')
+        .update({
+          claimed_profile_id: claimReq.claimant_id,
+          claim_method: 'DM_BOT',
+          claimed_at: now,
+          updated_at: now,
+        })
+        .eq('id', socialClaim.id)
+        .is('claimed_profile_id', null)
+        .select('id')
+        .maybeSingle();
+      if (claimError || !claimed) {
         await logBackgroundFailure({
           name: 'webhook.instagram_dm.approve',
-          errorCode: writeError.code || 'UPDATE_FAILED',
-          message: writeError.message,
+          errorCode: claimError ? claimError.code || 'CLAIM_FAILED' : 'ALREADY_CLAIMED',
+          message: claimError?.message ?? 'The handle was claimed by someone else before this DM arrived',
+          context: { claimRequestId: claimReq.id },
+        });
+        continue;
+      }
+
+      const { error: requestError } = await admin
+        .from('handle_claim_requests')
+        .update({
+          status: 'APPROVED',
+          staff_notes: `Verified automatically via Instagram DM bot (@${sender.username})`,
+          decided_at: now,
+          updated_at: now,
+        })
+        .eq('id', claimReq.id);
+      if (requestError) {
+        await logBackgroundFailure({
+          name: 'webhook.instagram_dm.approve',
+          errorCode: requestError.code || 'REQUEST_UPDATE_FAILED',
+          message: requestError.message,
           context: { claimRequestId: claimReq.id },
         });
       }

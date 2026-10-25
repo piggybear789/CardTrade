@@ -656,7 +656,9 @@ async function assembleGraph(
     incomingCounts(admin, refereeIds),
   ]);
 
-  const validEdges = merged.filter((edge) => profiles.has(edge.voucherId));
+  const validEdges = merged.filter(
+    (edge) => profiles.has(edge.voucherId) && edge.voucherId !== centre.profileId,
+  );
   const platforms = platformBreakdown(validEdges);
 
   const candidates: (DrawCandidate & { edge: MergedEdge })[] = validEdges.map((edge) => ({

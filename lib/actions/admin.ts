@@ -2245,17 +2245,24 @@ export const decideHandleClaim = withActionLog('admin.decideHandleClaim', async 
         message: "The claimant hasn't verified their ID, so this claim can't be approved yet. Leave it pending or decline it.",
       };
     }
-    const { error: claimError } = await admin
-      .from('social_claims')
-      .update({
-        claimed_profile_id: request.claimant_id,
-        claim_method: 'BIO_CODE',
-        claimed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', request.claim_id)
-      .is('claimed_profile_id', null);
-    if (claimError) return { ok: false, error: 'persistence-error', message: claimError.message };
+    if (!claim.claimed_profile_id) {
+      const { data: claimed, error: claimError } = await admin
+        .from('social_claims')
+        .update({
+          claimed_profile_id: request.claimant_id,
+          claim_method: 'BIO_CODE',
+          claimed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', request.claim_id)
+        .is('claimed_profile_id', null)
+        .select('id')
+        .maybeSingle();
+      if (claimError) return { ok: false, error: 'persistence-error', message: claimError.message };
+      if (!claimed) {
+        return { ok: false, error: 'invalid-input', message: 'This handle was claimed by someone else. Decline the claim.' };
+      }
+    }
   }
 
   const { error: decideError } = await admin

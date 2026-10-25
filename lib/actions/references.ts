@@ -33,12 +33,13 @@ import {
   REFERENCES_PER_DAY,
   claimPlatformForDealPlatform,
   normalizeClaimHandle,
+  pickPersonKey,
   platformLabel,
   roleLabel,
   validateGiveReference,
   type GiveReferenceInput,
 } from '@/domain/references/reference';
-import { type ActionResult, fail, ok } from './result';
+import { type ActionFailure, type ActionResult, fail, ok } from './result';
 
 export type ReferenceError =
   | 'not-authenticated'
@@ -99,9 +100,21 @@ async function personKeyFor(admin: Admin, profileId: string): Promise<string> {
     .from('identity_person_keys')
     .select('fingerprint, kind')
     .eq('profile_id', profileId);
-  const rows = data ?? [];
-  const doc = rows.find((row) => row.kind === 'document-id');
-  return (doc ?? rows[0])?.fingerprint ?? `profile:${profileId}`;
+  return pickPersonKey(profileId, data ?? []);
+}
+
+/** Why this member may not claim a handle, or null when they may. */
+async function claimRefusal(admin: Admin, userId: string): Promise<ActionFailure<ReferenceError> | null> {
+  const { data, error } = await admin
+    .from('profiles')
+    .select('fraud_banned_at, closed_at')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) return fail('persistence-error', SAVE_FAILED);
+  if (!data || data.fraud_banned_at || data.closed_at) {
+    return fail('not-allowed', "This account can't claim handles.");
+  }
+  return null;
 }
 
 function firstGivenName(full: string | null | undefined): string | null {
@@ -798,6 +811,9 @@ export const startInstagramDmClaim = withActionLog(
     const code = deterministicDmCode(handleNorm, user.id);
 
     const admin = createAdminClient();
+    const refusal = await claimRefusal(admin, user.id);
+    if (refusal) return refusal;
+
     let { data: claim } = await admin
       .from('social_claims')
       .select('id, claimed_profile_id')
@@ -938,6 +954,8 @@ export const checkInstagramDmClaim = withActionLog(
       return fail('not-allowed', "That's NoDitto's own Instagram account, so it can't be claimed here.");
     }
     const admin = createAdminClient();
+    const refusal = await claimRefusal(admin, user.id);
+    if (refusal) return refusal;
 
     const { data: claim } = await admin
       .from('social_claims')
@@ -951,6 +969,9 @@ export const checkInstagramDmClaim = withActionLog(
       revalidatePath(`/references/${cleanHandle}`);
       return ok({ verified: true });
     }
+    if (claim.claimed_profile_id) {
+      return fail('not-allowed', 'This Instagram account has already been claimed.');
+    }
 
     // This member's own code: someone else's DM to the bot, even for the same handle,
     // carries a different one and cannot approve this request.
@@ -960,30 +981,53 @@ export const checkInstagramDmClaim = withActionLog(
       return ok({ verified: false });
     }
 
+    // THE CLAIM FIRST, AND ONLY ON ITS SUCCESS THE REQUEST. The claim is what links the
+    // handle, and it can refuse: someone else claimed it in between, or moving its
+    // references failed. A request marked approved over a claim that never happened
+    // tells the member the handle is linked when it is not.
     const now = new Date().toISOString();
-    await Promise.all([
-      admin
-        .from('handle_claim_requests')
-        .update({
-          status: 'APPROVED',
-          staff_notes: `Verified automatically via Instagram DM bot (@${handleNorm})`,
-          decided_at: now,
-          updated_at: now,
-        })
-        .eq('claim_id', claim.id)
-        .eq('claimant_id', user.id)
-        .eq('status', 'PENDING'),
-      admin
-        .from('social_claims')
-        .update({
-          claimed_profile_id: user.id,
-          claim_method: 'DM_BOT',
-          claimed_at: now,
-          updated_at: now,
-        })
-        .eq('id', claim.id)
-        .is('claimed_profile_id', null),
-    ]);
+    const { data: claimed, error: claimError } = await admin
+      .from('social_claims')
+      .update({
+        claimed_profile_id: user.id,
+        claim_method: 'DM_BOT',
+        claimed_at: now,
+        updated_at: now,
+      })
+      .eq('id', claim.id)
+      .is('claimed_profile_id', null)
+      .select('id')
+      .maybeSingle();
+    if (claimError) {
+      await logBackgroundFailure({
+        name: 'references.instagram_dm.approve',
+        errorCode: claimError.code || 'CLAIM_FAILED',
+        message: claimError.message,
+        context: { claimId: claim.id },
+      });
+      return fail('persistence-error', SAVE_FAILED);
+    }
+    if (!claimed) return fail('not-allowed', 'This Instagram account has already been claimed.');
+
+    const { error: requestError } = await admin
+      .from('handle_claim_requests')
+      .update({
+        status: 'APPROVED',
+        staff_notes: `Verified automatically via Instagram DM bot (@${handleNorm})`,
+        decided_at: now,
+        updated_at: now,
+      })
+      .eq('claim_id', claim.id)
+      .eq('claimant_id', user.id)
+      .eq('status', 'PENDING');
+    if (requestError) {
+      await logBackgroundFailure({
+        name: 'references.instagram_dm.approve',
+        errorCode: requestError.code || 'REQUEST_UPDATE_FAILED',
+        message: requestError.message,
+        context: { claimId: claim.id },
+      });
+    }
 
     revalidatePath(`/references/${cleanHandle}`);
     return ok({ verified: true });

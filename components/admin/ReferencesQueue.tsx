@@ -2,8 +2,8 @@
 
 // components/admin/ReferencesQueue.tsx
 //
-// The References tab of the Operations console (0155): handle claims waiting
-// on a bio screenshot check, and reference proofs waiting to become
+// The References tab of the Operations console (0155): manual handle claims
+// waiting on a screenshot check, and reference proofs waiting to become
 // receipt-checked. Nothing here gates publication: positive and negative
 // experiences are already live. Staff only verify claims and proof.
 
@@ -23,7 +23,8 @@ export interface ReferenceClaimRow {
   handle: string;
   claimantId: string;
   claimantName: string;
-  bioCode: string;
+  /** What the member wrote about their screenshots. */
+  note: string | null;
   screenshots: { path: string; url: string | null }[];
   createdAt: string;
 }
@@ -125,9 +126,9 @@ export function ReferencesQueue({
               </CardHeader>
               <CardContent className="space-y-cozy">
                 <p className="text-body text-muted-foreground">
-                  Bio code asked: <span className="font-mono font-medium text-foreground">{row.bioCode}</span>.
-                  Check the screenshot shows this code in the {row.platform} bio.
+                  Check the screenshots show {row.claimantName} signed in as @{row.handle} on {row.platform}.
                 </p>
+                {row.note ? <p className="text-body text-foreground">&ldquo;{row.note}&rdquo;</p> : null}
                 <ScreenshotStrip screenshots={row.screenshots} />
                 <div className="flex flex-wrap gap-snug">
                   <Button size="sm" disabled={pending} onClick={() => act(row.id, () => decideHandleClaim(row.id, 'APPROVE'))}>

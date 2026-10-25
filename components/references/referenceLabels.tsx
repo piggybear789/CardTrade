@@ -12,6 +12,7 @@ import {
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { platformLabel, type ReferenceSentiment } from '@/domain/references/reference';
+import type { ReferenceProof } from '@/lib/references/graph';
 import { cn } from '@/lib/utils';
 
 const BRAND_ICON_PLATFORMS = new Set([
@@ -45,6 +46,13 @@ export function platformTint(slug: string): string {
 
 export function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
+}
+
+/** What backs a reference beyond its author's word. A plain vouch says nothing. */
+export function proofLabel(kind: ReferenceProof): string | null {
+  if (kind === 'escrow') return 'NoDitto escrow';
+  if (kind === 'receipt') return 'Receipt checked';
+  return null;
 }
 
 export function IssueBadge({ category }: { category: string | null }) {

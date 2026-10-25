@@ -227,6 +227,16 @@ describe('ReferenceProfile', () => {
     expect(within(network).getByLabelText('2 positive references')).toBeInTheDocument();
   });
 
+  it('says on a card what backs the reference beyond its author’s word', () => {
+    render(<ReferenceProfile data={ROOT} viewer={{ id: null, identityVerified: false }} autoOpen={false} />);
+
+    const cards = screen.getAllByRole('listitem');
+    const kai = cards.find((card) => within(card).queryByRole('link', { name: '@kai.collects' }))!;
+    const gems = cards.find((card) => within(card).queryByRole('link', { name: '@graded.gems' }))!;
+    expect(within(kai).getByText('NoDitto escrow · Sep 2026')).toBeInTheDocument();
+    expect(within(gems).getByText('Receipt checked · Sep 2026')).toBeInTheDocument();
+  });
+
   it('opens a two-step modal to leave a reference (the deal, then 1..5 stars + description + image)', () => {
     render(<ReferenceProfile data={ROOT} viewer={{ id: 'v9', identityVerified: true }} autoOpen={false} />);
 

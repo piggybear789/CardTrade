@@ -27,7 +27,13 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Switch } from '@/components/ui/switch';
-import { PlatformChip, SentimentBadge, platformTint, plural } from '@/components/references/referenceLabels';
+import {
+  PlatformChip,
+  SentimentBadge,
+  platformTint,
+  plural,
+  proofLabel,
+} from '@/components/references/referenceLabels';
 import { ReferenceOwnerActions } from '@/components/references/ReferenceOwnerActions';
 import { TrustNetworkPanel } from '@/components/references/TrustNetworkPanel';
 import { TrustOrbitsCanvas } from '@/components/references/TrustOrbitsCanvas';
@@ -282,6 +288,9 @@ const ExperienceCards = memo(function ExperienceCards({
           const isSelected = key === selectedKey;
           const negative = node.sentiment === 'NEGATIVE';
           const mine = viewerId !== null && node.referenceId !== null && authorOf(node) === viewerId;
+          const meta = [proofLabel(node.kind), node.dateLabel, node.edited ? 'Edited' : null]
+            .filter(Boolean)
+            .join(' · ');
           return (
             <li key={node.id}>
               <div
@@ -349,9 +358,7 @@ const ExperienceCards = memo(function ExperienceCards({
 
                 <div className="mt-2.5 flex items-center justify-between text-meta text-muted-foreground">
                   <span>{negative ? (node.categoryLabel ?? 'Issue') : plural(node.deals, 'deal', 'deals')}</span>
-                  {node.dateLabel || node.edited ? (
-                    <span>{[node.dateLabel, node.edited ? 'Edited' : null].filter(Boolean).join(' · ')}</span>
-                  ) : null}
+                  {meta ? <span>{meta}</span> : null}
                 </div>
 
                 {mine ? (

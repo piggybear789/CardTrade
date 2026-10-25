@@ -297,20 +297,21 @@ async function loadReferencesQueue(
   const [{ data: claimRows }, { data: proofRows }] = await Promise.all([
     admin
       .from('handle_claim_requests')
-      .select('*')
+      .select('id, claim_id, claimant_id, screenshot_paths, staff_notes, created_at')
       .eq('status', 'PENDING')
+      .not('screenshot_paths', 'eq', '{}')
       .order('created_at', { ascending: true })
       .limit(100),
     admin
       .from('member_references')
-      .select('*')
+      .select('id, voucher_id, target_profile_id, platform, role, occurred_month, proof_paths')
       .eq('proof_status', 'PENDING')
       .eq('status', 'LIVE')
       .order('created_at', { ascending: true })
       .limit(100),
   ]);
 
-  const claims = (claimRows ?? []).filter((row) => (row.screenshot_paths ?? []).length > 0);
+  const claims = claimRows ?? [];
   const proofs = proofRows ?? [];
 
   const claimIds = claims.map((row) => row.claim_id);
@@ -355,7 +356,7 @@ async function loadReferencesQueue(
         handle: claim?.handle ?? '',
         claimantId: row.claimant_id,
         claimantName: nameFor(row.claimant_id),
-        bioCode: row.bio_code,
+        note: row.staff_notes,
         screenshots: (row.screenshot_paths ?? []).map((path) => ({ path, url: claimUrlByPath.get(path) ?? null })),
         createdAt: row.created_at,
       };
@@ -647,12 +648,15 @@ export default async function AdminPage({
       .from('scam_reports')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'SUBMITTED'),
-    // References work (0155): claims awaiting a bio check, proofs awaiting a
-    // receipt-checked mark. Errors before 0155 read as 0.
+    // References work (0155): manual claims awaiting a screenshot check, proofs
+    // awaiting a receipt-checked mark. Errors before 0155 read as 0. Only claims
+    // WITH screenshots, as the tab lists: a PENDING request without any is an
+    // Instagram DM claim waiting on the member's DM, which no one here can decide.
     admin
       .from('handle_claim_requests')
       .select('id', { count: 'exact', head: true })
-      .eq('status', 'PENDING'),
+      .eq('status', 'PENDING')
+      .not('screenshot_paths', 'eq', '{}'),
     admin
       .from('member_references')
       .select('id', { count: 'exact', head: true })

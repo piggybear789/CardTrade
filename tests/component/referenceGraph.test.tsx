@@ -5,11 +5,12 @@
 // into their network, from /api/references/graph, while the page loads). The orbit
 // drawing sits on top of these paths, so they have to work on their own.
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ReferenceGraph } from '@/components/references/ReferenceGraph';
 import { ReferenceProfile } from '@/components/references/ReferenceProfile';
+import { useTrustOrbits } from '@/components/references/useTrustOrbits';
 import { updateReference, withdrawReference } from '@/lib/actions/references';
 import type { ReferenceGraphData, ReferenceGraphNode } from '@/lib/references/graph';
 
@@ -203,6 +204,20 @@ describe('ReferenceGraph', () => {
     await screen.findByRole('button', { name: IN_KAIS_NETWORK });
 
     expect(screen.queryByRole('button', { name: 'Share an experience' })).not.toBeInTheDocument();
+  });
+});
+
+describe('useTrustOrbits', () => {
+  // THE SPIN RE-RENDERS THE SYSTEM EVERY FRAME. The header, toolbar and cards are
+  // memoised against these handlers; one that changed identity per render would drag
+  // the whole page through every frame with it.
+  it('keeps its handlers one identity across renders', () => {
+    const { result, rerender } = renderHook(() => useTrustOrbits(ROOT, { openPage: vi.fn() }));
+    const first = result.current;
+    rerender();
+    for (const name of ['select', 'tap', 'centreOn', 'filterByPlatform', 'setDirection', 'toggleSpin', 'resetView'] as const) {
+      expect(result.current[name], name).toBe(first[name]);
+    }
   });
 });
 

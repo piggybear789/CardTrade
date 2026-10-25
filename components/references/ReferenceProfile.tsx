@@ -8,6 +8,7 @@
 // graph walks to someone else's page both cards go with it, and the page that
 // loads behind the walk draws exactly what is already on screen.
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
@@ -34,7 +35,7 @@ import { Button } from '@/components/ui/button';
 import { referenceAddressKey, referenceHref } from '@/domain/references/address';
 import { regionLabel } from '@/domain/region';
 import type { MyHandleClaim } from '@/lib/actions/references';
-import type { ReferenceGraphData } from '@/lib/references/graph';
+import type { ReferenceGraphCentre, ReferenceGraphData, ReferenceGraphNode } from '@/lib/references/graph';
 
 export interface ReferenceViewer {
   /** The signed-in member, or null for a visitor. */
@@ -56,22 +57,9 @@ export function ReferenceProfile({
   initialClaim?: MyHandleClaim | null;
 }) {
   const orbits = useTrustOrbits(data, { openPage: usePageOpener(true) });
-  const { centre, nodes } = orbits.graph;
-  const returnPath = referenceHref(centre.address);
-  const centreAddressKey = referenceAddressKey(centre.address);
-  const isSelf = viewer.id !== null && viewer.id === centre.profileId;
-  const avgRating = averageGraphRating(nodes);
-  const details = [
-    centre.name !== centre.handle.replace(/^@/, '') ? centre.name : null,
-    centre.regionCode ? regionLabel(centre.regionCode) : null,
-  ].filter(Boolean);
-  const altHandles = Array.from(
-    new Set(
-      centre.linkedHandles
-        .map((lh) => lh.handle)
-        .filter((h) => h.toLowerCase() !== centre.handle.toLowerCase()),
-    ),
-  );
+  // The graph can be walking toward someone else; what this page arrived with is only
+  // about the person it was opened for.
+  const atPagePerson = orbits.centreKey === centreKeyOf(data);
 
   // FILLS THE PAGE. The column is a flex chain down to the Trust Network card, which
   // takes whatever height is left, so a person with no references yet does not leave a
@@ -79,133 +67,15 @@ export function ReferenceProfile({
   // `Card` tokens (`rounded-lg`, `border-border`, `shadow-market`) like every other page.
   return (
     <div className="flex flex-1 flex-col gap-group">
-      <header className="relative overflow-hidden rounded-lg border border-border bg-card p-group shadow-market sm:p-6">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-20 -right-20 h-44 w-44 rounded-full bg-iris/[0.06] blur-2xl"
-        />
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          {/* PHONE: a 40px back button (a touch target, not the 36px pointer one), a 48px
-              avatar and a tighter gap, which hands the handle ~20px more of a ~311px row. */}
-          <div className="flex min-w-0 items-center gap-cozy sm:gap-3.5" style={{ opacity: arrival(orbits) }}>
-            {/* A borderless round button with a 20px chevron, nudged into the card's
-                margin, at every width. The outlined square with a 16px arrow, beside
-                the round avatar, read as an empty form control rather than "back". */}
-            <Button
-              asChild
-              variant="ghost"
-              size="icon"
-              className="-ml-2 size-10 shrink-0 rounded-full md:size-9 [&_svg]:size-5"
-            >
-              <Link href="/references" aria-label="Back to references">
-                <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
-              </Link>
-            </Button>
-
-            <Avatar
-              avatarPath={centre.avatarPath}
-              displayName={centre.name}
-              size="lg"
-              className="max-sm:size-12"
-            />
-
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <h1 className="break-all text-subhead font-semibold tracking-tight text-foreground md:text-head">
-                  {centre.handle}
-                </h1>
-                <IdentityBadge
-                  verified={centre.identityVerified}
-                  firstName={centre.firstName}
-                  iconOnly
-                  size={18}
-                />
-                <TrustedSellerBadge trusted={centre.isTrustedSeller} iconOnly size={18} />
-                {centre.platforms.length > 0 ? (
-                  <span className="ml-0.5 inline-flex flex-wrap items-center gap-1">
-                    {centre.platforms.slice(0, 6).map((p) => (
-                      <PlatformChip key={p.slug} slug={p.slug} />
-                    ))}
-                  </span>
-                ) : null}
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-muted-foreground">
-                {details.length > 0 ? <span>{details.join(' · ')}</span> : null}
-                {details.length > 0 && avgRating !== null ? (
-                  <span aria-hidden className="text-border">
-                    ·
-                  </span>
-                ) : null}
-                {avgRating !== null ? (
-                  <span className="inline-flex items-center gap-1 font-semibold tabular-nums text-foreground">
-                    <HugeiconsIcon
-                      icon={StarIcon}
-                      className="size-3.5 fill-iris text-iris-ink"
-                      aria-hidden
-                    />
-                    {avgRating.toFixed(1)}
-                  </span>
-                ) : null}
-                {altHandles.length > 0 ? (
-                  <>
-                    <span aria-hidden className="hidden text-border sm:inline">
-                      ·
-                    </span>
-                    {/* Its own line on a phone, and allowed to break inside a long
-                        handle: a single 27-character handle overflowed the column. */}
-                    <span className="basis-full text-meta text-muted-foreground [overflow-wrap:anywhere] sm:basis-auto">
-                      Also known as{' '}
-                      <span className="font-medium text-foreground">
-                        {altHandles.join(', ')}
-                      </span>
-                    </span>
-                  </>
-                ) : null}
-              </div>
-            </div>
-          </div>
-
-          {/* PHONE: full-width stacked actions, the primary one last and nearest the
-              thumb (Vinted's Follow, Etsy's Message seller). Two buttons used to wrap
-              into ragged left-aligned rows of different widths. */}
-          <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center [&>button]:w-full sm:[&>button]:w-auto">
-            {centre.unclaimed ? (
-              <ClaimHandle
-                key={`claim-${centreAddressKey}`}
-                handle={centre.handle}
-                platform={centre.address.on}
-                signedIn={viewer.id !== null}
-                identityVerified={viewer.identityVerified}
-                initialClaim={orbits.centreKey === centreKeyOf(data) ? initialClaim : null}
-                returnPath={returnPath}
-              />
-            ) : isSelf ? (
-              <ClaimHandle
-                key={`link-${centreAddressKey}`}
-                handle={centre.handle}
-                signedIn
-                identityVerified={viewer.identityVerified}
-                mode="link"
-                returnPath={returnPath}
-              />
-            ) : null}
-            <ShareExperience
-              key={orbits.centreKey}
-              target={{
-                kind: centre.kind,
-                id: centre.id,
-                handle: centre.handle,
-                platform: centre.kind === 'handle' ? centre.address.on : null,
-              }}
-              viewer={{ signedIn: viewer.id !== null, identityVerified: viewer.identityVerified, isSelf }}
-              returnPath={returnPath}
-              autoOpen={autoOpen && orbits.centreKey === centreKeyOf(data)}
-              label="Leave a reference"
-            />
-          </div>
-        </div>
-      </header>
+      <ProfileHeader
+        centre={orbits.graph.centre}
+        nodes={orbits.graph.nodes}
+        opacity={arrival(orbits)}
+        viewer={viewer}
+        autoOpen={autoOpen && atPagePerson}
+        initialClaim={atPagePerson ? initialClaim : null}
+        composerKey={orbits.centreKey}
+      />
 
       <section
         aria-labelledby="references-heading"
@@ -226,3 +96,172 @@ export function ReferenceProfile({
     </div>
   );
 }
+
+/**
+ * Who the page is about, and what the viewer can do here. MEMOISED: the network below
+ * re-renders on every spin frame, and nothing in this card moves with it.
+ */
+const ProfileHeader = memo(function ProfileHeader({
+  centre,
+  nodes,
+  opacity,
+  viewer,
+  autoOpen,
+  initialClaim,
+  composerKey,
+}: {
+  centre: ReferenceGraphCentre;
+  nodes: readonly ReferenceGraphNode[];
+  opacity: number;
+  viewer: ReferenceViewer;
+  autoOpen: boolean;
+  initialClaim: MyHandleClaim | null;
+  /** Remounts the composer for each person the graph shows. */
+  composerKey: string;
+}) {
+  const returnPath = referenceHref(centre.address);
+  const centreAddressKey = referenceAddressKey(centre.address);
+  const isSelf = viewer.id !== null && viewer.id === centre.profileId;
+  const avgRating = averageGraphRating(nodes);
+  const details = [
+    centre.name !== centre.handle.replace(/^@/, '') ? centre.name : null,
+    centre.regionCode ? regionLabel(centre.regionCode) : null,
+  ].filter(Boolean);
+  const altHandles = Array.from(
+    new Set(
+      centre.linkedHandles
+        .map((lh) => lh.handle)
+        .filter((h) => h.toLowerCase() !== centre.handle.toLowerCase()),
+    ),
+  );
+
+  return (
+    <header className="relative overflow-hidden rounded-lg border border-border bg-card p-group shadow-market sm:p-6">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -top-20 -right-20 h-44 w-44 rounded-full bg-iris/[0.06] blur-2xl"
+      />
+      <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* PHONE: a 40px back button (a touch target, not the 36px pointer one), a 48px
+            avatar and a tighter gap, which hands the handle ~20px more of a ~311px row. */}
+        <div className="flex min-w-0 items-center gap-cozy sm:gap-3.5" style={{ opacity }}>
+          {/* A borderless round button with a 20px chevron, nudged into the card's
+              margin, at every width. The outlined square with a 16px arrow, beside
+              the round avatar, read as an empty form control rather than "back". */}
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="-ml-2 size-10 shrink-0 rounded-full md:size-9 [&_svg]:size-5"
+          >
+            <Link href="/references" aria-label="Back to references">
+              <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+            </Link>
+          </Button>
+
+          <Avatar
+            avatarPath={centre.avatarPath}
+            displayName={centre.name}
+            size="lg"
+            className="max-sm:size-12"
+          />
+
+          <div className="min-w-0 space-y-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <h1 className="break-all text-subhead font-semibold tracking-tight text-foreground md:text-head">
+                {centre.handle}
+              </h1>
+              <IdentityBadge
+                verified={centre.identityVerified}
+                firstName={centre.firstName}
+                iconOnly
+                size={18}
+              />
+              <TrustedSellerBadge trusted={centre.isTrustedSeller} iconOnly size={18} />
+              {centre.platforms.length > 0 ? (
+                <span className="ml-0.5 inline-flex flex-wrap items-center gap-1">
+                  {centre.platforms.slice(0, 6).map((p) => (
+                    <PlatformChip key={p.slug} slug={p.slug} />
+                  ))}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-muted-foreground">
+              {details.length > 0 ? <span>{details.join(' · ')}</span> : null}
+              {details.length > 0 && avgRating !== null ? (
+                <span aria-hidden className="text-border">
+                  ·
+                </span>
+              ) : null}
+              {avgRating !== null ? (
+                <span className="inline-flex items-center gap-1 font-semibold tabular-nums text-foreground">
+                  <HugeiconsIcon
+                    icon={StarIcon}
+                    className="size-3.5 fill-iris text-iris-ink"
+                    aria-hidden
+                  />
+                  {avgRating.toFixed(1)}
+                </span>
+              ) : null}
+              {altHandles.length > 0 ? (
+                <>
+                  <span aria-hidden className="hidden text-border sm:inline">
+                    ·
+                  </span>
+                  {/* Its own line on a phone, and allowed to break inside a long
+                      handle: a single 27-character handle overflowed the column. */}
+                  <span className="basis-full text-meta text-muted-foreground [overflow-wrap:anywhere] sm:basis-auto">
+                    Also known as{' '}
+                    <span className="font-medium text-foreground">
+                      {altHandles.join(', ')}
+                    </span>
+                  </span>
+                </>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        {/* PHONE: full-width stacked actions, the primary one last and nearest the
+            thumb (Vinted's Follow, Etsy's Message seller). Two buttons used to wrap
+            into ragged left-aligned rows of different widths. */}
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center [&>button]:w-full sm:[&>button]:w-auto">
+          {centre.unclaimed ? (
+            <ClaimHandle
+              key={`claim-${centreAddressKey}`}
+              handle={centre.handle}
+              platform={centre.address.on}
+              signedIn={viewer.id !== null}
+              identityVerified={viewer.identityVerified}
+              initialClaim={initialClaim}
+              returnPath={returnPath}
+            />
+          ) : isSelf ? (
+            <ClaimHandle
+              key={`link-${centreAddressKey}`}
+              handle={centre.handle}
+              signedIn
+              identityVerified={viewer.identityVerified}
+              mode="link"
+              returnPath={returnPath}
+            />
+          ) : null}
+          <ShareExperience
+            key={composerKey}
+            target={{
+              kind: centre.kind,
+              id: centre.id,
+              handle: centre.handle,
+              platform: centre.kind === 'handle' ? centre.address.on : null,
+            }}
+            viewer={{ signedIn: viewer.id !== null, identityVerified: viewer.identityVerified, isSelf }}
+            returnPath={returnPath}
+            autoOpen={autoOpen}
+            label="Leave a reference"
+          />
+        </div>
+      </div>
+    </header>
+  );
+});

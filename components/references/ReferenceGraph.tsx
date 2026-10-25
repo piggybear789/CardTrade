@@ -12,7 +12,7 @@
 // with the experiences listed as text under it; `ReferenceProfile` is a person's
 // references page, built from the same body with a modal trigger to leave a reference.
 
-import type { KeyboardEvent, ReactNode } from 'react';
+import { memo, type KeyboardEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -83,7 +83,7 @@ const PLATFORM_TINT: Record<string, string> = {
   tiktok: 'text-foreground',
 };
 
-export function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
+function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
   const { positive, neutral: neutralCount, negative } = stats;
   return (
     <div className="flex flex-wrap items-center gap-1.5">
@@ -128,17 +128,42 @@ export function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
 const FILTER_PILL =
   'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-cozy text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-7 sm:px-2.5';
 
-function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
-  const { view, platformFilter, filterByPlatform } = orbits;
-  const platforms = view.platforms;
+interface NetworkToolbarProps {
+  platforms: ReferenceView['platforms'];
+  /** Every reference in the current direction, the "All" count. */
+  total: number;
+  platformFilter: string | null;
+  filterByPlatform: (slug: string | null) => void;
+  opacity: number;
+  tilted: boolean;
+  autoSpin: boolean;
+  toggleSpin: () => void;
+  resetView: () => void;
+}
 
+/**
+ * MEMOISED, like the header and the cards: the drawing re-renders on every spin frame,
+ * and nothing here changes with it. The props are the values this reads, never the whole
+ * `orbits`, which is a new object every frame.
+ */
+const NetworkToolbar = memo(function NetworkToolbar({
+  platforms,
+  total,
+  platformFilter,
+  filterByPlatform,
+  opacity,
+  tilted,
+  autoSpin,
+  toggleSpin,
+  resetView,
+}: NetworkToolbarProps) {
   return (
     <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-group py-2 sm:px-5">
       <div
         className="-mx-group flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-group [scrollbar-width:none] sm:mx-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         role="group"
         aria-label="Filter references by platform"
-        style={{ opacity: arrival(orbits) }}
+        style={{ opacity }}
       >
         <button
           type="button"
@@ -152,7 +177,7 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
           )}
         >
           <span>All</span>
-          <span className="tabular-nums opacity-75">{view.nodes.length}</span>
+          <span className="tabular-nums opacity-75">{total}</span>
         </button>
 
         {platforms.map((p) => {
@@ -190,19 +215,19 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
           tilt (and so "Reset view") cannot be reached, and the spin switch is the
           drawing's decoration rather than anything a reader needs. */}
       <div className="hidden items-center gap-4 sm:flex">
-        {orbits.tilted ? (
-          <Button variant="ghost" size="xs" onClick={orbits.resetView}>
+        {tilted ? (
+          <Button variant="ghost" size="xs" onClick={resetView}>
             Reset view
           </Button>
         ) : null}
         <label className="flex cursor-pointer items-center gap-2 text-meta font-medium text-muted-foreground">
-          <Switch checked={orbits.autoSpin} onCheckedChange={orbits.toggleSpin} />
+          <Switch checked={autoSpin} onCheckedChange={toggleSpin} />
           Spin
         </label>
       </div>
     </div>
   );
-}
+});
 
 /**
  * Every reference as a readable card, under the drawing at every width: the review list
@@ -224,15 +249,44 @@ export function ExperienceList({
   /** The signed-in member, who can edit or withdraw the references they wrote. */
   viewerId?: string | null;
 }) {
-  const { view, selectedKey } = orbits;
+  return (
+    <ExperienceCards
+      view={orbits.view}
+      centre={orbits.graph.centre}
+      selectedKey={orbits.selectedKey}
+      select={orbits.select}
+      opacity={arrival(orbits)}
+      selectable={selectable}
+      viewerId={viewerId}
+    />
+  );
+}
+
+const ExperienceCards = memo(function ExperienceCards({
+  view,
+  centre,
+  selectedKey,
+  select,
+  opacity,
+  selectable,
+  viewerId,
+}: {
+  view: ReferenceView;
+  centre: ReferenceGraphCentre;
+  selectedKey: string | null;
+  select: (key: string | null) => void;
+  opacity: number;
+  selectable: boolean;
+  viewerId: string | null;
+}) {
   const given = view.direction === 'given';
   // Given: every card is the person in the middle's own words. Received: each card's
   // author is the person on it.
-  const authorOf = (node: ReferenceGraphNode) => (given ? orbits.graph.centre.profileId : node.profileId);
+  const authorOf = (node: ReferenceGraphNode) => (given ? centre.profileId : node.profileId);
   return (
-    <div className="border-t border-border/80 bg-card px-group py-4 sm:px-5" style={{ opacity: arrival(orbits) }}>
+    <div className="border-t border-border/80 bg-card px-group py-4 sm:px-5" style={{ opacity }}>
       <h4 className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
-        {view.direction === 'given' ? 'References given' : 'References received'} ({view.nodes.length})
+        {given ? 'References given' : 'References received'} ({view.nodes.length})
       </h4>
       <ul className="grid gap-2.5 sm:grid-cols-2">
         {view.nodes.map((node) => {
@@ -248,11 +302,11 @@ export function ExperienceList({
                       role: 'button',
                       tabIndex: 0,
                       'aria-pressed': isSelected,
-                      onClick: () => orbits.select(key),
+                      onClick: () => select(key),
                       onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault();
-                          orbits.select(key);
+                          select(key);
                         }
                       },
                     }
@@ -315,7 +369,7 @@ export function ExperienceList({
                 {mine ? (
                   <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/70 pt-2">
                     <span className="text-meta text-muted-foreground">Your reference</span>
-                    <ReferenceOwnerActions node={node} subject={given ? node.handle : orbits.graph.centre.handle} />
+                    <ReferenceOwnerActions node={node} subject={given ? node.handle : centre.handle} />
                   </div>
                 ) : null}
               </div>
@@ -325,7 +379,7 @@ export function ExperienceList({
       </ul>
     </div>
   );
-}
+});
 
 function EmptyNetwork({
   centre,
@@ -358,7 +412,17 @@ export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
   if (view.nodes.length === 0) return <EmptyNetwork centre={centre} direction={view.direction} />;
   return (
     <>
-      <NetworkToolbar orbits={orbits} />
+      <NetworkToolbar
+        platforms={view.platforms}
+        total={view.nodes.length}
+        platformFilter={orbits.platformFilter}
+        filterByPlatform={orbits.filterByPlatform}
+        opacity={arrival(orbits)}
+        tilted={orbits.tilted}
+        autoSpin={orbits.autoSpin}
+        toggleSpin={orbits.toggleSpin}
+        resetView={orbits.resetView}
+      />
       <div
         className="relative flex-1 px-2 py-3 sm:px-4"
         style={{
@@ -382,49 +446,77 @@ export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
   );
 }
 
-/**
- * Received (left FOR them) or Given (left BY them). Only a member can have left a
- * reference, so an unclaimed handle has nothing to switch to and gets no control.
- */
-function DirectionSwitch({ orbits }: { orbits: TrustOrbits }) {
+/** The network's title and how well vouched for the person in the middle is, with an optional action. */
+export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; action?: ReactNode }) {
   const { graph } = orbits;
-  if (graph.centre.profileId === null) return null;
-  const received = viewTotal(viewOf(graph, 'received'));
-  const given = viewTotal(viewOf(graph, 'given'));
   return (
-    <SegmentedControl<ReferenceDirection>
-      name={`reference-direction-${orbits.centreKey}`}
-      label={`Which references to show for ${graph.centre.handle}`}
-      options={[
-        { value: 'received', label: 'Received', count: received },
-        { value: 'given', label: 'Given', count: given },
-      ]}
-      value={orbits.direction}
-      onChange={orbits.setDirection}
-      className="w-full sm:w-60"
+    <NetworkHeader
+      stats={orbits.view.stats}
+      opacity={arrival(orbits)}
+      centre={graph.centre}
+      centreKey={orbits.centreKey}
+      direction={orbits.direction}
+      setDirection={orbits.setDirection}
+      receivedTotal={viewTotal(viewOf(graph, 'received'))}
+      givenTotal={viewTotal(viewOf(graph, 'given'))}
+      action={action}
     />
   );
 }
 
-/** The network's title and how well vouched for the person in the middle is, with an optional action. */
-export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; action?: ReactNode }) {
+const NetworkHeader = memo(function NetworkHeader({
+  stats,
+  opacity,
+  centre,
+  centreKey,
+  direction,
+  setDirection,
+  receivedTotal,
+  givenTotal,
+  action,
+}: {
+  stats: ReferenceView['stats'];
+  opacity: number;
+  centre: ReferenceGraphCentre;
+  centreKey: string;
+  direction: ReferenceDirection;
+  setDirection: (next: ReferenceDirection) => void;
+  receivedTotal: number;
+  givenTotal: number;
+  action?: ReactNode;
+}) {
+  // Received (left FOR them) or Given (left BY them). Only a member can have left a
+  // reference, so an unclaimed handle has nothing to switch to and gets no control.
+  const member = centre.profileId !== null;
   return (
     <div className="flex flex-col gap-3 border-b border-border/80 px-group py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-      <div className="flex min-w-0 flex-wrap items-center gap-2.5" style={{ opacity: arrival(orbits) }}>
+      <div className="flex min-w-0 flex-wrap items-center gap-2.5" style={{ opacity }}>
         <h3 id="references-heading" className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
           References
         </h3>
-        <NetworkStats stats={orbits.view.stats} />
+        <NetworkStats stats={stats} />
       </div>
-      {orbits.graph.centre.profileId !== null || action ? (
+      {member || action ? (
         <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
-          <DirectionSwitch orbits={orbits} />
+          {member ? (
+            <SegmentedControl<ReferenceDirection>
+              name={`reference-direction-${centreKey}`}
+              label={`Which references to show for ${centre.handle}`}
+              options={[
+                { value: 'received', label: 'Received', count: receivedTotal },
+                { value: 'given', label: 'Given', count: givenTotal },
+              ]}
+              value={direction}
+              onChange={setDirection}
+              className="w-full sm:w-60"
+            />
+          ) : null}
           {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}
         </div>
       ) : null}
     </div>
   );
-}
+});
 
 export function ReferenceGraph({
   data,

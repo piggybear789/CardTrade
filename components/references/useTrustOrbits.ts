@@ -14,7 +14,9 @@
 // so the whole move reads as one animation.
 
 import {
+  useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -93,6 +95,22 @@ const serverTrue = () => true;
 const serverFalse = () => false;
 
 const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
+/**
+ * One function identity for the life of the component that always runs the latest
+ * version of `callback`. The system re-renders on every spin frame; handlers that kept
+ * changing identity would re-render every memoised part of the page with it. For event
+ * handlers only: the latest version is swapped in after render.
+ */
+function useStableCallback<Args extends unknown[], Result>(
+  callback: (...args: Args) => Result,
+): (...args: Args) => Result {
+  const latest = useRef(callback);
+  useLayoutEffect(() => {
+    latest.current = callback;
+  });
+  return useCallback((...args: Args) => latest.current(...args), []);
+}
 
 /** Animation time. It starts at now, so a graph taking over mid-walk draws the right frame first. */
 function useAnimationClock(active: boolean): number {
@@ -686,15 +704,23 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     changeFocus(null);
   };
 
+  const stableSelect = useStableCallback(select);
+  const stableTap = useStableCallback(tap);
+  const stableCentreOn = useStableCallback(centreOn);
+  const stableFilterByPlatform = useStableCallback(filterByPlatform);
+  const stableSetDirection = useStableCallback(setDirection);
+  const stableToggleSpin = useStableCallback(motion.toggleSpin);
+  const stableResetView = useStableCallback(motion.reset);
+
   return {
     graph,
     /** The direction being drawn, and its nodes, links, platforms and counts. */
     view,
     direction,
-    setDirection,
+    setDirection: stableSetDirection,
     visibleNodes,
     platformFilter,
-    filterByPlatform,
+    filterByPlatform: stableFilterByPlatform,
     frame,
     scene,
     items,
@@ -712,11 +738,11 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     tilted: motion.tilted,
     attach: motion.attach,
     dragHandlers: motion.handlers,
-    select,
-    tap,
-    centreOn,
-    toggleSpin: motion.toggleSpin,
-    resetView: motion.reset,
+    select: stableSelect,
+    tap: stableTap,
+    centreOn: stableCentreOn,
+    toggleSpin: stableToggleSpin,
+    resetView: stableResetView,
   };
 }
 

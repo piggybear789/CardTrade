@@ -44,6 +44,7 @@ import { regionForTrade } from '@/lib/regionBinding';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { membersAreRelated } from '@/lib/risk/signals';
 import { RELATED_ACCOUNTS_MESSAGE } from '@/domain/risk/relatedAccounts';
+import { contractLimiter } from '@/lib/rateLimiters';
 import {
   confirmTradeCashPayment as confirmTradeCashPaymentCore,
   getTradeCashPaymentAction as getTradeCashPaymentActionCore,
@@ -736,7 +737,9 @@ export type OpenTradeNegotiationResult =
         | 'item-unavailable'
         | 'self-trade'
         /** The two traders are not in the same enabled region (0065). */
-        | 'region-mismatch';
+        | 'region-mismatch'
+        /** More than `contractLimiter` allows in a minute: every offer notifies. */
+        | 'rate-limited';
       message?: string;
     };
 
@@ -775,6 +778,9 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
 }): Promise<OpenTradeNegotiationResult> {
   const userId = await currentUserId();
   if (!userId) return { ok: false, error: 'unauthenticated' };
+  if (!(await contractLimiter.check(userId)).allowed) {
+    return { ok: false, error: 'rate-limited', message: 'Too many offers in a row. Wait a minute and try again.' };
+  }
 
   const problem = termsProblem(input.terms);
   if (problem) return { ok: false, error: 'invalid-terms', message: problem };

@@ -7,7 +7,7 @@
 
 import { redirect } from 'next/navigation';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { listMyNotifications } from '@/lib/actions/notifications';
 import {
   NotificationCenter,
@@ -33,16 +33,11 @@ const SECTION = {
 };
 
 export default async function NotificationsPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  // Together: the list resolves the caller through the same request-cached read.
+  const [user, result] = await Promise.all([getCachedAuthUser(), listMyNotifications()]);
   if (!user) {
     redirect('/sign-in?redirectTo=/notifications');
   }
-
-  const result = await listMyNotifications();
 
   return (
     <MarketplaceShell title="Notifications">

@@ -70,6 +70,7 @@ import { askingPriceRange, listedPriceCents } from '@/lib/listings/buyerPrice';
 import type { Tables } from '@/lib/supabase/database.types';
 import type { ListingKind } from '@/domain/orchestrator/cashSaleOrchestrator';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
+import { listingLimiter } from '@/lib/rateLimiters';
 
 /** A persisted item row as returned to callers. */
 export type ItemRow = Tables<'items'>;
@@ -253,6 +254,7 @@ export type ListingActionResult<T> =
  * - `unauthorized`      — the caller does not own the target Item (Req 3.7).
  * - `item-not-available`— the Item is not AVAILABLE and cannot be modified (Req 3.5).
  * - `fmv-immutable`     — the Item is RESERVED; its FMV cannot change (Req 3.6).
+ * - `rate-limited`      — too many creates or edits in a minute (`listingLimiter`).
  * - `persistence-error` — the database insert/delete failed.
  */
 export type ListingActionError =
@@ -265,7 +267,18 @@ export type ListingActionError =
   | 'unauthorized'
   | 'item-not-available'
   | 'fmv-immutable'
+  | 'rate-limited'
   | 'persistence-error';
+
+const LISTING_RATE_LIMITED = 'Too many listing changes in a row. Wait a minute and try again.';
+
+/**
+ * A listing write can carry new photos, and each new photo is scanned by Rekognition,
+ * which bills per image (`lib/storage/itemImages.ts`). Checked before any of that work.
+ */
+async function listingWriteAllowed(userId: string): Promise<boolean> {
+  return (await listingLimiter.check(userId)).allowed;
+}
 
 /**
  * Resolve the current authenticated user id, or `null`.
@@ -372,6 +385,9 @@ export const createItem = withActionLog('listings.createItem', async function cr
   const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
+  }
+  if (!(await listingWriteAllowed(userId))) {
+    return { ok: false, error: 'rate-limited', message: LISTING_RATE_LIMITED };
   }
 
   // BOTH GATES, from the one place that evaluates them. Checked before any upload work so
@@ -546,6 +562,9 @@ export const createPrivateTradeItem = withActionLog('listings.createPrivateTrade
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
   }
+  if (!(await listingWriteAllowed(userId))) {
+    return { ok: false, error: 'rate-limited', message: LISTING_RATE_LIMITED };
+  }
 
   const imageCount = Array.isArray(input.images) ? input.images.length : 0;
   if (imageCount < IMAGES_MIN || imageCount > IMAGES_MAX) {
@@ -671,6 +690,9 @@ export const updateItem = withActionLog('listings.updateItem', async function up
   const userId = await getUserId();
   if (!userId) {
     return { ok: false, error: 'not-authenticated' };
+  }
+  if (!(await listingWriteAllowed(userId))) {
+    return { ok: false, error: 'rate-limited', message: LISTING_RATE_LIMITED };
   }
 
   const listingTitle = resolveListingTitle(input);
@@ -952,30 +974,6 @@ export const closeShopfrontListing = withActionLog('listings.closeShopfrontListi
 });
 
 /**
- * Read the catalog of AVAILABLE Items (Req 3.8). RLS additionally exposes the
- * caller's own non-available items, so the query filters to AVAILABLE to return
- * exactly the public catalog.
- */
-export const listAvailableItems = withActionLog('listings.listAvailableItems', async function listAvailableItems(): Promise<ListingActionResult<ItemRow[]>> {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from('items')
-    .select('*')
-    .eq('status', 'AVAILABLE')
-    .eq('hidden', false)
-    .is('closed_at', null)
-    .in('category', CARD_GAME_NAMES)
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    return { ok: false, error: 'persistence-error', message: error.message };
-  }
-
-  return { ok: true, data: (data ?? []) as ItemRow[] };
-});
-
-/**
  * Read a single Item by id (Req 3.8). RLS returns the row when it is AVAILABLE
  * or owned by the caller; otherwise the row is invisible and this returns
  * `not-found`.
@@ -1052,7 +1050,7 @@ export interface CatalogSeller {
   isVerified: boolean;
   /**
    * Provider-verified GIVEN name, public by design. The full legal name is
-   * released only at a commitment point via `getCounterpartyIdentity`.
+   * released only at a commitment point (`sellerIdentityDisclosure`).
    */
   identityFirstName: string | null;
   /**

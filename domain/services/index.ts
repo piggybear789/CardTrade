@@ -24,7 +24,6 @@ import {
 import { createStripeService } from './stripe';
 import { PaymentsUnconfiguredError, resolvePaymentProvider } from './providerMode';
 import {
-  isTradingRegion,
   normalizeRegionCode,
   platformRegion,
   regionCurrency,
@@ -178,13 +177,4 @@ export function operationalPlatforms(): ReadonlyMap<RegionCode, readonly string[
     platforms.set(platform, currencies);
   }
   return platforms;
-}
-
-/** Whether a contract may be opened in this region right now. */
-export function isOperationalRegion(region: unknown): boolean {
-  const code = normalizeRegionCode(region);
-  if (!code) return false;
-  // Cheap short-circuit on intent before touching the environment.
-  if (!isTradingRegion(code)) return false;
-  return operationalRegions().has(code);
 }

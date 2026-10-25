@@ -15,6 +15,7 @@ import { readSellerPayReadiness } from '@/lib/sellerIdentity';
 import { scheduleCashSaleTrackingCheck } from '@/lib/tracking/refreshOnRead';
 import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { Tables } from '@/lib/supabase/database.types';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -30,11 +31,7 @@ export default async function CashSalePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [supabase, user] = await Promise.all([createClient(), getCachedAuthUser()]);
   if (!user) {
     redirect(`/sign-in?redirectTo=/sales/${id}`);
   }

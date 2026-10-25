@@ -7,16 +7,18 @@
 // staff account was therefore a direct line to member money. Above a threshold, a
 // decision is now a PROPOSAL until a second, unrelated staff member approves it.
 //
-// A one-person team cannot have a second approver, so a solo operator may approve
-// their own proposal after a cooling-off period. That is weaker than two people and
-// is recorded as such: it turns an instant theft into a delayed, visible one.
+// When nobody else can approve — a one-person team, or a two-person team whose other
+// member is a party to the case — the proposer may approve their own proposal after a
+// cooling-off period. That is weaker than two people and is recorded as such: it turns
+// an instant theft into a delayed, visible one, where the alternative is a case nobody
+// can ever decide.
 //
 // Pure: the admin actions and the tests share it.
 
 /** Decisions at or above this value (minor units) need a second approver. */
 export const TWO_PERSON_THRESHOLD_MINOR = 50_000;
 
-/** How long a solo operator waits before approving their own proposal, in hours. */
+/** How long a proposer nobody else can approve for waits before approving it, in hours. */
 export const SOLO_COOLING_OFF_HOURS = 24;
 
 /** The staff actions that move money, as stored on a proposal. */
@@ -63,9 +65,29 @@ export interface ApprovalFacts {
   proposedAt: string;
   approverId: string;
   participantIds: readonly (string | null | undefined)[];
-  /** How many staff accounts exist. One means the solo rule applies. */
-  staffCount: number;
+  /**
+   * How many staff members besides the proposer could approve ({@link otherApproversFor}).
+   * Zero means nobody else can, and the cooling-off rule applies.
+   */
+  otherApprovers: number;
   now: Date;
+}
+
+/** Staff who could approve someone else's proposal: neither its proposer nor a party to the case. */
+export function otherApproversFor(
+  staffIds: readonly string[],
+  proposedBy: string,
+  participantIds: readonly (string | null | undefined)[],
+): number {
+  return staffIds.filter((id) => id !== proposedBy && !isRecused(id, participantIds)).length;
+}
+
+/**
+ * When the proposer may approve their own proposal, for when nobody else can. NaN for an
+ * unreadable timestamp, which no clock is ever past.
+ */
+export function selfApprovableAt(proposedAt: string): number {
+  return Date.parse(proposedAt) + SOLO_COOLING_OFF_HOURS * 3_600_000;
 }
 
 /** `null` when the approver may approve, otherwise why not. */
@@ -73,10 +95,8 @@ export function canApprove(facts: ApprovalFacts): ApprovalRefusal | null {
   if (facts.status !== 'PENDING') return 'NOT_PENDING';
   if (isRecused(facts.approverId, facts.participantIds)) return 'RECUSED';
   if (facts.approverId === facts.proposedBy) {
-    if (facts.staffCount > 1) return 'SAME_STAFFER';
-    const proposed = Date.parse(facts.proposedAt);
-    const readyAt = proposed + SOLO_COOLING_OFF_HOURS * 3_600_000;
-    if (!Number.isFinite(proposed) || facts.now.getTime() < readyAt) return 'COOLING_OFF';
+    if (facts.otherApprovers > 0) return 'SAME_STAFFER';
+    if (!(facts.now.getTime() >= selfApprovableAt(facts.proposedAt))) return 'COOLING_OFF';
   }
   return null;
 }

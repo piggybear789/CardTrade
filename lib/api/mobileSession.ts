@@ -73,14 +73,16 @@ export async function authenticateMobileRequest(
     },
   });
 
-  const {
-    data: { user: cookieUser },
-  } = await cookieClient.auth.getUser();
+  // `getClaims`, not `getUser`: the access token is ES256-signed, so it is verified
+  // locally against the cached JWKS rather than by a round trip to the auth server on
+  // every mobile request (see `getCachedAuthUser`).
+  const { data: cookieAuth } = await cookieClient.auth.getClaims();
+  const cookieUserId = cookieAuth?.claims.sub;
 
-  if (cookieUser) {
+  if (cookieUserId) {
     return {
       ok: true,
-      session: { userId: cookieUser.id, supabase: cookieClient },
+      session: { userId: cookieUserId, supabase: cookieClient },
     };
   }
 
@@ -92,8 +94,7 @@ export async function authenticateMobileRequest(
     return unauthorized();
   }
 
-  // Create a client and set the session from the token.
-  // We use the access token directly — Supabase's getUser validates it server-side.
+  // A client acting as the token's user; `getClaims` below verifies the token.
   const bearerClient = createServerClient<Database>(url, anonKey, {
     db: { schema: 'cardtrade' },
     global: {
@@ -109,17 +110,16 @@ export async function authenticateMobileRequest(
     },
   });
 
-  const {
-    data: { user: bearerUser },
-  } = await bearerClient.auth.getUser(token);
+  const { data: bearerAuth } = await bearerClient.auth.getClaims(token);
+  const bearerUserId = bearerAuth?.claims.sub;
 
-  if (!bearerUser) {
+  if (!bearerUserId) {
     return unauthorized();
   }
 
   return {
     ok: true,
-    session: { userId: bearerUser.id, supabase: bearerClient },
+    session: { userId: bearerUserId, supabase: bearerClient },
   };
 }
 

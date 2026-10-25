@@ -32,7 +32,6 @@
 export { ContractActionCard, ContractOverflowMenu } from './ContractActionCard';
 export { ContractConnectionStatus } from './ContractConnectionStatus';
 export { ContractConversationPanel } from './ContractConversationPanel';
-export { CollateralExplainerDialog } from './CollateralExplainerDialog';
 export { ContractDetailList, ContractDetailRow } from './ContractDetailList';
 export { DisputeEvidencePanel } from './DisputeEvidencePanel';
 export { DittoBondExplainer, CashSaleProtectionExplainer } from './DittoBondExplainer';

@@ -260,22 +260,3 @@ export function normalizeFulfilmentTerms(terms: FulfilmentTerms): FulfilmentTerm
     delivery: { costCents: null, notes: null },
   };
 }
-
-/** Convenience read: does this method post goods rather than hand them over? */
-export function isDelivery(method: FulfilmentMethod | null): boolean {
-  return method === 'DELIVERY';
-}
-
-/** Convenience read: does this method meet in person? */
-export function isInPerson(method: FulfilmentMethod | null): boolean {
-  return method === 'IN_PERSON';
-}
-
-/** An empty set of terms, for a contract whose method has not been chosen. */
-export function emptyFulfilmentTerms(): FulfilmentTerms {
-  return {
-    method: null,
-    meeting: { place: null, at: null },
-    delivery: { costCents: null, notes: null },
-  };
-}

@@ -137,6 +137,11 @@ export function DisputeActions({
         
         return;
       }
+      // A decision this size waits for a second staff member: the expected outcome.
+      if (result.error === 'approval-required') {
+        toast.success(result.message ?? 'Sent for a second staff member to approve.');
+        return;
+      }
       // The action's own message distinguishes a bad amount from a provider
       // refusal, which is exactly what an operator needs to decide what to do next.
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Resolution failed.');

@@ -40,6 +40,11 @@ export function TrackingFlagActions({ cashSaleId, reason, carrierDeliveredAt }: 
         toast.success(decision === 'START_CLOCK' ? 'The buyer\'s inspection has started.' : 'The buyer is being refunded.');
         return;
       }
+      // A refund this size waits for a second staff member: the expected outcome.
+      if (result.error === 'approval-required') {
+        toast.success(result.message ?? 'Sent for a second staff member to approve.');
+        return;
+      }
       toast.error(result.message ?? 'The tracking flag could not be resolved.');
     });
   }

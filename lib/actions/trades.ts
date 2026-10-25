@@ -879,25 +879,6 @@ export type HandoverChangeActionResult =
   | { ok: true }
   | ActionFailure<AuthError | HandoverChangeError | UpdateTradeHandoverTermsError>;
 
-/**
- * Propose new meeting details on a COLLATERAL_PENDING trade (ESC-04). The other trader
- * must accept; nothing changes until they do. Refused once the placement cutoff has
- * passed or a hold is live.
- */
-export const proposeTradeHandoverChange = withActionLog('trades.proposeTradeHandoverChange', async function proposeTradeHandoverChange(
-  tradeId: string,
-  input: HandoverTermsActionInput,
-): Promise<HandoverChangeActionResult> {
-  const guard = await requireParticipant(tradeId);
-  if (!guard.ok) return guard;
-  const columns = handoverColumnsFromInput(input, guard.ctx.trade.currency);
-  if (!columns.ok) return { ok: false, error: columns.error };
-  const proposed = await proposeHandoverChange({ tradeId, proposerId: guard.ctx.userId, terms: columns.columns });
-  if (!proposed.ok) return { ok: false, error: proposed.error, detail: proposed.detail };
-  revalidatePath(`/trades/${tradeId}`);
-  return { ok: true };
-});
-
 /** Accept or decline the other trader's proposal. Only the non-proposer may respond. */
 export const respondTradeHandoverChange = withActionLog('trades.respondTradeHandoverChange', async function respondTradeHandoverChange(
   params: { changeId: string; decision: 'ACCEPT' | 'DECLINE' },

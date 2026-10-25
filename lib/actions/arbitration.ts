@@ -23,6 +23,7 @@ import { revalidatePath } from 'next/cache';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { requireStaff, type StaffGateError } from '@/lib/staffGate';
+import { loadPendingApprovals, type PendingApproval } from '@/lib/arbitration/approvals';
 import {
   getDisputeEvidenceForStaff,
   type DisputeEvidenceEntry,
@@ -283,6 +284,8 @@ export interface ArbitrationCaseDetail {
    * `ReturnCaseActions` is formatted against this.
    */
   currency: string;
+  /** This case's decisions waiting for a second staff member (ESC-23). Null when unreadable. */
+  approvals: readonly PendingApproval[] | null;
   /** True when the viewer may also moderate. */
   viewerIsAdmin: boolean;
   viewerId: string;
@@ -315,14 +318,23 @@ async function namesFor(
  * being filtered client-side, so the counts on the page are the counts that matter.
  */
 export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueue', async function getArbitrationQueue(): Promise<
-  ActionResult<{ cases: TriagedCase[]; viewerId: string; viewerIsAdmin: boolean }, ArbitrationActionError>
+  ActionResult<
+    {
+      cases: TriagedCase[];
+      /** Decisions waiting for a second staff member (ESC-23). Null when unreadable. */
+      approvals: PendingApproval[] | null;
+      viewerId: string;
+      viewerIsAdmin: boolean;
+    },
+    ArbitrationActionError
+  >
 > {
   const gate = await requireStaff();
   if (!gate.ok) return fail(gate.error, 'You are not authorized to view arbitration cases.');
 
   const admin = createAdminClient();
 
-  const [sales, trades, chargebacks, returnCases, assignments, noteCounts] = await Promise.all([
+  const [sales, trades, chargebacks, returnCases, assignments, noteCounts, approvals] = await Promise.all([
     admin
       .from('cash_sales')
       .select(
@@ -363,6 +375,7 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
       .or('return_disputed_at.not.is.null,return_lapsed_at.not.is.null,ship_lapsed_at.not.is.null,tracking_flagged_at.not.is.null'),
     admin.from('arbitration_assignments').select('case_kind, case_ref, assignee_id'),
     admin.from('arbitration_notes').select('case_kind, case_ref'),
+    loadPendingApprovals(gate.ctx.userId),
   ]);
 
   const assigneeOf = new Map<string, string>();
@@ -676,6 +689,7 @@ export const getArbitrationQueue = withActionLog('arbitration.getArbitrationQueu
 
   return ok({
     cases: buildQueue(cases),
+    approvals,
     viewerId: gate.ctx.userId,
     viewerIsAdmin: gate.ctx.isAdmin,
   });
@@ -819,6 +833,7 @@ export const getArbitrationCase = withActionLog('arbitration.getArbitrationCase'
     shipment,
     // The case already resolved its own denomination from the contract row.
     currency: found.currency,
+    approvals: queue.data.approvals?.filter((approval) => approval.caseRef === ref) ?? null,
     viewerIsAdmin: gate.ctx.isAdmin,
     viewerId: gate.ctx.userId,
   });

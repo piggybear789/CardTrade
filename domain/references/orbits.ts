@@ -566,22 +566,6 @@ export function arcPath(a: Point, b: Point, centre: Point): string {
   return `M ${fixed(a.x)} ${fixed(a.y)} Q ${fixed(mx + (nx / length) * bow)} ${fixed(my + (ny / length) * bow)} ${fixed(b.x)} ${fixed(b.y)}`;
 }
 
-/** A four-pointed star centred on (x, y), `r` from the centre to each point. */
-export function starPath(x: number, y: number, r: number): string {
-  const waist = r * 0.3;
-  return [
-    `M ${fixed(x)} ${fixed(y - r)}`,
-    `L ${fixed(x + waist)} ${fixed(y - waist)}`,
-    `L ${fixed(x + r)} ${fixed(y)}`,
-    `L ${fixed(x + waist)} ${fixed(y + waist)}`,
-    `L ${fixed(x)} ${fixed(y + r)}`,
-    `L ${fixed(x - waist)} ${fixed(y + waist)}`,
-    `L ${fixed(x - r)} ${fixed(y)}`,
-    `L ${fixed(x - waist)} ${fixed(y - waist)}`,
-    'Z',
-  ].join(' ');
-}
-
 export type LabelAnchor = 'start' | 'middle' | 'end';
 
 export interface LabelSpot {

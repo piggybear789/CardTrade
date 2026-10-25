@@ -105,23 +105,20 @@ export async function proxy(request: NextRequest) {
     },
   });
 
-  // GUARDED, because this is the only unguarded await in the request path and it
-  // talks to a remote auth server. `getCachedAuthUser` already wraps the identical
-  // call in try/catch and returns null; this did not, so anything `getUser()` threw
-  // — a revoked or malformed refresh token, a GoTrue blip, a network timeout —
-  // propagated out of the proxy and became a 500 on EVERY route in the matcher,
-  // including the catalog. Production logs already carry `AuthApiError: Refresh
-  // token is not valid` from this line.
+  // `getClaims`, NOT `getUser`: the access token is ES256-signed, so this verifies it
+  // locally against the cached JWKS instead of a round trip to the auth server in front
+  // of every matched request. It still refreshes an expired session (and writes the new
+  // cookies through `setAll` above).
   //
-  // Falling back to `null` is fail-closed on access and fail-open on availability:
-  // a protected path redirects to sign-in, a public one is served as a guest. Both
-  // are correct outcomes for a session we could not verify, and neither grants
-  // anything. The bad cookie then gets cleared by the sign-in flow.
-  let user = null as Awaited<ReturnType<typeof supabase.auth.getUser>>['data']['user'];
+  // GUARDED, because anything it throws — a revoked or malformed refresh token, an auth
+  // blip — would otherwise propagate out of the proxy and become a 500 on EVERY route in
+  // the matcher, including the catalog. Falling back to "no user" is fail-closed on
+  // access and fail-open on availability: a protected path redirects to sign-in, a public
+  // one is served as a guest, and the bad cookie gets cleared by the sign-in flow.
+  let user: { id: string } | null = null;
   try {
-    ({
-      data: { user },
-    } = await supabase.auth.getUser());
+    const { data } = await supabase.auth.getClaims();
+    user = data?.claims.sub ? { id: data.claims.sub } : null;
   } catch {
     user = null;
   }

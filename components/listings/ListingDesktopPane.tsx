@@ -43,12 +43,9 @@ export function ListingDesktopPane({
   sellerIdentity,
   locationLabel,
   createdAt,
-  details,
   showTrust,
   children,
 }: {
-  /** `ListingDetails`, under the description. */
-  details?: ReactNode;
   /** A buyer who can buy: the fee note under the price and the protection strip. */
   showTrust: boolean;
   title: string;
@@ -304,8 +301,6 @@ export function ListingDesktopPane({
           </p>
         </section>
       ) : null}
-
-      {details}
 
       {/* The "Based near" map section was here. It is now the location clause of the
           meta line under the price — same fact, one line instead of a 224px image, and

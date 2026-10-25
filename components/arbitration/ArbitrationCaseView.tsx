@@ -22,6 +22,7 @@ import {
 import { CaseNoteComposer } from '@/components/arbitration/CaseNoteComposer';
 import { ArbitrationEvidenceGrid } from '@/components/arbitration/ArbitrationEvidenceGrid';
 import { NotShippedGuidance } from '@/components/arbitration/NotShippedGuidance';
+import { PendingApprovals } from '@/components/arbitration/PendingApprovals';
 
 import { ReturnCaseActions } from '@/components/admin/ReturnCaseActions';
 import { DisputeActions } from '@/components/admin/DisputeActions';
@@ -174,6 +175,10 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           <span className="ml-tight font-normal text-muted-foreground">at stake</span>
         </span>
       </div>
+
+      {/* Above the case, not in the Decision column: a decision already proposed is what
+          the second staff member opened this page to judge. */}
+      <PendingApprovals approvals={detail.approvals} viewerId={detail.viewerId} />
 
       {/* Two-column layout: context on left, actions on right. On phones the
           workspace (notes + Decision) leads — that is the job, and stacking

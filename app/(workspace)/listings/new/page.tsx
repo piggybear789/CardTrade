@@ -25,6 +25,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { PlaceValue } from '@/lib/location/types';
 import { readListingGate } from '@/lib/sellerListingGate';
 import { ItemForm } from '@/components/listings/ItemForm';
@@ -48,11 +49,7 @@ export default async function NewListingPage({
 }) {
   const { draft: rawDraft } = await searchParams;
   const draftId = Array.isArray(rawDraft) ? rawDraft[0] : rawDraft;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [supabase, user] = await Promise.all([createClient(), getCachedAuthUser()]);
   if (!user) {
     redirect('/sign-in?redirectTo=/listings/new');
   }

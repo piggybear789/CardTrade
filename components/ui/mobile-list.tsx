@@ -54,24 +54,3 @@ export function MobileListItem({
     </li>
   );
 }
-
-/** iOS-style inset group: one sheet on the phone, separate cards on desktop. */
-export function InsetGroup({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div
-      className={cn(
-        'max-md:divide-y max-md:divide-border max-md:overflow-hidden max-md:rounded-xl max-md:border max-md:border-border max-md:bg-card',
-        'md:space-y-cozy',
-        className,
-      )}
-    >
-      {children}
-    </div>
-  );
-}

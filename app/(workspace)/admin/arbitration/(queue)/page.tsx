@@ -36,6 +36,7 @@ import {
   PRIORITY_STYLE,
 } from '@/components/arbitration/ArbitrationCaseView';
 import { CaseAssignButton } from '@/components/arbitration/CaseAssignButton';
+import { PendingApprovals } from '@/components/arbitration/PendingApprovals';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SectionHeader } from '@/components/layout/SectionHeader';
 import { SectionTabs } from '@/components/layout/SectionFilter';
@@ -129,9 +130,15 @@ export default async function ArbitrationQueuePage({
     );
   }
 
-  const { cases, viewerId, viewerIsAdmin } = result.data;
+  const { cases, approvals, viewerId, viewerIsAdmin } = result.data;
   const summary = summariseQueue(cases);
   const shown = filterQueue(cases, scope, viewerId);
+  const approvalCases = new Set((approvals ?? []).map((approval) => approval.caseRef));
+  const caseLinks = Object.fromEntries(
+    cases
+      .filter((c) => approvalCases.has(c.ref))
+      .map((c) => [c.ref, { href: `/admin/arbitration/${c.kind}/${c.ref}`, title: c.title }]),
+  );
 
   return (
     <MarketplaceShell title="Cases">
@@ -177,6 +184,12 @@ export default async function ArbitrationQueuePage({
       <p className="mb-5 rounded-md border border-border bg-muted px-cozy py-snug text-meta text-muted-foreground">
         {TRIAGE_RULE_SUMMARY}
       </p>
+
+      {/* Above the queue: each of these is a decision already made, held only for a
+          second pair of eyes, and the money behind it is stuck until someone looks. */}
+      <div className="mb-6 empty:hidden">
+        <PendingApprovals approvals={approvals} viewerId={viewerId} caseLinks={caseLinks} />
+      </div>
 
       {/* The workspace tab strip, shared with every Active/Past section rather than
           restyled here. Three tabs instead of two is the only difference. */}

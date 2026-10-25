@@ -17,6 +17,7 @@
 import { notFound, redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { TradeContract } from '@/components/trade/TradeContract';
 import type { TradeCashLegView } from '@/components/trade/TradeCashLeg';
 import { scheduleTradeTrackingCheck } from '@/lib/tracking/refreshOnRead';
@@ -47,12 +48,8 @@ export default async function TradePage({
 }) {
   const { id: tradeId } = await params;
 
-  const supabase = await createClient();
-
   // Require authentication (Req 1.7).
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [supabase, user] = await Promise.all([createClient(), getCachedAuthUser()]);
   if (!user) {
     redirect(`/sign-in?redirectTo=/trades/${tradeId}`);
   }

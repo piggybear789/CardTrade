@@ -173,6 +173,11 @@ export function TradeDisputeActions({
         );
         return;
       }
+      // A fraud finding, or a decision this size, waits for a second staff member.
+      if (result.error === 'approval-required') {
+        toast.success(result.message ?? 'Sent for a second staff member to approve.');
+        return;
+      }
       toast.error(result.message ?? ERROR_MESSAGES[result.error] ?? 'Resolution failed.');
     });
   }

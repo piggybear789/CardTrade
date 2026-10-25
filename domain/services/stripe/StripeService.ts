@@ -49,7 +49,6 @@ import type {
   Cents,
   CollectionCancel,
   CollectionStatus,
-  EmbeddedClientSecret,
   InstrumentSetup,
   ManagedMerchant,
   ManagedMerchantDetails,
@@ -1677,70 +1676,6 @@ export class StripeService implements PaymentService, PayerService {
     });
 
     return { url: link.url };
-  }
-
-  /**
-   * Mint an account-session client secret for the embedded `account_onboarding`
-   * component (unified-seller-onboarding, Req 5.1).
-   *
-   * The inline counterpart to {@link createMerchantOnboardingLink}: no redirect, the
-   * browser renders onboarding via `@stripe/connect-js`. Recipient accounts collect
-   * only what remains — the disbursement bank account and the service agreement — so
-   * only the onboarding component is enabled.
-   *
-   * @throws {Stripe.errors.StripeError} when the session cannot be created, or an
-   * Error when the publishable key is not configured (the browser could not init the
-   * SDK anyway).
-   */
-  async createConnectAccountSession(merchantRef: string): Promise<EmbeddedClientSecret> {
-    const publishableKey = this.opts.config.publishableKey;
-    if (!publishableKey) {
-      throw new Error(
-        '[payments] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set, so the browser cannot ' +
-          'initialise Connect embedded onboarding.',
-      );
-    }
-
-    const session = await this.stripe.accountSessions.create({
-      account: merchantRef,
-      components: { account_onboarding: { enabled: true } },
-    });
-
-    return {
-      clientSecret: session.client_secret,
-      publishableKey,
-      expiresAt: new Date(session.expires_at * 1000).toISOString(),
-    };
-  }
-
-  /**
-   * Mint an Identity session client secret for the embedded `stripe.verifyIdentity`
-   * modal (unified-seller-onboarding, Req 2.1).
-   *
-   * Reads the session and returns only its `client_secret` rather than widening the
-   * always-returned {@link IdentityCheck} with a sensitive secret. A consumed or
-   * terminal session has no `client_secret`, which is the "mint fresh on retry"
-   * contract (Req 13.4): the caller starts a new session instead of reusing a dead one.
-   *
-   * @throws {Error} when the publishable key is missing or the session has no secret.
-   */
-  async createIdentitySessionSecret(sessionId: string): Promise<EmbeddedClientSecret> {
-    const publishableKey = this.opts.config.publishableKey;
-    if (!publishableKey) {
-      throw new Error(
-        '[payments] NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is not set, so the browser cannot ' +
-          'initialise Stripe.js for the identity check.',
-      );
-    }
-
-    const session = await this.stripe.identity.verificationSessions.retrieve(sessionId);
-    if (!session.client_secret) {
-      throw new Error(
-        '[payments] Identity session has no client secret (already consumed); start a new one.',
-      );
-    }
-
-    return { clientSecret: session.client_secret, publishableKey };
   }
 
   /**

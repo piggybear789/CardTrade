@@ -20,8 +20,7 @@
 // never paints, and the click looks like a no-op. Payouts already leave for Stripe's
 // own pages for the same reason (Connect embedded chrome plus the dialog). Identity
 // follows that path — which is also why this surface is portable to a plain page at
-// all. `EmbeddedIdentityStep` / `EmbeddedPayoutStep` stay in the tree for a non-dialog
-// surface.
+// all.
 //
 // EVERY MOUNT RECONCILES AGAINST THE PROVIDER. `getIdentityCheckState` and
 // `getMerchantState` read our own columns, which a webhook writes — and a member

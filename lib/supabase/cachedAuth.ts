@@ -1,8 +1,14 @@
 import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
-import type { User } from '@supabase/supabase-js';
 import { createClient } from './server';
 import { hasSupabaseSessionCookie } from './sessionCookie';
+
+/** The signed-in member, as their verified access token describes them. */
+export interface AuthUser {
+  id: string;
+  email?: string;
+  user_metadata: Record<string, unknown>;
+}
 
 export interface CachedProfile {
   id: string;
@@ -15,40 +21,73 @@ export interface CachedProfile {
 }
 
 /**
- * Per-request cached lookup of the current authenticated user.
- * Deduplicates multiple `supabase.auth.getUser()` calls in a single SSR request.
- * Supports both cookie-based sessions and mobile Bearer tokens.
+ * The credential this request carries: a mobile Bearer token, the session cookie
+ * (`'cookie'`), or nothing. A browser request with no session cookie has nothing to
+ * verify, which keeps the catalog's guests off the auth path entirely.
  */
-export const getCachedAuthUser = cache(async (): Promise<User | null> => {
+async function requestCredential(): Promise<{ bearer: string } | 'cookie' | null> {
   try {
-    let bearerToken: string | null = null;
-    try {
-      const headerStore = await headers();
-      const authHeader = headerStore.get('authorization');
-      if (authHeader?.startsWith('Bearer ')) {
-        bearerToken = authHeader.slice(7).trim() || null;
-      }
-    } catch {
-      // Outside request scope
-    }
+    const authHeader = (await headers()).get('authorization');
+    const bearer = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+    if (bearer) return { bearer };
+  } catch {
+    // Outside request scope
+  }
+  try {
+    return hasSupabaseSessionCookie((await cookies()).getAll()) ? 'cookie' : null;
+  } catch {
+    return null;
+  }
+}
 
-    // A browser request with no session cookie has nothing for GoTrue to
-    // validate. Skipping the call keeps the catalog off the auth server.
-    // A Bearer token (mobile API) is a session even when cookies are empty.
-    if (!bearerToken) {
-      try {
-        const cookieStore = await cookies();
-        if (!hasSupabaseSessionCookie(cookieStore.getAll())) return null;
-      } catch {
-        return null;
-      }
-    }
+/**
+ * Per-request cached lookup of the current authenticated user, from both cookie-based
+ * sessions and mobile Bearer tokens.
+ *
+ * `getClaims`, NOT `getUser`. The project signs access tokens with an asymmetric key
+ * (ES256), so `getClaims` checks the signature locally against the cached JWKS, where
+ * `getUser` was a round trip to the auth server on every request that asked. A signed-out
+ * session's token stays valid until it expires, exactly as it already does for every
+ * RLS query PostgREST verifies. Staff gates use {@link getVerifiedAuthUser} instead.
+ */
+export const getCachedAuthUser = cache(async (): Promise<AuthUser | null> => {
+  try {
+    const credential = await requestCredential();
+    if (!credential) return null;
+    const supabase = await createClient();
+    const { data, error } = await (credential === 'cookie'
+      ? supabase.auth.getClaims()
+      : supabase.auth.getClaims(credential.bearer));
+    const claims = data?.claims;
+    if (error || !claims?.sub) return null;
+    return {
+      id: claims.sub,
+      email: typeof claims.email === 'string' ? claims.email : undefined,
+      user_metadata: (claims.user_metadata as Record<string, unknown> | undefined) ?? {},
+    };
+  } catch {
+    return null;
+  }
+});
 
+/**
+ * The current user, CONFIRMED WITH THE AUTH SERVER rather than read off the token: a
+ * session signed out elsewhere stops working at once, not when its token expires. One
+ * round trip, so it is for the staff gates, where a compromised account signed out
+ * everywhere must lose access immediately.
+ */
+export const getVerifiedAuthUser = cache(async (): Promise<AuthUser | null> => {
+  try {
+    const credential = await requestCredential();
+    if (!credential) return null;
     const supabase = await createClient();
     const {
       data: { user },
-    } = await (bearerToken ? supabase.auth.getUser(bearerToken) : supabase.auth.getUser());
-    return user ?? null;
+    } = await (credential === 'cookie'
+      ? supabase.auth.getUser()
+      : supabase.auth.getUser(credential.bearer));
+    if (!user) return null;
+    return { id: user.id, email: user.email, user_metadata: user.user_metadata ?? {} };
   } catch {
     return null;
   }

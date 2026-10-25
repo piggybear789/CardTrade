@@ -33,6 +33,9 @@ import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
 import type { Tables, Enums } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { offerTransition } from '@/domain/offers/offerTransitions';
+import { contractLimiter } from '@/lib/rateLimiters';
+
+const OFFER_RATE_LIMITED = 'Too many offers in a row. Wait a minute and try again.';
 
 /** A persisted offer row. */
 export type OfferRow = Tables<'offers'>;
@@ -88,6 +91,7 @@ export type MakeOfferError =
   | 'item-not-available'
   | 'self-offer'
   | 'invalid-amount'
+  | 'rate-limited'
   | 'persistence-error';
 
 /** Result of {@link makeOffer}. */
@@ -117,6 +121,9 @@ export const makeOffer = withActionLog('offers.makeOffer', async function makeOf
 
   const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
+  if (!(await contractLimiter.check(me)).allowed) {
+    return { ok: false, error: 'rate-limited', detail: OFFER_RATE_LIMITED };
+  }
   if (!buyerConfirmedSellerIdentity || !sellerIdentityVersion) {
     return { ok: false, error: 'confirmation-required' };
   }
@@ -216,6 +223,7 @@ export type CounterOfferError =
   | 'cannot-counter-own-offer'
   | 'invalid-status'
   | 'invalid-amount'
+  | 'rate-limited'
   | 'persistence-error';
 
 /** Result of {@link counterOffer}. */
@@ -242,6 +250,9 @@ export const counterOffer = withActionLog('offers.counterOffer', async function 
 
   const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
+  if (!(await contractLimiter.check(me)).allowed) {
+    return { ok: false, error: 'rate-limited', detail: OFFER_RATE_LIMITED };
+  }
 
   if (!isValidAmount(amountCents)) {
     return { ok: false, error: 'invalid-amount' };

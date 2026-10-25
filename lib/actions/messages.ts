@@ -29,6 +29,7 @@ import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { attachmentPreviewLabel } from '@/lib/storage/messageAttachmentsShared';
 import { verifyMessageAttachmentPath } from '@/lib/storage/messageAttachments';
+import { messageLimiter } from '@/lib/rateLimiters';
 import { isTerminalCashSaleStatus } from '@/domain/contract/cashSaleStatus';
 import { currentStep } from '@/domain/contract';
 import type { HoldRowLike } from '@/domain/state-machine/holdLegs';
@@ -696,6 +697,8 @@ export type SendMessageError =
   | 'not-participant'
   | 'invalid-body'
   | 'invalid-attachment'
+  /** More than `messageLimiter` allows in a minute: every message also notifies. */
+  | 'rate-limited'
   | 'persistence-error';
 
 /** Optional file already uploaded to the message-attachments bucket. */
@@ -727,6 +730,9 @@ export const sendMessage = withActionLog('messages.sendMessage', async function 
 
   const me = await getUserId();
   if (!me) return { ok: false, error: 'unauthenticated' };
+  if (!(await messageLimiter.check(me)).allowed) {
+    return { ok: false, error: 'rate-limited', detail: 'You are sending messages too quickly. Wait a moment and try again.' };
+  }
 
   const trimmed = (body ?? '').trim();
   const length = Array.from(trimmed).length;

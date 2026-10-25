@@ -2,8 +2,7 @@
 
 // components/sales/ContractLineItems.tsx
 //
-// What a Cash_Sale contract covers, as a written statement and a read-only list
-// (0064).
+// What a Cash_Sale contract covers, as a written statement (0064).
 //
 // WHY THIS EXISTS. A SHOPFRONT listing is a browsable inventory — a binder, a
 // bulk lot — so the listing cannot say what any one contract is for. This is that
@@ -22,9 +21,8 @@
 // want — "the three Charizards on page 2, both Blastoise, any NM Pikachu" is one
 // sentence, not four rows with per-row grades. The DATA MODEL still supports many
 // lines with condition and quantity, because `cash_sale_items` and its CHECK
-// constraints are unchanged and `ContractLineItemsList` renders whatever it is
-// given; only the composition surface collapsed to one line. If a reason to
-// itemise ever comes back, it is a UI addition and not a migration.
+// constraints are unchanged; only the composition surface collapsed to one line. If
+// a reason to itemise ever comes back, it is a UI addition and not a migration.
 
 import * as React from 'react';
 
@@ -216,74 +214,4 @@ export interface ContractLine {
   condition: string | null;
   quantity: number;
   unitPriceCents: number;
-}
-
-/**
- * Read-only list of what a contract covers.
- *
- * Rendered from the CONTRACT's own rows, which are frozen once payment starts —
- * never from the listing, which the seller can still edit afterwards. Still
- * handles many lines, per-line condition and quantity, because the data model
- * does; a contract written through the form above is simply one line.
- */
-export function ContractLineItemsList({
-  lines,
-  currency = CURRENCY_CODE,
-  showTotal = true,
-}: {
-  lines: readonly ContractLine[];
-  /** The contract's currency (0068). Must match the editor's, deliberately. */
-  currency?: string;
-  /** Hide when the parent already prints the contract price. */
-  showTotal?: boolean;
-}) {
-  const money = (cents: number) => formatMoney(cents, currency);
-  if (lines.length === 0) return null;
-
-  const itemised = lines.length > 1 || lines.some((line) => line.quantity > 1);
-  const total = showTotal
-    ? lines.reduce((sum, line) => sum + line.quantity * line.unitPriceCents, 0)
-    : 0;
-
-  return (
-    <div className="space-y-cozy">
-      <ul className="space-y-cozy">
-        {lines.map((line, index) => (
-          <li
-            key={line.id ?? index}
-            className="flex items-baseline justify-between gap-cozy text-body"
-          >
-            <div className="min-w-0">
-              {/* `whitespace-pre-wrap`: the description is prose now, and a written
-                  want list uses line breaks. Collapsing them ran three cards into
-                  one sentence. */}
-              <p className="whitespace-pre-wrap break-words text-pretty font-medium leading-snug">
-                {line.description}
-              </p>
-              {line.quantity > 1 || line.condition ? (
-                <p className="mt-tight text-body text-muted-foreground">
-                  {line.quantity > 1 ? `${line.quantity} × ${money(line.unitPriceCents)}` : ''}
-                  {line.quantity > 1 && line.condition ? ' · ' : ''}
-                  {line.condition ?? ''}
-                </p>
-              ) : null}
-            </div>
-            {/* A single line's amount IS the total below it, so printing it twice
-                on one row was noise. Shown only when the list is itemised. */}
-            {itemised ? (
-              <span className="shrink-0 font-medium tabular-nums">
-                {money(line.quantity * line.unitPriceCents)}
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ul>
-      {showTotal ? (
-        <p className="flex items-baseline justify-between gap-cozy text-body">
-          <span className="text-muted-foreground">Price</span>
-          <span className="text-lead font-semibold tabular-nums">{money(total)}</span>
-        </p>
-      ) : null}
-    </div>
-  );
 }

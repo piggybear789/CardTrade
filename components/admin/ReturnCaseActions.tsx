@@ -78,6 +78,11 @@ export function ReturnCaseActions({
         
         return;
       }
+      // A decision this size waits for a second staff member: the expected outcome.
+      if (result.error === 'approval-required') {
+        toast.success(result.message ?? 'Sent for a second staff member to approve.');
+        return;
+      }
       toast.error(result.message ?? 'Could not resolve that return.');
     });
   }

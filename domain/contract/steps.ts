@@ -282,16 +282,6 @@ export function sequenceHaltedSteps(
   return steps;
 }
 
-/** The live step, or `null` when the plan is finished, halted, or entirely blocked. */
-export function activeStep(steps: ContractStep[]): ContractStep | null {
-  return steps.find((step) => step.status === 'active') ?? null;
-}
-
-/** The step a closed contract stopped at, or `null` while it is still running. */
-export function haltedStep(steps: ContractStep[]): ContractStep | null {
-  return steps.find((step) => step.status === 'halted') ?? null;
-}
-
 /**
  * The step the room should point at — the live one, or the blocked one that is
  * holding everything up.
@@ -301,37 +291,4 @@ export function currentStep(steps: ContractStep[]): ContractStep | null {
     steps.find((step) => step.status === 'active' || step.status === 'blocked') ??
     null
   );
-}
-
-/** How far along the plan is, for a progress summary. */
-export function stepProgress(steps: ContractStep[]): {
-  done: number;
-  total: number;
-} {
-  return {
-    done: steps.filter((step) => step.status === 'done').length,
-    total: steps.length,
-  };
-}
-
-/**
- * A one-line answer to "whose move is it?" for the header. Returns `null` when
- * there is nothing outstanding.
- */
-export function nextMoveLabel(
-  steps: ContractStep[],
-  counterpartyName: string,
-): string | null {
-  const step = currentStep(steps);
-  if (!step) return null;
-  switch (step.owner) {
-    case 'you':
-      return `Your move: ${step.label.toLowerCase()}`;
-    case 'them':
-      return `Waiting on ${counterpartyName}`;
-    case 'both':
-      return `Waiting on both of you: ${step.label.toLowerCase()}`;
-    case 'platform':
-      return step.label;
-  }
 }

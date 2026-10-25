@@ -36,6 +36,7 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { ScaleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
+import { getVerifiedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { formatMoney, formatRelativeTime } from '@/lib/format';
 import { getCustodyPosition, type CustodyReport } from '@/lib/actions/admin';
@@ -560,11 +561,8 @@ export default async function AdminPage({
   const tab = resolveConsoleTab(params.tab);
   const errorFilters = resolveErrorFilters(params);
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  // Confirmed with the auth server, as the staff gates are.
+  const [supabase, user] = await Promise.all([createClient(), getVerifiedAuthUser()]);
   if (!user) {
     redirect('/sign-in?redirectTo=/admin');
   }

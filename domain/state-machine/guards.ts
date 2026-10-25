@@ -93,11 +93,6 @@ export function hasConfirmedHandover(
   return facts.handoverConfirmed[roleKey(role)];
 }
 
-/** True iff the given trader's Pre_Auth_Hold is currently active. */
-export function holdActive(facts: TradeFacts, role: TradeViewerRole): boolean {
-  return facts.holdsActive[roleKey(role)];
-}
-
 /** True iff the given trader has accepted the current terms version. */
 export function hasAcceptedTerms(facts: TradeFacts, role: TradeViewerRole): boolean {
   return facts.termsAccepted[roleKey(role)];

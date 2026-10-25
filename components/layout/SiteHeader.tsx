@@ -28,24 +28,18 @@ export async function SiteHeader() {
   const isAuthenticated = Boolean(user);
 
   // Seed the notification bell with a server-fetched snapshot so it is populated
-  // on first paint, before the realtime channel opens.
-  const initialNotifications = isAuthenticated
-    ? (await listMyNotifications())
-    : null;
+  // on first paint, before the realtime channel opens. Read alongside the profile:
+  // neither waits on the other.
+  const [initialNotifications, profile] = user
+    ? await Promise.all([listMyNotifications(), getCachedProfile(user.id)])
+    : [null, null];
 
   // No region control here: the catalog uses the inferred region, and the
   // override lives on the Account hub (`BrowseRegionSettingRow`).
-  let isAdmin = false;
-  let isStaff = false;
-  let displayName: string | null = null;
-  let avatarPath: string | null = null;
-  if (user) {
-    const profile = await getCachedProfile(user.id);
-    isAdmin = Boolean(profile?.is_admin);
-    isStaff = isAdmin || Boolean(profile?.is_support);
-    displayName = profile?.display_name?.trim() || null;
-    avatarPath = (profile?.avatar_path as string | null) ?? null;
-  }
+  const isAdmin = Boolean(profile?.is_admin);
+  const isStaff = isAdmin || Boolean(profile?.is_support);
+  const displayName = profile?.display_name?.trim() || null;
+  const avatarPath = (profile?.avatar_path as string | null) ?? null;
 
   // Sticky isolation wraps both chromes so view-transition-name stays unique.
   // The dark bar is `md+` only; the cream strip is phone-only.

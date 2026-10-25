@@ -25,6 +25,12 @@ vi.mock('@/lib/actions/admin', () => ({
   resolveCashSaleReturnCase: vi.fn(),
   resolveTradeConditionDispute: vi.fn(),
   resolveTradeFraud: vi.fn(),
+  approveStaffResolution: vi.fn(),
+  rejectStaffResolution: vi.fn(),
+}));
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
 }));
 
 vi.mock('@/lib/actions/arbitration', () => ({
@@ -51,6 +57,7 @@ import type {
   ArbitrationResolution,
   ArbitrationShipmentEvidence,
 } from '@/lib/actions/arbitration';
+import type { PendingApproval } from '@/lib/arbitration/approvals';
 import { formatContractDateTime } from '@/lib/format';
 
 const NOW = new Date();
@@ -145,6 +152,7 @@ function detailOf(
     case?: ReturnType<typeof caseOf>;
     resolution?: ArbitrationResolution | null;
     shipment?: ArbitrationShipmentEvidence | null;
+    approvals?: ArbitrationCaseDetail['approvals'];
   } = {},
 ): ArbitrationCaseDetail {
   return {
@@ -156,8 +164,26 @@ function detailOf(
     evidence: [],
     shipment: parts.shipment === undefined ? shipmentOf() : parts.shipment,
     currency: 'aud',
+    approvals: parts.approvals === undefined ? [] : parts.approvals,
     viewerIsAdmin: false,
     viewerId: 'staff-1',
+  };
+}
+
+function approvalOf(overrides: Partial<PendingApproval> = {}): PendingApproval {
+  return {
+    id: 'proposal-1',
+    action: 'RESOLVE_CASH_SALE_DISPUTE',
+    caseRef: 'sale-1',
+    decision: 'Refund the buyer in full',
+    valueMinor: 60_000,
+    currency: 'aud',
+    proposedById: 'staff-2',
+    proposedByName: 'Robin',
+    proposedAt: hoursAgo(2),
+    refusal: null,
+    selfApprovableAt: null,
+    ...overrides,
   };
 }
 
@@ -372,5 +398,61 @@ describe('Property 4: every other Decision card is unchanged', () => {
 
     expect(pageText()).not.toContain('Ship-by date passed');
     expect(pageText()).toContain('Outbound (seller');
+  });
+});
+
+describe('ArbitrationCaseView — decisions waiting for a second approval (ESC-23)', () => {
+  const disputed = { case: caseOf({ situation: 'CONDITION_DISPUTE' }), resolution: cashResolution({ status: 'DISPUTED' }) };
+
+  it("offers the other staff member the proposal to approve or reject", () => {
+    render(<ArbitrationCaseView detail={detailOf({ ...disputed, approvals: [approvalOf()] })} />);
+
+    expect(screen.getByRole('heading', { name: 'Waiting for a second approval (1)' })).toBeInTheDocument();
+    expect(pageText()).toContain('Refund the buyer in full');
+    expect(pageText()).toContain('Proposed by Robin');
+    expect(screen.getByRole('button', { name: 'Approve and run' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reject' })).toBeInTheDocument();
+  });
+
+  it('lets the proposer withdraw it while it waits, but not approve it', () => {
+    render(
+      <ArbitrationCaseView
+        detail={detailOf({ ...disputed, approvals: [approvalOf({ proposedById: 'staff-1', refusal: 'SAME_STAFFER' })] })}
+      />,
+    );
+
+    expect(pageText()).toContain('Proposed by you');
+    expect(pageText()).toContain('Waiting for the other staff member to approve.');
+    expect(screen.queryByRole('button', { name: 'Approve and run' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Withdraw' })).toBeInTheDocument();
+  });
+
+  it('says when a proposer nobody else can approve for may approve it themself', () => {
+    const at = hoursAgo(-22);
+    render(
+      <ArbitrationCaseView
+        detail={detailOf({
+          ...disputed,
+          approvals: [approvalOf({ proposedById: 'staff-1', refusal: 'COOLING_OFF', selfApprovableAt: at })],
+        })}
+      />,
+    );
+
+    expect(pageText()).toContain(`you can approve it yourself from ${when(at)}`);
+    expect(screen.queryByRole('button', { name: 'Approve and run' })).not.toBeInTheDocument();
+  });
+
+  it('gives a party to the case nothing to press', () => {
+    render(<ArbitrationCaseView detail={detailOf({ ...disputed, approvals: [approvalOf({ refusal: 'RECUSED' })] })} />);
+
+    expect(pageText()).toContain('You are a party to this case, so you cannot decide it.');
+    expect(screen.queryByRole('button', { name: 'Approve and run' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reject' })).not.toBeInTheDocument();
+  });
+
+  it('says so when the waiting decisions could not be read, rather than showing none', () => {
+    render(<ArbitrationCaseView detail={detailOf({ ...disputed, approvals: null })} />);
+
+    expect(screen.getByText(/load the decisions waiting for a second approval/)).toHaveAttribute('role', 'alert');
   });
 });

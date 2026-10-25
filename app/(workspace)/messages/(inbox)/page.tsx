@@ -9,7 +9,7 @@ import { redirect } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { MessageSquareIcon } from '@hugeicons/core-free-icons';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { listMyConversations } from '@/lib/actions/messages';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -28,16 +28,11 @@ export const metadata = {
 };
 
 export default async function MessagesPage() {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Together: the list resolves the caller through the same request-cached read.
+  const [user, result] = await Promise.all([getCachedAuthUser(), listMyConversations()]);
   if (!user) {
     redirect('/sign-in?redirectTo=/messages');
   }
-
-  const result = await listMyConversations();
   const conversations = result.ok ? result.conversations : [];
 
   const unreadTotal = conversations.reduce((sum, c) => sum + c.unreadCount, 0);

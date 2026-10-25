@@ -28,6 +28,7 @@ import { redirect } from 'next/navigation';
 import { BellIcon, CheckmarkBadge01Icon, HandCoinsIcon, HeartIcon, HelpCircleIcon, ShieldCheckIcon, TagsIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { getPayoutSetupContext } from '@/lib/actions/merchant';
 import { getPayoutsDashboard } from '@/lib/actions/payouts';
@@ -119,10 +120,7 @@ export default async function ProfilePage({
   // the Verification panel so the step it names opens on "confirming with Stripe".
   const providerReturn = resolveProviderReturn(params);
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [supabase, user] = await Promise.all([createClient(), getCachedAuthUser()]);
   if (!user) redirect('/sign-in?redirectTo=/profile');
 
   // ONLY WHAT THE HEADER NEEDS. These three block the first paint because the block

@@ -105,8 +105,7 @@ export function PayoutOnboarding({
   /**
    * Set when the refusal was `provider-unavailable` — NoDitto's platform cannot create
    * connected accounts yet, so this member is not the blocker and nothing they press
-   * will change that. Drives tone and the button label; see the same split in
-   * `EmbeddedPayoutStep`'s `Phase`.
+   * will change that. Drives tone and the button label.
    */
   const [platformBlocked, setPlatformBlocked] = useState(false);
   const [isPending, startTransition] = useTransition();

@@ -77,13 +77,3 @@ export function friendlyWriteFailure(
   const code = error.code ?? '';
   return MEMBER_FACING[code] ?? fallback;
 }
-
-/**
- * True when the error is PostgREST reporting that `.single()` found no row.
- *
- * Useful for deciding to CREATE the missing row instead of reporting a failure —
- * which is what onboarding now does.
- */
-export function isNoRowsError(error: DriverError | null | undefined): boolean {
-  return (error?.code ?? '') === 'PGRST116';
-}

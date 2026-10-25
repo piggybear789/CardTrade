@@ -26,7 +26,7 @@ import { withActionLog } from '@/lib/errors/withActionLog';
 import { revalidatePath, updateTag } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
-import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
+import { getVerifiedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { removeAvatarObject } from '@/lib/storage/profileImages';
@@ -63,10 +63,15 @@ import {
   cashSaleValueMinor,
   gateResolution,
   reopenProposal,
-  staffCount,
+  staffIds,
   tradeValueMinor,
 } from '@/lib/arbitration/approvals';
-import { canApprove, type ResolutionAction } from '@/domain/arbitration/approvalPolicy';
+import {
+  canApprove,
+  isRecused,
+  otherApproversFor,
+  type ResolutionAction,
+} from '@/domain/arbitration/approvalPolicy';
 import {
   asTrustedSellerDecision,
   TRUSTED_SELLER_NOTES_MAX_LENGTH,
@@ -129,7 +134,8 @@ async function buildAdminDisputeOrchestrator(tradeId: string) {
 async function requireAdmin(): Promise<
   { ok: true; adminId: string } | { ok: false; error: AdminActionError }
 > {
-  const user = await getCachedAuthUser();
+  // Confirmed with the auth server: a staff account signed out everywhere stops at once.
+  const user = await getVerifiedAuthUser();
 
   if (!user) {
     return { ok: false, error: 'not-authenticated' };
@@ -1636,11 +1642,11 @@ export const approveStaffResolution = withActionLog('admin.approveStaffResolutio
 
   const action = proposal.action as ResolutionAction;
   // Authorization facts fail CLOSED: a read error refuses rather than reading as
-  // "no participants" or "solo team".
+  // "no participants" or "nobody else can approve".
   let participantIds: string[];
-  let staff: number;
+  let staff: string[];
   try {
-    [participantIds, staff] = await Promise.all([caseParticipants(action, proposal.case_ref), staffCount()]);
+    [participantIds, staff] = await Promise.all([caseParticipants(action, proposal.case_ref), staffIds()]);
   } catch {
     return { ok: false, error: 'persistence-error', message: 'Could not check this approval. Try again.' };
   }
@@ -1650,7 +1656,7 @@ export const approveStaffResolution = withActionLog('admin.approveStaffResolutio
     proposedAt: proposal.proposed_at,
     approverId: gate.ctx.userId,
     participantIds,
-    staffCount: staff,
+    otherApprovers: otherApproversFor(staff, proposal.proposed_by, participantIds),
     now: new Date(),
   });
   if (refusal === 'NOT_PENDING') {
@@ -1659,7 +1665,7 @@ export const approveStaffResolution = withActionLog('admin.approveStaffResolutio
   if (refusal) {
     const messages: Record<typeof refusal, string> = {
       SAME_STAFFER: 'A different staff member has to approve this.',
-      COOLING_OFF: 'On a one-person team you can approve your own proposal 24 hours after making it.',
+      COOLING_OFF: 'Nobody else can approve this, so you can approve it yourself 24 hours after proposing it.',
       RECUSED: 'You are a party to this case, so you cannot approve it.',
     };
     return { ok: false, error: refusal, message: messages[refusal] };
@@ -1685,7 +1691,8 @@ export const approveStaffResolution = withActionLog('admin.approveStaffResolutio
     await reopenProposal(proposalId);
     throw error;
   }
-  revalidatePath('/admin/arbitration');
+  // The queue and every case page, which list pending proposals.
+  revalidatePath('/admin/arbitration', 'layout');
   if (!result.ok) {
     // Back to PENDING so a fresh approval can be given (0145 allows one open row).
     await reopenProposal(proposalId);
@@ -1730,7 +1737,12 @@ async function executeApprovedProposal(
   return result;
 }
 
-/** Reject a pending staff decision (ESC-23). Nothing moves. */
+/**
+ * Reject a pending staff decision (ESC-23), or withdraw your own. Nothing moves.
+ *
+ * A party to the case may not reject either: a staff member who could turn away every
+ * decision made against them would hold their own case open forever.
+ */
 export const rejectStaffResolution = withActionLog('admin.rejectStaffResolution', async function rejectStaffResolution(
   proposalId: string,
   note?: string,
@@ -1738,8 +1750,24 @@ export const rejectStaffResolution = withActionLog('admin.rejectStaffResolution'
   const gate = await requireStaff();
   if (!gate.ok) return { ok: false, error: gate.error };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (createAdminClient() as any)
-    .from('staff_resolution_proposals')
+  const table = () => (createAdminClient() as any).from('staff_resolution_proposals');
+  const { data: proposal, error: readError } = await table()
+    .select('action, case_ref')
+    .eq('id', proposalId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: 'persistence-error', message: readError.message };
+  if (!proposal) return { ok: false, error: 'not-found' };
+  let participantIds: string[];
+  try {
+    participantIds = await caseParticipants(proposal.action as ResolutionAction, proposal.case_ref as string);
+  } catch {
+    return { ok: false, error: 'persistence-error', message: 'Could not check this proposal. Try again.' };
+  }
+  if (isRecused(gate.ctx.userId, participantIds)) {
+    return { ok: false, error: 'RECUSED', message: 'You are a party to this case, so you cannot decide it.' };
+  }
+
+  const { data, error } = await table()
     .update({
       status: 'REJECTED',
       decided_by: gate.ctx.userId,
@@ -1753,7 +1781,7 @@ export const rejectStaffResolution = withActionLog('admin.rejectStaffResolution'
   if (!data || data.length === 0) {
     return { ok: false, error: 'approval-invalid', message: 'That proposal is no longer waiting for approval.' };
   }
-  revalidatePath('/admin/arbitration');
+  revalidatePath('/admin/arbitration', 'layout');
   return { ok: true, data: { id: proposalId } };
 });
 
@@ -2107,24 +2135,25 @@ export const approveScamFraudBan = withActionLog('admin.approveScamFraudBan', as
     return { ok: false, error: 'invalid-input', message: 'No ban has been proposed.' };
   }
 
-  let staff: number;
+  let staff: string[];
   let strength: number;
   try {
-    [staff, strength] = await Promise.all([staffCount(), clusterStrengthForReport(reportId, admin)]);
+    [staff, strength] = await Promise.all([staffIds(), clusterStrengthForReport(reportId, admin)]);
   } catch {
     return { ok: false, error: 'persistence-error', message: 'Could not check the approval. Try again.' };
   }
+  const banParties = [parties.reporterId, profileId];
   const refusal = canApprove({
     status: 'PENDING',
     proposedBy: match.ban_proposed_by,
     proposedAt: match.ban_proposed_at,
     approverId: gate.adminId,
-    participantIds: [parties.reporterId, profileId],
-    staffCount: staff,
+    participantIds: banParties,
+    otherApprovers: otherApproversFor(staff, match.ban_proposed_by, banParties),
     now: new Date(),
   });
   if (refusal === 'SAME_STAFFER') return { ok: false, error: 'SAME_STAFFER', message: 'A different admin needs to approve this.' };
-  if (refusal === 'COOLING_OFF') return { ok: false, error: 'COOLING_OFF', message: 'You can approve your own proposal 24 hours after making it.' };
+  if (refusal === 'COOLING_OFF') return { ok: false, error: 'COOLING_OFF', message: 'Nobody else can approve this, so you can approve it yourself 24 hours after proposing it.' };
   if (refusal === 'RECUSED') return { ok: false, error: 'RECUSED', message: 'You are a party to this report, so you cannot decide it.' };
   if (refusal) return { ok: false, error: 'approval-invalid', message: 'This proposal can’t be approved.' };
 

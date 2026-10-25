@@ -2,29 +2,12 @@
 
 // lib/actions/identity.ts
 //
-// Commitment-point identity disclosure, sourced from Stripe Connect (Req 17).
+// The Identity_Gate (0069): starting, resuming and reading back a member's Stripe
+// Identity check.
 //
-// REPLACES `getCounterpartyIdentity` from the retired `lib/actions/kyc.ts`. The
-// participation gate is carried over unchanged; only the SOURCE of the name moves,
-// from the retired `identity_verified_*` columns to the Connect-verified legal
-// name on the counterparty's connected account.
-//
-// WHY THE SOURCE CHANGE IS SAFE. `merchant_legal_entity_name` is written only by
-// `applyComplianceUpdate`, from `identity.individual.given_name` + `surname` as
-// Stripe reports them for the connected account — never from anything a Member
-// typed. It is also written monotonically, absent to present, so a later provider
-// report cannot blank a name already disclosed to a counterparty.
-//
-// WHAT IT NO LONGER COVERS. A buy-only Member holds no connected account, so there
-// is no verified name for them and this returns null. That is deliberate: a Buyer
-// never receives a transfer, so requiring payout onboarding of them would be
-// friction with no purpose. Sellers see a display name and trading history for
-// such a Buyer instead of a legal name (Req 17.4).
-//
-// DISCLOSURE IS STILL STAGED. Public surfaces read `public_profiles`, which exposes
-// a given name and a badge only. The FULL legal name is released here, and only to
-// someone already transacting with that Member — never from a listing or profile
-// page.
+// DISCLOSURE IS STAGED. Public surfaces read `public_profiles`, which exposes a given
+// name and a badge only. A seller's FULL legal name reaches only their buyer, at a
+// commitment point (`sellerIdentityDisclosure`) — never a listing or profile page.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { cookies } from 'next/headers';
@@ -35,11 +18,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
 import { DEFAULT_CONFIG_REGION } from '@/domain/services/stripe/config';
 import { regionForProfile } from '@/lib/regionBinding';
-import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
+import type { IdentityCheckStatus } from '@/domain/identity/identityGate';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { pushVerifiedIdentityToConnect } from '@/lib/identity/pushVerifiedIdentity';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
-import { disclosedLegalName } from '@/domain/orchestrator/merchantOnboarding';
 import {
   DEFAULT_IDENTITY_RETURN_PATH,
   IDENTITY_RETURN_COOKIE,
@@ -77,122 +59,6 @@ async function viewerRegion(): Promise<string> {
   const user = await getCachedAuthUser();
   return user ? regionForProfile(user.id) : DEFAULT_CONFIG_REGION;
 }
-
-/** Typed failures for a disclosure read. */
-export type IdentityDisclosureError =
-  | 'NOT_AUTHENTICATED'
-  | 'NOT_A_COUNTERPARTY'
-  | 'PROFILE_NOT_FOUND';
-
-/** A counterparty's verified identity, released at a commitment point. */
-export interface CounterpartyIdentity {
-  /** Full provider-verified legal name, or null when they have none. */
-  legalName: string | null;
-  verifiedAt: string | null;
-}
-
-/**
- * Release a counterparty's full provider-verified legal name to the caller.
- *
- * Gated on an existing transactional relationship: the caller must be a
- * participant in a Trade or Cash_Sale with `counterpartyId`
- * (Req 17.2, 17.8).
- */
-export const getCounterpartyIdentity = withActionLog('identity.getCounterpartyIdentity', async function getCounterpartyIdentity(
-  counterpartyId: string,
-): Promise<ActionResult<CounterpartyIdentity, IdentityDisclosureError>> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail('NOT_AUTHENTICATED', 'You must be signed in.');
-  if (!counterpartyId || counterpartyId === user.id) {
-    return fail('NOT_A_COUNTERPARTY', 'No counterparty was specified.');
-  }
-
-  // THE ID IS INTERPOLATED INTO A FILTER GRAMMAR BELOW, SO IT IS VALIDATED FIRST.
-  //
-  // `.or('and(initiator_id.eq.<id>,...)')` is PostgREST's own filter syntax, not a
-  // parameterised query: a value containing its metacharacters is parsed as structure
-  // rather than data. Nothing exploitable was found — the same string is later matched
-  // with `.eq('id', counterpartyId)`, which rejects a non-UUID — but "a later call
-  // happens to reject it" is not a control, and this one decides whether a verified
-  // legal name is disclosed. A shape check makes the guarantee local.
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(counterpartyId)) {
-    return fail('PROFILE_NOT_FOUND', 'That member could not be found.');
-  }
-
-  const admin = createAdminClient();
-
-  // Prove a shared transaction exists before disclosing anything. Either relationship
-  // is sufficient; each is checked with both role orderings.
-  const [trades, sales] = await Promise.all([
-    admin
-      .from('trades')
-      .select('id')
-      .or(
-        `and(initiator_id.eq.${user.id},counterpart_id.eq.${counterpartyId}),` +
-          `and(initiator_id.eq.${counterpartyId},counterpart_id.eq.${user.id})`,
-      )
-      .limit(1),
-    admin
-      .from('cash_sales')
-      .select('id')
-      .or(
-        `and(buyer_id.eq.${user.id},seller_id.eq.${counterpartyId}),` +
-          `and(buyer_id.eq.${counterpartyId},seller_id.eq.${user.id})`,
-      )
-      .limit(1),
-  ]);
-
-  const related =
-    (trades.data?.length ?? 0) > 0 || (sales.data?.length ?? 0) > 0;
-
-  if (!related) {
-    return fail(
-      'NOT_A_COUNTERPARTY',
-      'Verified names are shown once you are transacting with someone.',
-    );
-  }
-
-  // Single string literal: concatenating it collapses Supabase's row-type
-  // inference to `GenericStringError` and every field access below fails to type.
-  const { data } = await admin
-    .from('profiles')
-    .select(
-      'identity_check_status, identity_check_name, identity_check_verified_at, merchant_legal_entity_name, merchant_identity_verified_at, identity_grandfathered_at',
-    )
-    .eq('id', counterpartyId)
-    .maybeSingle();
-
-  if (!data) return fail('PROFILE_NOT_FOUND', 'That account no longer exists.');
-
-  // Only disclose while the Identity_Gate still stands.
-  const verified = satisfiesIdentityGate({
-    identityCheckStatus: (data.identity_check_status ?? 'NONE') as IdentityCheckStatus,
-  });
-
-  // Prefer the document-backed name from Stripe Identity, falling back to the
-  // Connect-reported one for members verified before 0069. The fallback matters:
-  // a null disclosure blocks the buy path entirely, so a grandfathered seller must
-  // keep the name they were already disclosed under.
-  return ok({
-    // ESC-25: the same rule as the buy-path disclosure (`disclosedLegalName`): the
-    // Connect name only for a member 0069 grandfathered.
-    legalName: verified
-      ? disclosedLegalName({
-          identityCheckName: data.identity_check_name as string | null,
-          connectLegalName: data.merchant_legal_entity_name as string | null,
-          identityGrandfatheredAt: (data as { identity_grandfathered_at?: string | null }).identity_grandfathered_at ?? null,
-        })
-      : null,
-    verifiedAt: verified
-      ? ((data.identity_check_verified_at as string | null) ??
-         (data.merchant_identity_verified_at as string | null) ??
-         null)
-      : null,
-  });
-});
 
 // ---------------------------------------------------------------------------
 // The Identity_Gate: starting and refreshing a verification check (0069)
@@ -344,96 +210,6 @@ export const beginIdentityCheck = withActionLog('identity.beginIdentityCheck', a
   if (error) return fail('PERSIST_FAILED', friendlyWriteFailure(error, 'Could not save identity check state.'));
 
   return ok({ url: check.hostedUrl ?? null, sessionId: check.sessionId, progress });
-});
-
-/** What the browser needs to render the embedded `stripe.verifyIdentity` modal. */
-export interface StartedEmbeddedIdentity {
-  /** Single-use Identity session client secret. Never cached; re-minted on retry. */
-  clientSecret: string;
-  /** Browser-safe publishable key for initialising Stripe.js. */
-  publishableKey: string;
-  /** Provider session id (`vs_...`), persisted so the read-back can reconcile it. */
-  sessionId: string;
-}
-
-/**
- * Start (or resume) the caller's identity check for the EMBEDDED modal
- * (unified-seller-onboarding, Req 2.1). Mirrors {@link beginIdentityCheck} but hands
- * back a client secret for `stripe.verifyIdentity` instead of a hosted URL, so the
- * check runs inline with no redirect.
- *
- * Persists PENDING before returning, exactly as the hosted path does, so an abandoned
- * flow is reconcilable. Returns `NOT_SUPPORTED` when the active provider has no
- * embedded binding (the Mock) — the surface then falls back to the hosted/mock flow.
- * On any provider failure it returns an error and leaves `identity_check_status`
- * untouched (Req 2.6, 13.1).
- */
-export const beginEmbeddedIdentity = withActionLog('identity.beginEmbeddedIdentity', async function beginEmbeddedIdentity(
-  returnPath: string = '/onboarding',
-): Promise<ActionResult<StartedEmbeddedIdentity, IdentityCheckError>> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in to verify your identity.');
-
-  const payments = getPaymentService(await viewerRegion());
-  // Both are required for the embedded path; either absent is the fallback signal.
-  if (!payments.createIdentityCheck || !payments.createIdentitySessionSecret) {
-    return fail('NOT_SUPPORTED', 'The active payment provider does not support embedded identity.');
-  }
-
-  const admin = createAdminClient();
-
-  // Same read-before-start as the hosted path: a client secret, like a hosted link, is
-  // single-use, so the session has to be resumed rather than replayed.
-  const { data: existing } = await admin
-    .from('profiles')
-    .select('identity_check_session_id')
-    .eq('id', user.id)
-    .maybeSingle();
-
-  let check;
-  let secret;
-  try {
-    check = await payments.createIdentityCheck({
-      profileId: user.id,
-      // Harmless for the embedded modal (which does not redirect); the SAME fixed
-      // route as the hosted path, so a session opened here is equally resumable
-      // through the hosted fallback and shares its idempotency key.
-      returnUrl: identityReturnUrl(),
-      existingSessionId: (existing?.identity_check_session_id as string | null) ?? null,
-    });
-    secret = await payments.createIdentitySessionSecret(check.sessionId);
-  } catch (err) {
-    return fail(
-      'START_FAILED',
-      err instanceof Error ? err.message : 'Could not start the identity check.',
-    );
-  }
-
-  // The modal does not redirect, but the session it opens may later be resumed on
-  // Stripe's hosted pages, and that return has to land somewhere sensible.
-  await rememberIdentityReturnPath(returnPath);
-
-  // Persist PENDING + session id (service role: these columns carry no member update
-  // grant). Never overwrite a VERIFIED member, so a stray call cannot un-verify.
-  const { error } = await admin
-    .from('profiles')
-    .update({
-      identity_check_status: 'PENDING',
-      identity_check_session_id: check.sessionId,
-    })
-    .eq('id', user.id)
-    .neq('identity_check_status', 'VERIFIED');
-
-  if (error) return fail('PERSIST_FAILED', error.message);
-
-  return ok({
-    clientSecret: secret.clientSecret,
-    publishableKey: secret.publishableKey,
-    sessionId: check.sessionId,
-  });
 });
 
 /** The caller's own identity check state, for a status card. */

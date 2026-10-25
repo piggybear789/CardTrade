@@ -132,29 +132,6 @@ export const listMyNotifications = withActionLog('notifications.listMyNotificati
 });
 
 // ---------------------------------------------------------------------------
-// unreadNotificationCount
-// ---------------------------------------------------------------------------
-
-/**
- * Count the caller's unread notifications (`read_at IS NULL`). Returns `0` when
- * unauthenticated or on any read error so the UI can render a badge safely.
- */
-export const unreadNotificationCount = withActionLog('notifications.unreadNotificationCount', async function unreadNotificationCount(): Promise<number> {
-  const supabase = await createClient();
-
-  const me = await getUserId();
-  if (!me) return 0;
-
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .is('read_at', null);
-
-  if (error || count == null) return 0;
-  return count;
-});
-
-// ---------------------------------------------------------------------------
 // markNotificationRead
 // ---------------------------------------------------------------------------
 

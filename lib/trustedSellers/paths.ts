@@ -8,7 +8,6 @@
 // and onboarding, and the onboarding wizard reads it to skip the "buy or sell?"
 // question: the member has already answered it by applying.
 
-export const TRUSTED_SELLERS_PATH = '/trusted-sellers';
 export const TRUSTED_SELLER_APPLY_PATH = '/trusted-sellers/apply';
 
 /** Whether a same-origin path (query and hash allowed) is the apply page. */

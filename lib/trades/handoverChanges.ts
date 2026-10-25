@@ -232,18 +232,6 @@ export async function withdrawHandoverChange(params: {
   return { ok: true, tradeId: change.trade_id };
 }
 
-/** The undecided proposal on a trade, if any. */
-export async function openHandoverChangeFor(tradeId: string, client: AdminClient = createAdminClient()): Promise<HandoverChangeRow | null> {
-  const { data, error } = await client
-    .from('trade_handover_changes')
-    .select('id, trade_id, proposed_by, terms, created_at, expires_at')
-    .eq('trade_id', tradeId)
-    .is('decided_at', null)
-    .maybeSingle();
-  if (error) throw new Error(`[handover change] open: ${error.message}`);
-  return (data as unknown as HandoverChangeRow | null) ?? null;
-}
-
 /** The `:17` pass: lapse undecided proposals whose cutoff has passed. */
 export async function expireHandoverChangeProposals(now: Date = new Date()): Promise<{ expired: number }> {
   const client = createAdminClient();

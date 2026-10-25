@@ -6,7 +6,7 @@
 
 import { redirect } from 'next/navigation';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { listMyOffers } from '@/lib/actions/offers';
 import { OffersSection } from '@/components/account/OffersSection';
 import {
@@ -36,15 +36,11 @@ export default async function OffersPage({
 }) {
   const { show } = await searchParams;
   const scope = resolveScope(show);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Together: the list resolves the caller through the same request-cached read.
+  const [user, result] = await Promise.all([getCachedAuthUser(), listMyOffers()]);
   if (!user) {
     redirect('/sign-in?redirectTo=/offers');
   }
-
-  const result = await listMyOffers();
   const { active, past } = partitionByScope(
     result.ok ? result.offers : [],
     (offer) => isOfferPast(offer.status),

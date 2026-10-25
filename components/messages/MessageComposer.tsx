@@ -54,6 +54,7 @@ const SEND_ERROR_MESSAGES: Record<string, string> = {
   'not-participant': 'You are no longer part of this conversation.',
   'invalid-body': 'Message must be between 1 and 4000 characters.',
   'invalid-attachment': 'That file could not be attached. Try again.',
+  'rate-limited': 'You are sending messages too quickly. Wait a moment and try again.',
   'persistence-error': 'Message could not be sent. Please try again.',
 };
 

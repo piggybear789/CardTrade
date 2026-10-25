@@ -34,6 +34,7 @@ import {
   RailPrimaryAction,
 } from '@/components/layout/MarketplaceShell';
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import type { ItemRow } from '@/lib/actions/listings';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -82,10 +83,7 @@ export default async function NewTradePage({
   const counterpartItemId = Array.isArray(raw) ? raw[0] : raw;
   const counterOfProposalId = Array.isArray(rawCounter) ? rawCounter[0] : rawCounter;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [supabase, user] = await Promise.all([createClient(), getCachedAuthUser()]);
 
   // Req 1.7: unauthenticated visitors cannot access this protected resource.
   if (!user) {

@@ -16,8 +16,7 @@ import { cn } from '@/lib/utils';
 /**
  * The listing below `lg`, in the order every resale marketplace uses: the photos,
  * then what it is, what it costs (with the buyer fee note and, on a phone, the
- * one-line buyer protection strip), who is selling it, what they say about it, and
- * the listing's details.
+ * one-line buyer protection strip), who is selling it, and what they say about it.
  *
  * The photos LEAD. On a listing the photo is the goods — a buyer checking a slab
  * label or a corner reads it before anything else — so it is the first thing on the
@@ -46,11 +45,8 @@ export function ListingDetailStack({
   sellerRatingCount,
   sellerIdentity,
   media,
-  details,
   showTrust = false,
 }: {
-  /** `ListingDetails`, under the description. */
-  details?: ReactNode;
   /** A buyer who can buy: the fee note under the price and the protection strip. */
   showTrust?: boolean;
   title: string;
@@ -244,8 +240,6 @@ export function ListingDetailStack({
       </Link>
 
       <ExpandableDescription text={descriptionBody} className="mt-group" />
-
-      {details ? <div className="mt-group">{details}</div> : null}
     </div>
   );
 }

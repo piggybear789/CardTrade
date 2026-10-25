@@ -23,7 +23,7 @@ import 'server-only';
 // `profiles` from `authenticated`, and `0047` asserts the same for `is_support`, so a
 // member cannot promote themselves.
 
-import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
+import { getVerifiedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 /** Typed refusal reasons, matching the admin action vocabulary. */
@@ -45,10 +45,11 @@ export interface StaffContext {
 export async function requireStaff(): Promise<
   { ok: true; ctx: StaffContext } | { ok: false; error: StaffGateError }
 > {
-  // Identity through the request-cached lookup; the capability read stays on the
-  // service-role client on purpose, so an RLS misconfiguration cannot quietly
-  // widen or narrow who counts as staff.
-  const user = await getCachedAuthUser();
+  // Identity confirmed with the auth server, so a staff account signed out everywhere
+  // loses access at once. The capability read stays on the service-role client on
+  // purpose, so an RLS misconfiguration cannot quietly widen or narrow who counts as
+  // staff.
+  const user = await getVerifiedAuthUser();
   if (!user) return { ok: false, error: 'not-authenticated' };
 
   const { data } = await createAdminClient()
@@ -62,20 +63,4 @@ export async function requireStaff(): Promise<
   if (!isAdmin && !isSupport) return { ok: false, error: 'not-authorized' };
 
   return { ok: true, ctx: { userId: user.id, isAdmin } };
-}
-
-/**
- * Whether a profile may reach the arbitration workspace, for navigation.
- *
- * Cheap and read-only: used to decide whether to render a link, never to authorise an
- * action. Every action re-checks through {@link requireStaff}.
- */
-export async function isStaff(profileId: string): Promise<boolean> {
-  const { data } = await createAdminClient()
-    .from('profiles')
-    .select('is_admin, is_support')
-    .eq('id', profileId)
-    .maybeSingle();
-
-  return Boolean(data?.is_admin) || Boolean(data?.is_support);
 }

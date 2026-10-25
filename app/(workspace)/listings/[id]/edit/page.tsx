@@ -12,7 +12,7 @@ import { notFound, redirect } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
 import { LockIcon } from '@hugeicons/core-free-icons';
 
-import { createClient } from "@/lib/supabase/server";
+import { getCachedAuthUser } from "@/lib/supabase/cachedAuth";
 import { getItem } from "@/lib/actions/listings";
 import { ItemForm } from "@/components/listings/ItemForm";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -32,19 +32,14 @@ export default async function EditListingPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect(`/sign-in?redirectTo=/listings/${id}/edit`);
-  }
 
   // No KYC gate here (revised Req 3.1): an unverified Seller may list, so they
   // must be able to correct what they listed. `updateItem` enforces owner-only
   // access and the AVAILABLE-only rule, which are the constraints that matter.
-  const result = await getItem(id);
+  const [user, result] = await Promise.all([getCachedAuthUser(), getItem(id)]);
+  if (!user) {
+    redirect(`/sign-in?redirectTo=/listings/${id}/edit`);
+  }
   if (!result.ok) {
     notFound();
   }

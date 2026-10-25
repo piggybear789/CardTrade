@@ -95,15 +95,6 @@ export function sanitizeImageDimList(
 }
 
 /**
- * True when at least one entry is usable. Used to decide whether writing the
- * column is worth it: a row of all-nulls carries no information, but it does
- * mark the row as "already attempted" for the backfill, so both callers exist.
- */
-export function hasKnownDim(dims: readonly (ImageDim | null)[]): boolean {
-  return dims.some((dim) => dim !== null);
-}
-
-/**
  * Read `items.image_dims` back out of a row.
  *
  * The column is `jsonb`, so it arrives as `Json` — effectively `unknown`. It is

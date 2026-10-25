@@ -19,8 +19,8 @@
 // attached — see `canReceiveFunds`. Never mention payouts here.
 //
 // The full legal name is deliberately NOT available here: it is released only at a
-// commitment point, by `getCounterpartyIdentity`, to someone already transacting with
-// the User.
+// commitment point, to someone already transacting with the User (the seller's name
+// to their buyer, `sellerIdentityDisclosure`).
 //
 // Why that split matters. A globally readable verified name does not really publish a
 // name — it publishes a LINK between a pseudonymous handle and a provider-verified

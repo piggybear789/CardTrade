@@ -166,17 +166,6 @@ export const getWatchCount = withActionLog('watchlist.getWatchCount', async func
   return data.watch_count;
 });
 
-/**
- * Resolve which of the given item ids the current user is watching. Returns an
- * empty set when unauthenticated or on any read error. Used to decorate catalog
- * cards with a save affordance without an extra per-card query.
- */
-export const getWatchingSet = withActionLog('watchlist.getWatchingSet', async function getWatchingSet(itemIds: string[]): Promise<Set<string>> {
-  if (itemIds.length === 0) return new Set();
-  const watching = await getMyWatchingSet();
-  return new Set(itemIds.filter((id) => watching.has(id)));
-});
-
 /** Every listing the caller has saved. Safe to start before catalog IDs exist. */
 export const getMyWatchingSet = withActionLog('watchlist.getMyWatchingSet', async function getMyWatchingSet(): Promise<Set<string>> {
   const supabase = await createClient();
@@ -198,7 +187,7 @@ export const getMyWatchingSet = withActionLog('watchlist.getMyWatchingSet', asyn
 /** Errors surfaced by {@link listMyWatchlist}. */
 export type ListWatchlistError = 'unauthenticated' | 'persistence-error';
 
-/** A saved item, enriched to a catalog-like entry so it renders with ItemCard. */
+/** A saved item, enriched to a catalog-like entry so it renders with `CatalogItemCard`. */
 export type WatchlistEntry = CatalogItem & {
   /** ISO timestamp of when the caller saved the item (newest first). */
   savedAt: string;
@@ -213,7 +202,7 @@ export type ListMyWatchlistResult =
  * List the caller's saved items, newest-saved first, joined to the item data
  * (title, fmv_cents, image_paths, status) and enriched with the seller's public
  * display name + rating (via `public_profiles`). Entries are catalog-shaped so
- * the existing {@link ItemCard} can render them directly.
+ * `CatalogItemCard` can render them directly.
  *
  * RLS scopes the `watchlist` read to the caller's own rows. Items are read via
  * the cookie-bound client too, so an item that is no longer visible under RLS

@@ -85,12 +85,10 @@ export function SettingsGroup({
     <section className={cn('space-y-snug', className)}>
       {label ? (
         <div className="space-y-tight px-tight">
-          {/* A REAL HEADING, not `SectionLabel`. This looked like a heading and was a
-              `<p>`, so it sat outside the document outline: a screen-reader user
-              skimming by heading jumped straight from the member's name to the rows
-              with nothing naming the group in between. `SectionLabel` keeps its `<p>`
-              for the places that want the look without the semantics — see the note in
-              `ProfileForm` about not confusing it with a form `<Label>`.
+          {/* A REAL HEADING, not a `<p>`. This looked like a heading and was a `<p>`,
+              so it sat outside the document outline: a screen-reader user skimming by
+              heading jumped straight from the member's name to the rows with nothing
+              naming the group in between.
 
               SENTENCE CASE AT BODY SIZE, not the app's `market-label`. That class is
               11px uppercase on wide tracking — a web-dashboard eyebrow, and the last
@@ -441,93 +439,10 @@ export function SettingsPanelRow({
 }
 
 /**
- * Eyebrow label above a settings group.
- *
- * Reuses the existing `market-label` component class (uppercase, tracked) rather
- * than re-specifying those properties, so the account pages speak the same
- * typographic language as the rest of the app. That class is single-family sans —
- * see the note on it in `globals.css`.
+ * Tone for {@link IconMedallion}, mapped to the app's semantic tokens. `trust` is the
+ * app's reserved verification colour (see globals.css).
  */
-export function SectionLabel({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <p className={cn('market-label text-muted-foreground', className)}>{children}</p>
-  );
-}
-
-/**
- * A settings group: eyebrow label, optional explanation, then content.
- *
- * Vertical rhythm lives here so every group on every tab is spaced identically —
- * the thing that made the earlier iterations of this page read as "all over the
- * place" was each section inventing its own margins.
- */
-export function SettingsSection({
-  label,
-  description,
-  children,
-  className,
-}: {
-  label: string;
-  description?: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section className={cn('space-y-cozy', className)}>
-      <div className="space-y-tight">
-        <SectionLabel>{label}</SectionLabel>
-        {description ? (
-          <p className="hidden text-body text-muted-foreground md:block">{description}</p>
-        ) : null}
-      </div>
-      <div className="max-md:divide-y max-md:divide-border max-md:overflow-hidden max-md:rounded-xl max-md:border max-md:border-border max-md:bg-card md:contents">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-/** Status tone for {@link StatusPill}, mapped to the app's semantic tokens. */
 export type StatusTone = 'verified' | 'pending' | 'required' | 'neutral';
-
-const TONE_CLASS: Record<StatusTone, string> = {
-  // `trust` is the app's reserved verification colour (see globals.css) — the
-  // reference's emerald would introduce a second "this is confirmed" hue.
-  verified: 'border-trust/40 bg-trust/10 text-trust',
-  pending: 'border-border bg-muted text-foreground',
-  required: 'border-border bg-muted text-muted-foreground',
-  neutral: 'border-border bg-muted text-muted-foreground',
-};
-
-/** Compact status pill. Icon is optional and always decorative. */
-export function StatusPill({
-  tone,
-  icon: Icon,
-  children,
-}: {
-  tone: StatusTone;
-  icon?: IconSvgElement;
-  children: ReactNode;
-}) {
-  return (
-    <span
-      className={cn(
-        'inline-flex shrink-0 items-center gap-tight rounded-full border px-snug py-0.5',
-        'text-meta font-medium leading-tight',
-        TONE_CLASS[tone],
-      )}
-    >
-      {Icon ? <HugeiconsIcon icon={Icon} className="size-3 shrink-0" aria-hidden /> : null}
-      {children}
-    </span>
-  );
-}
 
 /**
  * Circular icon medallion used at the start of a settings row.
@@ -562,83 +477,6 @@ export function IconMedallion({
 }
 
 /**
- * A bordered row: medallion, title + subtitle, then trailing content.
- *
- * `trailing` is deliberately a slot rather than a button prop — callers pass real
- * dialogs and server-action buttons (`AddPaymentMethodDialog`, Connect flows) and
- * this component must never own a mutation.
- */
-export function SettingsRow({
-  icon,
-  tone = 'neutral',
-  title,
-  subtitle,
-  trailing,
-  children,
-  inverse = false,
-  className,
-}: {
-  icon?: IconSvgElement;
-  tone?: StatusTone;
-  title: ReactNode;
-  subtitle?: ReactNode;
-  trailing?: ReactNode;
-  /** Extra content rendered beneath the row, inside the same border. */
-  children?: ReactNode;
-  /** Black card, white type — used for a saved payment method. */
-  inverse?: boolean;
-  className?: string;
-}) {
-  const IconGlyph = icon;
-  return (
-    <div
-      className={cn(
-        'rounded-xl border bg-card max-md:rounded-none max-md:border-0 max-md:bg-transparent',
-        inverse && 'border-white/15 bg-obsidian max-md:rounded-none max-md:border-white/15 max-md:bg-obsidian',
-        className,
-      )}
-    >
-      <div className="flex flex-wrap items-center gap-x-group gap-y-cozy p-group">
-        {IconGlyph ? (
-          inverse ? (
-            <span
-              className="grid size-9 shrink-0 place-items-center rounded-full bg-white/10 text-mist"
-              aria-hidden
-            >
-              <HugeiconsIcon icon={IconGlyph} className="size-4" />
-            </span>
-          ) : (
-            <IconMedallion icon={IconGlyph} tone={tone} />
-          )
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <p
-            className={cn(
-              'text-lead font-semibold',
-              inverse ? 'text-mist' : 'text-foreground',
-            )}
-          >
-            {title}
-          </p>
-          {subtitle ? (
-            <p
-              className={cn(
-                'mt-0.5 text-body',
-                inverse ? 'text-mist/65' : 'text-muted-foreground',
-              )}
-            >
-              {subtitle}
-            </p>
-          ) : null}
-        </div>
-        {trailing ? <div className="shrink-0">{trailing}</div> : null}
-      </div>
-      {children ? <div className="border-t px-group py-group">{children}</div> : null}
-    </div>
-  );
-}
-
-/**
  * Empty-state placeholder for a settings slot with no data yet.
  *
  * Dashed border rather than a solid card: an absent thing should not carry the
@@ -655,34 +493,6 @@ export function SettingsPlaceholder({
     <div className="flex min-h-11 flex-wrap items-center justify-between gap-cozy rounded-xl border border-border bg-muted px-group py-group max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:px-group max-md:py-cozy">
       <p className="text-body text-muted-foreground">{children}</p>
       {action ? <div className="shrink-0">{action}</div> : null}
-    </div>
-  );
-}
-
-/** A single figure in the payouts summary strip. */
-export function StatTile({
-  label,
-  value,
-  sub,
-  icon,
-  tone = 'neutral',
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: IconSvgElement;
-  tone?: StatusTone;
-}) {
-  return (
-    <div className="rounded-xl border bg-card p-cozy md:p-group">
-      <div className="flex items-center gap-snug">
-        <IconMedallion icon={icon} tone={tone} />
-        <p className="min-w-0 font-sans text-meta text-muted-foreground">{label}</p>
-      </div>
-      {/* `display-value` is the existing ledger-figure class: sans, bold, with
-          tabular figures so columns of money align. */}
-      <p className="display-value mt-snug text-lead md:mt-group">{value}</p>
-      {sub ? <p className="mt-tight font-sans text-body text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }

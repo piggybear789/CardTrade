@@ -21,11 +21,7 @@ function fxFeeRateLabel(): string {
   const percent = FX_FEE_BPS / 100;
   return `${Number.isInteger(percent) ? percent : percent.toFixed(1)}%`;
 }
-import {
-  areFulfilmentTermsComplete,
-  BOND_PLACEMENT_LEAD_HOURS,
-  type FulfilmentMethod,
-} from '@/domain/fulfilment';
+import { BOND_PLACEMENT_LEAD_HOURS, type FulfilmentMethod } from '@/domain/fulfilment';
 
 /** The accept dialog's strings (design §1.12). */
 export interface TradeAcceptCopy {
@@ -141,41 +137,6 @@ export function deliveryNotesFromDetails(details: string | null | undefined): st
     return lines.slice(1).join('\n').trim();
   }
   return details;
-}
-
-/**
- * True when the stored handover terms are specified enough to act on.
- *
- * Delegates to the shared predicate so the trade room and the sale room agree on
- * what "set" means. Deliberately weaker than validation: it accepts terms agreed
- * before a rule tightened, so an in-flight contract does not become unreadable when
- * policy changes.
- */
-export function areHandoverTermsComplete(input: {
-  handover_method: HandoverMethod | null;
-  meeting_location: string | null;
-  delivery_details: string | null;
-}): boolean {
-  return areFulfilmentTermsComplete({
-    method: input.handover_method,
-    meeting: {
-      place: input.meeting_location?.trim()
-        ? {
-            label: input.meeting_location,
-            placeId: 'stored',
-            lat: 0,
-            lng: 0,
-          }
-        : null,
-      at: null,
-    },
-    // `delivery_details` is the rendered blob; its presence is what the trade row
-    // has always used to mean "postage was agreed".
-    delivery: {
-      costCents: input.delivery_details?.trim() ? 0 : null,
-      notes: null,
-    },
-  });
 }
 
 /**

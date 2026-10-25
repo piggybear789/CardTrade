@@ -4,13 +4,7 @@
 // flow. Everything here is framework-free so it runs in the Node-only `domain`
 // Vitest project.
 
-export {
-  activeStep,
-  currentStep,
-  nextMoveLabel,
-  sequenceSteps,
-  stepProgress,
-} from './steps';
+export { currentStep, sequenceSteps } from './steps';
 export type {
   ContractStep,
   ContractStepAction,

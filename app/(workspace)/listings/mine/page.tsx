@@ -6,6 +6,7 @@
 import { redirect } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { getMyListings } from '@/lib/actions/account';
 import { ListingsSection, resolveListingScope } from '@/components/account/ListingsSection';
 import { listMyListingDrafts } from '@/lib/actions/listingDrafts';
@@ -30,10 +31,7 @@ export default async function MyListingsPage({
 }) {
   const { show } = await searchParams;
   const scope = resolveListingScope(show);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const [supabase, user] = await Promise.all([createClient(), getCachedAuthUser()]);
   if (!user) {
     redirect('/sign-in?redirectTo=/listings/mine');
   }

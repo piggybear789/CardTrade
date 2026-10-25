@@ -95,15 +95,6 @@ export interface RegionDefinition {
 }
 
 /**
- * The platform that serves the US/UK/EEA/CA/CH cross-border group.
- *
- * A seller whose country differs from the platform's needs a MERCHANT configuration
- * (card_payments) as well as the recipient one: Stripe refuses cross-border transfers
- * to recipient-only accounts. See `createManagedMerchant`.
- */
-export const CROSS_BORDER_PLATFORM: RegionCode = 'US';
-
-/**
  * Currencies Stripe treats as having NO minor unit.
  *
  * Load-bearing, not trivia. Every amount in this system is an integer in the
@@ -405,11 +396,6 @@ export type RegionSource =
   | 'default'
   /** The visitor explicitly asked for every region. */
   | 'all';
-
-/** True when the scope was guessed rather than chosen, so it needs disclosing. */
-export function isGuessedRegionSource(source: RegionSource): boolean {
-  return source === 'geo' || source === 'default';
-}
 
 // ---------------------------------------------------------------------------
 // The contract precondition

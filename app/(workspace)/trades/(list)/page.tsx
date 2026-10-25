@@ -11,7 +11,7 @@ import { redirect } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { HourglassIcon } from '@hugeicons/core-free-icons';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { getMyTrades } from '@/lib/actions/account';
 import { listMyDealInvites } from '@/lib/actions/dealInvites';
 import { DealInviteList } from '@/components/deals/DealInviteList';
@@ -46,18 +46,15 @@ export default async function TradesPage({
 }) {
   const { show } = await searchParams;
   const scope = resolveContractScope(show);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    redirect('/sign-in?redirectTo=/trades');
-  }
-
-  const [result, invitesResult] = await Promise.all([
+  // Together: both lists resolve the caller through the same request-cached read.
+  const [user, result, invitesResult] = await Promise.all([
+    getCachedAuthUser(),
     getMyTrades(),
     listMyDealInvites('TRADE'),
   ]);
+  if (!user) {
+    redirect('/sign-in?redirectTo=/trades');
+  }
 
   // Finished trades are history: they should not sit among the ones still moving.
   // A CANCELLED negotiation counts as finished (see `isTradePast`). Live trades split

@@ -4,7 +4,7 @@
 
 import { redirect } from 'next/navigation';
 
-import { createClient } from '@/lib/supabase/server';
+import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { listMyWatchlist } from '@/lib/actions/watchlist';
 import { searchCatalog } from '@/lib/actions/listings';
 import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
@@ -24,15 +24,11 @@ export const metadata = {
 };
 
 export default async function SavedPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Together: the list resolves the caller through the same request-cached read.
+  const [user, result] = await Promise.all([getCachedAuthUser(), listMyWatchlist()]);
   if (!user) {
     redirect('/sign-in?redirectTo=/saved');
   }
-
-  const result = await listMyWatchlist();
   const hasItems = result.ok && result.items.length > 0;
   // Something to save, under an empty list: the newest listings in the member's region.
   const suggestions =

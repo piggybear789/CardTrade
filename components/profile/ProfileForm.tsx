@@ -44,10 +44,10 @@ export interface ProfileFormProps {
 /**
  * Eyebrow-cased field label.
  *
- * A real `<Label htmlFor>`, NOT the `<p>`-based `SectionLabel` used on the
- * settings page: these labels sit above actual inputs, so dropping the
- * association to gain the same styling would leave each input unnamed for a
- * screen reader. The `market-label` class supplies the casing and tracking.
+ * A real `<Label htmlFor>`, not a styled `<p>`: these labels sit above actual
+ * inputs, so dropping the association to gain the same styling would leave each
+ * input unnamed for a screen reader. The `market-label` class supplies the casing
+ * and tracking.
  */
 function FieldLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
   return (

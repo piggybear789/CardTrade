@@ -37,6 +37,7 @@ next-env.d.ts
 
 # playwright / e2e
 /test-results/
+/test-results-debug/
 /playwright-report/
 /playwright/.auth/
 /ux-review/captures/

@@ -22,10 +22,7 @@ export { asFulfilmentTrackingState } from './types';
 export {
   DELIVERY_COST_MAX_CENTS,
   areFulfilmentTermsComplete,
-  emptyFulfilmentTerms,
   hasValidCoords,
-  isDelivery,
-  isInPerson,
   isResolvedAddress,
   isResolvedPlace,
   normalizeFulfilmentTerms,

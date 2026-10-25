@@ -43,6 +43,7 @@ const SEND_ERROR_MESSAGES: Record<string, string> = {
   unauthenticated: 'Please sign in to send a message.',
   'not-participant': 'You are not part of this conversation.',
   'invalid-body': 'Messages must be between 1 and 4000 characters.',
+  'rate-limited': 'You are sending messages too quickly. Wait a moment and try again.',
   'persistence-error': 'Your message could not be sent. Please try again.',
 };
 

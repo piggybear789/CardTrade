@@ -32,13 +32,16 @@ export const authLimiter = createRateLimiter({
   window: '1m',
 });
 
-/** Listing creation / edit. Moderate. */
+/** Listing creation / edit, per member (`lib/actions/listings.ts`). Moderate. */
 export const listingLimiter = createRateLimiter({ prefix: 'listing', limit: 10, window: '1m' });
 
-/** Trade / cash sale initiation. Moderate. */
+/**
+ * Opening offers and trade negotiations, per member: each one notifies the other party.
+ * Cash sales and deal invites carry their own database-backed limits (`rateLimitDb`).
+ */
 export const contractLimiter = createRateLimiter({ prefix: 'contract', limit: 10, window: '1m' });
 
-/** Messaging. More permissive but still bounded. */
+/** Messaging, per member. More permissive but still bounded: each message notifies. */
 export const messageLimiter = createRateLimiter({ prefix: 'message', limit: 30, window: '1m' });
 
 /**
@@ -86,9 +89,6 @@ export const actionFailureLimiter = createRateLimiter({ prefix: 'action-failure'
  * 120/minute is far more than any human generates and far less than a script wants.
  */
 export const uxEventLimiter = createRateLimiter({ prefix: 'ux', limit: 120, window: '1m' });
-
-/** General API / mobile routes. */
-export const apiLimiter = createRateLimiter({ prefix: 'api', limit: 60, window: '1m' });
 
 /**
  * Leaving, editing and withdrawing references (0155), per member. The daily cap on new

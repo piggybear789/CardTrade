@@ -14,7 +14,9 @@
 // this dialog's own description — was "private deal". Only the button disagreed.
 
 import type { ReactNode } from 'react';
+import { HandshakeIcon } from '@hugeicons/core-free-icons';
 
+import { SettingsListRow } from '@/components/account/SettingsPrimitives';
 import { useStartDeal } from '@/components/deals/StartDealProvider';
 import { RailPrimaryAction } from '@/components/layout/RailPrimaryAction';
 import { Button, type ButtonProps } from '@/components/ui/button';
@@ -71,6 +73,19 @@ export function StartDealTextLink({
 export function StartDealRailAction() {
   const { openDeal } = useStartDeal();
   return <RailPrimaryAction onClick={openDeal}>Private Deal</RailPrimaryAction>;
+}
+
+/**
+ * The Private Deal row in the Account screen's phone-only contracts group.
+ *
+ * It was the first row of the bar's Contracts sheet, and moved with Purchases, Sales and
+ * Trades when References took that slot. Built here, client-side, because the Account
+ * page is a Server Component and cannot hand a row its `onClick` (see `interactive` on
+ * `SettingsListRow`).
+ */
+export function StartDealSettingRow() {
+  const { openDeal } = useStartDeal();
+  return <SettingsListRow icon={HandshakeIcon} label="Private Deal" onClick={openDeal} />;
 }
 
 export function StartDealEmptyState({

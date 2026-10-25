@@ -73,6 +73,15 @@ export default function ProfileLoading() {
           <SettingsRowSkeleton icon labelClassName="w-1/3" valueClassName="hidden" />
         </SettingsGroup>
 
+        {/* The phone contracts group: four icon rows (Purchases, Sales, Trades,
+            Private Deal), phone only like the real one. */}
+        <SettingsGroup className="mb-group md:hidden">
+          <SettingsRowSkeleton icon labelClassName="w-1/3" valueClassName="hidden" />
+          <SettingsRowSkeleton icon labelClassName="w-1/4" valueClassName="hidden" />
+          <SettingsRowSkeleton icon labelClassName="w-1/4" valueClassName="hidden" />
+          <SettingsRowSkeleton icon labelClassName="w-1/3" valueClassName="hidden" />
+        </SettingsGroup>
+
         {/* The strip is inside the switch too, so its chip sits on the tab the URL
             names. It used to stay on Profile while the Verification or Payouts panel
             loaded beneath it, then slide across on arrival. */}

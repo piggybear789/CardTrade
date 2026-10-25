@@ -7,6 +7,11 @@
 // CALLED rather than parsed, because parsing a module you could execute is a
 // second implementation of it; the Dart side is parsed, because Node cannot run it.
 //
+// ONE SLOT DIFFERS ON PURPOSE. The web's second hub is References; the app has no
+// References screen yet, so its second hub is still the Contracts sheet. Both sides of
+// that gap are named once, below (`WEB_ONLY_HUBS`, `DART_ONLY_HUBS`), and asserted to be
+// exactly that, so every other disagreement still fails here.
+//
 // WHAT THIS FILE CAN AND CANNOT SEE, stated plainly rather than left implicit:
 //
 //  - It compares the OWNERSHIP TABLE — which hub claims which section — by
@@ -30,6 +35,8 @@ import fc from 'fast-check';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  CONTRACT_LINKS,
+  MARKETPLACE_NAV_GROUPS,
   MOBILE_HUBS,
   isMarketplaceSectionActive,
   mobileHubDestination,
@@ -46,7 +53,7 @@ import {
 const NAV_CONFIG = path.join(process.cwd(), 'components', 'layout', 'marketplace-nav-config.ts');
 
 /**
- * Dart hub id → web hub id.
+ * Dart hub id → web hub id, for the hubs both bars have.
  *
  * One entry differs: the web calls the messages hub `messages` and labels it
  * `Inbox`; the Dart enum is named for the label. Everything else is spelled the
@@ -54,11 +61,32 @@ const NAV_CONFIG = path.join(process.cwd(), 'components', 'layout', 'marketplace
  */
 const HUB_ID_TO_WEB: Record<string, string> = {
   browse: 'browse',
-  contracts: 'contracts',
   sell: 'sell',
   inbox: 'messages',
   account: 'account',
 };
+
+/**
+ * THE ONE DELIBERATE DISAGREEMENT, until the app has a References screen.
+ *
+ * The web's second hub is References. The app has nothing to point a References hub
+ * at, so its second hub is still Contracts, the sheet of Purchases, Sales and Trades.
+ * The web files those three under Account now: they are rows on its Account screen,
+ * and its Account hub owns their sections, contract rooms included.
+ *
+ * Closing the gap means a References hub in `hub_set.dart` and both lists emptied —
+ * never another entry added to either.
+ */
+const WEB_ONLY_HUBS: readonly string[] = ['references'];
+const DART_ONLY_HUBS: readonly string[] = ['contracts'];
+
+/** The web hub that owns the sections a Dart-only hub claims. */
+const WEB_OWNER_OF_DART_ONLY: Record<string, string> = { contracts: 'account' };
+
+/** The web hub whose sections a Dart hub's sections are, across the gap above. */
+function webOwnerFor(dartId: string): string | undefined {
+  return HUB_ID_TO_WEB[dartId] ?? WEB_OWNER_OF_DART_ONLY[dartId];
+}
 
 /**
  * The Flutter route table states two paths differently from the web's.
@@ -212,14 +240,31 @@ describe('Hub_Set parsers read the Dart shell without guessing', () => {
 describe('Property 23: the route-to-hub mapping agrees with the web', () => {
   const hubs = dartMobileHubs();
 
-  it('declares the same five hubs, in order, with the same kinds and audiences', () => {
+  it('differs only in the second slot: References on the web, Contracts in the app', () => {
     expect(hubs).toHaveLength(MOBILE_HUBS.length);
 
-    hubs.forEach((dart, index) => {
-      const web = MOBILE_HUBS[index];
+    const shared = new Set(Object.values(HUB_ID_TO_WEB));
+    expect(hubs.filter((dart) => HUB_ID_TO_WEB[dart.id] === undefined).map((dart) => dart.id)).toEqual(
+      DART_ONLY_HUBS,
+    );
+    expect(MOBILE_HUBS.filter((web) => !shared.has(web.id)).map((web) => web.id)).toEqual(WEB_ONLY_HUBS);
+    // The same slot on both sides, which is what keeps the four shared hubs in place.
+    expect(hubs.findIndex((dart) => dart.id === DART_ONLY_HUBS[0])).toBe(
+      MOBILE_HUBS.findIndex((web) => web.id === WEB_ONLY_HUBS[0]),
+    );
+  });
+
+  it('declares the same shared hubs, in order, with the same kinds and audiences', () => {
+    const dartShared = hubs.filter((dart) => HUB_ID_TO_WEB[dart.id] !== undefined);
+    const webShared = MOBILE_HUBS.filter((web) => !WEB_ONLY_HUBS.includes(web.id));
+    expect(dartShared).toHaveLength(webShared.length);
+
+    dartShared.forEach((dart, index) => {
+      const web = webShared[index];
       expect(HUB_ID_TO_WEB[dart.id]).toBe(web.id);
       expect(dart.label).toBe(web.label);
-      expect(dart.kind).toBe(web.kind);
+      // Every web hub is a single tap.
+      expect(dart.kind).toBe('link');
       // Which of the five a signed-out visitor can use is one product decision,
       // and a client that disagreed would either gate the catalog or bounce a
       // guest off a hub the other client lets them use (Req 4.11).
@@ -227,14 +272,18 @@ describe('Property 23: the route-to-hub mapping agrees with the web', () => {
     });
   });
 
-  it('lists the same sheet rows, in order, minus the private-deal entry', () => {
-    for (const dart of hubs.filter((hub) => hub.kind === 'sheet')) {
-      const web = MOBILE_HUBS.find((hub) => hub.id === HUB_ID_TO_WEB[dart.id]);
-      if (web?.kind !== 'sheet') throw new Error(`web hub ${dart.id} is not a sheet`);
+  it("lists the web's contract rows in its Contracts sheet, minus the private-deal entry", () => {
+    const sheets = hubs.filter((hub) => hub.kind === 'sheet');
+    // The web has no sheet hub left, so the app's only sheet is the Dart-only one.
+    expect(sheets.map((hub) => hub.id)).toEqual(DART_ONLY_HUBS);
+    const contractsGroup = MARKETPLACE_NAV_GROUPS.find((group) => group.links === CONTRACT_LINKS);
+    if (!contractsGroup) throw new Error('CONTRACT_LINKS is not a group of MARKETPLACE_NAV_GROUPS');
 
-      expect(dart.destinations.map((row) => webPathFor(row.path))).toEqual(web.links.map((link) => link.href));
-      expect(dart.destinations.map((row) => row.label)).toEqual(web.links.map((link) => link.label));
-      expect(dart.sheetTitle).toBe(web.title);
+    for (const dart of sheets) {
+      // The rows the web's Account screen lists, which are the rail's Contracts group.
+      expect(dart.destinations.map((row) => webPathFor(row.path))).toEqual(CONTRACT_LINKS.map((link) => link.href));
+      expect(dart.destinations.map((row) => row.label)).toEqual(CONTRACT_LINKS.map((link) => link.label));
+      expect(dart.sheetTitle).toBe(contractsGroup.label);
       // Req 4.6 omits the web's private-deal entry rather than presenting it
       // inert, so the sheet's supporting line must not promise it either.
       expect(dart.sheetDescription?.toLowerCase()).not.toContain('private deal');
@@ -243,8 +292,12 @@ describe('Property 23: the route-to-hub mapping agrees with the web', () => {
 
   it('sends a guest to the same post-sign-in destination the web would', () => {
     for (const dart of hubs) {
-      const web = MOBILE_HUBS.find((hub) => hub.id === HUB_ID_TO_WEB[dart.id])!;
-      expect(webPathFor(dart.destinations[0].path)).toBe(mobileHubDestination(web));
+      const webId = HUB_ID_TO_WEB[dart.id];
+      // The Dart-only sheet carries its first row, the web's first contract row.
+      const expected = webId
+        ? mobileHubDestination(MOBILE_HUBS.find((hub) => hub.id === webId)!)
+        : CONTRACT_LINKS[0].href;
+      expect(webPathFor(dart.destinations[0].path)).toBe(expected);
     }
   });
 
@@ -283,7 +336,9 @@ describe('Property 23: the route-to-hub mapping agrees with the web', () => {
             expect(dartOwners.length, `${route}: ${dartOwners.map((hub) => hub.id).join()}`).toBeLessThanOrEqual(1);
             expect(webOwners.length, `${webPath}: ${webOwners.map((hub) => hub.id).join()}`).toBeLessThanOrEqual(1);
 
-            const dartId = dartOwners[0] ? HUB_ID_TO_WEB[dartOwners[0].id] : null;
+            // Across the deliberate gap: what the app's Contracts owns, the web's
+            // Account owns.
+            const dartId = dartOwners[0] ? webOwnerFor(dartOwners[0].id) : null;
             expect(dartId, `${route} → web ${webPath}`).toBe(webOwners[0]?.id ?? null);
           }
         },
@@ -317,6 +372,9 @@ describe('Property 22 (shell half): an unowned route marks no destination curren
     'notifications',
     'saved',
     'admin',
+    // Claimed by the web's References hub. The app serves no route there, so the
+    // generator could otherwise produce one the web owns and the app does not.
+    'references',
   ]);
 
   it('leaves every hub not-current for a route no hub owns', () => {

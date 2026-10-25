@@ -4,7 +4,8 @@
 //
 // What is waiting on the member, as three numbers: unread notifications, unread
 // messages, and offers whose next move is theirs. Drawn on the phone tab bar and the
-// desktop rail, from ONE instance mounted in `WorkspaceChromeProvider`.
+// desktop rail, from ONE instance mounted in `WorkspaceChromeProvider` — by the
+// `(workspace)` layout, or by the `(marketing)` layout around its copy of the bar.
 //
 // HEAD COUNTS, NOT A SUBSCRIPTION. The desktop bell holds a live notification list
 // because it renders one; the chrome only needs numbers, so it reads them with
@@ -26,9 +27,29 @@ export interface UnreadCounts {
 
 export const NO_UNREAD: UnreadCounts = { notifications: 0, messages: 0, offers: 0 };
 
+/**
+ * The last counts this tab read, and whose they were.
+ *
+ * A MOVE BETWEEN ROUTE GROUPS REMOUNTS THE HOOK. Browse and References are tabs on one
+ * bar but live in two layouts, so a switch between them mounts a fresh instance, and
+ * one that started at zero would blink the Inbox and Account badges out until its read
+ * came back. A new instance starts from these instead. Only ever written in an effect,
+ * so the server never holds one, and a hard load starts empty on both sides of
+ * hydration.
+ */
+let lastRead: { userId: string; counts: UnreadCounts } | null = null;
+
 export function useUnreadCounts(userId: string | null): UnreadCounts {
   const pathname = usePathname();
-  const [counts, setCounts] = useState<UnreadCounts>(NO_UNREAD);
+  const [counts, setCounts] = useState<UnreadCounts>(() =>
+    userId !== null && lastRead !== null && lastRead.userId === userId
+      ? lastRead.counts
+      : NO_UNREAD,
+  );
+
+  useEffect(() => {
+    if (userId) lastRead = { userId, counts };
+  }, [userId, counts]);
 
   useEffect(() => {
     if (!userId) return;

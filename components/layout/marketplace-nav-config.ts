@@ -2,7 +2,7 @@
 // Keep labels/hrefs in one place so active-state logic cannot drift.
 
 import type { IconSvgElement } from '@hugeicons/react';
-import { BellIcon, HandCoinsIcon, HandshakeIcon, HeartIcon, LayoutGridIcon, Login03Icon, MessageCircleIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, Search01Icon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
+import { BellIcon, CheckmarkBadge01Icon, HandCoinsIcon, HeartIcon, LayoutGridIcon, Login03Icon, MessageCircleIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, Search01Icon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
 
 export type MarketplaceNavLink = {
   href: string;
@@ -19,9 +19,9 @@ export type MarketplaceNavGroup = {
  * The staff group, appended to the rail only for a caller who may arbitrate.
  *
  * Kept separate from {@link MARKETPLACE_NAV_GROUPS} rather than merged into it, because
- * every consumer of that constant renders it unconditionally — the mobile hubs read
- * groups by index (`MARKETPLACE_NAV_GROUPS[1]`, `[2]`), so inserting a conditional
- * member would silently repoint the Contracts and Sell sheets.
+ * every consumer of that constant renders it unconditionally — {@link CONTRACT_LINKS}
+ * reads its group by index (`MARKETPLACE_NAV_GROUPS[1]`), so inserting a conditional
+ * member would silently repoint the phone's Account hub and its contract rows.
  *
  * WHY THE RAIL NEEDS THIS AT ALL. Arbitration was the only workspace surface absent
  * from the rail, so a support worker looking at a dispute saw member navigation with no
@@ -138,7 +138,7 @@ export function isMarketplaceSectionActive(
 
 export type MobileHubId =
   | 'browse'
-  | 'contracts'
+  | 'references'
   | 'sell'
   | 'messages'
   | 'account'
@@ -154,27 +154,17 @@ export type MobileHubId =
  */
 type HubAudience = { requiresAuth: boolean };
 
-export type MobileHub = HubAudience &
-  (
-    | {
-        id: MobileHubId;
-        kind: 'link';
-        href: string;
-        label: string;
-        icon: IconSvgElement;
-        isActive: (pathname: string) => boolean;
-      }
-    | {
-        id: MobileHubId;
-        kind: 'sheet';
-        label: string;
-        icon: IconSvgElement;
-        title: string;
-        description: string;
-        links: readonly MarketplaceNavLink[];
-        isActive: (pathname: string) => boolean;
-      }
-  );
+/**
+ * One tab on the phone bar. EVERY HUB IS A LINK: Contracts was the one that opened a
+ * sheet, and its rows moved to the Account screen when References took its slot.
+ */
+export type MobileHub = HubAudience & {
+  id: MobileHubId;
+  href: string;
+  label: string;
+  icon: IconSvgElement;
+  isActive: (pathname: string) => boolean;
+};
 
 /**
  * Where signing in should land a guest who tapped this hub.
@@ -184,10 +174,15 @@ export type MobileHub = HubAudience &
  * were reading makes them tap it a second time.
  */
 export function mobileHubDestination(hub: MobileHub): string {
-  return hub.kind === 'link' ? hub.href : (hub.links[0]?.href ?? '/');
+  return hub.href;
 }
 
-const CONTRACT_LINKS = MARKETPLACE_NAV_GROUPS[1].links;
+/**
+ * Purchases, Sales and Trades. The desktop rail lists them as its Contracts group; on a
+ * phone they are rows on the Account screen (`app/(workspace)/profile`), which is why
+ * the Account hub owns their sections, contract rooms included.
+ */
+export const CONTRACT_LINKS = MARKETPLACE_NAV_GROUPS[1].links;
 
 /**
  * The seller's own pages, which the phone files under Account rather than under a
@@ -198,10 +193,9 @@ const SELLER_ACTIVITY_PATHS = ['/listings/mine', '/offers'] as const;
 
 const BROWSE_HUB: MobileHub = {
   id: 'browse',
-  kind: 'link',
   href: '/',
   label: 'Browse',
-  // The catalog is public, so this is the one hub a guest can use as-is.
+  // The catalog is public, so a guest can use this hub as-is.
   requiresAuth: false,
   icon: LayoutGridIcon,
   isActive: (pathname) =>
@@ -210,12 +204,26 @@ const BROWSE_HUB: MobileHub = {
 };
 
 /**
+ * THE SECOND TAB, for members and guests alike. References are public — a buyer checks
+ * a seller here before a deal, and a visitor following a reference link from Instagram
+ * usually arrives signed out — so the tab needs no session. The glyph is the one the
+ * desktop menu gives References.
+ */
+const REFERENCES_HUB: MobileHub = {
+  id: 'references',
+  href: '/references',
+  label: 'References',
+  requiresAuth: false,
+  icon: CheckmarkBadge01Icon,
+  isActive: (pathname) => isMarketplaceSectionActive(pathname, '/references'),
+};
+
+/**
  * STRAIGHT TO THE FORM. Sell opened a sheet whose first row was "Sell an item", so
  * selling took two taps and the tab named an action it did not perform.
  */
 const SELL_HUB: MobileHub = {
   id: 'sell',
-  kind: 'link',
   href: '/listings/new',
   label: 'Sell',
   requiresAuth: true,
@@ -223,27 +231,13 @@ const SELL_HUB: MobileHub = {
   isActive: (pathname) => pathname === '/listings/new',
 };
 
-/** Five thumb-reach hubs for a member; Contracts expands into a short sheet. */
+/** Five thumb-reach hubs for a member, every one a single tap. */
 export const MOBILE_HUBS: readonly MobileHub[] = [
   BROWSE_HUB,
-  {
-    id: 'contracts',
-    kind: 'sheet',
-    label: 'Contracts',
-    requiresAuth: true,
-    icon: HandshakeIcon,
-    title: 'Contracts',
-    description: 'Start a private deal, or open purchases, sales, and trades.',
-    links: CONTRACT_LINKS,
-    isActive: (pathname) =>
-      CONTRACT_LINKS.some((link) =>
-        isMarketplaceSectionActive(pathname, link.href),
-      ),
-  },
+  REFERENCES_HUB,
   SELL_HUB,
   {
     id: 'messages',
-    kind: 'link',
     href: '/messages',
     label: 'Inbox',
     requiresAuth: true,
@@ -253,7 +247,6 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
   },
   {
     id: 'account',
-    kind: 'link',
     href: '/profile',
     label: 'Account',
     requiresAuth: true,
@@ -263,21 +256,22 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
       isMarketplaceSectionActive(pathname, '/notifications') ||
       isMarketplaceSectionActive(pathname, '/saved') ||
       SELLER_ACTIVITY_PATHS.some((path) => isMarketplaceSectionActive(pathname, path)) ||
+      CONTRACT_LINKS.some((link) => isMarketplaceSectionActive(pathname, link.href)) ||
       pathname.startsWith('/admin'),
   },
 ];
 
 /**
- * A guest's hubs. Contracts, Inbox and Account only ever led a guest to sign-in, so
- * three of five tabs were the same door with different labels. A guest gets what
- * they can use — browse and search — plus Sell (which still asks them to sign in,
- * because wanting to sell is the reason many sign up) and one honest Sign in.
+ * A guest's hubs. Inbox and Account only ever led a guest to sign-in, so they were the
+ * same door with different labels. A guest gets what they can use — browse, References
+ * and search — plus Sell (which still asks them to sign in, because wanting to sell is
+ * the reason many sign up) and one honest Sign in.
  */
 export const GUEST_MOBILE_HUBS: readonly MobileHub[] = [
   BROWSE_HUB,
+  REFERENCES_HUB,
   {
     id: 'search',
-    kind: 'link',
     // `?search=1` focuses the catalog's search field on arrival; on a page that
     // already shows one, the bar focuses it in place instead.
     href: '/?search=1',
@@ -289,7 +283,6 @@ export const GUEST_MOBILE_HUBS: readonly MobileHub[] = [
   SELL_HUB,
   {
     id: 'sign-in',
-    kind: 'link',
     href: '/sign-in',
     label: 'Sign in',
     requiresAuth: false,

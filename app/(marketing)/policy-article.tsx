@@ -22,7 +22,7 @@ export function PolicyArticle({
   // NO IN-PAGE BACK LINK, and it is not an omission. The wordmark in `MarketingChrome`
   // and the logo in the desktop header both point at `/` and both render for signed-in
   // and signed-out viewers, so a "Back to home" row above the title was a third control
-  // to the same destination on every policy page. `(marketing)/loading.tsx` reserved
+  // to the same destination on every policy page. `policy-article-skeleton.tsx` reserved
   // 60px for it and no longer does — the two have to move together, or the article
   // jumps on swap in whichever direction they disagree.
   return (

@@ -195,10 +195,11 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
   const given = orbits.view.direction === 'given';
   // WHO goes on the person card; WHEN and HOW MUCH belong to the reference itself.
   // "Of their own" because this sits beside a review of someone ELSE: a bare
-  // "0 refs" read as a count about the person in the middle.
+  // "3 refs" read as a count about the person in the middle. None is just "No
+  // references", short enough to share the card's one meta line with a name.
   const personMeta = [
     node.name !== node.handle.replace(/^@/, '') ? node.name : null,
-    node.refs === 0 ? 'No references of their own yet' : `${plural(node.refs, 'reference', 'references')} of their own`,
+    node.refs === 0 ? 'No references' : `${plural(node.refs, 'reference', 'references')} of their own`,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -273,7 +274,7 @@ function StarDetails({
         prefix="Reviewed by"
         person={{ key: starKey, handle: child.handle, name: child.handle.replace(/^@/, ''), avatarPath: null }}
         verified={false}
-        meta={`${plural(child.refs, 'ref', 'refs')} of their own`}
+        meta={child.refs === 0 ? 'No references' : `${plural(child.refs, 'ref', 'refs')} of their own`}
         orbits={orbits}
         onClose={onClose}
       />

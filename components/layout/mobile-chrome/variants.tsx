@@ -196,10 +196,11 @@ export function AuthChrome() {
 }
 
 /**
- * Help, Terms and Privacy. These sit outside the workspace group, so there is no
- * bottom nav underneath them — the wordmark is the route back to the catalog for
- * BOTH viewers, which is why it renders unconditionally. Only the trailing call
- * to action is viewer-dependent.
+ * Help, Safety, Terms and Privacy, for both viewers, and the other `(marketing)` routes
+ * for a guest. The hub bar sits under these pages too now (the `(marketing)` layout
+ * mounts it), but the wordmark stays as the route back to the catalog for BOTH
+ * viewers, which is why it renders unconditionally. Only the trailing call to action
+ * is viewer-dependent.
  */
 export function MarketingChrome({
   isAuthenticated,

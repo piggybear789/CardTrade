@@ -36,7 +36,13 @@ export interface SegmentedControlProps<Value extends string> {
   onChange: (value: Value) => void;
   /** Names the group for assistive tech when no visible `<legend>` precedes it. */
   label?: string;
+  /** Classes for the track. */
   className?: string;
+  /**
+   * Classes for every segment, applied after its own. For a caller that needs a denser
+   * control at one width, e.g. `max-sm:min-h-8 max-sm:text-meta` in a phone header.
+   */
+  segmentClassName?: string;
 }
 
 export function SegmentedControl<Value extends string>({
@@ -46,6 +52,7 @@ export function SegmentedControl<Value extends string>({
   onChange,
   label,
   className,
+  segmentClassName,
 }: SegmentedControlProps<Value>) {
   return (
     <div
@@ -76,6 +83,7 @@ export function SegmentedControl<Value extends string>({
               selected
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground',
+              segmentClassName,
             )}
           >
             <input

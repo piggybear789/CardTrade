@@ -339,7 +339,7 @@ test.describe('phone navigation pathway', () => {
     await ensureFreshSessions(browser, [ALICE]);
   });
 
-  test('the bottom hub bar reaches contracts, selling and account', async ({ page }) => {
+  test('the bottom hub bar reaches references, selling, account and contracts', async ({ page }) => {
     test.skip(!isPhone(page), 'the hub bar is phone-only');
 
     await page.goto('/');
@@ -348,32 +348,35 @@ test.describe('phone navigation pathway', () => {
     const nav = page.getByRole('navigation', { name: 'Marketplace hubs' });
     await expect(nav).toBeVisible({ timeout: RENDERED });
 
-    // A sheet hub: opening it must reveal its links.
-    //
-    // ASSERTED ON THE SHEET, NOT ON THE TRIGGER'S `aria-expanded`. The sheet is a modal
-    // dialog, so while it is open the rest of the page — the hub bar included — is
-    // `aria-hidden`, and the trigger cannot be found by role at all. That is correct
-    // modal behaviour; an assertion on the trigger's state is what was wrong.
-    const contracts = nav.getByRole('button', { name: /Contracts/i });
-    await contracts.click();
-    const sheet = page.getByRole('dialog', { name: 'Contracts' });
-    await expect(sheet).toBeVisible({ timeout: RENDERED });
-    const purchases = sheet.getByRole('link', { name: 'Purchases' });
-    await expect(purchases).toBeVisible({ timeout: RENDERED });
-    await purchases.click();
-    await expect(page).toHaveURL(/\/purchases/, { timeout: COLD_ROUTE });
+    // References is the second hub, and the bar stays under its page. That page sits
+    // outside the workspace group, which is where the bar used to stop.
+    await nav.getByRole('link', { name: /References/i }).click();
+    await expect(page).toHaveURL(/\/references$/, { timeout: COLD_ROUTE });
     await expect(
-      page.getByRole('heading', { name: 'Purchases' }).first(),
+      page.getByRole('heading', { name: /References, all in one place/i }),
     ).toBeVisible({ timeout: RENDERED });
+    await expect(nav.getByRole('link', { name: /References/i })).toHaveAttribute('aria-current', 'page');
 
-    // A direct hub: Account is one tap, and marks itself current.
-    const account = nav.getByRole('link', { name: /Account/i });
-    await account.click();
+    // Sell opens the form, and the bar no longer leaves with it.
+    await nav.getByRole('link', { name: /Sell/i }).click();
+    await expect(page).toHaveURL(/\/listings\/new/, { timeout: COLD_ROUTE });
+    await expect(nav).toBeVisible({ timeout: RENDERED });
+
+    // Account is one tap, marks itself current, and lists the contract inboxes the
+    // old Contracts sheet held.
+    await nav.getByRole('link', { name: /Account/i }).click();
     await expect(page).toHaveURL(/\/profile/, { timeout: COLD_ROUTE });
     await expect(
       page.getByRole('heading', { name: ALICE.displayName }).first(),
     ).toBeVisible({ timeout: RENDERED });
     await expectNothingUnderMobileNav(page, 'profile');
+
+    await page.getByRole('link', { name: 'Purchases', exact: true }).click();
+    await expect(page).toHaveURL(/\/purchases/, { timeout: COLD_ROUTE });
+    await expect(
+      page.getByRole('heading', { name: 'Purchases' }).first(),
+    ).toBeVisible({ timeout: RENDERED });
+    await expect(nav.getByRole('link', { name: /Account/i })).toHaveAttribute('aria-current', 'page');
   });
 });
 

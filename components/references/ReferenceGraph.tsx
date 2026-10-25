@@ -503,7 +503,12 @@ const NetworkHeader = memo(function NetworkHeader({
               ]}
               value={direction}
               onChange={setDirection}
-              className="w-full sm:w-60"
+              // PHONE: COMPACT. Full width at 44px, the switch was the largest thing in
+              // the header, heavier than the title above it. Below `sm` it is 36px tall
+              // (32px segments, the `xs` button height), `meta` labels, and only as wide
+              // as its labels. From `sm` it sits beside the title at its usual size.
+              className="w-fit max-sm:gap-0.5 max-sm:p-0.5 sm:w-60"
+              segmentClassName="max-sm:min-h-8 max-sm:px-cozy max-sm:text-meta"
             />
           ) : null}
           {action ? <div className="flex shrink-0 items-center gap-2">{action}</div> : null}

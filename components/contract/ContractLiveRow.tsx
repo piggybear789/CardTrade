@@ -85,9 +85,9 @@ export function ContractLiveRow({
           if (!open) closeDetails();
         }}
       >
-        {/* Docked above the hub bar rather than over it, matching
-            MobileBottomNav's own sheets — the bar stays reachable, so
-            leaving the contract never needs the sheet dismissed first. */}
+        {/* Docked above the hub bar rather than over it — the bar stays
+            reachable, so leaving the contract never needs the sheet dismissed
+            first. */}
         {/* A definite height, not a `max-h`: this is a seven-tab inspector, and
             sizing it to the shortest panel opened a 178px sliver whose tab
             strip then jumped as the reader moved between tabs. Fixed height,

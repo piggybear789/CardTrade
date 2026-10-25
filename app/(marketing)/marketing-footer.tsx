@@ -8,7 +8,8 @@
 // references page are app screens, not prose: on a phone the band was two rows of links
 // under a search or a profile, the bottom third of the screen spent on Terms and
 // Privacy. Help, Terms, Privacy and Safety keep it at every width, because there it is
-// how a reader moves between the documents (they have no bottom navigation).
+// how a reader moves between the documents; the hub bar under them links to none of
+// them.
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';

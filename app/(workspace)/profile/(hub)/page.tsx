@@ -83,9 +83,11 @@ import {
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import {
+  CONTRACT_LINKS,
   STAFF_NAV_GROUP,
   staffNavLinksFor,
 } from '@/components/layout/marketplace-nav-config';
+import { StartDealSettingRow } from '@/components/deals/StartDealButton';
 import { Badge } from '@/components/ui/badge';
 import { CountBadge } from '@/components/ui/count-badge';
 // The Payouts tab's Suspense fallback is the SAME placeholder the route loader draws,
@@ -289,6 +291,18 @@ export default async function ProfilePage({
             trailing={<CountBadge count={offersWaiting.count ?? 0} />}
           />
           <SettingsListRow href="/listings/mine" icon={TagsIcon} label="My listings" />
+        </SettingsGroup>
+
+        {/* CONTRACTS, ALSO PHONE ONLY. These were the bar's second tab, a sheet of
+            Private Deal plus the three inboxes. References took that slot, and a
+            member's contracts are their own activity, which is what this screen holds
+            on a phone; the Account tab lights up on them for the same reason. The rows
+            come from the rail's own Contracts group, so the two cannot drift. */}
+        <SettingsGroup className="mb-group md:hidden">
+          {CONTRACT_LINKS.map((link) => (
+            <SettingsListRow key={link.href} href={link.href} icon={link.icon} label={link.label} />
+          ))}
+          <StartDealSettingRow />
         </SettingsGroup>
 
         {/* All three panels are built here, once, and handed over as content. The

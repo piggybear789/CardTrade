@@ -184,18 +184,20 @@ test.describe('navigation structure (regular user)', () => {
 
       const hubs = page.getByRole('navigation', { name: 'Marketplace hubs' });
       await expect(hubs.getByRole('link', { name: /browse/i })).toBeVisible();
+      await expect(hubs.getByRole('link', { name: /references/i })).toBeVisible();
       await expect(hubs.getByRole('link', { name: /inbox/i })).toBeVisible();
       await expect(hubs.getByRole('link', { name: /account/i })).toBeVisible();
 
-      await hubs.getByRole('button', { name: /contracts/i }).click();
-      const sheet = page.getByRole('dialog');
-      await expect(sheet.getByRole('heading', { name: 'Contracts' })).toBeVisible({
-        timeout: 10_000,
+      // The contract inboxes and Private Deal are rows on the Account screen now;
+      // References took the Contracts hub's slot.
+      await hubs.getByRole('link', { name: /account/i }).click();
+      await expect(page).toHaveURL(/\/profile/, { timeout: COLD_ROUTE });
+      await expect(page.getByRole('button', { name: 'Private Deal', exact: true })).toBeVisible({
+        timeout: RENDERED,
       });
-      await expect(sheet.getByRole('button', { name: /private deal/i })).toBeVisible();
-      await expect(sheet.getByRole('link', { name: /purchases/i })).toBeVisible();
-      await expect(sheet.getByRole('link', { name: /sales/i })).toBeVisible();
-      await expect(sheet.getByRole('link', { name: /trades/i })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Purchases', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Sales', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Trades', exact: true })).toBeVisible();
     }
   });
 

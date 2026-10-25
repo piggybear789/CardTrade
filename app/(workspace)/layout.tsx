@@ -68,7 +68,9 @@ export default async function WorkspaceLayout({
       {/* Fixed to the viewport, so it sits outside the page's flex chain.
           Mounted for guests too: the catalog and listing detail are public, and
           they were the only screens in the app with no bottom navigation. The bar
-          points a signed-out visitor's gated taps at sign-in rather than hiding. */}
+          points a signed-out visitor's gated taps at sign-in rather than hiding.
+          `(marketing)/layout.tsx` mounts the same bar for References and the help
+          and policy pages, which sit outside this group. */}
       <MobileBottomNav isAuthenticated={Boolean(user)} />
     </WorkspaceChromeProvider>
   );

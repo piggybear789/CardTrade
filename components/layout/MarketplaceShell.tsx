@@ -6,7 +6,7 @@
 // is capped at `max-w-workspace` and centred in the remaining space, so
 // ultrawide viewports do not stretch lists, grids, or 50/50 splits. Desktop keeps a
 // sticky proportional rail; below `lg`, navigation moves to MobileBottomNav
-// (hubs + sheets) so content is not buried under chips.
+// (five hubs) so content is not buried under chips.
 //
 // The rail owns the page title and its primary action. Below `lg` the rail is
 // gone and the shell renders no visible chrome of its own: the page's own

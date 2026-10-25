@@ -1,12 +1,18 @@
-// app/(marketing)/loading.tsx
+// app/(marketing)/policy-article-skeleton.tsx
 //
-// Terms and Privacy: a single flat prose column. Help (sectioned) and Safety (a warning
-// card and a role tab strip) are different shapes, so each has its own leaf loader.
+// Terms and Privacy: a single flat prose column, drawn to `PolicyArticle`'s geometry.
+//
+// A LEAF LOADER FOR EACH OF THE TWO, NOT ONE FOR THE GROUP. This lived at
+// `(marketing)/loading.tsx`, which is the fallback for every route in the group that
+// has no loader of its own. Help, Safety, the scam-report pages and the Trusted Seller
+// form each carry one, but References did not, so the References tab (prefetched by
+// the phone bar, which is always on screen) opened on this Terms-shaped column every
+// time before its own page arrived. `terms/loading.tsx` and `privacy/loading.tsx`
+// render this; References holds the current page until it is ready instead.
 
 import { Fragment } from 'react';
 
 import { TextLines } from '@/components/ui/skeleton';
-
 
 /**
  * Lines in each placeholder paragraph, one entry per heading.
@@ -18,7 +24,7 @@ import { TextLines } from '@/components/ui/skeleton';
  */
 const PROSE_BLOCKS = [3, 2, 4, 3, 2] as const;
 
-export default function MarketingLoading() {
+export function PolicyArticleSkeleton() {
   return (
     <article
       // `py-section md:py-12`, matching `policy-article.tsx`. A flat `py-12` put an extra
@@ -45,9 +51,8 @@ export default function MarketingLoading() {
       {/* `mt-snug` (8px) and `text-body` below `md`, not `mt-cozy h-5`. Terms' and
           Privacy's ledes run ~130 characters: three `text-body` lines in a phone's
           343px column, and TWO `md:text-lead` lines in the ~704px desktop one — this
-          reserved one there, so both pages grew a line on swap. Help's shorter lede
-          now over-reserves instead; two of the three pages are the long shape. The LINE
-          COUNT and the `md:` gates are the reservation; widths draw canonical. */}
+          reserved one there, so both pages grew a line on swap. The LINE COUNT and the
+          `md:` gates are the reservation; widths draw canonical. */}
       <TextLines
         className="mt-snug text-body md:mt-cozy md:text-lead"
         widths={['w-full', 'w-full md:w-1/2', 'w-1/2 md:hidden']}

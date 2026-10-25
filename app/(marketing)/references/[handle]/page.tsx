@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
-import { loadReferencePage } from '@/lib/references/graph';
+import { cachedReferencePage } from '@/lib/references/graph';
 import { getMyHandleClaim } from '@/lib/actions/references';
 import { HandleChooser } from '@/components/references/HandleChooser';
 import { ReferenceProfile } from '@/components/references/ReferenceProfile';
@@ -28,6 +28,18 @@ function decodeSlug(raw: string): string {
   } catch {
     return raw;
   }
+}
+
+/** Who is looking: their id, and whether they have passed the ID check. */
+async function loadViewer(): Promise<{ id: string | null; identityVerified: boolean }> {
+  const user = await getCachedAuthUser();
+  if (!user) return { id: null, identityVerified: false };
+  const { data: profile } = await createAdminClient()
+    .from('profiles')
+    .select('identity_check_status')
+    .eq('id', user.id)
+    .maybeSingle();
+  return { id: user.id, identityVerified: profile?.identity_check_status === 'VERIFIED' };
 }
 
 export async function generateMetadata({
@@ -55,9 +67,9 @@ export default async function HandleReferencePage({
 }) {
   const [{ handle }, query] = await Promise.all([params, searchParams]);
   const experience = first(query.experience);
-  const [page, user] = await Promise.all([
-    loadReferencePage(handle, first(query.on) ?? null),
-    getCachedAuthUser(),
+  const [page, viewer] = await Promise.all([
+    cachedReferencePage(handle, first(query.on) ?? null),
+    loadViewer(),
   ]);
   if (!page) notFound();
 
@@ -75,20 +87,9 @@ export default async function HandleReferencePage({
 
   const { graph } = page;
   const { centre } = graph;
-  const admin = createAdminClient();
-
-  let viewerIdentityVerified = false;
-  if (user) {
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('identity_check_status')
-      .eq('id', user.id)
-      .maybeSingle();
-    viewerIdentityVerified = profile?.identity_check_status === 'VERIFIED';
-  }
 
   const myClaim =
-    centre.unclaimed && centre.claimId ? await getMyHandleClaim(centre.claimId) : null;
+    viewer.id && centre.unclaimed && centre.claimId ? await getMyHandleClaim(centre.claimId) : null;
 
   // SCALES WITH THE SCREEN. The column is 64rem up to a 1440px screen and then grows with
   // it (70vw, capped at 96rem), so a large monitor shows the same composition at a larger
@@ -106,7 +107,7 @@ export default async function HandleReferencePage({
       </Suspense>
       <ReferenceProfile
         data={graph}
-        viewer={{ id: user?.id ?? null, identityVerified: viewerIdentityVerified }}
+        viewer={viewer}
         autoOpen={experience === '1'}
         initialClaim={myClaim}
       />

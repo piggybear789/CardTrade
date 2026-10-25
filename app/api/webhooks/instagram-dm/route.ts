@@ -1,7 +1,9 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { revalidateTag } from 'next/cache';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { isInstagramBotHandle } from '@/lib/instagram/botHandle';
 import { getInstagramBotToken } from '@/lib/instagram/botToken';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -341,6 +343,7 @@ export async function POST(request: NextRequest) {
         });
         continue;
       }
+      revalidateTag(REFERENCES_CACHE_TAG, { expire: 0 });
 
       const { error: requestError } = await admin
         .from('handle_claim_requests')

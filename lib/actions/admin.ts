@@ -23,11 +23,12 @@
 // Every export is an async Server Action; shared shapes are `export type` only.
 
 import { withActionLog } from '@/lib/errors/withActionLog';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { enforceProfileFraudBan, permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
 import { clusterStrengthForReport } from '@/lib/risk/scamClusters';
@@ -1124,6 +1125,8 @@ export const resolveTradeDispute = withActionLog('admin.resolveTradeDispute', as
       staffId: gate.ctx.userId,
       tradeId,
     });
+    // The ban removed the offender from every reference graph (0155 trigger).
+    updateTag(REFERENCES_CACHE_TAG);
     if (!ban.ok) {
       // FRAUD_RESOLVED stays committed. The profile ban may already be active even
       // when the Auth sync fails, so the required follow-up is made explicit.
@@ -2136,6 +2139,9 @@ export const approveScamFraudBan = withActionLog('admin.approveScamFraudBan', as
   if (!allowed.ok) return { ok: false, error: 'invalid-input', message: allowed.reason };
 
   const banned = await enforceProfileFraudBan({ profileId, staffId: gate.adminId });
+  // The ban removed them from every reference graph (0155 trigger), even if a later
+  // step of it failed.
+  updateTag(REFERENCES_CACHE_TAG);
   if (!banned.ok) return { ok: false, error: 'persistence-error', message: banned.message };
 
   const { error } = await admin
@@ -2287,6 +2293,7 @@ export const decideHandleClaim = withActionLog('admin.decideHandleClaim', async 
         : `We couldn't confirm @${claim.handle} on ${claim.platform} is yours. You can try again with a clearer screenshot.`,
     link: decision === 'APPROVE' ? `/sellers/${request.claimant_id}` : '/references',
   });
+  if (decision === 'APPROVE') updateTag(REFERENCES_CACHE_TAG);
   revalidatePath('/admin');
   return { ok: true, data: { id: requestId } };
 });
@@ -2308,6 +2315,7 @@ export const setReferenceProofChecked = withActionLog('admin.setReferenceProofCh
     .maybeSingle();
   if (error) return { ok: false, error: 'persistence-error', message: error.message };
   if (!data) return { ok: false, error: 'not-found' };
+  updateTag(REFERENCES_CACHE_TAG);
   if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
   revalidatePath('/admin');
   return { ok: true, data: { id: referenceId } };

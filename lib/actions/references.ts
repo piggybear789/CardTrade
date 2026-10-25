@@ -15,12 +15,13 @@
 // for one must never reach the other.
 
 import { createHmac, randomInt } from 'node:crypto';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, unstable_cache, updateTag } from 'next/cache';
 
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { instagramBotHandle, isInstagramBotHandle } from '@/lib/instagram/botHandle';
 import { getInstagramBotToken } from '@/lib/instagram/botToken';
+import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -179,8 +180,12 @@ function likeLiteral(text: string): string {
   return text.replace(/[\\%_]/g, (char) => `\\${char}`);
 }
 
-/** Refresh everywhere a reference shows: the references pages, and the member's storefront. */
+/**
+ * Refresh everywhere a reference shows. `updateTag` expires the cached graphs outright,
+ * so the member who just wrote sees their change on the next render, never a stale copy.
+ */
 function revalidateReferences(targetProfileId: string | null): void {
+  updateTag(REFERENCES_CACHE_TAG);
   revalidatePath('/references', 'layout');
   if (targetProfileId) revalidatePath(`/sellers/${targetProfileId}`);
 }
@@ -211,49 +216,69 @@ export const searchReferences = withActionLog('references.searchReferences', asy
     return fail('rate-limited', 'Too many searches. Wait a moment and try again.');
   }
   const needle = (query ?? '').trim().replace(/^@/, '').toLowerCase().slice(0, 64);
-  const admin = createAdminClient();
+  if (!needle) {
+    try {
+      return ok(await cachedTopSuggestions());
+    } catch {
+      return fail('persistence-error', SAVE_FAILED);
+    }
+  }
 
-  let profileIds: string[];
-  let claims: ClaimMatch[];
-  if (needle) {
-    const pattern = `%${likeLiteral(needle)}%`;
-    const [claimResult, nameResult] = await Promise.all([
-      admin
-        .from('social_claims')
-        .select('id, platform, handle, claimed_profile_id')
-        .ilike('handle', pattern)
-        .order('handle', { ascending: true })
-        .limit(60),
-      admin
-        .from('profiles')
-        .select('id')
-        .ilike('display_name', pattern)
-        .is('fraud_banned_at', null)
-        .is('closed_at', null)
-        .limit(40),
-    ]);
-    if (claimResult.error || nameResult.error) return fail('persistence-error', SAVE_FAILED);
-    claims = claimResult.data ?? [];
-    profileIds = (nameResult.data ?? []).map((row) => row.id);
-  } else {
+  const admin = createAdminClient();
+  const pattern = `%${likeLiteral(needle)}%`;
+  const [claimResult, nameResult] = await Promise.all([
+    admin
+      .from('social_claims')
+      .select('id, platform, handle, claimed_profile_id')
+      .ilike('handle', pattern)
+      .order('handle', { ascending: true })
+      .limit(60),
+    admin
+      .from('profiles')
+      .select('id')
+      .ilike('display_name', pattern)
+      .is('fraud_banned_at', null)
+      .is('closed_at', null)
+      .limit(40),
+  ]);
+  if (claimResult.error || nameResult.error) return fail('persistence-error', SAVE_FAILED);
+
+  const suggestions = await buildSuggestions(
+    admin,
+    (nameResult.data ?? []).map((row) => row.id),
+    claimResult.data ?? [],
+    needle,
+  );
+  if (!suggestions) return fail('persistence-error', SAVE_FAILED);
+  return ok(suggestions);
+});
+
+/**
+ * The no-query suggestions, the `/references` landing list: the same for everyone, so
+ * shared across requests, and expired with every other cached reference read. A failed
+ * read throws rather than returning, so a failure is never cached.
+ */
+const cachedTopSuggestions = unstable_cache(
+  async (): Promise<ReferenceSuggestion[]> => {
+    const admin = createAdminClient();
     const top = await mostReferenced(admin);
-    if (!top) return fail('persistence-error', SAVE_FAILED);
-    profileIds = top.profileIds;
-    claims = [];
+    if (!top) throw new Error('[references] most-referenced read failed');
+    let claims: ClaimMatch[] = [];
     if (top.claimIds.length > 0) {
       const { data, error } = await admin
         .from('social_claims')
         .select('id, platform, handle, claimed_profile_id')
         .in('id', top.claimIds);
-      if (error) return fail('persistence-error', SAVE_FAILED);
+      if (error) throw new Error(`[references] most-referenced claims: ${error.message}`);
       claims = data ?? [];
     }
-  }
-
-  const suggestions = await buildSuggestions(admin, profileIds, claims, needle);
-  if (!suggestions) return fail('persistence-error', SAVE_FAILED);
-  return ok(suggestions);
-});
+    const suggestions = await buildSuggestions(admin, top.profileIds, claims, '');
+    if (!suggestions) throw new Error('[references] most-referenced suggestions read failed');
+    return suggestions;
+  },
+  ['references-top'],
+  { tags: [REFERENCES_CACHE_TAG], revalidate: 300 },
+);
 
 /** The people and handles with the most distinct positive references among the latest ones. */
 async function mostReferenced(admin: Admin): Promise<{ profileIds: string[]; claimIds: string[] } | null> {

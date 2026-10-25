@@ -9,7 +9,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { rateLimitIdentifier } from '@/lib/rateLimit';
 import { referenceGraphLimiter } from '@/lib/rateLimiters';
-import { loadReferencePage } from '@/lib/references/graph';
+import { cachedReferencePage } from '@/lib/references/graph';
 
 /** Longer than any handle a platform allows; anything past it is not a handle. */
 const MAX_HANDLE_LENGTH = 100;
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Choose a member to load.' }, { status: 400 });
   }
 
-  const page = await loadReferencePage(handle, params.get('on'));
+  const page = await cachedReferencePage(handle, params.get('on'));
   if (!page) {
     return NextResponse.json({ error: 'This member’s references are not available.' }, { status: 404 });
   }

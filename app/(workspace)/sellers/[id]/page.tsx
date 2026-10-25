@@ -22,7 +22,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { CARD_GAME_NAMES } from '@/lib/catalog/cardGames';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
-import { loadProfileReferenceGraph } from '@/lib/references/graph';
+import { cachedProfileReferenceGraph } from '@/lib/references/graph';
 import { parseSocialLinks } from '@/domain/social/socialLinks';
 import { avatarUrl } from '@/lib/format';
 import { absoluteUrl, DEFAULT_OG_IMAGE } from '@/lib/seo/site';
@@ -194,7 +194,7 @@ export default async function SellerProfilePage({
     supabase.rpc('member_sale_stats', { p_profile_id: id }),
     // The reference graph (0155): incoming vouches merged with escrow
     // reputation. A failed read hides the section, never the profile.
-    loadProfileReferenceGraph(id).catch(() => null),
+    cachedProfileReferenceGraph(id).catch(() => null),
   ]);
 
   const isOwner = user?.id === id;

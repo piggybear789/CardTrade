@@ -25,6 +25,9 @@ import 'server-only';
 // Reads run on the service role; only public-safe fields leave this module
 // (no person keys, no proof paths, no staff fields).
 
+import { unstable_cache } from 'next/cache';
+
+import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { ReferenceAddress } from '@/domain/references/address';
 import {
@@ -1149,3 +1152,25 @@ async function handleChoices(
     ];
   });
 }
+
+/**
+ * How long a cached graph may trail a change made outside the references actions: a
+ * profile edit, an identity check, a ban, a completed deal. Reference writes and claims
+ * expire the cache at once.
+ */
+const GRAPH_REVALIDATE_SECONDS = 60;
+
+/**
+ * `loadReferencePage`, shared across requests: a graph is public and the same for every
+ * viewer, and building one runs a few dozen reads.
+ */
+export const cachedReferencePage = unstable_cache(loadReferencePage, ['references-page'], {
+  tags: [REFERENCES_CACHE_TAG],
+  revalidate: GRAPH_REVALIDATE_SECONDS,
+});
+
+/** `loadProfileReferenceGraph`, shared across requests: the storefront's references. */
+export const cachedProfileReferenceGraph = unstable_cache(loadProfileReferenceGraph, ['references-profile'], {
+  tags: [REFERENCES_CACHE_TAG],
+  revalidate: GRAPH_REVALIDATE_SECONDS,
+});

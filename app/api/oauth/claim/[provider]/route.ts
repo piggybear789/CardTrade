@@ -1,8 +1,10 @@
 import { createHash, createHmac, randomBytes } from 'node:crypto';
+import { revalidateTag } from 'next/cache';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { identityStartHref } from '@/lib/identity/identityStart';
+import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { isValidClaimHandle } from '@/domain/references/reference';
@@ -504,6 +506,8 @@ export async function GET(
       return claimFailed(fallbackUrl, 'Something went wrong saving your claim. Try again.');
     }
 
+    // The handle and its references now belong to the member: drop every cached graph.
+    revalidateTag(REFERENCES_CACHE_TAG, { expire: 0 });
     return NextResponse.redirect(fallbackUrl);
   }
 

@@ -3,8 +3,9 @@
 // components/references/TrustNetworkPanel.tsx
 //
 // The small card that floats over the bottom of the Trust Network while someone is
-// selected: who they are, their review of the person in the middle (or, on the
-// Given side, the middle person's review of them), and any attached proof images.
+// selected: who they are, and their review of the person in the middle (or, on the
+// Given side, the middle person's review of them). Proof screenshots are staff-only
+// and never reach it.
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -12,11 +13,6 @@ import { Cancel01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { IssueBadge, PlatformChip, StarRating, plural } from '@/components/references/referenceLabels';
 import { nodeKey, type OrbitEntry, type TrustOrbits } from '@/components/references/useTrustOrbits';
 import type { ReferenceGraphChild, ReferenceGraphNode } from '@/lib/references/graph';
@@ -190,7 +186,6 @@ function Header({
 }
 
 function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: ReferenceGraphNode; onClose: () => void }) {
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
   const key = nodeKey(node);
   const negative = node.sentiment === 'NEGATIVE';
   // NO AVATAR ROWS. The card used to list "Also reviewed" and "Reviewed by" as rows of
@@ -198,7 +193,6 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
   // made the card two rows taller, and were 24px targets. The card is now the person
   // and their review; the drawing is how you move between people.
   const given = orbits.view.direction === 'given';
-  const images = node.images ?? [];
   // WHO goes on the person card; WHEN and HOW MUCH belong to the reference itself.
   // "Of their own" because this sits beside a review of someone ELSE: a bare
   // "0 refs" read as a count about the person in the middle.
@@ -245,51 +239,12 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
           ) : null}
         </div>
 
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1 space-y-1">
-            {/* Keyed by person, so moving to someone else starts collapsed again. */}
-            {node.comment ? <ReviewText key={key} text={node.comment} /> : null}
-            {referenceMeta ? <p className="text-meta text-muted-foreground">{referenceMeta}</p> : null}
-          </div>
-          {images.length > 0 ? (
-            <div className="flex shrink-0 items-center gap-1.5">
-              {images.map((url, idx) => (
-                <button
-                  key={url}
-                  type="button"
-                  onClick={() => setLightboxUrl(url)}
-                  aria-label={`View reference image ${idx + 1} from ${node.handle}`}
-                  className="overflow-hidden rounded-lg border border-border/80 bg-muted/40 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={url}
-                    alt={`Reference attachment ${idx + 1}`}
-                    className="size-11 object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          ) : null}
+        <div className="min-w-0 space-y-1">
+          {/* Keyed by person, so moving to someone else starts collapsed again. */}
+          {node.comment ? <ReviewText key={key} text={node.comment} /> : null}
+          {referenceMeta ? <p className="text-meta text-muted-foreground">{referenceMeta}</p> : null}
         </div>
       </PanelCard>
-
-      <Dialog open={lightboxUrl !== null} onOpenChange={(open) => !open && setLightboxUrl(null)}>
-        {/* `center`, the documented media-viewer presentation: as the default phone
-            sheet the image docked to the bottom, and `p-2` overrode the sheet's
-            safe-area bottom padding, so the photo ran under the home indicator. */}
-        <DialogContent mobile="center" className="p-2 sm:p-2">
-          <DialogTitle className="sr-only">Reference attachment from {node.handle}</DialogTitle>
-          {lightboxUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={lightboxUrl}
-              alt={`Attachment from ${node.handle}`}
-              className="max-h-[75vh] w-full rounded-lg object-contain"
-            />
-          ) : null}
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

@@ -24,8 +24,6 @@ import 'server-only';
 // (no person keys, no proof paths, no staff fields).
 
 import { createAdminClient } from '@/lib/supabase/admin';
-import { signReferenceImageUrls } from '@/lib/storage/referenceImages';
-import { REFERENCE_PROOF_BUCKET } from '@/lib/storage/referenceImagesShared';
 import {
   formatOccurredMonth,
   isUuid,
@@ -102,8 +100,6 @@ export interface ReferenceGraphNode {
   rating?: number;
   categoryLabel: string | null;
   comment: string | null;
-  /** Signed URLs for any attached reference images (1..3 screenshots/photos). */
-  images?: string[];
   role: string;
   roleLabel: string;
   roleShortLabel: string;
@@ -245,7 +241,6 @@ interface MergedEdge {
   rating: number;
   categoryLabel: string | null;
   comment: string | null;
-  proofPaths: string[];
   platform: string;
   platforms: string[];
   role: string;
@@ -367,7 +362,6 @@ interface EdgeRow {
   occurred_month: string;
   deal_count: number;
   proof_status: string;
-  proof_paths: string[] | null;
 }
 
 interface ReviewRow {
@@ -398,11 +392,6 @@ function mergeEdgeRows(
       if (!existing.comment && edge.comment) {
         existing.comment = edge.comment;
       }
-      for (const path of edge.proof_paths ?? []) {
-        if (!existing.proofPaths.includes(path)) {
-          existing.proofPaths.push(path);
-        }
-      }
       continue;
     }
     byVoucher.set(key, {
@@ -413,7 +402,6 @@ function mergeEdgeRows(
         (edge.sentiment === 'NEGATIVE' ? 1 : edge.sentiment === 'NEUTRAL' ? 3 : 5),
       categoryLabel: negativeCategoryLabel(edge.category),
       comment: edge.comment,
-      proofPaths: [...(edge.proof_paths ?? [])],
       platform: edge.platform,
       platforms: [edge.platform],
       role: edge.role,
@@ -442,7 +430,6 @@ function mergeEdgeRows(
         rating: review.rating ?? 5,
         categoryLabel: null,
         comment: review.comment ?? null,
-        proofPaths: [],
         platform: 'noditto',
         platforms: ['noditto'],
         role: 'BOUGHT',
@@ -606,15 +593,6 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
     })),
   );
 
-  const proofPaths = Array.from(new Set(drawn.flatMap(({ edge }) => edge.proofPaths.slice(0, 3))));
-  const signed = proofPaths.length
-    ? await signReferenceImageUrls(admin, REFERENCE_PROOF_BUCKET, proofPaths)
-    : [];
-  const signedByPath = new Map<string, string>();
-  for (const item of signed) {
-    if (item.url) signedByPath.set(item.path, item.url);
-  }
-
   const nodes: ReferenceGraphNode[] = drawn.flatMap(({ edge }) => {
     const party = parties.get(edge.voucherId);
     if (!party) return [];
@@ -639,9 +617,6 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
         rating: edge.rating,
         categoryLabel: edge.categoryLabel,
         comment: edge.comment,
-        images: edge.proofPaths
-          .slice(0, 3)
-          .flatMap((p) => (signedByPath.has(p) ? [signedByPath.get(p)!] : [])),
         role: edge.role,
         roleLabel: roleLabel(edge.role),
         roleShortLabel: roleShortLabel(edge.role),
@@ -744,25 +719,10 @@ async function assembleGraph(
     ];
   };
 
-  const allProofPaths = Array.from(
-    new Set(drawn.flatMap(({ edge }) => edge.proofPaths.slice(0, 3))),
-  );
-  const signedImages =
-    allProofPaths.length > 0
-      ? await signReferenceImageUrls(admin, REFERENCE_PROOF_BUCKET, allProofPaths)
-      : [];
-  const signedByPath = new Map<string, string>();
-  for (const item of signedImages) {
-    if (item.url) signedByPath.set(item.path, item.url);
-  }
-
   const nodes: ReferenceGraphNode[] = drawn.flatMap(({ edge, issue }) => {
     const profile = profiles.get(edge.voucherId);
     if (!profile) return [];
     const handle = handles.get(edge.voucherId);
-    const images = edge.proofPaths
-      .slice(0, 3)
-      .flatMap((p) => (signedByPath.has(p) ? [signedByPath.get(p)!] : []));
     return [
       {
         id: `${edge.voucherId}:${edge.sentiment}`,
@@ -784,7 +744,6 @@ async function assembleGraph(
         rating: edge.rating,
         categoryLabel: edge.categoryLabel,
         comment: edge.comment,
-        images,
         role: edge.role,
         roleLabel: roleLabel(edge.role),
         roleShortLabel: roleShortLabel(edge.role),
@@ -854,7 +813,6 @@ async function mergedIncomingMulti(
       rating: edge.rating ?? 5,
       categoryLabel: null,
       comment: edge.comment,
-      proofPaths: [],
       platform: edge.platform,
       platforms: [edge.platform],
       role: edge.role,
@@ -871,7 +829,6 @@ async function mergedIncomingMulti(
       rating: 5,
       categoryLabel: null,
       comment: review.comment ?? null,
-      proofPaths: [],
       platform: 'noditto',
       platforms: ['noditto'],
       role: 'BOUGHT',

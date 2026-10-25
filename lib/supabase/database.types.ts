@@ -3585,7 +3585,7 @@ export type Database = {
         };
         Relationships: [];
       };
-      /** Live reference edges (0155). Public projection: no person keys, no proof paths. */
+      /** Live reference edges (0155, 0161). Public projection: no person keys, no proof paths. */
       reference_edges_public: {
         Row: {
           id: string;
@@ -3601,7 +3601,6 @@ export type Database = {
           occurred_month: string;
           deal_count: number;
           proof_status: 'NONE' | 'PENDING' | 'CHECKED';
-          proof_paths: string[];
           created_at: string;
         };
         Relationships: [];

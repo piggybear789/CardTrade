@@ -4,9 +4,10 @@
 // documents can never name different entities or contact points.
 //
 // NoDitto is a business of Studitory Pty Ltd, the contracting entity (name and ABN as
-// registered on the Australian Business Register). Still to confirm before relying on
-// them: the address, the governing law and the two mailboxes, which have to exist and be
-// read. `reviewedByCounsel` stays false until a lawyer has signed the documents off;
+// registered on the Australian Business Register). No address is published, by
+// decision (2026-10-25): members reach us through the two mailboxes. Still to confirm
+// before relying on them: the governing law, and the mailboxes, which have to exist and
+// be read. `reviewedByCounsel` stays false until a lawyer has signed the documents off;
 // `showDraftNotice` decides whether the pages say so.
 
 export const LEGAL = {
@@ -14,7 +15,7 @@ export const LEGAL = {
   operatorName: 'Studitory Pty Ltd',
   /** Australian Business Number, shown when set. */
   abn: '21 684 300 847' as string | null,
-  /** Registered or postal address, shown when set. */
+  /** Registered or postal address, shown when set. Deliberately unset: none is published. */
   address: null as string | null,
   /** The state whose law governs the Terms. Confirm with counsel. */
   governingLaw: 'New South Wales, Australia',

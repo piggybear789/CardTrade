@@ -12,12 +12,12 @@ import { normalizeHandle, platformBySlug } from '@/domain/social/socialLinks';
 
 /** Where a deal can have happened. `noditto` is reserved for completed escrow deals. */
 export const REFERENCE_PLATFORMS = [
-  { slug: 'instagram', label: 'Instagram', shortLabel: 'IG' },
-  { slug: 'facebook', label: 'Facebook', shortLabel: 'FB' },
-  { slug: 'discord', label: 'Discord', shortLabel: 'Discord' },
-  { slug: 'ebay', label: 'eBay', shortLabel: 'eBay' },
-  { slug: 'whatnot', label: 'Whatnot', shortLabel: 'Whatnot' },
-  { slug: 'other', label: 'Other', shortLabel: 'Other' },
+  { slug: 'instagram', label: 'Instagram' },
+  { slug: 'facebook', label: 'Facebook' },
+  { slug: 'discord', label: 'Discord' },
+  { slug: 'ebay', label: 'eBay' },
+  { slug: 'whatnot', label: 'Whatnot' },
+  { slug: 'other', label: 'Other' },
 ] as const;
 
 export type ReferencePlatform = (typeof REFERENCE_PLATFORMS)[number]['slug'];
@@ -121,10 +121,6 @@ export function platformLabel(slug: string): string {
 
 export function roleLabel(role: string): string {
   return REFERENCE_ROLES.find((r) => r.slug === role)?.label ?? role;
-}
-
-export function roleShortLabel(role: string): string {
-  return REFERENCE_ROLES.find((r) => r.slug === role)?.shortLabel ?? role;
 }
 
 function utcMonth(date: Date): string {

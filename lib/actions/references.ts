@@ -41,7 +41,7 @@ import {
   REFERENCE_PROOF_BUCKET,
 } from '@/lib/storage/referenceImagesShared';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
-import type { ReferenceAddress } from '@/domain/references/address';
+import { claimAddress, type ReferenceAddress } from '@/domain/references/address';
 import {
   REFERENCES_PER_DAY,
   REFERENCE_SENTIMENTS,
@@ -79,10 +79,6 @@ export interface ReferenceSuggestion {
   kind: 'profile' | 'claim';
   /** profiles.id when claimed, social_claims.id when not. */
   id: string;
-  /** The profile id when claimed. Null while unclaimed. */
-  profileId: string | null;
-  platform: string;
-  platformLabel: string;
   /** A member's claimed and dealt-on platforms; an unclaimed handle's one platform. */
   platforms: string[];
   /** `@handle`, or a member's display name when they have no claimed handle. */
@@ -91,14 +87,10 @@ export interface ReferenceSuggestion {
   address: ReferenceAddress;
   /** NoDitto display name, or the claim's handle when unclaimed. */
   name: string;
-  /** Provider-verified given name. Null when not disclosed / unclaimed. */
-  firstName: string | null;
-  identityVerified: boolean;
   regionCode: string | null;
   avatarPath: string | null;
   /** How many people left a positive reference, NoDitto escrow reviews included. */
   referenceCount: number;
-  unclaimed: boolean;
 }
 
 /** The target a ShareExperience form posts against. */
@@ -164,11 +156,6 @@ async function findOrCreateClaim(
   // 23505: someone created the same row a moment earlier.
   if (error && error.code !== '23505') return null;
   return (await find()).data ?? null;
-}
-
-function firstGivenName(full: string | null | undefined): string | null {
-  const first = full?.trim().split(/\s+/)[0];
-  return first ? first : null;
 }
 
 function sentimentLabel(sentiment: ReferenceSentiment): string {
@@ -341,7 +328,7 @@ async function buildSuggestions(
     profileIds.length
       ? admin
           .from('profiles')
-          .select('id, display_name, identity_check_status, identity_check_name, region_code, avatar_path')
+          .select('id, display_name, region_code, avatar_path')
           .in('id', profileIds)
           .is('fraud_banned_at', null)
           .is('closed_at', null)
@@ -416,34 +403,22 @@ async function buildSuggestions(
   for (const profile of (profiles.data ?? []) as {
     id: string;
     display_name: string;
-    identity_check_status: string | null;
-    identity_check_name: string | null;
     region_code: string | null;
     avatar_path: string | null;
   }[]) {
     const shown = matchedHandle.get(profile.id) ?? claimsOf.get(profile.id)?.[0];
     const name = displayNameLabel(profile.display_name);
-    const platforms = Array.from(platformsFor.get(`p:${profile.id}`) ?? []);
     const handle = shown ? `@${shown.handle}` : name;
-    const verified = profile.identity_check_status === 'VERIFIED';
     ranked.push({
       kind: 'profile',
       id: profile.id,
-      profileId: profile.id,
-      platform: shown?.platform ?? platforms[0] ?? 'noditto',
-      platformLabel: platforms.map(platformLabel).join(' · '),
-      platforms,
+      platforms: Array.from(platformsFor.get(`p:${profile.id}`) ?? []),
       handle,
-      address: shown
-        ? { slug: shown.handle, on: isClaimPlatform(shown.platform) ? shown.platform : null }
-        : { slug: profile.id, on: null },
+      address: shown ? claimAddress(shown) : { slug: profile.id, on: null },
       name,
-      firstName: verified ? firstGivenName(profile.identity_check_name) : null,
-      identityVerified: verified,
       regionCode: profile.region_code ?? null,
       avatarPath: profile.avatar_path ?? null,
       referenceCount: peopleFor.get(`p:${profile.id}`)?.size ?? 0,
-      unclaimed: false,
       score: score(handle, name),
     });
   }
@@ -452,19 +427,13 @@ async function buildSuggestions(
     ranked.push({
       kind: 'claim',
       id: claim.id,
-      profileId: null,
-      platform: claim.platform,
-      platformLabel: platformLabel(claim.platform),
       platforms: [claim.platform],
       handle,
-      address: { slug: claim.handle, on: isClaimPlatform(claim.platform) ? claim.platform : null },
+      address: claimAddress(claim),
       name: claim.handle,
-      firstName: null,
-      identityVerified: false,
       regionCode: null,
       avatarPath: null,
       referenceCount: peopleFor.get(`c:${claim.id}`)?.size ?? 0,
-      unclaimed: true,
       score: score(handle, claim.handle),
     });
   }
@@ -722,46 +691,20 @@ export const attachReferenceProof = withActionLog('references.attachReferencePro
 });
 
 // ---------------------------------------------------------------------------
-// Handle claims (bio code + staff decision)
+// Manual handle claims (staff decision)
 // ---------------------------------------------------------------------------
 
-const BIO_CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
+const MANUAL_CODE_ALPHABET = 'abcdefghjkmnpqrstuvwxyz23456789';
 
-function newBioCode(): string {
+/**
+ * `handle_claim_requests.bio_code` is required, but only an Instagram DM claim has a code
+ * anyone sends. A manual claim stores one no DM can carry: the webhook reads `ND-` only.
+ */
+function manualClaimCode(): string {
   let suffix = '';
-  for (let i = 0; i < 6; i += 1) suffix += BIO_CODE_ALPHABET[randomInt(BIO_CODE_ALPHABET.length)];
+  for (let i = 0; i < 6; i += 1) suffix += MANUAL_CODE_ALPHABET[randomInt(MANUAL_CODE_ALPHABET.length)];
   return `noditto-${suffix}`;
 }
-
-export interface MyHandleClaim {
-  requestId: string;
-  bioCode: string;
-  status: 'PENDING' | 'APPROVED' | 'DECLINED';
-  screenshotCount: number;
-}
-
-export const getMyHandleClaim = withActionLog('references.getMyHandleClaim', async function getMyHandleClaim(
-  claimId: string,
-): Promise<MyHandleClaim | null> {
-  const user = await getCachedAuthUser();
-  if (!user) return null;
-  const admin = createAdminClient();
-  const { data } = await admin
-    .from('handle_claim_requests')
-    .select('id, bio_code, status, screenshot_paths')
-    .eq('claim_id', claimId)
-    .eq('claimant_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!data) return null;
-  return {
-    requestId: data.id,
-    bioCode: data.bio_code,
-    status: data.status,
-    screenshotCount: data.screenshot_paths?.length ?? 0,
-  };
-});
 
 // ---------------------------------------------------------------------------
 // Instagram DM Bot handle claiming (works for personal & professional accounts)
@@ -1040,7 +983,7 @@ export const submitManualHandleClaim = withActionLog(
     handle: string;
     message?: string;
     paths: string[];
-  }): Promise<ActionResult<MyHandleClaim, ReferenceError>> {
+  }): Promise<ActionResult<{ requestId: string }, ReferenceError>> {
     const user = await getCachedAuthUser();
     if (!user) return fail('not-authenticated', 'Sign in first.');
     if (!(await handleClaimLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
@@ -1123,29 +1066,24 @@ export const submitManualHandleClaim = withActionLog(
             updated_at: new Date().toISOString(),
           })
           .eq('id', existingReq.id)
-          .select('id, bio_code, status, screenshot_paths')
+          .select('id')
           .single()
       : await admin
           .from('handle_claim_requests')
           .insert({
             claim_id: claim.id,
             claimant_id: user.id,
-            bio_code: newBioCode(),
+            bio_code: manualClaimCode(),
             screenshot_paths: verifiedPaths.slice(0, 5),
             staff_notes: note,
           })
-          .select('id, bio_code, status, screenshot_paths')
+          .select('id')
           .single();
 
     if (error || !data) return fail('persistence-error', SAVE_FAILED);
 
     revalidateReferences(user.id);
-    return ok({
-      requestId: data.id,
-      bioCode: data.bio_code,
-      status: data.status,
-      screenshotCount: data.screenshot_paths?.length ?? 0,
-    });
+    return ok({ requestId: data.id });
   },
 );
 

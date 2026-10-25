@@ -54,7 +54,6 @@ import {
   startInstagramDmClaim,
   submitManualHandleClaim,
   type InstagramDmClaimSession,
-  type MyHandleClaim,
 } from '@/lib/actions/references';
 import { refreshIdentityCheck } from '@/lib/actions/identity';
 import { identityStartHref } from '@/lib/identity/identityStart';
@@ -107,7 +106,6 @@ export function ClaimHandle({
   platform = null,
   signedIn = false,
   identityVerified = false,
-  initialClaim,
   returnPath,
   mode = 'claim',
 }: {
@@ -117,7 +115,6 @@ export function ClaimHandle({
   signedIn?: boolean;
   /** Whether the viewer passed the ID check. A manual claim needs it. */
   identityVerified?: boolean;
-  initialClaim?: MyHandleClaim | null;
   returnPath: string;
   /** `claim` for an unclaimed handle page; `link` for linking another handle onto your own profile. */
   mode?: 'claim' | 'link';
@@ -425,10 +422,6 @@ export function ClaimHandle({
       if (timer) clearTimeout(timer);
     };
   }, [open, dmSession, dmVerified, cleanHandle, router]);
-
-  // AFTER every hook, never before: returning early above them changed the number of
-  // hooks React saw between renders, which it reports as a crash.
-  if (mode === 'claim' && initialClaim?.status === 'APPROVED') return null;
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

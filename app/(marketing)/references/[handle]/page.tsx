@@ -6,9 +6,9 @@ import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefre
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { cachedReferencePage } from '@/lib/references/graph';
-import { getMyHandleClaim } from '@/lib/actions/references';
 import { HandleChooser } from '@/components/references/HandleChooser';
 import { ReferenceProfile } from '@/components/references/ReferenceProfile';
+import { safeDecode } from '@/domain/references/address';
 import { isUuid } from '@/domain/references/reference';
 
 // app/(marketing)/references/[handle]/page.tsx
@@ -20,14 +20,6 @@ type SearchParams = Promise<{ on?: string | string[]; experience?: string | stri
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function decodeSlug(raw: string): string {
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    return raw;
-  }
 }
 
 /** Who is looking: their id, and whether they have passed the ID check. */
@@ -48,7 +40,7 @@ export async function generateMetadata({
   params: Promise<{ handle: string }>;
 }): Promise<Metadata> {
   const { handle } = await params;
-  const decoded = decodeSlug(handle).replace(/^@/, '');
+  const decoded = safeDecode(handle).replace(/^@/, '');
   const label = isUuid(decoded) ? null : `@${decoded}`;
   return {
     title: label ? `${label} · References · NoDitto` : 'References · NoDitto',
@@ -85,12 +77,6 @@ export default async function HandleReferencePage({
     );
   }
 
-  const { graph } = page;
-  const { centre } = graph;
-
-  const myClaim =
-    viewer.id && centre.unclaimed && centre.claimId ? await getMyHandleClaim(centre.claimId) : null;
-
   // SCALES WITH THE SCREEN. The column is 64rem up to a 1440px screen and then grows with
   // it (70vw, capped at 96rem), so a large monitor shows the same composition at a larger
   // size rather than a small card in a sea of background. It is a flex column so the
@@ -105,12 +91,7 @@ export default async function HandleReferencePage({
       <Suspense fallback={null}>
         <IdentityReturnRefresh />
       </Suspense>
-      <ReferenceProfile
-        data={graph}
-        viewer={viewer}
-        autoOpen={experience === '1'}
-        initialClaim={myClaim}
-      />
+      <ReferenceProfile data={page.graph} viewer={viewer} autoOpen={experience === '1'} />
     </article>
   );
 }

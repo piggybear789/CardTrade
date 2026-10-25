@@ -38,6 +38,11 @@ const PLATFORM_COLOR: Record<string, string> = {
   tiktok: 'text-foreground',
 };
 
+/** The text colour a platform's brand icon is drawn in. */
+export function platformTint(slug: string): string {
+  return PLATFORM_COLOR[slug] ?? 'text-muted-foreground';
+}
+
 export function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
@@ -152,7 +157,7 @@ export function PlatformChip({ slug, className }: { slug: string; className?: st
         aria-label={label}
         className={cn(
           'inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-border/80 bg-muted/40',
-          PLATFORM_COLOR[slug] ?? 'text-muted-foreground',
+          platformTint(slug),
           className,
         )}
       >

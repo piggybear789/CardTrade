@@ -34,7 +34,6 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { referenceAddressKey, referenceHref } from '@/domain/references/address';
 import { regionLabel } from '@/domain/region';
-import type { MyHandleClaim } from '@/lib/actions/references';
 import type { ReferenceGraphCentre, ReferenceGraphData, ReferenceGraphNode } from '@/lib/references/graph';
 
 export interface ReferenceViewer {
@@ -47,18 +46,15 @@ export function ReferenceProfile({
   data,
   viewer,
   autoOpen,
-  initialClaim = null,
 }: {
   data: ReferenceGraphData;
   viewer: ReferenceViewer;
   /** Open the share composer on arrival (from a reference request link), for this page's person only. */
   autoOpen: boolean;
-  /** Initial handle claim state if the page's root handle is unclaimed. */
-  initialClaim?: MyHandleClaim | null;
 }) {
   const orbits = useTrustOrbits(data, { openPage: usePageOpener(true) });
-  // The graph can be walking toward someone else; what this page arrived with is only
-  // about the person it was opened for.
+  // The graph can be walking toward someone else; arriving with the composer open is only
+  // for the person the page was opened for.
   const atPagePerson = orbits.centreKey === centreKeyOf(data);
 
   // FILLS THE PAGE. The column is a flex chain down to the Trust Network card, which
@@ -73,7 +69,6 @@ export function ReferenceProfile({
         opacity={arrival(orbits)}
         viewer={viewer}
         autoOpen={autoOpen && atPagePerson}
-        initialClaim={atPagePerson ? initialClaim : null}
         composerKey={orbits.centreKey}
       />
 
@@ -107,7 +102,6 @@ const ProfileHeader = memo(function ProfileHeader({
   opacity,
   viewer,
   autoOpen,
-  initialClaim,
   composerKey,
 }: {
   centre: ReferenceGraphCentre;
@@ -115,7 +109,6 @@ const ProfileHeader = memo(function ProfileHeader({
   opacity: number;
   viewer: ReferenceViewer;
   autoOpen: boolean;
-  initialClaim: MyHandleClaim | null;
   /** Remounts the composer for each person the graph shows. */
   composerKey: string;
 }) {
@@ -234,7 +227,6 @@ const ProfileHeader = memo(function ProfileHeader({
               platform={centre.address.on}
               signedIn={viewer.id !== null}
               identityVerified={viewer.identityVerified}
-              initialClaim={initialClaim}
               returnPath={returnPath}
             />
           ) : isSelf ? (

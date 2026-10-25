@@ -24,7 +24,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // sat PENDING forever with nothing saying which step had stopped it. Context is ids
 // only; Meta's own error text is kept because it names the misconfiguration.
 
-const CODE_REGEX = /\b(ND-[A-Z0-9]{6}|noditto-[a-z0-9]{6})\b/i;
+const CODE_REGEX = /\b(ND-[A-Z0-9]{6})\b/i;
 
 function appSecret(): string {
   return (
@@ -204,15 +204,16 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
+      // Codes are issued upper case (`deterministicDmCode`); a member may type it in lower.
       const code = match[1].toUpperCase();
 
-      // `.limit(2)` rather than `.maybeSingle()`: two people claiming one handle get the
-      // same code, and maybeSingle returns an ERROR (not a row) for two rows, which read
-      // as "no request" and dropped the DM.
+      // `.limit(2)` rather than `.maybeSingle()`: for two rows maybeSingle returns an
+      // ERROR (not a row), which read as "no request" and dropped the DM. Two PENDING
+      // requests sharing a code are refused below instead.
       const { data: requests, error: lookupError } = await admin
         .from('handle_claim_requests')
         .select('id, claim_id, claimant_id, bio_code, status')
-        .ilike('bio_code', code)
+        .eq('bio_code', code)
         .eq('status', 'PENDING')
         .limit(2);
 

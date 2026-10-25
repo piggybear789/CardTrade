@@ -29,7 +29,7 @@ import { unstable_cache } from 'next/cache';
 
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { createAdminClient } from '@/lib/supabase/admin';
-import type { ReferenceAddress } from '@/domain/references/address';
+import { claimAddress, safeDecode, type ReferenceAddress } from '@/domain/references/address';
 import {
   displayNameLabel,
   formatOccurredMonth,
@@ -39,7 +39,6 @@ import {
   negativeCategoryLabel,
   platformLabel,
   roleLabel,
-  roleShortLabel,
   type ClaimPlatform,
 } from '@/domain/references/reference';
 import { normalizeHandle } from '@/domain/social/socialLinks';
@@ -51,13 +50,11 @@ export type ReferenceProof = 'escrow' | 'receipt' | 'vouch';
 export interface PlatformSynthesisItem {
   slug: string;
   label: string;
-  shortLabel: string;
   count: number;
 }
 
 export interface LinkedSocialHandle {
   platform: string;
-  platformLabel: string;
   handle: string;
 }
 
@@ -66,7 +63,6 @@ export interface ReferenceGraphCentre {
   /** profiles.id, social_claims.id, or the handle itself for a handle nobody has placed. */
   id: string;
   profileId: string | null;
-  claimId: string | null;
   /** `@handle` for a handle; the display name for a member with no claimed handle. */
   handle: string;
   /** This page's address. `on` is the handle's platform, when there is one. */
@@ -77,12 +73,10 @@ export interface ReferenceGraphCentre {
   isTrustedSeller: boolean;
   regionCode: string | null;
   avatarPath: string | null;
-  memberSince: string | null;
   unclaimed: boolean;
-  referenceCount: number;
+  /** How many different people left a positive reference. Never a deal count. */
   peopleCount: number;
   negativeCount: number;
-  checkedCount: number;
   platforms: PlatformSynthesisItem[];
   linkedHandles: LinkedSocialHandle[];
 }
@@ -97,12 +91,9 @@ export interface ReferenceGraphNode {
   initials: string;
   avatarPath: string | null;
   identityVerified: boolean;
-  firstName: string | null;
   /** Their own incoming positive reference count. */
   refs: number;
   platform: string;
-  platformLabel: string;
-  platformShort: string;
   /** Every platform this referee has dealt with the centre person on. */
   platforms: string[];
   kind: ReferenceProof;
@@ -113,7 +104,6 @@ export interface ReferenceGraphNode {
   comment: string | null;
   role: string;
   roleLabel: string;
-  roleShortLabel: string;
   dateLabel: string | null;
   deals: number;
   /** The reference itself, for its author to edit or withdraw. Null for an escrow review alone. */
@@ -192,19 +182,6 @@ const EMPTY_GIVEN: ReferenceGraphGiven = {
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-const PLATFORM_SHORT: Record<string, string> = {
-  instagram: 'IG',
-  facebook: 'FB',
-  discord: 'Discord',
-  ebay: 'eBay',
-  whatnot: 'Whatnot',
-  noditto: 'NoDitto',
-  other: 'Other',
-  x: 'X',
-  youtube: 'YT',
-  tiktok: 'TikTok',
-};
-
 function initialsOf(name: string): string {
   const parts = name.replace(/^@/, '').split(/[\s._-]+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -217,19 +194,13 @@ function firstGivenName(full: string | null | undefined): string | null {
   return first || null;
 }
 
-/** A claimed or unclaimed handle's own page. */
-function claimAddress(claim: { handle: string; platform: string }): ReferenceAddress {
-  return { slug: claim.handle, on: isClaimPlatform(claim.platform) ? claim.platform : null };
-}
-
 function linkedHandle(claim: { handle: string; platform: string }): LinkedSocialHandle {
-  return { platform: claim.platform, platformLabel: platformLabel(claim.platform), handle: `@${claim.handle}` };
+  return { platform: claim.platform, handle: `@${claim.handle}` };
 }
 
 interface RefereeProfile {
   id: string;
   displayName: string;
-  firstName: string | null;
   identityVerified: boolean;
   avatarPath: string | null;
 }
@@ -239,7 +210,7 @@ async function refereeProfiles(admin: Admin, ids: string[]): Promise<Map<string,
   if (ids.length === 0) return map;
   const { data } = await admin
     .from('profiles')
-    .select('id, display_name, identity_check_status, identity_check_name, avatar_path')
+    .select('id, display_name, identity_check_status, avatar_path')
     .in('id', ids)
     .is('fraud_banned_at', null)
     .is('closed_at', null);
@@ -247,8 +218,6 @@ async function refereeProfiles(admin: Admin, ids: string[]): Promise<Map<string,
     map.set(row.id, {
       id: row.id,
       displayName: row.display_name,
-      firstName:
-        row.identity_check_status === 'VERIFIED' ? firstGivenName(row.identity_check_name) : null,
       identityVerified: row.identity_check_status === 'VERIFIED',
       avatarPath: row.avatar_path,
     });
@@ -530,12 +499,7 @@ function platformBreakdown(edges: readonly MergedEdge[]): PlatformSynthesisItem[
     }
   }
   return Array.from(tally.entries())
-    .map(([slug, count]) => ({
-      slug,
-      label: platformLabel(slug),
-      shortLabel: PLATFORM_SHORT[slug] ?? platformLabel(slug),
-      count,
-    }))
+    .map(([slug, count]) => ({ slug, label: platformLabel(slug), count }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 }
 
@@ -547,7 +511,6 @@ interface GivenParty {
   name: string;
   avatarPath: string | null;
   identityVerified: boolean;
-  firstName: string | null;
   refs: number;
 }
 
@@ -641,7 +604,6 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
       name: displayNameLabel(profile.displayName),
       avatarPath: profile.avatarPath,
       identityVerified: profile.identityVerified,
-      firstName: profile.firstName,
       refs: counts.get(id)?.positive ?? 0,
     });
   }
@@ -655,7 +617,6 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
       name: claim.handle,
       avatarPath: null,
       identityVerified: false,
-      firstName: null,
       refs: claimStanding.get(claimId)?.size ?? 0,
     });
   }
@@ -684,11 +645,8 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
         initials: initialsOf(party.name || party.handle),
         avatarPath: party.avatarPath,
         identityVerified: party.identityVerified,
-        firstName: party.firstName,
         refs: party.refs,
         platform: edge.platform,
-        platformLabel: platformLabel(edge.platform),
-        platformShort: PLATFORM_SHORT[edge.platform] ?? platformLabel(edge.platform),
         platforms: edge.platforms,
         kind: proofOf(edge),
         sentiment: edge.sentiment,
@@ -697,7 +655,6 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
         comment: edge.comment,
         role: edge.role,
         roleLabel: roleLabel(edge.role),
-        roleShortLabel: roleShortLabel(edge.role),
         dateLabel: formatOccurredMonth(edge.occurredMonth),
         deals: edge.deals,
         ...editableFields(edge),
@@ -718,10 +675,7 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
 
 async function assembleGraph(
   admin: Admin,
-  centre: Omit<
-    ReferenceGraphCentre,
-    'referenceCount' | 'peopleCount' | 'negativeCount' | 'checkedCount' | 'platforms'
-  >,
+  centre: Omit<ReferenceGraphCentre, 'peopleCount' | 'negativeCount' | 'platforms'>,
   target: { profileId: string | null; claimIds: string[] },
 ): Promise<ReferenceGraphData> {
   // Independent of everything below, so it runs alongside the incoming reads.
@@ -814,11 +768,8 @@ async function assembleGraph(
         initials: initialsOf(profile.displayName || link.handle),
         avatarPath: profile.avatarPath,
         identityVerified: profile.identityVerified,
-        firstName: profile.firstName,
         refs: counts.get(edge.voucherId)?.positive ?? 0,
         platform: edge.platform,
-        platformLabel: platformLabel(edge.platform),
-        platformShort: PLATFORM_SHORT[edge.platform] ?? platformLabel(edge.platform),
         platforms: edge.platforms,
         kind: proofOf(edge),
         sentiment: edge.sentiment,
@@ -827,7 +778,6 @@ async function assembleGraph(
         comment: edge.comment,
         role: edge.role,
         roleLabel: roleLabel(edge.role),
-        roleShortLabel: roleShortLabel(edge.role),
         dateLabel: formatOccurredMonth(edge.occurredMonth),
         deals: edge.deals,
         ...editableFields(edge),
@@ -836,18 +786,13 @@ async function assembleGraph(
     ];
   });
 
-  const validPositives = validEdges.filter((e) => e.sentiment === 'POSITIVE');
-  const validNegatives = validEdges.filter((e) => e.sentiment === 'NEGATIVE');
-
   return {
     centre: {
       ...centre,
       // PEOPLE, NEVER DEALS. A deal count is one author's say-so; how many different
       // verified people vouch is what cannot be inflated by one of them.
-      referenceCount: validPositives.length,
-      peopleCount: validPositives.length,
-      negativeCount: validNegatives.length,
-      checkedCount: validPositives.filter((e) => e.proofStatus === 'CHECKED' || e.hasEscrow).length,
+      peopleCount: validEdges.filter((e) => e.sentiment === 'POSITIVE').length,
+      negativeCount: validEdges.filter((e) => e.sentiment === 'NEGATIVE').length,
       platforms,
     },
     nodes,
@@ -935,9 +880,7 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
   const [{ data: profile }, { data: claims }] = await Promise.all([
     admin
       .from('profiles')
-      .select(
-        'id, display_name, identity_check_status, identity_check_name, region_code, avatar_path, created_at, trusted_seller_at',
-      )
+      .select('id, display_name, identity_check_status, identity_check_name, region_code, avatar_path, trusted_seller_at')
       .eq('id', profileId)
       .is('fraud_banned_at', null)
       .is('closed_at', null)
@@ -959,7 +902,6 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
       kind: 'profile',
       id: profile.id,
       profileId: profile.id,
-      claimId: primary?.id ?? null,
       handle: primary ? `@${primary.handle}` : name,
       address: primary ? claimAddress(primary) : { slug: profile.id, on: null },
       name,
@@ -971,7 +913,6 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
       isTrustedSeller: Boolean(profile.trusted_seller_at),
       regionCode: profile.region_code,
       avatarPath: profile.avatar_path,
-      memberSince: profile.created_at,
       unclaimed: false,
       linkedHandles: claimRows.map(linkedHandle),
     },
@@ -998,7 +939,6 @@ export async function loadClaimReferenceGraph(claimId: string): Promise<Referenc
       kind: 'claim',
       id: claim.id,
       profileId: null,
-      claimId: claim.id,
       handle: `@${claim.handle}`,
       address: claimAddress(claim),
       name: claim.handle,
@@ -1007,7 +947,6 @@ export async function loadClaimReferenceGraph(claimId: string): Promise<Referenc
       isTrustedSeller: false,
       regionCode: null,
       avatarPath: null,
-      memberSince: null,
       unclaimed: true,
       linkedHandles: [linkedHandle(claim)],
     },
@@ -1022,7 +961,6 @@ function newHandleGraph(handle: string, on: ClaimPlatform | null): ReferenceGrap
       kind: 'handle',
       id: handle,
       profileId: null,
-      claimId: null,
       handle: `@${handle}`,
       address: { slug: handle, on },
       name: handle,
@@ -1031,12 +969,9 @@ function newHandleGraph(handle: string, on: ClaimPlatform | null): ReferenceGrap
       isTrustedSeller: false,
       regionCode: null,
       avatarPath: null,
-      memberSince: null,
       unclaimed: true,
-      referenceCount: 0,
       peopleCount: 0,
       negativeCount: 0,
-      checkedCount: 0,
       platforms: [],
       linkedHandles: [],
     },
@@ -1044,14 +979,6 @@ function newHandleGraph(handle: string, on: ClaimPlatform | null): ReferenceGrap
     links: [],
     hidden: { people: 0, issues: 0 },
   };
-}
-
-function decodeSlug(raw: string): string {
-  try {
-    return decodeURIComponent(raw);
-  } catch {
-    return raw;
-  }
 }
 
 /**
@@ -1067,7 +994,7 @@ function decodeSlug(raw: string): string {
  * Null for an address that names nobody: not a handle, or a banned or closed member.
  */
 export async function loadReferencePage(rawSlug: string, rawOn?: string | null): Promise<ReferencePage | null> {
-  const slug = normalizeHandle(decodeSlug(rawSlug ?? ''));
+  const slug = normalizeHandle(safeDecode(rawSlug ?? ''));
   if (!slug) return null;
 
   if (isUuid(slug)) {

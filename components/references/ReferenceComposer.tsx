@@ -29,6 +29,7 @@ import {
 } from '@hugeicons/core-free-icons';
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
+import { platformTint } from '@/components/references/referenceLabels';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { OptionButton } from '@/components/ui/option-button';
@@ -466,15 +467,6 @@ const SENTIMENT_LABEL = Object.fromEntries(
   REFERENCE_SENTIMENTS.map((s) => [s.slug, s.label]),
 ) as Record<ReferenceSentiment, string>;
 
-const PLATFORM_ICON_TINT: Record<string, string> = {
-  instagram: 'text-[#E1306C]',
-  facebook: 'text-[#1877F2]',
-  discord: 'text-[#5865F2]',
-  ebay: 'text-[#E53238]',
-  whatnot: 'text-foreground',
-  other: 'text-muted-foreground',
-};
-
 function Platform() {
   const { platform, setPlatform, platformOptions } = useDraft();
 
@@ -494,7 +486,7 @@ function Platform() {
                 slug={p.slug}
                 className={cn(
                   p.slug === 'ebay' || p.slug === 'whatnot' ? 'size-4' : 'size-3.5',
-                  PLATFORM_ICON_TINT[p.slug] ?? 'text-muted-foreground',
+                  platformTint(p.slug),
                 )}
               />
               <span className="truncate">{p.label}</span>

@@ -8,13 +8,27 @@
 //
 // Pure: shared by the server loaders and the client components that link and walk.
 
-import type { ClaimPlatform } from '@/domain/references/reference';
+import { isClaimPlatform, type ClaimPlatform } from '@/domain/references/reference';
 
 export interface ReferenceAddress {
   /** A handle without `@`, or a profile / social_claims UUID. */
   slug: string;
   /** The platform the handle lives on. Null for an id, or a handle nobody has placed yet. */
   on: ClaimPlatform | null;
+}
+
+/** A claimed or unclaimed handle's own page. */
+export function claimAddress(claim: { handle: string; platform: string }): ReferenceAddress {
+  return { slug: claim.handle, on: isClaimPlatform(claim.platform) ? claim.platform : null };
+}
+
+/** A path segment decoded, or as it came when it is not valid percent-encoding. */
+export function safeDecode(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
 }
 
 /** The page for `address`, with any extra query parameters. */

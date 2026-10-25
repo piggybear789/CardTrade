@@ -27,7 +27,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Switch } from '@/components/ui/switch';
-import { PlatformChip, SentimentBadge, plural } from '@/components/references/referenceLabels';
+import { PlatformChip, SentimentBadge, platformTint, plural } from '@/components/references/referenceLabels';
 import { ReferenceOwnerActions } from '@/components/references/ReferenceOwnerActions';
 import { TrustNetworkPanel } from '@/components/references/TrustNetworkPanel';
 import { TrustOrbitsCanvas } from '@/components/references/TrustOrbitsCanvas';
@@ -70,18 +70,6 @@ export function averageGraphRating(nodes: readonly ReferenceGraphNode[]): number
   }, 0);
   return total / nodes.length;
 }
-
-const PLATFORM_TINT: Record<string, string> = {
-  instagram: 'text-[#E1306C]',
-  facebook: 'text-[#1877F2]',
-  discord: 'text-[#5865F2]',
-  ebay: 'text-[#E53238]',
-  whatnot: 'text-foreground',
-  noditto: 'text-foreground',
-  x: 'text-foreground',
-  youtube: 'text-[#FF0000]',
-  tiktok: 'text-foreground',
-};
 
 function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
   const { positive, neutral: neutralCount, negative } = stats;
@@ -201,7 +189,7 @@ const NetworkToolbar = memo(function NetworkToolbar({
                   p.slug === 'ebay' || p.slug === 'noditto' || p.slug === 'whatnot'
                     ? 'size-3.5'
                     : 'size-3',
-                  PLATFORM_TINT[p.slug] ?? 'text-muted-foreground',
+                  platformTint(p.slug),
                 )}
               />
               <span>{p.label}</span>

@@ -113,6 +113,14 @@ export interface ReferenceGraphNode {
   roleShortLabel: string;
   dateLabel: string | null;
   deals: number;
+  /** The reference itself, for its author to edit or withdraw. Null for an escrow review alone. */
+  referenceId: string | null;
+  /** `YYYY-MM` of the (latest) deal. */
+  occurredMonth: string;
+  /** The negative category's slug, for editing. */
+  category: string | null;
+  /** Changed by its author after it was published. */
+  edited: boolean;
   /** Their own best-vouched vouchers who are not drawn themselves. Empty for an issue. */
   children: ReferenceGraphChild[];
 }
@@ -280,9 +288,13 @@ function personLinkFor(profile: RefereeProfile, handles: ReadonlyMap<string, Per
 
 interface MergedEdge {
   voucherId: string;
+  /** The newest reference folded in. Null when only escrow reviews make it up. */
+  referenceId: string | null;
   sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
   rating: number;
+  category: string | null;
   categoryLabel: string | null;
+  editedAt: string | null;
   comment: string | null;
   platform: string;
   platforms: string[];
@@ -296,6 +308,18 @@ interface MergedEdge {
 function proofOf(edge: Pick<MergedEdge, 'hasEscrow' | 'proofStatus'>): ReferenceProof {
   if (edge.hasEscrow) return 'escrow';
   return edge.proofStatus === 'CHECKED' ? 'receipt' : 'vouch';
+}
+
+/** What a node needs for its author to edit or withdraw it. */
+function editableFields(
+  edge: MergedEdge,
+): Pick<ReferenceGraphNode, 'referenceId' | 'occurredMonth' | 'category' | 'edited'> {
+  return {
+    referenceId: edge.referenceId,
+    occurredMonth: edge.occurredMonth.slice(0, 7),
+    category: edge.category,
+    edited: edge.editedAt !== null,
+  };
 }
 
 /** Incoming counts (positive people, negative people) per profile id. */
@@ -396,6 +420,8 @@ async function mergedIncoming(
 
 /** The columns of `reference_edges_public` the merge reads. */
 interface EdgeRow {
+  id: string;
+  edited_at: string | null;
   platform: string;
   sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
   rating: number | null;
@@ -439,11 +465,14 @@ function mergeEdgeRows(
     }
     byVoucher.set(key, {
       voucherId: party,
+      referenceId: edge.id,
       sentiment: edge.sentiment,
       rating:
         edge.rating ??
         (edge.sentiment === 'NEGATIVE' ? 1 : edge.sentiment === 'NEUTRAL' ? 3 : 5),
+      category: edge.category,
       categoryLabel: negativeCategoryLabel(edge.category),
+      editedAt: edge.edited_at ?? null,
       comment: edge.comment,
       platform: edge.platform,
       platforms: [edge.platform],
@@ -469,9 +498,12 @@ function mergeEdgeRows(
     } else {
       byVoucher.set(key, {
         voucherId: party,
+        referenceId: null,
         sentiment: 'POSITIVE',
         rating: review.rating ?? 5,
+        category: null,
         categoryLabel: null,
+        editedAt: null,
         comment: review.comment ?? null,
         platform: 'noditto',
         platforms: ['noditto'],
@@ -665,6 +697,7 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
         roleShortLabel: roleShortLabel(edge.role),
         dateLabel: formatOccurredMonth(edge.occurredMonth),
         deals: edge.deals,
+        ...editableFields(edge),
         children: [],
       },
     ];
@@ -794,6 +827,7 @@ async function assembleGraph(
         roleShortLabel: roleShortLabel(edge.role),
         dateLabel: formatOccurredMonth(edge.occurredMonth),
         deals: edge.deals,
+        ...editableFields(edge),
         children: issue ? [] : (stars.get(edge.voucherId) ?? []).flatMap(childOf),
       },
     ];
@@ -855,9 +889,12 @@ async function mergedIncomingMulti(
     if (!edge.target_profile_id) continue;
     push(edge.target_profile_id, {
       voucherId: edge.voucher_id,
+      referenceId: edge.id,
       sentiment: 'POSITIVE',
       rating: edge.rating ?? 5,
+      category: null,
       categoryLabel: null,
+      editedAt: edge.edited_at ?? null,
       comment: edge.comment,
       platform: edge.platform,
       platforms: [edge.platform],
@@ -871,9 +908,12 @@ async function mergedIncomingMulti(
   for (const review of reviews ?? []) {
     push(review.reviewee_id, {
       voucherId: review.reviewer_id,
+      referenceId: null,
       sentiment: 'POSITIVE',
       rating: 5,
+      category: null,
       categoryLabel: null,
+      editedAt: null,
       comment: review.comment ?? null,
       platform: 'noditto',
       platforms: ['noditto'],

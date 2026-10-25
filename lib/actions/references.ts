@@ -43,15 +43,20 @@ import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identi
 import type { ReferenceAddress } from '@/domain/references/address';
 import {
   REFERENCES_PER_DAY,
+  REFERENCE_SENTIMENTS,
   displayNameLabel,
   isClaimPlatform,
+  isUuid,
   normalizeClaimHandle,
   pickPersonKey,
   platformLabel,
   roleLabel,
   validateGiveReference,
+  validateReferenceDetails,
   type ClaimPlatform,
   type GiveReferenceInput,
+  type ReferenceDetailsInput,
+  type ReferenceSentiment,
 } from '@/domain/references/reference';
 import { type ActionFailure, type ActionResult, fail, ok } from './result';
 
@@ -163,6 +168,10 @@ async function findOrCreateClaim(
 function firstGivenName(full: string | null | undefined): string | null {
   const first = full?.trim().split(/\s+/)[0];
   return first ? first : null;
+}
+
+function sentimentLabel(sentiment: ReferenceSentiment): string {
+  return REFERENCE_SENTIMENTS.find((s) => s.slug === sentiment)?.label ?? sentiment;
 }
 
 /** `text` as a literal inside an ILIKE pattern, so `%` and `_` match only themselves. */
@@ -558,6 +567,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
     // A LATER MONTH IS ANOTHER DEAL; the same or an earlier month is this deal told
     // again, so publishing over and over can never raise the count.
     const addedDeal = occurredMonth > existing.occurred_month;
+    const now = new Date().toISOString();
     const { error } = await admin
       .from('member_references')
       .update({
@@ -568,7 +578,9 @@ export const giveReference = withActionLog('references.giveReference', async fun
         comment,
         role,
         occurred_month: addedDeal ? occurredMonth : existing.occurred_month,
-        updated_at: new Date().toISOString(),
+        // The same deal told again rewrites what readers already saw.
+        ...(addedDeal ? {} : { edited_at: now }),
+        updated_at: now,
       })
       .eq('id', existing.id);
     if (error) return fail('persistence-error', SAVE_FAILED);
@@ -1113,8 +1125,98 @@ export const submitManualHandleClaim = withActionLog(
 );
 
 // ---------------------------------------------------------------------------
-// withdraw / dispute
+// edit / withdraw / dispute
 // ---------------------------------------------------------------------------
+
+/**
+ * Change a reference you left: the deal, when it was, the rating and your words. Who it
+ * is for never changes; withdraw it and leave a new one for that. Readers see that it
+ * was edited.
+ */
+export const updateReference = withActionLog('references.updateReference', async function updateReference(
+  referenceId: string,
+  input: ReferenceDetailsInput,
+): Promise<ActionResult<{ referenceId: string }, ReferenceError>> {
+  const user = await getCachedAuthUser();
+  if (!user) return fail('not-authenticated', 'Sign in first.');
+  if (!(await referenceWriteLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
+  if (!isUuid(referenceId)) return fail('not-found', "That reference isn't yours to edit.");
+
+  const validation = validateReferenceDetails(input);
+  if (!validation.ok) return fail('invalid-reference', validation.message, validation.field);
+  const { platform, role, occurredMonth, rating, sentiment, category, comment } = validation.value;
+
+  const admin = createAdminClient();
+  const { data: author, error: authorError } = await admin
+    .from('profiles')
+    .select('fraud_banned_at, closed_at')
+    .eq('id', user.id)
+    .maybeSingle();
+  if (authorError) return fail('persistence-error', SAVE_FAILED);
+  if (!author || author.fraud_banned_at || author.closed_at) {
+    return fail('not-allowed', "This account can't change references.");
+  }
+
+  const { data: reference, error: loadError } = await admin
+    .from('member_references')
+    .select('id, sentiment, voucher_person_key, target_person_key, target_profile_id, target_claim_id')
+    .eq('id', referenceId)
+    .eq('voucher_id', user.id)
+    .eq('status', 'LIVE')
+    .maybeSingle();
+  if (loadError) return fail('persistence-error', SAVE_FAILED);
+  if (!reference) return fail('not-found', "That reference isn't yours to edit.");
+
+  // One live reference per pair of people per sentiment: a new rating that lands on the
+  // sentiment of another reference already left for them would make two.
+  const clashMessage = `You already left them a ${sentimentLabel(sentiment).toLowerCase()} reference. Edit or withdraw that one instead.`;
+  if (sentiment !== reference.sentiment) {
+    const others = admin
+      .from('member_references')
+      .select('id')
+      .eq('status', 'LIVE')
+      .eq('sentiment', sentiment)
+      .neq('id', reference.id);
+    const { data: clash } = reference.target_person_key
+      ? await others
+          .eq('voucher_person_key', reference.voucher_person_key)
+          .eq('target_person_key', reference.target_person_key)
+          .limit(1)
+          .maybeSingle()
+      : await others
+          .eq('voucher_id', user.id)
+          .eq('target_claim_id', reference.target_claim_id!)
+          .limit(1)
+          .maybeSingle();
+    if (clash) return fail('invalid-reference', clashMessage, 'rating');
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await admin
+    .from('member_references')
+    .update({
+      platform,
+      role,
+      occurred_month: occurredMonth,
+      rating,
+      sentiment,
+      category,
+      comment,
+      edited_at: now,
+      updated_at: now,
+    })
+    .eq('id', reference.id)
+    .eq('voucher_id', user.id)
+    .eq('status', 'LIVE');
+  if (error) {
+    // 23505: the same clash, by a request racing this one.
+    return error.code === '23505'
+      ? fail('invalid-reference', clashMessage, 'rating')
+      : fail('persistence-error', SAVE_FAILED);
+  }
+  revalidateReferences(reference.target_profile_id);
+  return ok({ referenceId: reference.id });
+});
 
 export const withdrawReference = withActionLog('references.withdrawReference', async function withdrawReference(
   referenceId: string,
@@ -1122,6 +1224,7 @@ export const withdrawReference = withActionLog('references.withdrawReference', a
   const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'Sign in first.');
   if (!(await referenceWriteLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
+  if (!isUuid(referenceId)) return fail('not-found', "That reference isn't yours to withdraw.");
 
   const admin = createAdminClient();
   const { data, error } = await admin

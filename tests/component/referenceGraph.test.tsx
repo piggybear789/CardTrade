@@ -5,17 +5,24 @@
 // into their network, from /api/references/graph, while the page loads). The orbit
 // drawing sits on top of these paths, so they have to work on their own.
 
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ReferenceGraph } from '@/components/references/ReferenceGraph';
 import { ReferenceProfile } from '@/components/references/ReferenceProfile';
+import { updateReference, withdrawReference } from '@/lib/actions/references';
 import type { ReferenceGraphData, ReferenceGraphNode } from '@/lib/references/graph';
 
 const router = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn(), prefetch: vi.fn(), back: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
-// Publishing is a server action; these paths only need the composer on screen.
-vi.mock('@/lib/actions/references', () => ({ giveReference: vi.fn(), attachReferenceProof: vi.fn() }));
+// Server actions. Most paths only need the composer on screen; editing and withdrawing
+// are checked by what they ask the server to do.
+vi.mock('@/lib/actions/references', () => ({
+  giveReference: vi.fn(),
+  attachReferenceProof: vi.fn(),
+  updateReference: vi.fn(async (referenceId: string) => ({ ok: true, data: { referenceId } })),
+  withdrawReference: vi.fn(async () => ({ ok: true, data: { withdrawn: true } })),
+}));
 // The manual claim re-reads the ID check after a refusal. Nothing here submits one, but
 // the real module is server-only and cannot load in jsdom.
 vi.mock('@/lib/actions/identity', () => ({ refreshIdentityCheck: vi.fn() }));
@@ -51,6 +58,10 @@ function node(
     roleShortLabel: 'Bought',
     dateLabel: 'Sep 2026',
     deals: 1,
+    referenceId: `ref-${profileId}`,
+    occurredMonth: '2026-09',
+    category: null,
+    edited: false,
     children: [],
     ...extra,
   };
@@ -235,6 +246,48 @@ describe('ReferenceProfile', () => {
     fireEvent.click(within(dialog).getByRole('radio', { name: /Instagram/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
     expect(within(dialog).getByRole('link', { name: 'Sign in to publish' })).toBeInTheDocument();
+  });
+
+  it('lets the author of a reference withdraw it, and nobody else', async () => {
+    render(<ReferenceProfile data={ROOT} viewer={{ id: 'kai', identityVerified: true }} autoOpen={false} />);
+
+    // Only kai wrote a reference here, so only kai's card offers the author's actions.
+    expect(screen.getAllByText('Your reference')).toHaveLength(1);
+    const card = screen.getByText('Your reference').closest('li')!;
+    fireEvent.click(within(card).getByRole('button', { name: 'Withdraw' }));
+
+    const confirm = screen.getByRole('dialog', { name: 'Withdraw your reference for @piggybear789?' });
+    fireEvent.click(within(confirm).getByRole('button', { name: 'Withdraw reference' }));
+    await waitFor(() => expect(withdrawReference).toHaveBeenCalledWith('ref-kai'));
+  });
+
+  it('edits a reference through the same two steps, asking what went wrong for a bad rating', async () => {
+    render(<ReferenceProfile data={ROOT} viewer={{ id: 'kai', identityVerified: true }} autoOpen={false} />);
+    const card = screen.getByText('Your reference').closest('li')!;
+    fireEvent.click(within(card).getByRole('button', { name: 'Edit' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Edit your reference' });
+    // Prefilled from the reference: the platform is already picked.
+    expect(within(dialog).getByRole('radio', { name: /Instagram/ })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
+
+    expect(within(dialog).queryByRole('radiogroup', { name: 'What went wrong' })).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('radio', { name: '2 stars' }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Item never arrived' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() =>
+      expect(updateReference).toHaveBeenCalledWith(
+        'ref-kai',
+        expect.objectContaining({
+          platform: 'instagram',
+          occurredMonth: '2026-09',
+          rating: 2,
+          sentiment: 'NEGATIVE',
+          category: 'NEVER_ARRIVED',
+        }),
+      ),
+    );
   });
 
   it('keeps the page where it is when opening someone, since their page is laid out the same', async () => {

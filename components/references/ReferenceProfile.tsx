@@ -219,7 +219,9 @@ export function ReferenceProfile({
             ~9px and its dots small targets). Two columns from `sm`. Cards do not select
             in the drawing here: once you have scrolled down to read them it is often off
             screen, and a selection you cannot see reads as a tap that did nothing. */}
-        {orbits.view.nodes.length > 0 ? <ExperienceList orbits={orbits} selectable={false} /> : null}
+        {orbits.view.nodes.length > 0 ? (
+          <ExperienceList orbits={orbits} selectable={false} viewerId={viewer.id} />
+        ) : null}
       </section>
     </div>
   );

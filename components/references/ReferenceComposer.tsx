@@ -2,8 +2,11 @@
 
 // components/references/ReferenceComposer.tsx
 //
-// Leaving a reference (0155), built on our standard UI primitives (`StarIcon`
-// 1..5 rating, `Label`, `Textarea`, `Button`, `PendingLabel`).
+// Leaving a reference (0155), and editing one you left, built on our standard UI
+// primitives (`StarIcon` 1..5 rating, `Label`, `Textarea`, `Select`, `Button`,
+// `PendingLabel`). The fields read one draft from context (`ReferenceDraft`):
+// `useReferenceComposer` publishes a new reference, `useReferenceEditor` saves over
+// one the member already left.
 
 import {
   createContext,
@@ -29,17 +32,27 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { OptionButton } from '@/components/ui/option-button';
 import { PendingLabel } from '@/components/ui/pending-label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { attachReferenceProof, giveReference, type ReferenceTargetDescriptor } from '@/lib/actions/references';
+import {
+  attachReferenceProof,
+  giveReference,
+  updateReference,
+  type ReferenceTargetDescriptor,
+} from '@/lib/actions/references';
 import { uploadReferenceImage } from '@/lib/storage/uploadReferenceImage';
 import { REFERENCE_IMAGE_ACCEPT } from '@/lib/storage/referenceImagesShared';
 import { withQuery } from '@/domain/references/address';
 import {
+  FIRST_DEAL_YEAR,
+  NEGATIVE_CATEGORIES,
   REFERENCE_PLATFORMS,
   REFERENCE_ROLES,
   REFERENCE_SENTIMENTS,
   isClaimPlatform,
+  isNegativeCategory,
   isReferenceRole,
+  type NegativeCategory,
   type ReferenceRole,
   type ReferenceSentiment,
 } from '@/domain/references/reference';
@@ -47,6 +60,22 @@ import { cn } from '@/lib/utils';
 
 const COMMENT_LIMIT = 500;
 const PROOF_LIMIT = 3;
+const NO_PROOFS: string[] = [];
+
+const MONTH_NAMES = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+] as const;
 
 /** Who is looking, as far as leaving a reference goes. */
 export interface ComposerViewer {
@@ -56,6 +85,7 @@ export interface ComposerViewer {
   isSelf: boolean;
 }
 
+/** `YYYY-MM` for this month, where the member is. */
 function currentMonth(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -71,6 +101,8 @@ function targetPayload(target: ReferenceTargetDescriptor, platform: string) {
   return { kind: 'handle' as const, handle: target.id, platform: target.platform ?? platform };
 }
 
+type PlatformOption = (typeof REFERENCE_PLATFORMS)[number];
+
 /** The deal platforms a handle can also live on. */
 const HANDLE_PLATFORMS = REFERENCE_PLATFORMS.filter((p) => isClaimPlatform(p.slug));
 
@@ -78,7 +110,7 @@ const HANDLE_PLATFORMS = REFERENCE_PLATFORMS.filter((p) => isClaimPlatform(p.slu
  * The platforms the composer offers. For a handle whose platform is not known yet, only
  * platforms a handle can live on: picking one says where the account is.
  */
-function platformOptionsFor(target: ReferenceTargetDescriptor): readonly (typeof REFERENCE_PLATFORMS)[number][] {
+function platformOptionsFor(target: ReferenceTargetDescriptor): readonly PlatformOption[] {
   return target.kind === 'handle' && !target.platform ? HANDLE_PLATFORMS : REFERENCE_PLATFORMS;
 }
 
@@ -88,14 +120,63 @@ function sentimentForRating(rating: number): ReferenceSentiment {
   return 'POSITIVE';
 }
 
-/** The draft reference and what can be done with it. */
-export function useReferenceComposer(target: ReferenceTargetDescriptor) {
+/** What a negative reference is filed under: the member's pick, or "Other issue". */
+function categoryFor(sentiment: ReferenceSentiment, category: NegativeCategory | null): NegativeCategory | null {
+  return sentiment === 'NEGATIVE' ? (category ?? 'OTHER') : null;
+}
+
+const PICK_PLATFORM = 'Select which platform this account is on.';
+
+/** Everything the composer fields read and set, whichever hook owns the draft. */
+export interface ReferenceDraft {
+  /** Who the reference is about, as the dialog names them. */
+  subject: string;
+  platformOptions: readonly PlatformOption[];
+  platform: string;
+  setPlatform: (next: string) => void;
+  role: ReferenceRole;
+  setRole: (next: ReferenceRole) => void;
+  /** `YYYY-MM` of the deal. */
+  month: string;
+  setMonth: (next: string) => void;
+  rating: number;
+  setRating: (next: number) => void;
+  sentiment: ReferenceSentiment;
+  /** What went wrong, for a negative rating. Null until picked. */
+  category: NegativeCategory | null;
+  setCategory: (next: NegativeCategory) => void;
+  comment: string;
+  setComment: (next: string) => void;
+  proofNames: string[];
+  uploadingProof: boolean;
+  attachProof: (files: FileList | null) => Promise<void>;
+  removeProof: (index: number) => void;
+  error: string | null;
+  pending: boolean;
+  publish: () => void;
+  /** The first step's gate: a platform must be chosen before moving on. */
+  requirePlatform: () => boolean;
+}
+
+/** The share dialog's draft: the fields, plus what a two-step dialog and sign-in need. */
+export interface ComposerDraft extends ReferenceDraft {
+  done: boolean;
+  /** Back to an empty draft, as after publishing or cancelling. */
+  reset: () => void;
+  /** Keep the text of the draft through a sign-in round trip. False while incomplete. */
+  saveDraftToSession: () => boolean;
+}
+
+/** A new reference, drafted in the share dialog and published with `giveReference`. */
+export function useReferenceComposer(target: ReferenceTargetDescriptor): ComposerDraft {
   const router = useRouter();
   const storageKey = `noditto:ref-draft:${target.kind}:${target.platform ?? '*'}:${target.id.toLowerCase()}`;
   const platformOptions = platformOptionsFor(target);
   const [platform, setPlatformState] = useState<string>('');
   const [role, setRole] = useState<ReferenceRole>('BOUGHT');
+  const [month, setMonth] = useState<string>(currentMonth);
   const [rating, setRating] = useState<number>(5);
+  const [category, setCategory] = useState<NegativeCategory | null>(null);
   const [comment, setComment] = useState('');
   const [proofPaths, setProofPaths] = useState<string[]>([]);
   const [proofNames, setProofNames] = useState<string[]>([]);
@@ -113,7 +194,14 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
     try {
       const saved = sessionStorage.getItem(storageKey);
       if (!saved) return;
-      const parsed = JSON.parse(saved) as { platform?: string; role?: string; rating?: number; comment?: string };
+      const parsed = JSON.parse(saved) as {
+        platform?: string;
+        role?: string;
+        month?: string;
+        rating?: number;
+        category?: string;
+        comment?: string;
+      };
       if (isReferenceRole(parsed.role)) {
         setRole(parsed.role);
       }
@@ -123,8 +211,14 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
       ) {
         setPlatformState(parsed.platform);
       }
+      if (typeof parsed.month === 'string' && /^\d{4}-\d{2}$/.test(parsed.month) && parsed.month <= currentMonth()) {
+        setMonth(parsed.month);
+      }
       if (typeof parsed.rating === 'number' && parsed.rating >= 1 && parsed.rating <= 5) {
         setRating(parsed.rating);
+      }
+      if (isNegativeCategory(parsed.category)) {
+        setCategory(parsed.category);
       }
       if (typeof parsed.comment === 'string') {
         setComment(parsed.comment);
@@ -136,11 +230,14 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
 
   const saveDraftToSession = (): boolean => {
     if (!platform) {
-      setError('Select which platform this account is on.');
+      setError(PICK_PLATFORM);
       return false;
     }
     try {
-      sessionStorage.setItem(storageKey, JSON.stringify({ platform, role, rating, comment }));
+      sessionStorage.setItem(
+        storageKey,
+        JSON.stringify({ platform, role, month, rating, category, comment }),
+      );
     } catch {
       // ignore storage errors
     }
@@ -149,10 +246,9 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
 
   const sentiment = sentimentForRating(rating);
 
-  /** Step 1's gate in the stepped dialog: a platform must be chosen before moving on. */
   const requirePlatform = (): boolean => {
     if (platform) return true;
-    setError('Select which platform this account is on.');
+    setError(PICK_PLATFORM);
     return false;
   };
 
@@ -183,7 +279,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
 
   const publish = () => {
     if (!platform) {
-      setError('Select which platform this account is on.');
+      setError(PICK_PLATFORM);
       return;
     }
     if (rating < 1 || rating > 5) {
@@ -196,10 +292,10 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
         target: targetPayload(target, platform),
         platform,
         role,
-        occurredMonth: currentMonth(),
+        occurredMonth: month,
         rating,
         sentiment,
-        category: sentiment === 'NEGATIVE' ? 'OTHER' : null,
+        category: categoryFor(sentiment, category),
         comment,
       });
       if (!result.ok) {
@@ -219,28 +315,33 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
     });
   };
 
-  /** Back to an empty draft, as after publishing or cancelling. */
   const reset = () => {
     setDone(false);
     setError(null);
     setPlatformState('');
     setRole('BOUGHT');
+    setMonth(currentMonth());
     setRating(5);
+    setCategory(null);
     setComment('');
     setProofPaths([]);
     setProofNames([]);
   };
 
   return {
-    target,
+    subject: target.handle,
     platformOptions,
     platform,
     setPlatform,
     role,
     setRole,
+    month,
+    setMonth,
     rating,
     setRating,
     sentiment,
+    category,
+    setCategory,
     comment,
     setComment,
     proofNames,
@@ -248,16 +349,104 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
     attachProof,
     removeProof,
     error,
-    done,
     pending,
     publish,
+    requirePlatform,
+    done,
     reset,
     saveDraftToSession,
-    requirePlatform,
   };
 }
 
-export type ReferenceDraft = ReturnType<typeof useReferenceComposer>;
+/** A reference its author is changing, as the graph describes it. */
+export interface EditableReference {
+  id: string;
+  /** Who it is about, as the dialog names them. */
+  subject: string;
+  platform: string;
+  role: string;
+  /** `YYYY-MM`. */
+  month: string;
+  rating: number;
+  category: string | null;
+  comment: string | null;
+}
+
+/** An existing reference, saved over the original with `updateReference`. */
+export function useReferenceEditor(reference: EditableReference, onSaved: () => void): ReferenceDraft {
+  const router = useRouter();
+  const [platform, setPlatformState] = useState(reference.platform);
+  const [role, setRole] = useState<ReferenceRole>(isReferenceRole(reference.role) ? reference.role : 'BOUGHT');
+  const [month, setMonth] = useState(reference.month);
+  const [rating, setRating] = useState(reference.rating);
+  const [category, setCategory] = useState<NegativeCategory | null>(
+    isNegativeCategory(reference.category) ? reference.category : null,
+  );
+  const [comment, setComment] = useState(reference.comment ?? '');
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const sentiment = sentimentForRating(rating);
+  const platformKnown = REFERENCE_PLATFORMS.some((p) => p.slug === platform);
+
+  const setPlatform = (next: string) => {
+    setPlatformState(next);
+    setError(null);
+  };
+
+  const requirePlatform = (): boolean => {
+    if (platformKnown) return true;
+    setError(PICK_PLATFORM);
+    return false;
+  };
+
+  const publish = () => {
+    if (!requirePlatform()) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await updateReference(reference.id, {
+        platform,
+        role,
+        occurredMonth: month,
+        rating,
+        sentiment,
+        category: categoryFor(sentiment, category),
+        comment,
+      });
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      onSaved();
+      router.refresh();
+    });
+  };
+
+  return {
+    subject: reference.subject,
+    platformOptions: REFERENCE_PLATFORMS,
+    platform,
+    setPlatform,
+    role,
+    setRole,
+    month,
+    setMonth,
+    rating,
+    setRating,
+    sentiment,
+    category,
+    setCategory,
+    comment,
+    setComment,
+    proofNames: NO_PROOFS,
+    uploadingProof: false,
+    attachProof: async () => {},
+    removeProof: () => {},
+    error,
+    pending,
+    publish,
+    requirePlatform,
+  };
+}
 
 const ComposerContext = createContext<ReferenceDraft | null>(null);
 
@@ -343,6 +532,59 @@ function Role() {
   );
 }
 
+/**
+ * When the deal happened, as a month and a year. A month that has not happened yet
+ * cannot be picked; changing the year to this one pulls a later month back to now.
+ */
+function Month() {
+  const { month, setMonth } = useDraft();
+  const now = currentMonth();
+  const [year, mm] = month.split('-');
+  const years: string[] = [];
+  for (let y = Number(now.slice(0, 4)); y >= FIRST_DEAL_YEAR; y -= 1) years.push(String(y));
+
+  return (
+    <div className="space-y-snug">
+      <Label id="reference-month-label">When</Label>
+      <div role="group" aria-labelledby="reference-month-label" className="grid grid-cols-[minmax(0,1fr)_7rem] gap-snug">
+        <Select value={mm} onValueChange={(next) => setMonth(`${year}-${next}`)}>
+          <SelectTrigger aria-label="Month">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MONTH_NAMES.map((name, index) => {
+              const value = String(index + 1).padStart(2, '0');
+              return (
+                <SelectItem key={value} value={value} disabled={`${year}-${value}` > now}>
+                  {name}
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+        <Select
+          value={year}
+          onValueChange={(next) => {
+            const candidate = `${next}-${mm}`;
+            setMonth(candidate > now ? now : candidate);
+          }}
+        >
+          <SelectTrigger aria-label="Year">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {years.map((value) => (
+              <SelectItem key={value} value={value}>
+                {value}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
 function Outcome() {
   const { rating, setRating } = useDraft();
   const [hover, setHover] = useState(0);
@@ -401,6 +643,25 @@ function Outcome() {
               aria-hidden
             />
           </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** What went wrong, asked only of a negative rating. Unpicked, it is filed as "Other issue". */
+function Category() {
+  const { sentiment, category, setCategory } = useDraft();
+  if (sentiment !== 'NEGATIVE') return null;
+
+  return (
+    <div className="space-y-snug">
+      <Label>What went wrong</Label>
+      <div role="radiogroup" aria-label="What went wrong" className="grid grid-cols-1 gap-snug sm:grid-cols-2">
+        {NEGATIVE_CATEGORIES.map((c) => (
+          <OptionButton key={c.slug} selected={category === c.slug} onClick={() => setCategory(c.slug)}>
+            <span className="truncate">{c.label}</span>
+          </OptionButton>
         ))}
       </div>
     </div>
@@ -503,7 +764,15 @@ function ErrorNotice() {
   );
 }
 
-function Publish({ className }: { className?: string }) {
+function Publish({
+  className,
+  children = 'Publish reference',
+  pendingLabel = 'Publishing…',
+}: {
+  className?: string;
+  children?: ReactNode;
+  pendingLabel?: string;
+}) {
   const { pending, uploadingProof, publish } = useDraft();
   return (
     <Button
@@ -513,8 +782,8 @@ function Publish({ className }: { className?: string }) {
       onClick={publish}
       className={className}
     >
-      <PendingLabel pending={pending} pendingLabel="Publishing…">
-        Publish reference
+      <PendingLabel pending={pending} pendingLabel={pendingLabel}>
+        {children}
       </PendingLabel>
     </Button>
   );
@@ -522,11 +791,11 @@ function Publish({ className }: { className?: string }) {
 
 /** What follows a published reference. */
 function Published({ onDone }: { onDone: () => void }) {
-  const { target } = useDraft();
+  const { subject } = useDraft();
   return (
     <div className="space-y-group py-2 text-center">
       <div className="space-y-1">
-        <p className="text-body font-semibold text-foreground">Added to {target.handle}&rsquo;s network</p>
+        <p className="text-body font-semibold text-foreground">Added to {subject}&rsquo;s network</p>
       </div>
       <Button type="button" onClick={onDone} className="w-full sm:w-auto">
         Done
@@ -540,7 +809,9 @@ export const Composer = {
   Provider,
   Platform,
   Role,
+  Month,
   Outcome,
+  Category,
   Comment,
   ImageField,
   Error: ErrorNotice,

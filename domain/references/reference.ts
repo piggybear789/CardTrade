@@ -51,6 +51,13 @@ export function negativeCategoryLabel(slug: string | null | undefined): string |
   return NEGATIVE_CATEGORIES.find((c) => c.slug === slug)?.label ?? null;
 }
 
+export function isNegativeCategory(value: unknown): value is NegativeCategory {
+  return NEGATIVE_CATEGORIES.some((c) => c.slug === value);
+}
+
+/** The earliest year a deal can be dated (`normalizeOccurredMonth`). */
+export const FIRST_DEAL_YEAR = 2015;
+
 /** Platforms a social claim (searchable handle) can live on. Mirrors the 0162 CHECK. */
 export const CLAIM_PLATFORMS = ['instagram', 'facebook', 'x', 'youtube', 'tiktok', 'discord', 'ebay', 'whatnot'] as const;
 export type ClaimPlatform = (typeof CLAIM_PLATFORMS)[number];
@@ -120,16 +127,24 @@ export function roleShortLabel(role: string): string {
   return REFERENCE_ROLES.find((r) => r.slug === role)?.shortLabel ?? role;
 }
 
-/** `YYYY-MM` for the current month, or a validated input month not in the future. */
+function utcMonth(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+}
+
+/** UTC+14, the first time zone into each new month. */
+const EARLIEST_ZONE_MS = 14 * 60 * 60 * 1000;
+
+/** `YYYY-MM-01` for the current month, or a validated input month not in the future. */
 export function normalizeOccurredMonth(value: unknown, now = new Date()): string | null {
-  const current = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  if (value === undefined || value === null || value === '') return `${current}-01`;
+  if (value === undefined || value === null || value === '') return `${utcMonth(now)}-01`;
   if (typeof value !== 'string') return null;
   const match = /^(\d{4})-(\d{2})$/.exec(value.trim());
   if (!match) return null;
   if (match[2] < '01' || match[2] > '12') return null;
-  if (`${match[1]}-${match[2]}` > current) return null;
-  if (Number(match[1]) < 2015) return null;
+  // The future starts after the newest month begun ANYWHERE: a member in Sydney on the
+  // morning of the 1st is already in a month the server's UTC clock has not reached.
+  if (`${match[1]}-${match[2]}` > utcMonth(new Date(now.getTime() + EARLIEST_ZONE_MS))) return null;
+  if (Number(match[1]) < FIRST_DEAL_YEAR) return null;
   return `${match[1]}-${match[2]}-01`;
 }
 

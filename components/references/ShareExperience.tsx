@@ -9,8 +9,9 @@
 //     and brings the member back here (`/api/identity/start`). A reference is only ever
 //     published by a verified person, so there is no dialog to act on first.
 //   - Everyone else gets a two-step dialog (`components/ui/dialog`):
-//       1. The deal  — where it happened, and whether they bought, sold or traded.
-//       2. Rating    — 1..5 stars, the member's own words, optional proof, Publish.
+//       1. The deal  — where and when it happened, and whether they bought, sold or traded.
+//       2. Rating    — 1..5 stars, what went wrong if it went badly, the member's own
+//                      words, optional proof, Publish.
 //     A visitor who is signed out drafts through both steps, then signs in to publish.
 //
 // WHY STEPS. One tall form put six platform buttons, three deal buttons, stars, a text
@@ -156,10 +157,12 @@ export function ShareExperience({
                   <>
                     <Composer.Platform />
                     <Composer.Role />
+                    <Composer.Month />
                   </>
                 ) : (
                   <>
                     <Composer.Outcome />
+                    <Composer.Category />
                     <Composer.Comment
                       id={viewer.signedIn ? 'share-experience-comment' : 'share-experience-preview'}
                       rows={4}

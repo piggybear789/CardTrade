@@ -453,6 +453,7 @@ export default async function SellerProfilePage({
         {referenceGraph ? (
           <ReferenceGraph
             data={referenceGraph}
+            viewerId={user?.id ?? null}
             action={
               <ShareExperience
                 target={{

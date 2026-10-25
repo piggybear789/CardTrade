@@ -205,10 +205,14 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
   // A repeat deal raises `deal_count` and OVERWRITES the stored month, rating, platform
   // and comment (`giveReference`), so with more than one deal everything shown here is
   // the latest one's. Say so rather than implying every deal happened that month.
-  const referenceMeta =
+  const referenceMeta = [
     node.deals > 1
       ? `${plural(node.deals, 'deal', 'deals')}${node.dateLabel ? `, latest ${node.dateLabel}` : ''}`
-      : (node.dateLabel ?? '');
+      : node.dateLabel,
+    node.edited ? 'Edited' : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <>

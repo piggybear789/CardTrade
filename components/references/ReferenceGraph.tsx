@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Switch } from '@/components/ui/switch';
 import { PlatformChip, SentimentBadge, plural } from '@/components/references/referenceLabels';
+import { ReferenceOwnerActions } from '@/components/references/ReferenceOwnerActions';
 import { TrustNetworkPanel } from '@/components/references/TrustNetworkPanel';
 import { TrustOrbitsCanvas } from '@/components/references/TrustOrbitsCanvas';
 import {
@@ -211,6 +212,7 @@ function NetworkToolbar({ orbits }: { orbits: TrustOrbits }) {
 export function ExperienceList({
   orbits,
   selectable = true,
+  viewerId = null,
 }: {
   orbits: TrustOrbits;
   /**
@@ -219,8 +221,14 @@ export function ExperienceList({
    * the panel would, and a panel opening off-screen reads as a tap that did nothing.
    */
   selectable?: boolean;
+  /** The signed-in member, who can edit or withdraw the references they wrote. */
+  viewerId?: string | null;
 }) {
   const { view, selectedKey } = orbits;
+  const given = view.direction === 'given';
+  // Given: every card is the person in the middle's own words. Received: each card's
+  // author is the person on it.
+  const authorOf = (node: ReferenceGraphNode) => (given ? orbits.graph.centre.profileId : node.profileId);
   return (
     <div className="border-t border-border/80 bg-card px-group py-4 sm:px-5" style={{ opacity: arrival(orbits) }}>
       <h4 className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
@@ -231,6 +239,7 @@ export function ExperienceList({
           const key = nodeKey(node);
           const isSelected = key === selectedKey;
           const negative = node.sentiment === 'NEGATIVE';
+          const mine = viewerId !== null && node.referenceId !== null && authorOf(node) === viewerId;
           return (
             <li key={node.id}>
               <div
@@ -298,8 +307,17 @@ export function ExperienceList({
 
                 <div className="mt-2.5 flex items-center justify-between text-meta text-muted-foreground">
                   <span>{negative ? (node.categoryLabel ?? 'Issue') : plural(node.deals, 'deal', 'deals')}</span>
-                  {node.dateLabel ? <span>{node.dateLabel}</span> : null}
+                  {node.dateLabel || node.edited ? (
+                    <span>{[node.dateLabel, node.edited ? 'Edited' : null].filter(Boolean).join(' · ')}</span>
+                  ) : null}
                 </div>
+
+                {mine ? (
+                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/70 pt-2">
+                    <span className="text-meta text-muted-foreground">Your reference</span>
+                    <ReferenceOwnerActions node={node} subject={given ? node.handle : orbits.graph.centre.handle} />
+                  </div>
+                ) : null}
               </div>
             </li>
           );
@@ -411,10 +429,13 @@ export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; ac
 export function ReferenceGraph({
   data,
   action,
+  viewerId = null,
 }: {
   data: ReferenceGraphData;
   /** The ShareExperience control (or the owner's share link control) for this page's person. */
   action?: ReactNode;
+  /** The signed-in member, who can edit or withdraw the references they wrote. */
+  viewerId?: string | null;
 }) {
   const orbits = useTrustOrbits(data, { openPage: usePageOpener(false) });
   return (
@@ -424,7 +445,7 @@ export function ReferenceGraph({
     >
       <TrustNetworkHeader orbits={orbits} action={orbits.away ? null : action} />
       <TrustNetworkBody orbits={orbits} />
-      {orbits.view.nodes.length > 0 ? <ExperienceList orbits={orbits} /> : null}
+      {orbits.view.nodes.length > 0 ? <ExperienceList orbits={orbits} viewerId={viewerId} /> : null}
     </section>
   );
 }

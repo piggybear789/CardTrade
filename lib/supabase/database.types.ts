@@ -2926,6 +2926,7 @@ export type Database = {
           proof_status: 'NONE' | 'PENDING' | 'CHECKED';
           disputed_at: string | null;
           disputed_by: string | null;
+          edited_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -2949,6 +2950,7 @@ export type Database = {
           proof_status?: 'NONE' | 'PENDING' | 'CHECKED';
           disputed_at?: string | null;
           disputed_by?: string | null;
+          edited_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2972,6 +2974,7 @@ export type Database = {
           proof_status?: 'NONE' | 'PENDING' | 'CHECKED';
           disputed_at?: string | null;
           disputed_by?: string | null;
+          edited_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -3585,7 +3588,7 @@ export type Database = {
         };
         Relationships: [];
       };
-      /** Live reference edges (0155, 0161). Public projection: no person keys, no proof paths. */
+      /** Live reference edges (0155, 0161, 0163). Public projection: no person keys, no proof paths. */
       reference_edges_public: {
         Row: {
           id: string;
@@ -3602,6 +3605,7 @@ export type Database = {
           deal_count: number;
           proof_status: 'NONE' | 'PENDING' | 'CHECKED';
           created_at: string;
+          edited_at: string | null;
         };
         Relationships: [];
       };

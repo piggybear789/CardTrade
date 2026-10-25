@@ -129,6 +129,15 @@ const NAV_PREFIX =
 const QUOTED_LINK_RE = new RegExp(`${NAV_PREFIX}(['"])(\\/[^'"]*)\\1`, 'g');
 const TEMPLATE_LINK_RE = new RegExp(`${NAV_PREFIX}\`(\\/[^\`]*)\``, 'g');
 
+// Link builders whose output the patterns above cannot see, by the route each builds.
+// `referenceHref` puts a handle's platform on every references link (0155), so no page
+// links `/references/...` as a literal. Each call is a link, and a route whose builder
+// is no longer called anywhere is an orphan again.
+const LINK_BUILDERS: Record<string, string> = {
+  referenceHref: '/references/:dyn',
+};
+const LINK_BUILDER_RE = new RegExp(`\\b(${Object.keys(LINK_BUILDERS).join('|')})\\(`, 'g');
+
 /** Normalize a raw target: strip query/hash and collapse `${...}` into a wildcard. */
 function normalizeTarget(raw: string): string {
   const withoutQuery = raw.split(/[?#]/)[0];
@@ -156,6 +165,13 @@ function collectLinks(): FoundLink[] {
             file: path.relative(repoRoot, file),
           });
         }
+      }
+      for (const match of source.matchAll(LINK_BUILDER_RE)) {
+        links.push({
+          target: LINK_BUILDERS[match[1]],
+          raw: `${match[1]}(…)`,
+          file: path.relative(repoRoot, file),
+        });
       }
     }
   }
@@ -282,7 +298,7 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/deals': 'Private deal composer; mobile uses its native deal modal',
   '/trusted-sellers': 'Public Trusted Seller directory, shared as a web link on Instagram',
   '/references': 'Public References search over the trust graph (0155), web-first',
-  '/references/[handle]': 'Unified cross-platform handle reference graph (0155), web-first',
+  '/references/[handle]': 'One person’s reference graph, by handle and platform or by id (0155), web-first',
   '/trusted-sellers/apply': 'Trusted Seller application, reached from the web directory',
   '/report-scam': 'Off-platform scam report form, web-only for now',
   '/report-scam/response/[id]': 'Matched member response page, opened from a notification link',

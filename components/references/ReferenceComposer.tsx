@@ -12,6 +12,7 @@ import {
   createContext,
   use,
   useEffect,
+  useId,
   useRef,
   useState,
   useTransition,
@@ -538,6 +539,7 @@ function Role() {
  */
 function Month() {
   const { month, setMonth } = useDraft();
+  const labelId = useId();
   const now = currentMonth();
   const [year, mm] = month.split('-');
   const years: string[] = [];
@@ -545,8 +547,8 @@ function Month() {
 
   return (
     <div className="space-y-snug">
-      <Label id="reference-month-label">When</Label>
-      <div role="group" aria-labelledby="reference-month-label" className="grid grid-cols-[minmax(0,1fr)_7rem] gap-snug">
+      <Label id={labelId}>When</Label>
+      <div role="group" aria-labelledby={labelId} className="grid grid-cols-[minmax(0,1fr)_7rem] gap-snug">
         <Select value={mm} onValueChange={(next) => setMonth(`${year}-${next}`)}>
           <SelectTrigger aria-label="Month">
             <SelectValue />

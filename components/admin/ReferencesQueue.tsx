@@ -3,10 +3,9 @@
 // components/admin/ReferencesQueue.tsx
 //
 // The References tab of the Operations console (0155): handle claims waiting
-// on a bio screenshot check, reference proofs waiting to become
-// receipt-checked, and disputed references. Nothing here gates publication:
-// positive and negative experiences are already live. Staff only verify
-// claims and proof, and decide disputes.
+// on a bio screenshot check, and reference proofs waiting to become
+// receipt-checked. Nothing here gates publication: positive and negative
+// experiences are already live. Staff only verify claims and proof.
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,11 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
-import {
-  decideHandleClaim,
-  resolveReferenceDispute,
-  setReferenceProofChecked,
-} from '@/lib/actions/admin';
+import { decideHandleClaim, setReferenceProofChecked } from '@/lib/actions/admin';
 import { formatRelativeTime } from '@/lib/format';
 
 export interface ReferenceClaimRow {
@@ -42,17 +37,6 @@ export interface ReferenceProofRow {
   role: string;
   dateLabel: string | null;
   screenshots: { path: string; url: string | null }[];
-}
-
-export interface ReferenceDisputeRow {
-  id: string;
-  voucherName: string;
-  targetName: string;
-  targetId: string | null;
-  sentiment: string;
-  categoryLabel: string | null;
-  comment: string | null;
-  disputedAt: string | null;
 }
 
 function ScreenshotStrip({ screenshots }: { screenshots: { path: string; url: string | null }[] }) {
@@ -78,11 +62,9 @@ function ScreenshotStrip({ screenshots }: { screenshots: { path: string; url: st
 export function ReferencesQueue({
   claims,
   proofs,
-  disputes,
 }: {
   claims: ReferenceClaimRow[];
   proofs: ReferenceProofRow[];
-  disputes: ReferenceDisputeRow[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -104,8 +86,7 @@ export function ReferencesQueue({
 
   const visibleClaims = claims.filter((row) => !done.has(row.id));
   const visibleProofs = proofs.filter((row) => !done.has(row.id));
-  const visibleDisputes = disputes.filter((row) => !done.has(row.id));
-  const total = visibleClaims.length + visibleProofs.length + visibleDisputes.length;
+  const total = visibleClaims.length + visibleProofs.length;
 
   return (
     <section aria-labelledby="references-admin-heading">
@@ -116,8 +97,8 @@ export function ReferencesQueue({
         <Badge variant={total > 0 ? 'default' : 'secondary'}>{total} to check</Badge>
       </div>
       <p className="mb-group text-body text-muted-foreground">
-        Handle claims, proof checks and disputed references. Experiences publish without staff
-        review; this queue only verifies claims and screenshots, and settles disputes.
+        Handle claims and proof checks. Experiences publish without staff review; this queue
+        only verifies claims and screenshots.
       </p>
       {error ? (
         <p role="alert" className="mb-group rounded-lg bg-destructive/10 px-cozy py-snug text-body text-destructive">
@@ -126,7 +107,7 @@ export function ReferencesQueue({
       ) : null}
 
       {total === 0 ? (
-        <EmptyState title="Nothing to check" titleAs="h4" description="No claims, proofs or disputes are waiting." compact />
+        <EmptyState title="Nothing to check" titleAs="h4" description="No claims or proofs are waiting." compact />
       ) : (
         <div className="space-y-group">
           {visibleClaims.map((row) => (
@@ -179,34 +160,6 @@ export function ReferencesQueue({
                 <Button size="sm" disabled={pending} onClick={() => act(row.id, () => setReferenceProofChecked(row.id))}>
                   Mark receipt checked
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
-
-          {visibleDisputes.map((row) => (
-            <Card key={row.id}>
-              <CardHeader>
-                <div className="flex flex-wrap items-center gap-snug">
-                  <Badge variant="destructive">Disputed</Badge>
-                  <CardTitle className="text-lead">
-                    {row.voucherName} about {row.targetName}
-                  </CardTitle>
-                  <span className="text-meta text-muted-foreground">
-                    {row.sentiment === 'NEGATIVE' ? `Negative · ${row.categoryLabel ?? ''}` : 'Positive'}
-                    {row.disputedAt ? ` · disputed ${formatRelativeTime(row.disputedAt)}` : ''}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-cozy">
-                {row.comment ? <p className="text-body text-foreground">&ldquo;{row.comment}&rdquo;</p> : null}
-                <div className="flex flex-wrap gap-snug">
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => act(row.id, () => resolveReferenceDispute(row.id, 'KEEP'))}>
-                    Keep it live
-                  </Button>
-                  <Button size="sm" variant="destructive" disabled={pending} onClick={() => act(row.id, () => resolveReferenceDispute(row.id, 'REMOVE'))}>
-                    Remove reference
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           ))}

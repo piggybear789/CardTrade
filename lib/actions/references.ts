@@ -1088,7 +1088,7 @@ export const submitManualHandleClaim = withActionLog(
 );
 
 // ---------------------------------------------------------------------------
-// edit / withdraw / dispute
+// edit / withdraw
 // ---------------------------------------------------------------------------
 
 /**
@@ -1202,28 +1202,4 @@ export const withdrawReference = withActionLog('references.withdrawReference', a
   if (!data) return fail('not-found', "That reference isn't yours to withdraw.");
   revalidateReferences(data.target_profile_id);
   return ok({ withdrawn: true });
-});
-
-export const disputeReference = withActionLog('references.disputeReference', async function disputeReference(
-  referenceId: string,
-): Promise<ActionResult<{ disputed: true }, ReferenceError>> {
-  const user = await getCachedAuthUser();
-  if (!user) return fail('not-authenticated', 'Sign in first.');
-
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('member_references')
-    .update({
-      disputed_at: new Date().toISOString(),
-      disputed_by: user.id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', referenceId)
-    .eq('target_profile_id', user.id)
-    .eq('status', 'LIVE')
-    .select('id')
-    .maybeSingle();
-  if (error) return fail('persistence-error', SAVE_FAILED);
-  if (!data) return fail('not-found', "That reference isn't about you.");
-  return ok({ disputed: true });
 });

@@ -2320,31 +2320,3 @@ export const setReferenceProofChecked = withActionLog('admin.setReferenceProofCh
   revalidatePath('/admin');
   return { ok: true, data: { id: referenceId } };
 });
-
-/** Decide a disputed reference: keep it live, or remove it from every count. */
-export const resolveReferenceDispute = withActionLog('admin.resolveReferenceDispute', async function resolveReferenceDispute(
-  referenceId: string,
-  decision: 'KEEP' | 'REMOVE',
-): Promise<AdminActionResult> {
-  const gate = await requireAdmin();
-  if (!gate.ok) return { ok: false, error: gate.error };
-
-  const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('member_references')
-    .update(
-      decision === 'KEEP'
-        ? { disputed_at: null, disputed_by: null, updated_at: new Date().toISOString() }
-        : { status: 'REMOVED' as const, updated_at: new Date().toISOString() },
-    )
-    .eq('id', referenceId)
-    .eq('status', 'LIVE')
-    .not('disputed_at', 'is', null)
-    .select('target_profile_id')
-    .maybeSingle();
-  if (error) return { ok: false, error: 'persistence-error', message: error.message };
-  if (!data) return { ok: false, error: 'not-found' };
-  if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
-  revalidatePath('/admin');
-  return { ok: true, data: { id: referenceId } };
-});

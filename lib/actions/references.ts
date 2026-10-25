@@ -24,6 +24,13 @@ import { getInstagramBotToken } from '@/lib/instagram/botToken';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
+import { rateLimitIdentifier } from '@/lib/rateLimit';
+import {
+  handleClaimLimiter,
+  referenceSearchLimiter,
+  referenceUploadLimiter,
+  referenceWriteLimiter,
+} from '@/lib/rateLimiters';
 import {
   createSignedReferenceUpload,
   existingReferenceImages,
@@ -59,6 +66,7 @@ export type ReferenceError =
   | 'persistence-error';
 
 const SAVE_FAILED = "We couldn't save that. Please try again.";
+const RATE_LIMITED = 'Too many attempts. Wait a minute and try again.';
 
 /** One autofill suggestion: a member, or one unclaimed handle on its own platform. */
 export interface ReferenceSuggestion {
@@ -189,7 +197,10 @@ interface ClaimMatch {
  */
 export const searchReferences = withActionLog('references.searchReferences', async function searchReferences(
   query: string,
-): Promise<ActionResult<ReferenceSuggestion[], 'persistence-error'>> {
+): Promise<ActionResult<ReferenceSuggestion[], 'persistence-error' | 'rate-limited'>> {
+  if (!(await referenceSearchLimiter.check(await rateLimitIdentifier(null))).allowed) {
+    return fail('rate-limited', 'Too many searches. Wait a moment and try again.');
+  }
   const needle = (query ?? '').trim().replace(/^@/, '').toLowerCase().slice(0, 64);
   const admin = createAdminClient();
 
@@ -448,6 +459,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
 ): Promise<ActionResult<{ referenceId: string; addedDeal: boolean }, ReferenceError>> {
   const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'Sign in to share your experience.');
+  if (!(await referenceWriteLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
 
   const validation = validateGiveReference(input);
   if (!validation.ok) return fail('invalid-reference', validation.message, validation.field);
@@ -528,7 +540,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
 
   const existingQuery = admin
     .from('member_references')
-    .select('id, deal_count')
+    .select('id, deal_count, occurred_month')
     .eq('status', 'LIVE');
   const { data: existing } = targetPersonKey
     ? await existingQuery
@@ -543,22 +555,25 @@ export const giveReference = withActionLog('references.giveReference', async fun
         .maybeSingle();
 
   if (existing) {
+    // A LATER MONTH IS ANOTHER DEAL; the same or an earlier month is this deal told
+    // again, so publishing over and over can never raise the count.
+    const addedDeal = occurredMonth > existing.occurred_month;
     const { error } = await admin
       .from('member_references')
       .update({
-        deal_count: existing.deal_count + 1,
+        deal_count: addedDeal ? existing.deal_count + 1 : existing.deal_count,
         platform,
         rating,
         category,
         comment,
         role,
-        occurred_month: occurredMonth,
+        occurred_month: addedDeal ? occurredMonth : existing.occurred_month,
         updated_at: new Date().toISOString(),
       })
       .eq('id', existing.id);
     if (error) return fail('persistence-error', SAVE_FAILED);
     revalidateReferences(targetProfileId);
-    return ok({ referenceId: existing.id, addedDeal: true });
+    return ok({ referenceId: existing.id, addedDeal });
   }
 
   const { data: inserted, error: insertError } = await admin
@@ -610,6 +625,7 @@ async function mintUpload(
 ): Promise<ActionResult<{ path: string; token: string }, ReferenceError>> {
   const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'Sign in to add screenshots.');
+  if (!(await referenceUploadLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
   try {
     return ok(await createSignedReferenceUpload(createAdminClient(), bucket, user.id, contentType));
   } catch (error) {
@@ -771,6 +787,7 @@ export const startInstagramDmClaim = withActionLog(
         status: 'PENDING',
       });
     }
+    if (!(await handleClaimLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
     const code = deterministicDmCode(handleNorm, user.id);
 
     const admin = createAdminClient();
@@ -896,6 +913,7 @@ export const checkInstagramDmClaim = withActionLog(
     if (isInstagramBotHandle(handleNorm)) {
       return fail('not-allowed', "That's NoDitto's own Instagram account, so it can't be claimed here.");
     }
+    if (!(await handleClaimLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
     const admin = createAdminClient();
     const refusal = await claimRefusal(admin, user.id);
     if (refusal) return refusal;
@@ -988,6 +1006,7 @@ export const submitManualHandleClaim = withActionLog(
   }): Promise<ActionResult<MyHandleClaim, ReferenceError>> {
     const user = await getCachedAuthUser();
     if (!user) return fail('not-authenticated', 'Sign in first.');
+    if (!(await handleClaimLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
 
     const platform = input.platform;
     if (!isClaimPlatform(platform)) {
@@ -1102,6 +1121,7 @@ export const withdrawReference = withActionLog('references.withdrawReference', a
 ): Promise<ActionResult<{ withdrawn: true }, ReferenceError>> {
   const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'Sign in first.');
+  if (!(await referenceWriteLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
 
   const admin = createAdminClient();
   const { data, error } = await admin

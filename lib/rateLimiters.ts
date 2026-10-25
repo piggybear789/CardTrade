@@ -89,3 +89,27 @@ export const uxEventLimiter = createRateLimiter({ prefix: 'ux', limit: 120, wind
 
 /** General API / mobile routes. */
 export const apiLimiter = createRateLimiter({ prefix: 'api', limit: 60, window: '1m' });
+
+/**
+ * Leaving, editing and withdrawing references (0155), per member. The daily cap on new
+ * references counts rows; this bounds the edits and repeats that do not add one.
+ */
+export const referenceWriteLimiter = createRateLimiter({ prefix: 'reference-write', limit: 10, window: '1m' });
+
+/** Proof and claim screenshot uploads (0155), per member: up to three per reference or claim. */
+export const referenceUploadLimiter = createRateLimiter({ prefix: 'reference-upload', limit: 20, window: '1m' });
+
+/**
+ * Reference search, per IP. Anyone can search, from two search boxes that call it on
+ * every pause in typing, and each call runs several reads.
+ */
+export const referenceSearchLimiter = createRateLimiter({ prefix: 'reference-search', limit: 60, window: '1m' });
+
+/** The public reference graph API, per IP: each request is a few dozen reads. */
+export const referenceGraphLimiter = createRateLimiter({ prefix: 'reference-graph', limit: 60, window: '1m' });
+
+/**
+ * Claiming a handle (0155), per member: starting a claim, submitting proof, and checking
+ * the Instagram DM, which the open claim dialog polls every four seconds.
+ */
+export const handleClaimLimiter = createRateLimiter({ prefix: 'handle-claim', limit: 30, window: '1m' });

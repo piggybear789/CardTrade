@@ -801,12 +801,13 @@ async function assembleGraph(
 
   const validPositives = validEdges.filter((e) => e.sentiment === 'POSITIVE');
   const validNegatives = validEdges.filter((e) => e.sentiment === 'NEGATIVE');
-  const totalPositiveDeals = validPositives.reduce((sum, e) => sum + e.deals, 0);
 
   return {
     centre: {
       ...centre,
-      referenceCount: Math.max(validPositives.length, totalPositiveDeals),
+      // PEOPLE, NEVER DEALS. A deal count is one author's say-so; how many different
+      // verified people vouch is what cannot be inflated by one of them.
+      referenceCount: validPositives.length,
       peopleCount: validPositives.length,
       negativeCount: validNegatives.length,
       checkedCount: validPositives.filter((e) => e.proofStatus === 'CHECKED' || e.hasEscrow).length,

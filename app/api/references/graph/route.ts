@@ -7,12 +7,21 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { rateLimitIdentifier } from '@/lib/rateLimit';
+import { referenceGraphLimiter } from '@/lib/rateLimiters';
 import { loadReferencePage } from '@/lib/references/graph';
 
 /** Longer than any handle a platform allows; anything past it is not a handle. */
 const MAX_HANDLE_LENGTH = 100;
 
 export async function GET(request: NextRequest) {
+  if (!(await referenceGraphLimiter.check(await rateLimitIdentifier(null))).allowed) {
+    return NextResponse.json(
+      { error: 'Too many requests. Wait a moment and try again.' },
+      { status: 429, headers: { 'Retry-After': '60' } },
+    );
+  }
+
   const params = request.nextUrl.searchParams;
   const handle = params.get('handle')?.trim() ?? '';
   if (!handle || handle.length > MAX_HANDLE_LENGTH) {

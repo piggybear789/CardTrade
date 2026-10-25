@@ -3,8 +3,8 @@
 // components/references/ReferenceSearch.tsx
 //
 // /references (0155): command-palette search input with the dropdown already
-// visible showing the top 3 most-referred traders, and expanding to matching
-// profiles as the member types.
+// visible showing the top 3 most-referred traders (or an empty state while there
+// are none), and expanding to matching profiles as the member types.
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -15,6 +15,7 @@ import {
   CheckmarkCircle02Icon,
   PlusIcon,
   Search01Icon,
+  UserGroupIcon,
 } from '@hugeicons/core-free-icons';
 
 import { PlatformChip } from '@/components/references/referenceLabels';
@@ -34,12 +35,14 @@ function handleText(suggestion: ReferenceSuggestion): string {
 export function ReferenceSearch({
   initialSuggestions = [],
 }: {
-  initialSuggestions?: ReferenceSuggestion[];
+  /** `null` when the read failed, so the empty state doesn't claim there are no references. */
+  initialSuggestions?: ReferenceSuggestion[] | null;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState('');
-  const [knownSuggestions, setKnownSuggestions] =
-    useState<ReferenceSuggestion[]>(initialSuggestions);
+  const [knownSuggestions, setKnownSuggestions] = useState<ReferenceSuggestion[]>(
+    initialSuggestions ?? [],
+  );
   const [activeIndex, setActiveIndex] = useState<number>(0);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestSeq = useRef(0);
@@ -57,7 +60,7 @@ export function ReferenceSearch({
   const needle = query.trim().replace(/^@/, '');
   const needleLower = needle.toLowerCase();
 
-  const topReferred = [...initialSuggestions]
+  const topReferred = [...(initialSuggestions ?? [])]
     .sort((a, b) => b.referenceCount - a.referenceCount || a.handle.localeCompare(b.handle))
     .slice(0, MAX_VISIBLE_RESULTS);
 
@@ -105,9 +108,10 @@ export function ReferenceSearch({
         })
         .slice(0, MAX_VISIBLE_RESULTS);
 
-  const showDirectOpen = needle.length >= 1 && !/\s/.test(needle);
-  const showEmptyNotice = visibleSuggestions.length === 0 && needle.length >= 1;
-  const showDropdown = visibleSuggestions.length > 0 || showEmptyNotice || showDirectOpen;
+  const hasResults = visibleSuggestions.length > 0;
+  const loadFailed = initialSuggestions === null;
+  const isHandle = !/\s/.test(needle);
+  const showDirectOpen = needle.length >= 1 && isHandle;
 
   const openPage = (address: ReferenceAddress, withExperience = false) => {
     router.push(referenceHref(address, withExperience ? { experience: '1' } : {}));
@@ -160,7 +164,7 @@ export function ReferenceSearch({
           onKeyDown={onKeyDown}
           placeholder="Search @handle or name..."
           aria-label="Search a handle or name"
-          aria-expanded={showDropdown}
+          aria-expanded={hasResults}
           aria-autocomplete="list"
           // `text-body`, the same size as the handles in the suggestion list under it, so
           // what you type and what you pick read as one control.
@@ -184,22 +188,25 @@ export function ReferenceSearch({
 
       {/* RESULTS. From `sm`: a dropdown anchored below the input, so filtering never
           shifts the centred page. PHONE: in the page flow under the search, so the list
-          scrolls with the page instead of floating over the footer and keyboard. */}
-      {showDropdown ? (
-        <div
-          role="listbox"
-          aria-label={needle ? 'Matching profiles' : 'Top referred traders'}
-          className="relative mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-market sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:shadow-xl sm:backdrop-blur-md"
-        >
-          {!needle && visibleSuggestions.length > 0 ? (
-            // Visible caption only: the listbox's own label already names it, and a
-            // listbox may hold nothing but options for assistive tech.
-            <p aria-hidden className="px-4 pb-1 pt-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
-              Most referenced
-            </p>
-          ) : null}
-          {visibleSuggestions.length > 0 ? (
-            <div className="divide-y divide-border/60">
+          scrolls with the page instead of floating over the footer and keyboard. Always
+          rendered: with nothing to list it holds an empty state, so the page never ends
+          at a bare search box. */}
+      <div className="relative mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-market sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:shadow-xl sm:backdrop-blur-md">
+        {hasResults ? (
+          <>
+            {!needle ? (
+              // Visible caption only: the listbox's own label already names it.
+              <p aria-hidden className="px-4 pb-1 pt-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
+                Most referenced
+              </p>
+            ) : null}
+            {/* Options only: a listbox may hold nothing else for assistive tech, so the
+                empty states and the open-handle row sit beside it. */}
+            <div
+              role="listbox"
+              aria-label={needle ? 'Matching profiles' : 'Top referred traders'}
+              className="divide-y divide-border/60"
+            >
               {visibleSuggestions.map((s, i) => {
                 const active = i === activeIndex;
                 const subtext = [
@@ -252,41 +259,58 @@ export function ReferenceSearch({
                 );
               })}
             </div>
-          ) : showEmptyNotice ? (
-            <div className="px-4 py-5 text-center">
-              <p className="text-body font-medium text-foreground">
-                No references for @{needle} yet
-              </p>
-              <p className="mt-0.5 text-meta text-muted-foreground">
-                Be the first to leave them a reference.
-              </p>
-            </div>
-          ) : null}
-
-          {showDirectOpen ? (
-            <button
-              type="button"
-              onClick={() => openTyped(needle, true)}
-              className="flex w-full items-center justify-between gap-3 border-t border-border/80 bg-muted/25 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          </>
+        ) : needle ? (
+          <div className="px-4 py-5 text-center">
+            <p className="text-body font-medium text-foreground">
+              No references for {isHandle ? `@${needle}` : `“${needle}”`} yet
+            </p>
+            <p className="mt-0.5 text-meta text-muted-foreground">
+              Be the first to leave them a reference.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center px-4 py-6 text-center sm:py-8">
+            <span
+              aria-hidden
+              className="grid size-10 place-items-center rounded-full border bg-muted text-muted-foreground"
             >
-              <span className="flex items-center gap-3">
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background">
-                  <HugeiconsIcon icon={PlusIcon} className="size-4" aria-hidden />
+              <HugeiconsIcon icon={loadFailed ? Search01Icon : UserGroupIcon} className="size-5" />
+            </span>
+            <p className="mt-snug text-body font-semibold text-foreground">
+              {loadFailed ? 'Look someone up' : 'No references yet'}
+            </p>
+            <p className="mt-tight max-w-sm text-pretty text-meta text-muted-foreground">
+              {loadFailed
+                ? "Search the handle of someone you've traded with to see their references."
+                : "Search the handle of someone you've traded with and be the first to leave them a reference."}
+            </p>
+          </div>
+        )}
+
+        {showDirectOpen ? (
+          <button
+            type="button"
+            onClick={() => openTyped(needle, true)}
+            className="flex w-full items-center justify-between gap-3 border-t border-border/80 bg-muted/25 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span className="flex items-center gap-3">
+              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background">
+                <HugeiconsIcon icon={PlusIcon} className="size-4" aria-hidden />
+              </span>
+              <span>
+                <span className="block text-body font-semibold text-foreground">
+                  Open @{needle} &amp; leave a reference
                 </span>
-                <span>
-                  <span className="block text-body font-semibold text-foreground">
-                    Open @{needle} &amp; leave a reference
-                  </span>
-                  <span className="block text-meta text-muted-foreground">
-                    Add a reference for this handle
-                  </span>
+                <span className="block text-meta text-muted-foreground">
+                  Add a reference for this handle
                 </span>
               </span>
-              <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0 text-iris-ink" aria-hidden />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+            </span>
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0 text-iris-ink" aria-hidden />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

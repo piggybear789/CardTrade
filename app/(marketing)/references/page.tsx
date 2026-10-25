@@ -33,7 +33,7 @@ const TRUST_POINTS = [
 
 export default async function ReferencesPage() {
   const initial = await searchReferences('').catch(() => null);
-  const initialSuggestions = initial && initial.ok ? initial.data : [];
+  const initialSuggestions = initial && initial.ok ? initial.data : null;
 
   // SCALES WITH THE SCREEN. Every size on this page is a `clamp()` of the viewport width:
   // fixed at its phone value up to a laptop, then growing with the screen, so a large

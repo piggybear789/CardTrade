@@ -3,17 +3,17 @@
 // Who operates NoDitto, for the Terms and the Privacy policy. ONE place, so the two
 // documents can never name different entities or contact points.
 //
-// CONFIRM EVERY VALUE BEFORE LAUNCH. These are drafting placeholders: the legal entity,
-// its ABN and address, the governing law and the two mailboxes have to be the real
-// ones, and the mailboxes have to exist and be read. `reviewedByCounsel` stays false
-// until a lawyer has signed the documents off; `showDraftNotice` decides whether the
-// pages say so.
+// NoDitto is a business of Studitory Pty Ltd, the contracting entity (name and ABN as
+// registered on the Australian Business Register). Still to confirm before relying on
+// them: the address, the governing law and the two mailboxes, which have to exist and be
+// read. `reviewedByCounsel` stays false until a lawyer has signed the documents off;
+// `showDraftNotice` decides whether the pages say so.
 
 export const LEGAL = {
-  /** The contracting entity, e.g. "NoDitto Pty Ltd". The brand until confirmed. */
-  operatorName: 'NoDitto',
+  /** The contracting entity that operates NoDitto. */
+  operatorName: 'Studitory Pty Ltd',
   /** Australian Business Number, shown when set. */
-  abn: null as string | null,
+  abn: '21 684 300 847' as string | null,
   /** Registered or postal address, shown when set. */
   address: null as string | null,
   /** The state whose law governs the Terms. Confirm with counsel. */
@@ -34,7 +34,7 @@ export const LEGAL = {
   showDraftNotice: false,
 } as const;
 
-/** "NoDitto (ABN 12 345 678 901)", or just the name while the ABN is unset. */
+/** "Studitory Pty Ltd (ABN 21 684 300 847)", or just the name while the ABN is unset. */
 export function operatorIdentity(): string {
   return LEGAL.abn ? `${LEGAL.operatorName} (ABN ${LEGAL.abn})` : LEGAL.operatorName;
 }

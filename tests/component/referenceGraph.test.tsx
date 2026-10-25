@@ -31,7 +31,7 @@ function node(
     id: `${profileId}:POSITIVE`,
     profileId,
     handle,
-    handleSlug: handle.slice(1),
+    address: { slug: handle.slice(1), on: 'instagram' },
     name: handle.slice(1),
     initials: handle.slice(1, 3).toUpperCase(),
     avatarPath: null,
@@ -69,7 +69,7 @@ function graphFor(
       profileId,
       claimId: null,
       handle,
-      handleSlug: handle.slice(1),
+      address: { slug: handle.slice(1), on: 'instagram' },
       name: handle.slice(1),
       firstName: null,
       identityVerified: true,
@@ -98,7 +98,9 @@ const ROOT = graphFor(
     node('kai', '@kai.collects', 'escrow', {
       refs: 41,
       comment: 'Always sleeved and top-loaded.',
-      children: [{ profileId: 'v1', handle: '@binderboss', handleSlug: 'binderboss', initials: 'BI', refs: 7 }],
+      children: [
+        { profileId: 'v1', handle: '@binderboss', address: { slug: 'binderboss', on: 'instagram' }, initials: 'BI', refs: 7 },
+      ],
     }),
     node('gems', '@graded.gems', 'receipt', { refs: 34 }),
   ],
@@ -166,9 +168,10 @@ describe('ReferenceGraph', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
     fireEvent.click(screen.getByRole('button', { name: 'Open their network' }));
 
-    expect(router.push).toHaveBeenCalledWith('/references/kai.collects', { scroll: true });
+    // Every link carries the platform: a handle alone could be someone else elsewhere.
+    expect(router.push).toHaveBeenCalledWith('/references/kai.collects?on=instagram', { scroll: true });
     expect(await screen.findByRole('button', { name: IN_KAIS_NETWORK })).toBeInTheDocument();
-    expect(fetch).toHaveBeenCalledWith('/api/references/graph?handle=kai.collects');
+    expect(fetch).toHaveBeenCalledWith('/api/references/graph?handle=kai.collects&on=instagram');
   });
 
   it('opens someone activated twice from the keyboard, as a double-click would', async () => {
@@ -239,7 +242,7 @@ describe('ReferenceProfile', () => {
     fireEvent.keyDown(screen.getByRole('button', { name: KAI_NODE }), { key: 'Enter' });
     fireEvent.click(screen.getByRole('button', { name: 'Open their network' }));
 
-    expect(router.push).toHaveBeenCalledWith('/references/kai.collects', { scroll: false });
+    expect(router.push).toHaveBeenCalledWith('/references/kai.collects?on=instagram', { scroll: false });
     expect(await screen.findByRole('heading', { level: 1, name: '@kai.collects' })).toBeInTheDocument();
   });
 });

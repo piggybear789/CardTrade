@@ -20,10 +20,16 @@ import {
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { Avatar } from '@/components/ui/avatar';
 import { searchReferences, type ReferenceSuggestion } from '@/lib/actions/references';
+import { referenceHref, type ReferenceAddress } from '@/domain/references/address';
 import { regionLabel } from '@/domain/region';
 import { cn } from '@/lib/utils';
 
 const MAX_VISIBLE_RESULTS = 3;
+
+/** The handle a suggestion shows, lower-cased and without `@`, for matching what is typed. */
+function handleText(suggestion: ReferenceSuggestion): string {
+  return suggestion.handle.replace(/^@/, '').toLowerCase();
+}
 
 export function ReferenceSearch({
   initialSuggestions = [],
@@ -88,12 +94,12 @@ export function ReferenceSearch({
     : knownSuggestions
         .filter(
           (s) =>
-            s.handleSlug.toLowerCase().includes(needleLower) ||
+            handleText(s).includes(needleLower) ||
             s.name.toLowerCase().includes(needleLower),
         )
         .sort((a, b) => {
-          const aStarts = a.handleSlug.toLowerCase().startsWith(needleLower) ? 1 : 0;
-          const bStarts = b.handleSlug.toLowerCase().startsWith(needleLower) ? 1 : 0;
+          const aStarts = handleText(a).startsWith(needleLower) ? 1 : 0;
+          const bStarts = handleText(b).startsWith(needleLower) ? 1 : 0;
           if (aStarts !== bStarts) return bStarts - aStarts;
           return b.referenceCount - a.referenceCount || a.handle.localeCompare(b.handle);
         })
@@ -103,14 +109,14 @@ export function ReferenceSearch({
   const showEmptyNotice = visibleSuggestions.length === 0 && needle.length >= 1;
   const showDropdown = visibleSuggestions.length > 0 || showEmptyNotice || showDirectOpen;
 
-  const openHandle = (slug: string, withExperience = false) => {
-    const clean = slug.replace(/^@/, '').trim();
-    if (!clean) return;
-    router.push(
-      withExperience
-        ? `/references/${encodeURIComponent(clean)}?experience=1`
-        : `/references/${encodeURIComponent(clean)}`,
-    );
+  const openPage = (address: ReferenceAddress, withExperience = false) => {
+    router.push(referenceHref(address, withExperience ? { experience: '1' } : {}));
+  };
+
+  /** A handle typed in, platform unknown: its page asks which one when several people share it. */
+  const openTyped = (typed: string, withExperience = false) => {
+    const clean = typed.replace(/^@/, '').trim();
+    if (clean) openPage({ slug: clean, on: null }, withExperience);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -124,9 +130,9 @@ export function ReferenceSearch({
       e.preventDefault();
       const target = visibleSuggestions[activeIndex];
       if (target) {
-        openHandle(target.handleSlug);
+        openPage(target.address);
       } else if (needle.length >= 2) {
-        openHandle(needle);
+        openTyped(needle);
       }
     }
   };
@@ -210,7 +216,7 @@ export function ReferenceSearch({
                     role="option"
                     aria-selected={active}
                     onMouseEnter={() => setActiveIndex(i)}
-                    onClick={() => openHandle(s.handleSlug)}
+                    onClick={() => openPage(s.address)}
                     className={cn(
                       'flex w-full items-center gap-3 px-4 py-3 text-left transition-colors focus:outline-none',
                       active ? 'bg-muted/60' : 'hover:bg-muted/30',
@@ -260,7 +266,7 @@ export function ReferenceSearch({
           {showDirectOpen ? (
             <button
               type="button"
-              onClick={() => openHandle(needle, true)}
+              onClick={() => openTyped(needle, true)}
               className="flex w-full items-center justify-between gap-3 border-t border-border/80 bg-muted/25 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="flex items-center gap-3">

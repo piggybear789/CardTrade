@@ -39,6 +39,7 @@ import {
   useReferenceComposer,
   type ComposerViewer,
 } from '@/components/references/ReferenceComposer';
+import { withQuery } from '@/domain/references/address';
 import type { ReferenceTargetDescriptor } from '@/lib/actions/references';
 import { identityStartHref } from '@/lib/identity/identityStart';
 import { cn } from '@/lib/utils';
@@ -197,7 +198,7 @@ export function ShareExperience({
                       }
                     }}
                   >
-                    <Link href={`/sign-in?redirectTo=${encodeURIComponent(`${returnPath}?experience=1`)}`}>
+                    <Link href={`/sign-in?redirectTo=${encodeURIComponent(withQuery(returnPath, { experience: '1' }))}`}>
                       Sign in to publish
                     </Link>
                   </Button>

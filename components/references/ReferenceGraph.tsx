@@ -39,6 +39,7 @@ import {
   type ReferenceView,
   type TrustOrbits,
 } from '@/components/references/useTrustOrbits';
+import { referenceHref, type ReferenceAddress } from '@/domain/references/address';
 import type {
   ReferenceGraphCentre,
   ReferenceGraphData,
@@ -47,9 +48,9 @@ import type {
 import { cn } from '@/lib/utils';
 
 /** Goes to someone's references page. `keepScroll` holds the page where it is, for a page laid out the same. */
-export function usePageOpener(keepScroll: boolean): (handleSlug: string) => void {
+export function usePageOpener(keepScroll: boolean): (address: ReferenceAddress) => void {
   const router = useRouter();
-  return (handleSlug) => router.push(`/references/${encodeURIComponent(handleSlug)}`, { scroll: !keepScroll });
+  return (address) => router.push(referenceHref(address), { scroll: !keepScroll });
 }
 
 /**
@@ -266,7 +267,7 @@ export function ExperienceList({
                       <div className="min-w-0">
                         <div className="flex items-center gap-1">
                           <Link
-                            href={`/references/${encodeURIComponent(node.handleSlug)}`}
+                            href={referenceHref(node.address)}
                             onClick={(event) => event.stopPropagation()}
                             className="break-all text-body font-semibold text-foreground hover:underline"
                           >

@@ -458,16 +458,8 @@ export default async function SellerProfilePage({
                 target={{
                   kind: 'profile',
                   id,
-                  profileId: id,
                   handle: referenceGraph.centre.handle,
-                  name: displayName,
-                  platform:
-                    parseSocialLinks(
-                      (sellerRow.social_links as Record<string, string> | null) ?? null,
-                    )[0]?.slug ?? 'instagram',
-                  firstName: seller.identityFirstName,
-                  identityVerified: seller.isVerified,
-                  unclaimed: false,
+                  platform: null,
                 }}
                 viewer={{
                   signedIn: Boolean(user),

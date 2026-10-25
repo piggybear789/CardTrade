@@ -31,6 +31,7 @@ import { ShareExperience } from '@/components/references/ShareExperience';
 import { centreKeyOf, useTrustOrbits } from '@/components/references/useTrustOrbits';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { referenceAddressKey, referenceHref } from '@/domain/references/address';
 import { regionLabel } from '@/domain/region';
 import type { MyHandleClaim } from '@/lib/actions/references';
 import type { ReferenceGraphData } from '@/lib/references/graph';
@@ -56,7 +57,8 @@ export function ReferenceProfile({
 }) {
   const orbits = useTrustOrbits(data, { openPage: usePageOpener(true) });
   const { centre, nodes } = orbits.graph;
-  const returnPath = `/references/${encodeURIComponent(centre.handleSlug)}`;
+  const returnPath = referenceHref(centre.address);
+  const centreAddressKey = referenceAddressKey(centre.address);
   const isSelf = viewer.id !== null && viewer.id === centre.profileId;
   const avgRating = averageGraphRating(nodes);
   const details = [
@@ -170,8 +172,9 @@ export function ReferenceProfile({
           <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center [&>button]:w-full sm:[&>button]:w-auto">
             {centre.unclaimed ? (
               <ClaimHandle
-                key={`claim-${centre.handleSlug}`}
+                key={`claim-${centreAddressKey}`}
                 handle={centre.handle}
+                platform={centre.address.on}
                 signedIn={viewer.id !== null}
                 identityVerified={viewer.identityVerified}
                 initialClaim={orbits.centreKey === centreKeyOf(data) ? initialClaim : null}
@@ -179,7 +182,7 @@ export function ReferenceProfile({
               />
             ) : isSelf ? (
               <ClaimHandle
-                key={`link-${centre.handleSlug}`}
+                key={`link-${centreAddressKey}`}
                 handle={centre.handle}
                 signedIn
                 identityVerified={viewer.identityVerified}
@@ -192,14 +195,8 @@ export function ReferenceProfile({
               target={{
                 kind: centre.kind,
                 id: centre.id,
-                profileId: centre.profileId,
                 handle: centre.handle,
-                handleSlug: centre.handleSlug,
-                name: centre.name,
-                platform: centre.platforms[0]?.slug ?? 'instagram',
-                firstName: centre.firstName,
-                identityVerified: centre.identityVerified,
-                unclaimed: centre.unclaimed,
+                platform: centre.kind === 'handle' ? centre.address.on : null,
               }}
               viewer={{ signedIn: viewer.id !== null, identityVerified: viewer.identityVerified, isSelf }}
               returnPath={returnPath}

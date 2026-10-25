@@ -33,10 +33,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { attachReferenceProof, giveReference, type ReferenceTargetDescriptor } from '@/lib/actions/references';
 import { uploadReferenceImage } from '@/lib/storage/uploadReferenceImage';
 import { REFERENCE_IMAGE_ACCEPT } from '@/lib/storage/referenceImagesShared';
+import { withQuery } from '@/domain/references/address';
 import {
   REFERENCE_PLATFORMS,
   REFERENCE_ROLES,
   REFERENCE_SENTIMENTS,
+  isClaimPlatform,
   isReferenceRole,
   type ReferenceRole,
   type ReferenceSentiment,
@@ -59,10 +61,25 @@ function currentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function targetPayload(target: ReferenceTargetDescriptor) {
+/**
+ * Who the reference is for. A handle nobody has placed takes the platform the page names,
+ * or else the one picked here, because that is the account it is about.
+ */
+function targetPayload(target: ReferenceTargetDescriptor, platform: string) {
   if (target.kind === 'profile') return { kind: 'profile' as const, profileId: target.id };
   if (target.kind === 'claim') return { kind: 'claim' as const, claimId: target.id };
-  return { kind: 'handle' as const, handle: (target.handleSlug ?? target.handle).replace(/^@/, '') };
+  return { kind: 'handle' as const, handle: target.id, platform: target.platform ?? platform };
+}
+
+/** The deal platforms a handle can also live on. */
+const HANDLE_PLATFORMS = REFERENCE_PLATFORMS.filter((p) => isClaimPlatform(p.slug));
+
+/**
+ * The platforms the composer offers. For a handle whose platform is not known yet, only
+ * platforms a handle can live on: picking one says where the account is.
+ */
+function platformOptionsFor(target: ReferenceTargetDescriptor): readonly (typeof REFERENCE_PLATFORMS)[number][] {
+  return target.kind === 'handle' && !target.platform ? HANDLE_PLATFORMS : REFERENCE_PLATFORMS;
 }
 
 function sentimentForRating(rating: number): ReferenceSentiment {
@@ -74,7 +91,8 @@ function sentimentForRating(rating: number): ReferenceSentiment {
 /** The draft reference and what can be done with it. */
 export function useReferenceComposer(target: ReferenceTargetDescriptor) {
   const router = useRouter();
-  const storageKey = `noditto:ref-draft:${(target.handleSlug ?? target.handle).replace(/^@/, '').toLowerCase()}`;
+  const storageKey = `noditto:ref-draft:${target.kind}:${target.platform ?? '*'}:${target.id.toLowerCase()}`;
+  const platformOptions = platformOptionsFor(target);
   const [platform, setPlatformState] = useState<string>('');
   const [role, setRole] = useState<ReferenceRole>('BOUGHT');
   const [rating, setRating] = useState<number>(5);
@@ -101,7 +119,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
       }
       if (
         typeof parsed.platform === 'string' &&
-        REFERENCE_PLATFORMS.some((p) => p.slug === parsed.platform)
+        platformOptions.some((p) => p.slug === parsed.platform)
       ) {
         setPlatformState(parsed.platform);
       }
@@ -114,7 +132,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
     } catch {
       // ignore storage errors
     }
-  }, [storageKey]);
+  }, [storageKey, platformOptions]);
 
   const saveDraftToSession = (): boolean => {
     if (!platform) {
@@ -175,7 +193,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
     setError(null);
     startTransition(async () => {
       const result = await giveReference({
-        target: targetPayload(target),
+        target: targetPayload(target, platform),
         platform,
         role,
         occurredMonth: currentMonth(),
@@ -215,6 +233,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor) {
 
   return {
     target,
+    platformOptions,
     platform,
     setPlatform,
     role,
@@ -267,7 +286,7 @@ const PLATFORM_ICON_TINT: Record<string, string> = {
 };
 
 function Platform() {
-  const { platform, setPlatform } = useDraft();
+  const { platform, setPlatform, platformOptions } = useDraft();
 
   return (
     <div className="space-y-snug">
@@ -277,7 +296,7 @@ function Platform() {
         aria-label="Platform"
         className="grid grid-cols-2 gap-snug sm:grid-cols-3"
       >
-        {REFERENCE_PLATFORMS.map((p) => {
+        {platformOptions.map((p) => {
           const selected = platform === p.slug;
           return (
             <OptionButton key={p.slug} selected={selected} onClick={() => setPlatform(p.slug)}>
@@ -534,7 +553,7 @@ export function CopyReferenceLink({ returnPath, className }: { returnPath: strin
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}${returnPath}?experience=1`);
+      await navigator.clipboard.writeText(`${window.location.origin}${withQuery(returnPath, { experience: '1' })}`);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {

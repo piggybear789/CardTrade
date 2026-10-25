@@ -5,7 +5,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { identityStartHref } from '@/lib/identity/identityStart';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { isValidHandle, normalizeHandle } from '@/domain/social/socialLinks';
+import { isValidClaimHandle } from '@/domain/references/reference';
+import { normalizeHandle } from '@/domain/social/socialLinks';
 
 // app/api/oauth/claim/[provider]/route.ts
 //
@@ -517,7 +518,7 @@ export async function GET(
     nextParam.startsWith('/') && !nextParam.startsWith('//') && !nextParam.startsWith('/\\')
       ? nextParam
       : '/references';
-  if (!isWildcard && !isValidHandle(rawHandle)) {
+  if (!isWildcard && !isValidClaimHandle(provider, rawHandle)) {
     return NextResponse.redirect(new URL(returnPath, origin));
   }
 

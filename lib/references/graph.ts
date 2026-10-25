@@ -2,15 +2,17 @@ import 'server-only';
 
 // lib/references/graph.ts
 //
-// Loads a unified, cross-platform reference graph for `/references/[handle]`,
-// `/sellers/[id]`, and `/api/references/graph` (walking the graph in place).
+// Loads a person's reference graph for `/references/[handle]`, `/sellers/[id]`, and
+// `/api/references/graph` (walking the graph in place).
 //
-// SYNTHESIS ACROSS ALL PLATFORMS. A person's reference graph merges every
-// deal recorded for their profile and/or matching social handles across
-// Instagram, Facebook, Discord, eBay, Whatnot, In-person, and NoDitto Escrow
-// (`reviews` from completed cash sales & trades). Positive and negative
-// experiences stay distinct — a negative experience never nets off a positive
-// reference.
+// ONE PERSON, EVERY HANDLE THEY HAVE CLAIMED. A member's graph merges the deals recorded
+// for their profile with NoDitto escrow reviews (`reviews` from completed cash sales and
+// trades); their claimed handles have already handed their references over (the claim
+// trigger, 0155/0162). A handle nobody has claimed is its own node, ON ITS PLATFORM:
+// @john on Instagram and john on Discord are two people, so nothing here ever merges
+// two handles because they are spelled alike, and no display name ever stands in for a
+// handle. Positive and negative experiences stay distinct — a negative experience
+// never nets off a positive reference.
 //
 // STRUCTURE, NOT POSITIONS. The graph says who is drawn, each drawn person's own
 // best-vouched vouchers, and which drawn people have dealt with each other. The
@@ -24,15 +26,20 @@ import 'server-only';
 // (no person keys, no proof paths, no staff fields).
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import type { ReferenceAddress } from '@/domain/references/address';
 import {
+  displayNameLabel,
   formatOccurredMonth,
+  isClaimPlatform,
   isUuid,
+  isValidClaimHandle,
   negativeCategoryLabel,
   platformLabel,
   roleLabel,
   roleShortLabel,
+  type ClaimPlatform,
 } from '@/domain/references/reference';
-import { isValidHandle, normalizeHandle } from '@/domain/social/socialLinks';
+import { normalizeHandle } from '@/domain/social/socialLinks';
 import { orbitKey, pickDrawn, splitConnections, type DrawCandidate } from '@/domain/references/orbits';
 
 /** How a deal was evidenced: a NoDitto escrow deal, a staff-checked receipt, or a plain vouch. */
@@ -53,14 +60,14 @@ export interface LinkedSocialHandle {
 
 export interface ReferenceGraphCentre {
   kind: 'profile' | 'claim' | 'handle';
-  /** profiles.id, social_claims.id, or normalized handle string. */
+  /** profiles.id, social_claims.id, or the handle itself for a handle nobody has placed. */
   id: string;
   profileId: string | null;
   claimId: string | null;
-  /** Display handle with leading `@` (e.g. `@piggybear789`). */
+  /** `@handle` for a handle; the display name for a member with no claimed handle. */
   handle: string;
-  /** URL-safe slug without `@` for `/references/[handle]`. */
-  handleSlug: string;
+  /** This page's address. `on` is the handle's platform, when there is one. */
+  address: ReferenceAddress;
   name: string;
   firstName: string | null;
   identityVerified: boolean;
@@ -81,7 +88,8 @@ export interface ReferenceGraphNode {
   id: string;
   profileId: string;
   handle: string;
-  handleSlug: string;
+  /** Their page. */
+  address: ReferenceAddress;
   name: string;
   initials: string;
   avatarPath: string | null;
@@ -112,7 +120,7 @@ export interface ReferenceGraphNode {
 export interface ReferenceGraphChild {
   profileId: string;
   handle: string;
-  handleSlug: string;
+  address: ReferenceAddress;
   initials: string;
   refs: number;
 }
@@ -145,6 +153,22 @@ export interface ReferenceGraphData {
   /** References the centre has left for others. Absent (or empty) for an unclaimed handle. */
   given?: ReferenceGraphGiven;
 }
+
+/** One of the people a bare handle could mean, on the page that asks which. */
+export interface ReferenceHandleChoice {
+  address: ReferenceAddress;
+  platform: ClaimPlatform | null;
+  handle: string;
+  name: string;
+  identityVerified: boolean;
+  avatarPath: string | null;
+  unclaimed: boolean;
+}
+
+/** What a references address shows: one person's graph, or the people a bare handle could mean. */
+export type ReferencePage =
+  | { kind: 'graph'; graph: ReferenceGraphData }
+  | { kind: 'choose'; handle: string; choices: ReferenceHandleChoice[] };
 
 const EMPTY_GIVEN: ReferenceGraphGiven = {
   nodes: [],
@@ -182,6 +206,15 @@ function firstGivenName(full: string | null | undefined): string | null {
   return first || null;
 }
 
+/** A claimed or unclaimed handle's own page. */
+function claimAddress(claim: { handle: string; platform: string }): ReferenceAddress {
+  return { slug: claim.handle, on: isClaimPlatform(claim.platform) ? claim.platform : null };
+}
+
+function linkedHandle(claim: { handle: string; platform: string }): LinkedSocialHandle {
+  return { platform: claim.platform, platformLabel: platformLabel(claim.platform), handle: `@${claim.handle}` };
+}
+
 interface RefereeProfile {
   id: string;
   displayName: string;
@@ -212,27 +245,37 @@ async function refereeProfiles(admin: Admin, ids: string[]): Promise<Map<string,
   return map;
 }
 
-/** Handles per profile from claims (first claim in platform order wins). */
-async function primaryHandles(
-  admin: Admin,
-  profileIds: string[],
-): Promise<Map<string, { handle: string; handleSlug: string; platform: string }>> {
-  const map = new Map<string, { handle: string; handleSlug: string; platform: string }>();
+/** How a member is labelled and linked: a claimed handle, or their display name and id. */
+interface PersonLink {
+  handle: string;
+  address: ReferenceAddress;
+}
+
+/** Each profile's first claimed handle: the one they verified first. */
+async function primaryHandles(admin: Admin, profileIds: string[]): Promise<Map<string, PersonLink>> {
+  const map = new Map<string, PersonLink>();
   if (profileIds.length === 0) return map;
   const { data } = await admin
     .from('social_claims')
     .select('platform, handle, claimed_profile_id')
-    .in('claimed_profile_id', profileIds);
+    .in('claimed_profile_id', profileIds)
+    .order('claimed_at', { ascending: true });
   for (const row of data ?? []) {
     if (row.claimed_profile_id && !map.has(row.claimed_profile_id)) {
-      map.set(row.claimed_profile_id, {
-        handle: `@${row.handle}`,
-        handleSlug: row.handle,
-        platform: row.platform,
-      });
+      map.set(row.claimed_profile_id, { handle: `@${row.handle}`, address: claimAddress(row) });
     }
   }
   return map;
+}
+
+/** A member with no claimed handle is shown by display name and linked by id, never as a handle. */
+function personLinkFor(profile: RefereeProfile, handles: ReadonlyMap<string, PersonLink>): PersonLink {
+  return (
+    handles.get(profile.id) ?? {
+      handle: displayNameLabel(profile.displayName),
+      address: { slug: profile.id, on: null },
+    }
+  );
 }
 
 interface MergedEdge {
@@ -371,8 +414,8 @@ interface ReviewRow {
 }
 
 /**
- * One entry per (other party, sentiment), folding every platform, deal, comment and
- * proof between them. `party` is whoever is on the OTHER end from the person in the
+ * One entry per (other party, sentiment), folding every platform, deal and comment
+ * between them. `party` is whoever is on the OTHER end from the person in the
  * middle: the voucher for incoming references, the person reviewed for outgoing ones.
  * It lands in `MergedEdge.voucherId` either way.
  */
@@ -465,7 +508,7 @@ function platformBreakdown(edges: readonly MergedEdge[]): PlatformSynthesisItem[
 interface GivenParty {
   profileId: string;
   handle: string;
-  handleSlug: string;
+  address: ReferenceAddress;
   name: string;
   avatarPath: string | null;
   identityVerified: boolean;
@@ -555,12 +598,12 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
   for (const id of profileIds) {
     const profile = profiles.get(id);
     if (!profile) continue;
-    const handle = handles.get(id);
+    const link = personLinkFor(profile, handles);
     parties.set(id, {
       profileId: id,
-      handle: handle?.handle ?? `@${profile.displayName}`,
-      handleSlug: handle?.handleSlug ?? profile.displayName,
-      name: profile.displayName,
+      handle: link.handle,
+      address: link.address,
+      name: displayNameLabel(profile.displayName),
       avatarPath: profile.avatarPath,
       identityVerified: profile.identityVerified,
       firstName: profile.firstName,
@@ -573,7 +616,7 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
     parties.set(`claim:${claimId}`, {
       profileId: `claim:${claimId}`,
       handle: `@${claim.handle}`,
-      handleSlug: claim.handle,
+      address: claimAddress(claim),
       name: claim.handle,
       avatarPath: null,
       identityVerified: false,
@@ -601,7 +644,7 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
         id: `${party.profileId}:${edge.sentiment}`,
         profileId: party.profileId,
         handle: party.handle,
-        handleSlug: party.handleSlug,
+        address: party.address,
         name: party.name,
         initials: initialsOf(party.name || party.handle),
         avatarPath: party.avatarPath,
@@ -709,13 +752,13 @@ async function assembleGraph(
   const childOf = (profileId: string): ReferenceGraphChild[] => {
     const profile = profiles.get(profileId);
     if (!profile) return [];
-    const handle = handles.get(profileId);
+    const link = personLinkFor(profile, handles);
     return [
       {
         profileId,
-        handle: handle?.handle ?? `@${profile.displayName}`,
-        handleSlug: handle?.handleSlug ?? profile.displayName,
-        initials: initialsOf(profile.displayName || handle?.handle || '?'),
+        handle: link.handle,
+        address: link.address,
+        initials: initialsOf(profile.displayName || link.handle),
         refs: standingOf(profileId),
       },
     ];
@@ -724,15 +767,15 @@ async function assembleGraph(
   const nodes: ReferenceGraphNode[] = drawn.flatMap(({ edge, issue }) => {
     const profile = profiles.get(edge.voucherId);
     if (!profile) return [];
-    const handle = handles.get(edge.voucherId);
+    const link = personLinkFor(profile, handles);
     return [
       {
         id: `${edge.voucherId}:${edge.sentiment}`,
         profileId: edge.voucherId,
-        handle: handle?.handle ?? `@${profile.displayName}`,
-        handleSlug: handle?.handleSlug ?? profile.displayName,
-        name: profile.displayName,
-        initials: initialsOf(profile.displayName || handle?.handle || '?'),
+        handle: link.handle,
+        address: link.address,
+        name: displayNameLabel(profile.displayName),
+        initials: initialsOf(profile.displayName || link.handle),
         avatarPath: profile.avatarPath,
         identityVerified: profile.identityVerified,
         firstName: profile.firstName,
@@ -855,17 +898,16 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
       .is('fraud_banned_at', null)
       .is('closed_at', null)
       .maybeSingle(),
-    admin.from('social_claims').select('id, platform, handle').eq('claimed_profile_id', profileId),
+    admin
+      .from('social_claims')
+      .select('id, platform, handle')
+      .eq('claimed_profile_id', profileId)
+      .order('claimed_at', { ascending: true }),
   ]);
   if (!profile) return null;
   const claimRows = claims ?? [];
   const primary = claimRows[0];
-  const handleSlug = primary ? primary.handle : profile.display_name;
-  const linkedHandles: LinkedSocialHandle[] = claimRows.map((c) => ({
-    platform: c.platform,
-    platformLabel: platformLabel(c.platform),
-    handle: `@${c.handle}`,
-  }));
+  const name = displayNameLabel(profile.display_name);
 
   return assembleGraph(
     admin,
@@ -874,9 +916,9 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
       id: profile.id,
       profileId: profile.id,
       claimId: primary?.id ?? null,
-      handle: primary ? `@${primary.handle}` : `@${profile.display_name}`,
-      handleSlug,
-      name: profile.display_name,
+      handle: primary ? `@${primary.handle}` : name,
+      address: primary ? claimAddress(primary) : { slug: profile.id, on: null },
+      name,
       firstName:
         profile.identity_check_status === 'VERIFIED'
           ? firstGivenName(profile.identity_check_name)
@@ -887,29 +929,24 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
       avatarPath: profile.avatar_path,
       memberSince: profile.created_at,
       unclaimed: false,
-      linkedHandles,
+      linkedHandles: claimRows.map(linkedHandle),
     },
     { profileId: profile.id, claimIds: claimRows.map((c) => c.id) },
   );
 }
 
+/** One handle's graph: its claimant's when claimed, else the handle alone, on its platform. */
 export async function loadClaimReferenceGraph(claimId: string): Promise<ReferenceGraphData | null> {
   const admin = createAdminClient();
   const { data: claim } = await admin
     .from('social_claims')
-    .select('id, platform, handle, handle_norm, claimed_profile_id')
+    .select('id, platform, handle, claimed_profile_id')
     .eq('id', claimId)
     .maybeSingle();
   if (!claim) return null;
   if (claim.claimed_profile_id) {
     return loadProfileReferenceGraph(claim.claimed_profile_id);
   }
-  const { data: siblingClaims } = await admin
-    .from('social_claims')
-    .select('id, platform, handle')
-    .eq('handle_norm', claim.handle_norm)
-    .is('claimed_profile_id', null);
-  const allClaims = siblingClaims?.length ? siblingClaims : [claim];
 
   return assembleGraph(
     admin,
@@ -919,7 +956,7 @@ export async function loadClaimReferenceGraph(claimId: string): Promise<Referenc
       profileId: null,
       claimId: claim.id,
       handle: `@${claim.handle}`,
-      handleSlug: claim.handle,
+      address: claimAddress(claim),
       name: claim.handle,
       firstName: null,
       identityVerified: false,
@@ -928,156 +965,23 @@ export async function loadClaimReferenceGraph(claimId: string): Promise<Referenc
       avatarPath: null,
       memberSince: null,
       unclaimed: true,
-      linkedHandles: allClaims.map((c) => ({
-        platform: c.platform,
-        platformLabel: platformLabel(c.platform),
-        handle: `@${c.handle}`,
-      })),
+      linkedHandles: [linkedHandle(claim)],
     },
-    { profileId: null, claimIds: allClaims.map((c) => c.id) },
+    { profileId: null, claimIds: [claim.id] },
   );
 }
 
-/**
- * Load a unified cross-platform reference graph for `/references/[handle]`.
- * Resolves claimed profiles, unclaimed handles across any platform, or even a
- * brand-new valid handle that is about to receive its first reference.
- */
-export async function loadHandleReferenceGraph(rawHandle: string): Promise<ReferenceGraphData | null> {
-  const decoded = decodeURIComponent(rawHandle ?? '').trim();
-  const cleaned = normalizeHandle(decoded);
-  if (!cleaned) return null;
-
-  const admin = createAdminClient();
-
-  if (isUuid(cleaned)) {
-    const byId = await loadProfileReferenceGraph(cleaned);
-    if (byId) return byId;
-  }
-
-  const handleNorm = cleaned.toLowerCase();
-  const [{ data: matchingClaims }, { data: matchingProfiles }] = await Promise.all([
-    admin
-      .from('social_claims')
-      .select('id, platform, handle, handle_norm, claimed_profile_id')
-      .eq('handle_norm', handleNorm),
-    admin
-      .from('profiles')
-      .select('id, display_name')
-      .ilike('display_name', cleaned)
-      .is('fraud_banned_at', null)
-      .is('closed_at', null)
-      .limit(5),
-  ]);
-
-  const claims = matchingClaims ?? [];
-  const claimedProfileId =
-    claims.find((c) => c.claimed_profile_id)?.claimed_profile_id ??
-    matchingProfiles?.find((p) => p.display_name.toLowerCase() === handleNorm)?.id ??
-    matchingProfiles?.[0]?.id ??
-    null;
-
-  if (claimedProfileId) {
-    const [{ data: profile }, { data: profileClaims }] = await Promise.all([
-      admin
-        .from('profiles')
-        .select(
-          'id, display_name, identity_check_status, identity_check_name, region_code, avatar_path, created_at, trusted_seller_at',
-        )
-        .eq('id', claimedProfileId)
-        .is('fraud_banned_at', null)
-        .is('closed_at', null)
-        .maybeSingle(),
-      admin
-        .from('social_claims')
-        .select('id, platform, handle')
-        .eq('claimed_profile_id', claimedProfileId),
-    ]);
-
-    if (profile) {
-      const combinedClaims = [...(profileClaims ?? [])];
-      for (const c of claims) {
-        if (!combinedClaims.some((existing) => existing.id === c.id)) {
-          combinedClaims.push(c);
-        }
-      }
-      const primaryHandle =
-        claims[0]?.handle ?? combinedClaims[0]?.handle ?? profile.display_name;
-
-      return assembleGraph(
-        admin,
-        {
-          kind: 'profile',
-          id: profile.id,
-          profileId: profile.id,
-          claimId: combinedClaims[0]?.id ?? null,
-          handle: `@${primaryHandle}`,
-          handleSlug: primaryHandle,
-          name: profile.display_name,
-          firstName:
-            profile.identity_check_status === 'VERIFIED'
-              ? firstGivenName(profile.identity_check_name)
-              : null,
-          identityVerified: profile.identity_check_status === 'VERIFIED',
-          isTrustedSeller: Boolean(profile.trusted_seller_at),
-          regionCode: profile.region_code,
-          avatarPath: profile.avatar_path,
-          memberSince: profile.created_at,
-          unclaimed: false,
-          linkedHandles: combinedClaims.map((c) => ({
-            platform: c.platform,
-            platformLabel: platformLabel(c.platform),
-            handle: `@${c.handle}`,
-          })),
-        },
-        { profileId: profile.id, claimIds: combinedClaims.map((c) => c.id) },
-      );
-    }
-  }
-
-  // Unclaimed handle with 1+ social_claims rows across platforms
-  if (claims.length > 0) {
-    const primary = claims[0];
-    return assembleGraph(
-      admin,
-      {
-        kind: 'claim',
-        id: primary.id,
-        profileId: null,
-        claimId: primary.id,
-        handle: `@${primary.handle}`,
-        handleSlug: primary.handle,
-        name: primary.handle,
-        firstName: null,
-        identityVerified: false,
-        isTrustedSeller: false,
-        regionCode: null,
-        avatarPath: null,
-        memberSince: null,
-        unclaimed: true,
-        linkedHandles: claims.map((c) => ({
-          platform: c.platform,
-          platformLabel: platformLabel(c.platform),
-          handle: `@${c.handle}`,
-        })),
-      },
-      { profileId: null, claimIds: claims.map((c) => c.id) },
-    );
-  }
-
-  // Brand-new valid handle: synthesize an empty unclaimed graph so `/references/[handle]`
-  // works immediately and lets the viewer share the first experience.
-  if (!isValidHandle(cleaned)) return null;
-
+/** A handle with no claim row yet: an empty page that can take its first reference. */
+function newHandleGraph(handle: string, on: ClaimPlatform | null): ReferenceGraphData {
   return {
     centre: {
       kind: 'handle',
-      id: cleaned,
+      id: handle,
       profileId: null,
       claimId: null,
-      handle: `@${cleaned}`,
-      handleSlug: cleaned,
-      name: cleaned,
+      handle: `@${handle}`,
+      address: { slug: handle, on },
+      name: handle,
       firstName: null,
       identityVerified: false,
       isTrustedSeller: false,
@@ -1098,4 +1002,109 @@ export async function loadHandleReferenceGraph(rawHandle: string): Promise<Refer
   };
 }
 
-export { platformLabel };
+function decodeSlug(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * What `/references/[slug]?on=<platform>` shows.
+ *
+ * - A UUID is a profile, or failing that a social claim.
+ * - A handle WITH its platform is that one handle: its claimant's graph when claimed,
+ *   its own when not, or an empty page for a handle nobody has placed yet.
+ * - A handle WITHOUT a platform is resolved only when every claim spelled that way
+ *   belongs to one person (or there is exactly one unclaimed handle). Otherwise the
+ *   page asks which one is meant, rather than guessing and showing the wrong person.
+ *
+ * Null for an address that names nobody: not a handle, or a banned or closed member.
+ */
+export async function loadReferencePage(rawSlug: string, rawOn?: string | null): Promise<ReferencePage | null> {
+  const slug = normalizeHandle(decodeSlug(rawSlug ?? ''));
+  if (!slug) return null;
+
+  if (isUuid(slug)) {
+    const graph = (await loadProfileReferenceGraph(slug)) ?? (await loadClaimReferenceGraph(slug));
+    return graph ? { kind: 'graph', graph } : null;
+  }
+
+  const on = isClaimPlatform(rawOn) ? rawOn : null;
+  if (!isValidClaimHandle(on, slug)) return null;
+
+  const admin = createAdminClient();
+  let claimsQuery = admin
+    .from('social_claims')
+    .select('id, platform, handle, claimed_profile_id')
+    .eq('handle_norm', slug.toLowerCase());
+  if (on) claimsQuery = claimsQuery.eq('platform', on);
+  const { data: claims, error } = await claimsQuery.order('platform', { ascending: true });
+  if (error) throw new Error(`[references] load claims for a handle: ${error.message}`);
+
+  const rows = claims ?? [];
+  if (rows.length === 0) return { kind: 'graph', graph: newHandleGraph(slug, on) };
+
+  // One person per group: a member's handles on several platforms are one person; each
+  // unclaimed handle is its own.
+  const groups = new Map<string, (typeof rows)[number]>();
+  for (const row of rows) {
+    const key = row.claimed_profile_id ?? `claim:${row.id}`;
+    if (!groups.has(key)) groups.set(key, row);
+  }
+
+  const people = await handleChoices(admin, Array.from(groups.values()));
+  if (people.length === 0) return null;
+  if (people.length > 1) {
+    return { kind: 'choose', handle: slug, choices: people.map(({ choice }) => choice) };
+  }
+
+  const [{ claim }] = people;
+  const graph = claim.claimed_profile_id
+    ? await loadProfileReferenceGraph(claim.claimed_profile_id)
+    : await loadClaimReferenceGraph(claim.id);
+  return graph ? { kind: 'graph', graph } : null;
+}
+
+interface ClaimRow {
+  id: string;
+  platform: string;
+  handle: string;
+  claimed_profile_id: string | null;
+}
+
+/** The people a set of same-spelled claims stand for, without banned or closed members. */
+async function handleChoices(
+  admin: Admin,
+  claims: readonly ClaimRow[],
+): Promise<{ claim: ClaimRow; choice: ReferenceHandleChoice }[]> {
+  const profileIds = claims.flatMap((claim) => (claim.claimed_profile_id ? [claim.claimed_profile_id] : []));
+  const profiles = await refereeProfiles(admin, profileIds);
+  return claims.flatMap((claim): { claim: ClaimRow; choice: ReferenceHandleChoice }[] => {
+    const address = claimAddress(claim);
+    const base = { address, platform: address.on, handle: `@${claim.handle}` };
+    if (!claim.claimed_profile_id) {
+      return [
+        {
+          claim,
+          choice: { ...base, name: claim.handle, identityVerified: false, avatarPath: null, unclaimed: true },
+        },
+      ];
+    }
+    const profile = profiles.get(claim.claimed_profile_id);
+    if (!profile) return [];
+    return [
+      {
+        claim,
+        choice: {
+          ...base,
+          name: displayNameLabel(profile.displayName),
+          identityVerified: profile.identityVerified,
+          avatarPath: profile.avatarPath,
+          unclaimed: false,
+        },
+      },
+    ];
+  });
+}

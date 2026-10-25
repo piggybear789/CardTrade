@@ -43,9 +43,12 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { OptionButton } from '@/components/ui/option-button';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { withQuery } from '@/domain/references/address';
+import { CLAIM_PLATFORMS, platformLabel, type ClaimPlatform } from '@/domain/references/reference';
 import {
   checkInstagramDmClaim,
   startInstagramDmClaim,
@@ -90,8 +93,18 @@ const CLAIM_PROVIDERS = [
   },
 ] as const;
 
+/**
+ * The ways to prove a handle ON A KNOWN PLATFORM: that platform's own route, if it has
+ * one, and Manual. An Instagram DM proves an Instagram username, never a Discord one.
+ */
+function providersFor(platform: ClaimPlatform | null) {
+  if (!platform) return CLAIM_PROVIDERS;
+  return CLAIM_PROVIDERS.filter((p) => p.slug === platform || p.slug === 'manual');
+}
+
 export function ClaimHandle({
   handle,
+  platform = null,
   signedIn = false,
   identityVerified = false,
   initialClaim,
@@ -99,6 +112,8 @@ export function ClaimHandle({
   mode = 'claim',
 }: {
   handle: string;
+  /** The platform the page's handle is on, when it says. Ignored when linking another handle. */
+  platform?: ClaimPlatform | null;
   signedIn?: boolean;
   /** Whether the viewer passed the ID check. A manual claim needs it. */
   identityVerified?: boolean;
@@ -127,8 +142,14 @@ export function ClaimHandle({
   const isLinkMode = mode === 'link';
   const cleanHandle = (isLinkMode ? customHandle : handle).trim().replace(/^@/, '');
   const displayHandle = cleanHandle ? `@${cleanHandle}` : handle;
+  // The page's handle is on a known platform; a handle typed in to link is on whichever
+  // the member picks.
+  const fixedPlatform = isLinkMode ? null : platform;
+  const [chosenPlatform, setChosenPlatform] = useState<ClaimPlatform | null>(null);
+  const manualPlatform = fixedPlatform ?? chosenPlatform;
+  const providers = providersFor(fixedPlatform);
   // Where sign-in and the ID check bring a manual claim back to: this page, manual step.
-  const manualResumePath = `${returnPath}?claim=manual`;
+  const manualResumePath = withQuery(returnPath, { claim: 'manual' });
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
@@ -143,6 +164,7 @@ export function ClaimHandle({
       setDmNotice(null);
       setCopied(false);
       setDmVerified(false);
+      setChosenPlatform(null);
     }
   };
 
@@ -171,7 +193,7 @@ export function ClaimHandle({
         return;
       }
       if (!signedIn) {
-        const resumeUrl = `${returnPath}?claim=instagram`;
+        const resumeUrl = withQuery(returnPath, { claim: 'instagram' });
         window.location.assign(`/sign-in?redirectTo=${encodeURIComponent(resumeUrl)}`);
         return;
       }
@@ -297,12 +319,16 @@ export function ClaimHandle({
       setDmNotice('Enter the @handle you want to link.');
       return;
     }
+    if (!manualPlatform) {
+      setDmNotice('Choose the platform this handle is on.');
+      return;
+    }
     if (manualPaths.length === 0) {
       setDmNotice('Attach at least one image as proof of ownership.');
       return;
     }
     setDmNotice(null);
-    const input = { handle: cleanHandle, message: manualMessage, paths: manualPaths };
+    const input = { platform: manualPlatform, handle: cleanHandle, message: manualMessage, paths: manualPaths };
     startTransition(async () => {
       // `catch`: a thrown action inside a transition reaches the error boundary and
       // would replace the page, screenshots and all.
@@ -457,11 +483,33 @@ export function ClaimHandle({
             <DialogHeader>
               <DialogTitle>Manual verification for {displayHandle}</DialogTitle>
               <DialogDescription>
-                Send a note and screenshot proof showing you own {displayHandle} (e.g. your logged-in profile or account settings).
+                Send a note and screenshot proof showing you own {displayHandle}
+                {fixedPlatform ? ` on ${platformLabel(fixedPlatform)}` : ''} (e.g. your logged-in profile or account settings).
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-group">
+              {fixedPlatform ? null : (
+                <div className="space-y-snug">
+                  <Label>Platform</Label>
+                  <div role="radiogroup" aria-label="Platform" className="grid grid-cols-2 gap-snug sm:grid-cols-4">
+                    {CLAIM_PLATFORMS.map((slug) => (
+                      <OptionButton
+                        key={slug}
+                        selected={chosenPlatform === slug}
+                        onClick={() => {
+                          setChosenPlatform(slug);
+                          setDmNotice(null);
+                        }}
+                      >
+                        <SocialPlatformIcon slug={slug} className="size-3.5" />
+                        <span className="truncate">{platformLabel(slug)}</span>
+                      </OptionButton>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {isLinkMode ? (
                 <div className="space-y-snug">
                   <Label htmlFor="manual-handle-input">Handle</Label>
@@ -487,7 +535,7 @@ export function ClaimHandle({
                   onChange={(event) => setManualMessage(event.target.value)}
                   rows={3}
                   maxLength={500}
-                  placeholder="Which platform is this handle on, and what does your screenshot show?"
+                  placeholder="What does your screenshot show?"
                   className="resize-none"
                 />
               </div>
@@ -682,7 +730,7 @@ export function ClaimHandle({
                 reads as the sign-in choice it is. The fill carries the hit area, so no
                 row needs an edge of its own. */}
             <div className="flex flex-col gap-1.5">
-              {CLAIM_PROVIDERS.map((p) => {
+              {providers.map((p) => {
                 const isConnecting = activeProvider === p.slug;
                 return (
                   <button

@@ -2,13 +2,17 @@
 
 // lib/actions/references.ts
 //
-// References (0155): unified cross-platform search, add-a-person, and
-// sharing / withdrawing / disputing an experience. Everything writes through
-// the service role, because `social_claims` and `member_references` carry no
-// member grant; each action checks who is asking before it touches a row.
+// References (0155): search, sharing / editing / withdrawing an experience, and claiming
+// a handle. Everything writes through the service role, because `social_claims` and
+// `member_references` carry no member grant; each action checks who is asking before it
+// touches a row.
 //
 // Both positive and negative experiences go LIVE immediately and are linked
 // to the author's verified identity.
+//
+// A HANDLE IS ALWAYS ON A PLATFORM. Nothing here finds a handle by its spelling alone:
+// @john on Instagram and john on Discord are different people, and a reference left
+// for one must never reach the other.
 
 import { createHmac, randomInt } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
@@ -29,14 +33,17 @@ import {
   REFERENCE_PROOF_BUCKET,
 } from '@/lib/storage/referenceImagesShared';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
+import type { ReferenceAddress } from '@/domain/references/address';
 import {
   REFERENCES_PER_DAY,
-  claimPlatformForDealPlatform,
+  displayNameLabel,
+  isClaimPlatform,
   normalizeClaimHandle,
   pickPersonKey,
   platformLabel,
   roleLabel,
   validateGiveReference,
+  type ClaimPlatform,
   type GiveReferenceInput,
 } from '@/domain/references/reference';
 import { type ActionFailure, type ActionResult, fail, ok } from './result';
@@ -53,7 +60,7 @@ export type ReferenceError =
 
 const SAVE_FAILED = "We couldn't save that. Please try again.";
 
-/** One unified autofill suggestion on /references, synthesised across platforms. */
+/** One autofill suggestion: a member, or one unclaimed handle on its own platform. */
 export interface ReferenceSuggestion {
   kind: 'profile' | 'claim';
   /** profiles.id when claimed, social_claims.id when not. */
@@ -62,12 +69,12 @@ export interface ReferenceSuggestion {
   profileId: string | null;
   platform: string;
   platformLabel: string;
-  /** Every platform associated with this person or handle. */
+  /** A member's claimed and dealt-on platforms; an unclaimed handle's one platform. */
   platforms: string[];
-  /** With a leading @. */
+  /** `@handle`, or a member's display name when they have no claimed handle. */
   handle: string;
-  /** Without @, for `/references/[handle]`. */
-  handleSlug: string;
+  /** Their page. */
+  address: ReferenceAddress;
   /** NoDitto display name, or the claim's handle when unclaimed. */
   name: string;
   /** Provider-verified given name. Null when not disclosed / unclaimed. */
@@ -75,6 +82,7 @@ export interface ReferenceSuggestion {
   identityVerified: boolean;
   regionCode: string | null;
   avatarPath: string | null;
+  /** How many people left a positive reference, NoDitto escrow reviews included. */
   referenceCount: number;
   unclaimed: boolean;
 }
@@ -82,15 +90,12 @@ export interface ReferenceSuggestion {
 /** The target a ShareExperience form posts against. */
 export interface ReferenceTargetDescriptor {
   kind: 'profile' | 'claim' | 'handle';
+  /** profiles.id, social_claims.id, or the handle itself (no `@`) for a handle nobody has placed. */
   id: string;
-  profileId: string | null;
+  /** What the dialog calls them: `@handle`, or a member's display name. */
   handle: string;
-  handleSlug?: string;
-  name: string;
-  platform: string;
-  firstName: string | null;
-  identityVerified: boolean;
-  unclaimed: boolean;
+  /** For `handle`: the platform the account is on, when the page knows it. Null otherwise. */
+  platform: ClaimPlatform | null;
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -117,125 +122,239 @@ async function claimRefusal(admin: Admin, userId: string): Promise<ActionFailure
   return null;
 }
 
+/** The one claim row for a handle on a platform, created unclaimed when there is none. */
+async function findOrCreateClaim(
+  admin: Admin,
+  platform: ClaimPlatform,
+  handle: string,
+  createdBy: string,
+): Promise<{ id: string; claimed_profile_id: string | null } | null> {
+  const find = () =>
+    admin
+      .from('social_claims')
+      .select('id, claimed_profile_id')
+      .eq('platform', platform)
+      .eq('handle_norm', handle.toLowerCase())
+      .maybeSingle();
+
+  const existing = await find();
+  if (existing.data) return existing.data;
+  if (existing.error) return null;
+
+  const { data: created, error } = await admin
+    .from('social_claims')
+    .insert({ platform, handle, created_by: createdBy, claim_method: 'UNCLAIMED' })
+    .select('id, claimed_profile_id')
+    .maybeSingle();
+  if (created) return created;
+  // 23505: someone created the same row a moment earlier.
+  if (error && error.code !== '23505') return null;
+  return (await find()).data ?? null;
+}
+
 function firstGivenName(full: string | null | undefined): string | null {
   const first = full?.trim().split(/\s+/)[0];
   return first ? first : null;
+}
+
+/** `text` as a literal inside an ILIKE pattern, so `%` and `_` match only themselves. */
+function likeLiteral(text: string): string {
+  return text.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+/** Refresh everywhere a reference shows: the references pages, and the member's storefront. */
+function revalidateReferences(targetProfileId: string | null): void {
+  revalidatePath('/references', 'layout');
+  if (targetProfileId) revalidatePath(`/sellers/${targetProfileId}`);
 }
 
 // ---------------------------------------------------------------------------
 // searchReferences
 // ---------------------------------------------------------------------------
 
+const SUGGESTION_LIMIT = 8;
+
+interface ClaimMatch {
+  id: string;
+  platform: string;
+  handle: string;
+  claimed_profile_id: string | null;
+}
+
 /**
- * Unified cross-platform autofill for `/references`: deduplicates by person /
- * handle so each trader appears once with all platforms they have dealt on.
+ * Autofill for `/references` and the header search. A member appears once, with every
+ * platform they have a claimed handle or a reference on. An unclaimed handle appears on
+ * its own platform, never merged with a same-spelled handle elsewhere. With no query:
+ * the people and handles the most people have referenced lately.
  */
 export const searchReferences = withActionLog('references.searchReferences', async function searchReferences(
   query: string,
 ): Promise<ActionResult<ReferenceSuggestion[], 'persistence-error'>> {
-  const needle = (query ?? '').trim().replace(/^@/, '').toLowerCase();
+  const needle = (query ?? '').trim().replace(/^@/, '').toLowerCase().slice(0, 64);
   const admin = createAdminClient();
 
-  const claimsQuery = admin
-    .from('social_claims')
-    .select('id, platform, handle, handle_norm, claimed_profile_id')
-    .order('handle', { ascending: true })
-    .limit(60);
-  const profilesQuery = admin
-    .from('profiles')
-    .select(
-      'id, display_name, identity_check_status, identity_check_name, region_code, avatar_path, fraud_banned_at, closed_at',
-    )
-    .is('fraud_banned_at', null)
-    .is('closed_at', null)
-    .limit(40);
-
-  const [{ data: claims, error: claimsError }, { data: namedProfiles, error: profilesError }] =
-    await Promise.all([
-      needle ? claimsQuery.ilike('handle', `%${needle}%`) : claimsQuery,
-      needle
-        ? profilesQuery.ilike('display_name', `%${needle}%`)
-        : profilesQuery.order('created_at', { ascending: false }),
-    ]);
-  if (claimsError || profilesError) return fail('persistence-error', SAVE_FAILED);
-
-  const claimRows = claims ?? [];
-  const claimedIds = claimRows
-    .map((row) => row.claimed_profile_id)
-    .filter((id): id is string => Boolean(id));
-  const namedIds = (namedProfiles ?? []).map((row) => row.id);
-  const profileIds = Array.from(new Set([...claimedIds, ...namedIds]));
-
-  const [{ data: profiles }, { data: allProfileClaims }, { data: edges }, { data: reviews }] =
-    await Promise.all([
-      profileIds.length
-        ? admin
-            .from('profiles')
-            .select(
-              'id, display_name, identity_check_status, identity_check_name, region_code, avatar_path, fraud_banned_at, closed_at',
-            )
-            .in('id', profileIds)
-            .is('fraud_banned_at', null)
-            .is('closed_at', null)
-        : Promise.resolve({ data: [] }),
-      profileIds.length
-        ? admin
-            .from('social_claims')
-            .select('id, platform, handle, claimed_profile_id')
-            .in('claimed_profile_id', profileIds)
-        : Promise.resolve({ data: [] }),
+  let profileIds: string[];
+  let claims: ClaimMatch[];
+  if (needle) {
+    const pattern = `%${likeLiteral(needle)}%`;
+    const [claimResult, nameResult] = await Promise.all([
       admin
-        .from('reference_edges_public')
-        .select('target_profile_id, target_claim_id, platform, sentiment, deal_count')
-        .limit(5000),
-      profileIds.length
-        ? admin.from('reviews').select('reviewee_id').in('reviewee_id', profileIds).limit(2000)
-        : Promise.resolve({ data: [] as { reviewee_id: string }[] }),
+        .from('social_claims')
+        .select('id, platform, handle, claimed_profile_id')
+        .ilike('handle', pattern)
+        .order('handle', { ascending: true })
+        .limit(60),
+      admin
+        .from('profiles')
+        .select('id')
+        .ilike('display_name', pattern)
+        .is('fraud_banned_at', null)
+        .is('closed_at', null)
+        .limit(40),
     ]);
-
-  const profileById = new Map((profiles ?? []).map((row) => [row.id, row]));
-  const claimsByProfile = new Map<string, { id: string; platform: string; handle: string }[]>();
-  for (const row of allProfileClaims ?? []) {
-    if (!row.claimed_profile_id) continue;
-    const list = claimsByProfile.get(row.claimed_profile_id) ?? [];
-    list.push({ id: row.id, platform: row.platform, handle: row.handle });
-    claimsByProfile.set(row.claimed_profile_id, list);
-  }
-
-  const countByProfile = new Map<string, number>();
-  const countByClaim = new Map<string, number>();
-  const platformsByProfile = new Map<string, Set<string>>();
-  const platformsByClaim = new Map<string, Set<string>>();
-
-  for (const edge of edges ?? []) {
-    if (edge.target_profile_id) {
-      if (edge.sentiment === 'POSITIVE') {
-        countByProfile.set(
-          edge.target_profile_id,
-          (countByProfile.get(edge.target_profile_id) ?? 0) + edge.deal_count,
-        );
-      }
-      const set = platformsByProfile.get(edge.target_profile_id) ?? new Set<string>();
-      set.add(edge.platform);
-      platformsByProfile.set(edge.target_profile_id, set);
-    }
-    if (edge.target_claim_id) {
-      if (edge.sentiment === 'POSITIVE') {
-        countByClaim.set(
-          edge.target_claim_id,
-          (countByClaim.get(edge.target_claim_id) ?? 0) + edge.deal_count,
-        );
-      }
-      const set = platformsByClaim.get(edge.target_claim_id) ?? new Set<string>();
-      set.add(edge.platform);
-      platformsByClaim.set(edge.target_claim_id, set);
+    if (claimResult.error || nameResult.error) return fail('persistence-error', SAVE_FAILED);
+    claims = claimResult.data ?? [];
+    profileIds = (nameResult.data ?? []).map((row) => row.id);
+  } else {
+    const top = await mostReferenced(admin);
+    if (!top) return fail('persistence-error', SAVE_FAILED);
+    profileIds = top.profileIds;
+    claims = [];
+    if (top.claimIds.length > 0) {
+      const { data, error } = await admin
+        .from('social_claims')
+        .select('id, platform, handle, claimed_profile_id')
+        .in('id', top.claimIds);
+      if (error) return fail('persistence-error', SAVE_FAILED);
+      claims = data ?? [];
     }
   }
-  for (const rev of reviews ?? []) {
-    countByProfile.set(rev.reviewee_id, (countByProfile.get(rev.reviewee_id) ?? 0) + 1);
-    const set = platformsByProfile.get(rev.reviewee_id) ?? new Set<string>();
-    set.add('noditto');
-    platformsByProfile.set(rev.reviewee_id, set);
+
+  const suggestions = await buildSuggestions(admin, profileIds, claims, needle);
+  if (!suggestions) return fail('persistence-error', SAVE_FAILED);
+  return ok(suggestions);
+});
+
+/** The people and handles with the most distinct positive references among the latest ones. */
+async function mostReferenced(admin: Admin): Promise<{ profileIds: string[]; claimIds: string[] } | null> {
+  const [edges, reviews] = await Promise.all([
+    admin
+      .from('reference_edges_public')
+      .select('voucher_id, target_profile_id, target_claim_id')
+      .eq('sentiment', 'POSITIVE')
+      .order('created_at', { ascending: false })
+      .limit(2000),
+    admin
+      .from('reviews')
+      .select('reviewer_id, reviewee_id')
+      .order('created_at', { ascending: false })
+      .limit(2000),
+  ]);
+  if (edges.error || reviews.error) return null;
+
+  const people = new Map<string, Set<string>>();
+  const add = (target: string, person: string) => {
+    const set = people.get(target) ?? new Set<string>();
+    set.add(person);
+    people.set(target, set);
+  };
+  for (const edge of edges.data ?? []) {
+    if (edge.target_profile_id) add(`p:${edge.target_profile_id}`, edge.voucher_id);
+    else if (edge.target_claim_id) add(`c:${edge.target_claim_id}`, edge.voucher_id);
+  }
+  for (const review of reviews.data ?? []) add(`p:${review.reviewee_id}`, review.reviewer_id);
+
+  const top = Array.from(people.entries())
+    .sort((a, b) => b[1].size - a[1].size)
+    .slice(0, SUGGESTION_LIMIT * 3)
+    .map(([key]) => key);
+  return {
+    profileIds: top.filter((key) => key.startsWith('p:')).map((key) => key.slice(2)),
+    claimIds: top.filter((key) => key.startsWith('c:')).map((key) => key.slice(2)),
+  };
+}
+
+async function buildSuggestions(
+  admin: Admin,
+  namedProfileIds: string[],
+  claims: readonly ClaimMatch[],
+  needle: string,
+): Promise<ReferenceSuggestion[] | null> {
+  // The handle a member was found by, so a search for their Discord name shows it.
+  const matchedHandle = new Map<string, ClaimMatch>();
+  for (const claim of claims) {
+    if (claim.claimed_profile_id && !matchedHandle.has(claim.claimed_profile_id)) {
+      matchedHandle.set(claim.claimed_profile_id, claim);
+    }
+  }
+  const profileIds = Array.from(new Set([...matchedHandle.keys(), ...namedProfileIds]));
+  const unclaimed = claims.filter((claim) => !claim.claimed_profile_id);
+  const unclaimedIds = unclaimed.map((claim) => claim.id);
+
+  const none = { data: [], error: null };
+  const [profiles, profileClaims, profileEdges, claimEdges, reviews] = await Promise.all([
+    profileIds.length
+      ? admin
+          .from('profiles')
+          .select('id, display_name, identity_check_status, identity_check_name, region_code, avatar_path')
+          .in('id', profileIds)
+          .is('fraud_banned_at', null)
+          .is('closed_at', null)
+      : Promise.resolve(none),
+    profileIds.length
+      ? admin
+          .from('social_claims')
+          .select('id, platform, handle, claimed_profile_id')
+          .in('claimed_profile_id', profileIds)
+          .order('claimed_at', { ascending: true })
+      : Promise.resolve(none),
+    profileIds.length
+      ? admin
+          .from('reference_edges_public')
+          .select('voucher_id, target_profile_id, platform, sentiment')
+          .in('target_profile_id', profileIds)
+          .limit(5000)
+      : Promise.resolve(none),
+    unclaimedIds.length
+      ? admin
+          .from('reference_edges_public')
+          .select('voucher_id, target_claim_id, sentiment')
+          .in('target_claim_id', unclaimedIds)
+          .limit(5000)
+      : Promise.resolve(none),
+    profileIds.length
+      ? admin.from('reviews').select('reviewer_id, reviewee_id').in('reviewee_id', profileIds).limit(5000)
+      : Promise.resolve(none),
+  ]);
+  if (profiles.error || profileClaims.error || profileEdges.error || claimEdges.error || reviews.error) {
+    return null;
+  }
+
+  // People, not deals: one person counts once however many deals or references they log.
+  const peopleFor = new Map<string, Set<string>>();
+  const platformsFor = new Map<string, Set<string>>();
+  const note = (map: Map<string, Set<string>>, key: string, value: string) => {
+    const set = map.get(key) ?? new Set<string>();
+    set.add(value);
+    map.set(key, set);
+  };
+  const claimsOf = new Map<string, ClaimMatch[]>();
+  for (const claim of (profileClaims.data ?? []) as ClaimMatch[]) {
+    if (!claim.claimed_profile_id) continue;
+    claimsOf.set(claim.claimed_profile_id, [...(claimsOf.get(claim.claimed_profile_id) ?? []), claim]);
+    note(platformsFor, `p:${claim.claimed_profile_id}`, claim.platform);
+  }
+  for (const edge of (profileEdges.data ?? []) as { voucher_id: string; target_profile_id: string | null; platform: string; sentiment: string }[]) {
+    if (!edge.target_profile_id) continue;
+    note(platformsFor, `p:${edge.target_profile_id}`, edge.platform);
+    if (edge.sentiment === 'POSITIVE') note(peopleFor, `p:${edge.target_profile_id}`, edge.voucher_id);
+  }
+  for (const review of (reviews.data ?? []) as { reviewer_id: string; reviewee_id: string }[]) {
+    note(platformsFor, `p:${review.reviewee_id}`, 'noditto');
+    note(peopleFor, `p:${review.reviewee_id}`, review.reviewer_id);
+  }
+  for (const edge of (claimEdges.data ?? []) as { voucher_id: string; target_claim_id: string | null; sentiment: string }[]) {
+    if (edge.target_claim_id && edge.sentiment === 'POSITIVE') note(peopleFor, `c:${edge.target_claim_id}`, edge.voucher_id);
   }
 
   const score = (handle: string, name: string): number => {
@@ -248,197 +367,81 @@ export const searchReferences = withActionLog('references.searchReferences', asy
     return 3;
   };
 
-  const byKey = new Map<string, ReferenceSuggestion & { score: number }>();
-
-  for (const claim of claimRows) {
-    const profile = claim.claimed_profile_id ? profileById.get(claim.claimed_profile_id) : null;
-    if (claim.claimed_profile_id && !profile) continue;
-
-    if (profile) {
-      const key = `profile:${profile.id}`;
-      if (byKey.has(key)) continue;
-      const linked = claimsByProfile.get(profile.id) ?? [claim];
-      const platSet = new Set<string>(linked.map((c) => c.platform));
-      for (const p of platformsByProfile.get(profile.id) ?? []) platSet.add(p);
-      const platforms = Array.from(platSet);
-      const handleSlug = claim.handle;
-      const handle = `@${handleSlug}`;
-      byKey.set(key, {
-        kind: 'profile',
-        id: profile.id,
-        profileId: profile.id,
-        platform: claim.platform,
-        platformLabel: platforms.map(platformLabel).join(' · ') || platformLabel(claim.platform),
-        platforms,
-        handle,
-        handleSlug,
-        name: profile.display_name,
-        firstName:
-          profile.identity_check_status === 'VERIFIED'
-            ? firstGivenName(profile.identity_check_name)
-            : null,
-        identityVerified: profile.identity_check_status === 'VERIFIED',
-        regionCode: profile.region_code ?? null,
-        avatarPath: profile.avatar_path ?? null,
-        referenceCount: countByProfile.get(profile.id) ?? 0,
-        unclaimed: false,
-        score: score(handle, profile.display_name),
-      });
-    } else {
-      const key = `handle:${claim.handle_norm}`;
-      const existing = byKey.get(key);
-      const claimPlats = platformsByClaim.get(claim.id) ?? new Set<string>([claim.platform]);
-      if (existing) {
-        for (const p of claimPlats) {
-          if (!existing.platforms.includes(p)) existing.platforms.push(p);
-        }
-        existing.platformLabel = existing.platforms.map(platformLabel).join(' · ');
-        existing.referenceCount += countByClaim.get(claim.id) ?? 0;
-        continue;
-      }
-      const platforms = Array.from(claimPlats);
-      const handle = `@${claim.handle}`;
-      byKey.set(key, {
-        kind: 'claim',
-        id: claim.id,
-        profileId: null,
-        platform: claim.platform,
-        platformLabel: platforms.map(platformLabel).join(' · '),
-        platforms,
-        handle,
-        handleSlug: claim.handle,
-        name: claim.handle,
-        firstName: null,
-        identityVerified: false,
-        regionCode: null,
-        avatarPath: null,
-        referenceCount: countByClaim.get(claim.id) ?? 0,
-        unclaimed: true,
-        score: score(handle, claim.handle),
-      });
-    }
-  }
-
-  for (const profile of namedProfiles ?? []) {
-    const key = `profile:${profile.id}`;
-    if (byKey.has(key) || !profileById.has(profile.id)) continue;
-    const linked = claimsByProfile.get(profile.id) ?? [];
-    const platSet = new Set<string>(linked.map((c) => c.platform));
-    for (const p of platformsByProfile.get(profile.id) ?? []) platSet.add(p);
-    if (platSet.size === 0) platSet.add('noditto');
-    const platforms = Array.from(platSet);
-    const handleSlug = linked[0]?.handle ?? profile.display_name;
-    const handle = `@${handleSlug}`;
-    byKey.set(key, {
+  const ranked: (ReferenceSuggestion & { score: number })[] = [];
+  for (const profile of (profiles.data ?? []) as {
+    id: string;
+    display_name: string;
+    identity_check_status: string | null;
+    identity_check_name: string | null;
+    region_code: string | null;
+    avatar_path: string | null;
+  }[]) {
+    const shown = matchedHandle.get(profile.id) ?? claimsOf.get(profile.id)?.[0];
+    const name = displayNameLabel(profile.display_name);
+    const platforms = Array.from(platformsFor.get(`p:${profile.id}`) ?? []);
+    const handle = shown ? `@${shown.handle}` : name;
+    const verified = profile.identity_check_status === 'VERIFIED';
+    ranked.push({
       kind: 'profile',
       id: profile.id,
       profileId: profile.id,
-      platform: platforms[0] ?? 'noditto',
+      platform: shown?.platform ?? platforms[0] ?? 'noditto',
       platformLabel: platforms.map(platformLabel).join(' · '),
       platforms,
       handle,
-      handleSlug,
-      name: profile.display_name,
-      firstName:
-        profile.identity_check_status === 'VERIFIED'
-          ? firstGivenName(profile.identity_check_name)
-          : null,
-      identityVerified: profile.identity_check_status === 'VERIFIED',
-      regionCode: profile.region_code,
-      avatarPath: profile.avatar_path,
-      referenceCount: countByProfile.get(profile.id) ?? 0,
+      address: shown
+        ? { slug: shown.handle, on: isClaimPlatform(shown.platform) ? shown.platform : null }
+        : { slug: profile.id, on: null },
+      name,
+      firstName: verified ? firstGivenName(profile.identity_check_name) : null,
+      identityVerified: verified,
+      regionCode: profile.region_code ?? null,
+      avatarPath: profile.avatar_path ?? null,
+      referenceCount: peopleFor.get(`p:${profile.id}`)?.size ?? 0,
       unclaimed: false,
-      score: score(handle, profile.display_name),
+      score: score(handle, name),
+    });
+  }
+  for (const claim of unclaimed) {
+    const handle = `@${claim.handle}`;
+    ranked.push({
+      kind: 'claim',
+      id: claim.id,
+      profileId: null,
+      platform: claim.platform,
+      platformLabel: platformLabel(claim.platform),
+      platforms: [claim.platform],
+      handle,
+      address: { slug: claim.handle, on: isClaimPlatform(claim.platform) ? claim.platform : null },
+      name: claim.handle,
+      firstName: null,
+      identityVerified: false,
+      regionCode: null,
+      avatarPath: null,
+      referenceCount: peopleFor.get(`c:${claim.id}`)?.size ?? 0,
+      unclaimed: true,
+      score: score(handle, claim.handle),
     });
   }
 
-  return ok(
-    Array.from(byKey.values())
-      .sort(
-        (a, b) =>
-          a.score - b.score ||
-          b.referenceCount - a.referenceCount ||
-          a.handle.localeCompare(b.handle),
-      )
-      .slice(0, 8)
-      .map(({ score: _score, ...rest }) => rest),
-  );
-});
-
-// ---------------------------------------------------------------------------
-// addUnclaimedHandle
-// ---------------------------------------------------------------------------
-
-/**
- * Add or resolve a handle across platforms. Idempotent: if the handle already
- * exists on the chosen platform (or any platform), returns it so the user
- * lands directly on `/references/[handle]`.
- */
-export const addUnclaimedHandle = withActionLog('references.addUnclaimedHandle', async function addUnclaimedHandle(input: {
-  platform?: string;
-  handle: string;
-}): Promise<ActionResult<ReferenceSuggestion, ReferenceError>> {
-  const user = await getCachedAuthUser();
-  if (!user) return fail('not-authenticated', 'Sign in to add someone.');
-
-  const claimPlatform = claimPlatformForDealPlatform(input?.platform ?? 'instagram');
-  const handle = normalizeClaimHandle(claimPlatform, input?.handle ?? '');
-  if (!handle) {
-    return fail(
-      'invalid-reference',
-      "That handle doesn't look right. Use the username only, no @ or link.",
-      'handle',
-    );
-  }
-
-  const admin = createAdminClient();
-  const { data: inserted, error: insertError } = await admin
-    .from('social_claims')
-    .insert({ platform: claimPlatform, handle, created_by: user.id })
-    .select('id, platform, handle, claimed_profile_id')
-    .maybeSingle();
-  if (insertError && insertError.code !== '23505') return fail('persistence-error', SAVE_FAILED);
-
-  const row =
-    inserted ??
-    (
-      await admin
-        .from('social_claims')
-        .select('id, platform, handle, claimed_profile_id')
-        .eq('platform', claimPlatform)
-        .eq('handle_norm', handle.toLowerCase())
-        .maybeSingle()
-    ).data;
-  if (!row) return fail('persistence-error', SAVE_FAILED);
-
-  return ok({
-    kind: row.claimed_profile_id ? 'profile' : 'claim',
-    id: row.claimed_profile_id ?? row.id,
-    profileId: row.claimed_profile_id,
-    platform: row.platform,
-    platformLabel: platformLabel(row.platform),
-    platforms: [row.platform],
-    handle: `@${row.handle}`,
-    handleSlug: row.handle,
-    name: row.handle,
-    firstName: null,
-    identityVerified: false,
-    regionCode: null,
-    avatarPath: null,
-    referenceCount: 0,
-    unclaimed: !row.claimed_profile_id,
-  });
-});
+  return ranked
+    .filter((suggestion) => needle || suggestion.referenceCount > 0)
+    .sort(
+      (a, b) =>
+        a.score - b.score || b.referenceCount - a.referenceCount || a.handle.localeCompare(b.handle),
+    )
+    .slice(0, SUGGESTION_LIMIT)
+    .map(({ score: _score, ...rest }) => rest);
+}
 
 // ---------------------------------------------------------------------------
 // giveReference
 // ---------------------------------------------------------------------------
 
 /**
- * Share an experience (positive or negative) from an ID-verified member.
- * Goes LIVE immediately. Repeat experiences for the same pair and sentiment
- * update the deal count and written note without inflating the unique-people
- * count.
+ * Share an experience (positive or negative) from an ID-verified member. Goes LIVE
+ * immediately. Another reference for the same pair and sentiment updates the one
+ * already there rather than adding a second.
  */
 export const giveReference = withActionLog('references.giveReference', async function giveReference(
   input: GiveReferenceInput,
@@ -467,83 +470,47 @@ export const giveReference = withActionLog('references.giveReference', async fun
     );
   }
 
+  // Who it is for. A claimed handle's references belong to its claimant.
   let targetProfileId: string | null = null;
   let targetClaimId: string | null = null;
-  let targetPersonKey: string | null = null;
-  let targetHandleSlug: string | null = null;
-
   if (target.kind === 'profile') {
-    const { data: profile } = await admin
-      .from('profiles')
-      .select('id, display_name, fraud_banned_at, closed_at')
-      .eq('id', target.profileId)
-      .maybeSingle();
-    if (!profile || profile.fraud_banned_at || profile.closed_at) {
-      return fail('not-found', "We couldn't find that person.");
-    }
-    targetProfileId = profile.id;
-    targetHandleSlug = profile.display_name;
-  } else if (target.kind === 'claim') {
-    const { data: claim } = await admin
-      .from('social_claims')
-      .select('id, handle, claimed_profile_id')
-      .eq('id', target.claimId)
-      .maybeSingle();
-    if (!claim) return fail('not-found', "We couldn't find that handle.");
-    targetHandleSlug = claim.handle;
-    if (claim.claimed_profile_id) {
-      targetProfileId = claim.claimed_profile_id;
-    } else {
-      targetClaimId = claim.id;
-    }
+    targetProfileId = target.profileId;
   } else {
-    // target.kind === 'handle': resolve existing claim/profile or create an unclaimed social_claims row
-    const handleNorm = target.handle.toLowerCase();
-    targetHandleSlug = target.handle;
-    const { data: existingClaims } = await admin
-      .from('social_claims')
-      .select('id, handle, claimed_profile_id')
-      .eq('handle_norm', handleNorm);
-
-    const claimed = (existingClaims ?? []).find((c) => c.claimed_profile_id);
-    if (claimed?.claimed_profile_id) {
-      targetProfileId = claimed.claimed_profile_id;
-    } else if (existingClaims && existingClaims.length > 0) {
-      targetClaimId = existingClaims[0].id;
-    } else {
-      const claimPlatform = claimPlatformForDealPlatform(platform);
-      const { data: createdClaim, error: claimErr } = await admin
-        .from('social_claims')
-        .insert({ platform: claimPlatform, handle: target.handle, created_by: user.id })
-        .select('id, claimed_profile_id')
-        .maybeSingle();
-      if (claimErr && claimErr.code !== '23505') {
-        return fail('persistence-error', SAVE_FAILED);
-      }
-      if (createdClaim) {
-        if (createdClaim.claimed_profile_id) targetProfileId = createdClaim.claimed_profile_id;
-        else targetClaimId = createdClaim.id;
-      } else {
-        const { data: fallbackClaim } = await admin
-          .from('social_claims')
-          .select('id, claimed_profile_id')
-          .eq('handle_norm', handleNorm)
-          .limit(1)
-          .maybeSingle();
-        if (!fallbackClaim) return fail('persistence-error', SAVE_FAILED);
-        if (fallbackClaim.claimed_profile_id) targetProfileId = fallbackClaim.claimed_profile_id;
-        else targetClaimId = fallbackClaim.id;
-      }
+    const claim =
+      target.kind === 'claim'
+        ? (
+            await admin
+              .from('social_claims')
+              .select('id, claimed_profile_id')
+              .eq('id', target.claimId)
+              .maybeSingle()
+          ).data
+        : await findOrCreateClaim(admin, target.platform, target.handle, user.id);
+    if (!claim) {
+      return target.kind === 'claim'
+        ? fail('not-found', "We couldn't find that handle.")
+        : fail('persistence-error', SAVE_FAILED);
     }
+    if (claim.claimed_profile_id) targetProfileId = claim.claimed_profile_id;
+    else targetClaimId = claim.id;
   }
 
+  let targetPersonKey: string | null = null;
   const voucherPersonKey = await personKeyFor(admin, user.id);
   if (targetProfileId) {
     if (targetProfileId === user.id) {
       return fail('self-reference', "You can't give yourself a reference.");
     }
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('id, fraud_banned_at, closed_at')
+      .eq('id', targetProfileId)
+      .maybeSingle();
+    if (!profile || profile.fraud_banned_at || profile.closed_at) {
+      return fail('not-found', "We couldn't find that person.");
+    }
     targetPersonKey = await personKeyFor(admin, targetProfileId);
-    if (targetPersonKey === voucherPersonKey && !targetPersonKey.startsWith('profile:')) {
+    if (targetPersonKey === voucherPersonKey) {
       return fail('self-reference', "You can't give yourself a reference.");
     }
   }
@@ -590,9 +557,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
       })
       .eq('id', existing.id);
     if (error) return fail('persistence-error', SAVE_FAILED);
-    if (targetProfileId) revalidatePath(`/sellers/${targetProfileId}`);
-    if (targetHandleSlug) revalidatePath(`/references/${encodeURIComponent(targetHandleSlug)}`);
-    revalidatePath('/references');
+    revalidateReferences(targetProfileId);
     return ok({ referenceId: existing.id, addedDeal: true });
   }
 
@@ -630,10 +595,8 @@ export const giveReference = withActionLog('references.giveReference', async fun
           : `${voucher.display_name} referenced you: ${roleLabel(role).toLowerCase()} on ${platformLabel(platform)}.`,
       link: `/sellers/${targetProfileId}`,
     });
-    revalidatePath(`/sellers/${targetProfileId}`);
   }
-  if (targetHandleSlug) revalidatePath(`/references/${encodeURIComponent(targetHandleSlug)}`);
-  revalidatePath('/references');
+  revalidateReferences(targetProfileId);
   return ok({ referenceId: inserted.id, addedDeal: false });
 });
 
@@ -701,7 +664,7 @@ export const attachReferenceProof = withActionLog('references.attachReferencePro
     .maybeSingle();
   if (error) return fail('persistence-error', SAVE_FAILED);
   if (!data) return fail('not-found', "That reference isn't yours.");
-  if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
+  revalidateReferences(data.target_profile_id);
   return ok({ attached: true });
 });
 
@@ -814,27 +777,7 @@ export const startInstagramDmClaim = withActionLog(
     const refusal = await claimRefusal(admin, user.id);
     if (refusal) return refusal;
 
-    let { data: claim } = await admin
-      .from('social_claims')
-      .select('id, claimed_profile_id')
-      .eq('platform', 'instagram')
-      .eq('handle_norm', handleNorm)
-      .maybeSingle();
-
-    if (!claim) {
-      const { data: inserted } = await admin
-        .from('social_claims')
-        .insert({
-          platform: 'instagram',
-          handle: cleanHandle,
-          created_by: user.id,
-          claim_method: 'UNCLAIMED',
-        })
-        .select('id, claimed_profile_id')
-        .maybeSingle();
-      claim = inserted ?? null;
-    }
-
+    const claim = await findOrCreateClaim(admin, 'instagram', cleanHandle, user.id);
     if (!claim) return fail('persistence-error', SAVE_FAILED);
     if (claim.claimed_profile_id === user.id) {
       return ok({ code, botHandle, signedIn: true, status: 'APPROVED' });
@@ -966,7 +909,7 @@ export const checkInstagramDmClaim = withActionLog(
 
     if (!claim) return ok({ verified: false });
     if (claim.claimed_profile_id === user.id) {
-      revalidatePath(`/references/${cleanHandle}`);
+      revalidateReferences(user.id);
       return ok({ verified: true });
     }
     if (claim.claimed_profile_id) {
@@ -1029,7 +972,7 @@ export const checkInstagramDmClaim = withActionLog(
       });
     }
 
-    revalidatePath(`/references/${cleanHandle}`);
+    revalidateReferences(user.id);
     return ok({ verified: true });
   },
 );
@@ -1037,6 +980,8 @@ export const checkInstagramDmClaim = withActionLog(
 export const submitManualHandleClaim = withActionLog(
   'references.submitManualHandleClaim',
   async function submitManualHandleClaim(input: {
+    /** The platform the handle is on: staff check the screenshot against it. */
+    platform: string;
     handle: string;
     message?: string;
     paths: string[];
@@ -1044,8 +989,12 @@ export const submitManualHandleClaim = withActionLog(
     const user = await getCachedAuthUser();
     if (!user) return fail('not-authenticated', 'Sign in first.');
 
-    const cleanHandle = normalizeClaimHandle('instagram', input.handle);
-    if (!cleanHandle) return fail('invalid-reference', 'Enter a valid handle.');
+    const platform = input.platform;
+    if (!isClaimPlatform(platform)) {
+      return fail('invalid-reference', 'Choose the platform this handle is on.', 'platform');
+    }
+    const cleanHandle = normalizeClaimHandle(platform, input.handle);
+    if (!cleanHandle) return fail('invalid-reference', 'Enter a valid handle.', 'handle');
 
     const admin = createAdminClient();
 
@@ -1089,28 +1038,7 @@ export const submitManualHandleClaim = withActionLog(
       return fail('invalid-reference', 'Attach at least one screenshot or image as proof.');
     }
 
-    const handleNorm = cleanHandle.toLowerCase();
-    let { data: claim } = await admin
-      .from('social_claims')
-      .select('id, claimed_profile_id')
-      .eq('handle_norm', handleNorm)
-      .limit(1)
-      .maybeSingle();
-
-    if (!claim) {
-      const { data: inserted } = await admin
-        .from('social_claims')
-        .insert({
-          platform: 'instagram',
-          handle: cleanHandle,
-          created_by: user.id,
-          claim_method: 'UNCLAIMED',
-        })
-        .select('id, claimed_profile_id')
-        .maybeSingle();
-      claim = inserted ?? null;
-    }
-
+    const claim = await findOrCreateClaim(admin, platform, cleanHandle, user.id);
     if (!claim) return fail('persistence-error', SAVE_FAILED);
     if (claim.claimed_profile_id) {
       return fail(
@@ -1155,7 +1083,7 @@ export const submitManualHandleClaim = withActionLog(
 
     if (error || !data) return fail('persistence-error', SAVE_FAILED);
 
-    revalidatePath(`/references/${cleanHandle}`);
+    revalidateReferences(user.id);
     return ok({
       requestId: data.id,
       bioCode: data.bio_code,
@@ -1186,7 +1114,7 @@ export const withdrawReference = withActionLog('references.withdrawReference', a
     .maybeSingle();
   if (error) return fail('persistence-error', SAVE_FAILED);
   if (!data) return fail('not-found', "That reference isn't yours to withdraw.");
-  if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
+  revalidateReferences(data.target_profile_id);
   return ok({ withdrawn: true });
 });
 

@@ -49,6 +49,11 @@ import {
   withdrawOrbitHandoff,
   type OrbitHandoff,
 } from '@/components/references/orbitHandoff';
+import {
+  referenceAddressKey,
+  referenceGraphApiHref,
+  type ReferenceAddress,
+} from '@/domain/references/address';
 import type {
   ReferenceGraphCentre,
   ReferenceGraphChild,
@@ -292,10 +297,10 @@ export type OrbitEntry =
   | { kind: 'node'; key: string; node: ReferenceGraphNode }
   | { kind: 'child'; key: string; child: ReferenceGraphChild; parent: ReferenceGraphNode };
 
-/** The handle in someone's page address. */
-export function entryHandleSlug(entry: OrbitEntry): string {
-  if (entry.kind === 'centre') return entry.graph.centre.handleSlug;
-  return entry.kind === 'node' ? entry.node.handleSlug : entry.child.handleSlug;
+/** Someone's page. */
+export function entryAddress(entry: OrbitEntry): ReferenceAddress {
+  if (entry.kind === 'centre') return entry.graph.centre.address;
+  return entry.kind === 'node' ? entry.node.address : entry.child.address;
 }
 
 /**
@@ -438,7 +443,7 @@ export function viewTotal(view: ReferenceView): number {
 
 export interface TrustOrbitsOptions {
   /** Goes to someone's page; the graph is already walking toward them. */
-  openPage: (handleSlug: string) => void;
+  openPage: (address: ReferenceAddress) => void;
 }
 
 export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbitsOptions) {
@@ -458,7 +463,9 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const [direction, setDirectionState] = useState<ReferenceDirection>('received');
 
   // The page refreshed its graph (after an experience is shared, say): start from it.
+  // Still the same person, so a reader on the Given side stays there.
   if (root !== rootGraph) {
+    const samePerson = centreKeyOf(root) === centreKeyOf(rootGraph);
     setRootGraph(root);
     setTrail([root]);
     setSelectedKey(null);
@@ -467,7 +474,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     setFocusChange(null);
     setPendingKey(null);
     setPlatformFilter(null);
-    setDirectionState('received');
+    if (!samePerson) setDirectionState('received');
   }
 
   const wide = useSyncExternalStore(subscribeWide, getWide, serverTrue);
@@ -548,25 +555,24 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const walkToken = useRef(0);
   const lastTap = useRef<Tap | null>(null);
 
-  const loadGraph = (handleSlug: string): Promise<ReferenceGraphData> => {
-    const cached = graphs.current.get(handleSlug);
+  const loadGraph = (address: ReferenceAddress): Promise<ReferenceGraphData> => {
+    const cacheKey = referenceAddressKey(address);
+    const cached = graphs.current.get(cacheKey);
     if (cached) return cached;
-    const request = fetch(`/api/references/graph?handle=${encodeURIComponent(handleSlug)}`).then(
-      async (response) => {
-        if (!response.ok) throw new Error(`Reference graph request failed (${response.status})`);
-        return (await response.json()) as ReferenceGraphData;
-      },
-    );
-    graphs.current.set(handleSlug, request);
-    request.catch(() => graphs.current.delete(handleSlug));
+    const request = fetch(referenceGraphApiHref(address)).then(async (response) => {
+      if (!response.ok) throw new Error(`Reference graph request failed (${response.status})`);
+      return (await response.json()) as ReferenceGraphData;
+    });
+    graphs.current.set(cacheKey, request);
+    request.catch(() => graphs.current.delete(cacheKey));
     return request;
   };
 
-  /** The page address handle for anyone drawn here but the person in the middle. */
-  const pageOf = (key: string): string | null => {
+  /** The page of anyone drawn here but the person in the middle. */
+  const pageOf = (key: string): ReferenceAddress | null => {
     if (key === centreKey) return null;
     const entry = directory.get(key);
-    return entry ? entryHandleSlug(entry) : null;
+    return entry ? entryAddress(entry) : null;
   };
 
   const changeFocus = (next: string | null) => {
@@ -622,19 +628,19 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
       if (angle !== undefined) motion.turnTo(yawToSelectedRest(angle));
     }
 
-    const handleSlug = pageOf(key);
-    if (handleSlug) loadGraph(handleSlug).catch(() => {});
+    const page = pageOf(key);
+    if (page) loadGraph(page).catch(() => {});
   };
 
   /** Opens someone's page, walking the graph toward them while it loads. */
   const centreOn = (key: string) => {
-    const handleSlug = pageOf(key);
-    if (!handleSlug) return;
+    const page = pageOf(key);
+    if (!page) return;
     walkToken.current += 1;
     const token = walkToken.current;
     setPendingKey(key);
-    openPage(handleSlug);
-    loadGraph(handleSlug)
+    openPage(page);
+    loadGraph(page)
       .then((next) => {
         if (token === walkToken.current) go([...latest.current.trail, next]);
       })

@@ -36,6 +36,7 @@ import {
   searchReferences,
   type ReferenceSuggestion,
 } from '@/lib/actions/references';
+import { referenceHref, type ReferenceAddress } from '@/domain/references/address';
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { Avatar } from '@/components/ui/avatar';
 import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/browseEvents';
@@ -323,7 +324,8 @@ function HeaderSearchInner({
     const trimmed = query.trim();
     rememberSearch(trimmed);
     if (trimmed.startsWith('@') && trimmed.length > 1) {
-      openReference(trimmed.slice(1));
+      // Platform unknown: the page asks which one when several people share the handle.
+      openReference({ slug: trimmed.slice(1), on: null });
       return;
     }
     if (onCatalog && requestCatalogBrowse({ q: trimmed || null })) {
@@ -359,10 +361,10 @@ function HeaderSearchInner({
     startTransition(() => router.push(`/listings/${id}`));
   }
 
-  function openReference(handleSlug: string) {
+  function openReference(address: ReferenceAddress) {
     setOpen(false);
     onNavigate?.();
-    startTransition(() => router.push(`/references/${encodeURIComponent(handleSlug.replace(/^@/, ''))}`));
+    startTransition(() => router.push(referenceHref(address)));
   }
 
   function runSearch(nextQuery: string) {
@@ -391,7 +393,7 @@ function HeaderSearchInner({
         ...refHits.map((ref) => ({
           id: `${listId}-ref-${ref.kind}-${ref.id}`,
           group: 'References' as const,
-          select: () => openReference(ref.handleSlug),
+          select: () => openReference(ref.address),
         })),
         ...hits.map((hit) => ({
           id: `${listId}-hit-${hit.id}`,
@@ -597,7 +599,7 @@ function HeaderSearchInner({
                 return (
                   <li key={id} role="presentation">
                     <Link
-                      href={`/references/${encodeURIComponent(ref.handleSlug)}`}
+                      href={referenceHref(ref.address)}
                       id={id}
                       role="option"
                       aria-selected={highlight === optionIndex}

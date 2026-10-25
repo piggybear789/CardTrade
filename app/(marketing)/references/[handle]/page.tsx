@@ -5,15 +5,30 @@ import { Suspense } from 'react';
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
-import { loadHandleReferenceGraph } from '@/lib/references/graph';
+import { loadReferencePage } from '@/lib/references/graph';
 import { getMyHandleClaim } from '@/lib/actions/references';
+import { HandleChooser } from '@/components/references/HandleChooser';
 import { ReferenceProfile } from '@/components/references/ReferenceProfile';
+import { isUuid } from '@/domain/references/reference';
 
 // app/(marketing)/references/[handle]/page.tsx
 //
-// Unified Cross-Platform Reference Profile & Vector Graph (0155).
-// Synthesises every deal for `[handle]` across Instagram, Facebook, Discord,
-// eBay, Whatnot, and NoDitto Escrow into one vector network.
+// One person's references (0155): `/references/<handle>?on=<platform>`, or by id. A bare
+// handle that more than one person goes by asks which one is meant (`HandleChooser`).
+
+type SearchParams = Promise<{ on?: string | string[]; experience?: string | string[] }>;
+
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function decodeSlug(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
 
 export async function generateMetadata({
   params,
@@ -21,10 +36,13 @@ export async function generateMetadata({
   params: Promise<{ handle: string }>;
 }): Promise<Metadata> {
   const { handle } = await params;
-  const decoded = decodeURIComponent(handle).replace(/^@/, '');
+  const decoded = decodeSlug(handle).replace(/^@/, '');
+  const label = isUuid(decoded) ? null : `@${decoded}`;
   return {
-    title: `@${decoded} · References · NoDitto`,
-    description: `Cross-platform reference graph and verified trading history for @${decoded} on NoDitto.`,
+    title: label ? `${label} · References · NoDitto` : 'References · NoDitto',
+    description: label
+      ? `References for ${label} from ID-verified traders.`
+      : 'References from ID-verified traders.',
   };
 }
 
@@ -33,15 +51,29 @@ export default async function HandleReferencePage({
   searchParams,
 }: {
   params: Promise<{ handle: string }>;
-  searchParams: Promise<{ experience?: string | string[] }>;
+  searchParams: SearchParams;
 }) {
-  const [{ handle }, { experience }] = await Promise.all([params, searchParams]);
-  const [graph, user] = await Promise.all([
-    loadHandleReferenceGraph(handle),
+  const [{ handle }, query] = await Promise.all([params, searchParams]);
+  const experience = first(query.experience);
+  const [page, user] = await Promise.all([
+    loadReferencePage(handle, first(query.on) ?? null),
     getCachedAuthUser(),
   ]);
-  if (!graph) notFound();
+  if (!page) notFound();
 
+  if (page.kind === 'choose') {
+    return (
+      <article className="mx-auto flex w-full max-w-[clamp(64rem,70vw,96rem)] flex-1 flex-col px-group py-section sm:px-6 md:py-10">
+        <HandleChooser
+          handle={page.handle}
+          choices={page.choices}
+          params={experience === '1' ? { experience: '1' } : {}}
+        />
+      </article>
+    );
+  }
+
+  const { graph } = page;
   const { centre } = graph;
   const admin = createAdminClient();
 
@@ -57,8 +89,6 @@ export default async function HandleReferencePage({
 
   const myClaim =
     centre.unclaimed && centre.claimId ? await getMyHandleClaim(centre.claimId) : null;
-
-  const autoOpen = (Array.isArray(experience) ? experience[0] : experience) === '1';
 
   // SCALES WITH THE SCREEN. The column is 64rem up to a 1440px screen and then grows with
   // it (70vw, capped at 96rem), so a large monitor shows the same composition at a larger
@@ -77,7 +107,7 @@ export default async function HandleReferencePage({
       <ReferenceProfile
         data={graph}
         viewer={{ id: user?.id ?? null, identityVerified: viewerIdentityVerified }}
-        autoOpen={autoOpen}
+        autoOpen={experience === '1'}
         initialClaim={myClaim}
       />
     </article>

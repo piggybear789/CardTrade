@@ -8,7 +8,7 @@
 //
 // Pure: no Supabase, React or service imports.
 
-import { isValidHandle, normalizeHandle, platformBySlug } from '@/domain/social/socialLinks';
+import { normalizeHandle, platformBySlug } from '@/domain/social/socialLinks';
 
 /** Where a deal can have happened. `noditto` is reserved for completed escrow deals. */
 export const REFERENCE_PLATFORMS = [
@@ -70,6 +70,43 @@ export function isClaimPlatform(value: unknown): value is ClaimPlatform {
   return typeof value === 'string' && (CLAIM_PLATFORMS as readonly string[]).includes(value);
 }
 
+/**
+ * The longest username each platform allows, rounded up where a platform is vague, so a
+ * real handle is never refused. A handle past it is not a handle on that platform.
+ */
+const CLAIM_HANDLE_MAX: Record<ClaimPlatform, number> = {
+  instagram: 30,
+  facebook: 50,
+  x: 15,
+  youtube: 30,
+  tiktok: 24,
+  discord: 32,
+  ebay: 64,
+  whatnot: 40,
+};
+
+/** The longest handle accepted when the platform is not known yet. */
+const ANY_HANDLE_MAX = 64;
+
+/**
+ * Letters, digits, `.`, `_` and `-`: every platform's username alphabet, and nothing that
+ * could pass for a sentence, a link or markup on a public page. eBay alone also allows `*`.
+ */
+const HANDLE_CHARS = /^[A-Za-z0-9._-]+$/;
+const EBAY_HANDLE_CHARS = /^[A-Za-z0-9._*-]+$/;
+
+/** Whether `handle` (no `@`) could be a username on `platform`, or on any platform when null. */
+export function isValidClaimHandle(platform: ClaimPlatform | null, handle: string): boolean {
+  const max = platform ? CLAIM_HANDLE_MAX[platform] : ANY_HANDLE_MAX;
+  if (handle.length === 0 || handle.length > max) return false;
+  return (platform === 'ebay' ? EBAY_HANDLE_CHARS : HANDLE_CHARS).test(handle);
+}
+
+/** A NoDitto display name shown where a handle would be. Never with a leading `@`: it is not one. */
+export function displayNameLabel(displayName: string): string {
+  return displayName.trim().replace(/^@+/, '');
+}
+
 export function platformLabel(slug: string): string {
   if (slug === 'noditto') return 'NoDitto';
   return REFERENCE_PLATFORMS.find((p) => p.slug === slug)?.label ?? platformBySlug(slug)?.label ?? slug;
@@ -107,10 +144,17 @@ export function formatOccurredMonth(isoDate: string | null | undefined): string 
 export type ReferenceTargetInput =
   | { kind: 'profile'; profileId: string }
   | { kind: 'claim'; claimId: string }
-  | { kind: 'handle'; handle: string };
+  /** A handle with no claim row yet. `platform` is where the account lives. */
+  | { kind: 'handle'; handle: string; platform: string };
 
-export interface GiveReferenceInput {
-  target: ReferenceTargetInput;
+/** A target that passed validation: a handle's platform is a known claim platform. */
+export type ValidReferenceTarget =
+  | { kind: 'profile'; profileId: string }
+  | { kind: 'claim'; claimId: string }
+  | { kind: 'handle'; handle: string; platform: ClaimPlatform };
+
+/** What a reference says, apart from who it is for: the part its author can edit later. */
+export interface ReferenceDetailsInput {
   platform: string;
   role: string;
   /** `YYYY-MM`; defaults to the current month. */
@@ -125,54 +169,62 @@ export interface GiveReferenceInput {
   comment?: string | null;
 }
 
+export interface GiveReferenceInput extends ReferenceDetailsInput {
+  target: ReferenceTargetInput;
+}
+
+export interface ReferenceDetails {
+  platform: ReferencePlatform;
+  role: ReferenceRole;
+  occurredMonth: string;
+  rating: number;
+  sentiment: ReferenceSentiment;
+  category: NegativeCategory | null;
+  comment: string | null;
+}
+
+type ReferenceDetailsField = 'platform' | 'role' | 'occurredMonth' | 'rating' | 'category' | 'comment';
+
+export type ReferenceDetailsValidation =
+  | { ok: true; value: ReferenceDetails }
+  | { ok: false; message: string; field: ReferenceDetailsField };
+
 export type GiveReferenceValidation =
-  | {
-      ok: true;
-      value: {
-        target: ReferenceTargetInput;
-        platform: ReferencePlatform;
-        role: ReferenceRole;
-        occurredMonth: string;
-        rating: number;
-        sentiment: ReferenceSentiment;
-        category: NegativeCategory | null;
-        comment: string | null;
-      };
-    }
-  | {
-      ok: false;
-      message: string;
-      field: 'target' | 'platform' | 'role' | 'occurredMonth' | 'rating' | 'category' | 'comment';
-    };
+  | { ok: true; value: ReferenceDetails & { target: ValidReferenceTarget } }
+  | { ok: false; message: string; field: 'target' | ReferenceDetailsField };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function isUuid(value: unknown): value is string {
+export function isUuid(value: unknown): boolean {
   return typeof value === 'string' && UUID_RE.test(value);
 }
 
-export function validateGiveReference(input: GiveReferenceInput): GiveReferenceValidation {
-  const target = input?.target;
-  if (!target || typeof target !== 'object') {
-    return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
-  }
+function validateTarget(
+  target: ReferenceTargetInput | null | undefined,
+): { ok: true; value: ValidReferenceTarget } | { ok: false; message: string; field: 'target' | 'platform' } {
+  const unknownTarget = { ok: false as const, message: 'Choose who this reference is for.', field: 'target' as const };
+  if (!target || typeof target !== 'object') return unknownTarget;
   if (target.kind === 'profile') {
-    if (typeof target.profileId !== 'string' || !UUID_RE.test(target.profileId)) {
-      return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
+    return isUuid(target.profileId) ? { ok: true, value: { kind: 'profile', profileId: target.profileId } } : unknownTarget;
+  }
+  if (target.kind === 'claim') {
+    return isUuid(target.claimId) ? { ok: true, value: { kind: 'claim', claimId: target.claimId } } : unknownTarget;
+  }
+  if (target.kind === 'handle') {
+    const platform = target.platform;
+    if (!isClaimPlatform(platform)) {
+      return { ok: false, message: 'Choose the platform this account is on.', field: 'platform' };
     }
-  } else if (target.kind === 'claim') {
-    if (typeof target.claimId !== 'string' || !UUID_RE.test(target.claimId)) {
-      return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
-    }
-  } else if (target.kind === 'handle') {
-    const cleaned = normalizeHandle(target.handle ?? '');
-    if (!isValidHandle(cleaned)) {
+    const handle = normalizeHandle(target.handle ?? '');
+    if (!isValidClaimHandle(platform, handle)) {
       return { ok: false, message: 'Enter a valid handle.', field: 'target' };
     }
-  } else {
-    return { ok: false, message: 'Choose who this reference is for.', field: 'target' };
+    return { ok: true, value: { kind: 'handle', handle, platform } };
   }
+  return unknownTarget;
+}
 
+export function validateReferenceDetails(input: ReferenceDetailsInput): ReferenceDetailsValidation {
   if (!isReferencePlatform(input.platform)) {
     return { ok: false, message: 'Choose where you did the deal.', field: 'platform' };
   }
@@ -229,35 +281,25 @@ export function validateGiveReference(input: GiveReferenceInput): GiveReferenceV
     return { ok: false, message: 'Keep your note to 500 characters or fewer.', field: 'comment' };
   }
 
-  const normalizedTarget: ReferenceTargetInput =
-    target.kind === 'handle' ? { kind: 'handle', handle: normalizeHandle(target.handle) } : target;
-
   return {
     ok: true,
-    value: {
-      target: normalizedTarget,
-      platform: input.platform,
-      role: input.role,
-      occurredMonth,
-      rating,
-      sentiment,
-      category,
-      comment,
-    },
+    value: { platform: input.platform, role: input.role, occurredMonth, rating, sentiment, category, comment },
   };
+}
+
+export function validateGiveReference(input: GiveReferenceInput): GiveReferenceValidation {
+  const target = validateTarget(input?.target);
+  if (!target.ok) return target;
+  const details = validateReferenceDetails(input);
+  if (!details.ok) return details;
+  return { ok: true, value: { ...details.value, target: target.value } };
 }
 
 /** A claim handle, normalised the way `social_links` stores it, or null when invalid. */
 export function normalizeClaimHandle(platform: string, raw: string): string | null {
   if (!isClaimPlatform(platform)) return null;
   const handle = normalizeHandle(raw ?? '');
-  return isValidHandle(handle) ? handle : null;
-}
-
-/** Map any deal platform to a valid `social_claims.platform` column value. */
-export function claimPlatformForDealPlatform(platform: string): ClaimPlatform {
-  if (isClaimPlatform(platform)) return platform;
-  return 'instagram';
+  return isValidClaimHandle(platform, handle) ? handle : null;
 }
 
 /** Max references one member may give per day. Generous for humans, useless for rings. */

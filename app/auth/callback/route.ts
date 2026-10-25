@@ -11,11 +11,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 // surface a stack trace: they redirect back to /sign-in with a fixed
 // `authError` message.
 
-import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { ensureProfile } from '@/lib/auth/ensureProfile';
 import { finishesOwnOnboarding } from '@/lib/deals/paths';
-import { isUuid } from '@/domain/references/reference';
 
 /** Fallback destination for a User who already has a Profile. */
 const DEFAULT_DESTINATION = '/';
@@ -130,54 +128,10 @@ export async function GET(request: NextRequest) {
     return failure('Signed in, but profile setup failed. Please try again.');
   }
 
-  const claimId = params.get('claimId');
-  if (claimId && isUuid(claimId)) {
-    const admin = createAdminClient();
-    const [{ data: profileRow }, { data: claimRow }] = await Promise.all([
-      admin
-        .from('profiles')
-        .select('identity_check_status, fraud_banned_at, closed_at')
-        .eq('id', user.id)
-        .maybeSingle(),
-      admin
-        .from('social_claims')
-        .select('id, handle_norm, claimed_profile_id')
-        .eq('id', claimId)
-        .maybeSingle(),
-    ]);
-
-    if (
-      profileRow?.identity_check_status === 'VERIFIED' &&
-      !profileRow.fraud_banned_at &&
-      !profileRow.closed_at &&
-      claimRow &&
-      !claimRow.claimed_profile_id
-    ) {
-      const candidateHandles = new Set<string>();
-      for (const identity of user.identities ?? []) {
-        const idData = (identity.identity_data ?? {}) as Record<string, unknown>;
-        for (const key of ['user_name', 'preferred_username', 'username', 'name', 'full_name']) {
-          const val = idData[key];
-          if (typeof val === 'string' && val.trim()) {
-            candidateHandles.add(val.trim().replace(/^@/, '').toLowerCase());
-          }
-        }
-      }
-      if (candidateHandles.size === 0 || candidateHandles.has(claimRow.handle_norm)) {
-        const now = new Date().toISOString();
-        await admin
-          .from('social_claims')
-          .update({
-            claimed_profile_id: user.id,
-            claim_method: 'OAUTH',
-            claimed_at: now,
-            updated_at: now,
-          })
-          .eq('id', claimRow.id)
-          .is('claimed_profile_id', null);
-      }
-    }
-  }
+  // NEVER CLAIM A HANDLE HERE. This callback serves email, recovery and Google sign-ins,
+  // none of which proves who owns a social handle. Handles are claimed only where the
+  // provider returns the username itself: `/api/oauth/claim/[provider]` and the
+  // Instagram DM bot.
 
   // New users go through onboarding, carrying the intended destination so the
   // post-onboarding hop can resume the original task — unless that destination asks

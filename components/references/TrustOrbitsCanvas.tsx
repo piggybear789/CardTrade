@@ -300,7 +300,6 @@ export function TrustOrbitsCanvas({
     observer.observe(card);
     return () => observer.disconnect();
     // `measure` reads refs and a functional state update only, so it never goes stale.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownCard]);
   // FIT THE SYSTEM, NOT THE FRAME. The first version shrank the whole frame until it
   // ended above the card, so the frame's empty margins shrank too and the system came

@@ -47,5 +47,14 @@ next-env.d.ts
 # Scratch dump artifact, regenerated locally
 copy-all.txt
 
+# Local scratch scripts, logs and dumps, never committed
+/.tmp-*
+/tmp-*
+/*.log
+/audit.txt
+/e2e-failures.txt
+/vercel-logs.txt
+/.impeccable-critique-body.tmp.md
+
 # Local git worktrees (full repo copies), never committed
 /.worktrees/

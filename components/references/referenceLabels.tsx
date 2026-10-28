@@ -48,9 +48,13 @@ export function plural(count: number, one: string, many: string): string {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-/** What backs a reference beyond its author's word. A plain vouch says nothing. */
+/**
+ * What backs a reference beyond its author's word. A plain vouch says nothing. A NoDitto
+ * deal is a completed cash sale OR trade, so it is never called "escrow": a trade's
+ * collateral is a card hold, not money the platform holds.
+ */
 export function proofLabel(kind: ReferenceProof): string | null {
-  if (kind === 'escrow') return 'NoDitto escrow';
+  if (kind === 'escrow') return 'Completed on NoDitto';
   if (kind === 'receipt') return 'Receipt checked';
   return null;
 }

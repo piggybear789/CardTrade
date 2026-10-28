@@ -27,7 +27,6 @@ import {
   orbitKey,
   perspectiveScale,
   pickDrawn,
-  placeLabels,
   planetRadius,
   projectPoint,
   splitConnections,
@@ -35,7 +34,6 @@ import {
   yawToFront,
   yawToSelectedRest,
   type DrawCandidate,
-  type LabelAnchor,
   type OrbitItem,
   type OrbitPersonInput,
   type OrbitScene,
@@ -372,45 +370,6 @@ describe('dragView', () => {
 
     expect(dragView(DEFAULT_VIEW, 0, 10, true).tilt).toBe(MAX_TILT);
     expect(dragView(DEFAULT_VIEW, 0, -10, true).tilt).toBe(MIN_TILT);
-  });
-});
-
-describe('placeLabels', () => {
-  const spot = (x: number, y: number, anchor: LabelAnchor = 'middle') => ({ x, y, anchor });
-
-  it('places labels whole and in order, skipping any that would overlap one already placed', () => {
-    const placed = placeLabels(
-      [
-        { key: 'first', width: 100, height: 14, spots: [spot(200, 100)] },
-        { key: 'clash', width: 100, height: 14, spots: [spot(220, 104)] },
-        { key: 'moved', width: 100, height: 14, spots: [spot(230, 100), spot(230, 140)] },
-      ],
-      WIDE_FRAME,
-    );
-    expect(placed.map((label) => [label.key, label.y])).toEqual([
-      ['first', 100],
-      ['moved', 140],
-    ]);
-  });
-
-  it('keeps labels inside the frame and off other bodies, but always shows a required one', () => {
-    const edge = WIDE_FRAME.width - 10;
-    expect(
-      placeLabels([{ key: 'edge', width: 120, height: 14, spots: [spot(edge, 50, 'start'), spot(edge, 50, 'end')] }], WIDE_FRAME),
-    ).toEqual([{ key: 'edge', x: edge, y: 50, anchor: 'end' }]);
-
-    const [nudged] = placeLabels([{ key: 'nudged', width: 120, height: 14, spots: [spot(20, 50)] }], WIDE_FRAME);
-    expect(nudged.x - 60).toBeGreaterThanOrEqual(4);
-
-    const body = { key: 'planet', x: 300, y: 100, r: 20 };
-    expect(placeLabels([{ key: 'other', width: 60, height: 14, spots: [spot(300, 100)] }], WIDE_FRAME, [body])).toEqual([]);
-    expect(placeLabels([{ key: 'planet', width: 60, height: 14, spots: [spot(300, 100)] }], WIDE_FRAME, [body])).toHaveLength(1);
-
-    const [forced] = placeLabels(
-      [{ key: 'selected', width: 120, height: 14, spots: [spot(WIDE_FRAME.width, 50)], required: true }],
-      WIDE_FRAME,
-    );
-    expect(forced.x + 60).toBeLessThanOrEqual(WIDE_FRAME.width);
   });
 });
 

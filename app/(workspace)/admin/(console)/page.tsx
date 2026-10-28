@@ -298,7 +298,7 @@ async function loadReferencesQueue(
   const [{ data: claimRows }, { data: proofRows }] = await Promise.all([
     admin
       .from('handle_claim_requests')
-      .select('id, claim_id, claimant_id, screenshot_paths, staff_notes, created_at')
+      .select('id, claim_id, claimant_id, screenshot_paths, claimant_message, created_at')
       .eq('status', 'PENDING')
       .not('screenshot_paths', 'eq', '{}')
       .order('created_at', { ascending: true })
@@ -357,7 +357,7 @@ async function loadReferencesQueue(
         handle: claim?.handle ?? '',
         claimantId: row.claimant_id,
         claimantName: nameFor(row.claimant_id),
-        note: row.staff_notes,
+        note: row.claimant_message,
         screenshots: (row.screenshot_paths ?? []).map((path) => ({ path, url: claimUrlByPath.get(path) ?? null })),
         createdAt: row.created_at,
       };

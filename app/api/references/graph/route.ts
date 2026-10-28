@@ -28,7 +28,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Choose a member to load.' }, { status: 400 });
   }
 
-  const page = await cachedReferencePage(handle, params.get('on'));
+  // A failed read throws (so it is never cached); answer it as unavailable, uncached, so
+  // the walk stops instead of drawing an empty graph that would look like "no references".
+  const page = await cachedReferencePage(handle, params.get('on')).catch(() => undefined);
+  if (page === undefined) {
+    return NextResponse.json(
+      { error: 'References are unavailable right now.' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
   if (!page) {
     return NextResponse.json({ error: 'This member’s references are not available.' }, { status: 404 });
   }

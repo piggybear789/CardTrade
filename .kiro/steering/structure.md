@@ -27,7 +27,7 @@ middleware.ts       Auth guard; redirects unauthenticated users off protected pr
 
 ## app/
 
-Route folders mirror features: `(auth)/sign-in`, `(auth)/sign-up`, `(auth)/forgot-password`, `auth/update-password`, `onboarding`, `admin` (+ `arbitration`), `listings` (+ `new`, `[id]`, `[id]/edit`, `mine`), `messages` (+ `[id]`), `notifications`, `offers`, `profile` (+ `payouts`), `purchases`, `sales` (+ `[id]`), `saved`, `sellers/[id]`, `trades` (+ `new`, `[id]`), `deals`, `t/[token]`, `account-suspended`, `(marketing)/help|terms|privacy|safety`, `(marketing)/trusted-sellers` (+ `apply`), `(marketing)/report-scam` (+ `response/[id]`, 0154), `api/webhooks/stripe`, `api/webhooks/ship24`, `api/jobs/cash-sale-payouts`, `api/jobs/trade-inspections`, `api/errors` (browser error capture, 0123), and `api/mobile/**`.
+Route folders mirror features: `(auth)/sign-in`, `(auth)/sign-up`, `(auth)/forgot-password`, `auth/update-password`, `onboarding`, `admin` (+ `arbitration`), `listings` (+ `new`, `[id]`, `[id]/edit`, `mine`), `messages` (+ `[id]`), `notifications`, `offers`, `profile` (+ `payouts`), `purchases`, `sales` (+ `[id]`), `saved`, `sellers/[id]`, `trades` (+ `new`, `[id]`), `deals`, `t/[token]`, `account-suspended`, `(marketing)/help|terms|privacy|safety`, `(marketing)/trusted-sellers` (+ `apply`), `(marketing)/report-scam` (+ `response/[id]`, 0154), `(marketing)/references` (+ `[handle]`, 0155), `api/references/graph`, `api/webhooks/stripe`, `api/webhooks/ship24`, `api/jobs/cash-sale-payouts`, `api/jobs/trade-inspections`, `api/errors` (browser error capture, 0123), and `api/mobile/**`.
 
 Pages are Server Components by default: fetch data with the cookie-bound Supabase client and pass plain data down. Add `'use client'` only on components that need state, effects, or Realtime.
 
@@ -49,7 +49,7 @@ A parent loader is legitimate only when every descendant genuinely shares the sh
 
 ## components/
 
-One folder per feature (`account`, `admin`, `arbitration`, `auth`, `brand`, `contract`, `deals`, `fulfilment`, `identity`, `layout`, `listings`, `location`, `messages`, `notifications`, `offers`, `onboarding`, `payments`, `payouts`, `profile`, `reports`, `reviews`, `sales`, `scamReports`, `trade`, `trustedSellers`) plus `ui/` for shadcn primitives (button, card, dialog, form, input, label, select, textarea, badge, sonner, sheet, slider, popover, tooltip, skeleton, choice-tile, confirm-dialog, empty-state, dialog-row).
+One folder per feature (`account`, `admin`, `arbitration`, `auth`, `brand`, `contract`, `deals`, `fulfilment`, `identity`, `layout`, `listings`, `location`, `messages`, `notifications`, `offers`, `onboarding`, `payments`, `payouts`, `profile`, `references`, `reports`, `reviews`, `sales`, `scamReports`, `trade`, `trustedSellers`) plus `ui/` for shadcn primitives (button, card, dialog, form, input, label, select, textarea, badge, sonner, sheet, slider, popover, tooltip, skeleton, choice-tile, confirm-dialog, empty-state, dialog-row).
 
 Two folders are cross-flow and should be reached for before writing anything new in `sales/` or `trade/`:
 
@@ -101,6 +101,7 @@ Components are `PascalCase.tsx`. Add new shadcn primitives to `ui/` via the shad
 - `location/geoapify.ts` — address autocomplete and map embed integration (Google Maps).
 - `location/resolveRegion.ts` — `server-only`. The one place a request becomes a browse region, and the one place `x-vercel-ip-country` is read. The precedence chain is `?region=` → the remembered picker cookie (including `all`) → the member's own `profiles.region_code` → the IP guess → `DEFAULT_REGION`, and it reports which of those it used so the UI can disclose a guess. Nothing on the read path writes; only `setBrowseRegion` does.
 - `handover/terms.ts` — display-layer formatting for fulfilment terms.
+- `references/` — `server-only` reads for References (0155): `graph.ts` (one person's graph, cached), `people.ts` (`peopleTallies`, the ONE count of people behind every reference number), `search.ts` (suggestions; `cachedTopSuggestions` for the landing page, which must not go through the rate-limited action).
 - `storage/` — Supabase Storage helpers for item image uploads.
 
 ## Conventions

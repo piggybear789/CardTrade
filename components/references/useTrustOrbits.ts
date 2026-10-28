@@ -4,8 +4,8 @@
 //
 // State behind the Trust Network graph: who is the sun, who is selected and whose
 // connections are open, how the system is turned, and the animations between those
-// states. The system spins on its own and can be dragged. Selecting a planet pauses
-// it, eases that planet round to the back-left diagonal (clear of the sun and of the
+// states. The system rests until it is dragged or someone is selected; selecting a
+// planet eases it round to the back-left diagonal (clear of the sun and of the
 // details card along the bottom) and opens its connections.
 //
 // Opening someone's network goes to their page. The graph starts walking toward them
@@ -72,8 +72,6 @@ const OPEN_MS = 480;
 const TURN_MS = 420;
 const TURN_PER_RADIAN_MS = 240;
 const RESET_MS = 450;
-/** About one turn every two minutes. */
-const SPIN_PER_MS = 0.00005;
 /** Drags shorter than this are taps. */
 const DRAG_THRESHOLD_PX = 4;
 
@@ -98,8 +96,8 @@ const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
 
 /**
  * One function identity for the life of the component that always runs the latest
- * version of `callback`. The system re-renders on every spin frame; handlers that kept
- * changing identity would re-render every memoised part of the page with it. For event
+ * version of `callback`. The system re-renders on every drag and turn frame; handlers that
+ * kept changing identity would re-render every memoised part of the page with it. For event
  * handlers only: the latest version is swapped in after render.
  */
 function useStableCallback<Args extends unknown[], Result>(
@@ -145,50 +143,36 @@ interface Drag {
 }
 
 /**
- * Spin, drag and eased turns for the system, starting from how the last page left
- * it when there is one. `sunAt` is how far down the drawing the sun currently sits,
- * which splits a grab into the near half or the far half.
+ * Drag and eased turns for the system, starting from how the last page left it when
+ * there is one. `sunAt` is how far down the drawing the sun currently sits, which splits
+ * a grab into the near half or the far half.
+ *
+ * NO CONTINUOUS SPIN. The system used to turn on its own, about once every two minutes.
+ * That re-rendered the whole drawing on every animation frame for motion mostly too slow
+ * to see, kept reordering the focusable bodies under a keyboard user (losing their
+ * focus) and, on a phone where its switch was hidden, could not be paused (WCAG 2.2.2).
+ * The drawing now moves only when the reader drags it or selects someone, so a frame is
+ * drawn only while something is actually moving.
  */
 function useOrbitMotion(
-  paused: boolean,
   reducedMotion: boolean,
   sunAt: RefObject<number>,
   inherited: OrbitHandoff | null,
 ) {
   const [view, setView] = useState<OrbitView>(inherited?.view ?? DEFAULT_VIEW);
-  const [autoSpin, setAutoSpin] = useState(inherited ? inherited.autoSpin : !reducedMotion);
-  const [dragging, setDragging] = useState(false);
   const [tweening, setTweening] = useState(false);
-  const [element, setElement] = useState<Element | null>(null);
-  const [visible, setVisible] = useState(true);
   const live = useRef(view);
   const tween = useRef<Tween | null>(null);
   const drag = useRef<Drag | null>(null);
-
-  useEffect(() => {
-    if (reducedMotion) setAutoSpin(false);
-  }, [reducedMotion]);
-
-  useEffect(() => {
-    if (!element || typeof IntersectionObserver === 'undefined') return;
-    const observer = new IntersectionObserver((entries) => setVisible(entries.some((e) => e.isIntersecting)));
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [element]);
 
   const commit = (next: OrbitView) => {
     live.current = next;
     setView(next);
   };
 
-  const spinning = autoSpin && !paused && visible && !dragging;
-
   useEffect(() => {
-    if (!spinning && !tweening) return;
-    let last = performance.now();
+    if (!tweening) return;
     let frame = requestAnimationFrame(function tick(now) {
-      const dt = Math.min(48, Math.max(0, now - last));
-      last = now;
       const active = tween.current;
       let next: OrbitView | null = null;
       if (active) {
@@ -202,8 +186,6 @@ function useOrbitMotion(
           tween.current = null;
           setTweening(false);
         }
-      } else if (spinning) {
-        next = { ...live.current, yaw: live.current.yaw + SPIN_PER_MS * dt };
       }
       if (next) {
         live.current = next;
@@ -212,7 +194,7 @@ function useOrbitMotion(
       frame = requestAnimationFrame(tick);
     });
     return () => cancelAnimationFrame(frame);
-  }, [spinning, tweening]);
+  }, [tweening]);
 
   const animateTo = (to: OrbitView, duration: number) => {
     if (reducedMotion) {
@@ -239,7 +221,6 @@ function useOrbitMotion(
     const current = drag.current;
     if (!current || current.pointerId !== event.pointerId) return;
     drag.current = null;
-    if (current.moved) setDragging(false);
   };
 
   const handlers = {
@@ -268,7 +249,6 @@ function useOrbitMotion(
         current.from = live.current;
         tween.current = null;
         setTweening(false);
-        setDragging(true);
         event.currentTarget.setPointerCapture(event.pointerId);
         return;
       }
@@ -287,12 +267,9 @@ function useOrbitMotion(
 
   return {
     view,
-    autoSpin,
-    toggleSpin: () => setAutoSpin((on) => !on),
     tilted: Math.abs(view.tilt - DEFAULT_VIEW.tilt) > 0.01,
     turnTo,
     reset,
-    attach: setElement,
     handlers,
   };
 }
@@ -448,7 +425,7 @@ export function viewOf(graph: ReferenceGraphData, direction: ReferenceDirection)
     hidden: graph.hidden,
     stats: {
       positive: graph.centre.peopleCount,
-      neutral: graph.nodes.filter((n) => n.sentiment === 'NEUTRAL').length,
+      neutral: graph.centre.neutralCount,
       negative: graph.centre.negativeCount,
     },
   };
@@ -499,7 +476,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const reducedMotion = useSyncExternalStore(subscribeReducedMotion, getReducedMotion, serverFalse);
   const frame = wide ? WIDE_FRAME : COMPACT_FRAME;
   const sunAt = useRef(SUN_Y);
-  const motion = useOrbitMotion(selectedKey !== null || transition !== null, reducedMotion, sunAt, inherited);
+  const motion = useOrbitMotion(reducedMotion, sunAt, inherited);
 
   const graph = trail[trail.length - 1];
   const centreKey = centreKeyOf(graph);
@@ -557,7 +534,6 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
       centreKey,
       items,
       view: motion.view,
-      autoSpin: motion.autoSpin,
       transition,
       planets: scene.planets,
       focusKey,
@@ -709,7 +685,6 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const stableCentreOn = useStableCallback(centreOn);
   const stableFilterByPlatform = useStableCallback(filterByPlatform);
   const stableSetDirection = useStableCallback(setDirection);
-  const stableToggleSpin = useStableCallback(motion.toggleSpin);
   const stableResetView = useStableCallback(motion.reset);
 
   return {
@@ -734,14 +709,11 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     directory,
     /** Who the details panel shows, and how far it has slid in, from 0 to 1. */
     panel: { key: panelOpen > 0 ? shownKey : null, open: panelOpen },
-    autoSpin: motion.autoSpin,
     tilted: motion.tilted,
-    attach: motion.attach,
     dragHandlers: motion.handlers,
     select: stableSelect,
     tap: stableTap,
     centreOn: stableCentreOn,
-    toggleSpin: stableToggleSpin,
     resetView: stableResetView,
   };
 }

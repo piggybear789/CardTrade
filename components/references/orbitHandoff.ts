@@ -18,7 +18,6 @@ export interface OrbitHandoff {
   /** What is drawn right now, mid-animation included. */
   items: ReadonlyMap<string, OrbitItem>;
   view: OrbitView;
-  autoSpin: boolean;
   /** A walk under way, toward `centreKey`. */
   transition: OrbitTransition | null;
   planets: readonly string[];

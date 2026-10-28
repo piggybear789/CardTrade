@@ -215,6 +215,19 @@ A staff-reviewed mark on a seller (0152). A member applies with their Instagram 
 - Staff notes, reviewer and reason have no member grant. A lost dispute does not revoke automatically: a refund award is not a fault finding, so that stays a staff decision.
 - **Public directory** on `/trusted-sellers`, linked from the header (`PrimaryNav`, `lg`+) and the site menu. A row list (`lib/trustedSellers/directory.ts`, cached 5 min, tag dropped on every decision and fraud ban). The headline is the seller's primary public link (Instagram when present, else the first profile link) with its platform mark, opening in a new tab; under it the NoDitto display name, "ID verified" with the GIVEN name only, country and member-since month, then rating and live listings and a fanned strip of their newest listing photos. "View profile" is stretched over the row and opens their NoDitto profile (the vetting record). The page is framed as an independent vetting list: it does not steer buyers onto NoDitto, and the only standing caveat is that the badge is our judgement, not a guarantee. Location (trading country) is its own column. No rank numbers and no region filter: one general list, with client-side search (handle, name or country) and sort. The lede always says payments over Instagram DMs aren't protected. No surname, no review data.
 
+### References (0155, 0161–0165)
+
+Routes: `/references` (search), `/references/[handle]?on=<platform>` (one person, or a "which one?" chooser for a bare handle), `GET /api/references/graph` (the same graph as JSON, for walking the Trust Network), `/admin?tab=references` (claims, proofs, releasing a handle).
+
+- An ID-verified member records a deal done anywhere (Instagram, Facebook, Discord, eBay, Whatnot, other) with a 1–5 rating: 4–5 good, 3 so-so, 1–2 bad (`sentimentForRating`). Every sentiment goes LIVE at once, tied to the author's verified ID. **Nothing is pre-checked**, so copy must never say negatives are reviewed; admins take one down from its card (`admin.removeReference`, reason recorded).
+- **Counts are PEOPLE, one rule** (`tallyPeople` in `domain/references/reference.ts`, gathered by `lib/references/people.ts`): a person counts once per sentiment however many deals or posts, banned and closed members are not counted, and a NoDitto review counts at its rating's sentiment (a 1-star review is a bad experience, never a vouch). The page headline, planet sizes, search results and the landing list all read it. Do not count anywhere else.
+- Deals: a repeat post counts another deal only for a month after `deals_through`, which an edit never lowers.
+- A receipt (`proof_status = CHECKED`) goes back to PENDING when its platform, role or month is edited. Refused and withdrawn proofs are deleted from storage.
+- Handles are claimed by DM to the bot (code keyed by `INSTAGRAM_DM_CODE_SECRET`), OAuth, or a staff-checked screenshot (ID-verified claimants only). A typed profile link is never ownership (0164 demoted the 0155 backfill). Staff release a wrongly claimed handle with `release_social_claim`: references left FOR it (`origin_claim_id`) go back to the handle.
+- **A fraud ban or account closure releases the member's handles**, and the experiences left for them (all on closure; negative and so-so on a ban, which also removes the positives and everything they gave) move onto the handle they were written about, so a scammer's warning stays findable.
+- The public given name shown on a verified member's references page follows the Trusted Seller directory's precedent; surname never.
+- Pages for handles nobody has referenced are `noindex`.
+
 ### Profile and account
 
 `/profile`: avatar, display name, bio, social links, saved card. Verification tab: Identity + Connect + trading region. Payouts tab: owed / landed (`domain/payouts/*`). Custody reconciliation **excludes** trade collateral (uncaptured authorisations).

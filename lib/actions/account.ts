@@ -510,8 +510,9 @@ export const getMyTrades = withActionLog('account.getMyTrades', async function g
 // in `lib/marketplace-constants.ts` (or `lib/actions/result.ts` for types), never as a
 // `export const` here.
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 
+import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { signOut } from '@/lib/actions/auth';
 import { createDefaultAccountClosureOrchestrator } from '@/domain/orchestrator/supabaseAccountClosureRepository';
 import type { CloseAccountResult } from '@/domain/orchestrator/accountClosureOrchestrator';
@@ -584,6 +585,9 @@ export const closeMyAccount = withActionLog('account.closeMyAccount', async func
   // listings the member fronted and their listings survive closure.
   revalidatePath('/');
   revalidatePath('/listings/[id]', 'page');
+  // Closure releases the member's handles and moves the experiences left for them onto
+  // those handles (0164 trigger), so every cached reference read is stale.
+  updateTag(REFERENCES_CACHE_TAG);
 
   // Req 7.2: clear this request's session cookie. Best-effort, for the reason in the
   // doc comment above.

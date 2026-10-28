@@ -40,6 +40,8 @@ export interface ReferenceViewer {
   /** The signed-in member, or null for a visitor. */
   id: string | null;
   identityVerified: boolean;
+  /** May moderate: shows "Remove" on each reference. The action checks again. */
+  isAdmin?: boolean;
 }
 
 export function ReferenceProfile({
@@ -85,7 +87,12 @@ export function ReferenceProfile({
             in the drawing here: once you have scrolled down to read them it is often off
             screen, and a selection you cannot see reads as a tap that did nothing. */}
         {orbits.view.nodes.length > 0 ? (
-          <ExperienceList orbits={orbits} selectable={false} viewerId={viewer.id} />
+          <ExperienceList
+            orbits={orbits}
+            selectable={false}
+            viewerId={viewer.id}
+            canModerate={viewer.isAdmin ?? false}
+          />
         ) : null}
       </section>
     </div>
@@ -94,7 +101,7 @@ export function ReferenceProfile({
 
 /**
  * Who the page is about, and what the viewer can do here. MEMOISED: the network below
- * re-renders on every spin frame, and nothing in this card moves with it.
+ * re-renders on every drag and walk frame, and nothing in this card moves with it.
  */
 const ProfileHeader = memo(function ProfileHeader({
   centre,

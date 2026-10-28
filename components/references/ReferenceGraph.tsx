@@ -26,7 +26,6 @@ import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
-import { Switch } from '@/components/ui/switch';
 import {
   PlatformChip,
   SentimentBadge,
@@ -35,6 +34,8 @@ import {
   proofLabel,
 } from '@/components/references/referenceLabels';
 import { ReferenceOwnerActions } from '@/components/references/ReferenceOwnerActions';
+import { ReferenceStaffRemove } from '@/components/references/ReferenceStaffRemove';
+import { REFERENCE_LIST_HEADING_ID } from '@/components/references/referenceListFocus';
 import { TrustNetworkPanel } from '@/components/references/TrustNetworkPanel';
 import { TrustOrbitsCanvas } from '@/components/references/TrustOrbitsCanvas';
 import {
@@ -130,15 +131,13 @@ interface NetworkToolbarProps {
   filterByPlatform: (slug: string | null) => void;
   opacity: number;
   tilted: boolean;
-  autoSpin: boolean;
-  toggleSpin: () => void;
   resetView: () => void;
 }
 
 /**
- * MEMOISED, like the header and the cards: the drawing re-renders on every spin frame,
- * and nothing here changes with it. The props are the values this reads, never the whole
- * `orbits`, which is a new object every frame.
+ * MEMOISED, like the header and the cards: the drawing re-renders on every drag and walk
+ * frame, and nothing here changes with it. The props are the values this reads, never the
+ * whole `orbits`, which is a new object every frame.
  */
 const NetworkToolbar = memo(function NetworkToolbar({
   platforms,
@@ -147,8 +146,6 @@ const NetworkToolbar = memo(function NetworkToolbar({
   filterByPlatform,
   opacity,
   tilted,
-  autoSpin,
-  toggleSpin,
   resetView,
 }: NetworkToolbarProps) {
   return (
@@ -205,20 +202,16 @@ const NetworkToolbar = memo(function NetworkToolbar({
         })}
       </div>
 
-      {/* Pointer controls. Hidden on phones: a vertical drag there scrolls the page, so
-          tilt (and so "Reset view") cannot be reached, and the spin switch is the
-          drawing's decoration rather than anything a reader needs. */}
-      <div className="hidden items-center gap-4 sm:flex">
-        {tilted ? (
+      {/* Pointer only. Hidden on phones: a vertical drag there scrolls the page, so tilt
+          (and so "Reset view") cannot be reached. Rendered only once the system is
+          tilted, so the bar keeps its height either way (`min-h-11`). */}
+      {tilted ? (
+        <div className="hidden items-center sm:flex">
           <Button variant="ghost" size="xs" onClick={resetView}>
             Reset view
           </Button>
-        ) : null}
-        <label className="flex cursor-pointer items-center gap-2 text-meta font-medium text-muted-foreground">
-          <Switch checked={autoSpin} onCheckedChange={toggleSpin} />
-          Spin
-        </label>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 });
@@ -232,6 +225,7 @@ export function ExperienceList({
   orbits,
   selectable = true,
   viewerId = null,
+  canModerate = false,
 }: {
   orbits: TrustOrbits;
   /**
@@ -242,6 +236,8 @@ export function ExperienceList({
   selectable?: boolean;
   /** The signed-in member, who can edit or withdraw the references they wrote. */
   viewerId?: string | null;
+  /** An admin, who can take a reference down. The server checks again. */
+  canModerate?: boolean;
 }) {
   return (
     <ExperienceCards
@@ -252,6 +248,7 @@ export function ExperienceList({
       opacity={arrival(orbits)}
       selectable={selectable}
       viewerId={viewerId}
+      canModerate={canModerate}
     />
   );
 }
@@ -264,6 +261,7 @@ const ExperienceCards = memo(function ExperienceCards({
   opacity,
   selectable,
   viewerId,
+  canModerate,
 }: {
   view: ReferenceView;
   centre: ReferenceGraphCentre;
@@ -272,6 +270,7 @@ const ExperienceCards = memo(function ExperienceCards({
   opacity: number;
   selectable: boolean;
   viewerId: string | null;
+  canModerate: boolean;
 }) {
   const given = view.direction === 'given';
   // Given: every card is the person in the middle's own words. Received: each card's
@@ -279,7 +278,11 @@ const ExperienceCards = memo(function ExperienceCards({
   const authorOf = (node: ReferenceGraphNode) => (given ? centre.profileId : node.profileId);
   return (
     <div className="border-t border-border/80 bg-card px-group py-4 sm:px-5" style={{ opacity }}>
-      <h4 className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
+      <h4
+        id={REFERENCE_LIST_HEADING_ID}
+        tabIndex={-1}
+        className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground focus:outline-none"
+      >
         {given ? 'References given' : 'References received'} ({view.nodes.length})
       </h4>
       <ul className="grid gap-2.5 sm:grid-cols-2">
@@ -366,6 +369,14 @@ const ExperienceCards = memo(function ExperienceCards({
                     <span className="text-meta text-muted-foreground">Your reference</span>
                     <ReferenceOwnerActions node={node} subject={given ? node.handle : centre.handle} />
                   </div>
+                ) : canModerate && node.referenceId ? (
+                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/70 pt-2">
+                    <span className="text-meta text-muted-foreground">Staff</span>
+                    <ReferenceStaffRemove
+                      referenceId={node.referenceId}
+                      subject={given ? node.handle : centre.handle}
+                    />
+                  </div>
                 ) : null}
               </div>
             </li>
@@ -414,8 +425,6 @@ export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
         filterByPlatform={orbits.filterByPlatform}
         opacity={arrival(orbits)}
         tilted={orbits.tilted}
-        autoSpin={orbits.autoSpin}
-        toggleSpin={orbits.toggleSpin}
         resetView={orbits.resetView}
       />
       <div

@@ -27,6 +27,8 @@ vi.mock('@/lib/actions/references', () => ({
 // The manual claim re-reads the ID check after a refusal. Nothing here submits one, but
 // the real module is server-only and cannot load in jsdom.
 vi.mock('@/lib/actions/identity', () => ({ refreshIdentityCheck: vi.fn() }));
+// The staff "Remove" control's action; server-only like the rest.
+vi.mock('@/lib/actions/admin', () => ({ removeReference: vi.fn() }));
 vi.mock('@/lib/storage/uploadReferenceImage', () => ({ uploadReferenceImage: vi.fn() }));
 
 function node(
@@ -85,6 +87,7 @@ function graphFor(
       avatarPath: null,
       unclaimed: false,
       peopleCount: nodes.length,
+      neutralCount: 0,
       negativeCount: 0,
       platforms: [],
       linkedHandles: [],
@@ -200,14 +203,14 @@ describe('ReferenceGraph', () => {
 });
 
 describe('useTrustOrbits', () => {
-  // THE SPIN RE-RENDERS THE SYSTEM EVERY FRAME. The header, toolbar and cards are
+  // DRAGS AND WALKS RE-RENDER THE SYSTEM EVERY FRAME. The header, toolbar and cards are
   // memoised against these handlers; one that changed identity per render would drag
   // the whole page through every frame with it.
   it('keeps its handlers one identity across renders', () => {
     const { result, rerender } = renderHook(() => useTrustOrbits(ROOT, { openPage: vi.fn() }));
     const first = result.current;
     rerender();
-    for (const name of ['select', 'tap', 'centreOn', 'filterByPlatform', 'setDirection', 'toggleSpin', 'resetView'] as const) {
+    for (const name of ['select', 'tap', 'centreOn', 'filterByPlatform', 'setDirection', 'resetView'] as const) {
       expect(result.current[name], name).toBe(first[name]);
     }
   });
@@ -233,7 +236,7 @@ describe('ReferenceProfile', () => {
     const cards = screen.getAllByRole('listitem');
     const kai = cards.find((card) => within(card).queryByRole('link', { name: '@kai.collects' }))!;
     const gems = cards.find((card) => within(card).queryByRole('link', { name: '@graded.gems' }))!;
-    expect(within(kai).getByText('NoDitto escrow · Sep 2026')).toBeInTheDocument();
+    expect(within(kai).getByText('Completed on NoDitto · Sep 2026')).toBeInTheDocument();
     expect(within(gems).getByText('Receipt checked · Sep 2026')).toBeInTheDocument();
   });
 

@@ -8,8 +8,8 @@ import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { cachedReferencePage } from '@/lib/references/graph';
 import { HandleChooser } from '@/components/references/HandleChooser';
 import { ReferenceProfile } from '@/components/references/ReferenceProfile';
-import { safeDecode } from '@/domain/references/address';
-import { isUuid } from '@/domain/references/reference';
+import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
+import { referenceHref } from '@/domain/references/address';
 
 // app/(marketing)/references/[handle]/page.tsx
 //
@@ -22,31 +22,63 @@ function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** Who is looking: their id, and whether they have passed the ID check. */
-async function loadViewer(): Promise<{ id: string | null; identityVerified: boolean }> {
+/** Who is looking: their id, whether they have passed the ID check, and whether they moderate. */
+async function loadViewer(): Promise<{ id: string | null; identityVerified: boolean; isAdmin: boolean }> {
   const user = await getCachedAuthUser();
-  if (!user) return { id: null, identityVerified: false };
+  if (!user) return { id: null, identityVerified: false, isAdmin: false };
   const { data: profile } = await createAdminClient()
     .from('profiles')
-    .select('identity_check_status')
+    .select('identity_check_status, is_admin')
     .eq('id', user.id)
     .maybeSingle();
-  return { id: user.id, identityVerified: profile?.identity_check_status === 'VERIFIED' };
+  return {
+    id: user.id,
+    identityVerified: satisfiesIdentityGate({
+      identityCheckStatus: (profile?.identity_check_status ?? 'NONE') as IdentityCheckStatus,
+    }),
+    isAdmin: Boolean(profile?.is_admin),
+  };
 }
 
+/**
+ * Titles, canonical address and indexing for a references page. Built from the same
+ * cached graph the page renders, so it costs no extra reads.
+ *
+ * INDEX ONLY WHAT SAYS SOMETHING. Any well-formed handle has a page, so an address made
+ * up in a URL would otherwise be an indexable page titled with whatever was typed. A page
+ * is indexed only when it is a member's or carries at least one reference; a handle
+ * nobody has referenced, a "which one?" chooser and a bad address are `noindex`. The
+ * canonical drops `?experience=1`, which opens the composer, and keeps `?on=`.
+ */
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ handle: string }>;
+  searchParams: SearchParams;
 }): Promise<Metadata> {
-  const { handle } = await params;
-  const decoded = safeDecode(handle).replace(/^@/, '');
-  const label = isUuid(decoded) ? null : `@${decoded}`;
+  const [{ handle }, query] = await Promise.all([params, searchParams]);
+  const page = await cachedReferencePage(handle, first(query.on) ?? null).catch(() => null);
+  const noindex = { index: false, follow: true } as const;
+  if (!page) return { title: 'References · NoDitto', robots: noindex };
+  if (page.kind === 'choose') {
+    return {
+      title: `@${page.handle} · References · NoDitto`,
+      description: `More than one person goes by @${page.handle}. Choose who you mean.`,
+      robots: noindex,
+    };
+  }
+  const { centre } = page.graph;
+  const label = centre.handle;
+  const said = centre.peopleCount + centre.neutralCount + centre.negativeCount;
   return {
-    title: label ? `${label} · References · NoDitto` : 'References · NoDitto',
-    description: label
-      ? `References for ${label} from ID-verified traders.`
-      : 'References from ID-verified traders.',
+    title: `${label} · References · NoDitto`,
+    description:
+      centre.peopleCount > 0
+        ? `${centre.peopleCount} ID-verified ${centre.peopleCount === 1 ? 'person vouches' : 'people vouch'} for ${label}.`
+        : `References for ${label} from ID-verified traders.`,
+    alternates: { canonical: referenceHref(centre.address) },
+    ...(centre.profileId === null && said === 0 ? { robots: noindex } : {}),
   };
 }
 

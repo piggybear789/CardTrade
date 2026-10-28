@@ -2924,8 +2924,11 @@ export type Database = {
           deal_count: number;
           proof_paths: string[];
           proof_status: 'NONE' | 'PENDING' | 'CHECKED';
-          disputed_at: string | null;
-          disputed_by: string | null;
+          deals_through: string | null;
+          removed_by: string | null;
+          removed_at: string | null;
+          removed_reason: string | null;
+          origin_claim_id: string | null;
           edited_at: string | null;
           created_at: string;
           updated_at: string;
@@ -2948,8 +2951,11 @@ export type Database = {
           deal_count?: number;
           proof_paths?: string[];
           proof_status?: 'NONE' | 'PENDING' | 'CHECKED';
-          disputed_at?: string | null;
-          disputed_by?: string | null;
+          deals_through?: string | null;
+          removed_by?: string | null;
+          removed_at?: string | null;
+          removed_reason?: string | null;
+          origin_claim_id?: string | null;
           edited_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2972,8 +2978,11 @@ export type Database = {
           deal_count?: number;
           proof_paths?: string[];
           proof_status?: 'NONE' | 'PENDING' | 'CHECKED';
-          disputed_at?: string | null;
-          disputed_by?: string | null;
+          deals_through?: string | null;
+          removed_by?: string | null;
+          removed_at?: string | null;
+          removed_reason?: string | null;
+          origin_claim_id?: string | null;
           edited_at?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -2990,6 +2999,8 @@ export type Database = {
           bio_code: string;
           screenshot_paths: string[];
           staff_notes: string | null;
+          /** What the claimant wrote with a manual claim (0165). Never staff text. */
+          claimant_message: string | null;
           decided_by: string | null;
           decided_at: string | null;
           created_at: string;
@@ -3003,6 +3014,7 @@ export type Database = {
           bio_code: string;
           screenshot_paths?: string[];
           staff_notes?: string | null;
+          claimant_message?: string | null;
           decided_by?: string | null;
           decided_at?: string | null;
           created_at?: string;
@@ -3016,6 +3028,7 @@ export type Database = {
           bio_code?: string;
           screenshot_paths?: string[];
           staff_notes?: string | null;
+          claimant_message?: string | null;
           decided_by?: string | null;
           decided_at?: string | null;
           created_at?: string;
@@ -3638,6 +3651,11 @@ export type Database = {
       };
     };
     Functions: {
+      /** Staff remedy for a wrongly claimed handle (0165): its references go back to it. Service role only. */
+      release_social_claim: {
+        Args: { p_claim_id: string };
+        Returns: number;
+      };
       /** ESC-03 layer 4 (0140). Service role only; true while within the limit. */
       consume_rate_limit: {
         Args: { p_key: string; p_limit: number; p_window_seconds: number };

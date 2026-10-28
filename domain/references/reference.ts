@@ -264,11 +264,7 @@ export function validateReferenceDetails(input: ReferenceDetailsInput): Referenc
   }
   const sentiment: ReferenceSentiment =
     input.rating !== undefined && input.rating !== null
-      ? rating >= 4
-        ? 'POSITIVE'
-        : rating === 3
-          ? 'NEUTRAL'
-          : 'NEGATIVE'
+      ? sentimentForRating(rating)
       : input.sentiment === 'NEGATIVE'
         ? 'NEGATIVE'
         : input.sentiment === 'NEUTRAL'
@@ -288,7 +284,8 @@ export function validateReferenceDetails(input: ReferenceDetailsInput): Referenc
 
   const rawComment = typeof input.comment === 'string' ? input.comment.trim() : '';
   const comment = rawComment.length > 0 ? rawComment : null;
-  if (comment && comment.length > 500) {
+  // Code points, as the SQL CHECK counts (`char_length`), so an emoji is one character.
+  if (comment && Array.from(comment).length > 500) {
     return { ok: false, message: 'Keep your note to 500 characters or fewer.', field: 'comment' };
   }
 
@@ -315,6 +312,79 @@ export function normalizeClaimHandle(platform: string, raw: string): string | nu
 
 /** Max references one member may give per day. Generous for humans, useless for rings. */
 export const REFERENCES_PER_DAY = 20;
+
+/**
+ * What a 1..5 rating says: 4–5 good, 3 so-so, 1–2 bad. The ONE mapping, for a reference
+ * and for a NoDitto review alike, so a 1-star review is never read as a vouch.
+ */
+export function sentimentForRating(rating: number): ReferenceSentiment {
+  if (rating >= 4) return 'POSITIVE';
+  if (rating === 3) return 'NEUTRAL';
+  return 'NEGATIVE';
+}
+
+/** How many different people left each kind of experience. */
+export interface PeopleTally {
+  positive: number;
+  neutral: number;
+  negative: number;
+}
+
+/** One experience of someone: a reference, or a NoDitto review read through `sentimentForRating`. */
+export interface PeopleTallyEntry {
+  /** Who the experience is about. */
+  target: string;
+  /** Who had it. */
+  person: string;
+  sentiment: ReferenceSentiment;
+}
+
+/**
+ * PEOPLE, NEVER DEALS OR POSTS: the one way every reference count is computed (a page's
+ * headline, a planet's size, a search result, the landing list). A person counts once
+ * per kind of experience however many deals, references or reviews they log, and a
+ * reference and a review from the same person for the same kind are one person. The
+ * kinds are kept apart: a bad experience never nets off a good one, and a so-so one is
+ * neither.
+ */
+export function tallyPeople(entries: Iterable<PeopleTallyEntry>): Map<string, PeopleTally> {
+  const seen = new Set<string>();
+  const tally = new Map<string, PeopleTally>();
+  for (const { target, person, sentiment } of entries) {
+    if (target === person) continue;
+    const key = `${target}\u0000${person}\u0000${sentiment}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const entry = tally.get(target) ?? { positive: 0, neutral: 0, negative: 0 };
+    if (sentiment === 'POSITIVE') entry.positive += 1;
+    else if (sentiment === 'NEUTRAL') entry.neutral += 1;
+    else entry.negative += 1;
+    tally.set(target, entry);
+  }
+  return tally;
+}
+
+/**
+ * Whether posting again for `occurredMonth` records ANOTHER deal (`YYYY-MM-01` dates).
+ * Only a month after every month already counted is one: `dealsThrough` never goes back
+ * when the reference's month is edited, so rewinding the month and posting again cannot
+ * raise the count. At most one deal per calendar month.
+ */
+export function isAnotherDeal(
+  occurredMonth: string,
+  existing: { occurredMonth: string; dealsThrough: string | null },
+): boolean {
+  const through =
+    existing.dealsThrough && existing.dealsThrough > existing.occurredMonth
+      ? existing.dealsThrough
+      : existing.occurredMonth;
+  return occurredMonth > through;
+}
+
+/** The month counted through after a reference's month is set to `occurredMonth`. */
+export function dealsThroughAfter(occurredMonth: string, dealsThrough: string | null): string {
+  return dealsThrough && dealsThrough > occurredMonth ? dealsThrough : occurredMonth;
+}
 
 function byCodePoint(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;

@@ -24,11 +24,27 @@ import 'server-only';
 //
 // Reads run on the service role; only public-safe fields leave this module
 // (no person keys, no proof paths, no staff fields).
+//
+// COUNTS ARE PEOPLE, ONE RULE. Every count here (the headline, each planet's size, an
+// unclaimed handle's standing) comes from `peopleTallies` (lib/references/people.ts),
+// the same read search uses, so a person's number agrees wherever it is shown. A NoDitto
+// review carries the sentiment of its rating (`sentimentForRating`).
+//
+// A FAILED READ THROWS. `unstable_cache` does not store a throw, so an outage renders
+// the error screen once instead of an empty graph that is cached for a minute.
 
 import { unstable_cache } from 'next/cache';
 
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
+import {
+  EMPTY_TALLY,
+  claimKey,
+  peopleTallies,
+  profileKey,
+  rowsOrThrow,
+} from '@/lib/references/people';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import { claimAddress, safeDecode, type ReferenceAddress } from '@/domain/references/address';
 import {
   displayNameLabel,
@@ -39,6 +55,7 @@ import {
   negativeCategoryLabel,
   platformLabel,
   roleLabel,
+  sentimentForRating,
   type ClaimPlatform,
 } from '@/domain/references/reference';
 import { normalizeHandle } from '@/domain/social/socialLinks';
@@ -76,6 +93,9 @@ export interface ReferenceGraphCentre {
   unclaimed: boolean;
   /** How many different people left a positive reference. Never a deal count. */
   peopleCount: number;
+  /** Different people whose experience was so-so. */
+  neutralCount: number;
+  /** Different people who had a bad experience. */
   negativeCount: number;
   platforms: PlatformSynthesisItem[];
   linkedHandles: LinkedSocialHandle[];
@@ -208,21 +228,26 @@ interface RefereeProfile {
 async function refereeProfiles(admin: Admin, ids: string[]): Promise<Map<string, RefereeProfile>> {
   const map = new Map<string, RefereeProfile>();
   if (ids.length === 0) return map;
-  const { data } = await admin
+  const result = await admin
     .from('profiles')
     .select('id, display_name, identity_check_status, avatar_path')
     .in('id', ids)
     .is('fraud_banned_at', null)
     .is('closed_at', null);
-  for (const row of data ?? []) {
+  for (const row of rowsOrThrow(result, 'referee profiles')) {
     map.set(row.id, {
       id: row.id,
       displayName: row.display_name,
-      identityVerified: row.identity_check_status === 'VERIFIED',
+      identityVerified: isIdentityVerified(row.identity_check_status),
       avatarPath: row.avatar_path,
     });
   }
   return map;
+}
+
+/** The Identity_Gate, evaluated in its one place. */
+function isIdentityVerified(status: string | null | undefined): boolean {
+  return satisfiesIdentityGate({ identityCheckStatus: (status ?? 'NONE') as IdentityCheckStatus });
 }
 
 /** How a member is labelled and linked: a claimed handle, or their display name and id. */
@@ -235,12 +260,12 @@ interface PersonLink {
 async function primaryHandles(admin: Admin, profileIds: string[]): Promise<Map<string, PersonLink>> {
   const map = new Map<string, PersonLink>();
   if (profileIds.length === 0) return map;
-  const { data } = await admin
+  const result = await admin
     .from('social_claims')
     .select('platform, handle, claimed_profile_id')
     .in('claimed_profile_id', profileIds)
     .order('claimed_at', { ascending: true });
-  for (const row of data ?? []) {
+  for (const row of rowsOrThrow(result, 'primary handles')) {
     if (row.claimed_profile_id && !map.has(row.claimed_profile_id)) {
       map.set(row.claimed_profile_id, { handle: `@${row.handle}`, address: claimAddress(row) });
     }
@@ -294,48 +319,6 @@ function editableFields(
   };
 }
 
-/** Incoming counts (positive people, negative people) per profile id. */
-async function incomingCounts(
-  admin: Admin,
-  profileIds: string[],
-): Promise<Map<string, { positive: number; negative: number }>> {
-  const counts = new Map<string, { positive: number; negative: number }>();
-  if (profileIds.length === 0) return counts;
-  const [{ data: edges }, { data: reviews }] = await Promise.all([
-    admin
-      .from('reference_edges_public')
-      .select('voucher_id, target_profile_id, sentiment')
-      .in('target_profile_id', profileIds)
-      .limit(5000),
-    admin
-      .from('reviews')
-      .select('reviewer_id, reviewee_id')
-      .in('reviewee_id', profileIds)
-      .limit(5000),
-  ]);
-  const escrowPairs = new Set<string>();
-  for (const review of reviews ?? []) {
-    const key = `${review.reviewee_id}:${review.reviewer_id}`;
-    if (escrowPairs.has(key)) continue;
-    escrowPairs.add(key);
-    const entry = counts.get(review.reviewee_id) ?? { positive: 0, negative: 0 };
-    entry.positive += 1;
-    counts.set(review.reviewee_id, entry);
-  }
-  const vouchedPairs = new Set<string>();
-  for (const edge of edges ?? []) {
-    if (!edge.target_profile_id) continue;
-    const key = `${edge.target_profile_id}:${edge.voucher_id}:${edge.sentiment}`;
-    if (vouchedPairs.has(key)) continue;
-    vouchedPairs.add(key);
-    const entry = counts.get(edge.target_profile_id) ?? { positive: 0, negative: 0 };
-    if (edge.sentiment === 'NEGATIVE') entry.negative += 1;
-    else if (!escrowPairs.has(`${edge.target_profile_id}:${edge.voucher_id}`)) entry.positive += 1;
-    counts.set(edge.target_profile_id, entry);
-  }
-  return counts;
-}
-
 async function mergedIncoming(
   admin: Admin,
   target: { profileId: string | null; claimIds: string[] },
@@ -364,39 +347,40 @@ async function mergedIncoming(
   const reviewsPromise = target.profileId
     ? admin
         .from('reviews')
-        .select('reviewer_id, rating, comment, created_at')
+        .select('reviewer_id, rating, comment, created_at, source_type')
         .eq('reviewee_id', target.profileId)
         .order('created_at', { ascending: false })
         .limit(500)
-    : Promise.resolve({
-        data: [] as { reviewer_id: string; rating: number; comment: string | null; created_at: string }[],
-      });
+    : Promise.resolve({ data: [] as (ReviewRow & { reviewer_id: string })[], error: null });
 
-  const [edgeResults, { data: reviews }] = await Promise.all([
+  const [edgeResults, reviewResult] = await Promise.all([
     Promise.all(queries),
     reviewsPromise,
   ]);
 
   const seenEdgeIds = new Set<string>();
-  const allEdges = edgeResults.flatMap((res) => res.data ?? []).filter((edge) => {
-    if (seenEdgeIds.has(edge.id)) return false;
-    seenEdgeIds.add(edge.id);
-    return true;
-  });
+  const allEdges = edgeResults
+    .flatMap((res) => rowsOrThrow(res, 'incoming references'))
+    .filter((edge) => {
+      if (seenEdgeIds.has(edge.id)) return false;
+      seenEdgeIds.add(edge.id);
+      return true;
+    });
 
   return mergeEdgeRows(
     allEdges.map((edge) => ({ party: edge.voucher_id, edge })),
-    (reviews ?? []).map((review) => ({ party: review.reviewer_id, review })),
+    rowsOrThrow(reviewResult, 'incoming reviews').map((review) => ({ party: review.reviewer_id, review })),
   );
 }
 
 /** The columns of `reference_edges_public` the merge reads. */
 interface EdgeRow {
   id: string;
+  created_at: string;
   edited_at: string | null;
   platform: string;
   sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-  rating: number | null;
+  rating: number;
   category: string | null;
   comment: string | null;
   role: string;
@@ -406,9 +390,10 @@ interface EdgeRow {
 }
 
 interface ReviewRow {
-  rating: number | null;
+  rating: number;
   comment: string | null;
   created_at: string;
+  source_type: string;
 }
 
 /**
@@ -416,12 +401,17 @@ interface ReviewRow {
  * between them. `party` is whoever is on the OTHER end from the person in the
  * middle: the voucher for incoming references, the person reviewed for outgoing ones.
  * It lands in `MergedEdge.voucherId` either way.
+ *
+ * Rows arrive newest first per query, but two queries are concatenated, so the entry
+ * keeps whichever reference was CREATED last as its face (id, rating, words, month).
+ * A NoDitto review joins the entry of its own rating's sentiment: a bad review is a bad
+ * experience, never folded into a vouch.
  */
 function mergeEdgeRows(
   edges: readonly { party: string; edge: EdgeRow }[],
   reviews: readonly { party: string; review: ReviewRow }[],
 ): MergedEdge[] {
-  const byVoucher = new Map<string, MergedEdge>();
+  const byVoucher = new Map<string, MergedEdge & { createdAt: string }>();
   for (const { party, edge } of edges) {
     const key = `${party}:${edge.sentiment}`;
     const existing = byVoucher.get(key);
@@ -430,33 +420,28 @@ function mergeEdgeRows(
       if (!existing.platforms.includes(edge.platform)) {
         existing.platforms.push(edge.platform);
       }
-      if (!existing.comment && edge.comment) {
+      if (edge.proof_status === 'CHECKED') existing.proofStatus = 'CHECKED';
+      if (edge.created_at > existing.createdAt) {
+        Object.assign(existing, faceOf(edge), { comment: edge.comment ?? existing.comment });
+      } else if (!existing.comment && edge.comment) {
         existing.comment = edge.comment;
       }
       continue;
     }
     byVoucher.set(key, {
       voucherId: party,
-      referenceId: edge.id,
+      ...faceOf(edge),
       sentiment: edge.sentiment,
-      rating:
-        edge.rating ??
-        (edge.sentiment === 'NEGATIVE' ? 1 : edge.sentiment === 'NEUTRAL' ? 3 : 5),
-      category: edge.category,
-      categoryLabel: negativeCategoryLabel(edge.category),
-      editedAt: edge.edited_at ?? null,
       comment: edge.comment,
-      platform: edge.platform,
       platforms: [edge.platform],
-      role: edge.role,
-      occurredMonth: edge.occurred_month,
       deals: edge.deal_count,
       proofStatus: edge.proof_status,
       hasEscrow: false,
     });
   }
   for (const { party, review } of reviews) {
-    const key = `${party}:POSITIVE`;
+    const sentiment = sentimentForRating(review.rating);
+    const key = `${party}:${sentiment}`;
     const existing = byVoucher.get(key);
     if (existing) {
       existing.hasEscrow = true;
@@ -471,15 +456,16 @@ function mergeEdgeRows(
       byVoucher.set(key, {
         voucherId: party,
         referenceId: null,
-        sentiment: 'POSITIVE',
-        rating: review.rating ?? 5,
+        createdAt: review.created_at,
+        sentiment,
+        rating: review.rating,
         category: null,
         categoryLabel: null,
         editedAt: null,
         comment: review.comment ?? null,
         platform: 'noditto',
         platforms: ['noditto'],
-        role: 'BOUGHT',
+        role: review.source_type === 'TRADE' ? 'TRADED' : 'BOUGHT',
         occurredMonth: review.created_at.slice(0, 10),
         deals: 1,
         proofStatus: 'NONE',
@@ -487,7 +473,22 @@ function mergeEdgeRows(
       });
     }
   }
-  return Array.from(byVoucher.values());
+  return Array.from(byVoucher.values()).map(({ createdAt: _createdAt, ...edge }) => edge);
+}
+
+/** The fields of a merged entry that come from the one reference it shows. */
+function faceOf(edge: EdgeRow) {
+  return {
+    referenceId: edge.id,
+    createdAt: edge.created_at,
+    rating: edge.rating,
+    category: edge.category,
+    categoryLabel: negativeCategoryLabel(edge.category),
+    editedAt: edge.edited_at ?? null,
+    platform: edge.platform,
+    role: edge.role,
+    occurredMonth: edge.occurred_month,
+  };
 }
 
 /** How many references sit on each platform, busiest first. */
@@ -520,7 +521,7 @@ interface GivenParty {
  * profile that claimed it, so one person is one planet.
  */
 async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGraphGiven> {
-  const [{ data: edges }, { data: reviews }] = await Promise.all([
+  const [edgeResult, reviewResult] = await Promise.all([
     admin
       .from('reference_edges_public')
       .select('*')
@@ -529,37 +530,39 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
       .limit(500),
     admin
       .from('reviews')
-      .select('reviewee_id, rating, comment, created_at')
+      .select('reviewee_id, rating, comment, created_at, source_type')
       .eq('reviewer_id', profileId)
       .order('created_at', { ascending: false })
       .limit(500),
   ]);
-  if ((edges ?? []).length === 0 && (reviews ?? []).length === 0) return EMPTY_GIVEN;
+  const edges = rowsOrThrow(edgeResult, 'given references');
+  const reviews = rowsOrThrow(reviewResult, 'given reviews');
+  if (edges.length === 0 && reviews.length === 0) return EMPTY_GIVEN;
 
   const claimIds = Array.from(
-    new Set((edges ?? []).flatMap((e) => (!e.target_profile_id && e.target_claim_id ? [e.target_claim_id] : []))),
+    new Set(edges.flatMap((e) => (!e.target_profile_id && e.target_claim_id ? [e.target_claim_id] : []))),
   );
-  const { data: claims } = claimIds.length
-    ? await admin
-        .from('social_claims')
-        .select('id, platform, handle, claimed_profile_id')
-        .in('id', claimIds)
-    : { data: [] as { id: string; platform: string; handle: string; claimed_profile_id: string | null }[] };
-  const claimById = new Map((claims ?? []).map((c) => [c.id, c]));
+  const claims = claimIds.length
+    ? rowsOrThrow(
+        await admin.from('social_claims').select('id, platform, handle').in('id', claimIds),
+        'given handles',
+      )
+    : [];
+  const claimById = new Map(claims.map((c) => [c.id, c]));
 
+  // A reference to a handle someone has since claimed points at their profile (the claim
+  // trigger moves it), so a claim target here is always an unclaimed handle.
   const partyOf = (edge: { target_profile_id: string | null; target_claim_id: string | null }): string | null => {
     if (edge.target_profile_id) return edge.target_profile_id;
-    const claim = edge.target_claim_id ? claimById.get(edge.target_claim_id) : undefined;
-    if (!claim) return null;
-    return claim.claimed_profile_id ?? `claim:${claim.id}`;
+    return edge.target_claim_id && claimById.has(edge.target_claim_id) ? `claim:${edge.target_claim_id}` : null;
   };
 
   const merged = mergeEdgeRows(
-    (edges ?? []).flatMap((edge) => {
+    edges.flatMap((edge) => {
       const party = partyOf(edge);
       return party && party !== profileId ? [{ party, edge }] : [];
     }),
-    (reviews ?? [])
+    reviews
       .filter((review) => review.reviewee_id !== profileId)
       .map((review) => ({ party: review.reviewee_id, review })),
   );
@@ -570,27 +573,12 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
   const unclaimedIds = Array.from(
     new Set(merged.map((e) => e.voucherId).filter((id) => id.startsWith('claim:')).map((id) => id.slice(6))),
   );
-  const [profiles, handles, counts, claimEdges] = await Promise.all([
+  const [profiles, handles, tallies] = await Promise.all([
     refereeProfiles(admin, profileIds),
     primaryHandles(admin, profileIds),
-    incomingCounts(admin, profileIds),
-    unclaimedIds.length
-      ? admin
-          .from('reference_edges_public')
-          .select('voucher_id, target_claim_id, sentiment')
-          .in('target_claim_id', unclaimedIds)
-          .limit(5000)
-      : Promise.resolve({ data: [] as { voucher_id: string; target_claim_id: string | null; sentiment: string }[] }),
+    peopleTallies(admin, { profileIds, claimIds: unclaimedIds }),
   ]);
-
-  // An unclaimed handle's standing: how many people left it a positive reference.
-  const claimStanding = new Map<string, Set<string>>();
-  for (const edge of claimEdges.data ?? []) {
-    if (!edge.target_claim_id || edge.sentiment === 'NEGATIVE') continue;
-    const vouchers = claimStanding.get(edge.target_claim_id) ?? new Set<string>();
-    vouchers.add(edge.voucher_id);
-    claimStanding.set(edge.target_claim_id, vouchers);
-  }
+  const standingOf = (key: string) => tallies.get(key)?.positive ?? 0;
 
   const parties = new Map<string, GivenParty>();
   for (const id of profileIds) {
@@ -604,7 +592,7 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
       name: displayNameLabel(profile.displayName),
       avatarPath: profile.avatarPath,
       identityVerified: profile.identityVerified,
-      refs: counts.get(id)?.positive ?? 0,
+      refs: standingOf(profileKey(id)),
     });
   }
   for (const claimId of unclaimedIds) {
@@ -617,7 +605,7 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
       name: claim.handle,
       avatarPath: null,
       identityVerified: false,
-      refs: claimStanding.get(claimId)?.size ?? 0,
+      refs: standingOf(claimKey(claimId)),
     });
   }
 
@@ -675,7 +663,7 @@ async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGrap
 
 async function assembleGraph(
   admin: Admin,
-  centre: Omit<ReferenceGraphCentre, 'peopleCount' | 'negativeCount' | 'platforms'>,
+  centre: Omit<ReferenceGraphCentre, 'peopleCount' | 'neutralCount' | 'negativeCount' | 'platforms'>,
   target: { profileId: string | null; claimIds: string[] },
 ): Promise<ReferenceGraphData> {
   // Independent of everything below, so it runs alongside the incoming reads.
@@ -683,11 +671,18 @@ async function assembleGraph(
   const merged = await mergedIncoming(admin, target);
 
   const refereeIds = Array.from(new Set(merged.map((e) => e.voucherId)));
-  const [profiles, handles, counts] = await Promise.all([
+  // The centre's own tally rides along with the referees', from the same read search uses.
+  const centreKey = target.profileId ? profileKey(target.profileId) : claimKey(target.claimIds[0] ?? '');
+  const [profiles, handles, tallies] = await Promise.all([
     refereeProfiles(admin, refereeIds),
     primaryHandles(admin, refereeIds),
-    incomingCounts(admin, refereeIds),
+    peopleTallies(admin, {
+      profileIds: target.profileId ? [...refereeIds, target.profileId] : refereeIds,
+      claimIds: target.profileId ? [] : target.claimIds,
+    }),
   ]);
+  const standingOf = (profileId: string) => tallies.get(profileKey(profileId))?.positive ?? 0;
+  const centreTally = tallies.get(centreKey) ?? EMPTY_TALLY;
 
   const validEdges = merged.filter(
     (edge) => profiles.has(edge.voucherId) && edge.voucherId !== centre.profileId,
@@ -697,7 +692,7 @@ async function assembleGraph(
   const candidates: (DrawCandidate & { edge: MergedEdge })[] = validEdges.map((edge) => ({
     key: orbitKey(edge.voucherId, edge.sentiment),
     issue: edge.sentiment === 'NEGATIVE',
-    standing: counts.get(edge.voucherId)?.positive ?? 0,
+    standing: standingOf(edge.voucherId),
     deals: edge.deals,
     edge,
   }));
@@ -706,33 +701,25 @@ async function assembleGraph(
   // Second degree, for drawn positives only. A voucher who is drawn too becomes
   // an arc between the two; the rest become the stars around that person.
   const drawnIds = drawn.filter((c) => !c.issue).map((c) => c.edge.voucherId);
-  const secondDegree = drawnIds.length
-    ? await mergedIncomingMulti(admin, drawnIds)
-    : new Map<string, MergedEdge[]>();
-  const secondDegreeIds = Array.from(
-    new Set(
-      Array.from(secondDegree.values())
-        .flat()
-        .map((e) => e.voucherId),
-    ),
-  ).filter((id) => !profiles.has(id));
+  const secondDegree = drawnIds.length ? await vouchersFor(admin, drawnIds) : new Map<string, string[]>();
+  const secondDegreeIds = Array.from(new Set(Array.from(secondDegree.values()).flat())).filter(
+    (id) => !profiles.has(id),
+  );
 
   if (secondDegreeIds.length > 0) {
-    const [extraProfiles, extraHandles, extraCounts] = await Promise.all([
+    const [extraProfiles, extraHandles, extraTallies] = await Promise.all([
       refereeProfiles(admin, secondDegreeIds),
       primaryHandles(admin, secondDegreeIds),
-      incomingCounts(admin, secondDegreeIds),
+      peopleTallies(admin, { profileIds: secondDegreeIds }),
     ]);
     for (const [k, v] of extraProfiles) profiles.set(k, v);
     for (const [k, v] of extraHandles) handles.set(k, v);
-    for (const [k, v] of extraCounts) counts.set(k, v);
+    for (const [k, v] of extraTallies) tallies.set(k, v);
   }
 
-  const standingOf = (profileId: string) => counts.get(profileId)?.positive ?? 0;
   const vouchersOf = new Map<string, string[]>();
   for (const id of drawnIds) {
     const vouchers = (secondDegree.get(id) ?? [])
-      .map((v) => v.voucherId)
       .filter((voucherId) => profiles.has(voucherId))
       .sort((a, b) => standingOf(b) - standingOf(a));
     vouchersOf.set(id, vouchers);
@@ -768,7 +755,7 @@ async function assembleGraph(
         initials: initialsOf(profile.displayName || link.handle),
         avatarPath: profile.avatarPath,
         identityVerified: profile.identityVerified,
-        refs: counts.get(edge.voucherId)?.positive ?? 0,
+        refs: standingOf(edge.voucherId),
         platform: edge.platform,
         platforms: edge.platforms,
         kind: proofOf(edge),
@@ -790,9 +777,11 @@ async function assembleGraph(
     centre: {
       ...centre,
       // PEOPLE, NEVER DEALS. A deal count is one author's say-so; how many different
-      // verified people vouch is what cannot be inflated by one of them.
-      peopleCount: validEdges.filter((e) => e.sentiment === 'POSITIVE').length,
-      negativeCount: validEdges.filter((e) => e.sentiment === 'NEGATIVE').length,
+      // verified people vouch is what cannot be inflated by one of them. The same tally
+      // search shows (`peopleTallies`).
+      peopleCount: centreTally.positive,
+      neutralCount: centreTally.neutral,
+      negativeCount: centreTally.negative,
       platforms,
     },
     nodes,
@@ -802,82 +791,42 @@ async function assembleGraph(
   };
 }
 
-/** Batched second-degree reads: incoming positive edges per referee. */
-async function mergedIncomingMulti(
-  admin: Admin,
-  refereeIds: string[],
-): Promise<Map<string, MergedEdge[]>> {
-  const map = new Map<string, MergedEdge[]>();
-  const [{ data: edges }, { data: reviews }] = await Promise.all([
+/**
+ * Batched second-degree reads: who vouches for each referee. A positive reference, or a
+ * NoDitto review whose rating is a good one (`sentimentForRating`), one voucher once.
+ */
+async function vouchersFor(admin: Admin, refereeIds: string[]): Promise<Map<string, string[]>> {
+  const [edgeResult, reviewResult] = await Promise.all([
     admin
       .from('reference_edges_public')
-      .select('*')
+      .select('voucher_id, target_profile_id')
       .in('target_profile_id', refereeIds)
       .eq('sentiment', 'POSITIVE')
       .limit(1000),
     admin
       .from('reviews')
-      .select('reviewer_id, reviewee_id, comment, created_at')
+      .select('reviewer_id, reviewee_id, rating')
       .in('reviewee_id', refereeIds)
       .limit(1000),
   ]);
-  // One entry per voucher, keeping the strongest proof any of their deals carries.
-  const push = (targetId: string, edge: MergedEdge) => {
-    const list = map.get(targetId) ?? [];
-    const existing = list.find((e) => e.voucherId === edge.voucherId);
-    if (!existing) {
-      list.push(edge);
-    } else {
-      existing.hasEscrow = existing.hasEscrow || edge.hasEscrow;
-      if (edge.proofStatus === 'CHECKED') existing.proofStatus = 'CHECKED';
-    }
-    map.set(targetId, list);
+  const sets = new Map<string, Set<string>>();
+  const add = (target: string, voucher: string) => {
+    const set = sets.get(target) ?? new Set<string>();
+    set.add(voucher);
+    sets.set(target, set);
   };
-  for (const edge of edges ?? []) {
-    if (!edge.target_profile_id) continue;
-    push(edge.target_profile_id, {
-      voucherId: edge.voucher_id,
-      referenceId: edge.id,
-      sentiment: 'POSITIVE',
-      rating: edge.rating ?? 5,
-      category: null,
-      categoryLabel: null,
-      editedAt: edge.edited_at ?? null,
-      comment: edge.comment,
-      platform: edge.platform,
-      platforms: [edge.platform],
-      role: edge.role,
-      occurredMonth: edge.occurred_month,
-      deals: edge.deal_count,
-      proofStatus: edge.proof_status,
-      hasEscrow: false,
-    });
+  for (const edge of rowsOrThrow(edgeResult, 'second-degree references')) {
+    if (edge.target_profile_id) add(edge.target_profile_id, edge.voucher_id);
   }
-  for (const review of reviews ?? []) {
-    push(review.reviewee_id, {
-      voucherId: review.reviewer_id,
-      referenceId: null,
-      sentiment: 'POSITIVE',
-      rating: 5,
-      category: null,
-      categoryLabel: null,
-      editedAt: null,
-      comment: review.comment ?? null,
-      platform: 'noditto',
-      platforms: ['noditto'],
-      role: 'BOUGHT',
-      occurredMonth: review.created_at.slice(0, 10),
-      deals: 1,
-      proofStatus: 'NONE',
-      hasEscrow: true,
-    });
+  for (const review of rowsOrThrow(reviewResult, 'second-degree reviews')) {
+    if (sentimentForRating(review.rating) === 'POSITIVE') add(review.reviewee_id, review.reviewer_id);
   }
-  return map;
+  return new Map(Array.from(sets, ([target, set]) => [target, Array.from(set)]));
 }
 
 export async function loadProfileReferenceGraph(profileId: string): Promise<ReferenceGraphData | null> {
   const admin = createAdminClient();
-  const [{ data: profile }, { data: claims }] = await Promise.all([
+  const [profileResult, claimResult] = await Promise.all([
     admin
       .from('profiles')
       .select('id, display_name, identity_check_status, identity_check_name, region_code, avatar_path, trusted_seller_at')
@@ -891,10 +840,13 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
       .eq('claimed_profile_id', profileId)
       .order('claimed_at', { ascending: true }),
   ]);
+  if (profileResult.error) throw new Error(`[references] load profile: ${profileResult.error.message}`);
+  const profile = profileResult.data;
   if (!profile) return null;
-  const claimRows = claims ?? [];
+  const claimRows = rowsOrThrow(claimResult, 'profile handles');
   const primary = claimRows[0];
   const name = displayNameLabel(profile.display_name);
+  const verified = isIdentityVerified(profile.identity_check_status);
 
   return assembleGraph(
     admin,
@@ -905,11 +857,8 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
       handle: primary ? `@${primary.handle}` : name,
       address: primary ? claimAddress(primary) : { slug: profile.id, on: null },
       name,
-      firstName:
-        profile.identity_check_status === 'VERIFIED'
-          ? firstGivenName(profile.identity_check_name)
-          : null,
-      identityVerified: profile.identity_check_status === 'VERIFIED',
+      firstName: verified ? firstGivenName(profile.identity_check_name) : null,
+      identityVerified: verified,
       isTrustedSeller: Boolean(profile.trusted_seller_at),
       regionCode: profile.region_code,
       avatarPath: profile.avatar_path,
@@ -923,11 +872,12 @@ export async function loadProfileReferenceGraph(profileId: string): Promise<Refe
 /** One handle's graph: its claimant's when claimed, else the handle alone, on its platform. */
 export async function loadClaimReferenceGraph(claimId: string): Promise<ReferenceGraphData | null> {
   const admin = createAdminClient();
-  const { data: claim } = await admin
+  const { data: claim, error } = await admin
     .from('social_claims')
     .select('id, platform, handle, claimed_profile_id')
     .eq('id', claimId)
     .maybeSingle();
+  if (error) throw new Error(`[references] load handle: ${error.message}`);
   if (!claim) return null;
   if (claim.claimed_profile_id) {
     return loadProfileReferenceGraph(claim.claimed_profile_id);
@@ -971,6 +921,7 @@ function newHandleGraph(handle: string, on: ClaimPlatform | null): ReferenceGrap
       avatarPath: null,
       unclaimed: true,
       peopleCount: 0,
+      neutralCount: 0,
       negativeCount: 0,
       platforms: [],
       linkedHandles: [],

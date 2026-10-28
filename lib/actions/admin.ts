@@ -29,6 +29,9 @@ import { createClient } from '@/lib/supabase/server';
 import { getVerifiedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
+import { logBackgroundFailure } from '@/lib/errors/errorLog';
+import { REFERENCE_PROOF_BUCKET } from '@/lib/storage/referenceImagesShared';
+import { isClaimPlatform, normalizeClaimHandle } from '@/domain/references/reference';
 import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { enforceProfileFraudBan, permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
 import { clusterStrengthForReport } from '@/lib/risk/scamClusters';
@@ -2246,11 +2249,12 @@ export const decideHandleClaim = withActionLog('admin.decideHandleClaim', async 
     return { ok: false, error: 'invalid-input', message: 'This claim was already decided.' };
   }
 
-  const { data: claim } = await admin
+  const { data: claim, error: claimLookupError } = await admin
     .from('social_claims')
     .select('platform, handle, claimed_profile_id')
     .eq('id', request.claim_id)
     .maybeSingle();
+  if (claimLookupError) return { ok: false, error: 'persistence-error', message: claimLookupError.message };
   if (!claim) return { ok: false, error: 'not-found' };
 
   if (decision === 'APPROVE') {
@@ -2348,4 +2352,136 @@ export const setReferenceProofChecked = withActionLog('admin.setReferenceProofCh
   if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
   revalidatePath('/admin');
   return { ok: true, data: { id: referenceId } };
+});
+
+/**
+ * Take a reference down (0164/0165): it leaves every page at once, and the record keeps
+ * who removed it and why. The staff remedy for an experience that breaks the rules
+ * (abuse, someone else's personal details, a deal that never happened). Members are
+ * never told by whom; the author sees it gone from their own list.
+ */
+export const removeReference = withActionLog('admin.removeReference', async function removeReference(
+  referenceId: string,
+  reason: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const trimmed = (reason ?? '').trim();
+  if (trimmed.length < 3 || trimmed.length > 500) {
+    return { ok: false, error: 'invalid-input', message: 'Say why, in 3 to 500 characters.', field: 'reason' };
+  }
+
+  const now = new Date().toISOString();
+  const { data, error } = await createAdminClient()
+    .from('member_references')
+    .update({
+      status: 'REMOVED',
+      removed_by: gate.adminId,
+      removed_at: now,
+      removed_reason: trimmed,
+      updated_at: now,
+    })
+    .eq('id', referenceId)
+    .eq('status', 'LIVE')
+    .select('target_profile_id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+  updateTag(REFERENCES_CACHE_TAG);
+  revalidatePath('/references', 'layout');
+  if (data.target_profile_id) revalidatePath(`/sellers/${data.target_profile_id}`);
+  revalidatePath('/admin');
+  return { ok: true, data: { id: referenceId } };
+});
+
+/**
+ * Refuse a reference's proof: the screenshots don't show the deal. The reference stays
+ * live as a plain vouch, and its screenshots are deleted, so a refused receipt (often a
+ * screenshot of someone's chat) is not kept.
+ */
+export const rejectReferenceProof = withActionLog('admin.rejectReferenceProof', async function rejectReferenceProof(
+  referenceId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+
+  const admin = createAdminClient();
+  const { data: reference, error: loadError } = await admin
+    .from('member_references')
+    .select('proof_paths, target_profile_id')
+    .eq('id', referenceId)
+    .eq('proof_status', 'PENDING')
+    .maybeSingle();
+  if (loadError) return { ok: false, error: 'persistence-error', message: loadError.message };
+  if (!reference) return { ok: false, error: 'not-found' };
+
+  const { error } = await admin
+    .from('member_references')
+    .update({ proof_status: 'NONE', proof_paths: [], updated_at: new Date().toISOString() })
+    .eq('id', referenceId)
+    .eq('proof_status', 'PENDING');
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+
+  if (reference.proof_paths.length > 0) {
+    const { error: storageError } = await admin.storage
+      .from(REFERENCE_PROOF_BUCKET)
+      .remove(reference.proof_paths);
+    if (storageError) {
+      await logBackgroundFailure({
+        name: 'references.proof.delete',
+        errorCode: 'STORAGE_REMOVE_FAILED',
+        message: storageError.message,
+        context: { referenceId },
+      });
+    }
+  }
+  revalidatePath('/admin');
+  return { ok: true, data: { id: referenceId } };
+});
+
+/**
+ * Release a handle claimed by the wrong member (0165 `release_social_claim`): the
+ * references left FOR the handle go back to it, the claim is cleared, and its real owner
+ * can claim it. References left for the member directly stay with the member.
+ */
+export const releaseHandleClaim = withActionLog('admin.releaseHandleClaim', async function releaseHandleClaim(
+  platform: string,
+  rawHandle: string,
+): Promise<AdminActionResult<{ id: string; moved: number }>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isClaimPlatform(platform)) {
+    return { ok: false, error: 'invalid-input', message: 'Choose the platform.', field: 'platform' };
+  }
+  const handle = normalizeClaimHandle(platform, rawHandle);
+  if (!handle) return { ok: false, error: 'invalid-input', message: 'Enter a valid handle.', field: 'handle' };
+
+  const admin = createAdminClient();
+  const { data: claim, error: claimError } = await admin
+    .from('social_claims')
+    .select('id, claimed_profile_id')
+    .eq('platform', platform)
+    .eq('handle_norm', handle.toLowerCase())
+    .maybeSingle();
+  if (claimError) return { ok: false, error: 'persistence-error', message: claimError.message };
+  if (!claim) return { ok: false, error: 'not-found', message: 'Nobody has that handle on that platform.' };
+  if (!claim.claimed_profile_id) {
+    return { ok: false, error: 'invalid-input', message: 'That handle is not claimed.' };
+  }
+
+  const { data: moved, error } = await admin.rpc('release_social_claim', { p_claim_id: claim.id });
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+
+  await createNotification({
+    userId: claim.claimed_profile_id,
+    type: 'SYSTEM',
+    title: 'A handle was unlinked from your profile',
+    body: `@${handle} on ${platform} is no longer linked to your profile. If it is yours, claim it again from its references page.`,
+    link: '/references',
+  });
+  updateTag(REFERENCES_CACHE_TAG);
+  revalidatePath('/references', 'layout');
+  revalidatePath(`/sellers/${claim.claimed_profile_id}`);
+  revalidatePath('/admin');
+  return { ok: true, data: { id: claim.id, moved: moved ?? 0 } };
 });

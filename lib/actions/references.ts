@@ -15,13 +15,18 @@
 // for one must never reach the other.
 
 import { createHmac, randomInt } from 'node:crypto';
-import { revalidatePath, unstable_cache, updateTag } from 'next/cache';
+import { revalidatePath, updateTag } from 'next/cache';
 
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { withActionLog } from '@/lib/errors/withActionLog';
 import { instagramBotHandle, isInstagramBotHandle } from '@/lib/instagram/botHandle';
 import { getInstagramBotToken } from '@/lib/instagram/botToken';
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
+import {
+  searchNeedle,
+  searchSuggestions,
+  type ReferenceSuggestion,
+} from '@/lib/references/search';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -39,13 +44,14 @@ import {
 import {
   HANDLE_CLAIM_EVIDENCE_BUCKET,
   REFERENCE_PROOF_BUCKET,
+  isAllowedReferenceImageType,
 } from '@/lib/storage/referenceImagesShared';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
-import { claimAddress, type ReferenceAddress } from '@/domain/references/address';
 import {
   REFERENCES_PER_DAY,
   REFERENCE_SENTIMENTS,
-  displayNameLabel,
+  dealsThroughAfter,
+  isAnotherDeal,
   isClaimPlatform,
   isUuid,
   normalizeClaimHandle,
@@ -74,25 +80,7 @@ export type ReferenceError =
 const SAVE_FAILED = "We couldn't save that. Please try again.";
 const RATE_LIMITED = 'Too many attempts. Wait a minute and try again.';
 
-/** One autofill suggestion: a member, or one unclaimed handle on its own platform. */
-export interface ReferenceSuggestion {
-  kind: 'profile' | 'claim';
-  /** profiles.id when claimed, social_claims.id when not. */
-  id: string;
-  /** A member's claimed and dealt-on platforms; an unclaimed handle's one platform. */
-  platforms: string[];
-  /** `@handle`, or a member's display name when they have no claimed handle. */
-  handle: string;
-  /** Their page. */
-  address: ReferenceAddress;
-  /** NoDitto display name, or the claim's handle when unclaimed. */
-  name: string;
-  regionCode: string | null;
-  avatarPath: string | null;
-  /** How many people left a positive reference, NoDitto escrow reviews included. */
-  referenceCount: number;
-}
-
+export type { ReferenceSuggestion } from '@/lib/references/search';
 /** The target a ShareExperience form posts against. */
 export interface ReferenceTargetDescriptor {
   kind: 'profile' | 'claim' | 'handle';
@@ -106,12 +94,23 @@ export interface ReferenceTargetDescriptor {
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-async function personKeyFor(admin: Admin, profileId: string): Promise<string> {
-  const { data } = await admin
+/**
+ * The person a profile belongs to (`pickPersonKey`), or null when the read failed. Never
+ * guessed on a failure: `profile:<id>` for a member who HAS identity keys would slip past
+ * the person-level dedupe and self check.
+ */
+async function personKeyFor(admin: Admin, profileId: string): Promise<string | null> {
+  const { data, error } = await admin
     .from('identity_person_keys')
     .select('fingerprint, kind')
     .eq('profile_id', profileId);
+  if (error) return null;
   return pickPersonKey(profileId, data ?? []);
+}
+
+/** The Identity_Gate, evaluated in its one place. */
+function passesIdentityGate(status: string | null | undefined): boolean {
+  return satisfiesIdentityGate({ identityCheckStatus: (status ?? 'NONE') as IdentityCheckStatus });
 }
 
 /** Why this member may not claim a handle, or null when they may. */
@@ -162,11 +161,6 @@ function sentimentLabel(sentiment: ReferenceSentiment): string {
   return REFERENCE_SENTIMENTS.find((s) => s.slug === sentiment)?.label ?? sentiment;
 }
 
-/** `text` as a literal inside an ILIKE pattern, so `%` and `_` match only themselves. */
-function likeLiteral(text: string): string {
-  return text.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
 /**
  * Refresh everywhere a reference shows. `updateTag` expires the cached graphs outright,
  * so the member who just wrote sees their change on the next render, never a stale copy.
@@ -181,20 +175,10 @@ function revalidateReferences(targetProfileId: string | null): void {
 // searchReferences
 // ---------------------------------------------------------------------------
 
-const SUGGESTION_LIMIT = 8;
-
-interface ClaimMatch {
-  id: string;
-  platform: string;
-  handle: string;
-  claimed_profile_id: string | null;
-}
-
 /**
- * Autofill for `/references` and the header search. A member appears once, with every
- * platform they have a claimed handle or a reference on. An unclaimed handle appears on
- * its own platform, never merged with a same-spelled handle elsewhere. With no query:
- * the people and handles the most people have referenced lately.
+ * Autofill for `/references` and the header search (`lib/references/search.ts`), rate
+ * limited per visitor. With no query: the people and handles the most people have had a
+ * good experience of lately.
  */
 export const searchReferences = withActionLog('references.searchReferences', async function searchReferences(
   query: string,
@@ -202,251 +186,12 @@ export const searchReferences = withActionLog('references.searchReferences', asy
   if (!(await referenceSearchLimiter.check(await rateLimitIdentifier(null))).allowed) {
     return fail('rate-limited', 'Too many searches. Wait a moment and try again.');
   }
-  const needle = (query ?? '').trim().replace(/^@/, '').toLowerCase().slice(0, 64);
-  if (!needle) {
-    try {
-      return ok(await cachedTopSuggestions());
-    } catch {
-      return fail('persistence-error', SAVE_FAILED);
-    }
+  try {
+    return ok(await searchSuggestions(searchNeedle(query)));
+  } catch {
+    return fail('persistence-error', "We couldn't search references just now. Please try again.");
   }
-
-  const admin = createAdminClient();
-  const pattern = `%${likeLiteral(needle)}%`;
-  const [claimResult, nameResult] = await Promise.all([
-    admin
-      .from('social_claims')
-      .select('id, platform, handle, claimed_profile_id')
-      .ilike('handle', pattern)
-      .order('handle', { ascending: true })
-      .limit(60),
-    admin
-      .from('profiles')
-      .select('id')
-      .ilike('display_name', pattern)
-      .is('fraud_banned_at', null)
-      .is('closed_at', null)
-      .limit(40),
-  ]);
-  if (claimResult.error || nameResult.error) return fail('persistence-error', SAVE_FAILED);
-
-  const suggestions = await buildSuggestions(
-    admin,
-    (nameResult.data ?? []).map((row) => row.id),
-    claimResult.data ?? [],
-    needle,
-  );
-  if (!suggestions) return fail('persistence-error', SAVE_FAILED);
-  return ok(suggestions);
 });
-
-/**
- * The no-query suggestions, the `/references` landing list: the same for everyone, so
- * shared across requests, and expired with every other cached reference read. A failed
- * read throws rather than returning, so a failure is never cached.
- */
-const cachedTopSuggestions = unstable_cache(
-  async (): Promise<ReferenceSuggestion[]> => {
-    const admin = createAdminClient();
-    const top = await mostReferenced(admin);
-    if (!top) throw new Error('[references] most-referenced read failed');
-    let claims: ClaimMatch[] = [];
-    if (top.claimIds.length > 0) {
-      const { data, error } = await admin
-        .from('social_claims')
-        .select('id, platform, handle, claimed_profile_id')
-        .in('id', top.claimIds);
-      if (error) throw new Error(`[references] most-referenced claims: ${error.message}`);
-      claims = data ?? [];
-    }
-    const suggestions = await buildSuggestions(admin, top.profileIds, claims, '');
-    if (!suggestions) throw new Error('[references] most-referenced suggestions read failed');
-    return suggestions;
-  },
-  ['references-top'],
-  { tags: [REFERENCES_CACHE_TAG], revalidate: 300 },
-);
-
-/** The people and handles with the most distinct positive references among the latest ones. */
-async function mostReferenced(admin: Admin): Promise<{ profileIds: string[]; claimIds: string[] } | null> {
-  const [edges, reviews] = await Promise.all([
-    admin
-      .from('reference_edges_public')
-      .select('voucher_id, target_profile_id, target_claim_id')
-      .eq('sentiment', 'POSITIVE')
-      .order('created_at', { ascending: false })
-      .limit(2000),
-    admin
-      .from('reviews')
-      .select('reviewer_id, reviewee_id')
-      .order('created_at', { ascending: false })
-      .limit(2000),
-  ]);
-  if (edges.error || reviews.error) return null;
-
-  const people = new Map<string, Set<string>>();
-  const add = (target: string, person: string) => {
-    const set = people.get(target) ?? new Set<string>();
-    set.add(person);
-    people.set(target, set);
-  };
-  for (const edge of edges.data ?? []) {
-    if (edge.target_profile_id) add(`p:${edge.target_profile_id}`, edge.voucher_id);
-    else if (edge.target_claim_id) add(`c:${edge.target_claim_id}`, edge.voucher_id);
-  }
-  for (const review of reviews.data ?? []) add(`p:${review.reviewee_id}`, review.reviewer_id);
-
-  const top = Array.from(people.entries())
-    .sort((a, b) => b[1].size - a[1].size)
-    .slice(0, SUGGESTION_LIMIT * 3)
-    .map(([key]) => key);
-  return {
-    profileIds: top.filter((key) => key.startsWith('p:')).map((key) => key.slice(2)),
-    claimIds: top.filter((key) => key.startsWith('c:')).map((key) => key.slice(2)),
-  };
-}
-
-async function buildSuggestions(
-  admin: Admin,
-  namedProfileIds: string[],
-  claims: readonly ClaimMatch[],
-  needle: string,
-): Promise<ReferenceSuggestion[] | null> {
-  // The handle a member was found by, so a search for their Discord name shows it.
-  const matchedHandle = new Map<string, ClaimMatch>();
-  for (const claim of claims) {
-    if (claim.claimed_profile_id && !matchedHandle.has(claim.claimed_profile_id)) {
-      matchedHandle.set(claim.claimed_profile_id, claim);
-    }
-  }
-  const profileIds = Array.from(new Set([...matchedHandle.keys(), ...namedProfileIds]));
-  const unclaimed = claims.filter((claim) => !claim.claimed_profile_id);
-  const unclaimedIds = unclaimed.map((claim) => claim.id);
-
-  const none = { data: [], error: null };
-  const [profiles, profileClaims, profileEdges, claimEdges, reviews] = await Promise.all([
-    profileIds.length
-      ? admin
-          .from('profiles')
-          .select('id, display_name, region_code, avatar_path')
-          .in('id', profileIds)
-          .is('fraud_banned_at', null)
-          .is('closed_at', null)
-      : Promise.resolve(none),
-    profileIds.length
-      ? admin
-          .from('social_claims')
-          .select('id, platform, handle, claimed_profile_id')
-          .in('claimed_profile_id', profileIds)
-          .order('claimed_at', { ascending: true })
-      : Promise.resolve(none),
-    profileIds.length
-      ? admin
-          .from('reference_edges_public')
-          .select('voucher_id, target_profile_id, platform, sentiment')
-          .in('target_profile_id', profileIds)
-          .limit(5000)
-      : Promise.resolve(none),
-    unclaimedIds.length
-      ? admin
-          .from('reference_edges_public')
-          .select('voucher_id, target_claim_id, sentiment')
-          .in('target_claim_id', unclaimedIds)
-          .limit(5000)
-      : Promise.resolve(none),
-    profileIds.length
-      ? admin.from('reviews').select('reviewer_id, reviewee_id').in('reviewee_id', profileIds).limit(5000)
-      : Promise.resolve(none),
-  ]);
-  if (profiles.error || profileClaims.error || profileEdges.error || claimEdges.error || reviews.error) {
-    return null;
-  }
-
-  // People, not deals: one person counts once however many deals or references they log.
-  const peopleFor = new Map<string, Set<string>>();
-  const platformsFor = new Map<string, Set<string>>();
-  const note = (map: Map<string, Set<string>>, key: string, value: string) => {
-    const set = map.get(key) ?? new Set<string>();
-    set.add(value);
-    map.set(key, set);
-  };
-  const claimsOf = new Map<string, ClaimMatch[]>();
-  for (const claim of (profileClaims.data ?? []) as ClaimMatch[]) {
-    if (!claim.claimed_profile_id) continue;
-    claimsOf.set(claim.claimed_profile_id, [...(claimsOf.get(claim.claimed_profile_id) ?? []), claim]);
-    note(platformsFor, `p:${claim.claimed_profile_id}`, claim.platform);
-  }
-  for (const edge of (profileEdges.data ?? []) as { voucher_id: string; target_profile_id: string | null; platform: string; sentiment: string }[]) {
-    if (!edge.target_profile_id) continue;
-    note(platformsFor, `p:${edge.target_profile_id}`, edge.platform);
-    if (edge.sentiment === 'POSITIVE') note(peopleFor, `p:${edge.target_profile_id}`, edge.voucher_id);
-  }
-  for (const review of (reviews.data ?? []) as { reviewer_id: string; reviewee_id: string }[]) {
-    note(platformsFor, `p:${review.reviewee_id}`, 'noditto');
-    note(peopleFor, `p:${review.reviewee_id}`, review.reviewer_id);
-  }
-  for (const edge of (claimEdges.data ?? []) as { voucher_id: string; target_claim_id: string | null; sentiment: string }[]) {
-    if (edge.target_claim_id && edge.sentiment === 'POSITIVE') note(peopleFor, `c:${edge.target_claim_id}`, edge.voucher_id);
-  }
-
-  const score = (handle: string, name: string): number => {
-    if (!needle) return 1;
-    const h = handle.toLowerCase().replace(/^@/, '');
-    const n = name.toLowerCase();
-    if (h === needle || n === needle) return 0;
-    if (h.startsWith(needle) || n.startsWith(needle)) return 1;
-    if (h.includes(needle) || n.includes(needle)) return 2;
-    return 3;
-  };
-
-  const ranked: (ReferenceSuggestion & { score: number })[] = [];
-  for (const profile of (profiles.data ?? []) as {
-    id: string;
-    display_name: string;
-    region_code: string | null;
-    avatar_path: string | null;
-  }[]) {
-    const shown = matchedHandle.get(profile.id) ?? claimsOf.get(profile.id)?.[0];
-    const name = displayNameLabel(profile.display_name);
-    const handle = shown ? `@${shown.handle}` : name;
-    ranked.push({
-      kind: 'profile',
-      id: profile.id,
-      platforms: Array.from(platformsFor.get(`p:${profile.id}`) ?? []),
-      handle,
-      address: shown ? claimAddress(shown) : { slug: profile.id, on: null },
-      name,
-      regionCode: profile.region_code ?? null,
-      avatarPath: profile.avatar_path ?? null,
-      referenceCount: peopleFor.get(`p:${profile.id}`)?.size ?? 0,
-      score: score(handle, name),
-    });
-  }
-  for (const claim of unclaimed) {
-    const handle = `@${claim.handle}`;
-    ranked.push({
-      kind: 'claim',
-      id: claim.id,
-      platforms: [claim.platform],
-      handle,
-      address: claimAddress(claim),
-      name: claim.handle,
-      regionCode: null,
-      avatarPath: null,
-      referenceCount: peopleFor.get(`c:${claim.id}`)?.size ?? 0,
-      score: score(handle, claim.handle),
-    });
-  }
-
-  return ranked
-    .filter((suggestion) => needle || suggestion.referenceCount > 0)
-    .sort(
-      (a, b) =>
-        a.score - b.score || b.referenceCount - a.referenceCount || a.handle.localeCompare(b.handle),
-    )
-    .slice(0, SUGGESTION_LIMIT)
-    .map(({ score: _score, ...rest }) => rest);
-}
 
 // ---------------------------------------------------------------------------
 // giveReference
@@ -478,7 +223,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
   if (voucher.fraud_banned_at || voucher.closed_at) {
     return fail('not-allowed', "This account can't post references.");
   }
-  if (voucher.identity_check_status !== 'VERIFIED') {
+  if (!passesIdentityGate(voucher.identity_check_status)) {
     return fail(
       'identity-unverified',
       'Verify your ID first so every experience comes from a verified person.',
@@ -488,64 +233,74 @@ export const giveReference = withActionLog('references.giveReference', async fun
   // Who it is for. A claimed handle's references belong to its claimant.
   let targetProfileId: string | null = null;
   let targetClaimId: string | null = null;
+  // The handle it was left FOR, kept even when that handle is claimed (0165).
+  let originClaimId: string | null = null;
   if (target.kind === 'profile') {
     targetProfileId = target.profileId;
   } else {
     const claim =
       target.kind === 'claim'
-        ? (
-            await admin
+        ? await (async () => {
+            const { data, error } = await admin
               .from('social_claims')
               .select('id, claimed_profile_id')
               .eq('id', target.claimId)
-              .maybeSingle()
-          ).data
+              .maybeSingle();
+            return error ? undefined : data;
+          })()
         : await findOrCreateClaim(admin, target.platform, target.handle, user.id);
+    if (claim === undefined) return fail('persistence-error', SAVE_FAILED);
     if (!claim) {
       return target.kind === 'claim'
         ? fail('not-found', "We couldn't find that handle.")
         : fail('persistence-error', SAVE_FAILED);
     }
+    originClaimId = claim.id;
     if (claim.claimed_profile_id) targetProfileId = claim.claimed_profile_id;
     else targetClaimId = claim.id;
   }
 
   let targetPersonKey: string | null = null;
   const voucherPersonKey = await personKeyFor(admin, user.id);
+  if (!voucherPersonKey) return fail('persistence-error', SAVE_FAILED);
   if (targetProfileId) {
     if (targetProfileId === user.id) {
       return fail('self-reference', "You can't give yourself a reference.");
     }
-    const { data: profile } = await admin
+    const { data: profile, error: profileError } = await admin
       .from('profiles')
       .select('id, fraud_banned_at, closed_at')
       .eq('id', targetProfileId)
       .maybeSingle();
+    if (profileError) return fail('persistence-error', SAVE_FAILED);
     if (!profile || profile.fraud_banned_at || profile.closed_at) {
       return fail('not-found', "We couldn't find that person.");
     }
     targetPersonKey = await personKeyFor(admin, targetProfileId);
+    if (!targetPersonKey) return fail('persistence-error', SAVE_FAILED);
     if (targetPersonKey === voucherPersonKey) {
       return fail('self-reference', "You can't give yourself a reference.");
     }
   }
 
+  // The day is UTC, the server's clock on Vercel.
   const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-  const { count } = await admin
+  dayStart.setUTCHours(0, 0, 0, 0);
+  const { count, error: countError } = await admin
     .from('member_references')
     .select('id', { count: 'exact', head: true })
     .eq('voucher_id', user.id)
     .gte('created_at', dayStart.toISOString());
+  if (countError) return fail('persistence-error', SAVE_FAILED);
   if ((count ?? 0) >= REFERENCES_PER_DAY) {
     return fail('rate-limited', "You've posted a lot of references today. Try again tomorrow.");
   }
 
   const existingQuery = admin
     .from('member_references')
-    .select('id, deal_count, occurred_month')
+    .select('id, deal_count, occurred_month, deals_through, platform, role, proof_status')
     .eq('status', 'LIVE');
-  const { data: existing } = targetPersonKey
+  const { data: existing, error: existingError } = targetPersonKey
     ? await existingQuery
         .eq('voucher_person_key', voucherPersonKey)
         .eq('target_person_key', targetPersonKey)
@@ -556,12 +311,18 @@ export const giveReference = withActionLog('references.giveReference', async fun
         .eq('target_claim_id', targetClaimId!)
         .eq('sentiment', sentiment)
         .maybeSingle();
+  if (existingError) return fail('persistence-error', SAVE_FAILED);
 
   if (existing) {
-    // A LATER MONTH IS ANOTHER DEAL; the same or an earlier month is this deal told
-    // again, so publishing over and over can never raise the count.
-    const addedDeal = occurredMonth > existing.occurred_month;
+    // A LATER MONTH THAN ANY ALREADY COUNTED IS ANOTHER DEAL; anything else is a deal
+    // told again, so publishing over and over, or rewinding the month first, can never
+    // raise the count (`isAnotherDeal`).
+    const addedDeal = isAnotherDeal(occurredMonth, {
+      occurredMonth: existing.occurred_month,
+      dealsThrough: existing.deals_through,
+    });
     const now = new Date().toISOString();
+    const nextMonth = addedDeal ? occurredMonth : existing.occurred_month;
     const { error } = await admin
       .from('member_references')
       .update({
@@ -571,7 +332,13 @@ export const giveReference = withActionLog('references.giveReference', async fun
         category,
         comment,
         role,
-        occurred_month: addedDeal ? occurredMonth : existing.occurred_month,
+        occurred_month: nextMonth,
+        deals_through: dealsThroughAfter(nextMonth, existing.deals_through),
+        // A receipt was checked against the deal it was attached to. Retold as a
+        // different deal (platform or role), it goes back to staff.
+        ...(!addedDeal && receiptNeedsRecheck(existing, { platform, role, occurredMonth: nextMonth })
+          ? { proof_status: 'PENDING' as const }
+          : {}),
         // The same deal told again rewrites what readers already saw.
         ...(addedDeal ? {} : { edited_at: now }),
         updated_at: now,
@@ -595,6 +362,8 @@ export const giveReference = withActionLog('references.giveReference', async fun
       comment,
       role,
       occurred_month: occurredMonth,
+      deals_through: occurredMonth,
+      origin_claim_id: originClaimId,
       voucher_person_key: voucherPersonKey,
       target_person_key: targetPersonKey,
     })
@@ -602,24 +371,75 @@ export const giveReference = withActionLog('references.giveReference', async fun
     .single();
   if (insertError || !inserted) return fail('persistence-error', SAVE_FAILED);
 
-  if (targetProfileId) {
-    await createNotification({
-      userId: targetProfileId,
-      type: 'SYSTEM',
-      title:
-        sentiment === 'NEGATIVE'
-          ? 'You received a negative experience'
-          : 'You received a reference',
-      body:
-        sentiment === 'NEGATIVE'
-          ? `${voucher.display_name} shared a negative experience about a deal on ${platformLabel(platform)}.`
-          : `${voucher.display_name} referenced you: ${roleLabel(role).toLowerCase()} on ${platformLabel(platform)}.`,
-      link: `/sellers/${targetProfileId}`,
-    });
+  if (targetProfileId && !(await notifiedRecently(admin, user.id, targetProfileId, sentiment, inserted.id))) {
+    await notifyReferenced(targetProfileId, voucher.display_name, sentiment, platform, role);
   }
   revalidateReferences(targetProfileId);
   return ok({ referenceId: inserted.id, addedDeal: false });
 });
+
+/** How long one author's experiences of one member notify them only once per kind. */
+const NOTIFY_QUIET_DAYS = 30;
+
+/**
+ * Whether this author already told this member about an experience of this kind lately.
+ * Withdrawing and posting again would otherwise send the same "negative experience"
+ * notice over and over. A failed read reads as "yes": a missed notice beats a flood.
+ */
+async function notifiedRecently(
+  admin: Admin,
+  authorId: string,
+  targetProfileId: string,
+  sentiment: ReferenceSentiment,
+  exceptId: string,
+): Promise<boolean> {
+  const since = new Date(Date.now() - NOTIFY_QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const { count, error } = await admin
+    .from('member_references')
+    .select('id', { count: 'exact', head: true })
+    .eq('voucher_id', authorId)
+    .eq('target_profile_id', targetProfileId)
+    .eq('sentiment', sentiment)
+    .neq('id', exceptId)
+    .gte('created_at', since);
+  return error ? true : (count ?? 0) > 0;
+}
+
+/** Tell a member someone shared an experience of them. */
+async function notifyReferenced(
+  targetProfileId: string,
+  authorName: string,
+  sentiment: ReferenceSentiment,
+  platform: string,
+  role: string,
+): Promise<void> {
+  await createNotification({
+    userId: targetProfileId,
+    type: 'SYSTEM',
+    title: sentiment === 'NEGATIVE' ? 'You received a negative experience' : 'You received a reference',
+    body:
+      sentiment === 'NEGATIVE'
+        ? `${authorName} shared a negative experience about a deal on ${platformLabel(platform)}.`
+        : `${authorName} referenced you: ${roleLabel(role).toLowerCase()} on ${platformLabel(platform)}.`,
+    link: `/sellers/${targetProfileId}`,
+  });
+}
+
+/**
+ * Whether a receipt staff checked (or are checking) no longer matches the deal it backs:
+ * the platform, the role or the month changed. Its words and rating may change freely.
+ */
+function receiptNeedsRecheck(
+  existing: { proof_status: string; platform: string; role: string; occurred_month: string },
+  next: { platform: string; role: string; occurredMonth: string },
+): boolean {
+  if (existing.proof_status !== 'CHECKED') return false;
+  return (
+    existing.platform !== next.platform ||
+    existing.role !== next.role ||
+    existing.occurred_month.slice(0, 10) !== next.occurredMonth.slice(0, 10)
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Proof uploads + receipt-checked tier
@@ -632,13 +452,14 @@ async function mintUpload(
   const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'Sign in to add screenshots.');
   if (!(await referenceUploadLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
+  if (!isAllowedReferenceImageType((contentType ?? '').toLowerCase())) {
+    return fail('invalid-reference', 'Add a screenshot or photo (JPG, PNG, WebP or HEIC).');
+  }
   try {
     return ok(await createSignedReferenceUpload(createAdminClient(), bucket, user.id, contentType));
-  } catch (error) {
-    return fail(
-      'persistence-error',
-      error instanceof Error ? error.message : 'Could not prepare the upload.',
-    );
+  } catch {
+    // Storage's own error text is not for members.
+    return fail('persistence-error', 'Could not prepare the upload. Please try again.');
   }
 }
 
@@ -660,6 +481,7 @@ export const attachReferenceProof = withActionLog('references.attachReferencePro
 ): Promise<ActionResult<{ attached: true }, ReferenceError>> {
   const user = await getCachedAuthUser();
   if (!user) return fail('not-authenticated', 'Sign in first.');
+  if (!(await referenceWriteLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
 
   const admin = createAdminClient();
   let verifiedPaths: string[];
@@ -672,10 +494,21 @@ export const attachReferenceProof = withActionLog('references.attachReferencePro
     return fail('invalid-reference', 'Add at least one screenshot.', 'proof');
   }
 
+  const { data: before, error: beforeError } = await admin
+    .from('member_references')
+    .select('proof_paths')
+    .eq('id', referenceId)
+    .eq('voucher_id', user.id)
+    .eq('status', 'LIVE')
+    .maybeSingle();
+  if (beforeError) return fail('persistence-error', SAVE_FAILED);
+  if (!before) return fail('not-found', "That reference isn't yours.");
+
+  const nextPaths = verifiedPaths.slice(0, 5);
   const { data, error } = await admin
     .from('member_references')
     .update({
-      proof_paths: verifiedPaths.slice(0, 5),
+      proof_paths: nextPaths,
       proof_status: 'PENDING',
       updated_at: new Date().toISOString(),
     })
@@ -686,9 +519,29 @@ export const attachReferenceProof = withActionLog('references.attachReferencePro
     .maybeSingle();
   if (error) return fail('persistence-error', SAVE_FAILED);
   if (!data) return fail('not-found', "That reference isn't yours.");
+  // Screenshots this proof replaced are deleted rather than left in the bucket.
+  await removeProofImages(
+    admin,
+    before.proof_paths.filter((path) => !nextPaths.includes(path)),
+    referenceId,
+  );
   revalidateReferences(data.target_profile_id);
   return ok({ attached: true });
 });
+
+/** Delete proof screenshots; a failure is logged, never shown, since the write stood. */
+async function removeProofImages(admin: Admin, paths: readonly string[], referenceId: string): Promise<void> {
+  if (paths.length === 0) return;
+  const { error } = await admin.storage.from(REFERENCE_PROOF_BUCKET).remove([...paths]);
+  if (error) {
+    await logBackgroundFailure({
+      name: 'references.proof.delete',
+      errorCode: 'STORAGE_REMOVE_FAILED',
+      message: error.message,
+      context: { referenceId },
+    });
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Manual handle claims (staff decision)
@@ -722,11 +575,12 @@ const DM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
  * only the owner's own pending request holds. Stable per pair so a reopened dialog
  * shows the same code.
  */
-function deterministicDmCode(handleNorm: string, claimantId: string): string {
-  const secret =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-    'noditto-ig-dm-secret';
+function deterministicDmCode(handleNorm: string, claimantId: string): string | null {
+  // A dedicated key, never a credential or a public value: anyone who knows the key can
+  // compute a claimant's code. `IDENTITY_FINGERPRINT_SECRET` is the fallback because it
+  // is already a server-only HMAC key; the `ig-dm:` prefix keeps the two uses apart.
+  const secret = process.env.INSTAGRAM_DM_CODE_SECRET || process.env.IDENTITY_FINGERPRINT_SECRET;
+  if (!secret) return null;
   const digest = createHmac('sha256', secret).update(`ig-dm:${handleNorm}:${claimantId}`).digest();
   let suffix = '';
   for (let i = 0; i < 6; i += 1) {
@@ -734,6 +588,17 @@ function deterministicDmCode(handleNorm: string, claimantId: string): string {
   }
   return `ND-${suffix}`;
 }
+
+/** Logged once per attempt when no key is configured, so the dead claim path is visible. */
+async function logMissingDmSecret(): Promise<void> {
+  await logBackgroundFailure({
+    name: 'references.instagram_dm.code',
+    errorCode: 'NO_CODE_SECRET',
+    message: 'INSTAGRAM_DM_CODE_SECRET (or IDENTITY_FINGERPRINT_SECRET) is not set',
+  });
+}
+
+const DM_UNAVAILABLE = "Instagram claims aren't available right now. Try another way to claim.";
 
 export interface InstagramDmClaimSession {
   /** Null until signed in: the code is per claimant, so a visitor has none yet. */
@@ -769,6 +634,10 @@ export const startInstagramDmClaim = withActionLog(
     }
     if (!(await handleClaimLimiter.check(user.id)).allowed) return fail('rate-limited', RATE_LIMITED);
     const code = deterministicDmCode(handleNorm, user.id);
+    if (!code) {
+      await logMissingDmSecret();
+      return fail('persistence-error', DM_UNAVAILABLE);
+    }
 
     const admin = createAdminClient();
     const refusal = await claimRefusal(admin, user.id);
@@ -783,29 +652,33 @@ export const startInstagramDmClaim = withActionLog(
       return fail('not-allowed', 'This Instagram account has already been claimed.');
     }
 
-    const { data: existingReq } = await admin
+    const { data: existingReq, error: existingError } = await admin
       .from('handle_claim_requests')
       .select('id, bio_code, status')
       .eq('claim_id', claim.id)
       .eq('claimant_id', user.id)
       .eq('status', 'PENDING')
       .maybeSingle();
+    if (existingError) return fail('persistence-error', SAVE_FAILED);
 
     if (existingReq) {
       if (existingReq.bio_code !== code) {
-        await admin
+        const { error } = await admin
           .from('handle_claim_requests')
           .update({ bio_code: code, updated_at: new Date().toISOString() })
           .eq('id', existingReq.id);
+        if (error) return fail('persistence-error', SAVE_FAILED);
       }
       return ok({ code, botHandle, signedIn: true, status: 'PENDING' });
     }
 
-    await admin.from('handle_claim_requests').insert({
+    const { error: insertError } = await admin.from('handle_claim_requests').insert({
       claim_id: claim.id,
       claimant_id: user.id,
       bio_code: code,
     });
+    // 23505: a second tab opened the same request a moment earlier.
+    if (insertError && insertError.code !== '23505') return fail('persistence-error', SAVE_FAILED);
 
     return ok({ code, botHandle, signedIn: true, status: 'PENDING' });
   },
@@ -898,12 +771,13 @@ export const checkInstagramDmClaim = withActionLog(
     const refusal = await claimRefusal(admin, user.id);
     if (refusal) return refusal;
 
-    const { data: claim } = await admin
+    const { data: claim, error: claimLookupError } = await admin
       .from('social_claims')
       .select('id, claimed_profile_id')
       .eq('platform', 'instagram')
       .eq('handle_norm', handleNorm)
       .maybeSingle();
+    if (claimLookupError) return fail('persistence-error', SAVE_FAILED);
 
     if (!claim) return ok({ verified: false });
     if (claim.claimed_profile_id === user.id) {
@@ -917,6 +791,10 @@ export const checkInstagramDmClaim = withActionLog(
     // This member's own code: someone else's DM to the bot, even for the same handle,
     // carries a different one and cannot approve this request.
     const code = deterministicDmCode(handleNorm, user.id);
+    if (!code) {
+      await logMissingDmSecret();
+      return fail('persistence-error', DM_UNAVAILABLE);
+    }
     const matchedInDm = await checkInstagramGraphDmForCode(handleNorm, code);
     if (!matchedInDm) {
       return ok({ verified: false });
@@ -1062,7 +940,7 @@ export const submitManualHandleClaim = withActionLog(
           .from('handle_claim_requests')
           .update({
             screenshot_paths: verifiedPaths.slice(0, 5),
-            staff_notes: note,
+            claimant_message: note,
             updated_at: new Date().toISOString(),
           })
           .eq('id', existingReq.id)
@@ -1075,7 +953,7 @@ export const submitManualHandleClaim = withActionLog(
             claimant_id: user.id,
             bio_code: manualClaimCode(),
             screenshot_paths: verifiedPaths.slice(0, 5),
-            staff_notes: note,
+            claimant_message: note,
           })
           .select('id')
           .single();
@@ -1112,7 +990,7 @@ export const updateReference = withActionLog('references.updateReference', async
   const admin = createAdminClient();
   const { data: author, error: authorError } = await admin
     .from('profiles')
-    .select('fraud_banned_at, closed_at')
+    .select('display_name, fraud_banned_at, closed_at')
     .eq('id', user.id)
     .maybeSingle();
   if (authorError) return fail('persistence-error', SAVE_FAILED);
@@ -1122,7 +1000,9 @@ export const updateReference = withActionLog('references.updateReference', async
 
   const { data: reference, error: loadError } = await admin
     .from('member_references')
-    .select('id, sentiment, voucher_person_key, target_person_key, target_profile_id, target_claim_id')
+    .select(
+      'id, sentiment, voucher_person_key, target_person_key, target_profile_id, target_claim_id, platform, role, occurred_month, deals_through, proof_status',
+    )
     .eq('id', referenceId)
     .eq('voucher_id', user.id)
     .eq('status', 'LIVE')
@@ -1140,17 +1020,24 @@ export const updateReference = withActionLog('references.updateReference', async
       .eq('status', 'LIVE')
       .eq('sentiment', sentiment)
       .neq('id', reference.id);
-    const { data: clash } = reference.target_person_key
+    const { data: clash, error: clashError } = reference.target_person_key
       ? await others
           .eq('voucher_person_key', reference.voucher_person_key)
           .eq('target_person_key', reference.target_person_key)
           .limit(1)
           .maybeSingle()
-      : await others
-          .eq('voucher_id', user.id)
-          .eq('target_claim_id', reference.target_claim_id!)
-          .limit(1)
-          .maybeSingle();
+      : reference.target_claim_id
+        ? await others
+            .eq('voucher_id', user.id)
+            .eq('target_claim_id', reference.target_claim_id)
+            .limit(1)
+            .maybeSingle()
+        : await others
+            .eq('voucher_id', user.id)
+            .eq('target_profile_id', reference.target_profile_id!)
+            .limit(1)
+            .maybeSingle();
+    if (clashError) return fail('persistence-error', SAVE_FAILED);
     if (clash) return fail('invalid-reference', clashMessage, 'rating');
   }
 
@@ -1161,10 +1048,16 @@ export const updateReference = withActionLog('references.updateReference', async
       platform,
       role,
       occurred_month: occurredMonth,
+      // Never lowered: a rewound month must not let the next post count as a new deal.
+      deals_through: dealsThroughAfter(occurredMonth, reference.deals_through),
       rating,
       sentiment,
       category,
       comment,
+      // A checked receipt no longer backs a deal told differently: back to staff.
+      ...(receiptNeedsRecheck(reference, { platform, role, occurredMonth })
+        ? { proof_status: 'PENDING' as const }
+        : {}),
       edited_at: now,
       updated_at: now,
     })
@@ -1176,6 +1069,15 @@ export const updateReference = withActionLog('references.updateReference', async
     return error.code === '23505'
       ? fail('invalid-reference', clashMessage, 'rating')
       : fail('persistence-error', SAVE_FAILED);
+  }
+  // Turning a reference negative is news to its subject, exactly as posting one is.
+  if (
+    sentiment === 'NEGATIVE' &&
+    reference.sentiment !== 'NEGATIVE' &&
+    reference.target_profile_id &&
+    !(await notifiedRecently(admin, user.id, reference.target_profile_id, sentiment, reference.id))
+  ) {
+    await notifyReferenced(reference.target_profile_id, author.display_name, sentiment, platform, role);
   }
   revalidateReferences(reference.target_profile_id);
   return ok({ referenceId: reference.id });
@@ -1196,10 +1098,13 @@ export const withdrawReference = withActionLog('references.withdrawReference', a
     .eq('id', referenceId)
     .eq('voucher_id', user.id)
     .eq('status', 'LIVE')
-    .select('target_profile_id')
+    .select('target_profile_id, proof_paths')
     .maybeSingle();
   if (error) return fail('persistence-error', SAVE_FAILED);
   if (!data) return fail('not-found', "That reference isn't yours to withdraw.");
+  // A withdrawn reference's receipts back nothing any more; they are often screenshots
+  // of someone's chat, so they are not kept.
+  await removeProofImages(admin, data.proof_paths, referenceId);
   revalidateReferences(data.target_profile_id);
   return ok({ withdrawn: true });
 });

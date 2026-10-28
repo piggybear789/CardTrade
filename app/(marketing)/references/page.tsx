@@ -1,12 +1,12 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldCheckIcon, UserCheck01Icon } from '@hugeicons/core-free-icons';
+import { StarIcon, UserCheck01Icon } from '@hugeicons/core-free-icons';
 
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { ReferenceSearch } from '@/components/references/ReferenceSearch';
-import { searchReferences } from '@/lib/actions/references';
+import { cachedTopSuggestions } from '@/lib/references/search';
 
 // app/(marketing)/references/page.tsx
 //
@@ -22,18 +22,21 @@ export const metadata: Metadata = {
 
 const PLATFORMS = ['instagram', 'facebook', 'discord', 'whatnot', 'ebay', 'noditto'] as const;
 
-// The two rules that make a reference worth reading. The first is enforced by
-// `giveReference` (identity-unverified). The SECOND IS NOT YET: negatives go live
-// immediately (0155 records "no staff review on either sentiment"). Build the review
-// queue or change this copy before relying on it.
+// The two rules that make a reference worth reading, both enforced: only ID-verified
+// members can leave one (`giveReference`, identity-unverified), and bad experiences are
+// published like good ones, never hidden or netted off. Negatives are NOT pre-checked:
+// they publish at once, tied to the author's verified ID, and staff can take one down
+// (`admin.removeReference`). Do not claim a review step here.
 const TRUST_POINTS = [
   { icon: UserCheck01Icon, label: 'ID-verified references only' },
-  { icon: ShieldCheckIcon, label: 'Negatives checked' },
+  { icon: StarIcon, label: 'Good and bad experiences shown' },
 ] as const;
 
 export default async function ReferencesPage() {
-  const initial = await searchReferences('').catch(() => null);
-  const initialSuggestions = initial && initial.ok ? initial.data : null;
+  // Read straight from the shared cache, not through the search action: rendering the
+  // page must not spend a visitor's search allowance. A failure renders the list's
+  // honest "Look someone up" state instead of claiming there are no references.
+  const initialSuggestions = await cachedTopSuggestions().catch(() => null);
 
   // SCALES WITH THE SCREEN. Every size on this page is a `clamp()` of the viewport width:
   // fixed at its phone value up to a laptop, then growing with the screen, so a large
@@ -41,11 +44,11 @@ export default async function ReferencesPage() {
   // The block sits a little above the vertical middle of the space above the footer,
   // and the bottom padding keeps room for the suggestion list that opens under the search.
   //
-  // PHONES CENTRE THE WHOLE BLOCK, LIST INCLUDED. From `sm` the suggestion list floats
-  // over the page, so the bottom padding reserves room for it. On a phone the list sits
-  // in the page flow under the search, so it is part of the block being centred and
-  // nothing needs reserving: equal padding top and bottom, and `justify-center` splits
-  // the leftover height evenly instead of leaving it all under the list.
+  // PHONES TOP-ALIGN. On a phone the suggestion list sits in the page flow under the
+  // search and its height follows what is typed (rows, an empty state, the open-handle
+  // row). Centred, every keystroke moved the heading and the field being typed in. Top
+  // aligned, a changing list moves only what is below it. From `sm` the list floats over
+  // the page, so the block centres there and the bottom padding reserves its room.
   return (
     <div className="relative flex flex-1 flex-col">
       {/* The onboarding wizard's "I'm adding a reference" path returns here from the ID
@@ -54,7 +57,7 @@ export default async function ReferencesPage() {
       <Suspense fallback={null}>
         <IdentityReturnRefresh />
       </Suspense>
-      <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-center px-group py-section sm:px-6 sm:pt-[clamp(3rem,8vh,7rem)] sm:pb-[clamp(18rem,32vh,26rem)]">
+      <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-start px-group pb-section pt-8 sm:justify-center sm:px-6 sm:pt-[clamp(3rem,8vh,7rem)] sm:pb-[clamp(18rem,32vh,26rem)]">
         <header className="mx-auto max-w-[clamp(42rem,48vw,64rem)] text-center">
           {/* The platform marks lead the block, so they carry real size; the glyph
               inside each chip scales with it (`[&_svg]`). */}
@@ -63,17 +66,18 @@ export default async function ReferencesPage() {
               <PlatformChip
                 key={slug}
                 slug={slug}
-                className="size-[clamp(2.5rem,2.9vw,3.5rem)] bg-card shadow-2xs [&_img]:size-[55%] [&_svg]:size-[55%]"
+                className="size-[clamp(2.5rem,2.9vw,3.5rem)] bg-card shadow-2xs max-sm:size-9 [&_img]:size-[55%] [&_svg]:size-[55%]"
               />
             ))}
           </div>
 
           {/* One line from a small tablet up; `text-balance` lets it break evenly on the
               narrowest phones rather than overflow. */}
-          {/* PHONE: 32px. The clamp's 24px floor is sized for a laptop column and read
-              as body-ish on a phone, where this line is the page's only heading. It
-              breaks onto two balanced lines at 375px. */}
-          <h1 className="mt-[clamp(1.25rem,1.6vw,2rem)] text-balance text-[clamp(1.5rem,2.6vw,3rem)] font-semibold leading-[1.15] tracking-tight text-foreground max-sm:text-[2rem]">
+          {/* PHONE: 28px. The clamp's 24px floor is sized for a laptop column and read
+              as body-ish on a phone, where this line is the page's only heading; 32px
+              pushed the search below the fold on a short phone once the block was
+              top-aligned. It breaks onto two balanced lines at 375px. */}
+          <h1 className="mt-[clamp(1.25rem,1.6vw,2rem)] text-balance text-[clamp(1.5rem,2.6vw,3rem)] font-semibold leading-[1.15] tracking-tight text-foreground max-sm:mt-4 max-sm:text-[1.75rem]">
             References, all in one place
           </h1>
 

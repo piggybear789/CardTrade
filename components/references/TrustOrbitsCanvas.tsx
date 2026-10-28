@@ -5,7 +5,7 @@
 // Paints one frame of the Trust Network: the sun, planets on orbits seen in
 // perspective and sized by reputation, the selected planet's connections, and
 // each handle with its star rating locked directly beneath its body so nothing
-// jumps or shifts alignment as the system spins.
+// jumps or shifts alignment as the system turns.
 
 import {
   useEffect,
@@ -290,7 +290,7 @@ export function TrustOrbitsCanvas({
   };
   useLayoutEffect(measure);
   // The card can also change height on its own, with nothing here re-rendering: a
-  // selection pauses the spin, so "Show more" on a long review grew the card while the
+  // selected system is at rest, so "Show more" on a long review grew the card while the
   // drawing stayed fitted to the short one. Watch the card itself while it is shown.
   const shownCard = orbits.panel.key;
   useEffect(() => {
@@ -304,7 +304,7 @@ export function TrustOrbitsCanvas({
   // FIT THE SYSTEM, NOT THE FRAME. The first version shrank the whole frame until it
   // ended above the card, so the frame's empty margins shrank too and the system came
   // out about half size. Now only the band the system occupies (`systemExtent`, which
-  // holds still while it spins) is fitted: the drawing first slides up into its own
+  // holds still while it turns) is fitted: the drawing first slides up into its own
   // empty top margin, and shrinks only by whatever sliding cannot cover.
   const lift = (() => {
     if (!frame.compact || heights.drawing <= 0 || heights.card <= 0) return { scale: 1, shift: 0 };
@@ -360,7 +360,7 @@ export function TrustOrbitsCanvas({
     tabIndex: 0,
     'aria-label': ariaLabel,
     'aria-pressed': key === selectedKey,
-    className: cn('group cursor-pointer outline-none', pendingKey === key && 'animate-pulse'),
+    className: cn('group cursor-pointer outline-none', pendingKey === key && 'animate-pulse motion-reduce:animate-none'),
     onClick: (event: MouseEvent<SVGGElement>) => orbits.tap(key, pointOf(event)),
     onKeyDown: (event: KeyboardEvent<SVGGElement>) => {
       if (event.key === 'Enter' || event.key === ' ') {

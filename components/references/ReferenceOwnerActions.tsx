@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { withdrawReference } from '@/lib/actions/references';
 import type { ReferenceGraphNode } from '@/lib/references/graph';
+import { focusReferenceList } from '@/components/references/referenceListFocus';
 
 /** Keeps clicks and keys inside the actions (and their dialogs) from selecting the card. */
 function contain(event: SyntheticEvent) {
@@ -57,6 +58,7 @@ export function ReferenceOwnerActions({
       setWithdrawing(false);
       toast.success('Reference withdrawn');
       router.refresh();
+      focusReferenceList();
     });
   };
 

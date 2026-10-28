@@ -63,9 +63,6 @@ const FAN_STEP = 0.6;
 /** Radians turned or tilted per frame width dragged: about the rate that keeps the grabbed planet under the pointer. */
 const DRAG_YAW_PER_WIDTH = 2.2;
 const DRAG_TILT_PER_WIDTH = 3;
-/** Labels keep this far inside the frame's sides and apart from each other. */
-const LABEL_MARGIN = 4;
-const LABEL_GAP = 4;
 
 /** Orbit radii as a fraction of frame width, by how many orbits are needed. */
 const ORBIT_FRACTIONS = {
@@ -91,12 +88,6 @@ export interface OrbitPersonInput {
 export interface OrbitFocus {
   key: string;
   open: number;
-}
-
-/** The area labels are fitted into. */
-export interface OrbitBounds {
-  width: number;
-  height: number;
 }
 
 export interface OrbitSceneInput {
@@ -566,101 +557,6 @@ export function arcPath(a: Point, b: Point, centre: Point): string {
   return `M ${fixed(a.x)} ${fixed(a.y)} Q ${fixed(mx + (nx / length) * bow)} ${fixed(my + (ny / length) * bow)} ${fixed(b.x)} ${fixed(b.y)}`;
 }
 
-export type LabelAnchor = 'start' | 'middle' | 'end';
-
-export interface LabelSpot {
-  x: number;
-  /** The text's vertical centre. */
-  y: number;
-  anchor: LabelAnchor;
-}
-
-export interface LabelRequest {
-  key: string;
-  width: number;
-  height: number;
-  /** Where the label may go, best first. */
-  spots: readonly LabelSpot[];
-  /** Shown even where it has to be nudged or overlap, as the selected person's is. */
-  required?: boolean;
-}
-
-export interface PlacedLabel extends LabelSpot {
-  key: string;
-}
-
-interface Box {
-  left: number;
-  right: number;
-  top: number;
-  bottom: number;
-}
-
-function boxAt(spot: LabelSpot, width: number, height: number): Box {
-  const left = spot.anchor === 'start' ? spot.x : spot.anchor === 'end' ? spot.x - width : spot.x - width / 2;
-  return { left, right: left + width, top: spot.y - height / 2, bottom: spot.y + height / 2 };
-}
-
-function overlaps(a: Box, b: Box, gap: number): boolean {
-  return a.left < b.right + gap && b.left < a.right + gap && a.top < b.bottom && b.top < a.bottom;
-}
-
-/**
- * Places labels in the order given, each at the first of its spots that sits
- * inside the bounds, off every other body, and clear of the labels already placed.
- * A label with nowhere to go is left out rather than cut short or drawn over another.
- */
-export function placeLabels(
-  requests: readonly LabelRequest[],
-  bounds: OrbitBounds,
-  bodies: readonly { key: string; x: number; y: number; r: number }[] = [],
-): PlacedLabel[] {
-  const blocked = bodies.map((body) => ({
-    key: body.key,
-    box: { left: body.x - body.r, right: body.x + body.r, top: body.y - body.r, bottom: body.y + body.r },
-  }));
-  const labels: Box[] = [];
-  const placed: PlacedLabel[] = [];
-  const inside = (box: Box) =>
-    box.left >= LABEL_MARGIN && box.right <= bounds.width - LABEL_MARGIN && box.top >= 0 && box.bottom <= bounds.height;
-
-  for (const request of requests) {
-    let chosen: { spot: LabelSpot; box: Box } | null = null;
-    for (const spot of request.spots) {
-      let at = spot;
-      let box = boxAt(spot, request.width, request.height);
-      // A centred label can slide sideways to stay in bounds and still sit under or over its body.
-      if (spot.anchor === 'middle') {
-        const dx = Math.max(LABEL_MARGIN - box.left, 0) + Math.min(bounds.width - LABEL_MARGIN - box.right, 0);
-        at = { ...spot, x: spot.x + dx };
-        box = { ...box, left: box.left + dx, right: box.right + dx };
-      }
-      const clear =
-        inside(box) &&
-        !blocked.some((body) => body.key !== request.key && overlaps(box, body.box, 0)) &&
-        !labels.some((other) => overlaps(box, other, LABEL_GAP));
-      if (clear) {
-        chosen = { spot: at, box };
-        break;
-      }
-    }
-    if (!chosen && request.required && request.spots.length > 0) {
-      const spot = request.spots[0];
-      const box = boxAt(spot, request.width, request.height);
-      const dx = Math.max(LABEL_MARGIN - box.left, 0) + Math.min(bounds.width - LABEL_MARGIN - box.right, 0);
-      const dy = Math.max(-box.top, 0) + Math.min(bounds.height - box.bottom, 0);
-      chosen = {
-        spot: { ...spot, x: spot.x + dx, y: spot.y + dy },
-        box: { left: box.left + dx, right: box.right + dx, top: box.top + dy, bottom: box.bottom + dy },
-      };
-    }
-    if (!chosen) continue;
-    labels.push(chosen.box);
-    placed.push({ key: request.key, anchor: chosen.spot.anchor, x: round(chosen.spot.x, 100), y: round(chosen.spot.y, 100) });
-  }
-  return placed;
-}
-
 export interface DrawCandidate {
   key: string;
   issue: boolean;
@@ -727,7 +623,7 @@ export function splitConnections(
  * of stars opens) down to the room kept under its front (the labels).
  *
  * Depends only on the camera, never on yaw, so a layout keyed on it holds still while
- * the system spins. The details card uses it on phones to lift the drawing clear of
+ * the system turns. The details card uses it on phones to lift the drawing clear of
  * itself: fitting the whole FRAME instead shrank the system by the frame's empty
  * margins too, and left it tiny.
  */

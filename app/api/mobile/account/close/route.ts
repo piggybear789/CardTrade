@@ -19,9 +19,11 @@
 // `callerProfileId` and `targetProfileId`, which makes the orchestrator's own-account
 // guard hold structurally rather than by trusting this handler to have checked.
 
+import { revalidateTag } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { authenticateMobileRequest } from '@/lib/api/mobileSession';
+import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { createDefaultAccountClosureOrchestrator } from '@/domain/orchestrator/supabaseAccountClosureRepository';
 
 /**
@@ -47,6 +49,9 @@ export async function POST(request: NextRequest) {
     targetProfileId: auth.session.userId,
     at: new Date(),
   });
+  // Closure moves the member's references onto their released handles (0164); drop
+  // every cached reference read so nothing still shows them under the closed account.
+  if (result.ok) revalidateTag(REFERENCES_CACHE_TAG, { expire: 0 });
 
   return NextResponse.json(result);
 }

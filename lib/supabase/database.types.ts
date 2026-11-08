@@ -2904,11 +2904,19 @@ export type Database = {
         };
         Relationships: [];
       };
-      /** Positive reference edges (0155). Service-role writes; public reads via reference_edges_public. */
+      /**
+       * Reference edges (0155). Service-role writes; public reads via reference_edges_public.
+       * An imported reference (0166) is written by a handle (`voucher_claim_id`) and has no
+       * `voucher_id` until a member claims that handle.
+       */
       member_references: {
         Row: {
           id: string;
-          voucher_id: string;
+          voucher_id: string | null;
+          voucher_claim_id: string | null;
+          source: 'MEMBER' | 'INSTAGRAM_IMPORT';
+          source_url: string | null;
+          imported_at: string | null;
           target_profile_id: string | null;
           target_claim_id: string | null;
           platform: string;
@@ -2935,7 +2943,11 @@ export type Database = {
         };
         Insert: {
           id?: string;
-          voucher_id: string;
+          voucher_id?: string | null;
+          voucher_claim_id?: string | null;
+          source?: 'MEMBER' | 'INSTAGRAM_IMPORT';
+          source_url?: string | null;
+          imported_at?: string | null;
           target_profile_id?: string | null;
           target_claim_id?: string | null;
           platform: string;
@@ -2962,7 +2974,11 @@ export type Database = {
         };
         Update: {
           id?: string;
-          voucher_id?: string;
+          voucher_id?: string | null;
+          voucher_claim_id?: string | null;
+          source?: 'MEMBER' | 'INSTAGRAM_IMPORT';
+          source_url?: string | null;
+          imported_at?: string | null;
           target_profile_id?: string | null;
           target_claim_id?: string | null;
           platform?: string;
@@ -3031,6 +3047,71 @@ export type Database = {
           claimant_message?: string | null;
           decided_by?: string | null;
           decided_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** Instagram items the importer turned into a reference (0166). Rejected items are never stored. Service role only. */
+      reference_imports: {
+        Row: {
+          source_ref: string;
+          reference_id: string | null;
+          source_url: string;
+          imported_at: string;
+        };
+        Insert: {
+          source_ref: string;
+          reference_id?: string | null;
+          source_url: string;
+          imported_at?: string;
+        };
+        Update: {
+          source_ref?: string;
+          reference_id?: string | null;
+          source_url?: string;
+          imported_at?: string;
+        };
+        Relationships: [];
+      };
+      /** The reference importer's crawl queue (0166). Service role only. */
+      ig_crawl_accounts: {
+        Row: {
+          handle_norm: string;
+          status: 'QUEUED' | 'DONE' | 'SKIPPED' | 'FAILED';
+          depth: number;
+          discovered_from: string | null;
+          discovered_via: string | null;
+          is_tcg: boolean | null;
+          skip_reason: string | null;
+          references_found: number;
+          crawled_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          handle_norm: string;
+          status?: 'QUEUED' | 'DONE' | 'SKIPPED' | 'FAILED';
+          depth?: number;
+          discovered_from?: string | null;
+          discovered_via?: string | null;
+          is_tcg?: boolean | null;
+          skip_reason?: string | null;
+          references_found?: number;
+          crawled_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          handle_norm?: string;
+          status?: 'QUEUED' | 'DONE' | 'SKIPPED' | 'FAILED';
+          depth?: number;
+          discovered_from?: string | null;
+          discovered_via?: string | null;
+          is_tcg?: boolean | null;
+          skip_reason?: string | null;
+          references_found?: number;
+          crawled_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -3601,11 +3682,14 @@ export type Database = {
         };
         Relationships: [];
       };
-      /** Live reference edges (0155, 0161, 0163). Public projection: no person keys, no proof paths. */
+      /** Live reference edges (0155, 0161, 0163, 0166). Public projection: no person keys, no proof paths. */
       reference_edges_public: {
         Row: {
           id: string;
-          voucher_id: string;
+          voucher_id: string | null;
+          voucher_claim_id: string | null;
+          source: 'MEMBER' | 'INSTAGRAM_IMPORT';
+          source_url: string | null;
           target_profile_id: string | null;
           target_claim_id: string | null;
           platform: string;

@@ -61,6 +61,8 @@ function node(
     occurredMonth: '2026-09',
     category: null,
     edited: false,
+    imported: false,
+    sourceUrl: null,
     children: [],
     ...extra,
   };

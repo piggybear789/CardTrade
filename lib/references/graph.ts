@@ -38,7 +38,10 @@ import { unstable_cache } from 'next/cache';
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import {
   EMPTY_TALLY,
+  authorKey,
   claimKey,
+  handleAuthorClaimId,
+  isHandleAuthor,
   peopleTallies,
   profileKey,
   rowsOrThrow,
@@ -134,6 +137,10 @@ export interface ReferenceGraphNode {
   category: string | null;
   /** Changed by its author after it was published. */
   edited: boolean;
+  /** Read from a public Instagram post, not written on NoDitto, and not ID-verified (0166). */
+  imported: boolean;
+  /** The Instagram post or profile it was read from. */
+  sourceUrl: string | null;
   /** Their own best-vouched vouchers who are not drawn themselves. Empty for an issue. */
   children: ReferenceGraphChild[];
 }
@@ -300,6 +307,10 @@ interface MergedEdge {
   deals: number;
   proofStatus: string;
   hasEscrow: boolean;
+  /** The face reference was read from Instagram rather than written on NoDitto (0166). */
+  imported: boolean;
+  /** Where that imported reference was read. */
+  sourceUrl: string | null;
 }
 
 function proofOf(edge: Pick<MergedEdge, 'hasEscrow' | 'proofStatus'>): ReferenceProof {
@@ -307,16 +318,46 @@ function proofOf(edge: Pick<MergedEdge, 'hasEscrow' | 'proofStatus'>): Reference
   return edge.proofStatus === 'CHECKED' ? 'receipt' : 'vouch';
 }
 
-/** What a node needs for its author to edit or withdraw it. */
+/** What a node needs for its author to edit or withdraw it, and where an import came from. */
 function editableFields(
   edge: MergedEdge,
-): Pick<ReferenceGraphNode, 'referenceId' | 'occurredMonth' | 'category' | 'edited'> {
+): Pick<ReferenceGraphNode, 'referenceId' | 'occurredMonth' | 'category' | 'edited' | 'imported' | 'sourceUrl'> {
   return {
     referenceId: edge.referenceId,
     occurredMonth: edge.occurredMonth.slice(0, 7),
     category: edge.category,
     edited: edge.editedAt !== null,
+    imported: edge.imported,
+    sourceUrl: edge.sourceUrl,
   };
+}
+
+/** A handle author or recipient drawn as a person: the handle is all there is. */
+interface HandleParty {
+  profileId: string;
+  handle: string;
+  address: ReferenceAddress;
+  name: string;
+}
+
+/** Handle parties for `claim:<id>` keys, by key. Claims that no longer exist drop out. */
+async function handleParties(admin: Admin, keys: readonly string[]): Promise<Map<string, HandleParty>> {
+  const map = new Map<string, HandleParty>();
+  const ids = Array.from(new Set(keys.filter(isHandleAuthor).map(handleAuthorClaimId)));
+  if (ids.length === 0) return map;
+  const claims = rowsOrThrow(
+    await admin.from('social_claims').select('id, platform, handle').in('id', ids),
+    'author handles',
+  );
+  for (const claim of claims) {
+    map.set(`claim:${claim.id}`, {
+      profileId: `claim:${claim.id}`,
+      handle: `@${claim.handle}`,
+      address: claimAddress(claim),
+      name: claim.handle,
+    });
+  }
+  return map;
 }
 
 async function mergedIncoming(
@@ -368,7 +409,10 @@ async function mergedIncoming(
     });
 
   return mergeEdgeRows(
-    allEdges.map((edge) => ({ party: edge.voucher_id, edge })),
+    allEdges.flatMap((edge) => {
+      const party = authorKey(edge);
+      return party ? [{ party, edge }] : [];
+    }),
     rowsOrThrow(reviewResult, 'incoming reviews').map((review) => ({ party: review.reviewer_id, review })),
   );
 }
@@ -387,6 +431,8 @@ interface EdgeRow {
   occurred_month: string;
   deal_count: number;
   proof_status: string;
+  source: 'MEMBER' | 'INSTAGRAM_IMPORT';
+  source_url: string | null;
 }
 
 interface ReviewRow {
@@ -437,6 +483,8 @@ function mergeEdgeRows(
       deals: edge.deal_count,
       proofStatus: edge.proof_status,
       hasEscrow: false,
+      imported: edge.source === 'INSTAGRAM_IMPORT',
+      sourceUrl: edge.source === 'INSTAGRAM_IMPORT' ? edge.source_url : null,
     });
   }
   for (const { party, review } of reviews) {
@@ -470,6 +518,8 @@ function mergeEdgeRows(
         deals: 1,
         proofStatus: 'NONE',
         hasEscrow: true,
+        imported: false,
+        sourceUrl: null,
       });
     }
   }
@@ -488,6 +538,8 @@ function faceOf(edge: EdgeRow) {
     platform: edge.platform,
     role: edge.role,
     occurredMonth: edge.occurred_month,
+    imported: edge.source === 'INSTAGRAM_IMPORT',
+    sourceUrl: edge.source === 'INSTAGRAM_IMPORT' ? edge.source_url : null,
   };
 }
 
@@ -520,20 +572,29 @@ interface GivenParty {
  * A reference to an unclaimed handle that has since been claimed is filed under the
  * profile that claimed it, so one person is one planet.
  */
-async function loadGiven(admin: Admin, profileId: string): Promise<ReferenceGraphGiven> {
+async function loadGiven(
+  admin: Admin,
+  author: { profileId: string } | { claimIds: string[] },
+): Promise<ReferenceGraphGiven> {
+  // A member's own references, or what an unclaimed handle wrote (imported, 0166).
+  // Once a handle is claimed its imports carry the claimant's `voucher_id`.
+  const profileId = 'profileId' in author ? author.profileId : null;
+  const edgesQuery = admin.from('reference_edges_public').select('*');
   const [edgeResult, reviewResult] = await Promise.all([
-    admin
-      .from('reference_edges_public')
-      .select('*')
-      .eq('voucher_id', profileId)
+    (profileId
+      ? edgesQuery.eq('voucher_id', profileId)
+      : edgesQuery.in('voucher_claim_id', 'claimIds' in author ? author.claimIds : []).is('voucher_id', null)
+    )
       .order('created_at', { ascending: false })
       .limit(500),
-    admin
-      .from('reviews')
-      .select('reviewee_id, rating, comment, created_at, source_type')
-      .eq('reviewer_id', profileId)
-      .order('created_at', { ascending: false })
-      .limit(500),
+    profileId
+      ? admin
+          .from('reviews')
+          .select('reviewee_id, rating, comment, created_at, source_type')
+          .eq('reviewer_id', profileId)
+          .order('created_at', { ascending: false })
+          .limit(500)
+      : Promise.resolve({ data: [] as { reviewee_id: string; rating: number; comment: string | null; created_at: string; source_type: string }[], error: null }),
   ]);
   const edges = rowsOrThrow(edgeResult, 'given references');
   const reviews = rowsOrThrow(reviewResult, 'given reviews');
@@ -666,26 +727,37 @@ async function assembleGraph(
   centre: Omit<ReferenceGraphCentre, 'peopleCount' | 'neutralCount' | 'negativeCount' | 'platforms'>,
   target: { profileId: string | null; claimIds: string[] },
 ): Promise<ReferenceGraphData> {
-  // Independent of everything below, so it runs alongside the incoming reads.
-  const givenPromise = target.profileId ? loadGiven(admin, target.profileId) : Promise.resolve(EMPTY_GIVEN);
+  // Independent of everything below, so it runs alongside the incoming reads. An
+  // unclaimed handle's page shows what it wrote about others too (imported, 0166).
+  const givenPromise = target.profileId
+    ? loadGiven(admin, { profileId: target.profileId })
+    : target.claimIds.length > 0
+      ? loadGiven(admin, { claimIds: target.claimIds })
+      : Promise.resolve(EMPTY_GIVEN);
   const merged = await mergedIncoming(admin, target);
 
-  const refereeIds = Array.from(new Set(merged.map((e) => e.voucherId)));
+  // Members, and handles that wrote an imported reference nobody has claimed yet.
+  const authorKeys = Array.from(new Set(merged.map((e) => e.voucherId)));
+  const refereeIds = authorKeys.filter((key) => !isHandleAuthor(key));
+  const authorClaimIds = authorKeys.filter(isHandleAuthor).map(handleAuthorClaimId);
   // The centre's own tally rides along with the referees', from the same read search uses.
   const centreKey = target.profileId ? profileKey(target.profileId) : claimKey(target.claimIds[0] ?? '');
-  const [profiles, handles, tallies] = await Promise.all([
+  const [profiles, handles, tallies, authorHandles] = await Promise.all([
     refereeProfiles(admin, refereeIds),
     primaryHandles(admin, refereeIds),
     peopleTallies(admin, {
       profileIds: target.profileId ? [...refereeIds, target.profileId] : refereeIds,
-      claimIds: target.profileId ? [] : target.claimIds,
+      claimIds: target.profileId ? authorClaimIds : [...target.claimIds, ...authorClaimIds],
     }),
+    handleParties(admin, authorKeys),
   ]);
-  const standingOf = (profileId: string) => tallies.get(profileKey(profileId))?.positive ?? 0;
+  const standingOf = (key: string) =>
+    tallies.get(isHandleAuthor(key) ? claimKey(handleAuthorClaimId(key)) : profileKey(key))?.positive ?? 0;
   const centreTally = tallies.get(centreKey) ?? EMPTY_TALLY;
 
   const validEdges = merged.filter(
-    (edge) => profiles.has(edge.voucherId) && edge.voucherId !== centre.profileId,
+    (edge) =>
+      (profiles.has(edge.voucherId) || authorHandles.has(edge.voucherId)) && edge.voucherId !== centre.profileId,
   );
   const platforms = platformBreakdown(validEdges);
 
@@ -700,7 +772,10 @@ async function assembleGraph(
 
   // Second degree, for drawn positives only. A voucher who is drawn too becomes
   // an arc between the two; the rest become the stars around that person.
-  const drawnIds = drawn.filter((c) => !c.issue).map((c) => c.edge.voucherId);
+  // Members only: a handle author has no references of its own to draw as stars.
+  const drawnIds = drawn
+    .filter((c) => !c.issue && !isHandleAuthor(c.edge.voucherId))
+    .map((c) => c.edge.voucherId);
   const secondDegree = drawnIds.length ? await vouchersFor(admin, drawnIds) : new Map<string, string[]>();
   const secondDegreeIds = Array.from(new Set(Array.from(secondDegree.values()).flat())).filter(
     (id) => !profiles.has(id),
@@ -742,6 +817,37 @@ async function assembleGraph(
   };
 
   const nodes: ReferenceGraphNode[] = drawn.flatMap(({ edge, issue }) => {
+    const author = authorHandles.get(edge.voucherId);
+    if (author) {
+      // An Instagram handle that wrote this; nobody has claimed it, so there is no
+      // member, no verified ID and no second degree behind it.
+      return [
+        {
+          id: `${author.profileId}:${edge.sentiment}`,
+          profileId: author.profileId,
+          handle: author.handle,
+          address: author.address,
+          name: author.name,
+          initials: initialsOf(author.name),
+          avatarPath: null,
+          identityVerified: false,
+          refs: standingOf(edge.voucherId),
+          platform: edge.platform,
+          platforms: edge.platforms,
+          kind: proofOf(edge),
+          sentiment: edge.sentiment,
+          rating: edge.rating,
+          categoryLabel: edge.categoryLabel,
+          comment: edge.comment,
+          role: edge.role,
+          roleLabel: roleLabel(edge.role),
+          dateLabel: formatOccurredMonth(edge.occurredMonth),
+          deals: edge.deals,
+          ...editableFields(edge),
+          children: [],
+        },
+      ];
+    }
     const profile = profiles.get(edge.voucherId);
     if (!profile) return [];
     const link = personLinkFor(profile, handles);
@@ -777,8 +883,8 @@ async function assembleGraph(
     centre: {
       ...centre,
       // PEOPLE, NEVER DEALS. A deal count is one author's say-so; how many different
-      // verified people vouch is what cannot be inflated by one of them. The same tally
-      // search shows (`peopleTallies`).
+      // how many different people had each experience. An imported handle is a
+      // distinct person until somebody claims it, which preserves the same rule.
       peopleCount: centreTally.positive,
       neutralCount: centreTally.neutral,
       negativeCount: centreTally.negative,
@@ -816,7 +922,8 @@ async function vouchersFor(admin: Admin, refereeIds: string[]): Promise<Map<stri
     sets.set(target, set);
   };
   for (const edge of rowsOrThrow(edgeResult, 'second-degree references')) {
-    if (edge.target_profile_id) add(edge.target_profile_id, edge.voucher_id);
+    // An imported reference from an unclaimed handle has no member to draw as a star.
+    if (edge.target_profile_id && edge.voucher_id) add(edge.target_profile_id, edge.voucher_id);
   }
   for (const review of rowsOrThrow(reviewResult, 'second-degree reviews')) {
     if (sentimentForRating(review.rating) === 'POSITIVE') add(review.reviewee_id, review.reviewer_id);

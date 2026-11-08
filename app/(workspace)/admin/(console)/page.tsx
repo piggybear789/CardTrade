@@ -319,7 +319,8 @@ async function loadReferencesQueue(
   const profileIds = new Set<string>();
   for (const row of claims) profileIds.add(row.claimant_id);
   for (const row of proofs) {
-    profileIds.add(row.voucher_id);
+    // An imported reference (0166) has no member author; receipts only come from members.
+    if (row.voucher_id) profileIds.add(row.voucher_id);
     if (row.target_profile_id) profileIds.add(row.target_profile_id);
   }
 

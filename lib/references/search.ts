@@ -16,6 +16,7 @@ import { unstable_cache } from 'next/cache';
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import {
   EMPTY_TALLY,
+  authorKey,
   claimKey,
   peopleTallies,
   profileKey,
@@ -131,7 +132,7 @@ async function mostReferenced(admin: Admin): Promise<{ profileIds: string[]; cla
   const [edges, reviews] = await Promise.all([
     admin
       .from('reference_edges_public')
-      .select('voucher_id, target_profile_id, target_claim_id, sentiment')
+      .select('voucher_id, voucher_claim_id, target_profile_id, target_claim_id, sentiment')
       .eq('sentiment', 'POSITIVE')
       .order('created_at', { ascending: false })
       .limit(2000),
@@ -148,7 +149,8 @@ async function mostReferenced(admin: Admin): Promise<{ profileIds: string[]; cla
       : edge.target_claim_id
         ? claimKey(edge.target_claim_id)
         : null;
-    if (target) entries.push({ target, person: edge.voucher_id, sentiment: edge.sentiment as ReferenceSentiment });
+    const person = authorKey(edge);
+    if (target && person) entries.push({ target, person, sentiment: edge.sentiment as ReferenceSentiment });
   }
   for (const review of rowsOrThrow(reviews, 'most-referenced reviews')) {
     entries.push({

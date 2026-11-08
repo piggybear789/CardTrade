@@ -208,6 +208,7 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
   // the latest one's. Say so rather than implying every deal happened that month.
   const referenceMeta = [
     proofLabel(node.kind),
+    node.imported ? 'Imported from Instagram' : null,
     node.deals > 1
       ? `${plural(node.deals, 'deal', 'deals')}${node.dateLabel ? `, latest ${node.dateLabel}` : ''}`
       : node.dateLabel,

@@ -14,7 +14,8 @@ import 'server-only';
 //   * only from people still on NoDitto: a banned or closed member's word is not counted
 //     anywhere, exactly as the graph does not draw them.
 //
-// Keys are `p:<profileId>` for a member and `c:<claimId>` for an unclaimed handle.
+// Keys are `p:<profileId>` for a member and `c:<claimId>` for an unclaimed target
+// handle. An imported author is keyed `claim:<claimId>` until they claim their handle.
 //
 // Reads run on the service role. A failed read THROWS, so a cached caller never stores
 // a count of zero that is really an outage.
@@ -39,6 +40,29 @@ const ID_CHUNK = 200;
 export const profileKey = (profileId: string) => `p:${profileId}`;
 export const claimKey = (claimId: string) => `c:${claimId}`;
 
+/** The prefix of an author who is a handle rather than a member (0166). */
+const HANDLE_AUTHOR = 'claim:';
+
+/**
+ * Who wrote a reference, as one person: the member, or for an imported reference whose
+ * handle nobody has claimed, `claim:<social_claims.id>` (0166). The same form `loadGiven`
+ * already uses for an unclaimed handle on the other end.
+ */
+export function authorKey(edge: { voucher_id: string | null; voucher_claim_id: string | null }): string | null {
+  if (edge.voucher_id) return edge.voucher_id;
+  return edge.voucher_claim_id ? `${HANDLE_AUTHOR}${edge.voucher_claim_id}` : null;
+}
+
+/** Whether an author key is a handle rather than a member's profile id. */
+export function isHandleAuthor(key: string): boolean {
+  return key.startsWith(HANDLE_AUTHOR);
+}
+
+/** The `social_claims.id` behind a handle author key. */
+export function handleAuthorClaimId(key: string): string {
+  return key.slice(HANDLE_AUTHOR.length);
+}
+
 export const EMPTY_TALLY: PeopleTally = { positive: 0, neutral: 0, negative: 0 };
 
 /** `data`, or a thrown error naming what failed. */
@@ -58,7 +82,8 @@ function chunks<T>(items: readonly T[]): T[][] {
 
 /** The ids among `ids` that belong to a banned or closed member. */
 export async function departedMembers(admin: Admin, ids: Iterable<string>): Promise<Set<string>> {
-  const unique = Array.from(new Set(ids));
+  // A handle author is not a member, so it can't have been banned or closed.
+  const unique = Array.from(new Set(ids)).filter((id) => !isHandleAuthor(id));
   const departed = new Set<string>();
   const results = await Promise.all(
     chunks(unique).map((chunk) =>
@@ -104,7 +129,7 @@ export async function peopleTallies(
       chunks(profileIds).map((chunk) =>
         admin
           .from('reference_edges_public')
-          .select('voucher_id, target_profile_id, sentiment')
+          .select('voucher_id, voucher_claim_id, target_profile_id, sentiment')
           .in('target_profile_id', chunk)
           .limit(ROW_LIMIT),
       ),
@@ -113,7 +138,7 @@ export async function peopleTallies(
       chunks(claimIds).map((chunk) =>
         admin
           .from('reference_edges_public')
-          .select('voucher_id, target_claim_id, sentiment')
+          .select('voucher_id, voucher_claim_id, target_claim_id, sentiment')
           .in('target_claim_id', chunk)
           .limit(ROW_LIMIT),
       ),
@@ -132,20 +157,22 @@ export async function peopleTallies(
   const entries: PeopleTallyEntry[] = [];
   for (const result of profileEdges) {
     for (const edge of rowsOrThrow(result, 'profile reference counts')) {
-      if (!edge.target_profile_id) continue;
+      const person = authorKey(edge);
+      if (!edge.target_profile_id || !person) continue;
       entries.push({
         target: profileKey(edge.target_profile_id),
-        person: edge.voucher_id,
+        person,
         sentiment: edge.sentiment as ReferenceSentiment,
       });
     }
   }
   for (const result of claimEdges) {
     for (const edge of rowsOrThrow(result, 'handle reference counts')) {
-      if (!edge.target_claim_id) continue;
+      const person = authorKey(edge);
+      if (!edge.target_claim_id || !person) continue;
       entries.push({
         target: claimKey(edge.target_claim_id),
-        person: edge.voucher_id,
+        person,
         sentiment: edge.sentiment as ReferenceSentiment,
       });
     }

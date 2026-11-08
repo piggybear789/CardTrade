@@ -291,7 +291,12 @@ const ExperienceCards = memo(function ExperienceCards({
           const isSelected = key === selectedKey;
           const negative = node.sentiment === 'NEGATIVE';
           const mine = viewerId !== null && node.referenceId !== null && authorOf(node) === viewerId;
-          const meta = [proofLabel(node.kind), node.dateLabel, node.edited ? 'Edited' : null]
+          const meta = [
+            proofLabel(node.kind),
+            node.imported ? 'Imported from Instagram' : null,
+            node.dateLabel,
+            node.edited ? 'Edited' : null,
+          ]
             .filter(Boolean)
             .join(' · ');
           return (
@@ -356,6 +361,17 @@ const ExperienceCards = memo(function ExperienceCards({
 
                   {node.comment ? (
                     <p className="mt-2.5 text-body text-foreground/90">{node.comment}</p>
+                  ) : null}
+                  {node.imported && node.sourceUrl ? (
+                    <a
+                      href={node.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(event) => event.stopPropagation()}
+                      className="mt-2 text-meta text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                    >
+                      View original Instagram post
+                    </a>
                   ) : null}
                 </div>
 

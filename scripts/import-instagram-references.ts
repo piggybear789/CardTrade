@@ -25,6 +25,9 @@
 //               for free from the posts and comments it reads anyway (0168).
 //   --network x queue everyone account x follows and everyone following it (5 credits per
 //               page of up to ~200), with their pictures, ahead of the rest of the queue.
+//   --recheck   work only the accounts queued again for a second look (skip_reason
+//               "Recheck: ..."), e.g. ones Apify read before pinned posts and the AI
+//               feedback-thread check existed.
 //   --handle x  crawl one account now.
 //
 // COST (SocialCrawl credits): a posts page is 1, a post's details 1, a comments page of 15
@@ -79,6 +82,8 @@ const concurrency = Math.max(1, intArg('concurrency', 4, 12));
 const reserve = intArg('reserve', 4_000, 1_000_000);
 const maxCreditsThisRun = intArg('max-credits', 1_000_000, 1_000_000);
 const commentPages = Math.max(1, intArg('comment-pages', 4, 20));
+// Only the accounts queued again for a second look (`skip_reason` starts "Recheck:").
+const recheckOnly = argv.includes('--recheck');
 const staleDays = Math.max(1, intArg('stale-days', 7, 365));
 
 const SCAM_HASHTAGS = [
@@ -1145,6 +1150,7 @@ async function main(): Promise<void> {
       while (processed < maxAccounts && canSpend()) {
         const rows = await db<{ handle_norm: string; depth: number }[]>(
           `ig_crawl_accounts?select=handle_norm,depth&status=eq.QUEUED&depth=lte.${maxDepth}` +
+            (recheckOnly ? `&skip_reason=like.${encodeURIComponent('Recheck:*')}` : '') +
             `&order=depth.asc,created_at.asc&limit=${Math.min(concurrency * 10, maxAccounts - processed)}`,
         );
         if (rows.length === 0) {

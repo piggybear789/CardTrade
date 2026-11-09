@@ -754,6 +754,7 @@ export function TrustOrbitsCanvas({
   return (
     <div ref={wrapperRef} className="relative mx-auto w-full max-w-[min(100%,clamp(780px,50vw,1080px))]">
       <svg
+        ref={orbits.attach}
         viewBox={`0 0 ${frame.width} ${frame.height}`}
         className="block h-auto w-full cursor-grab touch-pan-y select-none active:cursor-grabbing"
         role="group"

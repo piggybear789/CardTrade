@@ -19,6 +19,7 @@ function handoff(centreKey: string): OrbitHandoff {
     centreKey,
     items: new Map(),
     view: { yaw: 0, tilt: 0.42 },
+    autoSpin: true,
     transition: null,
     planets: [],
     focusKey: null,

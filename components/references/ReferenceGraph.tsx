@@ -26,6 +26,7 @@ import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { Switch } from '@/components/ui/switch';
 import {
   PlatformChip,
   SentimentBadge,
@@ -131,13 +132,15 @@ interface NetworkToolbarProps {
   filterByPlatform: (slug: string | null) => void;
   opacity: number;
   tilted: boolean;
+  autoSpin: boolean;
+  toggleSpin: () => void;
   resetView: () => void;
 }
 
 /**
- * MEMOISED, like the header and the cards: the drawing re-renders on every drag and walk
- * frame, and nothing here changes with it. The props are the values this reads, never the
- * whole `orbits`, which is a new object every frame.
+ * MEMOISED, like the header and the cards: the drawing re-renders on every spin, drag and
+ * walk frame, and nothing here changes with it. The props are the values this reads, never
+ * the whole `orbits`, which is a new object every frame.
  */
 const NetworkToolbar = memo(function NetworkToolbar({
   platforms,
@@ -146,6 +149,8 @@ const NetworkToolbar = memo(function NetworkToolbar({
   filterByPlatform,
   opacity,
   tilted,
+  autoSpin,
+  toggleSpin,
   resetView,
 }: NetworkToolbarProps) {
   return (
@@ -202,16 +207,22 @@ const NetworkToolbar = memo(function NetworkToolbar({
         })}
       </div>
 
-      {/* Pointer only. Hidden on phones: a vertical drag there scrolls the page, so tilt
-          (and so "Reset view") cannot be reached. Rendered only once the system is
-          tilted, so the bar keeps its height either way (`min-h-11`). */}
-      {tilted ? (
-        <div className="hidden items-center sm:flex">
-          <Button variant="ghost" size="xs" onClick={resetView}>
+      <div className="flex items-center gap-4">
+        {/* Pointer only. Hidden on phones: a vertical drag there scrolls the page, so
+            tilt (and so "Reset view") cannot be reached. Rendered only once the system is
+            tilted, so the bar keeps its height either way (`min-h-11`). */}
+        {tilted ? (
+          <Button variant="ghost" size="xs" onClick={resetView} className="hidden sm:inline-flex">
             Reset view
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+        {/* AT EVERY WIDTH. The drawing moves on its own, so a reader must be able to stop
+            it everywhere it moves (WCAG 2.2.2), phones included. */}
+        <label className="flex cursor-pointer items-center gap-2 text-meta font-medium text-muted-foreground">
+          <Switch checked={autoSpin} onCheckedChange={toggleSpin} />
+          Spin
+        </label>
+      </div>
     </div>
   );
 });
@@ -441,6 +452,8 @@ export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
         filterByPlatform={orbits.filterByPlatform}
         opacity={arrival(orbits)}
         tilted={orbits.tilted}
+        autoSpin={orbits.autoSpin}
+        toggleSpin={orbits.toggleSpin}
         resetView={orbits.resetView}
       />
       <div

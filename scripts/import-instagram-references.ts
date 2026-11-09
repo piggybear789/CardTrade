@@ -20,6 +20,9 @@
 //               since the last check, and new comments on known reference posts, read only
 //               when the post's comment count has grown (`ig_reference_posts`, 0167).
 //   --hashtags  read recent posts under scam-report hashtags and judge the warnings.
+//   --avatars   copy profile pictures for handles people have references for (1 credit
+//               each); --avatars-all also every author. Every other mode copies pictures
+//               for free from the posts and comments it reads anyway (0168).
 //   --handle x  crawl one account now.
 //
 // COST (SocialCrawl credits): a posts page is 1, a post's details 1, a comments page of 15
@@ -54,13 +57,15 @@ const intArg = (name: string, fallback: number, max: number) => {
 const HANDLE = /^[a-z0-9._]{1,30}$/;
 const singleHandle = arg('handle')?.replace(/^@/, '').toLowerCase() ?? null;
 if (singleHandle && !HANDLE.test(singleHandle)) throw new Error('--handle must be one Instagram username.');
-const mode: 'crawl' | 'refresh' | 'hashtags' | 'single' = singleHandle
+const mode: 'crawl' | 'refresh' | 'hashtags' | 'avatars' | 'single' = singleHandle
   ? 'single'
   : argv.includes('--refresh')
     ? 'refresh'
     : argv.includes('--hashtags')
       ? 'hashtags'
-      : 'crawl';
+      : argv.includes('--avatars') || argv.includes('--avatars-all')
+        ? 'avatars'
+        : 'crawl';
 const dryRun = argv.includes('--dry-run');
 const maxAccounts = intArg('max-accounts', 100_000, 1_000_000);
 const maxDepth = intArg('max-depth', 1_000, 1_000);
@@ -250,7 +255,7 @@ interface ScPost {
   post?: {
     url?: string;
     content?: { text?: string | null };
-    author?: { username?: string };
+    author?: { username?: string; avatar_url?: string | null };
     engagement?: { comments?: number | null };
     published_at?: string;
   };
@@ -262,7 +267,7 @@ interface ScComment {
     post_id?: string;
     parent_id?: string | null;
     text?: string | null;
-    author?: { username?: string | null };
+    author?: { username?: string | null; avatar_url?: string | null };
     published_at?: string;
   };
 }
@@ -276,6 +281,7 @@ function toPost(row: ScPost, fallbackOwner: string): Post | null {
   const url = row.post?.url;
   const shortcode = postKey(url);
   if (!url || !shortcode) return null;
+  seeAvatar(row.post?.author?.username ?? fallbackOwner, row.post?.author?.avatar_url);
   return {
     shortcode,
     url: `https://www.instagram.com/p/${shortcode}/`,
@@ -324,6 +330,7 @@ async function readComments(post: Post, pages: number, stopBefore?: string): Pro
     const rows = (res.data?.items ?? []).flatMap((row): Comment[] => {
       const c = row.comment;
       const author = c?.author?.username?.toLowerCase();
+      if (author) seeAvatar(author, c?.author?.avatar_url);
       if (!c?.id || !author || !c.text?.trim() || c.parent_id) return [];
       return [{ id: c.id, text: c.text, author, publishedAt: c.published_at, url: c.url ?? post.url }];
     });
@@ -466,14 +473,95 @@ function normaliseVerdict(raw: Verdict): Verdict {
 // Writes
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Profile pictures (0168)
+// ---------------------------------------------------------------------------
+
+/** Picture links seen in posts and comments this run, by handle. They expire within days. */
+const avatarSeen = new Map<string, string>();
+/** Claims whose picture was copied or tried already, so each is fetched at most once. */
+const avatarDone = new Set<string>();
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024; // the `profile-images` bucket's own limit
+const AVATAR_TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+
+function seeAvatar(handle: string | null | undefined, url: string | null | undefined): void {
+  const key = handle?.toLowerCase();
+  if (!key || !url || !/^https:\/\/[^/]*(cdninstagram\.com|fbcdn\.net)\//.test(url)) return;
+  if (!avatarSeen.has(key)) avatarSeen.set(key, url);
+}
+
+/**
+ * Copies a picture into `profile-images/instagram/<claim>.<ext>` and records it on the
+ * claim. A failed or non-image download records the attempt and stores nothing.
+ */
+async function storeAvatar(claimId: string, url: string): Promise<boolean> {
+  avatarDone.add(claimId);
+  if (dryRun) return false;
+  let path: string | null = null;
+  try {
+    const response = await fetch(url);
+    const type = (response.headers.get('content-type') ?? '').split(';')[0]!.trim().toLowerCase();
+    const ext = AVATAR_TYPES[type];
+    if (response.ok && ext) {
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength > 0 && bytes.byteLength <= AVATAR_MAX_BYTES) {
+        path = `instagram/${claimId}.${ext}`;
+        const upload = await fetch(`${supabase}/storage/v1/object/profile-images/${path}`, {
+          method: 'POST',
+          headers: {
+            apikey: service,
+            authorization: `Bearer ${service}`,
+            'content-type': type === 'image/jpg' ? 'image/jpeg' : type,
+            'x-upsert': 'true',
+            'cache-control': 'max-age=604800',
+          },
+          body: bytes,
+        });
+        if (!upload.ok) {
+          log(`  picture upload failed for ${claimId}: ${upload.status} ${(await upload.text()).slice(0, 120)}`);
+          path = null;
+        }
+      }
+    }
+  } catch {
+    path = null;
+  }
+  await db(`social_claims?id=eq.${claimId}`, {
+    method: 'PATCH',
+    headers: { prefer: 'return=minimal' },
+    body: JSON.stringify({
+      ...(path ? { avatar_path: path } : {}),
+      avatar_fetched_at: new Date().toISOString(),
+    }),
+  });
+  return path !== null;
+}
+
+/** Copies a handle's picture if this run has seen one and the claim has none yet. */
+async function ensureAvatar(handle: string, claimId: string): Promise<void> {
+  if (avatarDone.has(claimId)) return;
+  const url = avatarSeen.get(handle);
+  if (!url) return;
+  await storeAvatar(claimId, url).catch(() => undefined);
+}
+
+// ---------------------------------------------------------------------------
+// Claims and the queue
+// ---------------------------------------------------------------------------
+
 const claimCache = new Map<string, string>();
 
 /** The `social_claims` row for an Instagram handle, created unclaimed if new. */
 async function claim(username: string): Promise<string> {
   const cached = claimCache.get(username);
   if (cached) return cached;
-  const find = async () =>
-    db<{ id: string }[]>(`social_claims?select=id&platform=eq.instagram&handle_norm=eq.${encodeURIComponent(username)}&limit=1`);
+  const find = async () => {
+    const rows = await db<{ id: string; avatar_fetched_at: string | null }[]>(
+      `social_claims?select=id,avatar_fetched_at&platform=eq.instagram&handle_norm=eq.${encodeURIComponent(username)}&limit=1`,
+    );
+    if (rows[0]?.avatar_fetched_at) avatarDone.add(rows[0].id);
+    return rows;
+  };
   let id = (await find())[0]?.id;
   if (!id) {
     try {
@@ -567,6 +655,8 @@ async function writeReference(item: {
     return true;
   }
   const [authorClaim, targetClaim] = await Promise.all([claim(author), claim(target)]);
+  // Their pictures, from the posts and comments just read: no extra credits.
+  await Promise.all([ensureAvatar(author, authorClaim), ensureAvatar(target, targetClaim)]);
   const month = `${(item.timestamp ?? new Date().toISOString()).slice(0, 7)}-01`;
   // One author has one live edge per target and sentiment: a second item from them is
   // more provenance for that edge, not another person.
@@ -829,6 +919,67 @@ async function hashtagPass(): Promise<void> {
   }
 }
 
+/**
+ * Backfill: pictures for imported handles that have none yet, read from their profile
+ * (1 credit each). By default the handles people have references FOR (the ones whose
+ * pages are visited); --avatars-all adds every author as well.
+ */
+async function avatarPass(): Promise<void> {
+  const column = argv.includes('--avatars-all') ? null : 'target_claim_id';
+  const ids = new Set<string>();
+  for (let from = 0; ; from += 1000) {
+    const rows = await db<{ target_claim_id: string | null; voucher_claim_id: string | null }[]>(
+      `member_references?select=target_claim_id,voucher_claim_id&source=eq.INSTAGRAM_IMPORT&status=eq.LIVE&order=id.asc&offset=${from}&limit=1000`,
+    );
+    for (const row of rows) {
+      if (row.target_claim_id) ids.add(row.target_claim_id);
+      if (!column && row.voucher_claim_id) ids.add(row.voucher_claim_id);
+    }
+    if (rows.length < 1000) break;
+  }
+  const claims: { id: string; handle_norm: string }[] = [];
+  const all = Array.from(ids);
+  for (let i = 0; i < all.length; i += 150) {
+    claims.push(
+      ...(await db<{ id: string; handle_norm: string }[]>(
+        `social_claims?select=id,handle_norm&id=in.(${all.slice(i, i + 150).join(',')})&avatar_fetched_at=is.null&claimed_profile_id=is.null&platform=eq.instagram`,
+      )),
+    );
+  }
+  log(`Pictures to backfill: ${claims.length} handles (about ${claims.length} credits).`);
+  let stored = 0;
+  let missing = 0;
+  await pool(
+    claims.map((c) => ({ ...c })),
+    async (row) => {
+      const res = await sc<{ author?: { avatar_url?: string | null; ext?: { hd_avatar_url?: string | null } } }>(
+        'instagram/profile',
+        { handle: row.handle_norm, trim: 'true' },
+      ).catch((error) => {
+        if (error instanceof SocialCrawlError) return null;
+        throw error;
+      });
+      // The 150px picture: plenty for an avatar, and far under the bucket's size limit.
+      const url = res?.data?.author?.avatar_url ?? res?.data?.author?.ext?.hd_avatar_url ?? null;
+      if (url && (await storeAvatar(row.id, url))) stored++;
+      else {
+        missing++;
+        if (!dryRun) {
+          await db(`social_claims?id=eq.${row.id}`, {
+            method: 'PATCH',
+            headers: { prefer: 'return=minimal' },
+            body: JSON.stringify({ avatar_fetched_at: new Date().toISOString() }),
+          });
+        }
+      }
+      if ((stored + missing) % 100 === 0) {
+        log(`  pictures: ${stored} stored, ${missing} without one; credits left ${credits.remaining}`);
+      }
+    },
+  );
+  log(`Pictures: ${stored} stored, ${missing} without one (private, removed, or no picture).`);
+}
+
 /** Runs `work` over rows, `concurrency` at a time; a failed account is logged and moved on. */
 async function pool<T extends { handle_norm: string }>(rows: T[], work: (row: T) => Promise<void>): Promise<void> {
   let next = 0;
@@ -877,6 +1028,8 @@ async function main(): Promise<void> {
       await crawlAccount({ handle_norm: singleHandle!, depth: 0 });
     } else if (mode === 'hashtags') {
       await hashtagPass();
+    } else if (mode === 'avatars') {
+      await avatarPass();
     } else if (mode === 'refresh') {
       const cutoff = new Date(Date.now() - staleDays * 24 * 60 * 60 * 1000).toISOString();
       let processed = 0;

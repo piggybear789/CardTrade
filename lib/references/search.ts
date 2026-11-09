@@ -60,6 +60,8 @@ interface ClaimMatch {
   platform: string;
   handle: string;
   claimed_profile_id: string | null;
+  /** An unclaimed handle's copied public profile picture (0168). */
+  avatar_path: string | null;
 }
 
 /** `text` as a literal inside an ILIKE pattern, so `%` and `_` match only themselves. */
@@ -80,7 +82,7 @@ export async function searchSuggestions(needle: string): Promise<ReferenceSugges
   const [claimResult, nameResult] = await Promise.all([
     admin
       .from('social_claims')
-      .select('id, platform, handle, claimed_profile_id')
+      .select('id, platform, handle, claimed_profile_id, avatar_path')
       .ilike('handle', pattern)
       .order('handle', { ascending: true })
       .limit(60),
@@ -113,7 +115,7 @@ export const cachedTopSuggestions = unstable_cache(
       ? rowsOrThrow(
           await admin
             .from('social_claims')
-            .select('id, platform, handle, claimed_profile_id')
+            .select('id, platform, handle, claimed_profile_id, avatar_path')
             .in('id', top.claimIds),
           'most-referenced handles',
         )
@@ -201,7 +203,7 @@ async function buildSuggestions(
     profileIds.length
       ? admin
           .from('social_claims')
-          .select('id, platform, handle, claimed_profile_id')
+          .select('id, platform, handle, claimed_profile_id, avatar_path')
           .in('claimed_profile_id', profileIds)
           .order('claimed_at', { ascending: true })
       : Promise.resolve(none),
@@ -285,7 +287,7 @@ async function buildSuggestions(
       address: claimAddress(claim),
       name: claim.handle,
       regionCode: null,
-      avatarPath: null,
+      avatarPath: claim.avatar_path ?? null,
       referenceCount: countOf(claimKey(claim.id)),
       score: score(handle, claim.handle),
     });

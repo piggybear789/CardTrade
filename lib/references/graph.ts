@@ -338,6 +338,8 @@ interface HandleParty {
   handle: string;
   address: ReferenceAddress;
   name: string;
+  /** The handle's copied public profile picture (0168), or null. */
+  avatarPath: string | null;
 }
 
 /** Handle parties for `claim:<id>` keys, by key. Claims that no longer exist drop out. */
@@ -346,7 +348,7 @@ async function handleParties(admin: Admin, keys: readonly string[]): Promise<Map
   const ids = Array.from(new Set(keys.filter(isHandleAuthor).map(handleAuthorClaimId)));
   if (ids.length === 0) return map;
   const claims = rowsOrThrow(
-    await admin.from('social_claims').select('id, platform, handle').in('id', ids),
+    await admin.from('social_claims').select('id, platform, handle, avatar_path').in('id', ids),
     'author handles',
   );
   for (const claim of claims) {
@@ -355,6 +357,7 @@ async function handleParties(admin: Admin, keys: readonly string[]): Promise<Map
       handle: `@${claim.handle}`,
       address: claimAddress(claim),
       name: claim.handle,
+      avatarPath: claim.avatar_path,
     });
   }
   return map;
@@ -605,7 +608,7 @@ async function loadGiven(
   );
   const claims = claimIds.length
     ? rowsOrThrow(
-        await admin.from('social_claims').select('id, platform, handle').in('id', claimIds),
+        await admin.from('social_claims').select('id, platform, handle, avatar_path').in('id', claimIds),
         'given handles',
       )
     : [];
@@ -664,7 +667,7 @@ async function loadGiven(
       handle: `@${claim.handle}`,
       address: claimAddress(claim),
       name: claim.handle,
-      avatarPath: null,
+      avatarPath: claim.avatar_path,
       identityVerified: false,
       refs: standingOf(claimKey(claimId)),
     });
@@ -829,7 +832,7 @@ async function assembleGraph(
           address: author.address,
           name: author.name,
           initials: initialsOf(author.name),
-          avatarPath: null,
+          avatarPath: author.avatarPath,
           identityVerified: false,
           refs: standingOf(edge.voucherId),
           platform: edge.platform,
@@ -981,7 +984,7 @@ export async function loadClaimReferenceGraph(claimId: string): Promise<Referenc
   const admin = createAdminClient();
   const { data: claim, error } = await admin
     .from('social_claims')
-    .select('id, platform, handle, claimed_profile_id')
+    .select('id, platform, handle, claimed_profile_id, avatar_path')
     .eq('id', claimId)
     .maybeSingle();
   if (error) throw new Error(`[references] load handle: ${error.message}`);
@@ -1003,7 +1006,7 @@ export async function loadClaimReferenceGraph(claimId: string): Promise<Referenc
       identityVerified: false,
       isTrustedSeller: false,
       regionCode: null,
-      avatarPath: null,
+      avatarPath: claim.avatar_path,
       unclaimed: true,
       linkedHandles: [linkedHandle(claim)],
     },
@@ -1066,7 +1069,7 @@ export async function loadReferencePage(rawSlug: string, rawOn?: string | null):
   const admin = createAdminClient();
   let claimsQuery = admin
     .from('social_claims')
-    .select('id, platform, handle, claimed_profile_id')
+    .select('id, platform, handle, claimed_profile_id, avatar_path')
     .eq('handle_norm', slug.toLowerCase());
   if (on) claimsQuery = claimsQuery.eq('platform', on);
   const { data: claims, error } = await claimsQuery.order('platform', { ascending: true });
@@ -1101,6 +1104,7 @@ interface ClaimRow {
   platform: string;
   handle: string;
   claimed_profile_id: string | null;
+  avatar_path: string | null;
 }
 
 /** The people a set of same-spelled claims stand for, without banned or closed members. */
@@ -1117,7 +1121,7 @@ async function handleChoices(
       return [
         {
           claim,
-          choice: { ...base, name: claim.handle, identityVerified: false, avatarPath: null, unclaimed: true },
+          choice: { ...base, name: claim.handle, identityVerified: false, avatarPath: claim.avatar_path, unclaimed: true },
         },
       ];
     }

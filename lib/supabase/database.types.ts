@@ -2877,6 +2877,9 @@ export type Database = {
           created_by: string | null;
           claim_method: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'OAUTH' | 'DM_BOT' | 'STAFF';
           claimed_at: string | null;
+          /** Object path in `profile-images` of the copied public profile picture (0168). A PATH, never a URL. */
+          avatar_path: string | null;
+          avatar_fetched_at: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -2888,6 +2891,8 @@ export type Database = {
           created_by?: string | null;
           claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'OAUTH' | 'DM_BOT' | 'STAFF';
           claimed_at?: string | null;
+          avatar_path?: string | null;
+          avatar_fetched_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -2899,6 +2904,8 @@ export type Database = {
           created_by?: string | null;
           claim_method?: 'UNCLAIMED' | 'PROFILE_LINK' | 'BIO_CODE' | 'OAUTH' | 'DM_BOT' | 'STAFF';
           claimed_at?: string | null;
+          avatar_path?: string | null;
+          avatar_fetched_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

@@ -59,3 +59,6 @@ copy-all.txt
 
 # Local git worktrees (full repo copies), never committed
 /.worktrees/
+
+# Instagram downloads from scripts/ig_fetch.py
+.ig-cache/

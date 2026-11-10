@@ -28,6 +28,9 @@
 //   --recheck   work only the accounts queued again for a second look (skip_reason
 //               "Recheck: ..."), e.g. ones Apify read before pinned posts and the AI
 //               feedback-thread check existed.
+//   --local dir judge accounts downloaded by scripts/ig_fetch.py (Instaloader, a personal
+//               session) instead of calling SocialCrawl. Costs no credits; files move to
+//               dir/done/ once judged.
 //   --handle x  crawl one account now.
 //
 // COST (SocialCrawl credits): a posts page is 1, a post's details 1, a comments page of 15
@@ -41,7 +44,18 @@
 //
 // Only one run at a time: a lock file in the temp folder makes a second run exit.
 
-import { closeSync, existsSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from 'node:fs';
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+  writeSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -84,6 +98,8 @@ const maxCreditsThisRun = intArg('max-credits', 1_000_000, 1_000_000);
 const commentPages = Math.max(1, intArg('comment-pages', 4, 20));
 // Only the accounts queued again for a second look (`skip_reason` starts "Recheck:").
 const recheckOnly = argv.includes('--recheck');
+// Judge accounts already downloaded by scripts/ig_fetch.py instead of calling SocialCrawl.
+const localDir = arg('local');
 const staleDays = Math.max(1, intArg('stale-days', 7, 365));
 
 const SCAM_HASHTAGS = [
@@ -208,6 +224,7 @@ const credits = { remaining: Number.POSITIVE_INFINITY, spent: 0 };
 
 /** Whether the run may still spend credits. */
 function canSpend(): boolean {
+  if (localDir) return true;
   return credits.remaining > reserve && credits.spent < maxCreditsThisRun;
 }
 
@@ -303,8 +320,40 @@ function toPost(row: ScPost, fallbackOwner: string): Post | null {
   };
 }
 
+/** An account downloaded by scripts/ig_fetch.py (`--local`). */
+interface LocalAccount {
+  avatar?: string | null;
+  posts: Post[];
+  comments: Record<string, (Comment & { avatar?: string | null })[]>;
+}
+const localAccounts = new Map<string, LocalAccount>();
+
+function localAccount(handle: string): LocalAccount {
+  const cached = localAccounts.get(handle);
+  if (cached) return cached;
+  const file = join(localDir!, `${handle}.json`);
+  if (!existsSync(file)) throw new SocialCrawlError('NOT_FETCHED', `@${handle} is not in ${localDir}`);
+  const raw = JSON.parse(readFileSync(file, 'utf8')) as Partial<LocalAccount>;
+  const account: LocalAccount = { avatar: raw.avatar ?? null, posts: raw.posts ?? [], comments: raw.comments ?? {} };
+  localAccounts.set(handle, account);
+  return account;
+}
+
 /** One page of an account's posts, optionally only those since a date. */
 async function postsPage(handle: string, opts: { cursor?: string; since?: string } = {}) {
+  if (localDir) {
+    const account = localAccount(handle);
+    seeAvatar(handle, account.avatar);
+    const posts = account.posts.map((p) => ({
+      shortcode: p.shortcode,
+      url: p.url,
+      owner: (p.owner || handle).toLowerCase(),
+      caption: p.caption ?? '',
+      comments: p.comments ?? 0,
+      publishedAt: p.publishedAt,
+    }));
+    return { posts, next: null as string | null };
+  }
   const res = await sc<{ items?: ScPost[] }>('instagram/profile/posts', {
     handle,
     ...(opts.cursor ? { cursor: opts.cursor } : {}),
@@ -330,6 +379,15 @@ async function commentCount(shortcode: string): Promise<number | null> {
  * comments, a comment older than `stopBefore`, or a page that is all already imported.
  */
 async function readComments(post: Post, pages: number, stopBefore?: string): Promise<Comment[]> {
+  if (localDir) {
+    // Only the posts ig_fetch.py chose to read have comments; any other post reads as empty.
+    return (localAccount(post.owner).comments[post.shortcode] ?? []).flatMap((c) => {
+      seeAvatar(c.author, c.avatar);
+      return c.id && c.author && c.text?.trim()
+        ? [{ id: c.id, text: c.text, author: c.author.toLowerCase(), publishedAt: c.publishedAt, url: c.url || post.url }]
+        : [];
+    });
+  }
   const out: Comment[] = [];
   let cursor: string | null = null;
   for (let page = 0; page < pages && canSpend(); page++) {
@@ -1111,15 +1169,40 @@ async function main(): Promise<void> {
     return;
   }
   try {
-    const balance = await sc<{ balance: number }>('credits/balance', {});
-    credits.remaining = balance.data?.balance ?? credits.remaining;
-    log(`Mode ${mode}. SocialCrawl balance ${credits.remaining}; keeping ${reserve} in reserve. Model ${MODEL}.${dryRun ? ' DRY RUN.' : ''}`);
-    if (!canSpend()) {
-      log('Balance is at or below the reserve. Nothing to do.');
-      return;
+    if (localDir) {
+      log(`Mode local: judging downloads in ${localDir}, no SocialCrawl credits. Model ${MODEL}.${dryRun ? ' DRY RUN.' : ''}`);
+    } else {
+      const balance = await sc<{ balance: number }>('credits/balance', {});
+      credits.remaining = balance.data?.balance ?? credits.remaining;
+      log(`Mode ${mode}. SocialCrawl balance ${credits.remaining}; keeping ${reserve} in reserve. Model ${MODEL}.${dryRun ? ' DRY RUN.' : ''}`);
+      if (!canSpend()) {
+        log('Balance is at or below the reserve. Nothing to do.');
+        return;
+      }
     }
 
-    if (mode === 'single') {
+    if (localDir) {
+      // Every downloaded account, then moved to done/ so a second run does not judge it again.
+      const handles = readdirSync(localDir)
+        .filter((f) => f.endsWith('.json'))
+        .map((f) => f.slice(0, -5))
+        .filter((h) => HANDLE.test(h));
+      mkdirSync(join(localDir, 'done'), { recursive: true });
+      for (let i = 0; i < handles.length; i += 40) {
+        const batch = handles.slice(i, i + 40);
+        const known = await db<{ handle_norm: string; depth: number }[]>(
+          `ig_crawl_accounts?select=handle_norm,depth&handle_norm=in.(${batch.join(',')})`,
+        );
+        const depth = new Map(known.map((r) => [r.handle_norm, r.depth]));
+        await enqueue(batch.filter((h) => !depth.has(h)), 0, 'local', 'manual');
+        await pool(
+          batch.map((h) => ({ handle_norm: h, depth: depth.get(h) ?? 0 })),
+          crawlAccount,
+        );
+        if (!dryRun) for (const h of batch) renameSync(join(localDir, `${h}.json`), join(localDir, 'done', `${h}.json`));
+        progress('local');
+      }
+    } else if (mode === 'single') {
       await enqueue([singleHandle!], 0, singleHandle!, 'manual');
       await crawlAccount({ handle_norm: singleHandle!, depth: 0 });
     } else if (mode === 'hashtags') {

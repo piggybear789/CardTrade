@@ -56,6 +56,41 @@ import type {
 } from '@/lib/references/graph';
 import { cn } from '@/lib/utils';
 
+/**
+ * An imported comment's source is its comment permalink, `/p/{code}/c/{id}/`. Desktop
+ * Instagram opens the post with that comment shown. The Instagram app, and its mobile
+ * site, do not route `/c/` and land on the home feed, so a touch device gets the post
+ * itself, `/p/{code}/`. Picked by pointer in CSS, not by user agent in JS, so server
+ * and client render the same thing. Any other URL (a post, a profile) is used as is.
+ */
+function instagramPostUrl(url: string): string {
+  return url.replace(/^(https:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/[A-Za-z0-9_-]+\/)c\/[^/]+\/?$/i, '$1');
+}
+
+function SourceLink({ url }: { url: string }) {
+  const postUrl = instagramPostUrl(url);
+  const className =
+    'mt-2 text-meta text-muted-foreground underline underline-offset-2 hover:text-foreground';
+  const link = (href: string, extra?: string) => (
+    <a
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      onClick={(event) => event.stopPropagation()}
+      className={cn(className, extra)}
+    >
+      View original Instagram post
+    </a>
+  );
+  if (postUrl === url) return link(url);
+  return (
+    <>
+      {link(url, '[@media(pointer:coarse)]:hidden')}
+      {link(postUrl, 'hidden [@media(pointer:coarse)]:inline')}
+    </>
+  );
+}
+
 /** Goes to someone's references page. `keepScroll` holds the page where it is, for a page laid out the same. */
 export function usePageOpener(keepScroll: boolean): (address: ReferenceAddress) => void {
   const router = useRouter();
@@ -374,15 +409,7 @@ const ExperienceCards = memo(function ExperienceCards({
                     <p className="mt-2.5 text-body text-foreground/90">{node.comment}</p>
                   ) : null}
                   {node.imported && node.sourceUrl ? (
-                    <a
-                      href={node.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      onClick={(event) => event.stopPropagation()}
-                      className="mt-2 text-meta text-muted-foreground underline underline-offset-2 hover:text-foreground"
-                    >
-                      View original Instagram post
-                    </a>
+                    <SourceLink url={node.sourceUrl} />
                   ) : null}
                 </div>
 

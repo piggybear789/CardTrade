@@ -49,6 +49,13 @@ export default async function ReferencesPage() {
   // row). Centred, every keystroke moved the heading and the field being typed in. Top
   // aligned, a changing list moves only what is below it. From `sm` the list floats over
   // the page, so the block centres there and the bottom padding reserves its room.
+  //
+  // PHONE TOP PADDING FOLLOWS THE SCREEN HEIGHT. A fixed 2rem left the block hugging the
+  // top with a wide gap above the bar on a tall phone. `50svh - 19rem` is half the slack
+  // left once the block (with its three default suggestion rows) and the bottom bar are
+  // placed, minus a little, so the block sits just above the middle. It is still a fixed
+  // offset (typing never moves the heading), floors at 2rem on short phones, where there
+  // is no slack, and caps at 7rem. `svh`, so the browser toolbar hiding does not shift it.
   return (
     <div className="relative flex flex-1 flex-col">
       {/* The onboarding wizard's "I'm adding a reference" path returns here from the ID
@@ -57,7 +64,7 @@ export default async function ReferencesPage() {
       <Suspense fallback={null}>
         <IdentityReturnRefresh />
       </Suspense>
-      <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-start px-group pb-section pt-8 sm:justify-center sm:px-6 sm:pt-[clamp(3rem,8vh,7rem)] sm:pb-[clamp(18rem,32vh,26rem)]">
+      <article className="relative mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-start px-group pb-section pt-[clamp(2rem,calc(50svh-19rem),7rem)] sm:justify-center sm:px-6 sm:pt-[clamp(3rem,8vh,7rem)] sm:pb-[clamp(18rem,32vh,26rem)]">
         <header className="mx-auto max-w-[clamp(42rem,48vw,64rem)] text-center">
           {/* The platform marks lead the block, so they carry real size; the glyph
               inside each chip scales with it (`[&_svg]`). */}

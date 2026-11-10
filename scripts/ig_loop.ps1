@@ -1,20 +1,25 @@
 # scripts/ig_loop.ps1
 #
-# Runs the free Instagram reference crawl continuously: download a batch of queued
-# accounts with scripts/ig_fetch.py (recheck accounts first), judge them with the crawler's
-# --local mode, repeat. Stop it with Ctrl+C; nothing is lost, because downloads not yet
-# judged stay in .ig-cache and are judged on the next pass.
+# Runs the free Instagram reference crawl until the network is exhausted: download
+# batches of queued accounts with scripts/ig_fetch.py (recheck accounts first) while
+# scripts/ig_judge_loop.ps1, started from here in its own window, judges them as they
+# arrive. Stop it by closing both windows; nothing is lost, because downloads not yet
+# judged stay in .ig-cache and are judged next time.
 #
-#   powershell -File scripts/ig_loop.ps1            (from the repo root)
-#   powershell -File scripts/ig_loop.ps1 -Gap 2     (slower)
+#   powershell -ExecutionPolicy Bypass -File scripts\ig_loop.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\ig_loop.ps1 -Workers 2 -MinGap 0.5   (gentler)
 #
-# When Instagram says slow down beyond ig_fetch.py's own back-offs, or flags the session,
-# the fetcher exits 3 and this waits six hours before trying again. A logged-out session
-# (exit 2) ends the loop: paste fresh cookies into .env.local, then start it again.
+# The fetcher finds the session's limit itself (its gap shrinks until Instagram says slow
+# down). When it is told to stop (exit 3) this waits six hours and goes again. A
+# logged-out session (exit 2) ends the loop: paste fresh cookies into .env.local and
+# start it again. When the queue is empty AND nothing is waiting to be judged (judging
+# is what adds accounts to the queue), every account the network leads to has been read.
 
 param(
-  [int]$Batch = 200,
-  [double]$Gap = 1.5
+  [int]$Batch = 500,
+  [double]$Gap = 0.8,
+  [double]$MinGap = 0.25,
+  [int]$Workers = 3
 )
 
 $ErrorActionPreference = 'Continue'
@@ -27,16 +32,27 @@ function Say($text) {
   Add-Content -Path $log -Value $line
 }
 
-while ($true) {
-  py -3 scripts/ig_fetch.py --recheck $Batch --queue $Batch --gap $Gap 2>&1 | Tee-Object -FilePath $log -Append
-  $fetch = $LASTEXITCODE
+function JudgeRunning {
+  # A judging PASS, not the judge loop itself, which idles until this loop ends.
+  [bool](Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'import-instagram-references\.ts' })
+}
 
-  npx tsx --env-file=.env.local scripts/import-instagram-references.ts --local .ig-cache 2>&1 |
-    Select-String -Pattern 'kept|local:|DONE|failed|NEUTRAL|NEGATIVE|Another' |
-    ForEach-Object { $_.Line } | Tee-Object -FilePath $log -Append
+if (-not (Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -match 'ig_judge_loop\.ps1' })) {
+  Start-Process powershell -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', 'scripts\ig_judge_loop.ps1' -WorkingDirectory (Get-Location) -WindowStyle Minimized
+  Say 'Started the judge loop.'
+}
+
+while ($true) {
+  py -3 scripts/ig_fetch.py --recheck $Batch --queue $Batch --gap $Gap --min-gap $MinGap --workers $Workers 2>&1 | Tee-Object -FilePath $log -Append
+  $fetch = $LASTEXITCODE
 
   if ($fetch -eq 2) { Say 'Session logged out. Paste fresh cookies into .env.local and start again.'; break }
   if ($fetch -eq 3) { Say 'Instagram asked to stop. Waiting 6 hours.'; Start-Sleep -Seconds (6 * 3600); continue }
-  if ($fetch -eq 4) { Say 'Queue empty. Waiting 1 hour.'; Start-Sleep -Seconds 3600; continue }
+  if ($fetch -eq 4) {
+    $waiting = @(Get-ChildItem .ig-cache -Filter *.json -File -ErrorAction SilentlyContinue).Count
+    if ($waiting -gt 0 -or (JudgeRunning)) { Start-Sleep -Seconds 120; continue }
+    Say 'Queue empty and nothing left to judge: every account the network leads to has been read. Stopping.'
+    break
+  }
   if ($fetch -ne 0) { Say "Fetcher exited $fetch. Waiting 30 minutes."; Start-Sleep -Seconds 1800; continue }
 }

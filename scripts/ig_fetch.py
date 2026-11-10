@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 # scripts/ig_fetch.py
 #
 # Downloads what the reference crawler needs from Instagram with Instaloader, using a
@@ -13,12 +13,15 @@
 # Per account: its 12 newest posts (12 more when none is a feedback post), and the
 # top-level comments on the posts worth reading: a feedback or warning caption, or, on a
 # trading-card account with no feedback caption, its two busiest non-giveaway posts, which
-# the crawler's AI check may recognise as a feedback thread.
+# the crawler's AI check may recognise as a feedback thread. On a trading-card account,
+# also the newest posts OTHER people tagged it in (its Tagged tab: "happy mail from @x").
 #
-# PACE. Every request is counted and spaced by --gap seconds (jittered). Instagram's
-# answer decides the rest:
-#   * "wait a few minutes" / 429: back off 10, 20, 40 ... minutes and carry on, slowing
-#     the gap by half each time; after --max-backoffs in a row, stop.
+# PACE. --workers threads share ONE session and one clock: requests start at least --gap
+# seconds apart (jittered), and the gap shrinks on its own toward --min-gap while
+# Instagram answers normally, so the run finds the session's limit. Instagram's answer
+# decides the rest:
+#   * "wait a few minutes" / 429: everyone pauses 10, 20, 40 ... minutes and carries on,
+#     with the gap half again longer; after --max-backoffs in a row, stop.
 #   * checkpoint, challenge, login wall or a logged-out session: stop at once. Those are
 #     about the ACCOUNT, and pushing on is how an account gets disabled.
 # One session, no proxies, no extra accounts, no disguise. Refuses to run as no.ditto.
@@ -30,6 +33,7 @@ import json
 import random
 import re
 import sys
+import threading
 import time
 import urllib.parse
 import urllib.request
@@ -61,7 +65,7 @@ WARNING_CAPTION = re.compile(
     re.I,
 )
 TCG_TEXT = re.compile(
-    r"pok[eÃ©]mon|\btcg\b|\bpsa ?(10|9)|\bcgc\b|\bbgs\b|beckett|\bslabs?\b|graded|charizard|pikachu|one piece|"
+    r"pok[e\u00e9]mon|\btcg\b|\bpsa ?(10|9)|\bcgc\b|\bbgs\b|beckett|\bslabs?\b|graded|charizard|pikachu|one piece|"
     r"yu-?gi-?oh|\bmtg\b|magic the gathering|lorcana|booster|\betb\b|sealed|binder|\bpulls?\b|sports ?cards?|"
     r"topps|panini|prizm|trading cards?",
     re.I,
@@ -117,19 +121,38 @@ def iso(dt) -> str | None:
 
 
 class Pacer:
-    """Spaces and counts every request Instaloader makes."""
+    """One clock for every request every worker makes, so --workers overlaps waiting on
+    Instagram without exceeding the pace. The gap ADAPTS to find the limit: 5% shorter
+    after every 100 requests answered normally, down to --min-gap, and half again longer,
+    plus a pause for everyone, each time Instagram says slow down."""
 
-    def __init__(self, gap: float):
+    def __init__(self, gap: float, min_gap: float):
         self.gap = gap
+        self.min_gap = min_gap
         self.requests = 0
-        self.last = 0.0
+        self.clean = 0
+        self.next_at = 0.0
+        self.paused_until = 0.0
+        self.lock = threading.Lock()
 
     def wait(self) -> None:
-        delay = self.last + random.uniform(self.gap * 0.6, self.gap * 1.4) - time.monotonic()
+        with self.lock:
+            start = max(time.monotonic(), self.next_at, self.paused_until)
+            self.next_at = start + random.uniform(self.gap * 0.6, self.gap * 1.4)
+            self.requests += 1
+            self.clean += 1
+            if self.clean >= 100:
+                self.clean = 0
+                self.gap = max(self.min_gap, self.gap * 0.95)
+        delay = start - time.monotonic()
         if delay > 0:
             time.sleep(delay)
-        self.last = time.monotonic()
-        self.requests += 1
+
+    def slow_down(self, minutes: float) -> None:
+        with self.lock:
+            self.gap *= 1.5
+            self.clean = 0
+            self.paused_until = max(self.paused_until, time.monotonic() + minutes * 60)
 
 
 def install_pacer(loader: instaloader.Instaloader, pacer: Pacer) -> None:
@@ -137,8 +160,11 @@ def install_pacer(loader: instaloader.Instaloader, pacer: Pacer) -> None:
     context = loader.context
     original = context.get_json
 
+    context.request_count = 0
+
     def paced(*args, **kwargs):
         pacer.wait()
+        context.request_count += 1  # this worker's own, for the per-account figure
         return original(*args, **kwargs)
 
     context.get_json = paced
@@ -174,6 +200,34 @@ def owner_avatar(comment) -> str | None:
     # commenter's whole profile, one request per comment.
     node = getattr(comment.owner, '_node', None) or {}
     return node.get('profile_pic_url')
+
+
+def tagged_posts(loader: instaloader.Instaloader, profile, handle: str) -> list[dict]:
+    """Posts by OTHER people that tag `handle` (its Tagged tab): buyers' "happy mail from
+    @seller" posts. One request for the newest page. Instaloader's own tagged query is
+    refused for logged-in sessions; the app's usertags feed is what the Tagged tab uses."""
+    response = loader.context.get_iphone_json(f'api/v1/usertags/{profile.userid}/feed/', {'count': '24'})
+    rows = []
+    for item in response.get('items') or []:
+        user = item.get('user') or {}
+        poster = (user.get('username') or '').lower()
+        caption = ((item.get('caption') or {}).get('text') or '').strip()
+        code = item.get('code')
+        if not code or not poster or poster == handle or not caption:
+            continue
+        taken = item.get('taken_at')
+        rows.append(
+            {
+                'shortcode': code,
+                'url': f'https://www.instagram.com/p/{code}/',
+                'owner': poster,
+                'avatar': user.get('profile_pic_url'),
+                'caption': caption,
+                'comments': int(item.get('comment_count') or 0),
+                'publishedAt': iso(datetime.fromtimestamp(taken, timezone.utc).replace(tzinfo=None)) if taken else None,
+            }
+        )
+    return rows
 
 
 def fetch_account(loader: instaloader.Instaloader, handle: str, max_comments: int) -> dict:
@@ -226,6 +280,14 @@ def fetch_account(loader: instaloader.Instaloader, handle: str, max_comments: in
             key=lambda p: -comment_count(p),
         )
         worth += busiest[:2]
+    try:
+        out['tagged'] = tagged_posts(loader, profile, handle)
+    except Exception as raw:  # noqa: BLE001
+        error = classify(raw)
+        if isinstance(error, (SlowDown, AccountTrouble)):
+            raise raw
+        out['tagged'] = []  # an account whose Tagged tab is hidden still has its own posts
+
     for post in worth[:4]:
         rows = []
         for comment in post.get_comments():
@@ -247,23 +309,7 @@ def fetch_account(loader: instaloader.Instaloader, handle: str, max_comments: in
     return out
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument('handles', nargs='*', help='Instagram usernames to fetch')
-    parser.add_argument('--queue', type=int, default=0, help='fetch this many queued accounts')
-    parser.add_argument('--recheck', type=int, default=0, help='fetch this many accounts queued for recheck')
-    parser.add_argument('--out', default=str(ROOT / '.ig-cache'))
-    parser.add_argument('--max-comments', type=int, default=150)
-    parser.add_argument('--gap', type=float, default=2.5, help='average seconds between requests')
-    parser.add_argument('--max-backoffs', type=int, default=4, help='slow-downs in a row before stopping')
-    args = parser.parse_args()
-
-    env = read_env()
-    for key in ('IG_SESSIONID', 'IG_CSRFTOKEN', 'IG_DS_USER_ID'):
-        if not env.get(key):
-            print(f'{key} is missing from .env.local', file=sys.stderr)
-            return 1
-
+def open_session(env: dict[str, str]) -> instaloader.Instaloader:
     loader = instaloader.Instaloader(
         sleep=False, quiet=True, download_pictures=False, download_videos=False, save_metadata=False, max_connection_attempts=1
     )
@@ -275,69 +321,121 @@ def main() -> int:
             'ds_user_id': env['IG_DS_USER_ID'],
         },
     )
-    username = loader.test_login()
+    return loader
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument('handles', nargs='*', help='Instagram usernames to fetch')
+    parser.add_argument('--queue', type=int, default=0, help='fetch this many queued accounts')
+    parser.add_argument('--recheck', type=int, default=0, help='fetch this many accounts queued for recheck')
+    parser.add_argument('--out', default=str(ROOT / '.ig-cache'))
+    parser.add_argument('--max-comments', type=int, default=150)
+    parser.add_argument('--gap', type=float, default=0.8, help='starting seconds between requests')
+    parser.add_argument('--min-gap', type=float, default=0.25, help='the gap never shrinks below this')
+    parser.add_argument('--workers', type=int, default=3, help='threads sharing the one session')
+    parser.add_argument('--max-backoffs', type=int, default=4, help='slow-downs in a row before stopping')
+    args = parser.parse_args()
+
+    env = read_env()
+    for key in ('IG_SESSIONID', 'IG_CSRFTOKEN', 'IG_DS_USER_ID'):
+        if not env.get(key):
+            print(f'{key} is missing from .env.local', file=sys.stderr)
+            return 1
+
+    first = open_session(env)
+    username = first.test_login()
     if not username:
         log('The session is not logged in (expired or logged out). Paste fresh cookies into .env.local.')
         return 2
     if username.lower() in REFUSED_ACCOUNTS:
         log(f"Refusing to read as @{username}: use a personal account, not NoDitto's.")
         return 2
-    loader.context.username = username
-    pacer = Pacer(args.gap)
-    install_pacer(loader, pacer)
 
     out_dir = Path(args.out)
     (out_dir / 'done').mkdir(parents=True, exist_ok=True)
-    have = {p.stem for p in out_dir.glob('*.json')} | {p.stem for p in (out_dir / 'done').glob('*.json')}
+    # Only downloads still waiting to be judged. One in done/ was judged already, so if the
+    # queue offers it again it is a deliberate recheck and gets fetched fresh.
+    have = {p.stem for p in out_dir.glob('*.json')}
     handles = [h.lower().lstrip('@') for h in args.handles]
     if args.recheck:
         handles += queued(env, args.recheck, True, have)
     if args.queue:
         handles += queued(env, args.queue, False, have)
     handles = [h for h in dict.fromkeys(handles) if h not in have]
-    log(f'Logged in as @{username}. {len(handles)} accounts to fetch, ~{args.gap}s between requests.')
+    workers = max(1, min(args.workers, len(handles) or 1))
+    log(f'Logged in as @{username}. {len(handles)} accounts, {workers} workers, gap {args.gap}s shrinking to {args.min_gap}s.')
 
+    pacer = Pacer(args.gap, args.min_gap)
+    pending = list(reversed(handles))
+    state = {'fetched': 0, 'backoffs': 0, 'last_slowdown': 0.0, 'stop': 0}
+    lock = threading.Lock()
     started = time.monotonic()
-    fetched = 0
-    backoffs = 0
-    queue = list(handles)
-    while queue:
-        handle = queue[0]
-        before = pacer.requests
-        try:
-            data = fetch_account(loader, handle, args.max_comments)
-        except Exception as raw:  # noqa: BLE001 - every Instagram answer is classified below
-            error = classify(raw)
-            if isinstance(error, AccountTrouble):
-                log(f'Instagram flagged the session at @{handle}: {error}. Stopping. Open Instagram in the browser and clear any prompt first.')
-                return 3
-            if isinstance(error, SlowDown):
-                backoffs += 1
-                if backoffs > args.max_backoffs:
-                    log(f'Still told to slow down after {args.max_backoffs} back-offs. Stopping; try again tomorrow.')
-                    return 3
-                minutes = 10 * 2 ** (backoffs - 1)
-                pacer.gap *= 1.5
-                log(f'Told to slow down at @{handle} after {pacer.requests} requests ({error}). Waiting {minutes} min; gap now {pacer.gap:.1f}s.')
-                time.sleep(minutes * 60)
-                continue
-            if isinstance(error, (ConnectionException, QueryReturnedBadRequestException, QueryReturnedForbiddenException, KeyError)):
-                log(f'  @{handle} unreadable: {str(error)[:160]}')
-                queue.pop(0)
-                continue
-            raise
-        backoffs = 0
-        queue.pop(0)
-        (out_dir / f'{handle}.json').write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
-        fetched += 1
-        threads = sum(1 for rows in data['comments'].values() if rows)
-        note = ' (private)' if data.get('private') else ' (missing)' if data.get('missing') else ' (not TCG)' if data.get('notTcg') else ''
-        rate = pacer.requests / max(1 / 60, (time.monotonic() - started) / 3600)
-        log(
-            f"  @{handle}: {len(data['posts'])} posts, {threads} threads, {sum(len(r) for r in data['comments'].values())} comments"
-            f"{note}; {pacer.requests - before} requests ({rate:.0f}/h)"
-        )
-    log(f'Done: {fetched} accounts, {pacer.requests} requests in {(time.monotonic() - started) / 60:.0f} min.')
+
+    def work(loader: instaloader.Instaloader) -> None:
+        loader.context.username = username
+        install_pacer(loader, pacer)
+        while True:
+            with lock:
+                if state['stop'] or not pending:
+                    return
+                handle = pending.pop()
+            before = loader.context.request_count
+            try:
+                data = fetch_account(loader, handle, args.max_comments)
+            except Exception as raw:  # noqa: BLE001 - every Instagram answer is classified below
+                error = classify(raw)
+                if isinstance(error, AccountTrouble):
+                    with lock:
+                        state['stop'] = 3
+                    log(f'Instagram flagged the session at @{handle}: {error}. Stopping. Open Instagram in the browser and clear any prompt first.')
+                    return
+                if isinstance(error, SlowDown):
+                    with lock:
+                        pending.append(handle)
+                        # Several workers hear the same "slow down" at once: count it once.
+                        if time.monotonic() - state['last_slowdown'] > 120:
+                            state['last_slowdown'] = time.monotonic()
+                            state['backoffs'] += 1
+                            if state['backoffs'] > args.max_backoffs:
+                                state['stop'] = 3
+                                log(f'Still told to slow down after {args.max_backoffs} back-offs. Stopping; try again tomorrow.')
+                                return
+                            minutes = 10 * 2 ** (state['backoffs'] - 1)
+                            pacer.slow_down(minutes)
+                            log(f'Told to slow down after {pacer.requests} requests ({error}). Pausing {minutes} min; gap now {pacer.gap:.2f}s.')
+                    continue
+                if isinstance(error, (ConnectionException, QueryReturnedBadRequestException, QueryReturnedForbiddenException, KeyError)):
+                    log(f'  @{handle} unreadable: {str(error)[:160]}')
+                    continue
+                with lock:
+                    state['stop'] = 1
+                log(f'  @{handle} crashed the worker: {raw!r}'[:300])
+                return
+            # Written whole, then renamed: the judge, running alongside, only ever sees complete files.
+            partial = out_dir / f'{handle}.json.part'
+            partial.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+            partial.replace(out_dir / f'{handle}.json')
+            with lock:
+                state['backoffs'] = 0
+                state['fetched'] += 1
+            threads = sum(1 for rows in data['comments'].values() if rows) + (1 if data.get('tagged') else 0)
+            note = ' (private)' if data.get('private') else ' (missing)' if data.get('missing') else ' (not TCG)' if data.get('notTcg') else ''
+            hours = max(1 / 60, (time.monotonic() - started) / 3600)
+            log(
+                f"  @{handle}: {len(data['posts'])} posts, {threads} threads, {sum(len(r) for r in data['comments'].values())} comments"
+                f"{note}; {loader.context.request_count - before} req; {pacer.requests / hours:.0f} req/h, {state['fetched'] / hours:.0f} accounts/h, gap {pacer.gap:.2f}s"
+            )
+
+    loaders = [first] + [open_session(env) for _ in range(workers - 1)]
+    threads = [threading.Thread(target=work, args=(loader,), daemon=True) for loader in loaders]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    log(f"Done: {state['fetched']} accounts, {pacer.requests} requests in {(time.monotonic() - started) / 60:.0f} min, final gap {pacer.gap:.2f}s.")
+    if state['stop']:
+        return state['stop']
     return 0 if handles else 4  # 4: nothing was queued
 
 

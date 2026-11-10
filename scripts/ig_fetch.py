@@ -181,8 +181,10 @@ def install_pacer(loader: instaloader.Instaloader, pacer: Pacer) -> None:
     context.request_count = 0
 
     def paced(*args, **kwargs):
-        host = args[2] if len(args) > 2 else kwargs.get('host', 'www.instagram.com')
-        if host == 'i.instagram.com':
+        # Only the Tagged-tab feed has the tight limit. Long comment threads also go through
+        # the app API (Instaloader's fallback) and were never refused, so they are not capped.
+        path = str(args[0]) if args else str(kwargs.get('path', ''))
+        if 'usertags' in path:
             pacer.wait_app()
         pacer.wait()
         context.request_count += 1  # this worker's own, for the per-account figure
@@ -281,7 +283,9 @@ def read_tagged(loader: instaloader.Instaloader, profile, handle: str) -> list[d
     if app_blocked():
         raise Deferred()
     try:
-        return tagged_posts(loader, profile, handle)
+        rows = tagged_posts(loader, profile, handle)
+        APP_BLOCK['strikes'] = 0
+        return rows
     except Exception as raw:  # noqa: BLE001
         error = classify(raw)
         if isinstance(error, AccountTrouble):
@@ -289,8 +293,12 @@ def read_tagged(loader: instaloader.Instaloader, profile, handle: str) -> list[d
         if isinstance(error, SlowDown):
             with APP_LOCK:
                 if not app_blocked():
-                    APP_BLOCK['until'] = time.monotonic() + APP_PAUSE_SECONDS
-                    log(f'The Tagged-tab endpoint said slow down; leaving it alone for {APP_PAUSE_SECONDS // 60} min. Everything else carries on.')
+                    # Each refusal doubles the rest (30 min, 1 h, 2 h, ... up to 8 h): poking a
+                    # penalised endpoint every half hour only keeps the penalty going.
+                    minutes = min(APP_PAUSE_SECONDS // 60 * 2 ** APP_BLOCK.get('strikes', 0), 480)
+                    APP_BLOCK['strikes'] = APP_BLOCK.get('strikes', 0) + 1
+                    APP_BLOCK['until'] = time.monotonic() + minutes * 60
+                    log(f'The Tagged-tab endpoint said slow down ({APP_BLOCK["strikes"]} in a row); leaving it alone for {minutes} min. Everything else carries on.')
             raise Deferred() from raw
         return []  # an account whose Tagged tab is hidden still has its own posts
 

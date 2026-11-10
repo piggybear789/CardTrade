@@ -74,6 +74,7 @@ TCG_HANDLE = re.compile(r'tcg|card|slab|poke|graded|psa|collect|binder|vault|gra
 GIVEAWAY = re.compile(r'giveaway|give away|tag \d|tag (a|two|three) friends?|to (enter|win)|winner|follow .{0,20}like|\bwin\b', re.I)
 CANDIDATE_COMMENTS = 15  # REFERENCE_CANDIDATE_COMMENTS in the crawler
 
+HANDLE_OK = re.compile(r'^[a-z0-9._]{1,30}$')
 ACCOUNT_TROUBLE = re.compile(r'checkpoint|challenge|login_required|/accounts/login|suspended|disabled', re.I)
 SLOW_DOWN = re.compile(r'429|wait a few minutes|too many|rate.?limit|feedback_required', re.I)
 
@@ -250,6 +251,73 @@ def tagged_posts(loader: instaloader.Instaloader, profile, handle: str) -> list[
     return rows
 
 
+# The Tagged tab comes from the app API, whose limit is separate from (and tighter than)
+# the web queries'. When it says slow down, only IT is left alone for a while: accounts
+# carry on without their Tagged tab and are listed in tagged-pending.txt, for a
+# tagged-only read once it answers again.
+APP_BLOCK = {'until': 0.0}
+APP_LOCK = threading.Lock()
+TAGGED_PENDING: dict = {'file': None}
+APP_PAUSE_SECONDS = 1800
+
+
+class Deferred(Exception):
+    pass
+
+
+def defer_tagged(handle: str) -> None:
+    with APP_LOCK:
+        if TAGGED_PENDING['file'] is not None:
+            with open(TAGGED_PENDING['file'], 'a', encoding='utf-8') as f:
+                f.write(handle + '\n')
+
+
+def app_blocked() -> bool:
+    return time.monotonic() < APP_BLOCK['until']
+
+
+def read_tagged(loader: instaloader.Instaloader, profile, handle: str) -> list[dict]:
+    """The Tagged tab, or Deferred while the app API rests or says slow down."""
+    if app_blocked():
+        raise Deferred()
+    try:
+        return tagged_posts(loader, profile, handle)
+    except Exception as raw:  # noqa: BLE001
+        error = classify(raw)
+        if isinstance(error, AccountTrouble):
+            raise raw
+        if isinstance(error, SlowDown):
+            with APP_LOCK:
+                if not app_blocked():
+                    APP_BLOCK['until'] = time.monotonic() + APP_PAUSE_SECONDS
+                    log(f'The Tagged-tab endpoint said slow down; leaving it alone for {APP_PAUSE_SECONDS // 60} min. Everything else carries on.')
+            raise Deferred() from raw
+        return []  # an account whose Tagged tab is hidden still has its own posts
+
+
+def tagged_or_defer(loader: instaloader.Instaloader, profile, handle: str) -> list[dict]:
+    try:
+        return read_tagged(loader, profile, handle)
+    except Deferred:
+        defer_tagged(handle)
+        return []
+
+
+def fetch_tagged_only(loader: instaloader.Instaloader, handle: str) -> dict:
+    """A deferred Tagged tab. Raises Deferred while the app API is still resting."""
+    if app_blocked():
+        raise Deferred()
+    out: dict = {'handle': handle, 'taggedOnly': True, 'fetchedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'posts': [], 'comments': {}, 'tagged': []}
+    try:
+        profile = instaloader.Profile.from_username(loader.context, handle)
+    except ProfileNotExistsException:
+        return out
+    if profile._node.get('is_private'):
+        return out
+    out['tagged'] = read_tagged(loader, profile, handle)
+    return out
+
+
 def fetch_account(loader: instaloader.Instaloader, handle: str, max_comments: int) -> dict:
     out: dict = {'handle': handle, 'fetchedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()), 'posts': [], 'comments': {}}
     try:
@@ -300,13 +368,7 @@ def fetch_account(loader: instaloader.Instaloader, handle: str, max_comments: in
             key=lambda p: -comment_count(p),
         )
         worth += busiest[:2]
-    try:
-        out['tagged'] = tagged_posts(loader, profile, handle)
-    except Exception as raw:  # noqa: BLE001
-        error = classify(raw)
-        if isinstance(error, (SlowDown, AccountTrouble)):
-            raise raw
-        out['tagged'] = []  # an account whose Tagged tab is hidden still has its own posts
+    out['tagged'] = tagged_or_defer(loader, profile, handle)
 
     for post in worth[:4]:
         rows = []
@@ -383,11 +445,19 @@ def main() -> int:
     if args.queue:
         handles += queued(env, args.queue, False, have)
     handles = [h for h in dict.fromkeys(handles) if h not in have]
-    workers = max(1, min(args.workers, len(handles) or 1))
-    log(f'Logged in as @{username}. {len(handles)} accounts, {workers} workers, gap {args.gap}s shrinking to {args.min_gap}s.')
+
+    # Tagged tabs deferred by earlier runs, read while the app API allows.
+    TAGGED_PENDING['file'] = out_dir / 'tagged-pending.txt'
+    deferred: list[str] = []
+    if TAGGED_PENDING['file'].exists():
+        deferred = [h for h in dict.fromkeys(TAGGED_PENDING['file'].read_text(encoding='utf-8').split()) if HANDLE_OK.match(h)]
+        TAGGED_PENDING['file'].unlink()
+    jobs = [('full', h) for h in handles] + [('tagged', h) for h in deferred]
+    workers = max(1, min(args.workers, len(jobs) or 1))
+    log(f'Logged in as @{username}. {len(handles)} accounts and {len(deferred)} deferred Tagged tabs, {workers} workers, gap {args.gap}s shrinking to {args.min_gap}s.')
 
     pacer = Pacer(args.gap, args.min_gap)
-    pending = list(reversed(handles))
+    pending = list(reversed(jobs))
     state = {'fetched': 0, 'backoffs': 0, 'last_slowdown': 0.0, 'stop': 0}
     lock = threading.Lock()
     started = time.monotonic()
@@ -399,9 +469,20 @@ def main() -> int:
             with lock:
                 if state['stop'] or not pending:
                     return
-                handle = pending.pop()
+                kind, handle = pending.pop()
             before = loader.context.request_count
             try:
+                if kind == 'tagged':
+                    try:
+                        data = fetch_tagged_only(loader, handle)
+                    except Deferred:
+                        defer_tagged(handle)
+                        continue
+                    partial = out_dir / f'{handle}~tagged.json.part'
+                    partial.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+                    partial.replace(out_dir / f'{handle}~tagged.json')
+                    log(f"  @{handle}: Tagged tab, {len(data['tagged'])} posts")
+                    continue
                 data = fetch_account(loader, handle, args.max_comments)
             except Exception as raw:  # noqa: BLE001 - every Instagram answer is classified below
                 error = classify(raw)
@@ -412,7 +493,7 @@ def main() -> int:
                     return
                 if isinstance(error, SlowDown):
                     with lock:
-                        pending.append(handle)
+                        pending.append((kind, handle))
                         # Several workers hear the same "slow down" at once: count it once.
                         if time.monotonic() - state['last_slowdown'] > 120:
                             state['last_slowdown'] = time.monotonic()
@@ -456,7 +537,7 @@ def main() -> int:
     log(f"Done: {state['fetched']} accounts, {pacer.requests} requests in {(time.monotonic() - started) / 60:.0f} min, final gap {pacer.gap:.2f}s.")
     if state['stop']:
         return state['stop']
-    return 0 if handles else 4  # 4: nothing was queued
+    return 0 if jobs else 4  # 4: nothing was queued
 
 
 if __name__ == '__main__':

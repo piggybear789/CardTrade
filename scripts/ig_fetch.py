@@ -148,6 +148,23 @@ class Pacer:
         if delay > 0:
             time.sleep(delay)
 
+    # The app API (the Tagged tab) has its own, tighter limit: it answered 429 after a
+    # few hundred calls in 40 minutes on 2026-11-10. Instaloader's own figure for it is
+    # 200 per 30 minutes; stay just under.
+    APP_WINDOW = 1800.0
+    APP_MAX = 190
+
+    def wait_app(self) -> None:
+        while True:
+            with self.lock:
+                now = time.monotonic()
+                self.app_calls = [t for t in getattr(self, 'app_calls', []) if t > now - self.APP_WINDOW]
+                if len(self.app_calls) < self.APP_MAX:
+                    self.app_calls.append(now)
+                    return
+                delay = self.app_calls[0] + self.APP_WINDOW - now + 1
+            time.sleep(delay)
+
     def slow_down(self, minutes: float) -> None:
         with self.lock:
             self.gap *= 1.5
@@ -163,6 +180,9 @@ def install_pacer(loader: instaloader.Instaloader, pacer: Pacer) -> None:
     context.request_count = 0
 
     def paced(*args, **kwargs):
+        host = args[2] if len(args) > 2 else kwargs.get('host', 'www.instagram.com')
+        if host == 'i.instagram.com':
+            pacer.wait_app()
         pacer.wait()
         context.request_count += 1  # this worker's own, for the per-account figure
         return original(*args, **kwargs)

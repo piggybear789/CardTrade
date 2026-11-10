@@ -18,7 +18,8 @@
 param(
   [int]$Batch = 500,
   [double]$Gap = 0.8,
-  [double]$MinGap = 0.25,
+  # Instagram said slow down at 0.33s after 1,760 requests (2026-11-10); stay above it.
+  [double]$MinGap = 0.45,
   [int]$Workers = 3
 )
 
@@ -30,6 +31,12 @@ function Say($text) {
   $line = "[{0}] {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $text
   Write-Host $line
   Add-Content -Path $log -Value $line
+}
+
+# One loop at a time, so starting it again (by hand or from a scheduled task) is safe.
+if (Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -match 'ig_loop\.ps1' }) {
+  Write-Host 'The crawl loop is already running.'
+  exit 0
 }
 
 function JudgeRunning {

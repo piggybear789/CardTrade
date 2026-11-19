@@ -125,7 +125,7 @@ describe('displayNameLabel', () => {
 });
 
 describe('validateGiveReference: handle targets', () => {
-  const details = { platform: 'instagram', role: 'BOUGHT', rating: 5 };
+  const details = { platform: 'instagram', role: 'BOUGHT', sentiment: 'POSITIVE' } as const;
 
   it('needs the platform the account is on', () => {
     const result = validateGiveReference({

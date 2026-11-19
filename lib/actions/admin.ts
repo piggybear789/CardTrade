@@ -31,7 +31,22 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { REFERENCES_CACHE_TAG } from '@/lib/references/cacheTag';
 import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { REFERENCE_PROOF_BUCKET } from '@/lib/storage/referenceImagesShared';
-import { isClaimPlatform, normalizeClaimHandle } from '@/domain/references/reference';
+import { isClaimPlatform, isUuid, normalizeClaimHandle } from '@/domain/references/reference';
+import { referenceHref } from '@/domain/references/address';
+import {
+  compareCandidates,
+  ebayProfileUrl,
+  ebayUsernameVariants,
+  linkDecisionProblem,
+  nameRelation,
+  normalizeEbayUsername,
+  type CandidateState,
+  type EbayLinkCandidate,
+} from '@/domain/references/externalSeller';
+import { ebayConfigured, findEbaySellers } from '@/lib/references/ebaySeller';
+import { BIO_SOURCE_MAX_LENGTH, describeBioFacts } from '@/domain/references/bio';
+import { bioModelConfigured } from '@/lib/references/bioModel';
+import { createBioDraft, loadBioRows, publishBioDraft, removeBio, type StoredBio } from '@/lib/references/bios';
 import { removeAvatarObject } from '@/lib/storage/profileImages';
 import { enforceProfileFraudBan, permanentlyBanConfirmedFraudOffender } from '@/lib/auth/fraudBan';
 import { clusterStrengthForReport } from '@/lib/risk/scamClusters';
@@ -111,7 +126,9 @@ export type AdminActionError =
   | 'COOLING_OFF'
   | 'RECUSED'
   /** Trusted Seller (0152): approval needs the member's identity verified first. */
-  | 'identity-unverified';
+  | 'identity-unverified'
+  /** Another site (eBay, 0170) could not be read, or is not configured here. */
+  | 'external-unavailable';
 
 /** Discriminated result returned by every admin action. */
 export type AdminActionResult<T = { id: string }> =
@@ -2484,4 +2501,488 @@ export const releaseHandleClaim = withActionLog('admin.releaseHandleClaim', asyn
   revalidatePath(`/sellers/${claim.claimed_profile_id}`);
   revalidatePath('/admin');
   return { ok: true, data: { id: claim.id, moved: moved ?? 0 } };
+});
+
+// ---------------------------------------------------------------------------
+// Track record elsewhere (0170): which eBay account belongs to a handle.
+//
+// A name match is a lead, never a link. The finder only SUGGESTS, from eBay's own API;
+// nothing is written until an admin confirms and says what they checked. The note is the
+// only record of why one seller's eBay history appears on someone else's page.
+// ---------------------------------------------------------------------------
+
+/** What the finder shows for one handle. Staff-only: it includes staff notes. */
+export type EbayLinkSearch = {
+  handle: string;
+  platform: string;
+  /** The handle's references page, to open beside the eBay profile. */
+  referencesPath: string;
+  /** Usernames that exist on eBay with live listings, best match first. */
+  candidates: EbayLinkCandidate[];
+  /** How many spellings were tested, so "nothing found" says what it covered. */
+  tested: number;
+  /** Links already confirmed for this handle, with what staff wrote, so one can be removed. */
+  confirmed: { id: string; username: string; profileUrl: string; note: string }[];
+};
+
+/** The handle's claim row, created when there is none yet (a handle nobody has referenced). */
+async function getOrCreateClaim(
+  admin: ReturnType<typeof createAdminClient>,
+  platform: string,
+  handle: string,
+  adminId: string,
+): Promise<{ id: string } | { error: string }> {
+  const find = () =>
+    admin.from('social_claims').select('id').eq('platform', platform).eq('handle_norm', handle.toLowerCase()).maybeSingle();
+  const existing = await find();
+  if (existing.error) return { error: existing.error.message };
+  if (existing.data) return { id: existing.data.id };
+
+  const inserted = await admin
+    .from('social_claims')
+    .insert({ platform, handle, claim_method: 'UNCLAIMED', created_by: adminId })
+    .select('id')
+    .maybeSingle();
+  if (inserted.data) return { id: inserted.data.id };
+  // Another request may have created it between the read and the insert.
+  const again = await find();
+  if (again.data) return { id: again.data.id };
+  return { error: inserted.error?.message ?? again.error?.message ?? 'Could not save the handle.' };
+}
+
+/**
+ * Look for the eBay accounts a handle could be. Tests every spelling of the handle against
+ * eBay at once, plus an eBay username staff found by other means (an About page, a bio).
+ * Free: eBay's own API, no scraping. Only sellers with live listings can be read.
+ */
+export const findEbayLinkCandidates = withActionLog('admin.findEbayLinkCandidates', async function findEbayLinkCandidates(
+  platform: string,
+  rawHandle: string,
+  rawExtraUsername?: string,
+): Promise<AdminActionResult<EbayLinkSearch>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isClaimPlatform(platform)) {
+    return { ok: false, error: 'invalid-input', message: 'Choose the platform.', field: 'platform' };
+  }
+  const handle = normalizeClaimHandle(platform, rawHandle);
+  if (!handle) return { ok: false, error: 'invalid-input', message: 'Enter a valid handle.', field: 'handle' };
+
+  const extraRaw = typeof rawExtraUsername === 'string' ? rawExtraUsername.trim() : '';
+  const extra = extraRaw ? normalizeEbayUsername(extraRaw) : null;
+  if (extraRaw && !extra) {
+    return { ok: false, error: 'invalid-input', message: 'That is not a valid eBay username.', field: 'username' };
+  }
+  if (!ebayConfigured()) {
+    return { ok: false, error: 'external-unavailable', message: 'eBay is not set up on this deployment.' };
+  }
+
+  const names = new Map<string, string>();
+  for (const name of [...ebayUsernameVariants(handle), ...(extra ? [extra] : [])]) {
+    if (!names.has(name.toLowerCase())) names.set(name.toLowerCase(), name);
+  }
+
+  let found: Awaited<ReturnType<typeof findEbaySellers>>;
+  try {
+    found = await findEbaySellers(Array.from(names.values()));
+  } catch {
+    return { ok: false, error: 'external-unavailable', message: 'eBay could not be read just now. Try again in a moment.' };
+  }
+
+  const admin = createAdminClient();
+  const claimResult = await admin
+    .from('social_claims')
+    .select('id')
+    .eq('platform', platform)
+    .eq('handle_norm', handle.toLowerCase())
+    .maybeSingle();
+  if (claimResult.error) return { ok: false, error: 'persistence-error', message: claimResult.error.message };
+  const claimId = claimResult.data?.id ?? null;
+
+  // Every decision touching these usernames, to say where each stands for THIS handle.
+  const decided = found.size
+    ? await admin
+        .from('external_seller_links')
+        .select('claim_id, username_norm, status')
+        .eq('platform', 'ebay')
+        .in('username_norm', Array.from(found.keys()))
+    : { data: [], error: null };
+  if (decided.error) return { ok: false, error: 'persistence-error', message: decided.error.message };
+
+  const stateOf = (usernameNorm: string): CandidateState => {
+    const rows = (decided.data ?? []).filter((row) => row.username_norm === usernameNorm);
+    if (rows.some((row) => row.status === 'CONFIRMED' && row.claim_id === claimId)) return 'CONFIRMED_HERE';
+    if (rows.some((row) => row.status === 'CONFIRMED')) return 'CONFIRMED_ELSEWHERE';
+    if (rows.some((row) => row.status === 'REJECTED' && row.claim_id === claimId)) return 'REJECTED_HERE';
+    return 'NEW';
+  };
+
+  const candidates: EbayLinkCandidate[] = Array.from(found.entries())
+    .map(([key, seller]) => ({
+      username: seller.username,
+      profileUrl: ebayProfileUrl(seller.username),
+      relation: nameRelation(handle, seller.username),
+      stats: seller.stats,
+      context: seller.context,
+      state: stateOf(key),
+    }))
+    .sort(compareCandidates);
+
+  const confirmedResult = claimId
+    ? await admin
+        .from('external_seller_links')
+        .select('id, external_username, staff_note')
+        .eq('claim_id', claimId)
+        .eq('platform', 'ebay')
+        .eq('status', 'CONFIRMED')
+        .order('decided_at', { ascending: true })
+    : { data: [], error: null };
+  if (confirmedResult.error) {
+    return { ok: false, error: 'persistence-error', message: confirmedResult.error.message };
+  }
+
+  return {
+    ok: true,
+    data: {
+      handle,
+      platform,
+      referencesPath: referenceHref({ slug: handle, on: platform }),
+      candidates,
+      tested: names.size,
+      confirmed: (confirmedResult.data ?? []).map((row) => ({
+        id: row.id,
+        username: row.external_username,
+        profileUrl: ebayProfileUrl(row.external_username),
+        note: row.staff_note,
+      })),
+    },
+  };
+});
+
+/**
+ * Confirm or reject that an eBay account belongs to a handle. Confirming needs a note of
+ * what was checked, and the account must be readable on eBay right now, so a typo can never
+ * publish a dead link. An eBay account belongs to one handle: a second handle is refused.
+ */
+export const decideEbayLink = withActionLog('admin.decideEbayLink', async function decideEbayLink(input: {
+  platform: string;
+  handle: string;
+  username: string;
+  decision: string;
+  note: string;
+}): Promise<AdminActionResult<{ id: string; status: 'CONFIRMED' | 'REJECTED' }>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isClaimPlatform(input?.platform)) {
+    return { ok: false, error: 'invalid-input', message: 'Choose the platform.', field: 'platform' };
+  }
+  const handle = normalizeClaimHandle(input.platform, input.handle);
+  if (!handle) return { ok: false, error: 'invalid-input', message: 'Enter a valid handle.', field: 'handle' };
+
+  const problem = linkDecisionProblem(input);
+  if (problem) return { ok: false, error: 'invalid-input', message: problem.message, field: problem.field };
+  const username = normalizeEbayUsername(input.username);
+  if (!username) return { ok: false, error: 'invalid-input', message: 'Enter a valid eBay username.', field: 'username' };
+  const status = input.decision === 'CONFIRM' ? 'CONFIRMED' : 'REJECTED';
+
+  if (status === 'CONFIRMED') {
+    let live: Awaited<ReturnType<typeof findEbaySellers>>;
+    try {
+      live = await findEbaySellers([username], { stopAfterFirst: true });
+    } catch {
+      return { ok: false, error: 'external-unavailable', message: 'eBay could not be read just now. Try again in a moment.' };
+    }
+    if (!live.has(username.toLowerCase())) {
+      return {
+        ok: false,
+        error: 'not-found',
+        message: 'eBay shows no live listings for that username, so it cannot be checked. Check the spelling, or try when they have a listing.',
+        field: 'username',
+      };
+    }
+  }
+
+  const admin = createAdminClient();
+  const claim = await getOrCreateClaim(admin, input.platform, handle, gate.adminId);
+  if ('error' in claim) return { ok: false, error: 'persistence-error', message: claim.error };
+
+  const now = new Date().toISOString();
+  const fields = {
+    external_username: username,
+    status,
+    staff_note: input.note.trim(),
+    decided_by: gate.adminId,
+    decided_at: now,
+    updated_at: now,
+  } as const;
+
+  const existing = await admin
+    .from('external_seller_links')
+    .select('id')
+    .eq('claim_id', claim.id)
+    .eq('platform', 'ebay')
+    .eq('username_norm', username.toLowerCase())
+    .maybeSingle();
+  if (existing.error) return { ok: false, error: 'persistence-error', message: existing.error.message };
+
+  const written = existing.data
+    ? await admin.from('external_seller_links').update(fields).eq('id', existing.data.id).select('id, status').maybeSingle()
+    : await admin
+        .from('external_seller_links')
+        .insert({ claim_id: claim.id, platform: 'ebay', ...fields })
+        .select('id, status')
+        .maybeSingle();
+  if (written.error) {
+    // `external_seller_links_one_confirmed`: the account is already confirmed for another handle.
+    if (written.error.code === '23505') {
+      return {
+        ok: false,
+        error: 'invalid-input',
+        message: 'That eBay account is already confirmed for a different handle. Remove that link first.',
+        field: 'username',
+      };
+    }
+    return { ok: false, error: 'persistence-error', message: written.error.message };
+  }
+  if (!written.data) return { ok: false, error: 'persistence-error', message: 'The decision was not saved.' };
+
+  updateTag(REFERENCES_CACHE_TAG);
+  revalidatePath('/references', 'layout');
+  revalidatePath('/admin');
+  return { ok: true, data: { id: written.data.id, status } };
+});
+
+/**
+ * Remove a link decision, confirmed or rejected: a confirmed link leaves the page at once,
+ * and a removed rejection lets the finder suggest the account again.
+ */
+export const removeEbayLink = withActionLog('admin.removeEbayLink', async function removeEbayLink(
+  linkId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isUuid(linkId)) return { ok: false, error: 'invalid-input', message: 'Unknown link.', field: 'linkId' };
+
+  const { data, error } = await createAdminClient()
+    .from('external_seller_links')
+    .delete()
+    .eq('id', linkId)
+    .select('id')
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+  if (!data) return { ok: false, error: 'not-found' };
+
+  updateTag(REFERENCES_CACHE_TAG);
+  revalidatePath('/references', 'layout');
+  revalidatePath('/admin');
+  return { ok: true, data: { id: data.id } };
+});
+
+// ---------------------------------------------------------------------------
+// A short profile line for a handle (0171).
+//
+// A model phrases a few checked facts, a person reads the draft, and only publishing makes
+// it public. The line describes and never vouches; the checks on it are in
+// `domain/references/bio.ts`, and a draft that fails them is never saved.
+// ---------------------------------------------------------------------------
+
+/** One saved line as the staff panel shows it: the facts as sentences, not raw JSON. */
+export type ReferenceBioRow = {
+  id: string;
+  bio: string;
+  /** What the model was told, in words. */
+  facts: string[];
+  sourceText: string | null;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  generatedAt: string;
+};
+
+export type ReferenceBioState = {
+  handle: string;
+  platform: string;
+  referencesPath: string;
+  draft: ReferenceBioRow | null;
+  published: ReferenceBioRow | null;
+};
+
+function toBioRow(stored: StoredBio): ReferenceBioRow {
+  return {
+    id: stored.id,
+    bio: stored.bio,
+    facts: describeBioFacts(stored.facts),
+    sourceText: stored.sourceText,
+    model: stored.model,
+    inputTokens: stored.inputTokens,
+    outputTokens: stored.outputTokens,
+    generatedAt: stored.generatedAt,
+  };
+}
+
+/** Both lines for a handle, or nothing when it has no claim row yet. */
+export const loadReferenceBioState = withActionLog('admin.loadReferenceBioState', async function loadReferenceBioState(
+  platform: string,
+  rawHandle: string,
+): Promise<AdminActionResult<ReferenceBioState>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isClaimPlatform(platform)) {
+    return { ok: false, error: 'invalid-input', message: 'Choose the platform.', field: 'platform' };
+  }
+  const handle = normalizeClaimHandle(platform, rawHandle);
+  if (!handle) return { ok: false, error: 'invalid-input', message: 'Enter a valid handle.', field: 'handle' };
+
+  const admin = createAdminClient();
+  const { data: claim, error } = await admin
+    .from('social_claims')
+    .select('id')
+    .eq('platform', platform)
+    .eq('handle_norm', handle.toLowerCase())
+    .maybeSingle();
+  if (error) return { ok: false, error: 'persistence-error', message: error.message };
+
+  let rows: Awaited<ReturnType<typeof loadBioRows>> = { draft: null, published: null };
+  try {
+    if (claim) rows = await loadBioRows(admin, claim.id);
+  } catch (readError) {
+    return { ok: false, error: 'persistence-error', message: readError instanceof Error ? readError.message : 'Could not read the bios.' };
+  }
+  return {
+    ok: true,
+    data: {
+      handle,
+      platform,
+      referencesPath: referenceHref({ slug: handle, on: platform }),
+      draft: rows.draft ? toBioRow(rows.draft) : null,
+      published: rows.published ? toBioRow(rows.published) : null,
+    },
+  };
+});
+
+/**
+ * Write a DRAFT line for a handle. Staff may paste the handle's own public bio: CODE reads
+ * a flag and `#tags` out of it and only those reach the model, so pasted text cannot
+ * instruct it. Nothing is public until `publishReferenceBio`.
+ */
+export const writeReferenceBio = withActionLog('admin.writeReferenceBio', async function writeReferenceBio(
+  platform: string,
+  rawHandle: string,
+  pastedBio?: string,
+): Promise<AdminActionResult<ReferenceBioState>> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isClaimPlatform(platform)) {
+    return { ok: false, error: 'invalid-input', message: 'Choose the platform.', field: 'platform' };
+  }
+  const handle = normalizeClaimHandle(platform, rawHandle);
+  if (!handle) return { ok: false, error: 'invalid-input', message: 'Enter a valid handle.', field: 'handle' };
+
+  const pasted = typeof pastedBio === 'string' ? pastedBio.trim() : '';
+  if (pasted.length > BIO_SOURCE_MAX_LENGTH) {
+    return {
+      ok: false,
+      error: 'invalid-input',
+      message: `Paste at most ${BIO_SOURCE_MAX_LENGTH} characters of their bio.`,
+      field: 'pastedBio',
+    };
+  }
+  if (!bioModelConfigured()) {
+    return {
+      ok: false,
+      error: 'external-unavailable',
+      message: 'The model is not set up here (ANTHROPIC_AWS_API_KEY and ANTHROPIC_AWS_WORKSPACE_ID).',
+    };
+  }
+
+  const admin = createAdminClient();
+  const found = await getOrCreateClaim(admin, platform, handle, gate.adminId);
+  if ('error' in found) return { ok: false, error: 'persistence-error', message: found.error };
+  const { data: claim, error: claimError } = await admin
+    .from('social_claims')
+    .select('id, platform, claimed_profile_id')
+    .eq('id', found.id)
+    .maybeSingle();
+  if (claimError || !claim) {
+    return { ok: false, error: 'persistence-error', message: claimError?.message ?? 'Could not read the handle.' };
+  }
+
+  let result: Awaited<ReturnType<typeof createBioDraft>>;
+  try {
+    result = await createBioDraft(admin, { claim, pastedBio: pasted || null, adminId: gate.adminId });
+  } catch (error) {
+    return { ok: false, error: 'persistence-error', message: error instanceof Error ? error.message : 'Could not gather the facts.' };
+  }
+  if (!result.ok) {
+    if (result.reason === 'TOO_THIN') {
+      return {
+        ok: false,
+        error: 'invalid-input',
+        message:
+          'There is not enough to write about yet. A bio needs a country or an interest: paste the handle’s public bio (a flag and #tags are read from it), or wait until the member has claimed it.',
+        field: 'pastedBio',
+      };
+    }
+    if (result.reason === 'DECLINED' || result.reason === 'REJECTED') {
+      return { ok: false, error: 'invalid-input', message: result.detail ?? 'No usable bio was written.', field: 'pastedBio' };
+    }
+    if (result.reason === 'SAVE_FAILED') {
+      return { ok: false, error: 'persistence-error', message: result.detail };
+    }
+    return { ok: false, error: 'external-unavailable', message: result.detail ?? 'The model could not be reached.' };
+  }
+
+  const savedDraft = result.stored;
+  revalidatePath('/admin');
+  const rows = await loadBioRows(admin, claim.id).catch(() => ({ draft: savedDraft, published: null }));
+  return {
+    ok: true,
+    data: {
+      handle,
+      platform,
+      referencesPath: referenceHref({ slug: handle, on: platform }),
+      draft: toBioRow(rows.draft ?? savedDraft),
+      published: rows.published ? toBioRow(rows.published) : null,
+    },
+  };
+});
+
+/** Make a draft public, replacing the line that was. The only step that does. */
+export const publishReferenceBio = withActionLog('admin.publishReferenceBio', async function publishReferenceBio(
+  draftId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isUuid(draftId)) return { ok: false, error: 'invalid-input', message: 'Unknown draft.', field: 'draftId' };
+
+  const result = await publishBioDraft(createAdminClient(), draftId, gate.adminId);
+  if (!result.ok) {
+    return result.reason === 'NOT_FOUND'
+      ? { ok: false, error: 'not-found', message: 'That draft is gone: write a new one.' }
+      : { ok: false, error: 'persistence-error', message: result.detail };
+  }
+  updateTag(REFERENCES_CACHE_TAG);
+  revalidatePath('/references', 'layout');
+  revalidatePath('/admin');
+  return { ok: true, data: { id: draftId } };
+});
+
+/** Discard a draft, or take a published line down. */
+export const removeReferenceBio = withActionLog('admin.removeReferenceBio', async function removeReferenceBio(
+  bioId: string,
+): Promise<AdminActionResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  if (!isUuid(bioId)) return { ok: false, error: 'invalid-input', message: 'Unknown bio.', field: 'bioId' };
+
+  const result = await removeBio(createAdminClient(), bioId);
+  if (!result.ok) {
+    return result.reason === 'NOT_FOUND'
+      ? { ok: false, error: 'not-found' }
+      : { ok: false, error: 'persistence-error', message: result.detail };
+  }
+  updateTag(REFERENCES_CACHE_TAG);
+  revalidatePath('/references', 'layout');
+  revalidatePath('/admin');
+  return { ok: true, data: { id: bioId } };
 });

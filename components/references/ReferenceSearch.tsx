@@ -45,9 +45,11 @@ import { Avatar } from '@/components/ui/avatar';
 import { searchReferences, type ReferenceSuggestion } from '@/lib/actions/references';
 import { referenceHref, type ReferenceAddress } from '@/domain/references/address';
 import { regionLabel } from '@/domain/region';
+import { MOST_REFERENCED_ROWS, byMostReferenced } from '@/lib/references/ranking';
 import { cn } from '@/lib/utils';
 
-const MAX_VISIBLE_RESULTS = 3;
+// Shared with the faces around the search (`ReferenceOrbit`), which skip these rows.
+const MAX_VISIBLE_RESULTS = MOST_REFERENCED_ROWS;
 
 /** Long enough that typing a handle is one request, not one per letter. */
 const SEARCH_DEBOUNCE_MS = 200;
@@ -94,9 +96,7 @@ export function ReferenceSearch({
   const needle = query.trim().replace(/^@/, '');
   const needleLower = needle.toLowerCase();
 
-  const topReferred = [...(initialSuggestions ?? [])]
-    .sort((a, b) => b.referenceCount - a.referenceCount || a.handle.localeCompare(b.handle))
-    .slice(0, MAX_VISIBLE_RESULTS);
+  const topReferred = [...(initialSuggestions ?? [])].sort(byMostReferenced).slice(0, MAX_VISIBLE_RESULTS);
 
   useEffect(() => {
     if (debounce.current) clearTimeout(debounce.current);

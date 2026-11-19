@@ -360,7 +360,7 @@ function directoryOf(
   const newest = trail[trail.length - 1];
   for (const graph of [...trail].reverse()) {
     const centreKey = centreKeyOf(graph);
-    // The centre entry keeps the whole graph: the sun shows their RECEIVED rating either way.
+    // The centre entry keeps the whole graph: the sun shows their RECEIVED standing either way.
     if (!entries.has(centreKey)) entries.set(centreKey, { kind: 'centre', key: centreKey, graph });
     const nodes = graph === newest ? currentNodes : graph.nodes;
     for (const node of nodes) {

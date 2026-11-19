@@ -4,7 +4,7 @@
 //
 // Paints one frame of the Trust Network: the sun, planets on orbits seen in
 // perspective and sized by reputation, the selected planet's connections, and
-// each handle with its star rating locked directly beneath its body so nothing
+// each handle with how it went (Good / So-so / Bad) locked directly beneath its body so nothing
 // jumps or shifts alignment as the system turns.
 
 import {
@@ -28,6 +28,7 @@ import {
   type Point,
 } from '@/domain/references/orbits';
 import { centreInitials, type OrbitEntry, type TrustOrbits } from '@/components/references/useTrustOrbits';
+import { sentimentLabel } from '@/domain/references/reference';
 import { cn } from '@/lib/utils';
 
 const INK = 'hsl(var(--foreground))';
@@ -65,51 +66,44 @@ interface Who {
   handle: string;
   initials: string;
   refs: number;
-  /** Subtitle line shown directly under the handle (e.g. `★★★★★` or `★★★★★ 5.0`). */
-  ratingLine: string | null;
+  /**
+   * Line shown directly under the handle: how a planet's experience went (`Good`, `So-so`,
+   * `Bad`), or the share of PEOPLE whose experience of the sun was good (`96% good`).
+   * References carry no stars (0169).
+   */
+  subtitle: string | null;
 }
 
-function defaultRating(sentiment: OrbitSentiment): number {
-  if (sentiment === 'NEGATIVE') return 1;
-  if (sentiment === 'NEUTRAL') return 3;
-  return 5;
-}
-
-function starsString(rating: number): string {
-  const clamped = Math.max(1, Math.min(5, Math.round(rating)));
-  return '★'.repeat(clamped) + '☆'.repeat(5 - clamped);
+/** The share of different people with a good experience, from the one people tally. */
+function goodShareLine(centre: { peopleCount: number; neutralCount: number; negativeCount: number }): string | null {
+  const total = centre.peopleCount + centre.neutralCount + centre.negativeCount;
+  if (total === 0) return null;
+  return `${Math.round((centre.peopleCount / total) * 100)}% good`;
 }
 
 function describe(entry: OrbitEntry | undefined): Who {
-  if (!entry) return { handle: 'Member', initials: '?', refs: 0, ratingLine: null };
+  if (!entry) return { handle: 'Member', initials: '?', refs: 0, subtitle: null };
   if (entry.kind === 'centre') {
-    const initials = centreInitials(entry.graph);
-    const nodes = entry.graph.nodes;
-    const avg =
-      nodes.length > 0
-        ? nodes.reduce((sum, n) => sum + (n.rating ?? defaultRating(n.sentiment)), 0) / nodes.length
-        : null;
     return {
       handle: entry.graph.centre.handle,
-      initials,
+      initials: centreInitials(entry.graph),
       refs: entry.graph.centre.peopleCount,
-      ratingLine: avg !== null ? `${starsString(avg)} ${avg.toFixed(1)}` : null,
+      subtitle: goodShareLine(entry.graph.centre),
     };
   }
   if (entry.kind === 'node') {
-    const rating = entry.node.rating ?? defaultRating(entry.node.sentiment);
     return {
       handle: entry.node.handle,
       initials: entry.node.initials,
       refs: entry.node.refs,
-      ratingLine: starsString(rating),
+      subtitle: sentimentLabel(entry.node.sentiment),
     };
   }
   return {
     handle: entry.child.handle,
     initials: entry.child.initials,
     refs: entry.child.refs,
-    ratingLine: null,
+    subtitle: null,
   };
 }
 
@@ -594,9 +588,9 @@ export function TrustOrbitsCanvas({
       const star = item.kind === 'star';
       const person = who(key);
       const size = fontSize(isSun ? 'sun' : item.kind);
-      const height = person.ratingLine ? size * 2 + 4 : size + 4;
+      const height = person.subtitle ? size * 2 + 4 : size + 4;
       const width =
-        Math.max(person.handle.length, person.ratingLine?.length ?? 0) * size * GLYPH_WIDTH +
+        Math.max(person.handle.length, person.subtitle?.length ?? 0) * size * GLYPH_WIDTH +
         (isSun ? 8 : 2);
       const gap = isSun ? item.r + 7 : item.r + 5;
 
@@ -644,7 +638,7 @@ export function TrustOrbitsCanvas({
             : star
               ? QUIET_TEXT
               : INK;
-      const ratingFill = isSun
+      const subtitleFill = isSun
         ? TRUST
         : sentiment === 'NEGATIVE'
           ? DANGER
@@ -654,7 +648,7 @@ export function TrustOrbitsCanvas({
       const groupOpacity =
         round100(item.opacity * (1 - (1 - DIM_BODY) * dimOf(key)) * alpha * fadeFactor);
 
-      if (!person.ratingLine) {
+      if (!person.subtitle) {
         return (
           <text
             key={`${prefix}-${key}`}
@@ -701,14 +695,13 @@ export function TrustOrbitsCanvas({
             dominantBaseline="central"
             fontSize={Math.max(8.5, size - 1)}
             fontWeight={600}
-            letterSpacing="0.5"
-            fill={ratingFill}
+            fill={subtitleFill}
             stroke={CARD}
             strokeWidth={3}
             strokeLinejoin="round"
             paintOrder="stroke"
           >
-            {person.ratingLine}
+            {person.subtitle}
           </text>
         </g>
       );

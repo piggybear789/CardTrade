@@ -49,7 +49,6 @@ import {
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
 import {
   REFERENCES_PER_DAY,
-  REFERENCE_SENTIMENTS,
   dealsThroughAfter,
   isAnotherDeal,
   isClaimPlatform,
@@ -58,6 +57,7 @@ import {
   pickPersonKey,
   platformLabel,
   roleLabel,
+  sentimentLabel,
   validateGiveReference,
   validateReferenceDetails,
   type ClaimPlatform,
@@ -157,10 +157,6 @@ async function findOrCreateClaim(
   return (await find()).data ?? null;
 }
 
-function sentimentLabel(sentiment: ReferenceSentiment): string {
-  return REFERENCE_SENTIMENTS.find((s) => s.slug === sentiment)?.label ?? sentiment;
-}
-
 /**
  * Refresh everywhere a reference shows. `updateTag` expires the cached graphs outright,
  * so the member who just wrote sees their change on the next render, never a stale copy.
@@ -211,7 +207,7 @@ export const giveReference = withActionLog('references.giveReference', async fun
 
   const validation = validateGiveReference(input);
   if (!validation.ok) return fail('invalid-reference', validation.message, validation.field);
-  const { target, platform, role, occurredMonth, rating, sentiment, category, comment } = validation.value;
+  const { target, platform, role, occurredMonth, sentiment, category, comment } = validation.value;
 
   const admin = createAdminClient();
   const { data: voucher, error: voucherError } = await admin
@@ -328,7 +324,6 @@ export const giveReference = withActionLog('references.giveReference', async fun
       .update({
         deal_count: addedDeal ? existing.deal_count + 1 : existing.deal_count,
         platform,
-        rating,
         category,
         comment,
         role,
@@ -357,7 +352,6 @@ export const giveReference = withActionLog('references.giveReference', async fun
       target_claim_id: targetClaimId,
       platform,
       sentiment,
-      rating,
       category,
       comment,
       role,
@@ -427,7 +421,7 @@ async function notifyReferenced(
 
 /**
  * Whether a receipt staff checked (or are checking) no longer matches the deal it backs:
- * the platform, the role or the month changed. Its words and rating may change freely.
+ * the platform, the role or the month changed. Its words and sentiment may change freely.
  */
 function receiptNeedsRecheck(
   existing: { proof_status: string; platform: string; role: string; occurred_month: string },
@@ -970,7 +964,7 @@ export const submitManualHandleClaim = withActionLog(
 // ---------------------------------------------------------------------------
 
 /**
- * Change a reference you left: the deal, when it was, the rating and your words. Who it
+ * Change a reference you left: the deal, when it was, how it went and your words. Who it
  * is for never changes; withdraw it and leave a new one for that. Readers see that it
  * was edited.
  */
@@ -985,7 +979,7 @@ export const updateReference = withActionLog('references.updateReference', async
 
   const validation = validateReferenceDetails(input);
   if (!validation.ok) return fail('invalid-reference', validation.message, validation.field);
-  const { platform, role, occurredMonth, rating, sentiment, category, comment } = validation.value;
+  const { platform, role, occurredMonth, sentiment, category, comment } = validation.value;
 
   const admin = createAdminClient();
   const { data: author, error: authorError } = await admin
@@ -1010,8 +1004,8 @@ export const updateReference = withActionLog('references.updateReference', async
   if (loadError) return fail('persistence-error', SAVE_FAILED);
   if (!reference) return fail('not-found', "That reference isn't yours to edit.");
 
-  // One live reference per pair of people per sentiment: a new rating that lands on the
-  // sentiment of another reference already left for them would make two.
+  // One live reference per pair of people per sentiment: changing to the sentiment of
+  // another reference already left for them would make two.
   const clashMessage = `You already left them a ${sentimentLabel(sentiment).toLowerCase()} reference. Edit or withdraw that one instead.`;
   if (sentiment !== reference.sentiment) {
     const others = admin
@@ -1038,7 +1032,7 @@ export const updateReference = withActionLog('references.updateReference', async
             .limit(1)
             .maybeSingle();
     if (clashError) return fail('persistence-error', SAVE_FAILED);
-    if (clash) return fail('invalid-reference', clashMessage, 'rating');
+    if (clash) return fail('invalid-reference', clashMessage, 'sentiment');
   }
 
   const now = new Date().toISOString();
@@ -1050,7 +1044,6 @@ export const updateReference = withActionLog('references.updateReference', async
       occurred_month: occurredMonth,
       // Never lowered: a rewound month must not let the next post count as a new deal.
       deals_through: dealsThroughAfter(occurredMonth, reference.deals_through),
-      rating,
       sentiment,
       category,
       comment,
@@ -1067,7 +1060,7 @@ export const updateReference = withActionLog('references.updateReference', async
   if (error) {
     // 23505: the same clash, by a request racing this one.
     return error.code === '23505'
-      ? fail('invalid-reference', clashMessage, 'rating')
+      ? fail('invalid-reference', clashMessage, 'sentiment')
       : fail('persistence-error', SAVE_FAILED);
   }
   // Turning a reference negative is news to its subject, exactly as posting one is.

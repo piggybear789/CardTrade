@@ -2,9 +2,11 @@
 //
 // References (0155): the pure rules for sharing an experience. An experience
 // records who (profile, claim, or handle), where (platform), what role
-// (Bought / Sold / Traded), sentiment (Positive / Negative), and an optional
-// written note in the member's own words. Both positive and negative
-// experiences go LIVE immediately and are tied to the author's verified ID.
+// (Bought / Sold / Traded), sentiment (Good / So-so / Bad), and an optional
+// written note in the member's own words. There are no stars (0169): most
+// references are comments like "did a deal with him, legit", which say how it
+// went and nothing finer. Every experience goes LIVE immediately and is tied to
+// the author's verified ID.
 //
 // Pure: no Supabase, React or service imports.
 
@@ -46,6 +48,15 @@ export const REFERENCE_SENTIMENTS = [
   { slug: 'NEUTRAL', label: 'So-so' },
   { slug: 'NEGATIVE', label: 'Bad' },
 ] as const;
+
+/** The word a sentiment is published under: Good, So-so or Bad. */
+export function sentimentLabel(sentiment: ReferenceSentiment): string {
+  return REFERENCE_SENTIMENTS.find((s) => s.slug === sentiment)?.label ?? sentiment;
+}
+
+export function isReferenceSentiment(value: unknown): value is ReferenceSentiment {
+  return value === 'POSITIVE' || value === 'NEUTRAL' || value === 'NEGATIVE';
+}
 
 export function negativeCategoryLabel(slug: string | null | undefined): string | null {
   return NEGATIVE_CATEGORIES.find((c) => c.slug === slug)?.label ?? null;
@@ -170,10 +181,8 @@ export interface ReferenceDetailsInput {
   role: string;
   /** `YYYY-MM`; defaults to the current month. */
   occurredMonth?: string | null;
-  /** 1..5 star rating; derives sentiment when provided. */
-  rating?: number | null;
-  /** Defaults to POSITIVE. Both POSITIVE and NEGATIVE publish immediately. */
-  sentiment?: ReferenceSentiment;
+  /** How it went: Good, So-so or Bad. Required; every sentiment publishes immediately. */
+  sentiment: ReferenceSentiment;
   /** Optional category when NEGATIVE (defaults to OTHER). */
   category?: string | null;
   /** Public written experience in words (max 500 chars), supported on both sentiments. */
@@ -188,13 +197,12 @@ export interface ReferenceDetails {
   platform: ReferencePlatform;
   role: ReferenceRole;
   occurredMonth: string;
-  rating: number;
   sentiment: ReferenceSentiment;
   category: NegativeCategory | null;
   comment: string | null;
 }
 
-type ReferenceDetailsField = 'platform' | 'role' | 'occurredMonth' | 'rating' | 'category' | 'comment';
+type ReferenceDetailsField = 'platform' | 'role' | 'occurredMonth' | 'sentiment' | 'category' | 'comment';
 
 export type ReferenceDetailsValidation =
   | { ok: true; value: ReferenceDetails }
@@ -246,30 +254,11 @@ export function validateReferenceDetails(input: ReferenceDetailsInput): Referenc
   if (!occurredMonth) {
     return { ok: false, message: 'Choose a valid month.', field: 'occurredMonth' };
   }
-  let rating = 5;
-  if (input.rating !== undefined && input.rating !== null) {
-    if (
-      typeof input.rating !== 'number' ||
-      !Number.isInteger(input.rating) ||
-      input.rating < 1 ||
-      input.rating > 5
-    ) {
-      return { ok: false, message: 'Pick a rating from 1 to 5.', field: 'rating' };
-    }
-    rating = input.rating;
-  } else if (input.sentiment === 'NEGATIVE') {
-    rating = 1;
-  } else if (input.sentiment === 'NEUTRAL') {
-    rating = 3;
+  // No default: an experience nobody said was good must never be published as one.
+  if (!isReferenceSentiment(input.sentiment)) {
+    return { ok: false, message: 'Choose how it went: good, so-so or bad.', field: 'sentiment' };
   }
-  const sentiment: ReferenceSentiment =
-    input.rating !== undefined && input.rating !== null
-      ? sentimentForRating(rating)
-      : input.sentiment === 'NEGATIVE'
-        ? 'NEGATIVE'
-        : input.sentiment === 'NEUTRAL'
-          ? 'NEUTRAL'
-          : 'POSITIVE';
+  const sentiment = input.sentiment;
   let category: NegativeCategory | null = null;
   if (sentiment === 'NEGATIVE') {
     if (
@@ -291,7 +280,7 @@ export function validateReferenceDetails(input: ReferenceDetailsInput): Referenc
 
   return {
     ok: true,
-    value: { platform: input.platform, role: input.role, occurredMonth, rating, sentiment, category, comment },
+    value: { platform: input.platform, role: input.role, occurredMonth, sentiment, category, comment },
   };
 }
 
@@ -314,8 +303,9 @@ export function normalizeClaimHandle(platform: string, raw: string): string | nu
 export const REFERENCES_PER_DAY = 20;
 
 /**
- * What a 1..5 rating says: 4–5 good, 3 so-so, 1–2 bad. The ONE mapping, for a reference
- * and for a NoDitto review alike, so a 1-star review is never read as a vouch.
+ * What a NoDitto review's 1..5 rating says as a reference sentiment: 4–5 good, 3 so-so,
+ * 1–2 bad. References themselves carry a sentiment and no stars (0169); reviews keep
+ * their stars and are read through this, so a 1-star review is never read as a vouch.
  */
 export function sentimentForRating(rating: number): ReferenceSentiment {
   if (rating >= 4) return 'POSITIVE';

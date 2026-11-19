@@ -10,8 +10,8 @@
 //     published by a verified person, so there is no dialog to act on first.
 //   - Everyone else gets a two-step dialog (`components/ui/dialog`):
 //       1. The deal  — where and when it happened, and whether they bought, sold or traded.
-//       2. Rating    — 1..5 stars, what went wrong if it went badly, the member's own
-//                      words, optional proof, Publish.
+//       2. How it went — Good, So-so or Bad (no stars, 0169), what went wrong if it
+//                      went badly, the member's own words, optional proof, Publish.
 //     A visitor who is signed out drafts through both steps, then signs in to publish.
 //
 // WHY STEPS. One tall form put six platform buttons, three deal buttons, stars, a text
@@ -141,7 +141,7 @@ export function ShareExperience({
             <DialogDescription>
               {step === 1
                 ? `Where did you deal with ${target.handle}, and what did you do?`
-                : 'How did it go? Your rating helps other traders.'}
+                : 'Tell other traders how your deal went.'}
             </DialogDescription>
           )}
         </DialogHeader>
@@ -151,7 +151,7 @@ export function ShareExperience({
             <Composer.Published onDone={() => handleOpenChange(false)} />
           ) : (
             <>
-              {/* Keyed by step so each step mounts fresh (star hover state and the like). */}
+              {/* Keyed by step so each step mounts fresh. */}
               <div key={step} className="space-y-group">
                 {step === 1 ? (
                   <>

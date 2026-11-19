@@ -87,7 +87,7 @@ export function ReferenceOwnerActions({
                 platform: node.platform,
                 role: node.role,
                 month: node.occurredMonth,
-                rating: node.rating ?? (node.sentiment === 'NEGATIVE' ? 1 : node.sentiment === 'NEUTRAL' ? 3 : 5),
+                sentiment: node.sentiment,
                 category: node.category,
                 comment: node.comment,
               }}
@@ -135,7 +135,7 @@ function EditReferenceForm({ reference, onClose }: { reference: EditableReferenc
       </DialogHeader>
 
       <Composer.Provider draft={draft}>
-        {/* Keyed by step so each step mounts fresh (star hover state and the like). */}
+        {/* Keyed by step so each step mounts fresh. */}
         <div key={step} className="space-y-group">
           {step === 1 ? (
             <>

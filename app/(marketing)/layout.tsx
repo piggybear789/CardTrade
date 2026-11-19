@@ -16,6 +16,11 @@
 // on a form scrolled to its end the page would shrink by the bar's height, and jump, the
 // moment a field took focus. Only the bar sits inside `WorkspaceChromeProvider`, for its
 // unread counts; the pages keep the default context they always had.
+//
+// NO `.auth-backdrop` HERE. The pastel mesh belongs to the credentials screens
+// (`AuthScreen`). This layout wore it too, so References, Help, Safety and the policies
+// sat on a violet/blue/rose wash while the catalog, sales and every other page use the
+// plain `--background`. The column now inherits the page surface like the rest of the app.
 
 import type { ReactNode } from 'react';
 
@@ -32,7 +37,7 @@ export default async function MarketingLayout({ children }: { children: ReactNod
 
   return (
     <>
-      <div className="auth-backdrop flex min-h-0 flex-1 flex-col max-md:pb-[calc(3.5rem+1px+env(safe-area-inset-bottom))]">
+      <div className="flex min-h-0 flex-1 flex-col max-md:pb-[calc(3.5rem+1px+env(safe-area-inset-bottom))]">
         <div className="flex flex-1 flex-col">{children}</div>
         {/* Client, for its one path check: hidden on phones on the references pages. */}
         <MarketingFooter />

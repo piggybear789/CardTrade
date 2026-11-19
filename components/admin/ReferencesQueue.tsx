@@ -17,6 +17,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ExternalLinksPanel } from '@/components/admin/ExternalLinksPanel';
+import { ReferenceBioPanel } from '@/components/admin/ReferenceBioPanel';
 import {
   decideHandleClaim,
   rejectReferenceProof,
@@ -182,6 +184,8 @@ export function ReferencesQueue({
       )}
 
       <ReleaseHandleForm />
+      <ExternalLinksPanel />
+      <ReferenceBioPanel />
     </section>
   );
 }

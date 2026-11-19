@@ -11,10 +11,7 @@
 import { memo } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowLeft01Icon,
-  StarIcon,
-} from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
@@ -25,16 +22,16 @@ import {
   TrustNetworkBody,
   TrustNetworkHeader,
   arrival,
-  averageGraphRating,
   usePageOpener,
 } from '@/components/references/ReferenceGraph';
 import { ShareExperience } from '@/components/references/ShareExperience';
+import { TrackRecordCard } from '@/components/references/TrackRecordCard';
 import { centreKeyOf, useTrustOrbits } from '@/components/references/useTrustOrbits';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { referenceAddressKey, referenceHref } from '@/domain/references/address';
 import { regionLabel } from '@/domain/region';
-import type { ReferenceGraphCentre, ReferenceGraphData, ReferenceGraphNode } from '@/lib/references/graph';
+import type { ReferenceGraphCentre, ReferenceGraphData } from '@/lib/references/graph';
 
 export interface ReferenceViewer {
   /** The signed-in member, or null for a visitor. */
@@ -67,12 +64,15 @@ export function ReferenceProfile({
     <div className="flex flex-1 flex-col gap-group">
       <ProfileHeader
         centre={orbits.graph.centre}
-        nodes={orbits.graph.nodes}
         opacity={arrival(orbits)}
         viewer={viewer}
         autoOpen={autoOpen && atPagePerson}
         composerKey={orbits.centreKey}
+        bio={orbits.graph.bio?.text ?? null}
       />
+
+      {/* Another site's public record, when one is linked (0170). Not a reference. */}
+      <TrackRecordCard records={orbits.graph.trackRecord ?? []} opacity={arrival(orbits)} />
 
       <section
         aria-labelledby="references-heading"
@@ -105,24 +105,24 @@ export function ReferenceProfile({
  */
 const ProfileHeader = memo(function ProfileHeader({
   centre,
-  nodes,
   opacity,
   viewer,
   autoOpen,
   composerKey,
+  bio,
 }: {
   centre: ReferenceGraphCentre;
-  nodes: readonly ReferenceGraphNode[];
   opacity: number;
   viewer: ReferenceViewer;
   autoOpen: boolean;
   /** Remounts the composer for each person the graph shows. */
   composerKey: string;
+  /** A short model-written line, published by staff (0171), or null. */
+  bio: string | null;
 }) {
   const returnPath = referenceHref(centre.address);
   const centreAddressKey = referenceAddressKey(centre.address);
   const isSelf = viewer.id !== null && viewer.id === centre.profileId;
-  const avgRating = averageGraphRating(nodes);
   const details = [
     centre.name !== centre.handle.replace(/^@/, '') ? centre.name : null,
     centre.regionCode ? regionLabel(centre.regionCode) : null,
@@ -189,21 +189,6 @@ const ProfileHeader = memo(function ProfileHeader({
 
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-body text-muted-foreground">
               {details.length > 0 ? <span>{details.join(' · ')}</span> : null}
-              {details.length > 0 && avgRating !== null ? (
-                <span aria-hidden className="text-border">
-                  ·
-                </span>
-              ) : null}
-              {avgRating !== null ? (
-                <span className="inline-flex items-center gap-1 font-semibold tabular-nums text-foreground">
-                  <HugeiconsIcon
-                    icon={StarIcon}
-                    className="size-3.5 fill-iris text-iris-ink"
-                    aria-hidden
-                  />
-                  {avgRating.toFixed(1)}
-                </span>
-              ) : null}
               {altHandles.length > 0 ? (
                 <>
                   <span aria-hidden className="hidden text-border sm:inline">
@@ -261,6 +246,17 @@ const ProfileHeader = memo(function ProfileHeader({
           />
         </div>
       </div>
+
+      {/* A short line written by a model from a few checked facts and published by staff
+          (0171). On its own row under the whole header, not beside the avatar: squeezed
+          into that column on a phone it wrapped to five lines and clipped its label. It
+          describes and never vouches, and it says what wrote it. */}
+      {bio ? (
+        <div className="relative mt-cozy border-t border-border/70 pt-cozy" style={{ opacity }}>
+          <p className="max-w-prose text-body text-foreground">{bio}</p>
+          <p className="mt-tight text-meta text-muted-foreground">AI-written from public information</p>
+        </div>
+      ) : null}
     </header>
   );
 });

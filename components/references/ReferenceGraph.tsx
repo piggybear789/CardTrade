@@ -70,15 +70,6 @@ export function arrival(orbits: TrustOrbits): number {
   return orbits.transition ? Math.min(1, 0.3 + orbits.progress * 1.4) : 1;
 }
 
-export function averageGraphRating(nodes: readonly ReferenceGraphNode[]): number | null {
-  if (nodes.length === 0) return null;
-  const total = nodes.reduce((sum, n) => {
-    const fallback = n.sentiment === 'NEGATIVE' ? 1 : n.sentiment === 'NEUTRAL' ? 3 : 5;
-    return sum + (n.rating ?? fallback);
-  }, 0);
-  return total / nodes.length;
-}
-
 function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
   const { positive, neutral: neutralCount, negative } = stats;
   return (
@@ -366,7 +357,7 @@ const ExperienceCards = memo(function ExperienceCards({
                       {node.platforms.map((slug) => (
                         <PlatformChip key={slug} slug={slug} />
                       ))}
-                      <SentimentBadge sentiment={node.sentiment} rating={node.rating} />
+                      <SentimentBadge sentiment={node.sentiment} />
                     </div>
                   </div>
 

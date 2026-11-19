@@ -3,10 +3,10 @@
 // components/references/ReferenceComposer.tsx
 //
 // Leaving a reference (0155), and editing one you left, built on our standard UI
-// primitives (`StarIcon` 1..5 rating, `Label`, `Textarea`, `Select`, `Button`,
-// `PendingLabel`). The fields read one draft from context (`ReferenceDraft`):
-// `useReferenceComposer` publishes a new reference, `useReferenceEditor` saves over
-// one the member already left.
+// primitives (`OptionButton` for Good / So-so / Bad, `Label`, `Textarea`, `Select`,
+// `Button`, `PendingLabel`). There are no stars (0169). The fields read one draft
+// from context (`ReferenceDraft`): `useReferenceComposer` publishes a new reference,
+// `useReferenceEditor` saves over one the member already left.
 
 import {
   createContext,
@@ -16,16 +16,17 @@ import {
   useRef,
   useState,
   useTransition,
-  type KeyboardEvent,
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
+  AlertCircleIcon,
   Cancel01Icon,
+  CheckmarkCircle02Icon,
   Copy01Icon,
   ImageAdd01Icon,
-  StarIcon,
+  MinusSignCircleIcon,
 } from '@hugeicons/core-free-icons';
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
@@ -54,6 +55,7 @@ import {
   isClaimPlatform,
   isNegativeCategory,
   isReferenceRole,
+  isReferenceSentiment,
   type NegativeCategory,
   type ReferenceRole,
   type ReferenceSentiment,
@@ -116,18 +118,13 @@ function platformOptionsFor(target: ReferenceTargetDescriptor): readonly Platfor
   return target.kind === 'handle' && !target.platform ? HANDLE_PLATFORMS : REFERENCE_PLATFORMS;
 }
 
-function sentimentForRating(rating: number): ReferenceSentiment {
-  if (rating <= 2) return 'NEGATIVE';
-  if (rating === 3) return 'NEUTRAL';
-  return 'POSITIVE';
-}
-
 /** What a negative reference is filed under: the member's pick, or "Other issue". */
 function categoryFor(sentiment: ReferenceSentiment, category: NegativeCategory | null): NegativeCategory | null {
   return sentiment === 'NEGATIVE' ? (category ?? 'OTHER') : null;
 }
 
 const PICK_PLATFORM = 'Select which platform this account is on.';
+const PICK_SENTIMENT = 'Choose how it went: good, so-so or bad.';
 
 /** Everything the composer fields read and set, whichever hook owns the draft. */
 export interface ReferenceDraft {
@@ -141,10 +138,10 @@ export interface ReferenceDraft {
   /** `YYYY-MM` of the deal. */
   month: string;
   setMonth: (next: string) => void;
-  rating: number;
-  setRating: (next: number) => void;
-  sentiment: ReferenceSentiment;
-  /** What went wrong, for a negative rating. Null until picked. */
+  /** How it went. Null on a new reference until the member picks; never defaulted. */
+  sentiment: ReferenceSentiment | null;
+  setSentiment: (next: ReferenceSentiment) => void;
+  /** What went wrong, for a bad experience. Null until picked. */
   category: NegativeCategory | null;
   setCategory: (next: NegativeCategory) => void;
   comment: string;
@@ -177,7 +174,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
   const [platform, setPlatformState] = useState<string>('');
   const [role, setRole] = useState<ReferenceRole>('BOUGHT');
   const [month, setMonth] = useState<string>(currentMonth);
-  const [rating, setRating] = useState<number>(5);
+  const [sentiment, setSentimentState] = useState<ReferenceSentiment | null>(null);
   const [category, setCategory] = useState<NegativeCategory | null>(null);
   const [comment, setComment] = useState('');
   const [proofPaths, setProofPaths] = useState<string[]>([]);
@@ -192,6 +189,11 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
     setError(null);
   };
 
+  const setSentiment = (next: ReferenceSentiment) => {
+    setSentimentState(next);
+    setError(null);
+  };
+
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(storageKey);
@@ -200,7 +202,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
         platform?: string;
         role?: string;
         month?: string;
-        rating?: number;
+        sentiment?: string;
         category?: string;
         comment?: string;
       };
@@ -216,8 +218,10 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
       if (typeof parsed.month === 'string' && /^\d{4}-\d{2}$/.test(parsed.month) && parsed.month <= currentMonth()) {
         setMonth(parsed.month);
       }
-      if (typeof parsed.rating === 'number' && parsed.rating >= 1 && parsed.rating <= 5) {
-        setRating(parsed.rating);
+      // A draft saved before 0169 carries `rating` instead; it is dropped, so the member
+      // picks Good / So-so / Bad again rather than being given one.
+      if (isReferenceSentiment(parsed.sentiment)) {
+        setSentimentState(parsed.sentiment);
       }
       if (isNegativeCategory(parsed.category)) {
         setCategory(parsed.category);
@@ -238,15 +242,13 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
     try {
       sessionStorage.setItem(
         storageKey,
-        JSON.stringify({ platform, role, month, rating, category, comment }),
+        JSON.stringify({ platform, role, month, sentiment, category, comment }),
       );
     } catch {
       // ignore storage errors
     }
     return true;
   };
-
-  const sentiment = sentimentForRating(rating);
 
   const requirePlatform = (): boolean => {
     if (platform) return true;
@@ -284,8 +286,8 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
       setError(PICK_PLATFORM);
       return;
     }
-    if (rating < 1 || rating > 5) {
-      setError('Pick a rating from 1 to 5.');
+    if (!sentiment) {
+      setError(PICK_SENTIMENT);
       return;
     }
     setError(null);
@@ -295,7 +297,6 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
         platform,
         role,
         occurredMonth: month,
-        rating,
         sentiment,
         category: categoryFor(sentiment, category),
         comment,
@@ -323,7 +324,7 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
     setPlatformState('');
     setRole('BOUGHT');
     setMonth(currentMonth());
-    setRating(5);
+    setSentimentState(null);
     setCategory(null);
     setComment('');
     setProofPaths([]);
@@ -339,9 +340,8 @@ export function useReferenceComposer(target: ReferenceTargetDescriptor): Compose
     setRole,
     month,
     setMonth,
-    rating,
-    setRating,
     sentiment,
+    setSentiment,
     category,
     setCategory,
     comment,
@@ -369,7 +369,7 @@ export interface EditableReference {
   role: string;
   /** `YYYY-MM`. */
   month: string;
-  rating: number;
+  sentiment: ReferenceSentiment;
   category: string | null;
   comment: string | null;
 }
@@ -380,14 +380,17 @@ export function useReferenceEditor(reference: EditableReference, onSaved: () => 
   const [platform, setPlatformState] = useState(reference.platform);
   const [role, setRole] = useState<ReferenceRole>(isReferenceRole(reference.role) ? reference.role : 'BOUGHT');
   const [month, setMonth] = useState(reference.month);
-  const [rating, setRating] = useState(reference.rating);
+  const [sentiment, setSentimentState] = useState<ReferenceSentiment>(reference.sentiment);
   const [category, setCategory] = useState<NegativeCategory | null>(
     isNegativeCategory(reference.category) ? reference.category : null,
   );
   const [comment, setComment] = useState(reference.comment ?? '');
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const sentiment = sentimentForRating(rating);
+  const setSentiment = (next: ReferenceSentiment) => {
+    setSentimentState(next);
+    setError(null);
+  };
   const platformKnown = REFERENCE_PLATFORMS.some((p) => p.slug === platform);
 
   const setPlatform = (next: string) => {
@@ -409,7 +412,6 @@ export function useReferenceEditor(reference: EditableReference, onSaved: () => 
         platform,
         role,
         occurredMonth: month,
-        rating,
         sentiment,
         category: categoryFor(sentiment, category),
         comment,
@@ -432,9 +434,8 @@ export function useReferenceEditor(reference: EditableReference, onSaved: () => 
     setRole,
     month,
     setMonth,
-    rating,
-    setRating,
     sentiment,
+    setSentiment,
     category,
     setCategory,
     comment,
@@ -461,11 +462,6 @@ function useDraft(): ReferenceDraft {
 function Provider({ draft, children }: { draft: ReferenceDraft; children: ReactNode }) {
   return <ComposerContext value={draft}>{children}</ComposerContext>;
 }
-
-/** The words a rating is published under, from the domain's one list. */
-const SENTIMENT_LABEL = Object.fromEntries(
-  REFERENCE_SENTIMENTS.map((s) => [s.slug, s.label]),
-) as Record<ReferenceSentiment, string>;
 
 function Platform() {
   const { platform, setPlatform, platformOptions } = useDraft();
@@ -579,71 +575,45 @@ function Month() {
   );
 }
 
-function Outcome() {
-  const { rating, setRating } = useDraft();
-  const [hover, setHover] = useState(0);
-  const active = hover || rating;
+/** Each choice's mark, matching `SentimentBadge` and the counts above a graph. */
+const SENTIMENT_ICON = {
+  POSITIVE: { icon: CheckmarkCircle02Icon, tint: 'text-trust' },
+  NEUTRAL: { icon: MinusSignCircleIcon, tint: 'text-action-foreground' },
+  NEGATIVE: { icon: AlertCircleIcon, tint: 'text-destructive' },
+} as const satisfies Record<ReferenceSentiment, unknown>;
 
-  function handleKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      setRating(Math.min(5, (rating || 0) + 1));
-    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
-      e.preventDefault();
-      setRating(Math.max(1, (rating || 1) - 1));
-    } else if (e.key === 'Home') {
-      e.preventDefault();
-      setRating(1);
-    } else if (e.key === 'End') {
-      e.preventDefault();
-      setRating(5);
-    }
-  }
+/**
+ * How it went: Good, So-so or Bad (0169). Three choices rather than five stars, because
+ * a reference says how a deal went and nothing finer; nobody can tell a 4 from a 5 in
+ * "did a deal with him, legit". Nothing is preselected on a new reference.
+ */
+function Outcome() {
+  const { sentiment, setSentiment } = useDraft();
 
   return (
     <div className="space-y-snug">
-      <div className="flex items-center justify-between">
-        <Label>Rating</Label>
-        {/* What the stars will be published as, so a 3 is not a surprise "So-so". */}
-        <span className="text-meta text-muted-foreground" aria-live="polite">
-          {SENTIMENT_LABEL[sentimentForRating(active || rating)]}
-        </span>
-      </div>
-      <div
-        className="flex items-center gap-tight"
-        role="radiogroup"
-        aria-label="Star rating"
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-      >
-        {[1, 2, 3, 4, 5].map((value) => (
-          <button
-            key={value}
-            type="button"
-            role="radio"
-            aria-checked={rating === value}
-            aria-label={`${value} star${value === 1 ? '' : 's'}`}
-            onClick={() => setRating(value)}
-            onMouseEnter={() => setHover(value)}
-            onMouseLeave={() => setHover(0)}
-            className="touch-manipulation rounded border border-transparent p-tight focus:outline-none focus-visible:border-ring"
-          >
-            <HugeiconsIcon
-              icon={StarIcon}
-              className={cn(
-                'size-7 transition-colors',
-                value <= active ? 'fill-iris text-iris-ink' : 'text-muted-foreground/40',
-              )}
-              aria-hidden
-            />
-          </button>
-        ))}
+      <Label>How did it go?</Label>
+      <div role="radiogroup" aria-label="How did it go?" className="grid grid-cols-3 gap-snug">
+        {REFERENCE_SENTIMENTS.map((s) => {
+          const { icon, tint } = SENTIMENT_ICON[s.slug];
+          return (
+            <OptionButton
+              key={s.slug}
+              selected={sentiment === s.slug}
+              onClick={() => setSentiment(s.slug)}
+              className="justify-center"
+            >
+              <HugeiconsIcon icon={icon} className={cn('size-4', tint)} aria-hidden />
+              <span className="truncate">{s.label}</span>
+            </OptionButton>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/** What went wrong, asked only of a negative rating. Unpicked, it is filed as "Other issue". */
+/** What went wrong, asked only of a bad experience. Unpicked, it is filed as "Other issue". */
 function Category() {
   const { sentiment, category, setCategory } = useDraft();
   if (sentiment !== 'NEGATIVE') return null;

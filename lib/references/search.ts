@@ -4,7 +4,7 @@ import 'server-only';
 //
 // Reference search (0155): the suggestions behind `/references` and the header search.
 // The member-facing door is the `searchReferences` Server Action, which adds the rate
-// limit; the `/references` page reads `cachedTopSuggestions` directly, so rendering the
+// limit; the `/references` page reads `cachedTopPeople` directly, so rendering the
 // page never spends a visitor's search allowance.
 //
 // A member appears once, with every platform they have a claimed handle or a reference
@@ -55,6 +55,13 @@ export interface ReferenceSuggestion {
 
 const SUGGESTION_LIMIT = 8;
 
+/**
+ * How many people the `/references` landing reads. The list under the search shows the
+ * first few (`MOST_REFERENCED_ROWS`) and the faces around it are the next ones, so this
+ * is larger than a search needs.
+ */
+const TOP_PEOPLE_LIMIT = 16;
+
 interface ClaimMatch {
   id: string;
   platform: string;
@@ -103,14 +110,15 @@ export async function searchSuggestions(needle: string): Promise<ReferenceSugges
 }
 
 /**
- * The no-query suggestions, the `/references` landing list: the same for everyone, so
- * shared across requests, and expired with every other cached reference read. A failed
- * read throws rather than returning, so a failure is never cached.
+ * The most-referenced people, for the `/references` landing (its list and the faces
+ * around the search): the same for everyone, so shared across requests, and expired
+ * with every other cached reference read. A failed read throws rather than returning,
+ * so a failure is never cached.
  */
-export const cachedTopSuggestions = unstable_cache(
+export const cachedTopPeople = unstable_cache(
   async (): Promise<ReferenceSuggestion[]> => {
     const admin = createAdminClient();
-    const top = await mostReferenced(admin);
+    const top = await mostReferenced(admin, TOP_PEOPLE_LIMIT);
     const claims = top.claimIds.length
       ? rowsOrThrow(
           await admin
@@ -120,17 +128,28 @@ export const cachedTopSuggestions = unstable_cache(
           'most-referenced handles',
         )
       : [];
-    return buildSuggestions(admin, top.profileIds, claims, '');
+    return buildSuggestions(admin, top.profileIds, claims, '', TOP_PEOPLE_LIMIT);
   },
-  ['references-top'],
+  ['references-top-people'],
   { tags: [REFERENCES_CACHE_TAG], revalidate: 300 },
 );
+
+/**
+ * The no-query suggestions: the first {@link SUGGESTION_LIMIT} of `cachedTopPeople`,
+ * read from the same cache entry rather than a second query.
+ */
+export async function cachedTopSuggestions(): Promise<ReferenceSuggestion[]> {
+  return (await cachedTopPeople()).slice(0, SUGGESTION_LIMIT);
+}
 
 /**
  * The people and handles the most people had a good experience of, among the latest
  * references and reviews. Only picks candidates; `buildSuggestions` counts them in full.
  */
-async function mostReferenced(admin: Admin): Promise<{ profileIds: string[]; claimIds: string[] }> {
+async function mostReferenced(
+  admin: Admin,
+  limit: number,
+): Promise<{ profileIds: string[]; claimIds: string[] }> {
   const [edges, reviews] = await Promise.all([
     admin
       .from('reference_edges_public')
@@ -165,7 +184,7 @@ async function mostReferenced(admin: Admin): Promise<{ profileIds: string[]; cla
   const top = Array.from(tallies.entries())
     .filter(([, tally]) => tally.positive > 0)
     .sort((a, b) => b[1].positive - a[1].positive)
-    .slice(0, SUGGESTION_LIMIT * 3)
+    .slice(0, limit * 3)
     .map(([key]) => key);
   return {
     profileIds: top.filter((key) => key.startsWith('p:')).map((key) => key.slice(2)),
@@ -178,6 +197,7 @@ async function buildSuggestions(
   namedProfileIds: string[],
   claims: readonly ClaimMatch[],
   needle: string,
+  limit: number = SUGGESTION_LIMIT,
 ): Promise<ReferenceSuggestion[]> {
   // The handle a member was found by, so a search for their Discord name shows it.
   const matchedHandle = new Map<string, ClaimMatch>();
@@ -299,6 +319,6 @@ async function buildSuggestions(
       (a, b) =>
         a.score - b.score || b.referenceCount - a.referenceCount || a.handle.localeCompare(b.handle),
     )
-    .slice(0, SUGGESTION_LIMIT)
+    .slice(0, limit)
     .map(({ score: _score, ...rest }) => rest);
 }

@@ -46,8 +46,11 @@ import {
   profileKey,
   rowsOrThrow,
 } from '@/lib/references/people';
+import { loadPublishedBio } from '@/lib/references/bios';
+import { loadTrackRecord } from '@/lib/references/trackRecord';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identity/identityGate';
+import type { ExternalTrackRecord } from '@/domain/references/externalSeller';
 import { claimAddress, safeDecode, type ReferenceAddress } from '@/domain/references/address';
 import {
   displayNameLabel,
@@ -120,9 +123,8 @@ export interface ReferenceGraphNode {
   /** Every platform this referee has dealt with the centre person on. */
   platforms: string[];
   kind: ReferenceProof;
+  /** How it went: Good, So-so or Bad. References carry no stars (0169). */
   sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-  /** 1..5 star rating given to the centre person. */
-  rating?: number;
   categoryLabel: string | null;
   comment: string | null;
   role: string;
@@ -156,7 +158,7 @@ export interface ReferenceGraphChild {
 /**
  * References the person in the middle has LEFT for other people, drawn the same way
  * as the ones they received. Each node is the person they reviewed; its sentiment,
- * rating, comment and role are the centre's own words about them. An unclaimed
+ * comment and role are the centre's own words about them. An unclaimed
  * handle they reviewed has `profileId` `claim:<social_claims.id>`. There are no
  * second-degree stars or links here: those describe who vouches for whom, which is
  * the received side's question.
@@ -180,6 +182,18 @@ export interface ReferenceGraphData {
   hidden: { people: number; issues: number };
   /** References the centre has left for others. Absent (or empty) for an unclaimed handle. */
   given?: ReferenceGraphGiven;
+  /**
+   * The centre's public record on another platform (0170): eBay accounts a member signed in
+   * to or staff checked, with figures read live from eBay. NOT references and never counted
+   * as people. Absent or empty when there is none.
+   */
+  trackRecord?: ExternalTrackRecord[];
+  /**
+   * A short model-written line about the centre (0171), published by staff, built from
+   * structured facts and checked by code. It describes and never vouches. Text only: the
+   * facts, the pasted bio and who published it stay on the server.
+   */
+  bio?: { text: string } | null;
 }
 
 /** One of the people a bare handle could mean, on the page that asks which. */
@@ -295,7 +309,6 @@ interface MergedEdge {
   /** The newest reference folded in. Null when only escrow reviews make it up. */
   referenceId: string | null;
   sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-  rating: number;
   category: string | null;
   categoryLabel: string | null;
   editedAt: string | null;
@@ -427,7 +440,6 @@ interface EdgeRow {
   edited_at: string | null;
   platform: string;
   sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-  rating: number;
   category: string | null;
   comment: string | null;
   role: string;
@@ -452,7 +464,7 @@ interface ReviewRow {
  * It lands in `MergedEdge.voucherId` either way.
  *
  * Rows arrive newest first per query, but two queries are concatenated, so the entry
- * keeps whichever reference was CREATED last as its face (id, rating, words, month).
+ * keeps whichever reference was CREATED last as its face (id, words, month).
  * A NoDitto review joins the entry of its own rating's sentiment: a bad review is a bad
  * experience, never folded into a vouch.
  */
@@ -509,7 +521,6 @@ function mergeEdgeRows(
         referenceId: null,
         createdAt: review.created_at,
         sentiment,
-        rating: review.rating,
         category: null,
         categoryLabel: null,
         editedAt: null,
@@ -534,7 +545,6 @@ function faceOf(edge: EdgeRow) {
   return {
     referenceId: edge.id,
     createdAt: edge.created_at,
-    rating: edge.rating,
     category: edge.category,
     categoryLabel: negativeCategoryLabel(edge.category),
     editedAt: edge.edited_at ?? null,
@@ -702,7 +712,6 @@ async function loadGiven(
         platforms: edge.platforms,
         kind: proofOf(edge),
         sentiment: edge.sentiment,
-        rating: edge.rating,
         categoryLabel: edge.categoryLabel,
         comment: edge.comment,
         role: edge.role,
@@ -737,6 +746,10 @@ async function assembleGraph(
     : target.claimIds.length > 0
       ? loadGiven(admin, { claimIds: target.claimIds })
       : Promise.resolve(EMPTY_GIVEN);
+  // Another platform's record (0170). Started now, awaited with the rest; it never throws.
+  const trackRecordPromise = loadTrackRecord(admin, target);
+  // The published profile line (0171). Also never throws.
+  const bioPromise = loadPublishedBio(admin, target.claimIds);
   const merged = await mergedIncoming(admin, target);
 
   // Members, and handles that wrote an imported reference nobody has claimed yet.
@@ -839,7 +852,6 @@ async function assembleGraph(
           platforms: edge.platforms,
           kind: proofOf(edge),
           sentiment: edge.sentiment,
-          rating: edge.rating,
           categoryLabel: edge.categoryLabel,
           comment: edge.comment,
           role: edge.role,
@@ -869,7 +881,6 @@ async function assembleGraph(
         platforms: edge.platforms,
         kind: proofOf(edge),
         sentiment: edge.sentiment,
-        rating: edge.rating,
         categoryLabel: edge.categoryLabel,
         comment: edge.comment,
         role: edge.role,
@@ -897,6 +908,8 @@ async function assembleGraph(
     links,
     hidden,
     given: await givenPromise,
+    trackRecord: await trackRecordPromise,
+    bio: await bioPromise,
   };
 }
 

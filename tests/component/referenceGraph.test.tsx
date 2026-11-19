@@ -242,7 +242,7 @@ describe('ReferenceProfile', () => {
     expect(within(gems).getByText('Receipt checked · Sep 2026')).toBeInTheDocument();
   });
 
-  it('opens a two-step modal to leave a reference (the deal, then 1..5 stars + description + image)', () => {
+  it('opens a two-step modal to leave a reference (the deal, then good / so-so / bad + description + image)', () => {
     render(<ReferenceProfile data={ROOT} viewer={{ id: 'v9', identityVerified: true }} autoOpen={false} />);
 
     fireEvent.click(within(screen.getByRole('banner')).getByRole('button', { name: 'Leave a reference' }));
@@ -254,8 +254,12 @@ describe('ReferenceProfile', () => {
     fireEvent.click(within(dialog).getByRole('radio', { name: /Instagram/ }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
 
-    expect(within(dialog).getByRole('radio', { name: '5 stars' })).toHaveAttribute('aria-checked', 'true');
-    expect(within(dialog).getByRole('radio', { name: '1 star' })).toHaveAttribute('aria-checked', 'false');
+    // Three choices, and none made for the member.
+    const outcome = within(dialog).getByRole('radiogroup', { name: 'How did it go?' });
+    for (const label of ['Good', 'So-so', 'Bad']) {
+      expect(within(outcome).getByRole('radio', { name: label })).toHaveAttribute('aria-checked', 'false');
+    }
+    expect(within(dialog).queryByRole('radio', { name: /star/ })).not.toBeInTheDocument();
     expect(within(dialog).getByRole('textbox', { name: 'Description' })).toBeEnabled();
     expect(within(dialog).getByRole('button', { name: 'Add image' })).toBeEnabled();
     expect(within(dialog).getByRole('button', { name: 'Publish reference' })).toBeEnabled();
@@ -283,7 +287,7 @@ describe('ReferenceProfile', () => {
     await waitFor(() => expect(withdrawReference).toHaveBeenCalledWith('ref-kai'));
   });
 
-  it('edits a reference through the same two steps, asking what went wrong for a bad rating', async () => {
+  it('edits a reference through the same two steps, asking what went wrong for a bad experience', async () => {
     render(<ReferenceProfile data={ROOT} viewer={{ id: 'kai', identityVerified: true }} autoOpen={false} />);
     const card = screen.getByText('Your reference').closest('li')!;
     fireEvent.click(within(card).getByRole('button', { name: 'Edit' }));
@@ -294,7 +298,9 @@ describe('ReferenceProfile', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Next' }));
 
     expect(within(dialog).queryByRole('radiogroup', { name: 'What went wrong' })).not.toBeInTheDocument();
-    fireEvent.click(within(dialog).getByRole('radio', { name: '2 stars' }));
+    // Prefilled with the reference's own sentiment.
+    expect(within(dialog).getByRole('radio', { name: 'Good' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Bad' }));
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Item never arrived' }));
     fireEvent.click(within(dialog).getByRole('button', { name: 'Save changes' }));
 
@@ -304,7 +310,6 @@ describe('ReferenceProfile', () => {
         expect.objectContaining({
           platform: 'instagram',
           occurredMonth: '2026-09',
-          rating: 2,
           sentiment: 'NEGATIVE',
           category: 'NEVER_ARRIVED',
         }),

@@ -2912,6 +2912,105 @@ export type Database = {
         Relationships: [];
       };
       /**
+       * Which account on another platform a staff member checked belongs to a handle (0170).
+       * The platform's own numbers are read live and never stored. Service role only.
+       */
+      external_seller_links: {
+        Row: {
+          id: string;
+          claim_id: string;
+          platform: 'ebay';
+          external_username: string;
+          username_norm: string;
+          status: 'CONFIRMED' | 'REJECTED';
+          /** What the admin checked. Staff-only: never leaves the server. */
+          staff_note: string;
+          decided_by: string | null;
+          decided_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          claim_id: string;
+          platform: 'ebay';
+          external_username: string;
+          status: 'CONFIRMED' | 'REJECTED';
+          staff_note: string;
+          decided_by?: string | null;
+          decided_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          claim_id?: string;
+          platform?: 'ebay';
+          external_username?: string;
+          status?: 'CONFIRMED' | 'REJECTED';
+          staff_note?: string;
+          decided_by?: string | null;
+          decided_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /**
+       * A model-written profile line for a handle (0171). Built from structured `facts`,
+       * published by staff. Service role only; the page reads PUBLISHED rows.
+       */
+      reference_bios: {
+        Row: {
+          id: string;
+          claim_id: string;
+          status: 'DRAFT' | 'PUBLISHED';
+          bio: string;
+          /** The structured facts the model was given (`BioFacts`). */
+          facts: Json;
+          /** What staff pasted from the handle's own public profile. Staff-only. */
+          source_text: string | null;
+          model: string;
+          input_tokens: number | null;
+          output_tokens: number | null;
+          generated_by: string | null;
+          generated_at: string;
+          published_by: string | null;
+          published_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          claim_id: string;
+          status: 'DRAFT' | 'PUBLISHED';
+          bio: string;
+          facts: Json;
+          source_text?: string | null;
+          model: string;
+          input_tokens?: number | null;
+          output_tokens?: number | null;
+          generated_by?: string | null;
+          generated_at?: string;
+          published_by?: string | null;
+          published_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          claim_id?: string;
+          status?: 'DRAFT' | 'PUBLISHED';
+          bio?: string;
+          facts?: Json;
+          source_text?: string | null;
+          model?: string;
+          input_tokens?: number | null;
+          output_tokens?: number | null;
+          generated_by?: string | null;
+          generated_at?: string;
+          published_by?: string | null;
+          published_at?: string | null;
+        };
+        Relationships: [];
+      };
+      /**
        * Reference edges (0155). Service-role writes; public reads via reference_edges_public.
        * An imported reference (0166) is written by a handle (`voucher_claim_id`) and has no
        * `voucher_id` until a member claims that handle.
@@ -2928,7 +3027,6 @@ export type Database = {
           target_claim_id: string | null;
           platform: string;
           sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-          rating: number;
           category: string | null;
           comment: string | null;
           role: 'BOUGHT' | 'SOLD' | 'TRADED';
@@ -2959,7 +3057,6 @@ export type Database = {
           target_claim_id?: string | null;
           platform: string;
           sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-          rating?: number;
           category?: string | null;
           comment?: string | null;
           role: 'BOUGHT' | 'SOLD' | 'TRADED';
@@ -2990,7 +3087,6 @@ export type Database = {
           target_claim_id?: string | null;
           platform?: string;
           sentiment?: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-          rating?: number;
           category?: string | null;
           comment?: string | null;
           role?: 'BOUGHT' | 'SOLD' | 'TRADED';
@@ -3701,7 +3797,6 @@ export type Database = {
           target_claim_id: string | null;
           platform: string;
           sentiment: 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE';
-          rating: number;
           category: string | null;
           comment: string | null;
           role: 'BOUGHT' | 'SOLD' | 'TRADED';

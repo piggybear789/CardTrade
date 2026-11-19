@@ -13,7 +13,7 @@ import { Cancel01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { IssueBadge, PlatformChip, StarRating, plural, proofLabel } from '@/components/references/referenceLabels';
+import { IssueBadge, PlatformChip, SentimentBadge, plural, proofLabel } from '@/components/references/referenceLabels';
 import { nodeKey, type OrbitEntry, type TrustOrbits } from '@/components/references/useTrustOrbits';
 import type { ReferenceGraphChild, ReferenceGraphNode } from '@/lib/references/graph';
 import { cn } from '@/lib/utils';
@@ -203,7 +203,7 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
   ]
     .filter(Boolean)
     .join(' · ');
-  // A repeat deal raises `deal_count` and OVERWRITES the stored month, rating, platform
+  // A repeat deal raises `deal_count` and OVERWRITES the stored month, platform
   // and comment (`giveReference`), so with more than one deal everything shown here is
   // the latest one's. Say so rather than implying every deal happened that month.
   const referenceMeta = [
@@ -234,7 +234,7 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
       <PanelCard divided aria-label={given ? `Review of ${node.handle}` : `Review from ${node.handle}`}>
         <div className="flex items-center justify-between gap-3">
           <span className="inline-flex items-center gap-1.5">
-            <StarRating sentiment={node.sentiment} rating={node.rating} />
+            <SentimentBadge sentiment={node.sentiment} size="md" />
             {negative && node.categoryLabel ? <IssueBadge category={node.categoryLabel} /> : null}
           </span>
           {node.platforms.length > 0 ? (

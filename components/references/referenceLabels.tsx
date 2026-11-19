@@ -7,11 +7,12 @@
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   AlertCircleIcon,
-  StarIcon,
+  CheckmarkCircle02Icon,
+  MinusSignCircleIcon,
 } from '@hugeicons/core-free-icons';
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
-import { platformLabel, type ReferenceSentiment } from '@/domain/references/reference';
+import { platformLabel, sentimentLabel, type ReferenceSentiment } from '@/domain/references/reference';
 import type { ReferenceProof } from '@/lib/references/graph';
 import { cn } from '@/lib/utils';
 
@@ -73,87 +74,40 @@ export function IssueBadge({ category }: { category: string | null }) {
   );
 }
 
-export function SentimentBadge({
-  sentiment,
-  rating,
-}: {
-  sentiment: ReferenceSentiment;
-  rating?: number;
-}) {
-  const stars =
-    rating ?? (sentiment === 'NEGATIVE' ? 1 : sentiment === 'NEUTRAL' ? 3 : 5);
-  const label = `${stars} out of 5 stars`;
-
-  if (sentiment === 'NEGATIVE') {
-    return (
-      <span
-        role="img"
-        title={label}
-        aria-label={label}
-        className="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-destructive/10 px-1.5 text-[11px] font-semibold tabular-nums text-destructive"
-      >
-        <HugeiconsIcon icon={StarIcon} className="size-3 fill-destructive" aria-hidden />
-        <span>{stars}</span>
-      </span>
-    );
-  }
-  if (sentiment === 'NEUTRAL') {
-    return (
-      <span
-        role="img"
-        title={label}
-        aria-label={label}
-        // NO BORDER, like the positive and negative chips. It read `border-action-border/40`,
-        // which is not a class here (the token is `action-edge`), so it fell back to the
-        // grey hairline: a grey ring on the one amber chip.
-        className="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-action/35 px-1.5 text-[11px] font-semibold tabular-nums text-action-foreground"
-      >
-        <HugeiconsIcon icon={StarIcon} className="size-3 fill-action-foreground" aria-hidden />
-        <span>{stars}</span>
-      </span>
-    );
-  }
-  return (
-    <span
-      role="img"
-      title={label}
-      aria-label={label}
-      className="inline-flex h-5 shrink-0 items-center gap-0.5 rounded-full bg-trust/10 px-1.5 text-[11px] font-semibold tabular-nums text-trust"
-    >
-      <HugeiconsIcon icon={StarIcon} className="size-3 fill-trust" aria-hidden />
-      <span>{stars}</span>
-    </span>
-  );
-}
-
-const STAR_FILL: Record<ReferenceSentiment, string> = {
-  POSITIVE: 'fill-trust text-trust',
-  NEUTRAL: 'fill-action-foreground text-action-foreground',
-  NEGATIVE: 'fill-destructive text-destructive',
+/** Each sentiment's mark and tint, matching the Good / So-so / Bad counts above a graph. */
+const SENTIMENT_STYLE: Record<ReferenceSentiment, { icon: typeof CheckmarkCircle02Icon; chip: string }> = {
+  POSITIVE: { icon: CheckmarkCircle02Icon, chip: 'bg-trust/10 text-trust' },
+  // NO BORDER, like the positive and negative chips. `border-action-border/40` is not a
+  // class here (the token is `action-edge`), so it fell back to a grey hairline.
+  NEUTRAL: { icon: MinusSignCircleIcon, chip: 'bg-action/35 text-action-foreground' },
+  NEGATIVE: { icon: AlertCircleIcon, chip: 'bg-destructive/10 text-destructive' },
 };
 
-/** A reference's rating as five stars, filled to the rating and tinted by sentiment. */
-export function StarRating({
+/** How a reference went, in words: Good, So-so or Bad. References carry no stars (0169). */
+export function SentimentBadge({
   sentiment,
-  rating,
+  size = 'sm',
   className,
 }: {
   sentiment: ReferenceSentiment;
-  rating?: number;
+  /** `md` for the one reference a panel is about; `sm` in lists. */
+  size?: 'sm' | 'md';
   className?: string;
 }) {
-  const stars = rating ?? (sentiment === 'NEGATIVE' ? 1 : sentiment === 'NEUTRAL' ? 3 : 5);
-  const label = `${stars} out of 5 stars`;
+  const { icon, chip } = SENTIMENT_STYLE[sentiment];
+  const label = sentimentLabel(sentiment);
   return (
-    <span role="img" title={label} aria-label={label} className={cn('inline-flex items-center gap-0.5', className)}>
-      {[1, 2, 3, 4, 5].map((value) => (
-        <HugeiconsIcon
-          key={value}
-          icon={StarIcon}
-          className={cn('size-4', value <= stars ? STAR_FILL[sentiment] : 'text-muted-foreground/35')}
-          aria-hidden
-        />
-      ))}
+    <span
+      title={`${label} experience`}
+      className={cn(
+        'inline-flex shrink-0 items-center rounded-full font-semibold',
+        size === 'md' ? 'h-6 gap-1 px-2 text-meta' : 'h-5 gap-0.5 px-1.5 text-[11px]',
+        chip,
+        className,
+      )}
+    >
+      <HugeiconsIcon icon={icon} className={size === 'md' ? 'size-3.5' : 'size-3'} aria-hidden />
+      <span>{label}</span>
     </span>
   );
 }

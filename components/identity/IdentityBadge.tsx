@@ -28,9 +28,7 @@
 // stores, that would let anyone assemble "real person, this area, this much inventory".
 // A given name plus a badge carries the trust signal without being a lookup key.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
-
+import { StatusGlyph } from '@/components/ui/status-glyph';
 import { displayLegalName } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -101,7 +99,9 @@ export function IdentityBadge({
           : 'Identity verified by Stripe with a photo ID and a selfie'
       }
     >
-      <HugeiconsIcon icon={ShieldCheckIcon} style={{ width: size, height: size, minWidth: size }} aria-hidden />
+      {/* A FILLED shield, not the outline one: this is the trust signal a buyer looks
+          for, and at 14-18px an outline stroke read as decoration. See `status-glyph`. */}
+      <StatusGlyph kind="verified" style={{ width: size, height: size, minWidth: size }} />
       {!iconOnly && <span className="text-meta">{label}</span>}
     </span>
   );

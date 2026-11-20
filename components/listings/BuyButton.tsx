@@ -17,7 +17,7 @@ import { useCallback, useEffect, useState, useTransition, type ReactNode } from 
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon, ShieldCheckIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
+import { CreditCardIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -43,6 +43,7 @@ const AddPaymentMethodForm = dynamic(
 );
 
 import { Button } from '@/components/ui/button';
+import { StatusGlyph } from '@/components/ui/status-glyph';
 import {
   Dialog,
   DialogContent,
@@ -382,7 +383,7 @@ function PurchaseDialog({
               {children}
 
               <p className="flex items-start gap-tight text-meta text-muted-foreground">
-                <HugeiconsIcon icon={ShieldCheckIcon} className="mt-px size-3.5 shrink-0 text-trust" aria-hidden />
+                <StatusGlyph kind="verified" className="mt-px size-3.5" />
                 <span className="min-w-0 break-words">
                   Seller verified as {displayLegalName(sellerIdentity.legalEntityName)}
                   {sellerIdentity.tradingName ? `, trading as ${sellerIdentity.tradingName}` : ''}

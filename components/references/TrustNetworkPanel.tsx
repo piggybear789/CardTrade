@@ -9,8 +9,9 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Cancel01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Cancel01Icon } from '@hugeicons/core-free-icons';
 
+import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -178,11 +179,7 @@ function Header({
           ) : null}
           <span className="break-all">{person.handle}</span>
           {verified ? (
-            <HugeiconsIcon
-              icon={ShieldCheckIcon}
-              className="size-3.5 shrink-0 text-trust"
-              aria-label="ID verified"
-            />
+            <IdentityBadge verified iconOnly size={14} />
           ) : null}
         </h4>
         <p className="text-meta tabular-nums text-muted-foreground">{meta}</p>
@@ -260,7 +257,7 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
           {node.platforms.length > 0 ? (
             <span className="inline-flex items-center gap-1">
               {node.platforms.map((slug) => (
-                <PlatformChip key={slug} slug={slug} className="size-5" />
+                <PlatformChip key={slug} slug={slug} bare className="size-5" />
               ))}
             </span>
           ) : null}

@@ -28,6 +28,7 @@ import { PlatformChip } from '@/components/references/referenceLabels';
 import {
   CHECK_STEPS,
   type BackgroundCheckDossier,
+  type CheckProfilePlatform,
   type CheckStep,
   type CheckStepResult,
   type CheckStreamEvent,
@@ -46,17 +47,25 @@ interface StepView {
   detail: string | null;
 }
 
-const STEP_LABEL: Record<CheckStep, string> = {
+const STEP_LABEL: Record<Exclude<CheckStep, 'profile'>, string> = {
   ebay: 'eBay',
-  instagram: 'Instagram',
   web: 'Open web & community',
   scam: 'Scam database',
   summary: 'Summary',
   sites: 'Other public sites',
 };
 
+const PROFILE_LABEL: Record<CheckProfilePlatform, string> = {
+  instagram: 'Instagram',
+  facebook: 'Facebook (search index)',
+};
+
+function stepLabel(step: CheckStep, platform: CheckProfilePlatform): string {
+  return step === 'profile' ? PROFILE_LABEL[platform] : STEP_LABEL[step];
+}
+
 /** The parts the summary is written from: it starts once these are all back. */
-const SUMMARISED_STEPS: readonly CheckStep[] = ['ebay', 'instagram', 'web', 'scam'];
+const SUMMARISED_STEPS: readonly CheckStep[] = ['ebay', 'profile', 'web', 'scam'];
 
 const COUNT_FORMAT = new Intl.NumberFormat('en-AU');
 
@@ -70,7 +79,12 @@ function resultDetail(result: CheckStepResult): string | null {
     case 'ebay':
       if (!result.found) return 'No account found';
       return result.count === null ? 'Account found' : `${COUNT_FORMAT.format(result.count)} feedback`;
-    case 'instagram':
+    case 'profile':
+      if (result.platform === 'facebook') {
+        // `count` is how many other accounts share the name.
+        if (!result.found) return 'Not in search engines';
+        return result.count ? counted(result.count, 'same-name account', 'same-name accounts') : 'Profile indexed';
+      }
       if (!result.found) return 'No public profile';
       return result.count === null ? 'Profile found' : counted(result.count, 'follower', 'followers');
     case 'web':
@@ -106,13 +120,16 @@ export function checkStepViews({
   starting,
   results,
   dossier,
+  profilePlatform = 'instagram',
 }: {
   starting: boolean;
   results: CheckStepResults;
   dossier: BackgroundCheckDossier | null;
+  /** Whose profile the `profile` row reads, until its result says so itself. */
+  profilePlatform?: CheckProfilePlatform;
 }): StepView[] {
   return CHECK_STEPS.map((step): StepView => {
-    const label = STEP_LABEL[step];
+    const label = stepLabel(step, results.profile?.platform ?? profilePlatform);
     if (step === 'sites') return { step, label, ...sitesView(starting, dossier) };
     const result = results[step];
     if (result) return { step, label, status: result.state, detail: resultDetail(result) };
@@ -130,16 +147,29 @@ export function checkStepViews({
  * where there is one, a round icon badge where there is not. The loader is the card's
  * rows before they have answers, so nothing changes place when they arrive.
  */
-const STEP_ICON: Record<Exclude<CheckStep, 'ebay' | 'instagram'>, typeof Globe02Icon> = {
+const STEP_ICON: Record<Exclude<CheckStep, 'ebay' | 'profile'>, typeof Globe02Icon> = {
   web: Globe02Icon,
   scam: ShieldCheckIcon,
   summary: Note01Icon,
   sites: Link01Icon,
 };
 
-function StepBadge({ step, quiet }: { step: CheckStep; quiet: boolean }) {
-  if (step === 'ebay' || step === 'instagram') {
-    return <PlatformChip slug={step} className={cn('size-8 shrink-0 transition-opacity', quiet && 'opacity-50')} />;
+function StepBadge({
+  step,
+  quiet,
+  platform,
+}: {
+  step: CheckStep;
+  quiet: boolean;
+  platform: CheckProfilePlatform;
+}) {
+  if (step === 'ebay' || step === 'profile') {
+    return (
+      <PlatformChip
+        slug={step === 'profile' ? platform : step}
+        className={cn('size-8 shrink-0 transition-opacity', quiet && 'opacity-50')}
+      />
+    );
   }
   return (
     <span
@@ -196,6 +226,7 @@ export function CheckProgress({
   starting,
   results,
   dossier,
+  profilePlatform = 'instagram',
   children,
 }: {
   title: string;
@@ -204,9 +235,12 @@ export function CheckProgress({
   results: CheckStepResults;
   /** That check's answer, once there is one. Not an earlier check's. */
   dossier: BackgroundCheckDossier | null;
+  /** Whose profile the second row reads: the platform the lookup is on. */
+  profilePlatform?: CheckProfilePlatform;
   children?: ReactNode;
 }) {
-  const views = checkStepViews({ starting, results, dossier });
+  const views = checkStepViews({ starting, results, dossier, profilePlatform });
+  const badgePlatform = results.profile?.platform ?? profilePlatform;
   const settled = views.filter((view) => view.status === 'done' || view.status === 'skipped').length;
   const scanningSites = !starting && views.some((view) => view.step === 'sites' && view.status === 'checking');
 
@@ -233,7 +267,7 @@ export function CheckProgress({
       <ul className="mt-group grid gap-x-6 gap-y-cozy sm:grid-cols-2 lg:grid-cols-3">
         {views.map((view) => (
           <li key={view.step} className="flex items-center gap-cozy">
-            <StepBadge step={view.step} quiet={view.status === 'waiting'} />
+            <StepBadge step={view.step} quiet={view.status === 'waiting'} platform={badgePlatform} />
             <span className="min-w-0 flex-1">
               <span
                 className={cn(

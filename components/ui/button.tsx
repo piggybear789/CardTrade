@@ -40,6 +40,7 @@ import { cn } from "@/lib/utils";
 // The filled variants no longer carry `shadow-sm`. It was doing nothing a
 // border and a surface step were not already doing, and the palette pass gave
 // cards a real lift off the page that a button does not need to compete with.
+// What they carry now is a 1-2px edge treatment, not a bloom; see EDGE AND DEPTH.
 //
 // FOCUS IS A RING INSIDE THE CONTROL, NOT A BORDER-COLOUR SWAP.
 //
@@ -47,9 +48,9 @@ import { cn } from "@/lib/utils";
 // `--primary` edge for a 1px `--iris` edge — the same hue — so a keyboard user
 // tabbing onto "Sign in" saw almost nothing change. Two rules now:
 //
-//   - QUIET variants (outline, secondary, ghost, link) turn their edge iris and add
-//     a 1px inset iris ring: a 2px iris frame, 3.9:1 against the page and firmer
-//     than the 3:1 `--input` edge they rest at.
+//   - QUIET variants (outline, secondary, ghost, link) turn their edge `--ring` and add
+//     a 1px inset ring: a 2px graphite frame (`--ring`), far firmer than the
+//     alpha edge they rest at.
 //   - FILLED variants keep their edge and draw a 2px inset ring in their own LABEL
 //     colour. The label colour is by construction the one that contrasts with the
 //     fill (white on violet 5.3:1, brown on amber 8.9:1), so the indicator holds on
@@ -70,50 +71,70 @@ import { cn } from "@/lib/utils";
 // control it will be, and holds its shape on a tinted surface because the fill is
 // its own colour, not a surface token.
 //
-// A QUIET variant goes to the `--muted` fill and KEEPS ITS EDGE (`--input`, not
-// `--muted`). A matching border read as a flat slab on white and disappeared on any
-// tinted surface — the contract room's status card is `bg-iris/[0.08]`, at roughly the
-// same lightness — leaving a label floating with nothing around it. `--input` is the
-// edge every control uses, so a disabled control keeps the same edge as its enabled
-// neighbours on whatever surface it sits on. Do NOT fix that by tinting the fill per
-// surface: the fill is one token and the surfaces are many.
+// A QUIET variant goes to the `--muted` fill and KEEPS ITS EDGE (the same alpha edge
+// it rests at, not `--muted`). A matching border read as a flat slab on white and
+// disappeared on any tinted surface — the contract room's status card is
+// `bg-iris/[0.08]`, at roughly the same lightness — leaving a label floating with
+// nothing around it. An alpha edge darkens whatever is under it, so a disabled control
+// keeps an edge on every surface. Do NOT fix that by tinting the fill per surface: the
+// fill is one token and the surfaces are many.
+//
+// EDGE AND DEPTH (2026-11-21, from Stripe, Vercel, Clerk and Linear on Mobbin).
+//
+// QUIET variants rest on an ALPHA edge, `foreground/14%`, plus a 1px drop shadow, the
+// bordered-white secondary every one of those apps uses. They used to rest on `--input`
+// (58% grey, the field edge), which made every Cancel and Back as heavy as a text field
+// and heavier than the primary beside it; the references pages had already started
+// overriding it with `border-border` call by call. A label identifies a button, so its
+// edge does not owe the 3:1 a field's does. Because the edge is an alpha it darkens
+// whatever surface it sits on in proportion, which answers the tinted-surface problem
+// noted below better than a fixed token did. A control that stands in for a FIELD (the
+// date picker's trigger) still takes `border-input` at its call site, to match the
+// field beside it.
+//
+// FILLED variants get a 1px inner top highlight and a hairline drop shadow: the fill
+// reads as a pressable surface rather than a flat swatch. Not the old `shadow-sm` bloom,
+// which was removed for good reason; both layers here are 1-2px. The focus ring still
+// draws, because Tailwind composes `ring` and `shadow` into one `box-shadow`.
+const FILLED_DEPTH = "shadow-[inset_0_1px_0_hsl(0_0%_100%/0.16),0_1px_2px_hsl(var(--obsidian)/0.14)]";
+const QUIET_EDGE = "border-foreground/[0.14] shadow-[0_1px_2px_hsl(var(--obsidian)/0.05)]";
 const FILLED_DISABLED = "disabled:opacity-50";
-const QUIET_DISABLED = "disabled:border-input disabled:bg-muted disabled:text-muted-foreground";
+const QUIET_DISABLED = "disabled:border-foreground/[0.14] disabled:bg-muted disabled:text-muted-foreground";
 
 const buttonVariants = cva(
   "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: `border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground ${FILLED_DISABLED}`,
+        default: `border border-primary bg-primary text-primary-foreground ${FILLED_DEPTH} hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground ${FILLED_DISABLED}`,
         // Obsidian, for a committing control that sits beside a destructive
         // one. Purple and red are two saturated hues arguing at the same
         // weight; black reads as "the thing to do" and lets the red mean
         // danger on its own.
-        contrast: `border border-obsidian bg-obsidian text-white hover:bg-obsidian/90 active:bg-obsidian/80 focus-visible:ring-2 focus-visible:ring-white ${FILLED_DISABLED}`,
+        contrast: `border border-obsidian bg-obsidian text-white ${FILLED_DEPTH} hover:bg-obsidian/90 active:bg-obsidian/80 focus-visible:ring-2 focus-visible:ring-white ${FILLED_DISABLED}`,
         // ONE FILLED CTA COLOUR. `action` was a pastel amber fill; under the
         // monochrome palette it renders exactly as `default` (ink), so the buy
         // bar and the room's "your move" control read as the primary rather than
         // as a second, louder brand. Kept as a variant name so call sites can still
         // say what the control MEANS. Amber survives as a signal (`--action`), not
         // a button.
-        action: `border border-primary bg-primary text-primary-foreground hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground ${FILLED_DISABLED}`,
-        success: `border border-trust bg-trust text-white hover:bg-trust/90 active:bg-trust/80 focus-visible:ring-2 focus-visible:ring-white ${FILLED_DISABLED}`,
+        action: `border border-primary bg-primary text-primary-foreground ${FILLED_DEPTH} hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground ${FILLED_DISABLED}`,
+        success: `border border-trust bg-trust text-white ${FILLED_DEPTH} hover:bg-trust/90 active:bg-trust/80 focus-visible:ring-2 focus-visible:ring-white ${FILLED_DISABLED}`,
         // FILLED RED IS FOR THE CONFIRMATION, NOT THE TRIGGER. A button that only opens
         // "Delete listing?" or "Report this user" was the loudest control on its
         // screen, louder than the action the member came to take. Triggers use
         // `destructive-quiet`: the outline shape with a red label (5.45:1), so danger
         // still reads, and the red fill waits for the dialog's confirm button.
-        destructive: `border border-destructive bg-destructive text-destructive-foreground hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground ${FILLED_DISABLED}`,
-        "destructive-quiet": `border border-input bg-card text-destructive hover:border-destructive/60 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
-        // `hover:border-foreground/60`, not a violet edge. These two are the
-        // QUIET variants — the ones used where `default` would be too loud — and
-        // turning their border violet on hover put them back in the primary's
-        // colour at the exact moment the pointer was on them. The hover state is
-        // carried by the fill (`bg-accent` / `bg-secondary/75`); the edge only has
-        // to firm up, which means going DARKER than the 3:1 `--input` it rests at.
-        outline: `border border-input bg-card text-foreground hover:border-foreground/60 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
-        secondary: `border border-input bg-secondary text-secondary-foreground hover:border-foreground/60 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        destructive: `border border-destructive bg-destructive text-destructive-foreground ${FILLED_DEPTH} hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground ${FILLED_DISABLED}`,
+        "destructive-quiet": `border ${QUIET_EDGE} bg-card text-destructive hover:border-destructive/40 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        // A neutral edge on hover, not a violet one. These two are the QUIET
+        // variants, the ones used where `default` would be too loud, and turning
+        // their border violet on hover put them back in the primary's colour at the
+        // exact moment the pointer was on them. The hover state is carried by the
+        // fill (`bg-accent` / `bg-secondary/75`); the edge only firms up, from 14% to
+        // 25% foreground.
+        outline: `border ${QUIET_EDGE} bg-card text-foreground hover:border-foreground/25 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        secondary: `border ${QUIET_EDGE} bg-secondary text-secondary-foreground hover:border-foreground/25 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
         ghost: `hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
         link: `text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
       },

@@ -92,7 +92,9 @@ export default async function ReferencesPage({
         <Suspense fallback={null}>
           <IdentityReturnRefresh />
         </Suspense>
-        <article className="mx-auto flex w-full max-w-[clamp(64rem,70vw,96rem)] flex-1 flex-col gap-group px-group py-section sm:px-6 md:py-10">
+        {/* `ref-enter`: the search and the result card rise in order (globals.css). A
+            new lookup is a new navigation, so there is no remount to guard against. */}
+        <article className="ref-enter mx-auto flex w-full max-w-[clamp(64rem,70vw,96rem)] flex-1 flex-col gap-group px-group py-section sm:px-6 md:py-10">
           <div className="flex flex-col gap-cozy">
             <div className="flex items-center justify-between gap-2">
               <Link
@@ -163,12 +165,18 @@ export default async function ReferencesPage({
         <header className="relative z-10 mx-auto max-w-[clamp(42rem,48vw,64rem)] text-center">
           {/* The platform marks lead the block, so they carry real size; the glyph
               inside each chip scales with it (`[&_svg]`). */}
-          <div className="mx-auto inline-flex items-center gap-[clamp(0.5rem,0.7vw,0.875rem)]" aria-label="Supported platforms">
+          {/* ENTRANCE: the block arrives in reading order, each step 80ms after the last,
+              its blur clearing as it rises (`.ref-focus-in`, globals.css). CSS only, so it
+              plays on the server-rendered page before hydration. */}
+          <div
+            className="ref-focus-in mx-auto inline-flex items-center gap-[clamp(0.5rem,0.7vw,0.875rem)]"
+            aria-label="Supported platforms"
+          >
             {PLATFORMS.map((slug) => (
               <PlatformChip
                 key={slug}
                 slug={slug}
-                className="size-[clamp(2.5rem,2.9vw,3.5rem)] bg-card shadow-2xs max-sm:size-9 [&_img]:size-[55%] [&_svg]:size-[55%]"
+                className="ref-chip size-[clamp(2.5rem,2.9vw,3.5rem)] border-transparent bg-card max-sm:size-9 [&_img]:size-[55%] [&_svg]:size-[55%]"
               />
             ))}
           </div>
@@ -179,11 +187,14 @@ export default async function ReferencesPage({
               as body-ish on a phone, where this line is the page's only heading; 32px
               pushed the search below the fold on a short phone once the block was
               top-aligned. It breaks onto two balanced lines at 375px. */}
-          <h1 className="mt-[clamp(1.25rem,1.6vw,2rem)] text-balance text-[clamp(1.5rem,2.6vw,3rem)] font-semibold leading-[1.15] tracking-tight text-foreground max-sm:mt-4 max-sm:text-[1.75rem]">
+          {/* DISPLAY REGISTER: medium weight, tracking pulled in as the size grows
+              (-0.04em at display size, the RevenueCat heading), and a line height just
+              over the cap height. Semibold at this size read heavy beside a 15px lede. */}
+          <h1 className="ref-focus-in mt-[clamp(1.25rem,1.6vw,2rem)] text-balance text-[clamp(1.75rem,3.1vw,3.5rem)] font-medium leading-[1.08] tracking-[-0.035em] text-foreground [--ref-step:1] max-sm:mt-4 max-sm:text-[1.75rem]">
             References, <span className="text-iris-ink">all in one place</span>
           </h1>
 
-          <p className="mx-auto mt-[clamp(0.5rem,0.7vw,0.875rem)] max-w-[clamp(28rem,34vw,40rem)] text-pretty text-[clamp(0.875rem,0.95vw,1.0625rem)] text-muted-foreground">
+          <p className="ref-focus-in mx-auto mt-[clamp(0.625rem,0.9vw,1.125rem)] max-w-[clamp(28rem,34vw,40rem)] text-pretty text-[clamp(0.9375rem,1.05vw,1.1875rem)] text-muted-foreground [--ref-step:2]">
             Look up any handle, eBay seller, or Facebook Marketplace name to check references and see if they&rsquo;re real.
           </p>
         </header>
@@ -194,7 +205,7 @@ export default async function ReferencesPage({
             cover it. Wraps to two lines on a phone. */}
         <ul
           aria-label="How references are kept honest"
-          className="relative z-10 mx-auto mt-[clamp(1rem,1.3vw,1.5rem)] flex flex-wrap items-center justify-center gap-x-[clamp(1rem,1.6vw,2rem)] gap-y-snug"
+          className="ref-focus-in relative z-10 mx-auto mt-[clamp(1rem,1.3vw,1.5rem)] flex flex-wrap items-center justify-center gap-x-[clamp(1rem,1.6vw,2rem)] gap-y-snug [--ref-step:3]"
         >
           {TRUST_POINTS.map((point) => (
             <li
@@ -216,7 +227,11 @@ export default async function ReferencesPage({
             className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[clamp(30rem,40vw,48rem)] w-[clamp(40rem,72vw,96rem)] -translate-x-1/2 -translate-y-1/2"
             style={{ backgroundImage: GLOW }}
           />
-          <div className="relative z-10">
+          {/* Rises without the blur: this box holds the suggestion list, and blurring a
+              panel that size costs a full re-raster per frame. Already its own stacking
+              context (`relative z-10`), so the animation's transform changes nothing
+              about what paints over what. */}
+          <div className="ref-rise relative z-10 [--ref-step:4]">
             <ReferenceSearch initialSuggestions={ranked} />
           </div>
           {/* After the search in the DOM, so a keyboard reaches the search first. */}

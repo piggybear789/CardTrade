@@ -354,7 +354,7 @@ function RowThumb({ item }: { item: ItemRow }) {
 function LiveDot() {
   return (
     <span
-      className="mr-tight inline-block size-1.5 shrink-0 rounded-full bg-trust"
+      className="inline-block size-1.5 shrink-0 rounded-full bg-trust"
       aria-hidden="true"
     />
   );

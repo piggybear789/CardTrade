@@ -138,7 +138,9 @@ export default async function HandleReferencePage({
     (Boolean(initialDossier.ebay?.found && initialDossier.ebay.avatarUrl === undefined) ||
       Boolean(initialDossier.ebay?.found && initialDossier.ebay.feedbackEntries === undefined) ||
       (Boolean(initialDossier.ebay?.found && initialDossier.ebay.feedbackScore === null) &&
-        initialDossier.webMentions.length === 0));
+        initialDossier.webMentions.length === 0) ||
+      // A Facebook lookup stored before its search-index read existed.
+      (page.graph.centre.address.on === 'facebook' && initialDossier.forensics?.facebookIndex === undefined));
   const shouldAutoCheck = autoCheck || !initialDossier || cachedIsThin;
 
   return (

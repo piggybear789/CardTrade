@@ -61,7 +61,7 @@ export function TrackRecordCard({
   return (
     <section
       aria-labelledby="track-record-heading"
-      className="rounded-lg border border-border bg-card p-group shadow-market sm:p-6"
+      className="ref-surface rounded-2xl bg-card p-group sm:p-6"
       style={{ opacity }}
     >
       <h2 id="track-record-heading" className="text-subhead font-semibold tracking-tight text-foreground">

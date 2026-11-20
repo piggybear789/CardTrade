@@ -35,15 +35,15 @@ import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 /**
- * A `Badge`-sized box. The geometry is the badge's own — `border px-2.5 py-0.5
- * text-meta` around a line of text — so the height comes from the type scale rather
- * than from a number restated here (22.8px today).
+ * A `Badge`-sized box. The geometry is the badge's own — `min-h-[1.425rem] border px-2
+ * text-meta leading-none` around a word (22.8px) — so it matches for as long as the
+ * badge's classes do.
  */
 function BadgeSkeleton({ className }: { className?: string }) {
   return (
     <Skeleton
       className={cn(
-        'inline-flex shrink-0 rounded-md border border-transparent px-2.5 py-0.5 text-meta',
+        'inline-flex min-h-[1.425rem] shrink-0 items-center rounded-md border border-transparent px-2 text-meta leading-none',
         className,
       )}
     >

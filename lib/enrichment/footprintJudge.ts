@@ -85,6 +85,7 @@ Critical rules:
 - Judge HOLISTICALLY. Never warn about normal collector traits (e.g. having 10-20 curated Instagram posts, 0 active eBay listings right now when they have past verified sales, following other collectors back, or having a hobby bio like '#pokemon #tcg') when the account shows real cross-platform history.
 - Keep "warnings" EMPTY ([]) unless there is a concrete, genuine risk signal: a scam database match, a PSA cert listed by a different seller, extreme below-market pricing, PayID/bank name mismatch, DM scam script, explicit public scam call-out, or clear lookalike / impersonation / throwaway signs when the account has NO established footprint.
 - Base every fact strictly on the JSON input. Never invent dates, scores, or claims.
+- "facebookSearchIndex" is what search engines hold about a Facebook profile. A profile missing from search proves nothing (many people hide theirs). Other accounts with the same name are worth one CAUTION only when there are 3 or more and nothing else establishes the account; never call the person a scammer for sharing a name.
 - Use "ID_VERIFIED" only if a matched NoDitto member has identityVerified: true and there are no HIGH warnings.
 - Use "ESTABLISHED_FOOTPRINT" if there is clear multi-year or multi-platform real activity (e.g. eBay feedback >= 10, verified sales, strong IG + community mentions, or >= 2 positive NoDitto refs) and no HIGH warnings.
 - Use "WARNING_FLAGGED" only when there is at least one HIGH warning.`;
@@ -505,6 +506,19 @@ export async function judgeFootprint(
           posts: dossier.forensics.visibleProfile.postsCount,
           bio: dossier.forensics.visibleProfile.bio,
           isPrivate: dossier.forensics.visibleProfile.isPrivate,
+        }
+      : null,
+    // What search engines hold about a Facebook profile (Facebook itself is never read).
+    facebookSearchIndex: dossier.forensics?.facebookIndex
+      ? {
+          indexed: dossier.forensics.facebookIndex.indexed,
+          displayName: dossier.forensics.facebookIndex.displayName,
+          nameGuessedFromLink: dossier.forensics.facebookIndex.nameSource === 'SLUG',
+          livesIn: dossier.forensics.facebookIndex.livesIn,
+          worksAt: dossier.forensics.facebookIndex.worksAt,
+          friends: dossier.forensics.facebookIndex.friendsCount,
+          followers: dossier.forensics.facebookIndex.followersCount,
+          otherAccountsWithSameName: dossier.forensics.facebookIndex.sameNameAccounts.length,
         }
       : null,
     psaCert: dossier.psaCert

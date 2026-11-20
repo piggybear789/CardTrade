@@ -16,18 +16,14 @@ import { memo, useRef, useState, type KeyboardEvent, type ReactNode } from 'reac
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  AlertCircleIcon,
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  CheckmarkCircle02Icon,
-  ShieldCheckIcon,
-} from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 
+import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SegmentedControl } from '@/components/ui/segmented-control';
+import { StatusGlyph } from '@/components/ui/status-glyph';
 import { Switch } from '@/components/ui/switch';
 import {
   PlatformChip,
@@ -36,6 +32,7 @@ import {
   platformTint,
   plural,
   referenceProofLabel,
+  sentimentGlyph,
 } from '@/components/references/referenceLabels';
 import { ReferenceOwnerActions } from '@/components/references/ReferenceOwnerActions';
 import { ReferenceStaffRemove } from '@/components/references/ReferenceStaffRemove';
@@ -112,8 +109,24 @@ export function arrival(orbits: TrustOrbits): number {
   return orbits.transition ? Math.min(1, 0.3 + orbits.progress * 1.4) : 1;
 }
 
+/**
+ * An outcome filter: the sentiment's icon in its colour, then the count and its word in
+ * ONE weight and colour (a two-tone "331 positive" made the figures look raised off the
+ * word's line). A control, so it is drawn as one: resting there is no fill and hover
+ * gives a grey wash; the pressed filter is a state tag (`.ref-tag`, white on a soft
+ * shadow), the same object the reference rows carry, so pressing "positive" visibly
+ * picks out the "Good" tags below it. Negative stays red at every state.
+ */
 const STAT_FILTER_BASE =
-  'inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-0.5 text-meta font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-default';
+  'inline-flex h-7 cursor-pointer items-center gap-1 rounded-full pl-2 pr-2.5 text-meta font-medium tabular-nums transition-[background-color,color,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-default';
+const STAT_FILTER_REST = 'text-muted-foreground hover:bg-muted hover:text-foreground disabled:hover:bg-transparent';
+const STAT_FILTER_ON = 'ref-tag bg-card text-foreground';
+
+const OUTCOME_FILTERS = [
+  { sentiment: 'POSITIVE', key: 'positive', word: 'positive' },
+  { sentiment: 'NEUTRAL', key: 'neutral', word: 'neutral' },
+  { sentiment: 'NEGATIVE', key: 'negative', word: 'negative' },
+] as const satisfies readonly { sentiment: ReferenceSentiment; key: keyof ReferenceView['stats']; word: string }[];
 
 function NetworkStats({
   stats,
@@ -124,66 +137,37 @@ function NetworkStats({
   sentimentFilter: ReferenceSentiment | null;
   filterBySentiment: (sentiment: ReferenceSentiment | null) => void;
 }) {
-  const { positive, neutral: neutralCount, negative } = stats;
-  const positiveActive = sentimentFilter === 'POSITIVE';
-  const neutralActive = sentimentFilter === 'NEUTRAL';
-  const negativeActive = sentimentFilter === 'NEGATIVE';
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter references by outcome">
-      <button
-        type="button"
-        disabled={positive === 0}
-        aria-pressed={positiveActive}
-        title={plural(positive, 'positive reference', 'positive references')}
-        aria-label={plural(positive, 'positive reference', 'positive references')}
-        onClick={() => filterBySentiment('POSITIVE')}
-        className={cn(
-          STAT_FILTER_BASE,
-          positiveActive
-            ? 'bg-trust text-white'
-            : 'bg-trust/10 text-trust hover:bg-trust/18 disabled:hover:bg-trust/10',
-        )}
-      >
-        <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" aria-hidden />
-        <span>{positive} positive</span>
-      </button>
-      {neutralCount > 0 ? (
-        <button
-          type="button"
-          aria-pressed={neutralActive}
-          title={plural(neutralCount, 'neutral reference', 'neutral references')}
-          aria-label={plural(neutralCount, 'neutral reference', 'neutral references')}
-          onClick={() => filterBySentiment('NEUTRAL')}
-          // NO BORDER, matching the positive and negative pills. `border-action-border/40`
-          // is not a class here (the token is `action-edge`), so it drew a grey hairline.
-          className={cn(
-            STAT_FILTER_BASE,
-            neutralActive
-              ? 'bg-action text-action-foreground ring-1 ring-action-edge'
-              : 'bg-action/35 text-action-foreground hover:bg-action/55',
-          )}
-        >
-          <span>{neutralCount} neutral</span>
-        </button>
-      ) : null}
-      {negative > 0 ? (
-        <button
-          type="button"
-          aria-pressed={negativeActive}
-          title={plural(negative, 'negative reference', 'negative references')}
-          aria-label={plural(negative, 'negative reference', 'negative references')}
-          onClick={() => filterBySentiment('NEGATIVE')}
-          className={cn(
-            STAT_FILTER_BASE,
-            negativeActive
-              ? 'bg-destructive text-destructive-foreground'
-              : 'bg-destructive/10 text-destructive hover:bg-destructive/18',
-          )}
-        >
-          <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" aria-hidden />
-          <span>{negative} negative</span>
-        </button>
-      ) : null}
+    <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Filter references by outcome">
+      {OUTCOME_FILTERS.map(({ sentiment, key, word }) => {
+        const count = stats[key];
+        // Positive always shows (disabled at zero), the others only when there are any.
+        if (sentiment !== 'POSITIVE' && count === 0) return null;
+        const active = sentimentFilter === sentiment;
+        const glyph = sentimentGlyph(sentiment);
+        const label = plural(count, `${word} reference`, `${word} references`);
+        return (
+          <button
+            key={sentiment}
+            type="button"
+            disabled={count === 0}
+            aria-pressed={active}
+            title={label}
+            aria-label={label}
+            onClick={() => filterBySentiment(sentiment)}
+            className={cn(
+              STAT_FILTER_BASE,
+              active ? STAT_FILTER_ON : STAT_FILTER_REST,
+              sentiment === 'NEGATIVE' && 'ref-tag-danger text-destructive hover:text-destructive',
+            )}
+          >
+            <StatusGlyph kind={glyph} className="size-3.5" />
+            <span>
+              {count} {word}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -486,7 +470,11 @@ const ExperienceCards = memo(function ExperienceCards({
           use: a grid of bordered cards inside a bordered card put eight boxes on screen
           to hold six sentences. Each row bleeds a little past the text edge so a
           selected or hovered row has a fill to sit in. */}
-      <ul className="divide-y divide-border">
+      {/* KEYED BY PAGE, so turning a page (or the filter, which remounts the whole list)
+          brings the new rows in with a short rise (`.ref-swap`) instead of swapping
+          the text in place, which read as the page flickering. Transform and opacity
+          only: the rows' own height is the list's, so nothing outside it moves. */}
+      <ul key={current} className="ref-swap divide-y divide-border">
         {shown.map((node) => {
           const key = nodeKey(node);
           const isSelected = key === selectedKey;
@@ -527,7 +515,7 @@ const ExperienceCards = memo(function ExperienceCards({
                     }
                   : {})}
                 className={cn(
-                  '-mx-snug rounded-md px-snug py-5 transition-colors',
+                  '-mx-snug rounded-md px-snug py-5 transition-colors duration-300',
                   selectable
                     ? cn(
                         'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -555,7 +543,7 @@ const ExperienceCards = memo(function ExperienceCards({
                             <span className="break-all text-body font-semibold text-foreground">{node.handle}</span>
                           )}
                           {node.identityVerified ? (
-                            <HugeiconsIcon icon={ShieldCheckIcon} className="size-3.5 shrink-0 text-trust" aria-hidden />
+                            <IdentityBadge verified iconOnly size={14} />
                           ) : null}
                         </div>
                         <p className="text-meta tabular-nums text-muted-foreground">
@@ -566,7 +554,7 @@ const ExperienceCards = memo(function ExperienceCards({
 
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
                       {node.platforms.map((slug) => (
-                        <PlatformChip key={slug} slug={slug} />
+                        <PlatformChip key={slug} slug={slug} bare className="size-5" />
                       ))}
                       <SentimentBadge sentiment={node.sentiment} />
                     </div>

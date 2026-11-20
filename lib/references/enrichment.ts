@@ -38,6 +38,7 @@ import {
   type ProfileForensicsReport,
   type VisibleProfileMetrics,
 } from '@/domain/references/profileForensics';
+import { facebookProfileOfUrl, type FacebookIndexReport } from '@/domain/references/facebookIndex';
 import { filterOpenWebMentions } from '@/domain/references/footprintPresentation';
 import {
   candidateHandlesFromName,
@@ -55,7 +56,8 @@ import { satisfiesIdentityGate, type IdentityCheckStatus } from '@/domain/identi
 import { expandIdentifier, identifierHash, normaliseIdentifier } from '@/domain/risk/scamReports';
 import { normalizeHandle } from '@/domain/social/socialLinks';
 import { lookupEbaySeller } from '@/lib/enrichment/ebay';
-import { isAiWebScourConfigured, scourOpenWeb } from '@/lib/enrichment/aiWebScour';
+import { isAiWebScourConfigured, scourOpenWeb, type WebScourHit } from '@/lib/enrichment/aiWebScour';
+import { probeFacebookIndex } from '@/lib/enrichment/facebookIndex';
 import {
   buildDeterministicJudgeVerdict,
   judgeFootprint,
@@ -122,6 +124,53 @@ function handleSearchVariants(handle: string | null): string[] {
   return [];
 }
 
+/**
+ * The public address of a Facebook profile from its vanity or numeric id. The lookup
+ * pages pass only the bare handle, so without this the profile's own URL was lost before
+ * the check ran (no Wayback lookup, no URL in the search prompt).
+ */
+function facebookProfileUrlFor(handle: string): string {
+  const clean = handle.trim().replace(/^@/, '');
+  return /^\d{5,30}$/.test(clean)
+    ? `https://www.facebook.com/profile.php?id=${clean}`
+    : `https://www.facebook.com/${clean}`;
+}
+
+/** The profile URL a stored platform + handle points at, when one can be built. */
+function profileUrlFor(platform: string | null, handle: string | null): string | null {
+  if (!handle) return null;
+  if (platform === 'instagram') return `https://www.instagram.com/${handle}/`;
+  if (platform === 'facebook') return facebookProfileUrlFor(handle);
+  return null;
+}
+
+/**
+ * Web mentions found by searching a Facebook profile's NAME rather than its link. A
+ * "buyer beware Cat Xuan" post may be about any of several Cat Xuans, so a hit that
+ * never mentions this profile's vanity is shown at LOW confidence and never as a scam
+ * WARNING against this account. Facebook profile pages (this one's and other people's)
+ * are dropped here: they are drawn in the Facebook row, not among mentions.
+ */
+function tieNameMentionsToProfile(hits: WebScourHit[], slug: string): WebScourHit[] {
+  const wanted = slug.toLowerCase();
+  const out: WebScourHit[] = [];
+  for (const hit of hits) {
+    // Profile pages, theirs or anyone's, are drawn in the Facebook row.
+    if (facebookProfileOfUrl(hit.url)) continue;
+    const text = `${hit.title} ${hit.snippet} ${hit.url}`.toLowerCase();
+    if (text.includes(wanted)) {
+      out.push(hit);
+      continue;
+    }
+    out.push({
+      ...hit,
+      riskFlag: hit.riskFlag === 'WARNING' ? 'CAUTION' : hit.riskFlag,
+      confidence: 'LOW',
+    });
+  }
+  return out;
+}
+
 function stableNameKey(name: string, location: string | null): string {
   const normName = name.trim().toLowerCase().replace(/\s+/g, ' ');
   const normLoc = (location ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -172,7 +221,7 @@ async function resolveTarget(input: StartCheckInput): Promise<ResolvedTarget | n
         platform: (primary?.platform as ClaimPlatform) ?? null,
         handle: primary?.handle ?? null,
         fbNumericId: primary?.platform === 'facebook' && /^\d{5,30}$/.test(primary.handle) ? primary.handle : null,
-        profileUrl: primary?.platform === 'instagram' ? `https://www.instagram.com/${primary.handle}/` : null,
+        profileUrl: profileUrlFor(primary?.platform ?? null, primary?.handle ?? null),
         ebayHandle: ebayClaim?.handle ?? primary?.handle ?? null,
         queryName: displayNameLabel(profile.display_name),
         queryLocation: location,
@@ -190,7 +239,7 @@ async function resolveTarget(input: StartCheckInput): Promise<ResolvedTarget | n
         platform: isClaimPlatform(claim.platform) ? claim.platform : null,
         handle: claim.handle,
         fbNumericId: claim.platform === 'facebook' && /^\d{5,30}$/.test(claim.handle) ? claim.handle : null,
-        profileUrl: claim.platform === 'instagram' ? `https://www.instagram.com/${claim.handle}/` : null,
+        profileUrl: profileUrlFor(claim.platform, claim.handle),
         ebayHandle: claim.platform === 'ebay' ? claim.handle : null,
         queryName: null,
         queryLocation: location,
@@ -233,9 +282,7 @@ async function resolveTarget(input: StartCheckInput): Promise<ResolvedTarget | n
         : platform === 'ebay' || !isNumericFb
           ? handle
           : null;
-    const profileUrl =
-      effective.sourceUrl ??
-      (platform === 'instagram' ? `https://www.instagram.com/${handle}/` : null);
+    const profileUrl = effective.sourceUrl ?? profileUrlFor(platform, handle);
     const extractedName = effective.extractedName ?? (parsed.kind === 'name' ? parsed.name : null);
 
     if (matchedClaim?.claimed_profile_id) {
@@ -739,12 +786,41 @@ export async function startOrLoadBackgroundCheck(
       ? target.handle
       : null;
   const instagramStep = (profile: VisibleProfileMetrics | null): CheckStepResult => ({
-    step: 'instagram',
+    step: 'profile',
+    platform: 'instagram',
     state: 'done',
     found: profile !== null,
     count: profile?.followersCount ?? null,
   });
   if (!target.ebayHandle) report({ step: 'ebay', state: 'skipped', found: false, count: null });
+
+  // A Facebook profile is read from what search engines hold about it, never from
+  // facebook.com (lib/enrichment/facebookIndex.ts). Its indexed name is then what the
+  // open-web scour searches for, because group call-outs name people, not vanity links.
+  const facebookSlug =
+    target.platform === 'facebook' ? (target.fbNumericId ?? target.handle)?.trim().toLowerCase() || null : null;
+  const facebookProfileUrl =
+    facebookSlug && target.platform === 'facebook'
+      ? (target.profileUrl ?? facebookProfileUrlFor(facebookSlug))
+      : null;
+  const facebookIndexPromise: Promise<FacebookIndexReport | null> =
+    facebookSlug && facebookProfileUrl
+      ? reported(
+          probeFacebookIndex({ slug: facebookSlug, profileUrl: facebookProfileUrl, nameHint: target.queryName }).catch(
+            () => null,
+          ),
+          (fb): CheckStepResult => ({
+            step: 'profile',
+            platform: 'facebook',
+            state: 'done',
+            found: Boolean(fb?.indexed),
+            count: fb ? fb.sameNameAccounts.length : null,
+          }),
+        )
+      : Promise.resolve(null);
+  /** The name a Facebook profile is searched under, when it has one beyond its link. */
+  const facebookSearchName = (fb: FacebookIndexReport | null): string | null =>
+    target.queryName ?? fb?.displayName ?? null;
 
   // Run fast checks concurrently (zero FB scraping) — open-web scour always runs inline
   // so Instagram stats, community vouches, and scam call-outs appear on the first render.
@@ -759,6 +835,7 @@ export async function startOrLoadBackgroundCheck(
     fetchedIgProfile,
     waybackFirstSeen,
     inlineWebScour,
+    facebookIndex,
   ] = await Promise.all([
     reported(scamRiskPromise, (risk) => ({
       step: 'scam',
@@ -790,10 +867,18 @@ export async function startOrLoadBackgroundCheck(
     waybackTargetUrl ? lookupWaybackFirstSeen(waybackTargetUrl) : Promise.resolve(null),
     reported(
       isAiWebScourConfigured()
-        ? scourOpenWeb({
-            subject: target.queryName ?? target.handle ?? target.queryLabel,
-            location: target.queryLocation,
-            profileUrl: target.profileUrl,
+        ? facebookIndexPromise.then(async (fb) => {
+            // A Facebook vanity ("cat.xuan162") is never written in a group post; the
+            // person's name is. Search the name, then keep only what ties to this profile.
+            const fbName = facebookSlug && !target.queryName ? facebookSearchName(fb) : null;
+            const scour = await scourOpenWeb({
+              subject: fbName ?? target.queryName ?? target.handle ?? target.queryLabel,
+              location: target.queryLocation,
+              profileUrl: target.profileUrl,
+            });
+            return fbName && facebookSlug
+              ? { ...scour, mentions: tieNameMentionsToProfile(scour.mentions, facebookSlug) }
+              : scour;
           })
         : fetchRedditFallbackMentions(
             target.handle ?? target.queryName ?? target.queryLabel,
@@ -807,16 +892,18 @@ export async function startOrLoadBackgroundCheck(
           })),
       (scour) => ({ step: 'web', state: 'done', found: scour.mentions.length > 0, count: scour.mentions.length }),
     ),
+    facebookIndexPromise,
   ]);
   const redditFallback = filterOpenWebMentions(inlineWebScour.mentions);
 
   const visibleProfile =
     input.visibleProfile ?? fetchedIgProfile ?? inlineWebScour.discoveredInstagramProfile ?? null;
-  if (!fetchedIgProfile) {
+  // A Facebook target's profile step was reported by its search-index probe.
+  if (!fetchedIgProfile && !facebookSlug) {
     report(
       visibleProfile || instagramHandle
         ? instagramStep(visibleProfile)
-        : { step: 'instagram', state: 'skipped', found: false, count: null },
+        : { step: 'profile', platform: 'instagram', state: 'skipped', found: false, count: null },
     );
   }
   const totalPos = matchedMembers.reduce((sum, m) => sum + m.positiveRefs, 0);
@@ -828,6 +915,7 @@ export async function startOrLoadBackgroundCheck(
     lookalikeHighRefCount: lookalikes.filter((l) => l.positiveRefs >= 3 || Boolean(l.claimedProfileId)).length,
     positiveRefs: totalPos,
     ebayFound: Boolean(ebaySummary?.found),
+    facebookIndex,
   });
 
   const sources: CheckSourcesStatus = {
@@ -1123,10 +1211,7 @@ export async function loadBackgroundCheckRun(runId: string): Promise<BackgroundC
       runRow.platform === 'facebook' && runRow.handle_norm && /^\d{5,30}$/.test(runRow.handle_norm)
         ? runRow.handle_norm
         : null,
-    profileUrl:
-      runRow.platform === 'instagram' && runRow.handle_norm
-        ? `https://www.instagram.com/${runRow.handle_norm}/`
-        : null,
+    profileUrl: profileUrlFor(runRow.platform, runRow.handle_norm),
     ebayHandle: runRow.handle_norm,
     queryName: runRow.query_name,
     queryLocation: runRow.query_location,

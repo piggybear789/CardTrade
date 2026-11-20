@@ -748,6 +748,151 @@
   }
 }
 
+/* REFERENCES: SURFACES AND MOTION (`/references`, `/references/[handle]`, the proof page).
+
+   Taken from a recon of RevenueCat's feature pages (probed live, 2026-11-21), which is
+   the "clean SaaS" register asked for. What actually makes that page feel smooth, read
+   off its computed styles rather than guessed from a screenshot:
+
+     - Surfaces have NO 1px border. The edge is a 2px hairline SHADOW
+       (`0 0 2px rgba(23,32,67,.25)`) under a very wide, faint, cool bloom
+       (`0 8px 120px rgba(87,108,219,.10)`), on 16px+ corners. That is how it avoids
+       the "ghost card" tell the elevation notes in tailwind.config.ts warn about: a
+       bloom PLUS a border is two edges, a bloom on a hairline shadow is one.
+     - Headings are medium weight with tight tracking (-0.04em at display size), not
+       semibold.
+     - Motion is short and decelerating: colour at 300ms `cubic-bezier(.4,0,.2,1)`, an
+       arrow that nudges 2px on hover, and content that arrives with opacity, a small
+       rise and a 6px blur clearing (`tab-content-fade`). There are NO scroll-triggered
+       reveals; the page is fully drawn at load and what moves is the product UI inside.
+
+   The bloom is a cool slate, not `--iris`: violet stays a marker colour (see the
+   iris note in tailwind.config.ts), and a violet haze under every card would spend it.
+   Everything here is plain CSS after `@tailwind utilities`, so a `ref-*` class wins
+   over a Tailwind utility on the same property by source order. That is why
+   `.ref-surface` sets ONLY the shadow: background and radius stay utilities at the
+   call site (`bg-card/95` on the floating suggestion list must keep working).
+
+   No Flutter counterpart, deliberately: these are marketing-page surfaces, not the
+   named elevations `mobileThemeAgreement.test.ts` pins. Every animation below is
+   ended on its first frame by the reduced-motion block at the foot of this file. */
+:root {
+  --ref-edge: 0 0 0 1px hsl(var(--obsidian) / 0.05), 0 0 2px hsl(var(--obsidian) / 0.12);
+  --ref-bloom: 0 8px 80px -16px hsl(236 32% 42% / 0.16);
+  --ref-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ref-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Through Tailwind's own shadow variables, so a `ring-*` or `focus-within:ring-*` on
+   the same element still draws. A bare `box-shadow` here would win by source order
+   and erase the focus ring, which Tailwind also paints as a box-shadow. */
+.ref-surface {
+  --tw-shadow: var(--ref-edge), var(--ref-bloom);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.dark .ref-surface {
+  --tw-shadow: 0 0 0 1px hsl(var(--border)), var(--shadow-sm);
+}
+
+/* A whole tile that is itself a link (a sale, a web mention). Rises 2px on hover under
+   a soft cool shadow. Hover-capable pointers only: on touch a :hover sticks after the
+   tap and leaves the tile lifted. */
+.ref-tile {
+  transition:
+    transform 300ms var(--ref-ease-standard),
+    box-shadow 300ms var(--ref-ease-standard),
+    background-color 300ms var(--ref-ease-standard),
+    border-color 300ms var(--ref-ease-standard);
+}
+@media (hover: hover) {
+  .ref-tile:hover {
+    transform: translateY(-2px);
+    --tw-shadow: 0 2px 6px hsl(var(--obsidian) / 0.05), 0 14px 28px -12px hsl(236 32% 42% / 0.28);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+}
+
+/* A STATE TAG (`Tag`, components/references/referenceLabels.tsx): RevenueCat's eyebrow
+   pill at list size. A hairline shadow edge and a soft cool lift instead of a tinted fill
+   and tinted border, so the icon's colour carries the state and twenty of them in a list
+   stay quiet. The danger tone swaps the edge for red: the bad case must not be quiet. */
+.ref-tag {
+  --tw-shadow: 0 0 0 1px hsl(var(--obsidian) / 0.07), 0 1px 2px hsl(236 40% 50% / 0.1), 0 2px 6px hsl(236 40% 80% / 0.3);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.ref-tag.ref-tag-danger {
+  --tw-shadow: 0 0 0 1px hsl(var(--destructive) / 0.28), 0 1px 2px hsl(var(--destructive) / 0.08);
+}
+.dark .ref-tag {
+  --tw-shadow: 0 0 0 1px hsl(var(--border));
+}
+
+/* The platform marks above the landing heading: RevenueCat's eyebrow pill shadow. No
+   hover state: the marks are not links, and a lift would say they were. */
+.ref-chip {
+  box-shadow: 0 2px 4px hsl(236 40% 50% / 0.14), 0 3px 10px hsl(236 40% 80% / 0.45);
+}
+.dark .ref-chip {
+  box-shadow: 0 0 0 1px hsl(var(--border));
+}
+
+/* ENTRANCES. `to` is omitted, so each runs to the element's own resting style, and the
+   fill is `backwards`: the first frame holds through the delay, and NOTHING is left on
+   the element afterwards. A filled `transform` or `filter` would make the element a
+   containing block for fixed descendants and a stacking context for good.
+
+   Blur only on small text blocks. Blurring a whole card re-rasterises a large texture
+   every frame, the cost the `fade` keyframe note above already paid for once. Cards
+   rise without it. Step order comes from `--ref-step` (`[--ref-step:2]` at the call
+   site), 80ms apart. */
+@keyframes ref-focus-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+    filter: blur(6px);
+  }
+}
+
+@keyframes ref-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes ref-swap {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.ref-focus-in {
+  animation: ref-focus-in 900ms var(--ref-ease) backwards;
+  animation-delay: calc(var(--ref-step, 0) * 80ms);
+}
+
+.ref-rise {
+  animation: ref-rise 720ms var(--ref-ease) backwards;
+  animation-delay: calc(var(--ref-step, 0) * 80ms);
+}
+
+/* A page's cards, in order, on FIRST LOAD only. The class is removed once they have
+   arrived (`ReferenceProfile`), so a card the graph remounts while walking to another
+   person does not rise again; it fades in with the walk instead. */
+.ref-enter > * {
+  animation: ref-rise 720ms var(--ref-ease) backwards;
+}
+.ref-enter > :nth-child(2) { animation-delay: 80ms; }
+.ref-enter > :nth-child(3) { animation-delay: 160ms; }
+.ref-enter > :nth-child(4) { animation-delay: 240ms; }
+.ref-enter > :nth-child(n + 5) { animation-delay: 320ms; }
+
+/* A list whose contents were replaced (another page, another filter). */
+.ref-swap {
+  animation: ref-swap 420ms var(--ref-ease) backwards;
+}
+
 /* next dev paints a circular N on the bottom-right, on top of Account. */
 @media (max-width: 767px) {
   nextjs-portal {

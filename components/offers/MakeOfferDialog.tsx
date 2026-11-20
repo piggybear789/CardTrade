@@ -17,11 +17,12 @@ import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { HandCoinsIcon, LoaderCircleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { HandCoinsIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button } from '@/components/ui/button';
+import { StatusGlyph } from '@/components/ui/status-glyph';
 import {
   Dialog,
   DialogContent,
@@ -201,7 +202,7 @@ export function MakeOfferDialog({
             </div>
 
             <p className="flex items-start gap-tight text-meta text-muted-foreground">
-              <HugeiconsIcon icon={ShieldCheckIcon} className="mt-px size-3.5 shrink-0 text-trust" aria-hidden />
+              <StatusGlyph kind="verified" className="mt-px size-3.5" />
               <span className="min-w-0 break-words">
                 Seller verified as {displayLegalName(sellerIdentity.legalEntityName)}
                 {sellerIdentity.tradingName ? `, trading as ${sellerIdentity.tradingName}` : ''}

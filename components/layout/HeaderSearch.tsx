@@ -612,7 +612,7 @@ function HeaderSearchInner({
                       <span className="flex min-w-0 flex-1 items-center gap-1.5">
                         <span className="truncate text-body font-medium">{ref.handle}</span>
                         {ref.platforms.slice(0, 3).map((plat) => (
-                          <PlatformChip key={plat} slug={plat} className="size-4" />
+                          <PlatformChip key={plat} slug={plat} bare className="size-4" />
                         ))}
                       </span>
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-trust/10 px-2 py-0.5 text-meta font-semibold tabular-nums text-trust">

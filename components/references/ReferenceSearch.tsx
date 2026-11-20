@@ -278,7 +278,10 @@ export function ReferenceSearch({
     >
       {/* Focus: a softened 1px edge plus a faint halo. The full `--ring` edge doubled by an
           inset ring read as a heavy dark frame on a field this large. */}
-      <div className="group relative flex items-center rounded-lg border border-input bg-card shadow-market transition-[border-color,box-shadow] focus-within:border-ring/50 focus-within:ring-[3px] focus-within:ring-ring/10">
+      {/* The field keeps the control edge (`border-input`, every field's) and gains the
+          references page's soft cool bloom under it (`.ref-surface`) and a 12px corner,
+          so the page's one control sits on the page like its cards do. */}
+      <div className="ref-surface group relative flex items-center rounded-xl border border-input bg-card transition-[border-color,box-shadow] duration-300 focus-within:border-ring/50 focus-within:ring-[3px] focus-within:ring-ring/10">
         <HugeiconsIcon
           icon={Search01Icon}
           className="pointer-events-none ml-4 size-4 shrink-0 text-muted-foreground transition-colors group-focus-within:text-foreground"
@@ -343,7 +346,7 @@ export function ReferenceSearch({
           the search box is focused so it never obscures the report card underneath. */}
       <div
         className={cn(
-          'relative mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-market sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:shadow-xl sm:backdrop-blur-md',
+          'ref-surface relative mt-2 overflow-hidden rounded-xl bg-card sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:backdrop-blur-md',
           compact && !focused && 'hidden',
         )}
       >
@@ -415,7 +418,7 @@ export function ReferenceSearch({
                   key={option.key}
                   {...common}
                   className={cn(
-                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border/80 px-4 py-3 transition-colors',
+                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border/80 px-4 py-3 transition-colors duration-300',
                     isActive ? 'bg-muted/60' : 'bg-muted/25 hover:bg-muted/40',
                   )}
                 >
@@ -432,7 +435,7 @@ export function ReferenceSearch({
                       </span>
                     </span>
                   </span>
-                  <RowEnd opening={isOpening} />
+                  <RowEnd opening={isOpening} active={isActive} />
                 </li>
               );
             }
@@ -443,7 +446,7 @@ export function ReferenceSearch({
                   key={option.key}
                   {...common}
                   className={cn(
-                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border/80 px-4 py-3 transition-colors',
+                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border/80 px-4 py-3 transition-colors duration-300',
                     isActive ? 'bg-muted/60' : 'bg-muted/15 hover:bg-muted/35',
                   )}
                 >
@@ -460,7 +463,7 @@ export function ReferenceSearch({
                       </span>
                     </span>
                   </span>
-                  <RowEnd opening={isOpening} />
+                  <RowEnd opening={isOpening} active={isActive} />
                 </li>
               );
             }
@@ -477,7 +480,7 @@ export function ReferenceSearch({
                 key={option.key}
                 {...common}
                 className={cn(
-                  'flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors',
+                  'flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300',
                   isActive ? 'bg-muted/60' : 'hover:bg-muted/30',
                 )}
               >
@@ -487,7 +490,7 @@ export function ReferenceSearch({
                   <span className="flex flex-wrap items-center gap-1.5">
                     <span className="break-all text-body font-semibold text-foreground">{s.handle}</span>
                     {s.platforms.map((plat) => (
-                      <PlatformChip key={plat} slug={plat} className="size-5" />
+                      <PlatformChip key={plat} slug={plat} bare className="size-4" />
                     ))}
                   </span>
                   {subtext ? (
@@ -496,14 +499,18 @@ export function ReferenceSearch({
                 </span>
 
                 <span className="flex shrink-0 items-center gap-2">
+                  {/* A COUNT IS TEXT (`referenceLabels.tsx`, "When a tag, when an icon,
+                      when text"): the tick says what is counted, the number has its unit,
+                      and there is no capsule. One colour and weight for the whole line, so
+                      the figures do not look raised off the word. */}
                   <span
-                    className="inline-flex items-center gap-1 rounded-full bg-trust/10 px-2 py-0.5 text-meta font-semibold tabular-nums text-trust"
+                    className="inline-flex items-center gap-1 whitespace-nowrap text-meta font-medium tabular-nums text-trust"
                     aria-label={`${s.referenceCount} ${s.referenceCount === 1 ? 'person' : 'people'} vouch`}
                   >
-                    <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" aria-hidden />
-                    {s.referenceCount}
+                    <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 shrink-0" aria-hidden />
+                    {s.referenceCount} positive
                   </span>
-                  <RowEnd opening={isOpening} />
+                  <RowEnd opening={isOpening} active={isActive} />
                 </span>
               </li>
             );
@@ -514,8 +521,12 @@ export function ReferenceSearch({
   );
 }
 
-/** The arrow at the end of a row, or a spinner while that row's page is opening. */
-function RowEnd({ opening }: { opening: boolean }) {
+/**
+ * The arrow at the end of a row, or a spinner while that row's page is opening. On the
+ * active row (hovered, or reached with the arrow keys) it darkens and nudges 2px toward
+ * the page it opens, RevenueCat's "Book a demo >" arrow.
+ */
+function RowEnd({ opening, active }: { opening: boolean; active: boolean }) {
   return opening ? (
     <span role="status" aria-label="Opening" className="inline-flex shrink-0">
       <HugeiconsIcon
@@ -525,6 +536,13 @@ function RowEnd({ opening }: { opening: boolean }) {
       />
     </span>
   ) : (
-    <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+    <HugeiconsIcon
+      icon={ArrowRight01Icon}
+      className={cn(
+        'size-4 shrink-0 transition-[color,transform] duration-300 ease-enter',
+        active ? 'translate-x-0.5 text-foreground' : 'text-muted-foreground',
+      )}
+      aria-hidden
+    />
   );
 }

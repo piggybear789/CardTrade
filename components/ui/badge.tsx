@@ -10,38 +10,52 @@ import { cn } from "@/lib/utils";
 // Rendered as a <span> so it is valid inside a <p> or a heading. As a <div> it was
 // flow content in phrasing context, which React reports as a hydration error the
 // first time a badge is dropped into a sentence.
+//
+// ONE RECIPE, THREE TONES OF ONE HUE: a pale fill, an edge a step darker than the
+// fill, and the label in the hue's ink. It is the status badge Stripe and Clerk share
+// (Mobbin, 2026-11-21), and it replaced SOLID violet and SOLID red chips. Those were
+// the loudest objects on a contract list, louder than the buttons, and "In transit"
+// shouted exactly as hard as "Disputed". Every tone is now the same weight and the
+// states differ by hue alone, which is what lets a column of forty be scanned.
+//
+// THE HUES MEAN ONE THING EACH, the same as everywhere else in the palette:
+//   iris (default)  live, in progress
+//   trust           settled, verified, done
+//   warning         waiting on someone; needs attention but is not wrong
+//   destructive     disputed, failed, at risk
+//   secondary/muted neutral: not started, closed, cancelled
+// `solid` is the one filled chip, for a COUNT that has to be found (unread messages).
+//
+// GEOMETRY IS FIXED, not derived from padding: `min-h` with `leading-none`, so a badge
+// is the same height whether it holds a word, a number or an icon. The height is
+// 1.425rem (22.8px) because that is what the old padding produced, and the skeletons
+// (`BadgeSkeleton`, `WorkspaceSkeletons`, the listing loader) and the chat bar's row
+// floor were all measured against it. `min-h` rather than `h` so a long label in a
+// narrow column still wraps instead of spilling out of its edge. An icon inside takes
+// 12px and the gap; a leading 6px dot can be passed as a child.
 const badgeVariants = cva(
-  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-meta font-medium",
+  "inline-flex min-h-[1.425rem] items-center gap-1 rounded-md border px-2 text-meta font-medium leading-none [&_svg]:size-3 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default:
-          "border-primary bg-primary text-primary-foreground",
-        secondary:
-          "border-border bg-secondary text-secondary-foreground",
-        destructive:
-          "border-destructive bg-destructive text-destructive-foreground",
-        // SETTLED, and the reason a fifth variant exists at all.
-        //
-        // `default` was carrying six cash-sale statuses and four trade states, so
-        // "In transit" and "Completed" rendered as the same solid violet chip — the
-        // colour told a member the contract was live and nothing more, which on a
-        // surface listing forty contracts is the difference between scanning and
-        // reading. Teal already means verified and settled everywhere else in the
-        // palette, so a finished contract belongs to it.
-        //
-        // Tinted rather than solid: a completed contract is the calm outcome and does
-        // not need the weight of a filled chip. `--trust` as text on this tint is the
-        // pairing `scripts/palette-contrast.mjs` checks as "text-trust on muted".
-        trust:
-          "border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.1)] text-trust",
-        // `trust`'s tinted siblings, for a status column where every state should carry
-        // the same weight and differ only by hue. The violet label is `iris-ink`, not
-        // `iris`: a label owes 4.5:1 and `iris` clears only the 3:1 a marker needs.
-        iris: "border-iris/40 bg-iris/10 text-iris-ink",
-        "destructive-soft": "border-destructive/40 bg-destructive/10 text-destructive",
+        default: "border-iris/30 bg-iris/[0.08] text-iris-ink",
+        // Neutral GREY, not the lavender `--secondary` fill. With live states now a
+        // violet tint, a lavender "Negotiating" sat one shade away from a violet
+        // "In transit" and the two read as the same state.
+        secondary: "border-border bg-muted text-muted-foreground",
+        destructive: "border-destructive/30 bg-destructive/[0.07] text-destructive",
+        // `--trust` as text on this tint is the pairing `scripts/palette-contrast.mjs`
+        // checks as "text-trust on muted".
+        trust: "border-trust/30 bg-trust/[0.08] text-trust",
+        // The amber "your move" signal as a badge. Label in `action-foreground` (dark
+        // brown), never amber: amber text on an amber tint does not reach 4.5:1.
+        warning: "border-action-edge/35 bg-action/30 text-action-foreground",
+        // Aliases kept so existing status maps compile. They render as their twins.
+        iris: "border-iris/30 bg-iris/[0.08] text-iris-ink",
+        "destructive-soft": "border-destructive/30 bg-destructive/[0.07] text-destructive",
         muted: "border-border bg-muted text-muted-foreground",
-        outline: "border-border text-foreground",
+        outline: "border-border bg-card text-foreground",
+        solid: "border-primary bg-primary text-primary-foreground",
       },
     },
     defaultVariants: {

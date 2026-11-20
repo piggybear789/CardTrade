@@ -8,7 +8,7 @@
 // graph walks to someone else's page both cards go with it, and the page that
 // loads behind the walk draws exactly what is already on screen.
 
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
@@ -98,16 +98,28 @@ export function ReferenceProfile({
 
   // FILLS THE PAGE. The column is a flex chain down to the Trust Network card, which
   // takes whatever height is left, so a person with no references yet does not leave a
-  // short card floating above a screen of empty background. Card surfaces use the
-  // `Card` tokens (`rounded-lg`, `border-border`, `shadow-market`) like every other page.
+  // short card floating above a screen of empty background. Card surfaces are the
+  // references surface (`rounded-2xl bg-card ref-surface`, globals.css): a hairline
+  // shadow edge under a soft cool bloom, in place of a 1px border.
   const hasReferences = orbits.view.nodes.length > 0;
   const facts =
     liveFacts.get(orbits.centreKey) ?? (atPagePerson && initialDossier ? checkFactsOf(initialDossier) : null);
   const { centre } = orbits.graph;
   const referenceTotal = centre.peopleCount + centre.neutralCount + centre.negativeCount;
 
+  // FIRST LOAD ONLY. The cards rise into place in order (`.ref-enter`, globals.css), and
+  // the class comes off once the last one has landed (320ms delay + 720ms). Left on, the
+  // footprint card, which remounts for each person the graph walks to, would rise again
+  // on every walk; without the class it fades in with the walk like everything else.
+  // Server-rendered with the class, so the entrance plays before hydration.
+  const [entering, setEntering] = useState(true);
+  useEffect(() => {
+    const done = window.setTimeout(() => setEntering(false), 1200);
+    return () => window.clearTimeout(done);
+  }, []);
+
   return (
-    <div className="flex flex-1 flex-col gap-group">
+    <div className={cn('flex flex-1 flex-col gap-group', entering && 'ref-enter')}>
       <ProfileHeader
         centre={orbits.graph.centre}
         opacity={arrival(orbits)}
@@ -145,7 +157,7 @@ export function ReferenceProfile({
 
       <section
         aria-labelledby="references-heading"
-        className="flex flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-market"
+        className="ref-surface flex flex-1 flex-col overflow-hidden rounded-2xl bg-card"
       >
         <TrustNetworkHeader orbits={orbits} />
         <TrustNetworkBody orbits={orbits} />
@@ -231,7 +243,7 @@ function HeadlineFigures({
           <dt className="text-meta text-muted-foreground">{figure.label}</dt>
           <dd
             className={cn(
-              'text-head font-semibold tabular-nums tracking-tight',
+              'text-head font-medium tabular-nums tracking-[-0.025em] sm:text-display',
               figure.tone === 'trust'
                 ? 'text-trust'
                 : figure.tone === 'destructive'
@@ -292,7 +304,7 @@ const ProfileHeader = memo(function ProfileHeader({
   );
 
   return (
-    <header className="relative overflow-hidden rounded-lg border border-border bg-card p-group shadow-market sm:p-6">
+    <header className="ref-surface relative overflow-hidden rounded-2xl bg-card p-group sm:p-6">
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* PHONE: a 40px back button (a touch target, not the 36px pointer one), a 48px
             avatar and a tighter gap, which hands the handle ~20px more of a ~311px row. */}
@@ -320,7 +332,10 @@ const ProfileHeader = memo(function ProfileHeader({
 
           <div className="min-w-0 space-y-1.5">
             <div className="flex flex-wrap items-center gap-1.5">
-              <h1 className="break-all text-subhead font-semibold tracking-tight text-foreground md:text-head">
+              {/* Medium weight with tracking pulled in, the references display register
+                  (see the landing heading). One step larger from `md`, where the card
+                  has the width for it. */}
+              <h1 className="break-all text-subhead font-medium tracking-[-0.02em] text-foreground md:text-display md:tracking-[-0.03em]">
                 {centre.handle}
               </h1>
               <IdentityBadge
@@ -333,7 +348,7 @@ const ProfileHeader = memo(function ProfileHeader({
               {centre.platforms.length > 0 ? (
                 <span className="ml-0.5 inline-flex flex-wrap items-center gap-1">
                   {centre.platforms.slice(0, 6).map((p) => (
-                    <PlatformChip key={p.slug} slug={p.slug} />
+                    <PlatformChip key={p.slug} slug={p.slug} bare className="size-5" />
                   ))}
                 </span>
               ) : null}

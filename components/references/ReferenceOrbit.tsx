@@ -99,6 +99,42 @@ function seatPosition(angle: number): { left: string; top: string } {
   return { left: `${((x / VIEW_W) * 100).toFixed(3)}%`, top: `${((y / VIEW_H) * 100).toFixed(3)}%` };
 }
 
+/**
+ * One full turn of a ring as a path, starting at its left end and going clockwise on
+ * screen (anticlockwise with `reverse`). `animateMotion` needs a path; an `<ellipse>`
+ * cannot be referenced as one.
+ */
+function ringPath(ring: { rx: number; ry: number }, reverse: boolean): string {
+  const left = VIEW_W / 2 - ring.rx;
+  const cy = VIEW_H / 2;
+  const sweep = reverse ? 0 : 1;
+  return `M ${left} ${cy} a ${ring.rx} ${ring.ry} 0 1 ${sweep} ${ring.rx * 2} 0 a ${ring.rx} ${ring.ry} 0 1 ${sweep} ${-ring.rx * 2} 0`;
+}
+
+function TravellingDot({
+  ring,
+  seconds,
+  fill,
+  reverse = false,
+}: {
+  ring: { rx: number; ry: number };
+  seconds: number;
+  fill: string;
+  reverse?: boolean;
+}) {
+  const path = ringPath(ring, reverse);
+  return (
+    <g>
+      <circle r={9} fill={fill} opacity={0.14}>
+        <animateMotion dur={`${seconds}s`} repeatCount="indefinite" path={path} />
+      </circle>
+      <circle r={3.5} fill={fill}>
+        <animateMotion dur={`${seconds}s`} repeatCount="indefinite" path={path} />
+      </circle>
+    </g>
+  );
+}
+
 export function ReferenceOrbit({ people }: { people: readonly ReferenceSuggestion[] }) {
   const seats: readonly Seat[] | null =
     people.length >= LAYOUTS.six.length
@@ -139,6 +175,16 @@ export function ReferenceOrbit({ people }: { people: readonly ReferenceSuggestio
           strokeDasharray="3 5"
           vectorEffect="non-scaling-stroke"
         />
+
+        {/* A DOT TRAVELLING EACH RING, the one moving thing on RevenueCat's hero ring:
+            slow, opposite ways, so the picture reads as live without anything asking
+            to be looked at. The ring mask fades them out behind the search and back in
+            on the far side. SMIL ignores the reduced-motion CSS, so the group is hidden
+            outright under that preference rather than left frozen on the ring. */}
+        <g className="motion-reduce:hidden">
+          <TravellingDot ring={SEAT_RING} seconds={46} fill="hsl(var(--trust))" />
+          <TravellingDot ring={OUTER_RING} seconds={70} fill="hsl(var(--iris))" reverse />
+        </g>
       </svg>
 
       <ul aria-label="More referenced traders" className="absolute inset-0">
@@ -187,8 +233,10 @@ export function ReferenceOrbit({ people }: { people: readonly ReferenceSuggestio
                     <span className="max-w-36 truncate text-meta font-semibold leading-snug text-foreground decoration-foreground/30 underline-offset-2 group-hover:underline">
                       {person.handle}
                     </span>
+                    {/* A count: the tick says what is counted, one colour for the line
+                        (see the suggestion rows in `ReferenceSearch`). */}
                     <span className="inline-flex items-center gap-0.5 text-meta font-medium leading-snug tabular-nums text-trust">
-                      <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" aria-hidden />
+                      <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3 shrink-0" aria-hidden />
                       {person.referenceCount} positive
                     </span>
                   </span>

@@ -41,9 +41,10 @@ import {
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import type { IconSvgElement } from '@hugeicons/react';
-import { ChevronRightIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { ChevronRightIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { Skeleton, TextLines } from '@/components/ui/skeleton';
+import { StatusGlyph } from '@/components/ui/status-glyph';
 import { cn } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -355,7 +356,7 @@ export function TrustLine({
 
   return (
     <p className="flex flex-wrap items-center gap-x-tight gap-y-0 text-body">
-      <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+      <StatusGlyph kind="verified" />
       <span className="font-medium text-trust">ID checked by Stripe</span>
       <span aria-hidden className="text-muted-foreground/50">
         ·

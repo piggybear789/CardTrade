@@ -6,8 +6,9 @@
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, ArrowRight01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
 
+import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -28,7 +29,7 @@ export function HandleChooser({
   return (
     <section
       aria-labelledby="handle-chooser-heading"
-      className="mx-auto w-full max-w-xl rounded-lg border border-border bg-card p-group shadow-market sm:p-6"
+      className="ref-surface ref-rise mx-auto w-full max-w-xl rounded-2xl bg-card p-group sm:p-6"
     >
       <div className="flex items-center gap-cozy">
         <Button asChild variant="ghost" size="icon" className="-ml-2 size-10 shrink-0 rounded-full md:size-9 [&_svg]:size-5">
@@ -46,20 +47,20 @@ export function HandleChooser({
         </div>
       </div>
 
-      <ul className="mt-group divide-y divide-border/70 overflow-hidden rounded-lg border border-border/80">
+      <ul className="mt-group divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80">
         {choices.map((choice) => (
           <li key={referenceAddressKey(choice.address)}>
             <Link
               href={referenceHref(choice.address, params)}
-              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+              className="group flex items-center gap-3 px-4 py-3 transition-colors duration-300 hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <Avatar avatarPath={choice.avatarPath} displayName={choice.name} size="sm" />
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-1.5">
                   <span className="break-all text-body font-semibold text-foreground">{choice.handle}</span>
-                  {choice.platform ? <PlatformChip slug={choice.platform} className="size-5" /> : null}
+                  {choice.platform ? <PlatformChip slug={choice.platform} bare className="size-4" /> : null}
                   {choice.identityVerified ? (
-                    <HugeiconsIcon icon={ShieldCheckIcon} className="size-3.5 shrink-0 text-trust" aria-label="ID verified" />
+                    <IdentityBadge verified iconOnly size={14} />
                   ) : null}
                 </span>
                 <span className="mt-0.5 block text-meta text-muted-foreground">
@@ -71,7 +72,11 @@ export function HandleChooser({
                     .join(' · ')}
                 </span>
               </span>
-              <HugeiconsIcon icon={ArrowRight01Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+              <HugeiconsIcon
+                icon={ArrowRight01Icon}
+                className="size-4 shrink-0 text-muted-foreground transition-[color,transform] duration-300 ease-enter group-hover:translate-x-0.5 group-hover:text-foreground group-focus-visible:translate-x-0.5"
+                aria-hidden
+              />
             </Link>
           </li>
         ))}

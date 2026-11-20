@@ -25,7 +25,8 @@ export type ParsedLookupInput =
       name: string;
     };
 
-const RESERVED_FB_PATHS = new Set([
+/** First path segments on facebook.com that are site sections, never a person's vanity name. */
+export const RESERVED_FB_PATHS: ReadonlySet<string> = new Set([
   'marketplace',
   'groups',
   'watch',

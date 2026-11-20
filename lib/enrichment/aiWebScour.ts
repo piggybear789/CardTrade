@@ -650,8 +650,9 @@ interface RawSearchHit {
 
 /**
  * Executes a single web search query using Serper (if configured) or free Jina+DDG.
+ * Never throws: a failed or blocked search is an empty list.
  */
-async function executeSearchQuery(query: string): Promise<RawSearchHit[]> {
+export async function executeSearchQuery(query: string): Promise<RawSearchHit[]> {
   const cleanQuery = query.trim().slice(0, 220);
   if (!cleanQuery) return [];
 

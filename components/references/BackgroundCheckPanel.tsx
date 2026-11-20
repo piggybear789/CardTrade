@@ -3,7 +3,7 @@
 // components/references/BackgroundCheckPanel.tsx
 //
 // Unified public footprint & background check card modeled on NoDitto's References
-// design system (`rounded-lg border border-border bg-card p-group shadow-market sm:p-6`,
+// design system (`ref-surface rounded-2xl bg-card p-group sm:p-6`, globals.css,
 // `PlatformChip`, `divide-y divide-border/70`, `tabular-nums`, flat internal tiles with
 // single-level elevation).
 //
@@ -12,19 +12,17 @@
 
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
 import {
   AlertCircleIcon,
   ArrowLeft01Icon,
   ArrowUpRight01Icon,
-  CheckmarkCircle02Icon,
   Clock01Icon,
   Globe02Icon,
   Link01Icon,
   Location01Icon,
   RefreshCwIcon,
   Shield01Icon,
-  ShieldAlertIcon,
   ShieldCheckIcon,
   StarIcon,
 } from '@hugeicons/core-free-icons';
@@ -34,12 +32,14 @@ import {
   readCheckStream,
   type CheckStepResults,
 } from '@/components/references/CheckProgress';
-import { PlatformChip } from '@/components/references/referenceLabels';
+import { PlatformChip, Tag, type TagTone } from '@/components/references/referenceLabels';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import type { StatusGlyphKind } from '@/components/ui/status-glyph';
 import {
   CHECK_STREAM_CONTENT_TYPE,
   type BackgroundCheckDossier,
+  type CheckProfilePlatform,
   type FootprintJudgeWarning,
   type RealnessTier,
 } from '@/domain/references/enrichment';
@@ -51,36 +51,23 @@ import {
   parseEbaySaleTitle,
   parseInstagramBio,
 } from '@/domain/references/footprintPresentation';
+import type { FacebookIndexReport } from '@/domain/references/facebookIndex';
 import type { ClaimPlatform } from '@/domain/references/reference';
 import { cn } from '@/lib/utils';
 
-const VERDICT_STYLE: Record<
-  RealnessTier,
-  { chip: string; label: string; icon: typeof CheckmarkCircle02Icon }
-> = {
-  // SOLID FILLS. The verdict is the one thing on the card that is a judgement, and as a
-  // pale tint with a tinted edge it had the weight of a hashtag pill. White on the
-  // trust green is 6.6:1.
-  ID_VERIFIED: {
-    chip: 'bg-trust text-white',
-    label: 'ID-verified',
-    icon: ShieldCheckIcon,
-  },
-  ESTABLISHED_FOOTPRINT: {
-    chip: 'bg-trust text-white',
-    label: 'Looks established',
-    icon: CheckmarkCircle02Icon,
-  },
-  LIMITED_FOOTPRINT: {
-    chip: 'border border-border bg-card text-foreground',
-    label: 'Limited history',
-    icon: Clock01Icon,
-  },
-  WARNING_FLAGGED: {
-    chip: 'bg-destructive text-destructive-foreground',
-    label: 'Red flags found',
-    icon: ShieldAlertIcon,
-  },
+/**
+ * THE VERDICT IS A STATE TAG (`Tag`, referenceLabels.tsx: "When a tag, when an icon,
+ * when text"): a white capsule beside the heading with the verdict's icon in its colour.
+ * It was a SOLID green fill with a white tick, the heaviest object on the card, which
+ * read as generated. Red flags take the danger tone, red from icon to word.
+ */
+// The states that carry a colour take a FILLED glyph (`status-glyph`); "Limited history"
+// has no colour to carry, so it keeps a grey outline clock.
+const VERDICT_STYLE: Record<RealnessTier, { icon: IconSvgElement | StatusGlyphKind; tone: TagTone; label: string }> = {
+  ID_VERIFIED: { icon: 'verified', tone: 'trust', label: 'ID-verified' },
+  ESTABLISHED_FOOTPRINT: { icon: 'success', tone: 'trust', label: 'Looks established' },
+  LIMITED_FOOTPRINT: { icon: Clock01Icon, tone: 'neutral', label: 'Limited history' },
+  WARNING_FLAGGED: { icon: 'danger', tone: 'danger', label: 'Red flags found' },
 };
 
 function buildFallbackSummary(dossier: BackgroundCheckDossier): string {
@@ -382,6 +369,9 @@ export function BackgroundCheckPanel({
   // page on arrival. Only a check someone asked for is laid over the card while it runs:
   // they are waiting on it. One the page started fills the card in quietly.
   const [requested, setRequested] = useState(false);
+  // Whose profile the check's second part reads, before the server says so itself.
+  const profilePlatform: CheckProfilePlatform =
+    initialPlatform === 'facebook' || (!initialPlatform && initialFacebookUrl.trim()) ? 'facebook' : 'instagram';
 
   const autoRanRef = useRef(false);
 
@@ -494,9 +484,15 @@ export function BackgroundCheckPanel({
 
           <section
             aria-busy
-            className="rounded-lg border border-border bg-card p-group shadow-market sm:p-6"
+            className="ref-surface rounded-2xl bg-card p-group sm:p-6"
           >
-            <CheckProgress title="Checking digital footprint" starting results={stepResults} dossier={null} />
+            <CheckProgress
+              title="Checking digital footprint"
+              starting
+              results={stepResults}
+              dossier={null}
+              profilePlatform={profilePlatform}
+            />
           </section>
         </div>
       );
@@ -504,7 +500,7 @@ export function BackgroundCheckPanel({
 
     return (
       <section
-        className="flex flex-col gap-cozy rounded-lg border border-border bg-card p-group shadow-market sm:flex-row sm:items-center sm:justify-between sm:p-6"
+        className="ref-surface flex flex-col gap-cozy rounded-2xl bg-card p-group sm:flex-row sm:items-center sm:justify-between sm:p-6"
         style={{ opacity }}
       >
         <div className="min-w-0">
@@ -538,11 +534,7 @@ export function BackgroundCheckPanel({
   const hasHighWarning = warnings.some((w) => w.severity === 'HIGH');
   const verdict =
     effectiveTier === 'LIMITED_FOOTPRINT' && warnings.length > 0
-      ? {
-          chip: 'border border-action-border/50 bg-action/35 text-action-foreground',
-          label: 'Caution flags',
-          icon: AlertCircleIcon,
-        }
+      ? { icon: 'warning' as const, tone: 'caution' as const, label: 'Caution flags' }
       : VERDICT_STYLE[effectiveTier];
   const summaryText = judge?.summary || buildFallbackSummary(dossier);
   const hasLookalikeFlag = Boolean(
@@ -582,6 +574,7 @@ export function BackgroundCheckPanel({
     .replace(/^@/, '')
     .trim();
   const parsedIgBio = parseInstagramBio(visibleProfile?.bio);
+  const facebookIndex = dossier.forensics?.facebookIndex ?? null;
   const dedupedWebMentions = filterOpenWebMentions(dossier.webMentions).map(formatWebMention);
 
   const webMentionUrlSet = new Set(dedupedWebMentions.map((m) => canonicalizeWebUrl(m.url)));
@@ -616,7 +609,7 @@ export function BackgroundCheckPanel({
       <section
         aria-labelledby="bg-footprint-heading"
         aria-busy={covered}
-        className="rounded-lg border border-border bg-card p-group shadow-market sm:p-6"
+        className="ref-surface rounded-2xl bg-card p-group sm:p-6"
       >
         <div className="grid">
           <div className={cn('col-start-1 row-start-1 min-w-0', covered && 'invisible')} inert={covered}>
@@ -646,15 +639,9 @@ export function BackgroundCheckPanel({
                   Digital footprint
                 </h2>
               )}
-              <span
-                className={cn(
-                  'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full px-2.5 text-meta font-semibold',
-                  verdict.chip,
-                )}
-              >
-                <HugeiconsIcon icon={verdict.icon} className="size-3.5" aria-hidden />
+              <Tag icon={verdict.icon} tone={verdict.tone} className="ml-0.5">
                 {verdict.label}
-              </span>
+              </Tag>
             </div>
 
             <Button
@@ -758,19 +745,24 @@ export function BackgroundCheckPanel({
                           />
                           <span className="sr-only">on eBay (opens in a new tab)</span>
                         </a>
+                        {/* eBay's feedback score as eBay itself prints it: the number and
+                            its star, in text. It was a capsule tinted by tier, five colours
+                            for one fact, each with its own tinted edge. The star keeps the
+                            tier colour, the one place the tier means something to a
+                            reader who knows eBay. */}
                         {ebayStarTier ? (
-                          <span
-                            className={cn(
-                              'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-meta font-semibold tabular-nums',
-                              ebayStarTier.badgeClass,
-                            )}
-                          >
+                          <span className="inline-flex items-center gap-1 text-meta tabular-nums text-muted-foreground">
                             <HugeiconsIcon
                               icon={StarIcon}
-                              className={cn('size-3', ebayStarTier.iconClass)}
+                              className={cn('size-3.5', ebayStarTier.iconClass)}
                               aria-hidden
                             />
-                            {ebayStarTier.label}
+                            <span>
+                              <span className="font-medium text-foreground">
+                                {ebay.feedbackScore?.toLocaleString('en-US')}
+                              </span>{' '}
+                              feedback
+                            </span>
                           </span>
                         ) : null}
                       </div>
@@ -875,7 +867,7 @@ export function BackgroundCheckPanel({
                       href={item.itemUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group flex items-center gap-2.5 rounded-lg border border-border bg-card p-2 transition-colors hover:border-border hover:bg-muted/35"
+                      className="ref-tile group flex items-center gap-2.5 rounded-xl border border-border bg-card p-2 hover:bg-muted/35"
                     >
                       <ListingThumb src={item.imageUrl} alt={item.title} />
                       <div className="min-w-0 flex-1">
@@ -923,23 +915,26 @@ export function BackgroundCheckPanel({
                           <div className="flex flex-wrap items-center gap-1.5">
                             {parsed.gradeBadge ? (
                               <span
+                                // FLAT TAGS: a fill and no edge, RevenueCat's "Case study"
+                                // tag. A tinted edge on a 20px tag was a second outline
+                                // inside the card's own.
                                 className={cn(
-                                  'inline-flex items-center rounded border px-1.5 py-0.5 text-meta font-semibold tabular-nums leading-none',
+                                  'inline-flex items-center rounded-sm px-1.5 py-1 text-meta font-medium tabular-nums leading-none',
                                   parsed.gradeBadge.highlight
-                                    ? 'border-iris/35 bg-iris/15 text-iris-ink'
-                                    : 'border-border bg-muted/70 text-foreground',
+                                    ? 'bg-iris/12 text-iris-ink'
+                                    : 'bg-muted text-foreground',
                                 )}
                               >
                                 {parsed.gradeBadge.label}
                               </span>
                             ) : null}
                             {parsed.categoryBadge ? (
-                              <span className="inline-flex items-center rounded border border-border/75 bg-muted/45 px-1.5 py-0.5 text-meta font-medium leading-none text-muted-foreground">
+                              <span className="inline-flex items-center rounded-sm bg-muted px-1.5 py-1 text-meta font-medium leading-none text-muted-foreground">
                                 {parsed.categoryBadge}
                               </span>
                             ) : null}
                             {!parsed.gradeBadge && !parsed.categoryBadge && parsed.year ? (
-                              <span className="inline-flex items-center rounded border border-border/75 bg-muted/45 px-1.5 py-0.5 text-meta font-medium tabular-nums leading-none text-muted-foreground">
+                              <span className="inline-flex items-center rounded-sm bg-muted px-1.5 py-1 text-meta font-medium tabular-nums leading-none text-muted-foreground">
                                 {parsed.year}
                               </span>
                             ) : null}
@@ -967,8 +962,10 @@ export function BackgroundCheckPanel({
                       </>
                     );
 
+                    // Only a sale that opens on eBay lifts on hover (`ref-tile`); one with no
+                    // item to open is not a link and must not look like one.
                     const cardClasses =
-                      'group flex flex-col justify-between rounded-lg border border-border bg-card p-3 transition-colors hover:border-border hover:bg-muted/30';
+                      'group flex flex-col justify-between rounded-xl border border-border bg-card p-3';
 
                     return sale.itemId ? (
                       <a
@@ -976,7 +973,7 @@ export function BackgroundCheckPanel({
                         href={`https://www.ebay.com.au/itm/${encodeURIComponent(sale.itemId)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={cardClasses}
+                        className={cn(cardClasses, 'ref-tile hover:bg-muted/30')}
                       >
                         {inner}
                       </a>
@@ -1103,6 +1100,11 @@ export function BackgroundCheckPanel({
             </li>
           ) : null}
 
+          {/* Section B2: Facebook, as search engines hold it. Facebook itself is never
+              read (a logged-out visitor gets a login page), so this says what a search
+              engine has indexed and nothing more. */}
+          {facebookIndex ? <FacebookIndexRow report={facebookIndex} /> : null}
+
           {/* Section C: Open web & community mentions — 2-col visual cards with favicons, zero duplicate text */}
           {dedupedWebMentions.length > 0 ? (
             <li className="py-group first:pt-0 last:pb-0">
@@ -1147,7 +1149,7 @@ export function BackgroundCheckPanel({
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                      'group flex flex-col justify-between rounded-lg border p-3 transition-colors',
+                      'ref-tile group flex flex-col justify-between rounded-xl border p-3',
                       m.riskFlag === 'WARNING'
                         ? 'border-destructive/35 bg-destructive/[0.03] hover:bg-destructive/[0.06]'
                         : 'border-border bg-card hover:border-border hover:bg-muted/30',
@@ -1167,7 +1169,7 @@ export function BackgroundCheckPanel({
                         </div>
                         <HugeiconsIcon
                           icon={ArrowUpRight01Icon}
-                          className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
+                          className="size-3.5 shrink-0 text-muted-foreground transition-[color,transform] duration-300 ease-enter group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
                           aria-hidden
                         />
                       </div>
@@ -1457,6 +1459,7 @@ export function BackgroundCheckPanel({
                 starting={loading}
                 results={stepResults}
                 dossier={loading ? null : dossier}
+                profilePlatform={profilePlatform}
               >
                 {!loading ? (
                   <Button
@@ -1475,5 +1478,122 @@ export function BackgroundCheckPanel({
         </div>
       </section>
     </div>
+  );
+}
+
+const FACEBOOK_SECTION_LABEL: Record<string, string> = {
+  profile: 'Profile',
+  photos: 'Photos',
+  photos_by: 'Photos',
+  about: 'About',
+  posts: 'Posts',
+  friends: 'Friends',
+  videos: 'Videos',
+  reels: 'Reels',
+  followers: 'Followers',
+};
+
+function facebookSectionLabel(section: string): string {
+  return FACEBOOK_SECTION_LABEL[section] ?? section.charAt(0).toUpperCase() + section.slice(1);
+}
+
+/**
+ * One Facebook profile, as search engines hold it: the indexed name, the Intro facts a
+ * public snippet carries, which of the profile's pages are public, and other accounts
+ * indexed under the same name. Facebook itself is never read.
+ *
+ * Friends and followers always draw, as "—" when unknown, so the row keeps its height.
+ */
+function FacebookIndexRow({ report }: { report: FacebookIndexReport }) {
+  const sections = Array.from(new Set(report.pages.map((p) => facebookSectionLabel(p.section))));
+  const facts = [
+    report.worksAt ? `Works at ${report.worksAt}` : null,
+    report.studiedAt ? `Studied at ${report.studiedAt}` : null,
+    report.from ? `From ${report.from}` : null,
+  ].filter((f): f is string => Boolean(f));
+  const sameName = report.sameNameAccounts;
+
+  return (
+    <li className="py-group first:pt-0 last:pb-0">
+      <div className="flex flex-col gap-cozy sm:flex-row sm:items-center sm:justify-between sm:gap-group">
+        <div className="flex min-w-0 items-start gap-cozy">
+          <PlatformChip slug="facebook" className="size-10 shrink-0" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <a
+                href={report.profileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex max-w-full items-center gap-1 rounded-sm text-body font-semibold text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="break-all">{report.displayName ?? `facebook.com/${report.slug}`}</span>
+                <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+              </a>
+              {report.displayName && report.nameSource === 'SLUG' ? (
+                <span className="text-meta text-muted-foreground">name guessed from the link</span>
+              ) : null}
+              {report.livesIn ? (
+                <span className="inline-flex items-center gap-1 text-meta text-muted-foreground">
+                  <HugeiconsIcon icon={Location01Icon} className="size-3.5" aria-hidden />
+                  {report.livesIn}
+                </span>
+              ) : null}
+            </div>
+            {facts.length > 0 ? (
+              <p className="mt-0.5 line-clamp-2 text-meta text-muted-foreground">{facts.join(' · ')}</p>
+            ) : null}
+            <p className="mt-0.5 text-meta text-muted-foreground">
+              {report.indexed
+                ? `In search engines: ${sections.join(', ')}`
+                : 'Not in search engines. Many people hide their profile from search, so this proves nothing on its own.'}
+            </p>
+          </div>
+        </div>
+
+        <dl className="flex shrink-0 gap-group sm:justify-end sm:gap-6 sm:text-right">
+          {(
+            [
+              ['Friends', report.friendsCount],
+              ['Followers', report.followersCount],
+            ] as const
+          ).map(([label, value]) => (
+            <div key={label} className="flex flex-col-reverse">
+              <dt className="text-meta text-muted-foreground">{label}</dt>
+              <dd className="text-body font-semibold tabular-nums text-foreground">
+                {value !== null ? value.toLocaleString('en-US') : '—'}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      {sameName.length > 0 && report.displayName ? (
+        <div className="mt-cozy rounded-xl border border-border bg-muted/30 p-3 sm:ml-[3.25rem]">
+          <p className="text-meta font-semibold text-foreground">
+            {sameName.length} other Facebook {sameName.length === 1 ? 'account' : 'accounts'} named &ldquo;
+            {report.displayName}&rdquo;
+          </p>
+          <p className="mt-0.5 text-meta text-muted-foreground">
+            Scammers copy a real person&rsquo;s name and photos onto a new account. Compare the link, not the name,
+            with the one you have dealt with before. Many real people share a name.
+          </p>
+          <ul className="mt-snug flex flex-wrap gap-1.5">
+            {sameName.map((account) => (
+              <li key={account.slug}>
+                <a
+                  href={account.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  facebook.com/{account.slug}
+                  <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" aria-hidden />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </li>
   );
 }

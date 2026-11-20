@@ -8,6 +8,10 @@
 // Works even when ZERO prior scam reports or warning stories exist.
 
 import {
+  facebookIndexFlags,
+  type FacebookIndexReport,
+} from '@/domain/references/facebookIndex';
+import {
   predictFakeProfileProbability,
   type FakeProfilePrediction,
 } from '@/domain/references/fakeProfileModel';
@@ -50,6 +54,11 @@ export interface ProfileForensicsReport {
   } | null;
   waybackFirstSeen: string | null;
   visibleProfile: VisibleProfileMetrics | null;
+  /**
+   * What search engines hold about a Facebook profile (name, intro facts, same-name
+   * accounts). Absent on checks stored before it existed, and for non-Facebook targets.
+   */
+  facebookIndex?: FacebookIndexReport | null;
 }
 
 export interface DmScamAnalysis {
@@ -485,11 +494,14 @@ export function buildProfileForensicsReport(input: {
   lookalikeHighRefCount?: number;
   positiveRefs: number;
   ebayFound: boolean;
+  facebookIndex?: FacebookIndexReport | null;
 }): ProfileForensicsReport {
   const flags: ForensicsFlag[] = [];
 
   const fbAge = analyzeFacebookIdAge(input.fbNumericId);
   if (fbAge?.flag) flags.push(fbAge.flag);
+
+  flags.push(...facebookIndexFlags(input.facebookIndex));
 
   flags.push(...analyzeHandlePattern(input.handle));
 
@@ -577,5 +589,6 @@ export function buildProfileForensicsReport(input: {
       : null,
     waybackFirstSeen: input.waybackFirstSeen ?? null,
     visibleProfile: input.visibleProfile ?? null,
+    facebookIndex: input.facebookIndex ?? null,
   };
 }

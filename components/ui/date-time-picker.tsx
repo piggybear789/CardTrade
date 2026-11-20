@@ -208,8 +208,10 @@ export function DateTimePicker({
             // No height override: Button's default (`h-9 md:h-8`) is the height the
             // time `SelectTrigger` beside it uses. `h-10` made the pair 4px apart
             // wherever the grid puts them side by side.
+            // A FIELD, not a button: the `--input` edge the time select beside it
+            // wears, with no drop shadow (see EDGE AND DEPTH in `button.tsx`).
             className={cn(
-              'w-full justify-start font-normal',
+              'w-full justify-start border-input font-normal shadow-none hover:border-foreground/60',
               !parts && 'text-muted-foreground',
             )}
           >

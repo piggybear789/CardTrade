@@ -255,12 +255,20 @@ export interface BackgroundCheckDossier {
  * them. The first five run while the check is being started; `sites` is the slower scan
  * of other public sites that carries on afterwards and is read by polling the run.
  */
-export const CHECK_STEPS = ['ebay', 'instagram', 'web', 'scam', 'summary', 'sites'] as const;
+export const CHECK_STEPS = ['ebay', 'profile', 'web', 'scam', 'summary', 'sites'] as const;
 export type CheckStep = (typeof CHECK_STEPS)[number];
+
+/**
+ * Whose public profile the `profile` step reads: the Instagram account itself, or what
+ * search engines hold about a Facebook profile (never Facebook itself).
+ */
+export type CheckProfilePlatform = 'instagram' | 'facebook';
 
 /** What one part of a check came back with. */
 export interface CheckStepResult {
   step: CheckStep;
+  /** On the `profile` step: which platform's profile was read. */
+  platform?: CheckProfilePlatform;
   /** `skipped`: this part does not apply to what was looked up, so it was not run. */
   state: 'done' | 'skipped';
   found: boolean;

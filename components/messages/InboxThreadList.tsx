@@ -323,7 +323,7 @@ function DesktopThreadRow({ c }: { c: ConversationListEntry }) {
       </div>
 
       {c.unreadCount > 0 ? (
-        <Badge className="shrink-0" aria-label={`${c.unreadCount} unread messages`}>
+        <Badge variant="solid" className="shrink-0" aria-label={`${c.unreadCount} unread messages`}>
           {c.unreadCount}
         </Badge>
       ) : null}

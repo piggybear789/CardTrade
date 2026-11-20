@@ -25,7 +25,7 @@ export const CASH_SALE_STATUS_MAP: ContractStatusMap<CashSaleStatus> = {
   IN_TRANSIT: { label: 'In transit', tone: 'default' },
   HANDOVER: { label: 'Handover', tone: 'default' },
   INSPECTION: { label: 'Inspection', tone: 'default' },
-  // Teal, not the solid violet every live status uses. See the `trust` variant in
+  // Teal, not the violet tint every live status uses. See the `trust` variant in
   // `ui/badge` — a settled contract has to be distinguishable from a running one at a
   // glance, and it was not.
   COMPLETED: { label: 'Completed', tone: 'trust' },

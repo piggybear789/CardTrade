@@ -11,9 +11,7 @@
 // Renders nothing for a seller who is not trusted. An absent badge is the normal case,
 // not a warning.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkBadge01Icon } from '@hugeicons/core-free-icons';
-
+import { StatusGlyph } from '@/components/ui/status-glyph';
 import { cn } from '@/lib/utils';
 
 const DESCRIPTION = "Trusted Seller: the NoDitto team reviewed this seller's selling history";
@@ -44,11 +42,8 @@ export function TrustedSellerBadge({
       role="img"
       aria-label={DESCRIPTION}
     >
-      <HugeiconsIcon
-        icon={CheckmarkBadge01Icon}
-        style={{ width: size, height: size, minWidth: size }}
-        aria-hidden
-      />
+      {/* A filled seal, the same family as the identity shield (`status-glyph`). */}
+      <StatusGlyph kind="trusted" style={{ width: size, height: size, minWidth: size }} />
       {!iconOnly && <span className="text-meta">Trusted Seller</span>}
     </span>
   );

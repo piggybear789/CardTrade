@@ -156,6 +156,7 @@ export default async function HandleReferencePage({
         viewer={viewer}
         autoOpen={experience === '1'}
         autoCheck={shouldAutoCheck}
+        refreshStoredCheck={cachedIsThin}
         initialDossier={cachedIsThin ? null : initialDossier}
       />
     </article>

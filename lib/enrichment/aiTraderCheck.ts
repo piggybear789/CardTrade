@@ -51,7 +51,7 @@ interface ExtractedFromChat {
 type Provider =
   | { kind: 'gemini'; apiKey: string; model: string }
   | { kind: 'openai'; apiKey: string; model: string }
-  | { kind: 'anthropic'; apiKey: string; workspaceId?: string; baseUrl: string; model: string };
+  | { kind: 'anthropic'; apiKey: string; workspaceId?: string; baseUrl: string; model: string; aws: boolean };
 
 function resolveCheapProvider(): Provider | null {
   const geminiKey = (process.env.GEMINI_API_KEY ?? process.env.GOOGLE_GENERATIVE_AI_API_KEY)?.trim();
@@ -79,8 +79,16 @@ function resolveCheapProvider(): Provider | null {
       kind: 'anthropic',
       apiKey: awsKey,
       workspaceId: awsWorkspace,
-      baseUrl: (process.env.ANTHROPIC_AWS_BASE_URL?.trim() || 'https://api.anthropic.com').replace(/\/$/, ''),
+      // The AWS-hosted Messages API, authenticated with a Bearer token, as every other
+      // AI module here calls it. This used to default to api.anthropic.com with the AWS
+      // key as `x-api-key`, which answered 401 and silently dropped every chat turn to
+      // the deterministic reply.
+      baseUrl: (
+        process.env.ANTHROPIC_AWS_BASE_URL?.trim() ||
+        `https://aws-external-anthropic.${process.env.AWS_REGION?.trim() || 'us-west-2'}.api.aws`
+      ).replace(/\/$/, ''),
       model: 'claude-haiku-5-5',
+      aws: true,
     };
   }
 
@@ -91,6 +99,7 @@ function resolveCheapProvider(): Provider | null {
       apiKey: anthropicKey,
       baseUrl: 'https://api.anthropic.com',
       model: 'claude-haiku-4-5-20251001',
+      aws: false,
     };
   }
 
@@ -198,7 +207,7 @@ async function callCheapModel(
   const headers: Record<string, string> = {
     'content-type': 'application/json',
     'anthropic-version': '2023-06-01',
-    'x-api-key': provider.apiKey,
+    ...(provider.aws ? { authorization: `Bearer ${provider.apiKey}` } : { 'x-api-key': provider.apiKey }),
   };
   if (provider.workspaceId) headers['anthropic-workspace-id'] = provider.workspaceId;
 
@@ -208,6 +217,9 @@ async function callCheapModel(
     body: JSON.stringify({
       model: provider.model,
       max_tokens: maxTokens,
+      // Haiku 5.5 thinks by default and bills it as output, which can spend the whole
+      // cap on these short replies and return no text.
+      thinking: { type: 'disabled' },
       system: opts.system,
       messages: [{ role: 'user', content }],
     }),
@@ -430,7 +442,12 @@ export async function runAiTraderCheck(input: {
     extracted = safeParseExtracted(rawExtracted);
   }
 
+  // An @handle or a link the member typed beats the extractor's copy of it: the model
+  // drops the "@", and a bare word is checked as a PERSON NAME, which skips eBay and the
+  // handle's references (seen live: "is @x legit?" became a name search for "x").
+  const typedIdentifier = /^(?:@|https?:\/\/)/i.test(smart.query) ? smart.query : null;
   const effectiveQuery =
+    typedIdentifier ||
     extracted?.query ||
     smart.query ||
     input.currentTarget?.trim() ||
@@ -460,16 +477,11 @@ export async function runAiTraderCheck(input: {
       askingCurrency: 'AUD',
       dmText: extracted?.dmText ?? smart.dmText ?? null,
       visibleProfile: extracted?.visibleProfile ?? null,
-      forceRefresh: Boolean(
-        input.forceRefresh ||
-          imagesBase64.length > 0 ||
-          extracted?.dmText ||
-          smart.dmText ||
-          extracted?.paymentDetail ||
-          smart.paymentDetail ||
-          extracted?.psaCertNumber ||
-          smart.psaCertNumber,
-      ),
+      // A DM, payment detail or cert is judged on top of a stored run without searching
+      // the web again, and profile figures read off a screenshot skip the cache by
+      // themselves. Forcing a fresh run here made nearly every chat turn (any message of
+      // six words or more reads as a DM) a ~50k-token web search.
+      forceRefresh: Boolean(input.forceRefresh),
     });
   }
 
@@ -509,7 +521,9 @@ export async function runAiTraderCheck(input: {
       ]
         .filter(Boolean)
         .join('\n\n'),
-      imagesBase64,
+      // The extract call has already read the screenshots into fields and visual notes,
+      // so they are sent again only when that read failed.
+      imagesBase64: extracted ? [] : imagesBase64,
       maxTokens: 280,
     });
 

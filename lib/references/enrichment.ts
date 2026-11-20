@@ -688,8 +688,11 @@ export async function startOrLoadBackgroundCheck(
     queryName: target.queryName,
   });
 
-  // Reuse cached run if fresh and caller didn't attach fresh screenshot/DM evidence
-  if (!input.forceRefresh && !input.visibleProfile && !dmAnalysis) {
+  // Reuse a fresh cached run unless the caller attached profile figures (they change the
+  // forensics, which are stored with the run). Evidence brought to this check alone (a DM,
+  // payment details, a PSA cert, a price) is judged again on top of the stored footprint
+  // below, which costs one ~1.5k-token model call instead of a ~45k-token web search.
+  if (!input.forceRefresh && !input.visibleProfile) {
     const { data: cachedRun } = await admin
       .from('identity_check_runs')
       .select('*')
@@ -710,6 +713,9 @@ export async function startOrLoadBackgroundCheck(
         paymentForensicsOverride: paymentForensics,
         psaCertOverride: psaCert,
         priceCompOverride: priceComp,
+        ...(dmAnalysis ? { dmAnalysisOverride: dmAnalysis } : {}),
+        // The stored verdict never saw this evidence, and its tier is the one shown.
+        rejudge: Boolean(paymentForensics || psaCert || priceComp || dmAnalysis),
       });
     }
   }
@@ -1192,6 +1198,8 @@ async function buildDossierFromRun(
     lookalikesOverride?: LookalikeClaimView[];
     dmAnalysisOverride?: DmScamAnalysis | null;
     judgeOverride?: FootprintJudgeVerdict | null;
+    /** Judge again instead of reading the stored verdict: this check brought evidence the run never saw. */
+    rejudge?: boolean;
   },
 ): Promise<BackgroundCheckDossier> {
   const admin = createAdminClient();
@@ -1308,8 +1316,27 @@ async function buildDossierFromRun(
     storedSummary.judge?.source === 'fallback' &&
     (rawWebMentions.length !== webMentions.length ||
       (forensics.riskLevel !== 'LOW' && storedSummary.judge.warnings.length === 0));
+  const rejudged: FootprintJudgeVerdict | null =
+    preloaded?.rejudge && !preloaded.judgeOverride
+      ? await judgeFootprint({
+          queryLabel: target.queryLabel,
+          assessment: baseAssessment,
+          scamRisk,
+          forensics,
+          paymentForensics,
+          psaCert,
+          priceComp,
+          dmAnalysis,
+          matchedMembers,
+          ebay,
+          lookalikes,
+          sherlock,
+          webMentions,
+        })
+      : null;
   const judge: FootprintJudgeVerdict =
     preloaded?.judgeOverride ??
+    rejudged ??
     (!staleFallback ? storedSummary.judge : null) ??
     buildDeterministicJudgeVerdict({
       assessment: baseAssessment,

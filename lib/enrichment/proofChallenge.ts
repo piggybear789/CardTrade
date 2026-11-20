@@ -175,8 +175,11 @@ async function verifyProofPhotoWithAi(
               'content-type': 'application/json',
             },
       body: JSON.stringify({
-        model: awsKey && workspace ? 'claude-haiku-5-5' : 'claude-3-5-haiku-latest',
+        model: awsKey && workspace ? 'claude-haiku-5-5' : 'claude-haiku-4-5',
         max_tokens: 400,
+        // Haiku thinks by default and bills it as output; on a 400 cap that can leave no
+        // room for the JSON verdict at all.
+        thinking: { type: 'disabled' },
         messages: [
           {
             role: 'user',

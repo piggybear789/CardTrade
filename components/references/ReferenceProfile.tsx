@@ -50,6 +50,7 @@ export function ReferenceProfile({
   viewer,
   autoOpen,
   autoCheck = false,
+  refreshStoredCheck = false,
   initialDossier = null,
 }: {
   data: ReferenceGraphData;
@@ -58,6 +59,8 @@ export function ReferenceProfile({
   autoOpen: boolean;
   /** Auto-run the OSINT/forensics scour on arrival (e.g. from pasting a profile URL). */
   autoCheck?: boolean;
+  /** The page person's stored check lacks fields the page draws, so the auto-run skips the cache. */
+  refreshStoredCheck?: boolean;
   initialDossier?: BackgroundCheckDossier | null;
 }) {
   const pageKey = centreKeyOf(data);
@@ -136,6 +139,7 @@ export function ReferenceProfile({
         initialLocation={orbits.graph.centre.regionCode ?? ''}
         initialDossier={atPagePerson ? initialDossier : null}
         autoRun={!atPagePerson || autoCheck || !initialDossier}
+        autoRunRefresh={atPagePerson && refreshStoredCheck}
         onDossier={(dossier) => noteDossier(orbits.centreKey, dossier)}
       />
 

@@ -98,6 +98,9 @@ async function callVisionModel(base64Jpeg: string): Promise<RawVisionJson | null
       body: JSON.stringify({
         model: 'claude-haiku-5-5',
         max_tokens: 1200,
+        // Left on, Haiku 5.5 spent 822 of these 1,200 tokens thinking on a phone chat
+        // screenshot and cut the JSON off, which read as "AI vision is not configured".
+        thinking: { type: 'disabled' },
         messages: [
           {
             role: 'user',
@@ -139,7 +142,8 @@ async function callVisionModel(base64Jpeg: string): Promise<RawVisionJson | null
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-latest',
+        model: 'claude-haiku-4-5',
+        thinking: { type: 'disabled' },
         max_tokens: 1200,
         messages: [
           {

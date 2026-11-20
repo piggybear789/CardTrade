@@ -333,6 +333,7 @@ export function BackgroundCheckPanel({
   initialSecondaryHandle = '',
   initialDossier = null,
   autoRun = false,
+  autoRunRefresh = false,
   onDossier,
 }: {
   mode: 'profile' | 'search' | 'standalone';
@@ -352,6 +353,13 @@ export function BackgroundCheckPanel({
   initialSecondaryHandle?: string;
   initialDossier?: BackgroundCheckDossier | null;
   autoRun?: boolean;
+  /**
+   * Whether the check run on arrival skips the 24-hour server cache. Off by default: a
+   * fresh check is a web search plus two model calls (~47k input tokens), and a visit, a
+   * reload or a walk back to someone already checked today should read the stored run.
+   * On only when the page knows its stored run is missing fields it needs.
+   */
+  autoRunRefresh?: boolean;
   /**
    * Told about every dossier this panel shows: the one it was given, a fresh run, each
    * poll. The references page reads the eBay feedback from it to draw as references.
@@ -439,8 +447,8 @@ export function BackgroundCheckPanel({
   useEffect(() => {
     if (!autoRun || autoRanRef.current) return;
     autoRanRef.current = true;
-    void runCheck(true);
-  }, [autoRun, runCheck]);
+    void runCheck(autoRunRefresh);
+  }, [autoRun, autoRunRefresh, runCheck]);
 
   // Poll while async OSINT worker is scanning additional platforms
   useEffect(() => {

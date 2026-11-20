@@ -9,6 +9,9 @@
  * Writes a real `identity_check_runs` row, exactly as the website does. Query strings
  * are dropped from the log so no API key is printed.
  */
+// `ws` is a transitive dependency with no `@types/ws` installed. Without this the
+// script fails `tsc`, and because tsconfig includes `scripts/`, so does `next build`.
+// @ts-expect-error -- no declaration file for 'ws'; only assigned to a global below.
 import WebSocket from 'ws';
 import { startOrLoadBackgroundCheck } from '@/lib/references/enrichment';
 

@@ -113,3 +113,12 @@ export const referenceGraphLimiter = createRateLimiter({ prefix: 'reference-grap
  * the Instagram DM, which the open claim dialog polls every four seconds.
  */
 export const handleClaimLimiter = createRateLimiter({ prefix: 'handle-claim', limit: 30, window: '1m' });
+
+/**
+ * Enriched background checks (0169), per IP/visitor: triggers eBay API, vector search,
+ * scam-hash checks, and async Sherlock/web OSINT jobs.
+ */
+export const referenceCheckLimiter = createRateLimiter({ prefix: 'reference-check', limit: 15, window: '1m' });
+
+/** Polling background check run status (0169), per IP/visitor. */
+export const referenceCheckPollLimiter = createRateLimiter({ prefix: 'reference-check-poll', limit: 60, window: '1m' });

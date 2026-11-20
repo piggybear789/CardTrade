@@ -27,6 +27,7 @@ import {
   type OrbitSentiment,
   type Point,
 } from '@/domain/references/orbits';
+import { authorStanding } from '@/components/references/referenceLabels';
 import { centreInitials, type OrbitEntry, type TrustOrbits } from '@/components/references/useTrustOrbits';
 import { sentimentLabel } from '@/domain/references/reference';
 import { cn } from '@/lib/utils';
@@ -65,7 +66,8 @@ const SOFT_OVERLAP_PX = 12;
 interface Who {
   handle: string;
   initials: string;
-  refs: number;
+  /** Their own standing, for a screen reader: `12 references`, or `548 eBay feedback`. */
+  standing: string;
   /**
    * Line shown directly under the handle: how a planet's experience went (`Good`, `So-so`,
    * `Bad`), or the share of PEOPLE whose experience of the sun was good (`96% good`).
@@ -82,12 +84,12 @@ function goodShareLine(centre: { peopleCount: number; neutralCount: number; nega
 }
 
 function describe(entry: OrbitEntry | undefined): Who {
-  if (!entry) return { handle: 'Member', initials: '?', refs: 0, subtitle: null };
+  if (!entry) return { handle: 'Member', initials: '?', standing: '0 references', subtitle: null };
   if (entry.kind === 'centre') {
     return {
       handle: entry.graph.centre.handle,
       initials: centreInitials(entry.graph),
-      refs: entry.graph.centre.peopleCount,
+      standing: `${entry.graph.centre.peopleCount} references`,
       subtitle: goodShareLine(entry.graph.centre),
     };
   }
@@ -95,14 +97,15 @@ function describe(entry: OrbitEntry | undefined): Who {
     return {
       handle: entry.node.handle,
       initials: entry.node.initials,
-      refs: entry.node.refs,
+      // An eBay feedback author has no NoDitto references to count; say what they do have.
+      standing: entry.node.external ? authorStanding(entry.node) : `${entry.node.refs} references`,
       subtitle: sentimentLabel(entry.node.sentiment),
     };
   }
   return {
     handle: entry.child.handle,
     initials: entry.child.initials,
-    refs: entry.child.refs,
+    standing: `${entry.child.refs} references`,
     subtitle: null,
   };
 }
@@ -499,7 +502,7 @@ export function TrustOrbitsCanvas({
         <g
           key={key}
           opacity={opacity}
-          {...interactive(key, `${person.handle}, vouches for ${parentHandle}, ${person.refs} references`)}
+          {...interactive(key, `${person.handle}, vouches for ${parentHandle}, ${person.standing}`)}
         >
           <circle
             className="opacity-0 group-focus-visible:opacity-100"
@@ -523,8 +526,8 @@ export function TrustOrbitsCanvas({
       sentiment === 'NEGATIVE'
         ? `${person.handle}, issue`
         : sentiment === 'NEUTRAL'
-          ? `${person.handle}, mixed experience, ${person.refs} references`
-          : `${person.handle}, ${person.refs} references`;
+          ? `${person.handle}, mixed experience, ${person.standing}`
+          : `${person.handle}, ${person.standing}`;
 
     return (
       <g

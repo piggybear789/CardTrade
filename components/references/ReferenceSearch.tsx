@@ -44,6 +44,8 @@ import { PlatformChip } from '@/components/references/referenceLabels';
 import { Avatar } from '@/components/ui/avatar';
 import { searchReferences, type ReferenceSuggestion } from '@/lib/actions/references';
 import { referenceHref, type ReferenceAddress } from '@/domain/references/address';
+import { parseReferenceLookupInput, referencesSearchHref } from '@/domain/references/lookup';
+import { platformLabel } from '@/domain/references/reference';
 import { regionLabel } from '@/domain/region';
 import { MOST_REFERENCED_ROWS, byMostReferenced } from '@/lib/references/ranking';
 import { cn } from '@/lib/utils';
@@ -59,20 +61,28 @@ function handleText(suggestion: ReferenceSuggestion): string {
   return suggestion.handle.replace(/^@/, '').toLowerCase();
 }
 
-/** One navigable row: a suggestion, or the typed handle itself. */
+/** One navigable row: a suggestion, a typed handle/URL, or a name background check. */
 type Option =
   | { kind: 'suggestion'; key: string; suggestion: ReferenceSuggestion; href: string }
-  | { kind: 'typed'; key: string; handle: string; href: string };
+  | { kind: 'typed'; key: string; handle: string; platform: string | null; href: string }
+  | { kind: 'check'; key: string; label: string; sublabel: string; href: string };
 
 export function ReferenceSearch({
   initialSuggestions = [],
+  initialQuery = '',
+  compact = false,
 }: {
   /** `null` when the read failed, so the empty state doesn't claim there are no references. */
   initialSuggestions?: ReferenceSuggestion[] | null;
+  /** Pre-fill the search box when showing an inline lookup result on `/references?q=...`. */
+  initialQuery?: string;
+  /** When true, keep the suggestions dropdown collapsed until focused so inline results sit right underneath. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const listId = useId();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
+  const [focused, setFocused] = useState(false);
   const [knownSuggestions, setKnownSuggestions] = useState<ReferenceSuggestion[]>(
     initialSuggestions ?? [],
   );
@@ -84,16 +94,22 @@ export function ReferenceSearch({
   const requestSeq = useRef(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Focus the search on arrival with a mouse and keyboard only. On a touch screen
-  // `autoFocus` raised the software keyboard over the "Most referenced" list before the
-  // member had looked at the page, the same reason the dialogs focus their container.
+  // Focus the search on arrival with a mouse and keyboard only (skipped in compact results mode).
   useEffect(() => {
+    if (compact) return;
     if (window.matchMedia('(pointer: fine)').matches) {
       inputRef.current?.focus({ preventScroll: true });
     }
-  }, []);
+  }, [compact]);
 
-  const needle = query.trim().replace(/^@/, '');
+  const parsedLookup = parseReferenceLookupInput(query);
+  const isHandle = parsedLookup?.kind === 'handle' && !parsedLookup.isNumericFbId;
+  const needle =
+    parsedLookup?.kind === 'handle'
+      ? parsedLookup.isNumericFbId
+        ? parsedLookup.extractedName ?? parsedLookup.handle
+        : parsedLookup.handle
+      : query.trim().replace(/^@/, '');
   const needleLower = needle.toLowerCase();
 
   const topReferred = [...(initialSuggestions ?? [])].sort(byMostReferenced).slice(0, MAX_VISIBLE_RESULTS);
@@ -131,6 +147,7 @@ export function ReferenceSearch({
   }, [needle]);
 
   // Filter synchronously on every keystroke and cap to 3 results so it never overflows.
+  const lookupPlatform = parsedLookup?.kind === 'handle' ? parsedLookup.platform : null;
   const visibleSuggestions = !needleLower
     ? topReferred
     : knownSuggestions
@@ -140,6 +157,14 @@ export function ReferenceSearch({
             s.name.toLowerCase().includes(needleLower),
         )
         .sort((a, b) => {
+          const aExact = handleText(a) === needleLower ? 1 : 0;
+          const bExact = handleText(b) === needleLower ? 1 : 0;
+          if (aExact !== bExact) return bExact - aExact;
+          if (lookupPlatform) {
+            const aPlat = a.platforms.includes(lookupPlatform) ? 1 : 0;
+            const bPlat = b.platforms.includes(lookupPlatform) ? 1 : 0;
+            if (aPlat !== bPlat) return bPlat - aPlat;
+          }
           const aStarts = handleText(a).startsWith(needleLower) ? 1 : 0;
           const bStarts = handleText(b).startsWith(needleLower) ? 1 : 0;
           if (aStarts !== bStarts) return bStarts - aStarts;
@@ -148,9 +173,22 @@ export function ReferenceSearch({
         .slice(0, MAX_VISIBLE_RESULTS);
 
   const loadFailed = initialSuggestions === null;
-  const isHandle = needle.length > 0 && !/\s/.test(needle);
 
   const options: Option[] = [
+    ...(parsedLookup?.kind === 'handle' && parsedLookup.fromUrl && parsedLookup.isNumericFbId
+      ? [
+          {
+            kind: 'check' as const,
+            key: `url-check-${parsedLookup.platform ?? 'any'}-${parsedLookup.handle.toLowerCase()}`,
+            label: `Open ${parsedLookup.platform ? platformLabel(parsedLookup.platform) : 'profile'} (${parsedLookup.extractedName ? `${parsedLookup.extractedName} · ` : ''}${parsedLookup.handle})`,
+            sublabel: 'View references, eBay feedback & public footprint',
+            href: referencesSearchHref({
+              q: parsedLookup.extractedName ?? parsedLookup.handle,
+              fb: parsedLookup.sourceUrl,
+            }),
+          },
+        ]
+      : []),
     ...visibleSuggestions.map(
       (suggestion): Option => ({
         kind: 'suggestion',
@@ -159,16 +197,29 @@ export function ReferenceSearch({
         href: referenceHref(suggestion.address),
       }),
     ),
-    ...(isHandle
+    ...(parsedLookup?.kind === 'handle' && !parsedLookup.isNumericFbId
       ? [
           {
             kind: 'typed' as const,
-            key: `typed-${needleLower}`,
-            handle: needle,
-            href: referenceHref({ slug: needle, on: null } satisfies ReferenceAddress, { experience: '1' }),
+            key: `typed-${parsedLookup.platform ?? 'any'}-${parsedLookup.handle.toLowerCase()}`,
+            handle: parsedLookup.handle,
+            platform: parsedLookup.platform,
+            href: referenceHref(
+              { slug: parsedLookup.handle, on: parsedLookup.platform } satisfies ReferenceAddress,
+            ),
           },
         ]
-      : []),
+      : parsedLookup?.kind === 'name'
+        ? [
+            {
+              kind: 'check' as const,
+              key: `check-name-${parsedLookup.name.toLowerCase()}`,
+              label: `Look up “${parsedLookup.name}”`,
+              sublabel: 'Check eBay feedback, public web & scam reports',
+              href: referencesSearchHref({ q: parsedLookup.name }),
+            },
+          ]
+        : []),
   ];
   // The list changes under the cursor as the member types; never point past its end.
   const active = options.length === 0 ? -1 : Math.min(activeIndex, options.length - 1);
@@ -182,6 +233,7 @@ export function ReferenceSearch({
   }, [activeHref, router]);
 
   const open = (option: Option) => {
+    setFocused(false);
     setOpening(option.key);
     startNavigation(() => {
       router.push(option.href);
@@ -218,7 +270,12 @@ export function ReferenceSearch({
   return (
     // Grows with the screen like the page around it (`app/(marketing)/references/page.tsx`).
     // Same edge and radius as every other field and card: `border-input`, `rounded-lg`.
-    <div className="relative mx-auto w-full max-w-[clamp(36rem,42vw,54rem)]">
+    <div
+      className={cn(
+        'relative mx-auto w-full',
+        compact ? 'max-w-none' : 'max-w-[clamp(36rem,42vw,54rem)]',
+      )}
+    >
       {/* Focus: a softened 1px edge plus a faint halo. The full `--ring` edge doubled by an
           inset ring read as a heavy dark frame on a field this large. */}
       <div className="group relative flex items-center rounded-lg border border-input bg-card shadow-market transition-[border-color,box-shadow] focus-within:border-ring/50 focus-within:ring-[3px] focus-within:ring-ring/10">
@@ -237,14 +294,16 @@ export function ReferenceSearch({
           autoCorrect="off"
           spellCheck={false}
           value={query}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           onChange={(event) => {
             setQuery(event.target.value);
             setActiveIndex(0);
           }}
           onKeyDown={onKeyDown}
-          placeholder="Search @handle or name..."
-          aria-label="Search a handle or name"
-          aria-expanded={options.length > 0}
+          placeholder="Paste Instagram/Facebook/eBay link, @handle, or name..."
+          aria-label="Paste a profile link, handle, or name"
+          aria-expanded={(!compact || focused) && options.length > 0}
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={active >= 0 ? optionId(active) : undefined}
@@ -259,7 +318,11 @@ export function ReferenceSearch({
             onClick={() => {
               setQuery('');
               setActiveIndex(0);
-              inputRef.current?.focus();
+              if (compact) {
+                router.push('/references');
+              } else {
+                inputRef.current?.focus();
+              }
             }}
             aria-label="Clear search"
             className="mr-1 inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring sm:mr-2 sm:size-8"
@@ -276,8 +339,14 @@ export function ReferenceSearch({
       {/* RESULTS. From `sm`: a dropdown anchored below the input, so filtering never
           shifts the page. PHONE: in the page flow under the search, which the page
           top-aligns there, so a list that grows or shrinks moves only what is below it.
-          Always rendered: with nothing to list it holds an empty state. */}
-      <div className="relative mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-market sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:shadow-xl sm:backdrop-blur-md">
+          In `compact` mode (above an inline lookup result), the dropdown only opens while
+          the search box is focused so it never obscures the report card underneath. */}
+      <div
+        className={cn(
+          'relative mt-2 overflow-hidden rounded-lg border border-border bg-card shadow-market sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:shadow-xl sm:backdrop-blur-md',
+          compact && !focused && 'hidden',
+        )}
+      >
         {suggestionCount > 0 && !needle ? (
           // Visible caption only: the listbox's own label already names it.
           <p aria-hidden className="px-4 pb-1 pt-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground">
@@ -356,10 +425,38 @@ export function ReferenceSearch({
                     </span>
                     <span className="min-w-0">
                       <span className="block break-all text-body font-semibold text-foreground">
-                        Open @{option.handle} &amp; leave a reference
+                        {`Open @${option.handle}${option.platform ? ` on ${platformLabel(option.platform)}` : ''}`}
                       </span>
                       <span className="block text-meta text-muted-foreground">
-                        Add a reference for this handle
+                        View references, eBay feedback &amp; public footprint
+                      </span>
+                    </span>
+                  </span>
+                  <RowEnd opening={isOpening} />
+                </li>
+              );
+            }
+
+            if (option.kind === 'check') {
+              return (
+                <li
+                  key={option.key}
+                  {...common}
+                  className={cn(
+                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border/80 px-4 py-3 transition-colors',
+                    isActive ? 'bg-muted/60' : 'bg-muted/15 hover:bg-muted/35',
+                  )}
+                >
+                  <span className="flex min-w-0 items-center gap-3">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground">
+                      <HugeiconsIcon icon={Search01Icon} className="size-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block break-all text-body font-semibold text-foreground">
+                        {option.label}
+                      </span>
+                      <span className="block text-meta text-muted-foreground">
+                        {option.sublabel}
                       </span>
                     </span>
                   </span>

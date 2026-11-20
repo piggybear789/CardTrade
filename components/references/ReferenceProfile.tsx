@@ -8,13 +8,14 @@
 // graph walks to someone else's page both cards go with it, and the page that
 // loads behind the walk draws exactly what is already on screen.
 
-import { memo } from 'react';
+import { memo, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
 
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
+import { BackgroundCheckPanel } from '@/components/references/BackgroundCheckPanel';
 import { ClaimHandle } from '@/components/references/ClaimHandle';
 import { PlatformChip } from '@/components/references/referenceLabels';
 import {
@@ -30,8 +31,11 @@ import { centreKeyOf, useTrustOrbits } from '@/components/references/useTrustOrb
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { referenceAddressKey, referenceHref } from '@/domain/references/address';
+import type { BackgroundCheckDossier, EbaySellerSummary } from '@/domain/references/enrichment';
 import { regionLabel } from '@/domain/region';
+import { ebayReferenceSignature, withEbayReferences } from '@/lib/references/ebayReferences';
 import type { ReferenceGraphCentre, ReferenceGraphData } from '@/lib/references/graph';
+import { cn } from '@/lib/utils';
 
 export interface ReferenceViewer {
   /** The signed-in member, or null for a visitor. */
@@ -45,21 +49,60 @@ export function ReferenceProfile({
   data,
   viewer,
   autoOpen,
+  autoCheck = false,
+  initialDossier = null,
 }: {
   data: ReferenceGraphData;
   viewer: ReferenceViewer;
   /** Open the share composer on arrival (from a reference request link), for this page's person only. */
   autoOpen: boolean;
+  /** Auto-run the OSINT/forensics scour on arrival (e.g. from pasting a profile URL). */
+  autoCheck?: boolean;
+  initialDossier?: BackgroundCheckDossier | null;
 }) {
-  const orbits = useTrustOrbits(data, { openPage: usePageOpener(true) });
+  const pageKey = centreKeyOf(data);
+  // eBay lookups the footprint panel has reported, by the person each is about. The panel
+  // follows the graph when it walks, so a lookup can arrive for the next person before
+  // their page does; kept by person, it neither redraws this one nor is lost.
+  const [liveEbay, setLiveEbay] = useState<ReadonlyMap<string, EbaySellerSummary | null>>(() => new Map());
+  const ebay = liveEbay.has(pageKey) ? liveEbay.get(pageKey) : initialDossier?.ebay;
+  // eBay feedback is drawn and counted as references (`lib/references/ebayReferences.ts`).
+  // Same graph object until the feedback itself changes, so the network is not reset by
+  // a re-read that found nothing new.
+  const graph = useMemo(() => withEbayReferences(data, ebay), [data, ebay]);
+  // The two figures the header quotes from a check, kept by person for the same reason.
+  const [liveFacts, setLiveFacts] = useState<ReadonlyMap<string, CheckFacts>>(() => new Map());
+  const noteDossier = (personKey: string, dossier: BackgroundCheckDossier) => {
+    const facts = checkFactsOf(dossier);
+    setLiveFacts((known) => {
+      const had = known.get(personKey);
+      if (had && had.followers === facts.followers && had.scamMatches === facts.scamMatches) return known;
+      return new Map(known).set(personKey, facts);
+    });
+    const next = dossier.ebay ?? null;
+    setLiveEbay((known) => {
+      if (known.has(personKey) && ebayReferenceSignature(known.get(personKey)) === ebayReferenceSignature(next)) {
+        return known;
+      }
+      return new Map(known).set(personKey, next);
+    });
+  };
+
+  const orbits = useTrustOrbits(graph, { openPage: usePageOpener(true) });
   // The graph can be walking toward someone else; arriving with the composer open is only
   // for the person the page was opened for.
-  const atPagePerson = orbits.centreKey === centreKeyOf(data);
+  const atPagePerson = orbits.centreKey === pageKey;
 
   // FILLS THE PAGE. The column is a flex chain down to the Trust Network card, which
   // takes whatever height is left, so a person with no references yet does not leave a
   // short card floating above a screen of empty background. Card surfaces use the
   // `Card` tokens (`rounded-lg`, `border-border`, `shadow-market`) like every other page.
+  const hasReferences = orbits.view.nodes.length > 0;
+  const facts =
+    liveFacts.get(orbits.centreKey) ?? (atPagePerson && initialDossier ? checkFactsOf(initialDossier) : null);
+  const { centre } = orbits.graph;
+  const referenceTotal = centre.peopleCount + centre.neutralCount + centre.negativeCount;
+
   return (
     <div className="flex flex-1 flex-col gap-group">
       <ProfileHeader
@@ -69,10 +112,32 @@ export function ReferenceProfile({
         autoOpen={autoOpen && atPagePerson}
         composerKey={orbits.centreKey}
         bio={orbits.graph.bio?.text ?? null}
+        referenceTotal={referenceTotal}
+        positiveCount={centre.peopleCount}
+        followers={facts?.followers ?? null}
+        scamMatches={facts?.scamMatches ?? null}
       />
 
-      {/* Another site's public record, when one is linked (0170). Not a reference. */}
+      {/* Another site's public record, when one is linked (0170). */}
       <TrackRecordCard records={orbits.graph.trackRecord ?? []} opacity={arrival(orbits)} />
+
+      {/* Public cross-platform footprint (eBay, Instagram, open web, scam DB) right under
+          the profile header so it's immediately visible instead of buried below reviews. */}
+      <BackgroundCheckPanel
+        key={`check-${orbits.centreKey}`}
+        mode="profile"
+        compact={hasReferences}
+        opacity={arrival(orbits)}
+        initialQuery={orbits.graph.centre.handle.replace(/^@/, '')}
+        initialPlatform={orbits.graph.centre.address.on}
+        instagramAvatarPath={
+          orbits.graph.centre.address.on === 'instagram' ? orbits.graph.centre.avatarPath : null
+        }
+        initialLocation={orbits.graph.centre.regionCode ?? ''}
+        initialDossier={atPagePerson ? initialDossier : null}
+        autoRun={!atPagePerson || autoCheck || !initialDossier}
+        onDossier={(dossier) => noteDossier(orbits.centreKey, dossier)}
+      />
 
       <section
         aria-labelledby="references-heading"
@@ -86,7 +151,7 @@ export function ReferenceProfile({
             ~9px and its dots small targets). Two columns from `sm`. Cards do not select
             in the drawing here: once you have scrolled down to read them it is often off
             screen, and a selection you cannot see reads as a tap that did nothing. */}
-        {orbits.view.nodes.length > 0 ? (
+        {hasReferences ? (
           <ExperienceList
             orbits={orbits}
             selectable={false}
@@ -96,6 +161,85 @@ export function ReferenceProfile({
         ) : null}
       </section>
     </div>
+  );
+}
+
+/** What the header quotes from a digital footprint check. */
+interface CheckFacts {
+  /** Instagram followers, when the check read them. */
+  followers: number | null;
+  scamMatches: number;
+}
+
+function checkFactsOf(dossier: BackgroundCheckDossier): CheckFacts {
+  return {
+    followers: dossier.forensics?.visibleProfile?.followersCount ?? null,
+    scamMatches: dossier.scamRisk.matchedReportCount,
+  };
+}
+
+const FIGURE_FORMAT = new Intl.NumberFormat('en-AU');
+
+/**
+ * THE HEADLINE FIGURES, in one row under the name: how many references, what share were
+ * good, how big the Instagram account is, and whether anyone has reported them. Large
+ * ink figures over small labels, cells split by hairlines (the stat strip Shopify,
+ * n8n and Plausible put at the top of a record). Before this the page's numbers were
+ * all in 12px tinted pills, three cards down.
+ *
+ * A cell is shown only for a figure that is known. Nobody with no references gets a
+ * "0%"; a check that has not answered yet shows no scam cell rather than a guess.
+ */
+function HeadlineFigures({
+  referenceTotal,
+  positiveCount,
+  followers,
+  scamMatches,
+}: {
+  referenceTotal: number;
+  positiveCount: number;
+  followers: number | null;
+  scamMatches: number | null;
+}) {
+  const figures: { label: string; value: string; tone?: 'trust' | 'destructive' }[] = [
+    { label: referenceTotal === 1 ? 'Reference' : 'References', value: FIGURE_FORMAT.format(referenceTotal) },
+  ];
+  if (referenceTotal > 0) {
+    figures.push({ label: 'Positive', value: `${Math.round((positiveCount / referenceTotal) * 100)}%`, tone: 'trust' });
+  }
+  if (followers !== null) {
+    figures.push({ label: 'Instagram followers', value: FIGURE_FORMAT.format(followers) });
+  }
+  if (scamMatches !== null) {
+    figures.push(
+      scamMatches > 0
+        ? { label: scamMatches === 1 ? 'Scam report' : 'Scam reports', value: FIGURE_FORMAT.format(scamMatches), tone: 'destructive' }
+        : { label: 'Scam reports', value: 'None', tone: 'trust' },
+    );
+  }
+  return (
+    <dl className="relative mt-group grid grid-cols-2 gap-y-cozy border-t border-border pt-group sm:flex sm:gap-0">
+      {figures.map((figure) => (
+        <div
+          key={figure.label}
+          className="flex flex-col-reverse sm:min-w-36 sm:border-l sm:border-border sm:px-6 sm:first:border-l-0 sm:first:pl-0"
+        >
+          <dt className="text-meta text-muted-foreground">{figure.label}</dt>
+          <dd
+            className={cn(
+              'text-head font-semibold tabular-nums tracking-tight',
+              figure.tone === 'trust'
+                ? 'text-trust'
+                : figure.tone === 'destructive'
+                  ? 'text-destructive'
+                  : 'text-foreground',
+            )}
+          >
+            {figure.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -110,6 +254,10 @@ const ProfileHeader = memo(function ProfileHeader({
   autoOpen,
   composerKey,
   bio,
+  referenceTotal,
+  positiveCount,
+  followers,
+  scamMatches,
 }: {
   centre: ReferenceGraphCentre;
   opacity: number;
@@ -119,6 +267,10 @@ const ProfileHeader = memo(function ProfileHeader({
   composerKey: string;
   /** A short model-written line, published by staff (0171), or null. */
   bio: string | null;
+  referenceTotal: number;
+  positiveCount: number;
+  followers: number | null;
+  scamMatches: number | null;
 }) {
   const returnPath = referenceHref(centre.address);
   const centreAddressKey = referenceAddressKey(centre.address);
@@ -137,10 +289,6 @@ const ProfileHeader = memo(function ProfileHeader({
 
   return (
     <header className="relative overflow-hidden rounded-lg border border-border bg-card p-group shadow-market sm:p-6">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-20 -right-20 h-44 w-44 rounded-full bg-iris/[0.06] blur-2xl"
-      />
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* PHONE: a 40px back button (a touch target, not the 36px pointer one), a 48px
             avatar and a tighter gap, which hands the handle ~20px more of a ~311px row. */}
@@ -253,10 +401,19 @@ const ProfileHeader = memo(function ProfileHeader({
           describes and never vouches, and it says what wrote it. */}
       {bio ? (
         <div className="relative mt-cozy border-t border-border/70 pt-cozy" style={{ opacity }}>
-          <p className="max-w-prose text-body text-foreground">{bio}</p>
+          <p className="text-body text-foreground">{bio}</p>
           <p className="mt-tight text-meta text-muted-foreground">AI-written from public information</p>
         </div>
       ) : null}
+
+      <div style={{ opacity }}>
+        <HeadlineFigures
+          referenceTotal={referenceTotal}
+          positiveCount={positiveCount}
+          followers={followers}
+          scamMatches={scamMatches}
+        />
+      </div>
     </header>
   );
 });

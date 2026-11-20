@@ -85,6 +85,12 @@ const CLAIM_PROVIDERS = [
     iconClass: 'text-foreground',
   },
   {
+    slug: 'ebay',
+    label: 'eBay',
+    hint: 'Sign in with eBay',
+    iconClass: 'text-[#0064D2]',
+  },
+  {
     slug: 'manual',
     label: 'Manual',
     hint: 'Upload screenshots for our team to review',
@@ -434,7 +440,11 @@ export function ClaimHandle({
             Link another handle
           </Button>
         ) : (
-          <Button type="button" variant="outline">
+          // A HAIRLINE EDGE, not the control edge (`--input`) the outline variant rests
+          // at. Beside the filled "Leave a reference" that 3:1 grey outline was the
+          // darkest line in the header, on the quieter of the two actions. The label
+          // is what says this is a button, so its edge only has to hold the shape.
+          <Button type="button" variant="outline" className="border-border">
             Claim this account
           </Button>
         )}

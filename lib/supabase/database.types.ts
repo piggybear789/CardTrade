@@ -3673,6 +3673,312 @@ export type Database = {
           },
         ];
       };
+      /** Background check runs (0169). Service-role only. */
+      identity_check_runs: {
+        Row: {
+          id: string;
+          target_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'PERSON_NAME';
+          target_key: string;
+          platform: string | null;
+          handle_norm: string | null;
+          query_name: string | null;
+          query_location: string | null;
+          target_profile_id: string | null;
+          target_claim_id: string | null;
+          status: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+          sources_status: Json;
+          summary: Json;
+          requested_by: string | null;
+          error_message: string | null;
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          target_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'PERSON_NAME';
+          target_key: string;
+          platform?: string | null;
+          handle_norm?: string | null;
+          query_name?: string | null;
+          query_location?: string | null;
+          target_profile_id?: string | null;
+          target_claim_id?: string | null;
+          status?: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+          sources_status?: Json;
+          summary?: Json;
+          requested_by?: string | null;
+          error_message?: string | null;
+          expires_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          target_kind?: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'PERSON_NAME';
+          target_key?: string;
+          platform?: string | null;
+          handle_norm?: string | null;
+          query_name?: string | null;
+          query_location?: string | null;
+          target_profile_id?: string | null;
+          target_claim_id?: string | null;
+          status?: 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+          sources_status?: Json;
+          summary?: Json;
+          requested_by?: string | null;
+          error_message?: string | null;
+          expires_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** External OSINT / API signals (0169). Service-role only. */
+      osint_signals: {
+        Row: {
+          id: string;
+          run_id: string | null;
+          target_key: string;
+          subject_profile_id: string | null;
+          subject_claim_id: string | null;
+          source: 'EBAY_API' | 'SHERLOCK' | 'WEB_SEARCH' | 'INTERNAL_RISK';
+          signal_kind:
+            | 'EBAY_SELLER_PROFILE'
+            | 'SHERLOCK_MATCH'
+            | 'WEB_MENTION'
+            | 'SCAM_ALERT_MENTION'
+            | 'SCAM_HASH_MATCH'
+            | 'CROSS_PLATFORM_LINK';
+          external_platform: string | null;
+          external_handle: string | null;
+          external_url: string | null;
+          confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+          risk_flag: 'NONE' | 'CAUTION' | 'WARNING';
+          title: string | null;
+          snippet: string | null;
+          payload: Json;
+          observed_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          run_id?: string | null;
+          target_key: string;
+          subject_profile_id?: string | null;
+          subject_claim_id?: string | null;
+          source: 'EBAY_API' | 'SHERLOCK' | 'WEB_SEARCH' | 'INTERNAL_RISK';
+          signal_kind:
+            | 'EBAY_SELLER_PROFILE'
+            | 'SHERLOCK_MATCH'
+            | 'WEB_MENTION'
+            | 'SCAM_ALERT_MENTION'
+            | 'SCAM_HASH_MATCH'
+            | 'CROSS_PLATFORM_LINK';
+          external_platform?: string | null;
+          external_handle?: string | null;
+          external_url?: string | null;
+          confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+          risk_flag?: 'NONE' | 'CAUTION' | 'WARNING';
+          title?: string | null;
+          snippet?: string | null;
+          payload?: Json;
+          observed_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          id?: string;
+          run_id?: string | null;
+          target_key?: string;
+          subject_profile_id?: string | null;
+          subject_claim_id?: string | null;
+          source?: 'EBAY_API' | 'SHERLOCK' | 'WEB_SEARCH' | 'INTERNAL_RISK';
+          signal_kind?:
+            | 'EBAY_SELLER_PROFILE'
+            | 'SHERLOCK_MATCH'
+            | 'WEB_MENTION'
+            | 'SCAM_ALERT_MENTION'
+            | 'SCAM_HASH_MATCH'
+            | 'CROSS_PLATFORM_LINK';
+          external_platform?: string | null;
+          external_handle?: string | null;
+          external_url?: string | null;
+          confidence?: 'HIGH' | 'MEDIUM' | 'LOW';
+          risk_flag?: 'NONE' | 'CAUTION' | 'WARNING';
+          title?: string | null;
+          snippet?: string | null;
+          payload?: Json;
+          observed_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [];
+      };
+      /** Entity graph edges (0169). Service-role only. */
+      entity_graph_edges: {
+        Row: {
+          id: string;
+          from_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'OSINT_SIGNAL' | 'SCAM_CLUSTER';
+          from_key: string;
+          to_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'OSINT_SIGNAL' | 'SCAM_CLUSTER';
+          to_key: string;
+          edge_type:
+            | 'CLAIMED_BY'
+            | 'SAME_HANDLE_CANDIDATE'
+            | 'WEB_MENTION_OF'
+            | 'ALIAS_HINT'
+            | 'SIMILAR_VECTOR'
+            | 'RISK_CORRELATION';
+          verified: boolean;
+          weight: number;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          from_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'OSINT_SIGNAL' | 'SCAM_CLUSTER';
+          from_key: string;
+          to_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'OSINT_SIGNAL' | 'SCAM_CLUSTER';
+          to_key: string;
+          edge_type:
+            | 'CLAIMED_BY'
+            | 'SAME_HANDLE_CANDIDATE'
+            | 'WEB_MENTION_OF'
+            | 'ALIAS_HINT'
+            | 'SIMILAR_VECTOR'
+            | 'RISK_CORRELATION';
+          verified?: boolean;
+          weight?: number;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          from_kind?: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'OSINT_SIGNAL' | 'SCAM_CLUSTER';
+          from_key?: string;
+          to_kind?: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'OSINT_SIGNAL' | 'SCAM_CLUSTER';
+          to_key?: string;
+          edge_type?:
+            | 'CLAIMED_BY'
+            | 'SAME_HANDLE_CANDIDATE'
+            | 'WEB_MENTION_OF'
+            | 'ALIAS_HINT'
+            | 'SIMILAR_VECTOR'
+            | 'RISK_CORRELATION';
+          verified?: boolean;
+          weight?: number;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** Hybrid pgvector + trigram dossier embeddings (0169). Service-role only. */
+      reference_dossier_embeddings: {
+        Row: {
+          id: string;
+          subject_key: string;
+          subject_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'WEB_MENTION' | 'SCAM_PATTERN';
+          platform: string | null;
+          handle_or_name: string;
+          location_hint: string | null;
+          source_url: string | null;
+          content_text: string;
+          content_hash: string;
+          metadata: Json;
+          embedding: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          subject_key: string;
+          subject_kind: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'WEB_MENTION' | 'SCAM_PATTERN';
+          platform?: string | null;
+          handle_or_name: string;
+          location_hint?: string | null;
+          source_url?: string | null;
+          content_text: string;
+          metadata?: Json;
+          embedding: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          subject_key?: string;
+          subject_kind?: 'PROFILE' | 'CLAIM' | 'HANDLE' | 'WEB_MENTION' | 'SCAM_PATTERN';
+          platform?: string | null;
+          handle_or_name?: string;
+          location_hint?: string | null;
+          source_url?: string | null;
+          content_text?: string;
+          metadata?: Json;
+          embedding?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      /** 1-click Live Proof-of-Card Challenges (0171). Service-role only. */
+      proof_of_card_challenges: {
+        Row: {
+          id: string;
+          token: string;
+          code: string;
+          target_label: string;
+          target_key: string | null;
+          item_description: string;
+          psa_cert_number: string | null;
+          created_by: string | null;
+          status: 'PENDING' | 'SUBMITTED' | 'EXPIRED';
+          proof_photo_path: string | null;
+          capture_metadata: Json;
+          ai_verdict: Json | null;
+          submitted_at: string | null;
+          expires_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          token: string;
+          code: string;
+          target_label: string;
+          target_key?: string | null;
+          item_description: string;
+          psa_cert_number?: string | null;
+          created_by?: string | null;
+          status?: 'PENDING' | 'SUBMITTED' | 'EXPIRED';
+          proof_photo_path?: string | null;
+          capture_metadata?: Json;
+          ai_verdict?: Json | null;
+          submitted_at?: string | null;
+          expires_at: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          token?: string;
+          code?: string;
+          target_label?: string;
+          target_key?: string | null;
+          item_description?: string;
+          psa_cert_number?: string | null;
+          created_by?: string | null;
+          status?: 'PENDING' | 'SUBMITTED' | 'EXPIRED';
+          proof_photo_path?: string | null;
+          capture_metadata?: Json;
+          ai_verdict?: Json | null;
+          submitted_at?: string | null;
+          expires_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       public_profiles: {
@@ -3837,6 +4143,45 @@ export type Database = {
       };
     };
     Functions: {
+      /** 0170. Trigram + stripped-punctuation lookalike handle search. Service role only. */
+      find_lookalike_claims: {
+        Args: {
+          p_handle: string;
+          p_exclude_claim_id?: string | null;
+          p_limit?: number;
+        };
+        Returns: {
+          claim_id: string;
+          platform: string;
+          handle: string;
+          claimed_profile_id: string | null;
+          similarity_score: number;
+          exact_stripped_match: boolean;
+          positive_refs: number;
+        }[];
+      };
+      /** 0169. Hybrid vector + trigram similarity search across reference dossiers. Service role only. */
+      match_reference_dossiers: {
+        Args: {
+          p_query_text: string;
+          p_query_embedding: string;
+          p_limit?: number;
+        };
+        Returns: {
+          id: string;
+          subject_key: string;
+          subject_kind: string;
+          platform: string | null;
+          handle_or_name: string;
+          location_hint: string | null;
+          source_url: string | null;
+          content_text: string;
+          metadata: Json;
+          vector_score: number;
+          trigram_score: number;
+          combined_score: number;
+        }[];
+      };
       /** Staff remedy for a wrongly claimed handle (0165): its references go back to it. Service role only. */
       release_social_claim: {
         Args: { p_claim_id: string };

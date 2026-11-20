@@ -67,8 +67,29 @@ import {
 import { normalizeHandle } from '@/domain/social/socialLinks';
 import { orbitKey, pickDrawn, splitConnections, type DrawCandidate } from '@/domain/references/orbits';
 
-/** How a deal was evidenced: a NoDitto escrow deal, a staff-checked receipt, or a plain vouch. */
-export type ReferenceProof = 'escrow' | 'receipt' | 'vouch';
+/**
+ * How a deal was evidenced: a NoDitto escrow deal, a staff-checked receipt, a plain vouch,
+ * or a row of eBay's own feedback. This module never produces `ebay`: those are added on
+ * the references page from the digital footprint check (`lib/references/ebayReferences.ts`).
+ */
+export type ReferenceProof = 'escrow' | 'receipt' | 'vouch' | 'ebay';
+
+/**
+ * What a reference read from another site's own feedback carries beyond the usual fields
+ * (`lib/references/ebayReferences.ts`). Today that is eBay: one feedback row, left by a
+ * buyer eBay shows under a masked name or by a named seller.
+ */
+export interface ExternalReferenceDetail {
+  source: 'ebay';
+  /** The eBay account the feedback was left FOR. */
+  account: string;
+  /** The author's own eBay feedback score. */
+  authorScore: number | null;
+  itemTitle: string | null;
+  priceText: string | null;
+  /** eBay marks feedback tied to a paid order. */
+  verifiedPurchase: boolean;
+}
 
 export interface PlatformSynthesisItem {
   slug: string;
@@ -111,8 +132,8 @@ export interface ReferenceGraphNode {
   id: string;
   profileId: string;
   handle: string;
-  /** Their page. */
-  address: ReferenceAddress;
+  /** Their page. Null for an eBay feedback author, who has no page here. */
+  address: ReferenceAddress | null;
   name: string;
   initials: string;
   avatarPath: string | null;
@@ -141,10 +162,12 @@ export interface ReferenceGraphNode {
   edited: boolean;
   /** Read from a public Instagram post, not written on NoDitto, and not ID-verified (0166). */
   imported: boolean;
-  /** The Instagram post or profile it was read from. */
+  /** The Instagram post or profile it was read from, or the eBay feedback page. */
   sourceUrl: string | null;
   /** Their own best-vouched vouchers who are not drawn themselves. Empty for an issue. */
   children: ReferenceGraphChild[];
+  /** Set when this is another site's feedback row (eBay), not a reference written here. */
+  external?: ExternalReferenceDetail;
 }
 
 export interface ReferenceGraphChild {
@@ -184,8 +207,9 @@ export interface ReferenceGraphData {
   given?: ReferenceGraphGiven;
   /**
    * The centre's public record on another platform (0170): eBay accounts a member signed in
-   * to or staff checked, with figures read live from eBay. NOT references and never counted
-   * as people. Absent or empty when there is none.
+   * to or staff checked, with figures read live from eBay. Not counted in THIS graph's
+   * people. A references page adds eBay feedback to its own drawing and counts from the
+   * footprint check (`lib/references/ebayReferences.ts`). Absent or empty when there is none.
    */
   trackRecord?: ExternalTrackRecord[];
   /**

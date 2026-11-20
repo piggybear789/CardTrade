@@ -35,7 +35,10 @@
        the Flutter token generator and refuses any declaration it cannot read as a
        colour, length or duration, so strings such as a shadow list must not sit
        here. */
-    --background: 240 14% 98.2%;
+    /* ONE STEP UNDER THE CARD. At 98.2% a white card on the page was 1.05:1, held apart by
+       its hairline alone; at 96.5% it is 1.09:1 and the card reads as a surface. `--muted` (95.3%) is
+       now close to the page, so a muted fill belongs on a card, not on the page. */
+    --background: 240 12% 96.5%;
     --foreground: 234.5455 17.4603% 12.3529%;
     --card: 0 0% 100%;
     --card-foreground: 234.5455 17.4603% 12.3529%;
@@ -46,7 +49,9 @@
     --secondary: 246 60% 96.6%;
     --secondary-foreground: 248.75 31.5789% 29.8039%;
     --muted: 240 11% 95.3%;
-    --muted-foreground: 240 6% 41%;
+    /* 7.9:1 on a card, 7.2:1 on the page. At 41% (6.0:1) secondary copy passed AA and
+       still read as washed out beside ink at 12%. */
+    --muted-foreground: 240 7% 34%;
     /* NEUTRAL. Hover and selected states read as a quiet grey, not a lavender wash
        with violet text. Violet text has its own token, `--iris-ink`, below. */
     --accent: 240 11% 95.3%;

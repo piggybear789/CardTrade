@@ -13,7 +13,7 @@ import {
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { platformLabel, sentimentLabel, type ReferenceSentiment } from '@/domain/references/reference';
-import type { ReferenceProof } from '@/lib/references/graph';
+import type { ReferenceGraphNode, ReferenceProof } from '@/lib/references/graph';
 import { cn } from '@/lib/utils';
 
 const BRAND_ICON_PLATFORMS = new Set([
@@ -57,7 +57,29 @@ export function plural(count: number, one: string, many: string): string {
 export function proofLabel(kind: ReferenceProof): string | null {
   if (kind === 'escrow') return 'Completed on NoDitto';
   if (kind === 'receipt') return 'Receipt checked';
+  if (kind === 'ebay') return 'eBay feedback';
   return null;
+}
+
+/** A reference's proof in words. eBay's own "Verified purchase" mark is said as such. */
+export function referenceProofLabel(node: Pick<ReferenceGraphNode, 'kind' | 'external'>): string | null {
+  if (node.external?.verifiedPurchase) return 'eBay verified purchase';
+  return proofLabel(node.kind);
+}
+
+const COUNT_FORMAT = new Intl.NumberFormat('en-AU');
+
+/**
+ * Who a reference's author is, in the one line under their name: their own references
+ * here, or for an eBay feedback author their own eBay feedback score.
+ */
+export function authorStanding(node: Pick<ReferenceGraphNode, 'refs' | 'external'>): string {
+  if (node.external) {
+    return node.external.authorScore === null
+      ? 'eBay member'
+      : `${COUNT_FORMAT.format(node.external.authorScore)} eBay feedback`;
+  }
+  return `${node.refs} ${node.refs === 1 ? 'ref' : 'refs'}`;
 }
 
 export function IssueBadge({ category }: { category: string | null }) {

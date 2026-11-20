@@ -57,6 +57,7 @@ import {
   referenceGraphApiHref,
   type ReferenceAddress,
 } from '@/domain/references/address';
+import type { ReferenceSentiment } from '@/domain/references/reference';
 import type {
   ReferenceGraphCentre,
   ReferenceGraphChild,
@@ -341,8 +342,8 @@ export type OrbitEntry =
   | { kind: 'node'; key: string; node: ReferenceGraphNode }
   | { kind: 'child'; key: string; child: ReferenceGraphChild; parent: ReferenceGraphNode };
 
-/** Someone's page. */
-export function entryAddress(entry: OrbitEntry): ReferenceAddress {
+/** Someone's page, or null for someone without one (an eBay feedback author). */
+export function entryAddress(entry: OrbitEntry): ReferenceAddress | null {
   if (entry.kind === 'centre') return entry.graph.centre.address;
   return entry.kind === 'node' ? entry.node.address : entry.child.address;
 }
@@ -504,6 +505,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const [transition, setTransition] = useState<OrbitTransition | null>(() => walkFrom(inherited, centreKeyOf(root)));
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [platformFilter, setPlatformFilter] = useState<string | null>(null);
+  const [sentimentFilter, setSentimentFilter] = useState<ReferenceSentiment | null>(null);
   const [direction, setDirectionState] = useState<ReferenceDirection>('received');
 
   // The page refreshed its graph (after an experience is shared, say): start from it.
@@ -518,6 +520,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     setFocusChange(null);
     setPendingKey(null);
     setPlatformFilter(null);
+    setSentimentFilter(null);
     if (!samePerson) setDirectionState('received');
   }
 
@@ -533,12 +536,18 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const view = useMemo(() => viewOf(graph, direction), [graph, direction]);
   const visibleNodes = useMemo(
     () =>
-      platformFilter
-        ? view.nodes.filter(
-            (n) => n.platform === platformFilter || n.platforms.includes(platformFilter),
-          )
+      platformFilter || sentimentFilter
+        ? view.nodes.filter((n) => {
+            if (platformFilter && n.platform !== platformFilter && !n.platforms.includes(platformFilter)) {
+              return false;
+            }
+            if (sentimentFilter && n.sentiment !== sentimentFilter) {
+              return false;
+            }
+            return true;
+          })
         : view.nodes,
-    [view.nodes, platformFilter],
+    [view.nodes, platformFilter, sentimentFilter],
   );
   const people = useMemo(() => orbitPeople(visibleNodes), [visibleNodes]);
   const directory = useMemo(() => directoryOf(trail, view.nodes), [trail, view.nodes]);
@@ -613,7 +622,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     return request;
   };
 
-  /** The page of anyone drawn here but the person in the middle. */
+  /** The page of anyone drawn here but the person in the middle, when they have one. */
   const pageOf = (key: string): ReferenceAddress | null => {
     if (key === centreKey) return null;
     const entry = directory.get(key);
@@ -652,6 +661,7 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     setFocusKey(null);
     setFocusChange(null);
     setPlatformFilter(null);
+    setSentimentFilter(null);
     // A new person is met by what others say about them.
     setDirectionState('received');
   };
@@ -721,12 +731,26 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     changeFocus(null);
   };
 
+  const filterBySentiment = (next: ReferenceSentiment | null) => {
+    setSentimentFilter((prev) => (prev === next ? null : next));
+    setSelectedKey(null);
+    changeFocus(null);
+  };
+
+  const clearFilters = () => {
+    setPlatformFilter(null);
+    setSentimentFilter(null);
+    setSelectedKey(null);
+    changeFocus(null);
+  };
+
   /** Switches between references left for the person and references they left. */
   const setDirection = (next: ReferenceDirection) => {
     if (next === direction) return;
     setDirectionState(next);
-    // A platform picked on one side may not exist on the other.
+    // A platform or sentiment picked on one side may not exist on the other.
     setPlatformFilter(null);
+    setSentimentFilter(null);
     setSelectedKey(null);
     changeFocus(null);
   };
@@ -735,6 +759,8 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
   const stableTap = useStableCallback(tap);
   const stableCentreOn = useStableCallback(centreOn);
   const stableFilterByPlatform = useStableCallback(filterByPlatform);
+  const stableFilterBySentiment = useStableCallback(filterBySentiment);
+  const stableClearFilters = useStableCallback(clearFilters);
   const stableSetDirection = useStableCallback(setDirection);
   const stableResetView = useStableCallback(motion.reset);
   const stableToggleSpin = useStableCallback(motion.toggleSpin);
@@ -748,6 +774,9 @@ export function useTrustOrbits(root: ReferenceGraphData, { openPage }: TrustOrbi
     visibleNodes,
     platformFilter,
     filterByPlatform: stableFilterByPlatform,
+    sentimentFilter,
+    filterBySentiment: stableFilterBySentiment,
+    clearFilters: stableClearFilters,
     frame,
     scene,
     items,

@@ -62,3 +62,8 @@ copy-all.txt
 
 # Instagram downloads from scripts/ig_fetch.py
 .ig-cache/
+
+# Python OSINT worker local virtualenvs & bytecode
+.venv/
+__pycache__/
+*.pyc

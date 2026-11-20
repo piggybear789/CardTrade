@@ -1,12 +1,17 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkCircle02Icon, UserCheck01Icon } from '@hugeicons/core-free-icons';
+import { ArrowLeft01Icon, CheckmarkCircle02Icon, UserCheck01Icon } from '@hugeicons/core-free-icons';
 
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
+import { BackgroundCheckPanel } from '@/components/references/BackgroundCheckPanel';
 import { ReferenceOrbit } from '@/components/references/ReferenceOrbit';
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { ReferenceSearch } from '@/components/references/ReferenceSearch';
+import { referenceHref } from '@/domain/references/address';
+import { parseReferenceLookupInput } from '@/domain/references/lookup';
 import { MOST_REFERENCED_ROWS, byMostReferenced } from '@/lib/references/ranking';
 import { cachedTopPeople } from '@/lib/references/search';
 
@@ -40,12 +45,86 @@ const TRUST_POINTS = [
 const GLOW =
   'radial-gradient(closest-side, hsl(var(--iris) / 0.12), hsl(var(--iris) / 0.08) 35%, hsl(var(--iris) / 0.035) 65%, hsl(var(--iris) / 0.01) 85%, transparent)';
 
-export default async function ReferencesPage() {
+type SearchParams = Promise<{
+  q?: string | string[];
+  location?: string | string[];
+  fb?: string | string[];
+  handle?: string | string[];
+}>;
+
+function first(value: string | string[] | undefined): string {
+  const v = Array.isArray(value) ? value[0] : value;
+  return (v ?? '').trim();
+}
+
+export default async function ReferencesPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams;
+}) {
+  const sp = searchParams ? await searchParams : {};
+  const q = first(sp.q);
+  const location = first(sp.location);
+  const fb = first(sp.fb);
+  const secondaryHandle = first(sp.handle);
+  const hasLookup = Boolean(q || fb || secondaryHandle);
+
+  // If the lookup is a handle or non-numeric social URL, land straight on its unified
+  // `/references/[handle]` profile page instead of duplicating it here.
+  if (q && !fb && !secondaryHandle) {
+    const parsed = parseReferenceLookupInput(q);
+    if (parsed?.kind === 'handle' && !parsed.isNumericFbId) {
+      redirect(referenceHref({ slug: parsed.handle, on: parsed.platform }, { check: '1' }));
+    }
+  }
+
   // Read straight from the shared cache, not through the search action: rendering the
   // page must not spend a visitor's search allowance. A failure renders the list's
   // honest "Look someone up" state instead of claiming there are no references.
   const people = await cachedTopPeople().catch(() => null);
   const ranked = people ? [...people].sort(byMostReferenced) : null;
+
+  // Non-handle lookups (e.g. Facebook Marketplace names, numeric FB IDs) render right
+  // on `/references` beneath the unified search bar — no separate `/references/check` page.
+  if (hasLookup) {
+    return (
+      <div className="relative flex flex-1 flex-col">
+        <Suspense fallback={null}>
+          <IdentityReturnRefresh />
+        </Suspense>
+        <article className="mx-auto flex w-full max-w-[clamp(64rem,70vw,96rem)] flex-1 flex-col gap-group px-group py-section sm:px-6 md:py-10">
+          <div className="flex flex-col gap-cozy">
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                href="/references"
+                className="inline-flex items-center gap-1.5 text-meta font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" aria-hidden />
+                All references
+              </Link>
+              <h1 className="sr-only">References lookup for {q || secondaryHandle || fb}</h1>
+            </div>
+            <ReferenceSearch
+              initialSuggestions={ranked}
+              initialQuery={q || secondaryHandle || fb}
+              compact
+            />
+          </div>
+
+          <BackgroundCheckPanel
+            key={`inline-${q}-${fb}-${secondaryHandle}`}
+            mode="search"
+            initialQuery={q}
+            initialLocation={location}
+            initialFacebookUrl={fb}
+            initialSecondaryHandle={secondaryHandle}
+            autoRun
+          />
+        </article>
+      </div>
+    );
+  }
+
   // The faces around the search are the people AFTER the list's rows, so nobody appears
   // twice, and only those with a photo.
   const orbit = (ranked ?? []).slice(MOST_REFERENCED_ROWS).filter((person) => Boolean(person.avatarPath));
@@ -105,7 +184,7 @@ export default async function ReferencesPage() {
           </h1>
 
           <p className="mx-auto mt-[clamp(0.5rem,0.7vw,0.875rem)] max-w-[clamp(28rem,34vw,40rem)] text-pretty text-[clamp(0.875rem,0.95vw,1.0625rem)] text-muted-foreground">
-            Look up any handle to see their references across every platform.
+            Look up any handle, eBay seller, or Facebook Marketplace name to check references and see if they&rsquo;re real.
           </p>
         </header>
 

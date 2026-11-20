@@ -33,8 +33,11 @@ const cspDirectives = [
   // style Tailwind and Next emit. 'unsafe-inline' already permits the empty element.
   "style-src 'self' 'unsafe-inline'",
   // `*.stripe.com` covers the icons and brand assets Connect embedded components and
-  // Stripe Elements load from their own CDN hosts.
-  "img-src 'self' data: blob: https://*.stripe.com https://images.pokemontcg.io https://images.scrydex.com https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com",
+  // Stripe Elements load from their own CDN hosts. `i.ebayimg.com` renders verified eBay
+  // seller avatars and listing thumbnails on Reference footprint cards; `icons.duckduckgo.com`
+  // supplies crisp domain favicons for open-web mentions without exposing client IPs to
+  // arbitrary third-party hosts.
+  "img-src 'self' data: blob: https://*.stripe.com https://images.pokemontcg.io https://images.scrydex.com https://*.supabase.co https://maps.googleapis.com https://maps.gstatic.com https://i.ebayimg.com https://icons.duckduckgo.com",
   "font-src 'self'",
   // GOOGLE SERVES MAPS FROM TWO DIFFERENT HOSTS AND ONLY ONE OF THEM IS `maps.`.
   // Places API (New) — the autocomplete and Place Details calls behind

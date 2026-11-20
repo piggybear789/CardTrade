@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
+import { loadCachedDossierForTarget } from '@/lib/references/enrichment';
 import { cachedReferencePage } from '@/lib/references/graph';
 import { HandleChooser } from '@/components/references/HandleChooser';
 import { ReferenceProfile } from '@/components/references/ReferenceProfile';
@@ -16,7 +17,11 @@ import { referenceHref } from '@/domain/references/address';
 // One person's references (0155): `/references/<handle>?on=<platform>`, or by id. A bare
 // handle that more than one person goes by asks which one is meant (`HandleChooser`).
 
-type SearchParams = Promise<{ on?: string | string[]; experience?: string | string[] }>;
+type SearchParams = Promise<{
+  on?: string | string[];
+  experience?: string | string[];
+  check?: string | string[];
+}>;
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -91,6 +96,7 @@ export default async function HandleReferencePage({
 }) {
   const [{ handle }, query] = await Promise.all([params, searchParams]);
   const experience = first(query.experience);
+  const autoCheck = first(query.check) === '1';
   const [page, viewer] = await Promise.all([
     cachedReferencePage(handle, first(query.on) ?? null),
     loadViewer(),
@@ -113,6 +119,28 @@ export default async function HandleReferencePage({
   // it (70vw, capped at 96rem), so a large monitor shows the same composition at a larger
   // size rather than a small card in a sea of background. It is a flex column so the
   // Trust Network card fills the height left above the footer.
+  const initialDossier = await loadCachedDossierForTarget({
+    kind: page.graph.centre.kind,
+    idOrSlug:
+      page.graph.centre.kind === 'handle'
+        ? page.graph.centre.handle.replace(/^@/, '')
+        : page.graph.centre.id,
+    platform: page.graph.centre.address.on,
+  }).catch(() => null);
+
+  // Auto-run the unified digital footprint check whenever there isn't a rich cached dossier yet
+  // (or `?check=1` was requested), so every `/references/[handle]` page surfaces live eBay
+  // feedback, Instagram metrics, and open-web mentions automatically without a second search step.
+  // A stored lookup from before eBay feedback was drawn as references has no feedback rows
+  // (`feedbackEntries`), so it is read again.
+  const cachedIsThin =
+    initialDossier !== null &&
+    (Boolean(initialDossier.ebay?.found && initialDossier.ebay.avatarUrl === undefined) ||
+      Boolean(initialDossier.ebay?.found && initialDossier.ebay.feedbackEntries === undefined) ||
+      (Boolean(initialDossier.ebay?.found && initialDossier.ebay.feedbackScore === null) &&
+        initialDossier.webMentions.length === 0));
+  const shouldAutoCheck = autoCheck || !initialDossier || cachedIsThin;
+
   return (
     <article className="mx-auto flex w-full max-w-[clamp(64rem,70vw,96rem)] flex-1 flex-col px-group py-section sm:px-6 md:py-10">
       {/* Leaving a reference and a manual claim both send an unverified member through
@@ -123,7 +151,13 @@ export default async function HandleReferencePage({
       <Suspense fallback={null}>
         <IdentityReturnRefresh />
       </Suspense>
-      <ReferenceProfile data={page.graph} viewer={viewer} autoOpen={experience === '1'} />
+      <ReferenceProfile
+        data={page.graph}
+        viewer={viewer}
+        autoOpen={experience === '1'}
+        autoCheck={shouldAutoCheck}
+        initialDossier={cachedIsThin ? null : initialDossier}
+      />
     </article>
   );
 }

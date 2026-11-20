@@ -24,6 +24,7 @@ import {
   tallyLivePeople,
 } from '@/lib/references/people';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { matchReferenceDossiers } from '@/lib/references/vectorSearch';
 import { claimAddress, type ReferenceAddress } from '@/domain/references/address';
 import {
   displayNameLabel,
@@ -101,10 +102,34 @@ export async function searchSuggestions(needle: string): Promise<ReferenceSugges
       .is('closed_at', null)
       .limit(40),
   ]);
+  const foundNames = rowsOrThrow(nameResult, 'search names').map((row) => row.id);
+  const foundClaims = rowsOrThrow(claimResult, 'search handles');
+
+  // Vector + trigram fallback when exact ILIKE finds nothing (catches typos & aliases).
+  if (foundNames.length === 0 && foundClaims.length === 0 && needle.length >= 3) {
+    const vectorHits = await matchReferenceDossiers(needle, 6).catch(() => []);
+    const extraProfileIds = vectorHits
+      .filter((h) => h.subjectKey.startsWith('profile:'))
+      .map((h) => h.subjectKey.slice('profile:'.length));
+    const extraClaimIds = vectorHits
+      .filter((h) => h.subjectKey.startsWith('claim:'))
+      .map((h) => h.subjectKey.slice('claim:'.length));
+    const extraClaims = extraClaimIds.length
+      ? rowsOrThrow(
+          await admin
+            .from('social_claims')
+            .select('id, platform, handle, claimed_profile_id, avatar_path')
+            .in('id', extraClaimIds),
+          'vector fallback handles',
+        )
+      : [];
+    return buildSuggestions(admin, extraProfileIds, extraClaims, needle);
+  }
+
   return buildSuggestions(
     admin,
-    rowsOrThrow(nameResult, 'search names').map((row) => row.id),
-    rowsOrThrow(claimResult, 'search handles'),
+    foundNames,
+    foundClaims,
     needle,
   );
 }

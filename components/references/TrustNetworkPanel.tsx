@@ -13,7 +13,14 @@ import { Cancel01Icon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { IssueBadge, PlatformChip, SentimentBadge, plural, proofLabel } from '@/components/references/referenceLabels';
+import {
+  IssueBadge,
+  PlatformChip,
+  SentimentBadge,
+  authorStanding,
+  plural,
+  referenceProofLabel,
+} from '@/components/references/referenceLabels';
 import { nodeKey, type OrbitEntry, type TrustOrbits } from '@/components/references/useTrustOrbits';
 import type { ReferenceGraphChild, ReferenceGraphNode } from '@/lib/references/graph';
 import { cn } from '@/lib/utils';
@@ -150,6 +157,7 @@ function Header({
   meta,
   orbits,
   onClose,
+  hasPage = true,
 }: {
   prefix?: string;
   person: Person;
@@ -157,6 +165,8 @@ function Header({
   meta: string;
   orbits: TrustOrbits;
   onClose: () => void;
+  /** Whether the person has a network here to open. An eBay feedback author does not. */
+  hasPage?: boolean;
 }) {
   return (
     <header className="flex items-center gap-snug">
@@ -175,9 +185,9 @@ function Header({
             />
           ) : null}
         </h4>
-        <p className="text-meta text-muted-foreground">{meta}</p>
+        <p className="text-meta tabular-nums text-muted-foreground">{meta}</p>
       </div>
-      <OpenNetwork orbits={orbits} personKey={person.key} />
+      {hasPage ? <OpenNetwork orbits={orbits} personKey={person.key} /> : null}
       <Button variant="ghost" size="icon" className="-mr-1.5 shrink-0 max-sm:size-10" aria-label="Close" onClick={onClose}>
         <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
       </Button>
@@ -197,17 +207,26 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
   // "Of their own" because this sits beside a review of someone ELSE: a bare
   // "3 refs" read as a count about the person in the middle. None is just "No
   // references", short enough to share the card's one meta line with a name.
-  const personMeta = [
-    node.name !== node.handle.replace(/^@/, '') ? node.name : null,
-    node.refs === 0 ? 'No references' : `${plural(node.refs, 'reference', 'references')} of their own`,
-  ]
+  // An eBay feedback author's standing is their own eBay feedback score, and how they
+  // dealt with the person (bought from them, sold to them) says which side they saw.
+  const personMeta = (
+    node.external
+      ? [authorStanding(node), node.roleLabel]
+      : [
+          node.name !== node.handle.replace(/^@/, '') ? node.name : null,
+          node.refs === 0 ? 'No references' : `${plural(node.refs, 'reference', 'references')} of their own`,
+        ]
+  )
     .filter(Boolean)
     .join(' · ');
+  const item = node.external
+    ? [node.external.itemTitle, node.external.priceText].filter(Boolean).join(' · ')
+    : '';
   // A repeat deal raises `deal_count` and OVERWRITES the stored month, platform
   // and comment (`giveReference`), so with more than one deal everything shown here is
   // the latest one's. Say so rather than implying every deal happened that month.
   const referenceMeta = [
-    proofLabel(node.kind),
+    referenceProofLabel(node),
     node.imported ? 'Imported from Instagram' : null,
     node.deals > 1
       ? `${plural(node.deals, 'deal', 'deals')}${node.dateLabel ? `, latest ${node.dateLabel}` : ''}`
@@ -227,6 +246,7 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
           meta={personMeta}
           orbits={orbits}
           onClose={onClose}
+          hasPage={node.address !== null}
         />
 
       </PanelCard>
@@ -249,7 +269,18 @@ function PlanetDetails({ orbits, node, onClose }: { orbits: TrustOrbits; node: R
         <div className="min-w-0 space-y-1">
           {/* Keyed by person, so moving to someone else starts collapsed again. */}
           {node.comment ? <ReviewText key={key} text={node.comment} /> : null}
+          {item ? <p className="line-clamp-2 text-meta text-muted-foreground">{item}</p> : null}
           {referenceMeta ? <p className="text-meta text-muted-foreground">{referenceMeta}</p> : null}
+          {node.external && node.sourceUrl ? (
+            <a
+              href={node.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-8 items-center rounded-sm text-meta font-semibold text-iris-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              View {node.external.account}’s eBay feedback
+            </a>
+          ) : null}
         </div>
       </PanelCard>
     </>

@@ -84,7 +84,7 @@ export const viewport: Viewport = {
   // Both are the literal `--obsidian` / `--background` values.
   themeColor: [
     { media: '(min-width: 768px)', color: '#111118' },
-    { media: '(max-width: 767px)', color: '#fafafb' },
+    { media: '(max-width: 767px)', color: '#f5f5f7' },
   ],
   colorScheme: 'light',
   // Draw under notches/home indicators so the sticky header can pad itself

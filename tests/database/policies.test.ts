@@ -63,6 +63,13 @@ const TABLES_REQUIRING_RLS = [
   'scam_report_identifiers',
   'member_match_keys',
   'scam_report_matches',
+  // 0172: OSINT enrichment runs, signals, entity graph edges, dossier embeddings.
+  'identity_check_runs',
+  'osint_signals',
+  'entity_graph_edges',
+  'reference_dossier_embeddings',
+  // 0174: 1-click Live Proof-of-Card Challenges.
+  'proof_of_card_challenges',
 ];
 
 /**

@@ -15,10 +15,10 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     // The literal `--background` value. Keep in step with `viewport.themeColor`
     // in `app/layout.tsx`.
-    background_color: '#fafafb',
+    background_color: '#f5f5f7',
     // The installed-app fallback for the same surface `viewport.themeColor`
     // gives a phone: the page, a near-white cool grey.
-    theme_color: '#fafafb',
+    theme_color: '#f5f5f7',
     icons: [
       {
         src: '/icon.png',

@@ -135,6 +135,7 @@ const TEMPLATE_LINK_RE = new RegExp(`${NAV_PREFIX}\`(\\/[^\`]*)\``, 'g');
 // is no longer called anywhere is an orphan again.
 const LINK_BUILDERS: Record<string, string> = {
   referenceHref: '/references/:dyn',
+  referenceCheckHref: '/references/check',
 };
 const LINK_BUILDER_RE = new RegExp(`\\b(${Object.keys(LINK_BUILDERS).join('|')})\\(`, 'g');
 
@@ -299,6 +300,8 @@ const WEB_ONLY_ALLOWLIST: Record<string, string> = {
   '/trusted-sellers': 'Public Trusted Seller directory, shared as a web link on Instagram',
   '/references': 'Public References search over the trust graph (0155), web-first',
   '/references/[handle]': 'One person’s reference graph, by handle and platform or by id (0155), web-first',
+  '/references/check': 'Public Facebook Marketplace / name & OSINT background check dossier (0169), web-first',
+  '/references/verify/[token]': 'Expiring 1-click Live Proof-of-Card Challenge verification link (0171), web-first',
   '/trusted-sellers/apply': 'Trusted Seller application, reached from the web directory',
   '/report-scam': 'Off-platform scam report form, web-only for now',
   '/report-scam/response/[id]': 'Matched member response page, opened from a notification link',

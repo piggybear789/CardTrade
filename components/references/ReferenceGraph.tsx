@@ -12,12 +12,14 @@
 // with the experiences listed as text under it; `ReferenceProfile` is a person's
 // references page, built from the same body with a modal trigger to leave a reference.
 
-import { memo, type KeyboardEvent, type ReactNode } from 'react';
+import { memo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   AlertCircleIcon,
+  ArrowLeft01Icon,
+  ArrowRight01Icon,
   CheckmarkCircle02Icon,
   ShieldCheckIcon,
 } from '@hugeicons/core-free-icons';
@@ -30,9 +32,10 @@ import { Switch } from '@/components/ui/switch';
 import {
   PlatformChip,
   SentimentBadge,
+  authorStanding,
   platformTint,
   plural,
-  proofLabel,
+  referenceProofLabel,
 } from '@/components/references/referenceLabels';
 import { ReferenceOwnerActions } from '@/components/references/ReferenceOwnerActions';
 import { ReferenceStaffRemove } from '@/components/references/ReferenceStaffRemove';
@@ -49,6 +52,7 @@ import {
   type TrustOrbits,
 } from '@/components/references/useTrustOrbits';
 import { referenceHref, type ReferenceAddress } from '@/domain/references/address';
+import { sentimentLabel, type ReferenceSentiment } from '@/domain/references/reference';
 import type {
   ReferenceGraphCentre,
   ReferenceGraphData,
@@ -67,10 +71,13 @@ function instagramPostUrl(url: string): string {
   return url.replace(/^(https:\/\/(?:www\.)?instagram\.com\/(?:p|reel|tv)\/[A-Za-z0-9_-]+\/)c\/[^/]+\/?$/i, '$1');
 }
 
-function SourceLink({ url }: { url: string }) {
+function cleanExternalItemTitle(title: string): string {
+  return title.replace(/\s*\(#\s*\d+\s*\)\s*$/i, '').trim();
+}
+
+function SourceLink({ url, label = 'View original post' }: { url: string; label?: string }) {
   const postUrl = instagramPostUrl(url);
-  const className =
-    'mt-2 text-meta text-muted-foreground underline underline-offset-2 hover:text-foreground';
+  const className = 'text-muted-foreground underline underline-offset-2 hover:text-foreground';
   const link = (href: string, extra?: string) => (
     <a
       href={href}
@@ -79,7 +86,7 @@ function SourceLink({ url }: { url: string }) {
       onClick={(event) => event.stopPropagation()}
       className={cn(className, extra)}
     >
-      View original Instagram post
+      {label}
     </a>
   );
   if (postUrl === url) return link(url);
@@ -105,38 +112,77 @@ export function arrival(orbits: TrustOrbits): number {
   return orbits.transition ? Math.min(1, 0.3 + orbits.progress * 1.4) : 1;
 }
 
-function NetworkStats({ stats }: { stats: ReferenceView['stats'] }) {
+const STAT_FILTER_BASE =
+  'inline-flex cursor-pointer items-center gap-1 rounded-full px-2.5 py-0.5 text-meta font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-default';
+
+function NetworkStats({
+  stats,
+  sentimentFilter,
+  filterBySentiment,
+}: {
+  stats: ReferenceView['stats'];
+  sentimentFilter: ReferenceSentiment | null;
+  filterBySentiment: (sentiment: ReferenceSentiment | null) => void;
+}) {
   const { positive, neutral: neutralCount, negative } = stats;
+  const positiveActive = sentimentFilter === 'POSITIVE';
+  const neutralActive = sentimentFilter === 'NEUTRAL';
+  const negativeActive = sentimentFilter === 'NEGATIVE';
   return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <span
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter references by outcome">
+      <button
+        type="button"
+        disabled={positive === 0}
+        aria-pressed={positiveActive}
         title={plural(positive, 'positive reference', 'positive references')}
         aria-label={plural(positive, 'positive reference', 'positive references')}
-        className="inline-flex items-center gap-1 rounded-full bg-trust/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-trust"
+        onClick={() => filterBySentiment('POSITIVE')}
+        className={cn(
+          STAT_FILTER_BASE,
+          positiveActive
+            ? 'bg-trust text-white'
+            : 'bg-trust/10 text-trust hover:bg-trust/18 disabled:hover:bg-trust/10',
+        )}
       >
         <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" aria-hidden />
         <span>{positive} positive</span>
-      </span>
+      </button>
       {neutralCount > 0 ? (
-        <span
+        <button
+          type="button"
+          aria-pressed={neutralActive}
           title={plural(neutralCount, 'neutral reference', 'neutral references')}
           aria-label={plural(neutralCount, 'neutral reference', 'neutral references')}
+          onClick={() => filterBySentiment('NEUTRAL')}
           // NO BORDER, matching the positive and negative pills. `border-action-border/40`
           // is not a class here (the token is `action-edge`), so it drew a grey hairline.
-          className="inline-flex items-center gap-1 rounded-full bg-action/35 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-action-foreground"
+          className={cn(
+            STAT_FILTER_BASE,
+            neutralActive
+              ? 'bg-action text-action-foreground ring-1 ring-action-edge'
+              : 'bg-action/35 text-action-foreground hover:bg-action/55',
+          )}
         >
           <span>{neutralCount} neutral</span>
-        </span>
+        </button>
       ) : null}
       {negative > 0 ? (
-        <span
+        <button
+          type="button"
+          aria-pressed={negativeActive}
           title={plural(negative, 'negative reference', 'negative references')}
           aria-label={plural(negative, 'negative reference', 'negative references')}
-          className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive"
+          onClick={() => filterBySentiment('NEGATIVE')}
+          className={cn(
+            STAT_FILTER_BASE,
+            negativeActive
+              ? 'bg-destructive text-destructive-foreground'
+              : 'bg-destructive/10 text-destructive hover:bg-destructive/18',
+          )}
         >
           <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" aria-hidden />
           <span>{negative} negative</span>
-        </span>
+        </button>
       ) : null}
     </div>
   );
@@ -180,7 +226,7 @@ const NetworkToolbar = memo(function NetworkToolbar({
   resetView,
 }: NetworkToolbarProps) {
   return (
-    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-group py-2 sm:px-5">
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-group py-2 sm:px-6">
       <div
         className="-mx-group flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-group [scrollbar-width:none] sm:mx-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         role="group"
@@ -258,6 +304,22 @@ const NetworkToolbar = memo(function NetworkToolbar({
  * Fiverr, eBay and Depop use, and the one place a review is always shown in full. On
  * the storefront and on the reference profile alike.
  */
+function filteredReferenceTotal(
+  view: ReferenceView,
+  visibleCount: number,
+  sentimentFilter: ReferenceSentiment | null,
+  platformFilter: string | null,
+): number {
+  if (sentimentFilter && platformFilter) return visibleCount;
+  if (sentimentFilter === 'POSITIVE') return view.stats.positive;
+  if (sentimentFilter === 'NEUTRAL') return view.stats.neutral;
+  if (sentimentFilter === 'NEGATIVE') return view.stats.negative;
+  if (platformFilter) {
+    return view.platforms.find((p) => p.slug === platformFilter)?.count ?? visibleCount;
+  }
+  return viewTotal(view);
+}
+
 export function ExperienceList({
   orbits,
   selectable = true,
@@ -276,9 +338,22 @@ export function ExperienceList({
   /** An admin, who can take a reference down. The server checks again. */
   canModerate?: boolean;
 }) {
+  const nodes = orbits.visibleNodes;
   return (
     <ExperienceCards
-      view={orbits.view}
+      // A different person, direction, or active filter is a different list: back to page one.
+      key={`${orbits.centreKey}:${orbits.view.direction}:${orbits.sentimentFilter ?? 'all'}:${orbits.platformFilter ?? 'all'}`}
+      direction={orbits.view.direction}
+      nodes={nodes}
+      referenceTotal={filteredReferenceTotal(
+        orbits.view,
+        nodes.length,
+        orbits.sentimentFilter,
+        orbits.platformFilter,
+      )}
+      sentimentFilter={orbits.sentimentFilter}
+      platformFilter={orbits.platformFilter}
+      clearFilters={orbits.clearFilters}
       centre={orbits.graph.centre}
       selectedKey={orbits.selectedKey}
       select={orbits.select}
@@ -290,8 +365,23 @@ export function ExperienceList({
   );
 }
 
+/**
+ * The pager's buttons rest on the hairline every card here is drawn with. The outline
+ * variant's own edge is the darker field edge, and two of them under a list of
+ * hairline cards were the heaviest lines in it.
+ */
+const QUIET_EDGE = 'border-border disabled:border-border';
+
+/** References to a page. */
+const REFERENCES_PER_PAGE = 6;
+
 const ExperienceCards = memo(function ExperienceCards({
-  view,
+  direction,
+  nodes,
+  referenceTotal,
+  sentimentFilter,
+  platformFilter,
+  clearFilters,
   centre,
   selectedKey,
   select,
@@ -300,7 +390,13 @@ const ExperienceCards = memo(function ExperienceCards({
   viewerId,
   canModerate,
 }: {
-  view: ReferenceView;
+  direction: ReferenceDirection;
+  nodes: readonly ReferenceGraphNode[];
+  /** Every reference counted in this direction/filter, which can be more than there are cards. */
+  referenceTotal: number;
+  sentimentFilter: ReferenceSentiment | null;
+  platformFilter: string | null;
+  clearFilters: () => void;
   centre: ReferenceGraphCentre;
   selectedKey: string | null;
   select: (key: string | null) => void;
@@ -309,33 +405,110 @@ const ExperienceCards = memo(function ExperienceCards({
   viewerId: string | null;
   canModerate: boolean;
 }) {
-  const given = view.direction === 'given';
+  const given = direction === 'given';
   // Given: every card is the person in the middle's own words. Received: each card's
   // author is the person on it.
   const authorOf = (node: ReferenceGraphNode) => (given ? centre.profileId : node.profileId);
+
+  // A PAGE AT A TIME. With another site's feedback drawn in (eBay, 0170) a list runs to
+  // dozens of cards, and the page under it to several screens. The heading keeps the
+  // whole count; the cards are one page of it. The page is kept for as long as
+  // the list is the same person's, in the same direction (`ExperienceList` keys on
+  // both), and clamped, since a reference can be withdrawn from the last page.
+  const [page, setPage] = useState(0);
+  const total = nodes.length;
+  const pageCount = Math.max(1, Math.ceil(total / REFERENCES_PER_PAGE));
+  const current = Math.min(page, pageCount - 1);
+  const first = current * REFERENCES_PER_PAGE;
+  const shown = nodes.slice(first, first + REFERENCES_PER_PAGE);
+  const filtered = sentimentFilter !== null || platformFilter !== null;
+
+  // Someone picked in the drawing has a card here that lights up. Turn to its page, or
+  // the selection would point at a card that is not on screen.
+  const [followedKey, setFollowedKey] = useState(selectedKey);
+  if (followedKey !== selectedKey) {
+    setFollowedKey(selectedKey);
+    const index = selectable && selectedKey ? nodes.findIndex((node) => nodeKey(node) === selectedKey) : -1;
+    if (index >= 0) setPage(Math.floor(index / REFERENCES_PER_PAGE));
+  }
+
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const turnTo = (next: number) => {
+    setPage(next);
+    // To the top of the new page: the pager sits under the cards, so a reader who
+    // pressed it is at the bottom of a list that has just been replaced (on a phone,
+    // six cards down). Focus goes with it, which also keeps it off a pager button that
+    // has just been disabled by reaching the first or last page.
+    headingRef.current?.focus();
+  };
+
   return (
-    <div className="border-t border-border/80 bg-card px-group py-4 sm:px-5" style={{ opacity }}>
-      <h4
-        id={REFERENCE_LIST_HEADING_ID}
-        tabIndex={-1}
-        className="mb-3 text-meta font-semibold uppercase tracking-wider text-muted-foreground focus:outline-none"
-      >
-        {given ? 'References given' : 'References received'} ({view.nodes.length})
-      </h4>
-      <ul className="grid gap-2.5 sm:grid-cols-2">
-        {view.nodes.map((node) => {
+    <div className="border-t border-border/70 bg-card px-group py-group sm:px-6" style={{ opacity }}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h4
+          ref={headingRef}
+          id={REFERENCE_LIST_HEADING_ID}
+          tabIndex={-1}
+          // Sentence case with a muted count, like every other heading inside a card on
+          // this page ("Open web & community (7)"). When more references are counted than
+          // there are cards to read (eBay gives a tally, and comments for the latest),
+          // the count says so, so it agrees with the tally in the header.
+          className="scroll-mt-24 text-body font-semibold text-foreground focus:outline-none"
+        >
+          {given ? 'References given' : 'References received'}
+          <span className="ml-1.5 font-normal tabular-nums text-muted-foreground">
+            ({total < referenceTotal ? `${total} of ${referenceTotal}` : total})
+          </span>
+        </h4>
+        {filtered ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-meta font-medium text-iris-ink underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {sentimentFilter ? `${sentimentLabel(sentimentFilter)} · Show all` : 'Show all'}
+          </button>
+        ) : null}
+      </div>
+      {shown.length === 0 ? (
+        <p className="py-group text-body text-muted-foreground">
+          No matching references.{' '}
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="font-medium text-iris-ink underline-offset-4 hover:underline"
+          >
+            Show all
+          </button>
+        </p>
+      ) : null}
+      {/* ROWS, NOT BOXES. One column split by hairlines, the review list Base44 and Meetup
+          use: a grid of bordered cards inside a bordered card put eight boxes on screen
+          to hold six sentences. Each row bleeds a little past the text edge so a
+          selected or hovered row has a fill to sit in. */}
+      <ul className="divide-y divide-border">
+        {shown.map((node) => {
           const key = nodeKey(node);
           const isSelected = key === selectedKey;
           const negative = node.sentiment === 'NEGATIVE';
           const mine = viewerId !== null && node.referenceId !== null && authorOf(node) === viewerId;
           const meta = [
-            proofLabel(node.kind),
+            referenceProofLabel(node),
             node.imported ? 'Imported from Instagram' : null,
             node.dateLabel,
             node.edited ? 'Edited' : null,
           ]
             .filter(Boolean)
             .join(' · ');
+          const footerSummary = [
+            negative ? (node.categoryLabel ?? 'Issue') : node.external ? null : plural(node.deals, 'deal', 'deals'),
+            meta,
+          ]
+            .filter(Boolean)
+            .join(' · ');
+          const itemTitle = node.external?.itemTitle ? cleanExternalItemTitle(node.external.itemTitle) : '';
+          const itemPrice = node.external?.priceText ?? '';
+          const hasSourceLink = Boolean(node.sourceUrl && (node.imported || node.external));
           return (
             <li key={node.id}>
               <div
@@ -354,15 +527,13 @@ const ExperienceCards = memo(function ExperienceCards({
                     }
                   : {})}
                 className={cn(
-                  'group flex h-full flex-col justify-between rounded-xl border p-3.5 transition-all',
+                  '-mx-snug rounded-md px-snug py-5 transition-colors',
                   selectable
                     ? cn(
                         'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                        isSelected
-                          ? 'border-foreground/40 bg-muted/30 shadow-2xs'
-                          : 'border-border/80 bg-card hover:border-foreground/25 hover:bg-muted/15',
+                        isSelected ? 'bg-muted/60' : 'hover:bg-muted/30',
                       )
-                    : 'border-border/80 bg-card',
+                    : null,
                 )}
               >
                 <div>
@@ -371,19 +542,24 @@ const ExperienceCards = memo(function ExperienceCards({
                       <Avatar avatarPath={node.avatarPath} displayName={node.name} size="sm" />
                       <div className="min-w-0">
                         <div className="flex items-center gap-1">
-                          <Link
-                            href={referenceHref(node.address)}
-                            onClick={(event) => event.stopPropagation()}
-                            className="break-all text-body font-semibold text-foreground hover:underline"
-                          >
-                            {node.handle}
-                          </Link>
+                          {node.address ? (
+                            <Link
+                              href={referenceHref(node.address)}
+                              onClick={(event) => event.stopPropagation()}
+                              className="break-all text-body font-semibold text-foreground hover:underline"
+                            >
+                              {node.handle}
+                            </Link>
+                          ) : (
+                            // An eBay feedback author has no page here to open.
+                            <span className="break-all text-body font-semibold text-foreground">{node.handle}</span>
+                          )}
                           {node.identityVerified ? (
                             <HugeiconsIcon icon={ShieldCheckIcon} className="size-3.5 shrink-0 text-trust" aria-hidden />
                           ) : null}
                         </div>
-                        <p className="text-meta text-muted-foreground">
-                          {node.refs} {node.refs === 1 ? 'ref' : 'refs'} · {node.roleLabel}
+                        <p className="text-meta tabular-nums text-muted-foreground">
+                          {authorStanding(node)} · {node.roleLabel}
                         </p>
                       </div>
                     </div>
@@ -397,25 +573,40 @@ const ExperienceCards = memo(function ExperienceCards({
                   </div>
 
                   {node.comment ? (
-                    <p className="mt-2.5 text-body text-foreground/90">{node.comment}</p>
+                    <p className="mt-cozy max-w-[68ch] text-body leading-relaxed text-foreground sm:pl-10">
+                      {node.comment}
+                    </p>
                   ) : null}
-                  {node.imported && node.sourceUrl ? (
-                    <SourceLink url={node.sourceUrl} />
+                  {itemTitle || itemPrice ? (
+                    <p className="mt-snug flex max-w-[68ch] items-baseline gap-x-2 text-meta text-muted-foreground sm:pl-10">
+                      {itemTitle ? <span className="min-w-0 truncate">{itemTitle}</span> : null}
+                      {itemPrice ? (
+                        <span className="shrink-0 font-medium tabular-nums text-foreground/75">{itemPrice}</span>
+                      ) : null}
+                    </p>
                   ) : null}
                 </div>
 
-                <div className="mt-2.5 flex items-center justify-between text-meta text-muted-foreground">
-                  <span>{negative ? (node.categoryLabel ?? 'Issue') : plural(node.deals, 'deal', 'deals')}</span>
-                  {meta ? <span>{meta}</span> : null}
-                </div>
+                {/* One line of small print under the row: proof, date, and source link. */}
+                {footerSummary || hasSourceLink ? (
+                  <p className="mt-snug flex flex-wrap items-center gap-x-1.5 text-meta text-muted-foreground sm:pl-10">
+                    {footerSummary ? <span>{footerSummary}</span> : null}
+                    {footerSummary && hasSourceLink ? <span aria-hidden>·</span> : null}
+                    {node.imported && node.sourceUrl ? (
+                      <SourceLink url={node.sourceUrl} label="View original post" />
+                    ) : node.external && node.sourceUrl ? (
+                      <SourceLink url={node.sourceUrl} label="View on eBay" />
+                    ) : null}
+                  </p>
+                ) : null}
 
                 {mine ? (
-                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/70 pt-2">
+                  <div className="mt-snug flex items-center justify-between gap-2 sm:pl-10">
                     <span className="text-meta text-muted-foreground">Your reference</span>
                     <ReferenceOwnerActions node={node} subject={given ? node.handle : centre.handle} />
                   </div>
                 ) : canModerate && node.referenceId ? (
-                  <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-border/70 pt-2">
+                  <div className="mt-snug flex items-center justify-between gap-2 sm:pl-10">
                     <span className="text-meta text-muted-foreground">Staff</span>
                     <ReferenceStaffRemove
                       referenceId={node.referenceId}
@@ -428,6 +619,35 @@ const ExperienceCards = memo(function ExperienceCards({
           );
         })}
       </ul>
+      {pageCount > 1 ? (
+        <nav aria-label="Reference pages" className="mt-cozy flex items-center justify-between gap-cozy">
+          <p role="status" className="text-meta tabular-nums text-muted-foreground">
+            {first + 1}–{first + shown.length} of {total}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className={QUIET_EDGE}
+              disabled={current === 0}
+              onClick={() => turnTo(current - 1)}
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={QUIET_EDGE}
+              disabled={current >= pageCount - 1}
+              onClick={() => turnTo(current + 1)}
+            >
+              Next
+              <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden />
+            </Button>
+          </div>
+        </nav>
+      ) : null}
     </div>
   );
 });
@@ -465,7 +685,9 @@ export function TrustNetworkBody({ orbits }: { orbits: TrustOrbits }) {
     <>
       <NetworkToolbar
         platforms={view.platforms}
-        total={view.nodes.length}
+        // References, like the platform pills beside it and the tally in the header.
+        // The number of people drawn was smaller than a single platform's count.
+        total={viewTotal(view)}
         platformFilter={orbits.platformFilter}
         filterByPlatform={orbits.filterByPlatform}
         opacity={arrival(orbits)}
@@ -503,6 +725,8 @@ export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; ac
   return (
     <NetworkHeader
       stats={orbits.view.stats}
+      sentimentFilter={orbits.sentimentFilter}
+      filterBySentiment={orbits.filterBySentiment}
       opacity={arrival(orbits)}
       centre={graph.centre}
       centreKey={orbits.centreKey}
@@ -517,6 +741,8 @@ export function TrustNetworkHeader({ orbits, action }: { orbits: TrustOrbits; ac
 
 const NetworkHeader = memo(function NetworkHeader({
   stats,
+  sentimentFilter,
+  filterBySentiment,
   opacity,
   centre,
   centreKey,
@@ -527,6 +753,8 @@ const NetworkHeader = memo(function NetworkHeader({
   action,
 }: {
   stats: ReferenceView['stats'];
+  sentimentFilter: ReferenceSentiment | null;
+  filterBySentiment: (sentiment: ReferenceSentiment | null) => void;
   opacity: number;
   centre: ReferenceGraphCentre;
   centreKey: string;
@@ -540,12 +768,16 @@ const NetworkHeader = memo(function NetworkHeader({
   // reference, so an unclaimed handle has nothing to switch to and gets no control.
   const member = centre.profileId !== null;
   return (
-    <div className="flex flex-col gap-3 border-b border-border/80 px-group py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+    <div className="flex flex-col gap-3 border-b border-border/70 px-group py-group sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div className="flex min-w-0 flex-wrap items-center gap-2.5" style={{ opacity }}>
-        <h3 id="references-heading" className="text-[1.0625rem] font-semibold tracking-tight text-foreground">
+        <h3 id="references-heading" className="text-subhead font-semibold tracking-tight text-foreground">
           References
         </h3>
-        <NetworkStats stats={stats} />
+        <NetworkStats
+          stats={stats}
+          sentimentFilter={sentimentFilter}
+          filterBySentiment={filterBySentiment}
+        />
       </div>
       {member || action ? (
         <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">

@@ -13,6 +13,11 @@
 // how alike two names are and nothing more; a link exists only because a member signed in
 // to both accounts or an admin checked and wrote down what they saw.
 //
+// ONE DELIBERATE EXCEPTION, outside this module: the references page draws and counts the
+// feedback of the eBay account its footprint check found by username, linked or not
+// (`lib/references/ebayReferences.ts`). That is a product decision; every such card names
+// the eBay account it came from so a reader can check it is the same person.
+//
 // Pure: no Supabase, React or service imports.
 
 import { isValidClaimHandle } from '@/domain/references/reference';

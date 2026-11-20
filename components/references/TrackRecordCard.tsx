@@ -1,9 +1,10 @@
 // components/references/TrackRecordCard.tsx
 //
-// A person's public record on ANOTHER site (0170): today, eBay feedback. It sits between
-// who the person is and their Trust Network, and says plainly that it is not a NoDitto
-// reference and is not counted with them, because the two are different evidence: a
-// reference is one verified person's word, eBay feedback is another site's own tally.
+// A person's public record on ANOTHER site (0170): today, eBay feedback, for an account
+// a member signed in to or staff checked. It sits between who the person is and their
+// Trust Network and shows that site's own tally. The feedback rows themselves are drawn
+// and counted among the references below (`lib/references/ebayReferences.ts`), each one
+// marked as eBay, so this card no longer says the two are kept apart.
 //
 // WHAT IT NEVER CLAIMS. "No live listings" is shown as exactly that: eBay shows a seller's
 // feedback only through their listings, so a seller with none is unreadable, not unrated.
@@ -67,7 +68,7 @@ export function TrackRecordCard({
         Track record elsewhere
       </h2>
       <p className="mt-tight text-body text-muted-foreground">
-        Public feedback from other sites. It is not a NoDitto reference and is not counted with them.
+        Public feedback from other sites, as each site reports it.
       </p>
 
       <ul className="mt-group divide-y divide-border/70">

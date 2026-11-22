@@ -896,7 +896,7 @@ function ItemFormInner({
             tabIndex={step === 1 ? -1 : undefined}
             aria-label={step > 1 ? `Back to ${ITEM_FORM_STEP_LABELS[step - 2]}` : undefined}
             className={cn(
-              "-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50",
+              "-ml-1.5 grid size-8 shrink-0 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50",
               // Gone, not invisible, on step 1, so the title starts flush left.
               step === 1 && "hidden",
             )}
@@ -1060,7 +1060,7 @@ function ItemFormInner({
               // heavier than they are. Empty, it is dashed on white with a violet glyph,
               // which reads as the place photos go. With a cover it turns solid and the
               // fill muted, which letterboxes the photo instead of framing a drop target.
-              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} ${coverUrl ? "bg-muted" : "border-dashed bg-card"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input p-cozy text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-accent focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
+              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} ${coverUrl ? "bg-muted" : "border-dashed bg-card"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input p-cozy text-muted-foreground transition-colors hover:border-input-hover hover:bg-accent focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
               // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
               //
               // With no photo the button's own words ("Add photos", below) are its
@@ -1251,7 +1251,7 @@ function ItemFormInner({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isSubmitting}
-                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-muted focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
+                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-input-hover hover:bg-muted focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
                       aria-label="Add another photo"
                     >
                       <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
@@ -1317,7 +1317,7 @@ function ItemFormInner({
                   buyer-facing half is separate and untouched (`BuyButton`: "Nothing
                   is held for you yet"). */}
               {mode === "edit" ? (
-                <p className="text-body text-muted-foreground">
+                <p className="text-meta text-muted-foreground">
                   This can&apos;t be changed after a listing is created.
                 </p>
               ) : null}
@@ -1354,7 +1354,7 @@ function ItemFormInner({
               <Textarea
                 id="description"
                 name="description"
-                placeholder="Set, number, print and anything a buyer should know, e.g. light whitening on the back corners"
+                placeholder="Set, number, condition notes"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 maxLength={2000}
@@ -1398,7 +1398,7 @@ function ItemFormInner({
               />
               <FieldError id="fmv-error" message={fmvError} />
               {isShopfront ? (
-                <p id="fmv-hint" className="text-body text-muted-foreground">
+                <p id="fmv-hint" className="text-meta text-muted-foreground">
                   Prices are only a guide until terms are agreed.
                 </p>
               ) : (
@@ -1574,7 +1574,7 @@ function ItemFormInner({
  */
 function RemoveMark() {
   return (
-    <span className="grid size-6 place-items-center rounded-full border border-transparent bg-background/85 text-foreground shadow-sm transition-colors group-hover/remove:bg-background group-focus-visible/remove:border-ring">
+    <span className="grid size-6 place-items-center rounded-md border border-transparent bg-background/85 text-foreground shadow-sm transition-colors group-hover/remove:bg-background group-focus-visible/remove:border-ring">
       <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
     </span>
   );

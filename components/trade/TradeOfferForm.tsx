@@ -394,10 +394,10 @@ export function TradeOfferForm({
             onChange={(event) => setWantedGoods(event.target.value)}
             maxLength={1000}
             rows={3}
-            placeholder="The two Charizards on page 2 and any NM Blastoise."
+            placeholder="e.g. The Charizards on page 2"
             aria-describedby="wanted-goods-hint"
           />
-          <p id="wanted-goods-hint" className="text-body text-muted-foreground">
+          <p id="wanted-goods-hint" className="text-meta text-muted-foreground">
             Nothing here is held for you. You can both revise this in the trade room,
             and changing it means you each accept again.
           </p>
@@ -465,7 +465,7 @@ export function TradeOfferForm({
                       'flex cursor-pointer items-center gap-cozy rounded-md border p-snug text-body transition-colors',
                       selected
                         ? 'border-foreground bg-accent text-accent-foreground'
-                        : 'border-input bg-card hover:border-foreground/60',
+                        : 'border-input bg-card hover:border-input-hover',
                     )}
                   >
                     <input

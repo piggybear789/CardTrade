@@ -216,7 +216,7 @@ export function ContractRowTable({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
+    <div className="overflow-hidden surface rounded-xl bg-card">
       <div
         className={cn(
           CONTRACT_ROW_GRID,

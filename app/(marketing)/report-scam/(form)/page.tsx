@@ -130,13 +130,13 @@ export default async function ReportScamPage() {
         </section>
 
         {blocked ? (
-          <p className="rounded-xl border border-border bg-card p-group text-pretty text-body text-muted-foreground">
+          <p className="surface rounded-xl bg-card p-group text-pretty text-body text-muted-foreground">
             This account can&rsquo;t send reports.
           </p>
         ) : !verified ? (
           <section
             aria-labelledby="scam-verify-heading"
-            className="flex flex-col gap-cozy rounded-xl border border-border bg-card p-group sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-cozy surface rounded-xl bg-card p-group sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0 space-y-tight">
               <h2 id="scam-verify-heading" className="text-body font-semibold text-foreground">
@@ -160,7 +160,7 @@ export default async function ReportScamPage() {
             <h2 id="scam-yours-heading" className="text-lead font-semibold text-foreground">
               Your reports
             </h2>
-            <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+            <ul className="divide-y divide-border surface rounded-xl bg-card">
               {ownReports.map((report) => {
                 const status = report.status as ScamReportStatus;
                 const open = status !== 'DISMISSED' && status !== 'WITHDRAWN';

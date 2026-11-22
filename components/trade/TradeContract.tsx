@@ -532,7 +532,7 @@ function TradePostagePlan({
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-group rounded-xl border bg-card p-group">
+    <section className="space-y-group surface rounded-xl bg-card p-group">
       <ContractProgressRail
         steps={steps}
         numbered

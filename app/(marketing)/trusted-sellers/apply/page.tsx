@@ -165,7 +165,7 @@ export default async function TrustedSellerApplyPage({
 
       <div className="mt-section space-y-group">
         {!canSell ? (
-          <p className="rounded-xl border border-border bg-card p-group text-pretty text-body text-muted-foreground">
+          <p className="surface rounded-xl bg-card p-group text-pretty text-body text-muted-foreground">
             Trusted Seller reviews are open in countries where NoDitto is open for selling, and
             yours isn&rsquo;t yet. We&rsquo;ll let you know when it is.
           </p>
@@ -175,7 +175,7 @@ export default async function TrustedSellerApplyPage({
         {canSell && !identityVerified && review?.status !== 'APPROVED' ? (
           <section
             aria-labelledby="identity-heading"
-            className="flex flex-col gap-cozy rounded-xl border border-border bg-card p-group sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-cozy surface rounded-xl bg-card p-group sm:flex-row sm:items-center sm:justify-between"
           >
             <div className="min-w-0 space-y-tight">
               <h2 id="identity-heading" className="text-body font-semibold text-foreground">
@@ -193,7 +193,7 @@ export default async function TrustedSellerApplyPage({
         ) : null}
 
         {review && !editing ? (
-          <section aria-label="Application status" className="space-y-group rounded-xl border border-border bg-card p-group md:p-section">
+          <section aria-label="Application status"className="space-y-group surface rounded-xl bg-card p-group md:p-section">
             <Tracker stages={stages} />
 
             {initialDetails ? (

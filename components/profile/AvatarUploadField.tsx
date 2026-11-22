@@ -245,7 +245,7 @@ export function AvatarUploadField({
         </div>
 
         {hideHint ? null : (
-          <p className="text-body text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             Optional. PNG, JPEG, or WebP, up to 2 MB. Shown next to your name on
             listings and in chats — it is not used to verify you.
           </p>

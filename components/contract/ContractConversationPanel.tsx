@@ -105,7 +105,7 @@ export function ContractConversationPanel({
   }
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm max-md:rounded-none max-md:border-0 max-md:shadow-none">
       <ContractChatBar
         counterpartyName={counterpartyName}
         counterpartyAvatarPath={counterpartyAvatarPath}

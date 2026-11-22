@@ -4,7 +4,10 @@
 // caller, loads the sale under participant-only RLS plus an explicit guard, and
 // hands a snapshot to the live client room. Reviews unlock on completion.
 
+import { Suspense } from 'react';
 import { notFound, redirect } from 'next/navigation';
+
+import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 
 import { CashSaleView, type SaleParty } from '@/components/sales/CashSaleView';
 import { getDisputeEvidence } from '@/lib/actions/disputeEvidence';
@@ -12,6 +15,7 @@ import { LeaveReviewDialog } from '@/components/reviews/LeaveReviewDialog';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { myReviewFor } from '@/lib/actions/reviews';
 import { readSellerPayReadiness } from '@/lib/sellerIdentity';
+import { readIdentityGate } from '@/lib/identityGate';
 import { scheduleCashSaleTrackingCheck } from '@/lib/tracking/refreshOnRead';
 import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import { createClient } from '@/lib/supabase/server';
@@ -177,10 +181,19 @@ export default async function CashSalePage({
   // onto it. Until the buyer pays, the Pay step needs to know whether the seller can
   // be paid yet, and the verified name the buyer confirms there. Read fresh on each
   // load: this is the one thing about the contract that changes outside it.
-  const sellerPayReadiness =
+  //
+  // The buyer's own identity state, for the same unpaid window: a sale priced over the
+  // unverified-buyer limit asks them to verify before Pay (`buyerIdentityLimit.ts`).
+  // Null for a verified buyer, so the room never asks them.
+  const [sellerPayReadiness, buyerGate] = await Promise.all([
     sale.status === 'AGREEMENT' && !sale.seller_identity_version
-      ? await readSellerPayReadiness(sale.seller_id)
-      : null;
+      ? readSellerPayReadiness(sale.seller_id)
+      : Promise.resolve(null),
+    sale.status === 'AGREEMENT' && sale.buyer_id === user.id
+      ? readIdentityGate(user.id)
+      : Promise.resolve(null),
+  ]);
+  const buyerVerification = buyerGate && !buyerGate.satisfied ? buyerGate.state : null;
 
   // ASK THE CARRIER, AFTER THIS RESPONSE HAS BEEN SENT.
   //
@@ -206,6 +219,13 @@ export default async function CashSalePage({
       // finished contract a document scrollbar with nothing under the fold.
       flush
     >
+      {/* A large purchase sends an unverified buyer through the ID check from Pay, and
+          the check returns here with `?identity=complete`. Read the result from Stripe
+          now, or Pay still asks for ID from someone who just verified. Renders nothing;
+          Suspense because it reads searchParams. */}
+      <Suspense fallback={null}>
+        <IdentityReturnRefresh />
+      </Suspense>
       <CashSaleView
         initialSale={sale}
         myUserId={user.id}
@@ -217,6 +237,7 @@ export default async function CashSalePage({
         disputeEvidence={disputeEvidence}
         returnAddress={returnDetails ?? null}
         sellerPayReadiness={sellerPayReadiness}
+        buyerVerification={buyerVerification}
         // 0158: which bank rails the Pay step offers beside card.
         buyerRegion={(profileById.get(sale.buyer_id)?.region_code as string | null | undefined) ?? null}
         // Just the control — the action card states the step in its own title,

@@ -118,7 +118,7 @@ export function arrival(orbits: TrustOrbits): number {
  * picks out the "Good" tags below it. Negative stays red at every state.
  */
 const STAT_FILTER_BASE =
-  'inline-flex h-7 cursor-pointer items-center gap-1 rounded-full pl-2 pr-2.5 text-meta font-medium tabular-nums transition-[background-color,color,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-default';
+  'inline-flex h-7 cursor-pointer items-center gap-1 rounded-md pl-2 pr-2.5 text-meta font-medium tabular-nums transition-[background-color,color,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:cursor-default';
 const STAT_FILTER_REST = 'text-muted-foreground hover:bg-muted hover:text-foreground disabled:hover:bg-transparent';
 const STAT_FILTER_ON = 'ref-tag bg-card text-foreground';
 
@@ -178,7 +178,7 @@ function NetworkStats({
  * From `sm` the compact wrapping pills come back.
  */
 const FILTER_PILL =
-  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-cozy text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-7 sm:px-2.5';
+  'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border px-cozy text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:h-7 sm:px-2.5';
 
 interface NetworkToolbarProps {
   platforms: ReferenceView['platforms'];
@@ -210,7 +210,7 @@ const NetworkToolbar = memo(function NetworkToolbar({
   resetView,
 }: NetworkToolbarProps) {
   return (
-    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border/70 bg-muted/25 px-group py-2 sm:px-6">
+    <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border bg-muted/25 px-group py-2 sm:px-6">
       <div
         className="-mx-group flex w-[calc(100%+2rem)] items-center gap-1.5 overflow-x-auto px-group [scrollbar-width:none] sm:mx-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
         role="group"
@@ -225,7 +225,7 @@ const NetworkToolbar = memo(function NetworkToolbar({
             FILTER_PILL,
             platformFilter === null
               ? 'border-foreground bg-foreground text-background'
-              : 'border-border/80 bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+              : 'border-input bg-card text-muted-foreground hover:border-input-hover hover:text-foreground',
           )}
         >
           <span>All</span>
@@ -244,7 +244,7 @@ const NetworkToolbar = memo(function NetworkToolbar({
                 FILTER_PILL,
                 active
                   ? 'border-iris bg-iris/12 text-foreground ring-1 ring-iris/35'
-                  : 'border-border/80 bg-card text-muted-foreground hover:border-foreground/30 hover:text-foreground',
+                  : 'border-input bg-card text-muted-foreground hover:border-input-hover hover:text-foreground',
               )}
             >
               <SocialPlatformIcon
@@ -427,7 +427,7 @@ const ExperienceCards = memo(function ExperienceCards({
   };
 
   return (
-    <div className="border-t border-border/70 bg-card px-group py-group sm:px-6" style={{ opacity }}>
+    <div className="border-t border-border bg-card px-group py-group sm:px-6" style={{ opacity }}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h4
           ref={headingRef}
@@ -756,7 +756,7 @@ const NetworkHeader = memo(function NetworkHeader({
   // reference, so an unclaimed handle has nothing to switch to and gets no control.
   const member = centre.profileId !== null;
   return (
-    <div className="flex flex-col gap-3 border-b border-border/70 px-group py-group sm:flex-row sm:items-center sm:justify-between sm:px-6">
+    <div className="flex flex-col gap-3 border-b border-border px-group py-group sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div className="flex min-w-0 flex-wrap items-center gap-2.5" style={{ opacity }}>
         <h3 id="references-heading" className="text-subhead font-semibold tracking-tight text-foreground">
           References
@@ -809,7 +809,7 @@ export function ReferenceGraph({
   return (
     <section
       aria-labelledby="references-heading"
-      className="overflow-hidden rounded-2xl border border-border/90 bg-card shadow-xs"
+      className="overflow-hidden surface rounded-xl bg-card"
     >
       <TrustNetworkHeader orbits={orbits} action={orbits.away ? null : action} />
       <TrustNetworkBody orbits={orbits} />

@@ -81,6 +81,7 @@ type ProfileRow = Pick<
   | 'contact_email'
   | 'payment_token_type'
   | 'region_code'
+  | 'identity_check_status'
 >;
 
 /** Map one database row to the provider-independent aggregate. */
@@ -236,7 +237,7 @@ export function createSupabaseCashSaleRepository(
       const { data } = await client
         .from('profiles')
         .select(
-          'id, payer_id, payment_source_id, display_name, contact_email, payment_token_type, region_code',
+          'id, payer_id, payment_source_id, display_name, contact_email, payment_token_type, region_code, identity_check_status',
         )
         .eq('id', buyerId)
         .maybeSingle();
@@ -250,6 +251,8 @@ export function createSupabaseCashSaleRepository(
             contactEmail: row.contact_email,
             paymentTokenType: row.payment_token_type,
             regionCode: row.region_code,
+            // For the large-purchase rule only (`buyerMustVerifyIdentity`).
+            identityCheckStatus: row.identity_check_status,
           }
         : null;
     },

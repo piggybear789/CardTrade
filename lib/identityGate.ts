@@ -15,7 +15,10 @@
 // a Member should not be able to enter a trade in which they could be owed
 // restitution the platform cannot deliver. A cash Buyer does NOT need it: a Buyer
 // is only ever refunded to their original card, so no transfer is ever sent to
-// them and demanding payout onboarding would be friction with no purpose.
+// them and demanding payout onboarding would be friction with no purpose. The one
+// exception is a single purchase priced over the unverified-buyer limit, which needs
+// the same gate for accountability, not for payouts
+// (`domain/identity/buyerIdentityLimit.ts`).
 //
 // The `merchant_*` columns are provider-controlled and excluded from client-facing
 // selects, so this reads them through the admin client scoped to one Profile id.

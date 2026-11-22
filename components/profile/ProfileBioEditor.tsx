@@ -66,7 +66,7 @@ export function ProfileBioEditor({
       <Textarea
         value={bio}
         onChange={(event) => setBio(event.target.value.slice(0, BIO_MAX))}
-        placeholder="Tell other collectors what you trade, how you pack, how fast you post…"
+        placeholder="What you collect and trade"
         rows={5}
         maxLength={BIO_MAX}
         disabled={isPending}

@@ -59,7 +59,7 @@ export function DealInviteSkeleton() {
  */
 function DealInviteCardSkeleton({ withFooterNote = false }: { withFooterNote?: boolean }) {
   return (
-    <div className="mx-auto w-full max-w-lg rounded-lg border border-border bg-card shadow-market">
+    <div className="mx-auto w-full max-w-lg surface rounded-xl bg-card">
       {/* Title and description are texture in their own line boxes, drawn canonical. */}
       <div className="flex flex-col space-y-snug p-group">
         <TextLines className="text-subhead" widths={['w-1/3']} />

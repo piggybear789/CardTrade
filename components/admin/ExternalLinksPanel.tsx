@@ -297,7 +297,7 @@ export function ExternalLinksPanel() {
                             value={note}
                             maxLength={LINK_NOTE_MAX}
                             rows={2}
-                            placeholder="For example: their eBay About page names this Instagram, and the listings match."
+                            placeholder="What you checked"
                             onChange={(event) => setNotes((current) => ({ ...current, [key]: event.target.value }))}
                           />
                           {rowError[key] ? (

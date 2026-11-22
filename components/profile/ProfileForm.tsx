@@ -187,7 +187,7 @@ export function ProfileForm({
             Profile picture{' '}
             <span className="font-normal text-muted-foreground">(optional)</span>
           </p>
-          <p className="text-body text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             PNG, JPEG or WebP, up to 2 MB. Saves as soon as you pick it.
           </p>
         </div>

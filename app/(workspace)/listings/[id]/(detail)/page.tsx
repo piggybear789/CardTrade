@@ -620,7 +620,12 @@ export default async function ItemDetailPage({
               could see. It existed for the scrolling case — a long description otherwise
               ends flush against the cut — and that belongs on the action stack itself,
               where it does not shift the resting layout. */}
-          <div className="flex min-w-0 flex-col pt-cozy lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+          {/* `lg:-mx-tight lg:px-tight`: a scroll box clips anything drawn outside
+              its padding box, and `.surface` cards draw their 1px edge as a box-shadow
+              OUTSIDE the box, so a full-width card (the seller card) lost its left and
+              right edges at `lg`. The padding gives the edge room; the matching
+              negative margin keeps the content where it was. */}
+          <div className="flex min-w-0 flex-col pt-cozy lg:-mx-tight lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-tight lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
             <div className="lg:hidden">
               <ListingDetailStack
                 showTrust={showTrust}

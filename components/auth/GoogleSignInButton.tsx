@@ -80,10 +80,12 @@ export function GoogleSignInButton({
   }
 
   return (
+    // OUTLINE, not the violet primary. The credentials form below already ends on
+    // a filled "Sign in"; two violet buttons on one card left neither as the main
+    // action. A white Google button is also the shape members expect.
     <Button
       type="button"
-
-
+      variant="outline"
       className="min-h-11 w-full"
       onClick={handleClick}
       disabled={disabled || isPending}

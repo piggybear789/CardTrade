@@ -36,7 +36,7 @@ export function MarketingFooter() {
     // PHONE: tighter. The links are already 44px tall each, so a 12px row gap and 32px
     // of padding above and below made two rows of links a ~165px band.
     <footer
-      className={cn('mt-auto border-t border-border/60', isReferencesRoute(pathname) && 'max-sm:hidden')}
+      className={cn('mt-auto border-t border-border', isReferencesRoute(pathname) && 'max-sm:hidden')}
     >
       <nav
         aria-label="Legal and help"

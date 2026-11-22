@@ -182,7 +182,7 @@ export function PlacePicker({
           }}
         />
         {!error ? (
-          <p id={hintId} className="text-body text-muted-foreground">
+          <p id={hintId} className="text-meta text-muted-foreground">
             {hint ? `${hint} ` : null}
             Address search unavailable until a Google Maps API key is configured.
           </p>
@@ -249,7 +249,7 @@ export function PlacePicker({
       ) : null}
 
       {hint && !error ? (
-        <p id={hintId} className="text-body text-muted-foreground">
+        <p id={hintId} className="text-meta text-muted-foreground">
           {hint}
         </p>
       ) : null}

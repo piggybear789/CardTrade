@@ -41,7 +41,15 @@ const config: Config = {
     extend: {
       colors: {
         border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
+        // THE CONTROL EDGE, and the only one. Every field, select, quiet button,
+        // chip, pill and toggle rests on `border-input` and firms to
+        // `border-input-hover` under the pointer; focus is `border-ring`. Containers
+        // (cards, panels, dividers) take `border-border`, the lighter hairline. Two
+        // edges, two jobs: a control can be told from the card it sits on.
+        input: {
+          DEFAULT: "hsl(var(--input))",
+          hover: "hsl(var(--foreground) / 0.3)",
+        },
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
@@ -172,11 +180,12 @@ const config: Config = {
       //
       // TWO LEVELS DID NOT MOVE, and neither is negotiable:
       //
-      //   `meta` is floored at 0.75rem. It is for CHROME only — badges,
-      //   timestamps, counts, dense cells. It is NOT "smaller subtext": subtext
-      //   is de-emphasised by colour (`text-muted-foreground`), never by size.
-      //   Muted foreground is 42% lightness, and below 12px it stops being
-      //   readable copy and starts being decoration.
+      //   `meta` is floored at 0.75rem. It is for chrome (badges, timestamps,
+      //   counts, dense cells) and FIELD HINTS: copy attached to one control,
+      //   directly under it, muted. Every other supporting sentence is `body`
+      //   and muted. Below 12px muted text stops being readable copy and starts
+      //   being decoration. Mapping rules: the subtext rule in
+      //   `.kiro/specs/design-system/typography-spacing.md`.
       //
       //   `lead` stays at exactly 1rem, but it is now a TYPE choice and nothing
       //   more — a card title, a thread subject, a page-level empty state. It is
@@ -269,17 +278,23 @@ const config: Config = {
       },
       // RADIUS TIERS, all derived from `--radius` so they move together.
       //
-      // `xl` and `2xl` used to fall through to Tailwind's fixed 12px / 16px, which
-      // is why chat bubbles (`2xl`) and a handful of cards (`xl`) did not track the
-      // token that every other corner in the product does. Tier by object:
+      // TIER BY OBJECT, NEVER BY TASTE (2026-11-21). Before this pass the same kind of
+      // object wore up to four radii (cards at 8, 12 and 16px; controls at 6px and as
+      // pills), so a select sat square-cornered beside a row of pill chips.
       //
-      //   sm    4px   chips, eyebrows, thumbnails inside a row
-      //   md    6px   controls — buttons, fields, badges, menu items
-      //   lg    8px   cards and panels
-      //   xl   12px   sheets, dialogs, large media tiles
-      //   2xl  16px   chat bubbles and pill-shaped composer fields
+      //   sm    4px   inside a menu or list: menu/select items, row thumbnails
+      //   md    6px   EVERY control and label: buttons, icon buttons, fields,
+      //               selects, chips, filter pills, badges, tags, tooltips,
+      //               labels over photos
+      //   lg    8px   floating panels (popover, dropdown, select list), nested
+      //               tiles and callouts inside a card, a group of controls
+      //               (segmented track)
+      //   xl   12px   cards, panels, list containers, dialogs, sheets, media frames
+      //   full        MARKS ONLY: avatars, dots, counts, step numbers, icon discs,
+      //               progress tracks, switch, slider. Never a control or a label.
       //
-      // `rounded-full` is the only shape outside this ramp.
+      // `2xl` is retired (no call sites); it stays defined, at 16px, only because
+      // the Flutter radius agreement test reads this block.
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",

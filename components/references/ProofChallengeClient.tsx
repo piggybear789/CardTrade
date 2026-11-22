@@ -103,12 +103,12 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
   return (
     <div className="space-y-group">
       {/* Header card */}
-      <header className="ref-surface ref-rise rounded-2xl bg-card p-group sm:p-6">
+      <header className="ref-surface ref-rise rounded-xl bg-card p-group sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <span
               className={cn(
-                'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-meta font-semibold',
+                'inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-meta font-semibold',
                 challenge.status === 'SUBMITTED'
                   ? 'bg-trust/10 text-trust'
                   : challenge.status === 'EXPIRED'
@@ -151,7 +151,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
 
       {/* Body */}
       {challenge.status === 'PENDING' ? (
-        <section className="ref-surface ref-rise space-y-5 rounded-2xl bg-card p-group [--ref-step:1] sm:p-6">
+        <section className="ref-surface ref-rise space-y-5 rounded-xl bg-card p-group [--ref-step:1] sm:p-6">
           <div className="rounded-xl border border-border bg-muted/25 p-5 text-center">
             <p className="text-meta font-semibold uppercase tracking-wider text-muted-foreground">
               Write this one-time code on paper next to the card
@@ -208,7 +208,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
           </div>
         </section>
       ) : challenge.status === 'SUBMITTED' ? (
-        <section className="ref-surface ref-rise space-y-4 rounded-2xl bg-card p-group [--ref-step:1] sm:p-6">
+        <section className="ref-surface ref-rise space-y-4 rounded-xl bg-card p-group [--ref-step:1] sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-body font-semibold text-foreground">
               <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5 text-trust" aria-hidden />
@@ -278,7 +278,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
           </div>
         </section>
       ) : (
-        <section className="ref-surface ref-rise rounded-2xl bg-card p-6 text-center [--ref-step:1]">
+        <section className="ref-surface ref-rise rounded-xl bg-card p-6 text-center [--ref-step:1]">
           <p className="text-body font-semibold text-foreground">This proof challenge has expired.</p>
           <p className="mt-1 text-meta text-muted-foreground">
             Run a new background check to generate a fresh 1-time Proof-of-Card link.

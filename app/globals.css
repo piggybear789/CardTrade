@@ -21,10 +21,9 @@
          --input        the field edge owes 3:1 against the page and a card
                         (it measured 1.46), because it is the only thing that
                         marks a field as a field.
-         neutrals       page, muted, border and subtext are desaturated from
-                        lavender to a cool grey, and cards are white on an
-                        off-white page, so surfaces separate by value and the
-                        violet is left to mean something.
+         neutrals       muted, border and subtext are slate rather than
+                        lavender, so the violet is left to mean something. The
+                        page itself is white; see THE BRIGHT PALETTE below.
 
        `--background` and `--obsidian` mirror into `app/manifest.ts`,
        `app/layout.tsx` (`viewport.themeColor`), `app/global-error.tsx` and
@@ -35,67 +34,88 @@
        the Flutter token generator and refuses any declaration it cannot read as a
        colour, length or duration, so strings such as a shadow list must not sit
        here. */
-    /* ONE STEP UNDER THE CARD. At 98.2% a white card on the page was 1.05:1, held apart by
-       its hairline alone; at 96.5% it is 1.09:1 and the card reads as a surface. `--muted` (95.3%) is
-       now close to the page, so a muted fill belongs on a card, not on the page. */
-    --background: 240 12% 96.5%;
-    --foreground: 234.5455 17.4603% 12.3529%;
+    /* THE BRIGHT PALETTE (2026-11-21). A WHITE PAGE, SLATE NEUTRALS, A VIVID VIOLET.
+       The page was a 96.5% cool grey with grey surfaces on it, which read as dreary
+       next to every marketplace and SaaS product measured live (Whatnot, Depop,
+       Airbnb, Grailed, Stripe, Attio all paint a white page; Vercel #FAFAFA; Clerk
+       and Vinted put white content on a light tint). Product photos are the colour on
+       a marketplace, and a white page is what lets them carry it.
+         page / cards   both white; a card separates by its hairline and shadow,
+                        the way Stripe and Airbnb cards do. The rail, not the page,
+                        takes the tint (`--sidebar`), the Attio / Sprig pattern.
+         neutrals       slate (a blue-grey) instead of a flat grey: cooler and
+                        cleaner beside the violet, the Tailwind slate ramp.
+         primary        250 88% 60%, the vivid end of the brand violet (Stripe's
+                        #533AFD is the same family). White on it is 6.0:1.
+       Every pairing is checked by `node scripts/palette-contrast.mjs`. */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 234.5455 17.4603% 12.3529%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 234.5455 17.4603% 12.3529%;
-    --primary: 250 68% 60%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 250 88% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 246 60% 96.6%;
-    --secondary-foreground: 248.75 31.5789% 29.8039%;
-    --muted: 240 11% 95.3%;
-    /* 7.9:1 on a card, 7.2:1 on the page. At 41% (6.0:1) secondary copy passed AA and
-       still read as washed out beside ink at 12%. */
-    --muted-foreground: 240 7% 34%;
-    /* NEUTRAL. Hover and selected states read as a quiet grey, not a lavender wash
+    --secondary: 250 100% 97.5%;
+    --secondary-foreground: 250 55% 38%;
+    --muted: 210 40% 96.1%;
+    /* Slate 600: 7.5:1 on white. */
+    --muted-foreground: 215 19% 35%;
+    /* NEUTRAL. Hover and selected states read as a quiet slate, not a lavender wash
        with violet text. Violet text has its own token, `--iris-ink`, below. */
-    --accent: 240 11% 95.3%;
-    --accent-foreground: 234.5455 17.4603% 12.3529%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222 47% 11%;
     --destructive: 358 70% 47%;
     --destructive-foreground: 0 0% 100%;
-    /* `--border` is the hairline for dividers and containers. `--input` is the
-       edge of EVERY control — fields, selects, textareas and the quiet button
-       variants — so a field and the button beside it read as one family. */
-    --border: 240 9% 90.5%;
-    --input: 240 6% 58%;
-    /* The focus colour: a neutral graphite edge, never a violet glow. 6.9:1 on a card. */
-    --ring: 240 6% 32%;
+    /* TWO EDGES, TWO JOBS.
+         --border  the hairline on containers: cards, panels, dividers, tiles.
+         --input   the edge of EVERY control: fields, selects, quiet buttons, chips,
+                   filter pills, toggles. One step firmer than `--border`, so a
+                   control reads as a control on the card it sits on. Hover is
+                   `border-input-hover` (tailwind.config.ts), focus is `--ring`.
+       `--input` WAS 56% slate (3.4:1), the WCAG 1.4.11 floor for a field boundary.
+       Next to the light chips and buttons that made every select and text field the
+       heaviest outline on the page, which is the mismatch this fixes. It is now the
+       light edge Stripe (#D4DEE9), Attio and Supabase use, at about 1.6:1. That is a
+       deliberate accessibility trade, recorded in `scripts/palette-contrast.mjs`:
+       fields still carry a visible label and a 4:1 focus ring. Restore 215 14% 56% to
+       go back to the 3:1 edge everywhere at once. */
+    --border: 214 32% 91%;
+    --input: 215 20% 80%;
+    /* The focus colour: a neutral slate edge, never a violet glow. */
+    --ring: 215 25% 27%;
     --chart-1: 250.1613 75.6098% 67.8431%;
     --chart-2: 249.863 73.7374% 80.5882%;
     --chart-3: 248.75 31.5789% 29.8039%;
     --chart-4: 247.6923 70.9091% 89.2157%;
     --chart-5: 249.3443 57.0093% 58.0392%;
-    --sidebar: 240 12% 96.6%;
-    --sidebar-foreground: 240 13.1034% 28.4314%;
-    --sidebar-primary: 250 68% 60%;
+    /* The rail: slate 50, one step off the white page, edged by `--sidebar-border`. */
+    --sidebar: 210 40% 98%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 250 88% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 11% 95.3%;
-    --sidebar-accent-foreground: 234.5455 17.4603% 12.3529%;
-    --sidebar-border: 240 9% 90.5%;
-    --sidebar-ring: 240 6% 32%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 215 25% 27%;
     --radius: 0.5rem;
     --spacing: 0.25rem;
 
     /* APP-SPECIFIC. */
-    /* Dark chrome: the header bar, overlays, letterboxing, the `contrast` button. */
-    --obsidian: 240 19% 8%;
+    /* Dark chrome: the header bar, overlays, letterboxing, the `contrast` button. Slate, the same family as the ink. */
+    --obsidian: 222 47% 7%;
     /* Violet markers (brand accents, link underlines). NOT the focus colour: that is`--ring`. */
-    --iris: 250.1613 75.6098% 67.8431%;
+    --iris: 250 90% 68%;
     /* Violet as text. Its own value now that `--accent-foreground` is neutral. */
-    --iris-ink: 248.4 59.5238% 50.5882%;
-    /* jade: verified identity, settled, completed. */
-    --trust: 156 44% 31%;
+    --iris-ink: 250 70% 52%;
+    /* emerald: verified identity, settled, completed. Emerald 700, cleaner than the old jade beside the bright violet. */
+    --trust: 161 94% 24%;
     /* amber: "this is your move" as a signal, never a button fill. */
     --action: 38 92% 78%;
     --action-foreground: 30 60% 18%;
     --action-border: 38 82% 40%;
     /* Light tint for text and fills on the dark header. */
-    --mist: 240 27% 94%;
+    --mist: 210 40% 96%;
 
     --duration-exit: 150ms;
     --duration-enter: 210ms;
@@ -236,30 +256,18 @@
     scroll-padding-bottom: calc(
       var(--mobile-hub-offset) + var(--keyboard-inset, 0px)
     );
-    /* RESERVE THE SCROLLBAR'S WIDTH ON EVERY PAGE. With classic scrollbars (Windows,
-       and macOS with "always show"), a route that fits the viewport has no bar and a
-       route that does not has a ~15px one, so the whole layout — header search, rail,
-       content column — slid sideways on navigation between the two, and again when a
-       loader shorter than its page swapped out. `stable` keeps the gutter whether or
-       not a bar is drawn. Overlay scrollbars (phones, default macOS) reserve nothing,
-       so this costs those nothing. The flush inbox pane has done the same internally
-       for the same reason (`InboxTwoPane`). See the scroll-lock rule below, which this
-       makes necessary. */
-    scrollbar-gutter: stable;
+    /* NO `scrollbar-gutter: stable` ON THE ROOT (removed 2026-11-21, product
+       decision). It stopped the layout sliding ~15px between pages that scroll and
+       pages that do not, under classic scrollbars (Windows, macOS "always show"). But
+       the reserved strip is painted with the canvas colour, and nothing else can draw
+       into it (tested: gradients, a wider header, a fixed band), so on any page too
+       short to scroll it stood as a pale bar beside the dark header. The slide is the
+       accepted cost. With the gutter gone, the `body[data-scroll-locked] { margin-right:
+       0 }` override that sat here went too: `react-remove-scroll-bar` needs its
+       margin again to stop dialogs nudging the page. `InboxTwoPane` keeps its own
+       internal gutter, which is inside the page and painted with it. */
     /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
-  }
-
-  /* SCROLL LOCK MUST NOT ADD A SECOND GUTTER. Radix dialogs, sheets, selects and
-     popovers lock scrolling through `react-remove-scroll-bar`, which measures the
-     gap as `innerWidth - clientWidth` and adds it to <body> as `margin-right` to
-     compensate for the bar it hides. With `scrollbar-gutter: stable` the root keeps
-     that gutter while locked, so the compensation was applied on top of a gutter
-     that never went away: every dialog nudged the page ~15px left as it opened.
-     The gutter already does the compensating, so the margin goes. Outranks the
-     library's `body[data-scroll-locked]` by one element. */
-  html body[data-scroll-locked] {
-    margin-right: 0 !important;
   }
 
   /* NO FOCUS OUTLINE ON A POINTER CLICK. The browser's default outline (a heavy
@@ -748,7 +756,20 @@
   }
 }
 
-/* REFERENCES: SURFACES AND MOTION (`/references`, `/references/[handle]`, the proof page).
+/* SURFACES AND MOTION, SITE-WIDE (2026-11-21). Born on References (`/references`,
+   `/references/[handle]`, the proof page) and promoted to the whole web app, because
+   that page was the one that felt smooth. The generic names are the API; the `ref-*`
+   names are kept as aliases so the References code did not have to change.
+
+     .surface   a card or panel: hairline shadow edge + cool bloom, NO border
+     .lift      a whole tile that is a link: rises 2px under a stronger bloom on hover
+     .rise      one block arriving (opacity + 14px), ordered by `--ref-step`
+     .stagger   a list or grid whose children rise in order on mount
+     .swap      a region whose content was replaced (filter, page, tab): 6px settle
+     .settle    a whole page arriving: a short fade and 4px, gentle enough to sit
+                on top of a skeleton swap
+     .focus-in  a short text block arriving with its blur clearing
+
 
    Taken from a recon of RevenueCat's feature pages (probed live, 2026-11-21), which is
    the "clean SaaS" register asked for. What actually makes that page feel smooth, read
@@ -773,12 +794,16 @@
    `.ref-surface` sets ONLY the shadow: background and radius stay utilities at the
    call site (`bg-card/95` on the floating suggestion list must keep working).
 
-   No Flutter counterpart, deliberately: these are marketing-page surfaces, not the
+   No Flutter counterpart, deliberately: these are web surfaces, not the
    named elevations `mobileThemeAgreement.test.ts` pins. Every animation below is
    ended on its first frame by the reduced-motion block at the foot of this file. */
 :root {
   --ref-edge: 0 0 0 1px hsl(var(--obsidian) / 0.05), 0 0 2px hsl(var(--obsidian) / 0.12);
   --ref-bloom: 0 8px 80px -16px hsl(236 32% 42% / 0.16);
+  /* The card edge everywhere: a 1px ink hairline, a 1px contact shadow and a tight
+     soft drop. Crisp at any size, unlike the bloom. */
+  --surface-edge: 0 0 0 1px hsl(var(--border)), 0 1px 2px hsl(var(--obsidian) / 0.05),
+    0 2px 8px -2px hsl(var(--obsidian) / 0.06);
   --ref-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --ref-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -786,27 +811,49 @@
 /* Through Tailwind's own shadow variables, so a `ring-*` or `focus-within:ring-*` on
    the same element still draws. A bare `box-shadow` here would win by source order
    and erase the focus ring, which Tailwind also paints as a box-shadow. */
+/* TWO STRENGTHS, ONE EDGE. The 80px bloom only works on a large panel: under a seller
+   card or a pair of action tiles it read as a grey smudge with no edge (seen on the
+   listing page, 2026-11-21). So `.surface`, the card everywhere, is the hairline edge
+   with a tight drop; `.ref-surface` keeps the wide bloom for the References pages'
+   page-sized panels. Both draw the same 1px edge, so the two sit together. */
+.surface {
+  --tw-shadow: var(--surface-edge);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
 .ref-surface {
   --tw-shadow: var(--ref-edge), var(--ref-bloom);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
 }
+/* `.surface` from `md` only, for containers that run edge to edge on a phone. Plain
+   CSS outside a layer cannot take a Tailwind variant, so `md:surface` does nothing. */
+@media (min-width: 768px) {
+  .surface-md {
+    --tw-shadow: var(--surface-edge);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+  }
+}
+.dark .surface,
 .dark .ref-surface {
   --tw-shadow: 0 0 0 1px hsl(var(--border)), var(--shadow-sm);
 }
 
 /* A whole tile that is itself a link (a sale, a web mention). Rises 2px on hover under
    a soft cool shadow. Hover-capable pointers only: on touch a :hover sticks after the
-   tap and leaves the tile lifted. */
+   tap and leaves the tile lifted. `translate`, not `transform`, so the lift composes
+   with a Tailwind `active:scale-*` on the same element instead of overriding it. */
+.lift,
 .ref-tile {
   transition:
+    translate 300ms var(--ref-ease-standard),
     transform 300ms var(--ref-ease-standard),
     box-shadow 300ms var(--ref-ease-standard),
     background-color 300ms var(--ref-ease-standard),
     border-color 300ms var(--ref-ease-standard);
 }
 @media (hover: hover) {
+  .lift:hover,
   .ref-tile:hover {
-    transform: translateY(-2px);
+    translate: 0 -2px;
     --tw-shadow: 0 2px 6px hsl(var(--obsidian) / 0.05), 0 14px 28px -12px hsl(236 32% 42% / 0.28);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
   }
@@ -867,11 +914,13 @@
   }
 }
 
+.focus-in,
 .ref-focus-in {
   animation: ref-focus-in 900ms var(--ref-ease) backwards;
   animation-delay: calc(var(--ref-step, 0) * 80ms);
 }
 
+.rise,
 .ref-rise {
   animation: ref-rise 720ms var(--ref-ease) backwards;
   animation-delay: calc(var(--ref-step, 0) * 80ms);
@@ -879,18 +928,38 @@
 
 /* A page's cards, in order, on FIRST LOAD only. The class is removed once they have
    arrived (`ReferenceProfile`), so a card the graph remounts while walking to another
-   person does not rise again; it fades in with the walk instead. */
+   person does not rise again; it fades in with the walk instead. `.stagger` is the
+   same thing for any list or grid; 60ms apart, capped at the seventh child so a long
+   grid is not still arriving half a second later. */
+.stagger > *,
 .ref-enter > * {
   animation: ref-rise 720ms var(--ref-ease) backwards;
 }
-.ref-enter > :nth-child(2) { animation-delay: 80ms; }
-.ref-enter > :nth-child(3) { animation-delay: 160ms; }
-.ref-enter > :nth-child(4) { animation-delay: 240ms; }
-.ref-enter > :nth-child(n + 5) { animation-delay: 320ms; }
+.stagger > :nth-child(2), .ref-enter > :nth-child(2) { animation-delay: 60ms; }
+.stagger > :nth-child(3), .ref-enter > :nth-child(3) { animation-delay: 120ms; }
+.stagger > :nth-child(4), .ref-enter > :nth-child(4) { animation-delay: 180ms; }
+.stagger > :nth-child(5), .ref-enter > :nth-child(5) { animation-delay: 240ms; }
+.stagger > :nth-child(6), .ref-enter > :nth-child(6) { animation-delay: 300ms; }
+.stagger > :nth-child(n + 7), .ref-enter > :nth-child(n + 7) { animation-delay: 360ms; }
 
 /* A list whose contents were replaced (another page, another filter). */
+.swap,
 .ref-swap {
   animation: ref-swap 420ms var(--ref-ease) backwards;
+}
+
+@keyframes settle {
+  from {
+    opacity: 0.4;
+    transform: translateY(4px);
+  }
+}
+
+/* A whole page arriving. Starts at 40% rather than 0 so the swap from a loading
+   skeleton never flashes an empty frame, and moves 4px rather than 14px because the
+   whole column moves. */
+.settle {
+  animation: settle 360ms var(--ref-ease) backwards;
 }
 
 /* next dev paints a circular N on the bottom-right, on top of Account. */

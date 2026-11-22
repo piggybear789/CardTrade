@@ -237,7 +237,7 @@ export function HandoverFailedDialog({
 
             <div className="space-y-snug">
               <Label>Evidence (optional)</Label>
-              <p className="text-body text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Attach up to {MAX_EVIDENCE_FILES} photos — damaged packaging,
                 screenshots, the item you received.
               </p>
@@ -269,7 +269,7 @@ export function HandoverFailedDialog({
                       type="button"
                       onClick={() => proof.remove(key)}
                       disabled={isPending}
-                      className="absolute right-0.5 top-0.5 rounded-full bg-background/80 p-0.5 text-foreground shadow-sm hover:bg-background"
+                      className="absolute right-0.5 top-0.5 rounded-md bg-background/80 p-0.5 text-foreground shadow-sm hover:bg-background"
                       aria-label={`Remove ${file.name}`}
                     >
                       <HugeiconsIcon icon={XIcon} className="size-3" aria-hidden />
@@ -281,7 +281,7 @@ export function HandoverFailedDialog({
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isPending}
-                    className="flex size-16 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
+                    className="flex size-16 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-input-hover hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
                     aria-label="Add evidence photo"
                   >
                     <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />

@@ -651,7 +651,7 @@ export function OnboardingWizard({
                     'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                     intent === 'buyer'
                       ? 'border-foreground bg-accent text-accent-foreground'
-                      : 'hover:border-foreground/60 hover:bg-muted/50',
+                      : 'hover:border-input-hover hover:bg-muted/50',
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
@@ -672,7 +672,7 @@ export function OnboardingWizard({
                     'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                     intent === 'seller'
                       ? 'border-foreground bg-accent text-accent-foreground'
-                      : 'hover:border-foreground/60 hover:bg-muted/50',
+                      : 'hover:border-input-hover hover:bg-muted/50',
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
@@ -693,7 +693,7 @@ export function OnboardingWizard({
                     'flex items-center gap-group rounded-md border border-input bg-card p-group text-left transition-colors',
                     intent === 'reference'
                       ? 'border-foreground bg-accent text-accent-foreground'
-                      : 'hover:border-foreground/60 hover:bg-muted/50',
+                      : 'hover:border-input-hover hover:bg-muted/50',
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
@@ -731,7 +731,7 @@ export function OnboardingWizard({
                     <PopoverTrigger asChild>
                       <button
                         type="button"
-                        className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring"
+                        className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring"
                         aria-label="Why we need these details"
                       >
                         <HugeiconsIcon icon={InfoIcon} className="size-3.5" aria-hidden />

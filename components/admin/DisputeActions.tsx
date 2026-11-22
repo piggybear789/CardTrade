@@ -247,7 +247,7 @@ export function DisputeActions({
         </Button>
         <p
           id={`partial-help-${cashSaleId}`}
-          className="w-full text-body text-muted-foreground"
+          className="w-full text-meta text-muted-foreground"
         >
           Must be more than zero and less than the {money(amountCents)} collected.
           Use a full refund or a release for those.

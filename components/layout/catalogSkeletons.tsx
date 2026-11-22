@@ -41,7 +41,7 @@ export function CatalogTileSkeleton({
     // The border matters as much as the height: card and page are both white, so
     // without it the placeholder tiles had no edge at all and a hairline popped
     // in around every one of them at once.
-    <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <div className="overflow-hidden surface rounded-xl bg-card">
       <Skeleton
         className={cn(
           'w-full rounded-none',

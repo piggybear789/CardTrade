@@ -29,7 +29,7 @@ export default function SellerProfileLoading() {
         <TextLines className="text-body" widths={['w-36']} />
       </nav>
 
-      <header className="mb-5 space-y-snug rounded-lg border bg-card p-group">
+      <header className="mb-5 space-y-snug surface rounded-xl bg-card p-group">
         {/* A column below `sm`, because the Report control stacks under the identity
             block there rather than sitting beside it. */}
         <div className="flex flex-col items-stretch gap-cozy sm:flex-row sm:items-start sm:justify-between">
@@ -41,7 +41,7 @@ export default function SellerProfileLoading() {
                 {/* `text-subhead` below `md`, not the 32px an `h-8` reserved. The name
                     width is canonical texture; the `h-5 w-20` pill keeps its reserve. */}
                 <TextLines className="text-subhead md:text-head" widths={['w-1/2']} />
-                <Skeleton className="h-5 w-20 rounded-full" />
+                <Skeleton className="h-5 w-20 rounded-md" />
               </div>
               {/* StarRating, then the social links row. Both are conditional on the
                   seller having them, and both are the common case on a profile reached

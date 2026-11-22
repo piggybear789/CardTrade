@@ -43,7 +43,7 @@ const sheetVariants = cva(
         // top border into a soft grey band, which is the one line that has to
         // stay crisp: it is all that separates two white surfaces.
         bottom:
-          "inset-x-0 bottom-[var(--keyboard-inset,0px)] max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] overflow-y-auto overscroll-contain rounded-t-2xl border-t bg-card pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_hsl(var(--foreground)/0.10)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
+          "inset-x-0 bottom-[var(--keyboard-inset,0px)] max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] overflow-y-auto overscroll-contain rounded-t-xl border-t bg-card pb-[max(1.5rem,env(safe-area-inset-bottom))] shadow-[0_-10px_30px_hsl(var(--foreground)/0.10)] data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom",
         left: "inset-y-0 left-0 h-full w-3/4 border-r data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
           "inset-y-0 right-0 h-full w-3/4 border-l data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",

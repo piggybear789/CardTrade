@@ -34,7 +34,7 @@ export function SectionHeader({
           button's height whether or not it renders makes the header one height on
           every page. */}
       <div className="flex min-h-10 min-w-0 flex-col justify-center md:block md:min-h-0">
-        <h2 className="text-balance text-subhead font-semibold tracking-tight md:text-head">
+        <h2 className="text-balance text-subhead font-medium tracking-[-0.02em] md:text-head">
           {title}
         </h2>
         {description ? (

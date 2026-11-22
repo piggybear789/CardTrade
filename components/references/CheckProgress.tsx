@@ -175,7 +175,7 @@ function StepBadge({
     <span
       aria-hidden
       className={cn(
-        'inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border/80 bg-muted/40 text-muted-foreground transition-opacity',
+        'inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted/40 text-muted-foreground transition-opacity',
         quiet && 'opacity-50',
       )}
     >

@@ -1,0 +1,32 @@
+﻿ok    0.0000  desktop /
+ok    0.0000  desktop / dialog "More categories"
+ok    0.0000  desktop /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4
+ok    0.0000  desktop /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706
+ok    0.0000  desktop /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706 dialog "Leave a reference"
+ok    0.0000  desktop /references
+ok    0.0000  desktop /references/serialcollect
+ok    0.0000  desktop /references/serialcollect dialog "Claim this account"
+ok    0.0000  desktop /references/serialcollect dialog "Leave a reference"
+ok    0.0000  desktop /trusted-sellers
+ok    0.0000  desktop /help
+ok    0.0000  desktop /safety
+ok    0.0000  desktop /sign-in
+ok    0.0000  desktop /sign-up
+ok    0.0000  desktop /deals
+ok    0.0000  phone /
+skip  phone / [Filters] navigated
+ok    0.0000  phone /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4
+SHIFT 0.0154  phone /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706
+        +772ms 0.0154 (after input)  div.border-t.border-border.bg-card.px-group.py-group "References received(1)joys_joys0 refs ┬╖ "  16,780,358,64 -> 0,0,0,0
+ok    0.0000  phone /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706 dialog "Leave a reference"
+ok    0.0000  phone /references
+ok    0.0000  phone /references/serialcollect
+ok    0.0000  phone /references/serialcollect dialog "Claim this account"
+ok    0.0000  phone /references/serialcollect dialog "Leave a reference"
+ok    0.0000  phone /trusted-sellers
+ok    0.0000  phone /help
+ok    0.0000  phone /safety
+ok    0.0000  phone /sign-in
+SHIFT 0.0067  phone /sign-up
+        +578ms 0.0067 (after input)  div[main-content].flex.min-h-0.flex-1.flex-col.scroll-mt-[calc(3rem+env(safe-area-inset-top))] "Create your accountBuy, sell and trade c"  0,48,390,796 -> 0,54,390,790
+ok    0.0000  phone /deals

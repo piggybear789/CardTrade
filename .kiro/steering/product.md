@@ -61,7 +61,7 @@ Two sequential steps, gating different things:
 | **Identity_Gate** | `identity_check_status = 'VERIFIED'` (Stripe Identity document + selfie) | List, sell, enter trade escrow, be a disclosed seller |
 | **Payout / Connect** | `merchant_status = APPROVED` **and** `merchant_settlements_enabled` (`canReceiveFunds`) | Receive money |
 
-A verified member with no payout account is a normal, valid state. Cash buyers do **not** need Identity. Legal name is `identity_check_name`, falling back to `merchant_legal_entity_name` for members grandfathered before 0069. Full legal name is disclosed only to counterparties on a live contract.
+A verified member with no payout account is a normal, valid state. Cash buyers do **not** need Identity, except for one purchase priced over the unverified-buyer limit (5,000 in AUD/USD/CAD/EUR/GBP/CHF, about US$5,000 elsewhere; `domain/identity/buyerIdentityLimit.ts`), checked at Pay (`BUYER_IDENTITY_REQUIRED`, sale untouched). The room opens the ID check in place of Pay. Legal name is `identity_check_name`, falling back to `merchant_legal_entity_name` for members grandfathered before 0069. Full legal name is disclosed only to counterparties on a live contract.
 
 Profile tabs (`/profile?tab=`): `profile` | `verification` | `payouts`. Connect onboarding lives under Verification. `/profile/payouts` is reporting.
 

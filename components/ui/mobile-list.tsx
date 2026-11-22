@@ -26,7 +26,7 @@ export function MobileList({
       className={cn(
         'max-md:divide-y max-md:divide-border',
         variant === 'sheet' &&
-          'md:divide-y md:divide-border md:overflow-hidden md:rounded-xl md:border md:border-border md:bg-card md:shadow-market',
+          'surface-md md:divide-y md:divide-border md:overflow-hidden md:rounded-xl md:bg-card',
         variant === 'cards' && 'md:space-y-cozy md:divide-y-0',
         className,
       )}
@@ -46,7 +46,7 @@ export function MobileListItem({
   return (
     <li
       className={cn(
-        'md:rounded-xl md:border md:border-border md:bg-card md:p-cozy md:shadow-market',
+        'surface-md md:rounded-xl md:bg-card md:p-cozy',
         className,
       )}
     >

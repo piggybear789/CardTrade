@@ -343,7 +343,7 @@ export function ActionBar({
                 triggerVariant="outline"
                 title="Raise a condition dispute"
                 outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while NoDitto support reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — support decides on what you write here."
-                reasonPlaceholder="e.g. the card was described as Near Mint but has a crease down the front and whitening on all four corners…"
+                reasonPlaceholder="e.g. Listed NM, arrived creased"
                 evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
                 onSubmit={async (reason) => {
                   const result = await raiseDispute(tradeId, reason);
@@ -362,7 +362,7 @@ export function ActionBar({
                 triggerLabel="Report fraud"
                 title="Report fraud"
                 outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to NoDitto support, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
-                reasonPlaceholder="e.g. the sleeve was sealed but empty; the card fails a light test and the print pattern is wrong…"
+                reasonPlaceholder="e.g. Fails the light test"
                 evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
                 onSubmit={async (reason) => {
                   const result = await reportFraud(tradeId, reason);

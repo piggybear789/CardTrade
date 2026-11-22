@@ -102,7 +102,9 @@ export function CatalogMosaic<T>({
   // wrappers, no ordering, and no per-tile aspect ratio.
   if (isDesktop) {
     return (
-      <div className={cn(CATALOG_TILE_GRID, className)}>
+      // `stagger` (globals.css): the tiles rise in order on mount. The grid is keyed
+      // by the query revision, so a filter change replays it as the new results arrive.
+      <div className={cn(CATALOG_TILE_GRID, 'stagger', className)}>
         {items.map((item) => (
           <Fragment key={keyOf(item)}>{children(item, undefined)}</Fragment>
         ))}
@@ -132,8 +134,9 @@ export function CatalogMosaic<T>({
                 key={keyOf(item)}
                 // `--tile-order` is only read at md and up, where this element
                 // is a grid item and has to be put back into feed order.
-                className="catalog-tile-slot min-w-0"
-                style={{ '--tile-order': index } as CSSProperties}
+                // `rise` in feed order (capped), the phone form of the desktop stagger.
+                className="catalog-tile-slot rise min-w-0"
+                style={{ '--tile-order': index, '--ref-step': Math.min(index, 6) } as CSSProperties}
               >
                 {children(item, dims.get(keyOf(item)) ?? null)}
               </div>

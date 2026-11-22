@@ -190,7 +190,7 @@ export function NotificationRowBody({
         {notification.target_missing ? (
           // Said in place, because following the link would land on a 404: the sale
           // or trade it pointed at has been removed or is no longer yours to open.
-          <span className="mt-1 block w-fit rounded-full border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-muted-foreground">
+          <span className="mt-1 block w-fit rounded-md border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-muted-foreground">
             No longer available
           </span>
         ) : null}

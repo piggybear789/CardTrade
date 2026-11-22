@@ -29,10 +29,10 @@ export function HandleChooser({
   return (
     <section
       aria-labelledby="handle-chooser-heading"
-      className="ref-surface ref-rise mx-auto w-full max-w-xl rounded-2xl bg-card p-group sm:p-6"
+      className="ref-surface ref-rise mx-auto w-full max-w-xl rounded-xl bg-card p-group sm:p-6"
     >
       <div className="flex items-center gap-cozy">
-        <Button asChild variant="ghost" size="icon" className="-ml-2 size-10 shrink-0 rounded-full md:size-9 [&_svg]:size-5">
+        <Button asChild variant="ghost" size="icon" className="-ml-2 size-10 shrink-0 rounded-md md:size-9 [&_svg]:size-5">
           <Link href="/references" aria-label="Back to references">
             <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
           </Link>
@@ -47,7 +47,7 @@ export function HandleChooser({
         </div>
       </div>
 
-      <ul className="mt-group divide-y divide-border/70 overflow-hidden rounded-xl border border-border/80">
+      <ul className="mt-group divide-y divide-border overflow-hidden rounded-xl border border-border">
         {choices.map((choice) => (
           <li key={referenceAddressKey(choice.address)}>
             <Link

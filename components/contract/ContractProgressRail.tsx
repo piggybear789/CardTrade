@@ -133,7 +133,7 @@ export function ContractProgressRail({
                     // Neutral on hover. The LIVE step below is a violet marker, and a
                     // violet hover edge meant pointing at any step made it look like
                     // the current one.
-                    'hover:border-foreground/20 hover:text-foreground',
+                    'hover:border-input-hover hover:text-foreground',
                     'border border-transparent focus:outline-none focus-visible:border-ring',
                     done && 'cardtrade-success-chip',
                     live && 'border-primary bg-primary text-primary-foreground',

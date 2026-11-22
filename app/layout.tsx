@@ -83,8 +83,8 @@ export const viewport: Viewport = {
   // Phone chrome is the page surface; desktop keeps the obsidian header.
   // Both are the literal `--obsidian` / `--background` values.
   themeColor: [
-    { media: '(min-width: 768px)', color: '#111118' },
-    { media: '(max-width: 767px)', color: '#f5f5f7' },
+    { media: '(min-width: 768px)', color: '#090e1a' },
+    { media: '(max-width: 767px)', color: '#ffffff' },
   ],
   colorScheme: 'light',
   // Draw under notches/home indicators so the sticky header can pad itself

@@ -82,7 +82,7 @@ function GenreStripSkeleton() {
           </div>
         ))}
       </div>
-      <Skeleton className="absolute right-0 top-1.5 size-11 rounded-full" />
+      <Skeleton className="absolute right-0 top-1.5 size-11 rounded-md" />
     </div>
   );
 }
@@ -140,7 +140,7 @@ export default function HomeLoading() {
             <div className="hidden min-w-0 gap-1.5 overflow-hidden md:flex">
               {['w-16', 'w-28', 'w-32', 'w-36', 'w-24', 'w-44', 'w-28', 'w-24'].map(
                 (width, index) => (
-                  <Skeleton key={index} className={`h-11 shrink-0 rounded-full ${width}`} />
+                  <Skeleton key={index} className={`h-11 shrink-0 rounded-md ${width}`} />
                 ),
               )}
             </div>

@@ -538,11 +538,11 @@ function MessageBubble({
         mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
         mine
           ? last
-            ? 'rounded-2xl rounded-br-md'
-            : 'rounded-2xl rounded-br-sm'
+            ? 'rounded-xl rounded-br-md'
+            : 'rounded-xl rounded-br-sm'
           : last
-            ? 'rounded-2xl rounded-bl-md'
-            : 'rounded-2xl rounded-bl-sm',
+            ? 'rounded-xl rounded-bl-md'
+            : 'rounded-xl rounded-bl-sm',
       )}
     >
       {image ? (

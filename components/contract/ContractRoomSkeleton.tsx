@@ -61,7 +61,7 @@ function ChatBarSkeleton() {
     // The real bar's safe-area gutters too, or on a notched phone in landscape the bar's
     // contents slid sideways by the inset on swap.
     <div className="flex shrink-0 items-center gap-cozy border-b bg-card px-group py-2.5 max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]">
-      <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-full md:hidden" />
+      <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-md md:hidden" />
       <Skeleton className="size-9 shrink-0 rounded-md" />
       <div className="min-w-0 flex-1">
         {/* Title then the price · status · person subline. The two text runs are
@@ -117,9 +117,9 @@ export function ContractComposerPlaceholder() {
       aria-hidden="true"
     >
       <div className="flex items-center gap-snug">
-        <Skeleton className="size-11 shrink-0 rounded-md max-md:rounded-full md:size-9" />
-        <Skeleton className="h-11 min-w-0 flex-1 rounded-md max-md:rounded-2xl md:h-9" />
-        <Skeleton className="size-11 shrink-0 rounded-md max-md:rounded-full md:size-9" />
+        <Skeleton className="size-11 shrink-0 rounded-md max-md:rounded-md md:size-9" />
+        <Skeleton className="h-11 min-w-0 flex-1 rounded-md max-md:rounded-xl md:h-9" />
+        <Skeleton className="size-11 shrink-0 rounded-md max-md:rounded-md md:size-9" />
       </div>
     </div>
   );
@@ -160,18 +160,18 @@ export function ContractRoomSkeleton() {
 
       {/* Below the split: the thread. A full-bleed column on a phone, a bordered card
           from `md` — `ContractChat`'s frame is only stripped by `max-md:` rules. */}
-      <div className="flex min-h-0 flex-1 flex-col bg-card md:overflow-hidden md:rounded-lg md:border md:border-border md:shadow-sm lg:hidden">
+      <div className="flex min-h-0 flex-1 flex-col bg-card md:overflow-hidden md:rounded-xl md:border md:border-border md:shadow-sm lg:hidden">
         <ChatBarSkeleton />
         {/* The log is `flex-1`; its height is whatever the fixed bands leave, so the
             bubbles are texture rather than geometry. Every bubble is ONE uniform
             height (`h-12`) and a two-width alternating set — incoming `w-2/3`,
             outgoing `w-1/2 ml-auto` — so the log reads calm and even. The
-            `rounded-2xl`, the `gap-cozy`, the `justify-end` anchoring and the bubble
+            `rounded-xl`, the `gap-cozy`, the `justify-end` anchoring and the bubble
             count are unchanged. */}
         <div className="flex min-h-0 flex-1 flex-col justify-end gap-cozy p-cozy pb-6">
-          <Skeleton className="h-12 w-2/3 rounded-2xl" />
-          <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
-          <Skeleton className="h-12 w-2/3 rounded-2xl" />
+          <Skeleton className="h-12 w-2/3 rounded-xl" />
+          <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
+          <Skeleton className="h-12 w-2/3 rounded-xl" />
         </div>
         <ActionDockSkeleton />
         <ContractComposerPlaceholder />
@@ -223,19 +223,19 @@ export function ContractRoomSkeleton() {
 
           {/* `ContractChat`, `h-full` in the real row too: bar, log, the action dock it
               carries internally, then the composer. */}
-          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden surface rounded-xl bg-card">
             <ChatBarSkeleton />
             {/* Bottom-anchored: a chat log opens scrolled to the newest message. Same
                 calm treatment as the phone column — one uniform `h-12` height and a
                 two-width alternating set (incoming `w-2/3`, outgoing `w-1/2 ml-auto`),
-                with the five-bubble count, `rounded-2xl`, `gap-cozy` and `justify-end`
+                with the five-bubble count, `rounded-xl`, `gap-cozy` and `justify-end`
                 anchoring all unchanged. */}
             <div className="flex min-h-0 flex-1 flex-col justify-end gap-cozy p-cozy pb-6">
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
-              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
-              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
+              <Skeleton className="h-12 w-2/3 rounded-xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
+              <Skeleton className="h-12 w-2/3 rounded-xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
+              <Skeleton className="h-12 w-2/3 rounded-xl" />
             </div>
             <ActionDockSkeleton />
             <ContractComposerPlaceholder />

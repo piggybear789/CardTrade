@@ -138,7 +138,7 @@ export function ErrorScreen({
               maxLength={NOTE_MAX}
               rows={3}
               className="resize-none"
-              placeholder="I tapped Buy on a listing and the page went blank."
+              placeholder="What were you doing?"
               autoFocus
             />
             {reportError_ ? (

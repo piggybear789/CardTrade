@@ -129,21 +129,19 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         // the page grow — and the scrollbar jump — each time a row came into range.
         // The mosaic replaces this per tile below md (`.catalog-tile`).
         //
-        // A border, not `border-0`: the card and the page are both white now,
-        // so the edge is the only thing separating them.
-        'group relative flex h-full min-w-0 flex-col overflow-hidden rounded-lg border border-border p-0 shadow-sm [content-visibility:auto] [contain-intrinsic-size:auto_26rem]',
+        // `surface lift` (globals.css): the card and the page are both white, so the
+        // hairline shadow edge is what separates them, and on hover the tile rises 2px
+        // under a stronger bloom, the References tile behaviour.
+        'surface lift group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-card p-0 [content-visibility:auto] [contain-intrinsic-size:auto_26rem]',
         // `cursor-pointer` ON THE CARD, not left to the anchor. The hit area is
         // `absolute inset-0 z-0` and the cover paints above it without
         // `pointer-events-none`, so hovering the photo — most of the tile —
         // never reached the link and showed the default arrow. Setting it here
         // covers every child regardless of which one is under the pointer.
-        'cursor-pointer transition-[box-shadow,border-color,transform] duration-150',
-        // The LIFT is the hover, not a colour change. A grid of these fills the
-        // catalog, so a violet edge under the pointer made the accent the most
-        // frequent thing in the product — and it was competing with the focus edge
-        // on the same element. `--foreground/20` firms the hairline; the shadow and
-        // the scale do the rest. See the border rule in globals.css.
-        'hover:border-foreground/20 hover:shadow-lift active:scale-[0.97]',
+        // The LIFT is the hover, not a colour change: a violet edge under the pointer
+        // would make the accent the most frequent thing in the product. `.lift`
+        // moves with `translate`, so the press scale below still composes with it.
+        'cursor-pointer active:scale-[0.97]',
         // …but not when the press is on the heart. `:active` matches every
         // ANCESTOR of the pressed element, so tapping save pressed the whole tile
         // in, which is the open-this-listing feedback for a tap that opens
@@ -164,7 +162,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
       <ItemCardHitArea
         item={item}
         label={`View ${item.title}`}
-        className="rounded-lg"
+        className="rounded-xl"
       />
       <div
         className={cn(
@@ -274,12 +272,12 @@ export const CatalogItemCard = memo(function CatalogItemCard({
               variant="icon"
               count={item.watch_count}
               className={cn(
-                'pointer-events-auto absolute right-1.5 top-1.5 z-10 h-8 min-w-8 gap-0.5 rounded-full border-foreground/10 bg-card text-foreground after:-inset-1.5 hover:bg-card hover:text-foreground md:size-auto md:h-8 [&_svg]:size-[18px] [&_svg]:translate-y-px',
+                'pointer-events-auto absolute right-1.5 top-1.5 z-10 h-8 min-w-8 gap-0.5 rounded-md border-foreground/10 bg-card text-foreground after:-inset-1.5 hover:bg-card hover:text-foreground md:size-auto md:h-8 [&_svg]:size-[18px] [&_svg]:translate-y-px',
                 item.watch_count > 0 ? 'w-auto px-2' : 'size-8 md:size-8',
               )}
             />
           ) : (
-            <span className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 items-center gap-0.5 rounded-full border border-foreground/10 bg-card px-2 text-meta font-medium tabular-nums text-foreground">
+            <span className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 items-center gap-0.5 rounded-md border border-foreground/10 bg-card px-2 text-meta font-medium tabular-nums text-foreground">
               <HugeiconsIcon icon={HeartIcon} className="size-[18px] translate-y-px" strokeWidth={1.75} aria-hidden />
               {item.watch_count}
               <span className="sr-only"> saves</span>

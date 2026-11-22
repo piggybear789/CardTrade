@@ -278,7 +278,7 @@ export function TradeNegotiationPanel({
                 />
                 <p
                   id="trade-counterpart-goods-hint"
-                  className="text-body text-muted-foreground"
+                  className="text-meta text-muted-foreground"
                 >
                   This is a binder or bulk listing, so nothing in it is held and this
                   is the record of what is being swapped. It is what an arbitrator reads if the trade goes wrong.

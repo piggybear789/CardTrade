@@ -109,7 +109,7 @@ export function CashSalePriceDialog({
               {/* Just the current number. The description above already says
                   shipping and the fee stay separate, and saying it twice in one
                   short dialog reads as two different rules. */}
-              <p className="text-body text-muted-foreground">
+              <p className="text-meta text-muted-foreground">
                 Currently {formatMoney(agreedPriceCents, currency)}.
               </p>
             </div>

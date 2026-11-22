@@ -28,10 +28,10 @@ type ListingActionIconProps = SharedProps &
 
 function chipClass(variant: 'default' | 'outline') {
   return cn(
-    'flex size-9 shrink-0 items-center justify-center rounded-md border transition-[colors,transform] group-active:scale-95 group-focus-visible:border-ring md:size-12 md:rounded-full',
+    'flex size-9 shrink-0 items-center justify-center rounded-md border transition-[colors,transform] group-active:scale-95 group-focus-visible:border-ring md:size-12 md:rounded-md',
     variant === 'default'
       ? 'border-primary bg-primary text-primary-foreground group-hover:bg-primary/90'
-      : 'border-input bg-card text-foreground group-hover:border-foreground/60 group-hover:bg-accent group-hover:text-accent-foreground',
+      : 'border-input bg-card text-foreground group-hover:border-input-hover group-hover:bg-accent group-hover:text-accent-foreground',
   );
 }
 
@@ -65,7 +65,7 @@ export function ListingActionIcon({
   );
 
   const sharedClass = cn(
-    'group inline-flex w-full min-h-12 touch-manipulation flex-row items-center justify-start gap-cozy rounded-lg border border-border bg-card px-group py-cozy focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:flex-col md:items-center md:justify-center md:gap-tight md:rounded-md md:border-transparent md:bg-transparent md:px-0 md:py-0',
+    'group inline-flex w-full min-h-12 touch-manipulation flex-row items-center justify-start gap-cozy rounded-md border border-input bg-card px-group py-cozy focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:flex-col md:items-center md:justify-center md:gap-tight md:rounded-md md:border-transparent md:bg-transparent md:px-0 md:py-0',
     className,
   );
 

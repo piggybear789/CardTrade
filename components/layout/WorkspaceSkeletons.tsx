@@ -226,7 +226,7 @@ export function ContractCardListSkeleton({
   // from `md`, hairline-divided rows inside.
   return (
     <div
-      className="overflow-hidden rounded-lg border border-border bg-card"
+      className="overflow-hidden surface rounded-xl bg-card"
       aria-hidden="true"
     >
       {/* The header cells are `.market-label` — an 11px arbitrary size with NO
@@ -401,7 +401,7 @@ export function InboxRowSkeleton({
           <div className="flex items-center gap-snug">
             <Skeleton className="size-6 shrink-0 rounded-full" />
             <TextLines className="min-w-0 flex-1 text-lead" widths={['w-1/3']} />
-            <Skeleton className="h-5 w-16 shrink-0 rounded-full" />
+            <Skeleton className="h-5 w-16 shrink-0 rounded-md" />
             <TextLines className="ml-auto shrink-0 text-meta" widths={['w-1/3']} />
           </div>
           <TextLines className="mt-0.5 text-body" widths={['w-2/3']} />
@@ -458,7 +458,7 @@ export function ChatThreadSkeleton() {
           MESSAGE_GUTTER,
         )}
       >
-        <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-full md:hidden" />
+        <Skeleton className="-ml-2.5 size-9 shrink-0 rounded-md md:hidden" />
         <Skeleton className="size-9 shrink-0 rounded-md" />
         {/* `text-lead leading-tight` over the meta row, and NO `space-y`. `ChatThread`'s
             h2 and its meta line are adjacent blocks, so the `space-y-1.5` that was here
@@ -481,13 +481,13 @@ export function ChatThreadSkeleton() {
       </header>
       {/* The log bubbles are texture inside this `flex-1` region: one uniform `h-12`
           height and a two-width alternating set (incoming `w-2/3`, outgoing `w-1/2
-          ml-auto`), with the four-bubble count, `rounded-2xl` and `space-y-cozy`
+          ml-auto`), with the four-bubble count, `rounded-xl` and `space-y-cozy`
           unchanged. Same calm treatment as `ContractRoomSkeleton`'s logs. */}
       <div className={cn('min-h-0 flex-1 space-y-cozy pt-5', MESSAGE_GUTTER)}>
-        <Skeleton className="h-12 w-2/3 rounded-2xl" />
-        <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
-        <Skeleton className="h-12 w-2/3 rounded-2xl" />
-        <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
+        <Skeleton className="h-12 w-2/3 rounded-xl" />
+        <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
+        <Skeleton className="h-12 w-2/3 rounded-xl" />
+        <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
       </div>
       {/* NO STANDING NOTE. A bordered band used to sit here for the "nothing is
           held while you are only talking" line, drawn unconditionally. The real
@@ -502,9 +502,9 @@ export function ChatThreadSkeleton() {
             `MessageComposer`'s `icon-lg` buttons and field. A 44px row at every width
             put the desktop composer's top edge ~8px off on swap. */}
         <div className="flex items-center gap-snug">
-          <Skeleton className="size-11 shrink-0 rounded-full md:size-9 md:rounded-md" />
-          <Skeleton className="h-11 min-w-0 flex-1 rounded-2xl md:h-9 md:rounded-md" />
-          <Skeleton className="size-11 shrink-0 rounded-full md:size-9 md:rounded-md" />
+          <Skeleton className="size-11 shrink-0 rounded-md md:size-9 md:rounded-md" />
+          <Skeleton className="h-11 min-w-0 flex-1 rounded-xl md:h-9 md:rounded-md" />
+          <Skeleton className="size-11 shrink-0 rounded-md md:size-9 md:rounded-md" />
         </div>
       </div>
     </section>

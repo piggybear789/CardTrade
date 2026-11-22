@@ -99,7 +99,7 @@ export function ReferenceProfile({
   // FILLS THE PAGE. The column is a flex chain down to the Trust Network card, which
   // takes whatever height is left, so a person with no references yet does not leave a
   // short card floating above a screen of empty background. Card surfaces are the
-  // references surface (`rounded-2xl bg-card ref-surface`, globals.css): a hairline
+  // references surface (`rounded-xl bg-card ref-surface`, globals.css): a hairline
   // shadow edge under a soft cool bloom, in place of a 1px border.
   const hasReferences = orbits.view.nodes.length > 0;
   const facts =
@@ -157,7 +157,7 @@ export function ReferenceProfile({
 
       <section
         aria-labelledby="references-heading"
-        className="ref-surface flex flex-1 flex-col overflow-hidden rounded-2xl bg-card"
+        className="ref-surface flex flex-1 flex-col overflow-hidden rounded-xl bg-card"
       >
         <TrustNetworkHeader orbits={orbits} />
         <TrustNetworkBody orbits={orbits} />
@@ -304,7 +304,7 @@ const ProfileHeader = memo(function ProfileHeader({
   );
 
   return (
-    <header className="ref-surface relative overflow-hidden rounded-2xl bg-card p-group sm:p-6">
+    <header className="ref-surface relative overflow-hidden rounded-xl bg-card p-group sm:p-6">
       <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         {/* PHONE: a 40px back button (a touch target, not the 36px pointer one), a 48px
             avatar and a tighter gap, which hands the handle ~20px more of a ~311px row. */}
@@ -316,7 +316,7 @@ const ProfileHeader = memo(function ProfileHeader({
             asChild
             variant="ghost"
             size="icon"
-            className="-ml-2 size-10 shrink-0 rounded-full md:size-9 [&_svg]:size-5"
+            className="-ml-2 size-10 shrink-0 rounded-md md:size-9 [&_svg]:size-5"
           >
             <Link href="/references" aria-label="Back to references">
               <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
@@ -419,7 +419,7 @@ const ProfileHeader = memo(function ProfileHeader({
           into that column on a phone it wrapped to five lines and clipped its label. It
           describes and never vouches, and it says what wrote it. */}
       {bio ? (
-        <div className="relative mt-cozy border-t border-border/70 pt-cozy" style={{ opacity }}>
+        <div className="relative mt-cozy border-t border-border pt-cozy" style={{ opacity }}>
           <p className="text-body text-foreground">{bio}</p>
           <p className="mt-tight text-meta text-muted-foreground">AI-written from public information</p>
         </div>

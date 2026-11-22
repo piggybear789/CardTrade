@@ -136,7 +136,7 @@ export function TrustedSellerApplicationForm({
   }
 
   return (
-    <form onSubmit={submit} noValidate className="rounded-xl border border-border bg-card p-group md:p-section">
+    <form onSubmit={submit} noValidate className="surface rounded-xl bg-card p-group md:p-section">
       <div className="space-y-tight">
         <div className="flex flex-wrap items-baseline justify-between gap-x-cozy">
           <Label htmlFor="trusted-details" className="text-lead font-semibold">
@@ -175,7 +175,7 @@ export function TrustedSellerApplicationForm({
       <div className="mt-section space-y-snug">
         <div>
           <p className="text-body font-semibold text-foreground">Photos</p>
-          <p className="text-pretty text-body text-muted-foreground">
+          <p className="text-pretty text-meta text-muted-foreground">
             Optional. Screenshots of feedback or vouches, sold listings, your stall: anything that
             backs up what you&rsquo;ve told us. Up to {APPLICATION_PHOTOS_MAX}.
           </p>
@@ -204,7 +204,7 @@ export function TrustedSellerApplicationForm({
                   type="button"
                   onClick={() => removeTile(tile.key)}
                   aria-label={`Remove photo ${index + 1}`}
-                  className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="absolute right-1 top-1 grid size-7 place-items-center rounded-md bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden />
                 </button>
@@ -218,7 +218,7 @@ export function TrustedSellerApplicationForm({
                 onClick={() => fileInput.current?.click()}
                 className={cn(
                   'flex size-full flex-col items-center justify-center gap-tight rounded-lg border border-dashed border-input text-meta text-muted-foreground transition-colors',
-                  'hover:border-foreground/60 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'hover:border-input-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
                 <HugeiconsIcon icon={ImageAdd01Icon} className="size-5" aria-hidden />

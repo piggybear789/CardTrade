@@ -138,7 +138,7 @@ export function ListingDetailStack({
             </span>
           ) : null}
         </p>
-        <span className="shrink-0 rounded-full bg-mist px-snug py-0.5 text-meta font-semibold text-muted-foreground">
+        <span className="shrink-0 rounded-md bg-mist px-snug py-0.5 text-meta font-semibold text-muted-foreground">
           {condition}
         </span>
       </div>
@@ -184,7 +184,7 @@ export function ListingDetailStack({
       <Link
         href={isOwner ? '/profile' : `/sellers/${sellerId}`}
         transitionTypes={['nav-forward']}
-        className="mt-group flex min-w-0 items-center gap-cozy rounded-lg border border-border bg-card p-cozy transition-colors hover:bg-muted/60 focus:outline-none focus-visible:border-ring"
+        className="mt-group flex min-w-0 items-center gap-cozy surface rounded-xl bg-card p-cozy transition-colors hover:bg-muted/60 focus:outline-none focus-visible:border-ring"
       >
         <Avatar avatarPath={sellerAvatarPath} displayName={name} size="md" />
         <span className="flex min-w-0 flex-1 flex-col gap-tight">

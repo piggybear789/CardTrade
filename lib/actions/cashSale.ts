@@ -68,6 +68,8 @@ export type CashSaleActionError =
   | 'related-accounts'
   /** ESC-14: the card is blocked. */
   | 'card-blocked'
+  /** The sale is over the unverified-buyer limit; the buyer verifies their ID first. */
+  | 'buyer-identity-required'
   /** ESC-25: the payout account name does not match the verified ID. */
   | 'payee-identity-mismatch'
   /** ESC-20: the meeting is more than an hour away. */
@@ -222,6 +224,7 @@ function mapError(error: CashSaleError): CashSaleActionError {
     SELLER_EXPOSURE_LIMIT: 'seller-exposure-limit',
     RELATED_ACCOUNTS: 'related-accounts',
     CARD_BLOCKED: 'card-blocked',
+    BUYER_IDENTITY_REQUIRED: 'buyer-identity-required',
     PAYEE_IDENTITY_MISMATCH: 'payee-identity-mismatch',
     HANDOVER_TOO_EARLY: 'handover-too-early',
     RETURN_INSPECTION_OPEN: 'return-inspection-open',

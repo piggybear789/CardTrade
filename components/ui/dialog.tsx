@@ -101,10 +101,10 @@ const DialogContent = React.forwardRef<
           // Phone: bottom sheet. Children must not shrink — a pinned footer plus
           // flex-shrink was compressing titles/fields instead of letting this
           // scrollport move. `[&>*]:shrink-0` keeps each block its natural height.
-          "inset-x-0 bottom-[var(--keyboard-inset,0px)] top-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] translate-x-0 translate-y-0 gap-cozy overflow-y-auto overscroll-contain rounded-t-2xl border-x-0 border-b-0 p-group pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:shrink-0",
+          "inset-x-0 bottom-[var(--keyboard-inset,0px)] top-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] translate-x-0 translate-y-0 gap-cozy overflow-y-auto overscroll-contain rounded-t-xl border-x-0 border-b-0 p-group pb-[max(1rem,env(safe-area-inset-bottom))] [&>*]:shrink-0",
           SHEET_SLIDE,
           // md+: centred on the viewport (not the content column beside the rail)
-          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:gap-group md:rounded-lg md:border md:border-border md:p-6 md:pb-6",
+          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:gap-group md:rounded-xl md:border md:border-border md:p-6 md:pb-6",
           FADE_MD,
         ],
         mobile === "center" && [
@@ -118,7 +118,7 @@ const DialogContent = React.forwardRef<
           // software keyboard and the flex scroll region shrinks with it.
           "inset-x-0 top-0 bottom-[var(--keyboard-inset,0px)] h-auto max-h-none translate-x-0 translate-y-0 overflow-hidden rounded-none border-0 p-group pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] shadow-none",
           // md+: same centred card as the sheet variant
-          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-lg md:border md:border-border md:p-6 md:pb-6 md:pt-6 md:shadow-lg",
+          "md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-xl md:-translate-x-1/2 md:-translate-y-1/2 md:overflow-y-auto md:rounded-xl md:border md:border-border md:p-6 md:pb-6 md:pt-6 md:shadow-lg",
           // Fades at every width: a full-screen page sliding up would read as navigation.
           FADE,
         ],

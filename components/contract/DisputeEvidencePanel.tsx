@@ -405,7 +405,7 @@ export function DisputeEvidencePanel({
           <h3 id="evidence-heading" className="text-body font-semibold">
             Evidence
             {entries.length > 0 ? (
-              <span className="ml-snug rounded-full bg-muted px-snug py-0.5 text-meta font-medium tabular-nums text-muted-foreground">
+              <span className="ml-snug rounded-md bg-muted px-snug py-0.5 text-meta font-medium tabular-nums text-muted-foreground">
                 {entries.length}
               </span>
             ) : null}
@@ -468,7 +468,7 @@ export function DisputeEvidencePanel({
                     under it, so the control reads as one object. */}
                 {/* `bg-card`, matching `Textarea`. `bg-background` is the tinted page
                     colour and inside a white card it read as a lilac wash. */}
-                <div className="rounded-lg border border-input bg-card transition-colors focus-within:border-ring">
+                <div className="rounded-md border border-input bg-card transition-colors focus-within:border-ring">
                   <textarea
                     ref={statementRef}
                     id="evidence-statement"
@@ -476,7 +476,7 @@ export function DisputeEvidencePanel({
                     maxLength={EVIDENCE_STATEMENT_MAX}
                     onChange={(event) => setStatement(event.target.value)}
                     rows={4}
-                    placeholder="What happened, with dates and what the photos or tracking show."
+                    placeholder="What happened, with dates"
                     disabled={busy}
                     aria-describedby="evidence-statement-count"
                     className="block w-full resize-y bg-transparent px-cozy py-cozy text-body placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"

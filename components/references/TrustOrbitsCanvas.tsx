@@ -285,16 +285,27 @@ export function TrustOrbitsCanvas({
       Math.abs(prev.drawing - drawing) > 1 || Math.abs(prev.card - card) > 1 ? { drawing, card } : prev,
     );
   };
-  useLayoutEffect(measure);
-  // The card can also change height on its own, with nothing here re-rendering: a
-  // selected system is at rest, so "Show more" on a long review grew the card while the
-  // drawing stayed fitted to the short one. Watch the card itself while it is shown.
+  // MEASURED WHEN THE CARD OR THE FRAME CHANGES, NOT AFTER EVERY RENDER. This ran with no
+  // dependency list, and the drawing re-renders every spin frame; on a phone seller page
+  // the two heights settled into a >1px back-and-forth, each measure re-rendering into
+  // the next, until React stopped it with "Maximum update depth exceeded" and the page
+  // showed the error screen. The card's slide is a transform and does not change its
+  // height, so these are the only moments the numbers can move; the observers below
+  // cover a size change with nothing here re-rendering.
   const shownCard = orbits.panel.key;
+  const panelShown = orbits.panel.open > 0;
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `measure` reads refs and a functional update only
+  useLayoutEffect(measure, [shownCard, panelShown, frame.compact, frame.height]);
+  // The card can also change height on its own: a selected system is at rest, so
+  // "Show more" on a long review grew the card while the drawing stayed fitted to the
+  // short one. Watch the card and the drawing while the card is shown. A
+  // ResizeObserver delivers once per frame, so it cannot recurse inside one commit.
   useEffect(() => {
     const card = cardHostRef.current?.firstElementChild;
     if (!card || typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => measure());
     observer.observe(card);
+    if (wrapperRef.current) observer.observe(wrapperRef.current);
     return () => observer.disconnect();
     // `measure` reads refs and a functional state update only, so it never goes stale.
   }, [shownCard]);
@@ -748,11 +759,20 @@ export function TrustOrbitsCanvas({
   // 50vw, capped at 1080px. The page column is already viewport-relative, so this keeps the
   // graph in proportion with it. Phones are unaffected: the drawing is their full width.
   return (
-    <div ref={wrapperRef} className="relative mx-auto w-full max-w-[min(100%,clamp(780px,50vw,1080px))]">
+    // THE BOX'S SHAPE COMES FROM CSS, NOT FROM THE FRAME. Which frame is drawn is a
+    // `matchMedia` read, so the server always draws the wide one; with the height taken
+    // from the viewBox (`h-auto`), a phone rendered a 760x480 box, then grew ~190px when
+    // it hydrated into the 340x400 one, pushing the reference list down. The two aspect
+    // ratios below are COMPACT_FRAME and WIDE_FRAME at the same `sm` (640px) breakpoint
+    // the hook switches on, so the box is final from the first paint. Keep them in step.
+    <div
+      ref={wrapperRef}
+      className="relative mx-auto aspect-[340/400] w-full max-w-[min(100%,clamp(780px,50vw,1080px))] sm:aspect-[760/480]"
+    >
       <svg
         ref={orbits.attach}
         viewBox={`0 0 ${frame.width} ${frame.height}`}
-        className="block h-auto w-full cursor-grab touch-pan-y select-none active:cursor-grabbing"
+        className="block h-full w-full cursor-grab touch-pan-y select-none active:cursor-grabbing"
         role="group"
         aria-label={label}
         // A transform, not a size: layout (and so the page below) never moves.

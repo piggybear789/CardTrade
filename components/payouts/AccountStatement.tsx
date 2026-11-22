@@ -152,7 +152,7 @@ export function AccountStatement({
     // the tinted page, which read as a stray section rather than a thing.
     <section
       aria-labelledby="statement-heading"
-      className="overflow-hidden rounded-lg border border-border bg-card"
+      className="overflow-hidden surface rounded-xl bg-card"
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-cozy gap-y-tight border-b border-border px-group py-cozy">
         <div>

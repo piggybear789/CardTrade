@@ -31,5 +31,15 @@ export async function POST(request: NextRequest) {
       handoff: { kind: 'WEB', path: `/sales/${encodeURIComponent(cashSaleId)}` },
     });
   }
+  // A purchase over the unverified-buyer limit. The app has no Stripe Identity flow (it
+  // hands identity off to the website), so it points at the sale room, which runs the
+  // check and returns the buyer to Pay. Nothing was charged.
+  if (!result.ok && result.error === 'buyer-identity-required') {
+    return NextResponse.json({
+      ...result,
+      message: `${result.message ?? 'Purchases this size need a verified ID.'} Open the sale on the website to verify.`,
+      handoff: { kind: 'WEB', path: `/sales/${encodeURIComponent(cashSaleId)}` },
+    });
+  }
   return NextResponse.json(result);
 }

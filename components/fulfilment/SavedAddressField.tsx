@@ -183,7 +183,7 @@ export function SavedAddressField({
           </span>
           <Skeleton className="h-10 w-full md:h-9" />
           {hint && !error ? (
-            <p className="text-body text-muted-foreground">{hint}</p>
+            <p className="text-meta text-muted-foreground">{hint}</p>
           ) : null}
           {error ? (
             <p role="alert" className="text-body text-destructive">

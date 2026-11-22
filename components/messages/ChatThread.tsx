@@ -339,7 +339,7 @@ export function ChatThread({
           // glyph 20px wide. 36px is the phone control height everywhere else in the
           // app and the negative margin pulls the hit area into the gutter, so the
           // title gains 14px and the chevron stays a comfortable target.
-          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
+          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
           aria-label="Back to messages"
         >
           <HugeiconsIcon
@@ -477,10 +477,10 @@ export function ChatThread({
             // invisible for its first 250ms, so a fast answer replaces an empty log
             // rather than flashing bars at the member.
             <div className="space-y-cozy" aria-hidden>
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
-              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
-              <Skeleton className="h-12 w-2/3 rounded-2xl" />
-              <Skeleton className="ml-auto h-12 w-1/2 rounded-2xl" />
+              <Skeleton className="h-12 w-2/3 rounded-xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
+              <Skeleton className="h-12 w-2/3 rounded-xl" />
+              <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
             </div>
           )}
         </div>

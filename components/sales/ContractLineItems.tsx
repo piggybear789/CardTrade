@@ -170,11 +170,11 @@ export function ContractRequestFields({
           onChange={(event) => onChange({ ...value, description: event.target.value })}
           maxLength={LINE_DESCRIPTION_MAX_LENGTH}
           rows={4}
-          placeholder="The three Charizards on page 2, both Blastoise, and any NM Pikachu you have."
+          placeholder="e.g. The Charizards on page 2"
           disabled={disabled}
           aria-describedby={`${descriptionId}-hint`}
         />
-        <p id={`${descriptionId}-hint`} className="text-body text-muted-foreground">
+        <p id={`${descriptionId}-hint`} className="text-meta text-muted-foreground">
           {descriptionHint}
         </p>
       </div>
@@ -190,7 +190,7 @@ export function ContractRequestFields({
           disabled={disabled}
           aria-describedby={`${priceId}-hint`}
         />
-        <p id={`${priceId}-hint`} className="text-body text-muted-foreground">
+        <p id={`${priceId}-hint`} className="text-meta text-muted-foreground">
           The price for the lot
           {offerCents > 0 ? ` — ${formatMoney(offerCents, currency)}` : ''}.{' '}
           The service fee ({processingFeeRateLabel(currency)} by card) and any postage are

@@ -45,6 +45,8 @@ export const CASH_SALE_ERROR_MESSAGES: Record<CashSaleActionError, string> = {
   'nothing-to-refund': 'Nothing was collected on this contract, so there is nothing to refund.',
   'related-accounts': "This deal can't go ahead. Contact support if you think this is a mistake.",
   'card-blocked': "This card can't be used on NoDitto. Try a different card or contact support.",
+  'buyer-identity-required':
+    'Purchases this size need a verified ID. Verify with Stripe Identity, then pay. Nothing was charged.',
   'payee-identity-mismatch': "Your payout account name doesn't match your verified ID. Update it in Stripe or contact support.",
   'handover-too-early': 'You can confirm the handover from an hour before the meeting.',
   'return-inspection-open': 'The seller is still checking the return. The refund follows automatically when their window closes.',

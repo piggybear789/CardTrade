@@ -318,7 +318,7 @@ export default async function SellerProfilePage({
 
       {/* Header: identity and the trust band in one card, so everything said about this
           person reads as one block rather than as loose lines on the page. */}
-      <header className="mb-5 space-y-snug rounded-lg border bg-card p-group">
+      <header className="mb-5 space-y-snug surface rounded-xl bg-card p-group">
         <div className="flex flex-col items-stretch gap-cozy sm:flex-row sm:items-start sm:justify-between">
           {/* The avatar sits OUTSIDE the name/rating column so it stays a fixed
               square beside a wrapping name rather than being pushed around by it.
@@ -475,7 +475,7 @@ export default async function SellerProfilePage({
         ) : (
           <section
             aria-labelledby="references-heading"
-            className="rounded-xl border border-border bg-card px-group py-section text-center"
+            className="surface rounded-xl bg-card px-group py-section text-center"
           >
             <h3 id="references-heading" className="text-lead font-semibold text-foreground">
               References

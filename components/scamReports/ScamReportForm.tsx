@@ -232,7 +232,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
   return (
     <form onSubmit={submit} noValidate className="space-y-group">
       {/* WHAT HAPPENED */}
-      <section className="space-y-group rounded-xl border border-border bg-card p-group md:p-section" aria-labelledby="scam-what">
+      <section className="space-y-group surface rounded-xl bg-card p-group md:p-section"aria-labelledby="scam-what">
         <div className="flex flex-wrap items-baseline justify-between gap-x-cozy">
           <h2 id="scam-what" className="text-lead font-semibold text-foreground">
             What happened
@@ -334,7 +334,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
       </section>
 
       {/* THE DETAILS THEY USED */}
-      <section className="space-y-group rounded-xl border border-border bg-card p-group md:p-section" aria-labelledby="scam-details">
+      <section className="space-y-group surface rounded-xl bg-card p-group md:p-section"aria-labelledby="scam-details">
         <div className="space-y-tight">
           <h2 id="scam-details" className="text-lead font-semibold text-foreground">
             The details they used
@@ -464,7 +464,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
       </section>
 
       {/* EVIDENCE */}
-      <section className="space-y-snug rounded-xl border border-border bg-card p-group md:p-section" aria-labelledby="scam-evidence">
+      <section className="space-y-snug surface rounded-xl bg-card p-group md:p-section"aria-labelledby="scam-evidence">
         <div className="space-y-tight">
           <h2 id="scam-evidence" className="text-lead font-semibold text-foreground">
             Screenshots
@@ -491,7 +491,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
                   type="button"
                   onClick={() => setTiles((current) => current.filter((other) => other.key !== tile.key))}
                   aria-label={`Remove screenshot ${index + 1}`}
-                  className="absolute right-1 top-1 grid size-7 place-items-center rounded-full bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="absolute right-1 top-1 grid size-7 place-items-center rounded-md bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden />
                 </button>
@@ -506,7 +506,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
                 className={cn(
                   'flex size-full flex-col items-center justify-center gap-tight rounded-lg border border-dashed text-meta text-muted-foreground transition-colors',
                   errors.evidence ? 'border-destructive' : 'border-input',
-                  'hover:border-foreground/60 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'hover:border-input-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
                 <HugeiconsIcon icon={ImageAdd01Icon} className="size-5" aria-hidden />
@@ -532,7 +532,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
       </section>
 
       {/* DECLARATION AND SEND */}
-      <div className="space-y-group rounded-xl border border-border bg-card p-group md:p-section">
+      <div className="space-y-group surface rounded-xl bg-card p-group md:p-section">
         <div className="space-y-tight">
           <label htmlFor="scam-declared" className="flex cursor-pointer items-start gap-snug text-body text-foreground">
             <input

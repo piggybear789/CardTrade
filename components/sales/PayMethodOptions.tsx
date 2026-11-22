@@ -71,7 +71,7 @@ export function PayMethodOptions({
             className={cn(
               'flex cursor-pointer items-start gap-cozy rounded-md border border-input bg-card p-cozy text-body transition-colors',
               'has-[:focus-visible]:border-ring',
-              checked ? 'border-foreground bg-accent text-accent-foreground' : 'hover:border-foreground/60 hover:bg-muted/40',
+              checked ? 'border-foreground bg-accent text-accent-foreground' : 'hover:border-input-hover hover:bg-muted/40',
               'has-[:disabled]:pointer-events-none has-[:disabled]:opacity-70',
             )}
           >

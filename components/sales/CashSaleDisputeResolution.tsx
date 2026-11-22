@@ -156,7 +156,7 @@ export function CashSaleDisputeResolution({
         Settle it yourselves
       </h3>
 
-      <ul className="mt-cozy divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+      <ul className="mt-cozy divide-y divide-border overflow-hidden surface rounded-xl bg-card">
         {iRaisedIt ? (
           <ResolutionRow
             icon={Undo02Icon}

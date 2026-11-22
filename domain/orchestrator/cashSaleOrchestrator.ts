@@ -10,6 +10,8 @@ import type { TrackingService, TrackingState } from '../services/tracking/types'
 import type { CashSaleEventCode } from './cashSaleEvents';
 import { decideRelease, exceedsNewSellerExposure, type ReleaseFacts } from '../payouts/releasePolicy';
 import { decideThreeDS } from '../payments/scaPolicy';
+import { buyerMustVerifyIdentity } from '../identity/buyerIdentityLimit';
+import type { IdentityCheckStatus } from '../identity/identityGate';
 import { returnInspectionOpen, returnRefundDue } from '../fulfilment/inspection';
 import { isPostageOutlier, postageCapMinor } from '../fees/postagePolicy';
 import {
@@ -118,8 +120,14 @@ export interface BuyerRecord {
   regionCode?: string | null;
   // `kycStatus` used to be carried here. It was selected, threaded through, and
   // never compared to anything — the documented buyer verification gate did not
-  // actually exist. A cash Buyer needs a payment method, not payout onboarding, so
-  // there is deliberately no verification field on this record.
+  // actually exist. A cash Buyer needs a payment method, not payout onboarding.
+  /**
+   * The Buyer's Stripe Identity status, read ONLY for the large-purchase rule
+   * (`buyerMustVerifyIdentity`): a sale priced over the unverified-buyer limit needs
+   * a verified buyer. Absent reads as unverified, so a repository that omits it
+   * fails closed on a large sale and changes nothing below the limit.
+   */
+  identityCheckStatus?: IdentityCheckStatus | null;
   payerId: string | null;
   paymentSourceId: string | null;
   displayName?: string | null;
@@ -471,6 +479,12 @@ export type CashSaleError =
   | 'RELATED_ACCOUNTS'
   /** ESC-14: the buyer's card is blocked after a lost fraud chargeback. Expected. */
   | 'CARD_BLOCKED'
+  /**
+   * The sale is priced over the unverified-buyer limit and the Buyer has not passed
+   * the Identity_Gate (`domain/identity/buyerIdentityLimit.ts`). Expected; nothing is
+   * written, and the Buyer can pay once verified.
+   */
+  | 'BUYER_IDENTITY_REQUIRED'
   /** ESC-25: the payout account name does not match the verified ID. Expected. */
   | 'PAYEE_IDENTITY_MISMATCH'
   /** ESC-20: confirming an in-person handover more than an hour before the meeting. */
@@ -2119,6 +2133,25 @@ export async function acceptCashSaleTerms(
   // untouched, so the room can collect a card and the Buyer can pay straight after.
   const buyer = await deps.repository.loadBuyer(sale.buyerId);
   if (!buyer) return { ok: false, error: 'BUYER_NO_PAYMENT_METHOD', detail: 'Add a card before you pay.' };
+
+  // A LARGE PURCHASE NEEDS A VERIFIED BUYER. Checked before the card so a buyer is not
+  // asked to add one and then told to verify. Priced on the agreed price, so the way of
+  // paying cannot move a sale across the limit. Nothing is written: the Buyer verifies
+  // and pays on the same terms.
+  if (
+    buyerMustVerifyIdentity({
+      priceMinor: sale.agreedPriceCents,
+      currency: sale.currency,
+      identityCheckStatus: buyer.identityCheckStatus,
+    })
+  ) {
+    return {
+      ok: false,
+      error: 'BUYER_IDENTITY_REQUIRED',
+      detail: 'Purchases this size need a verified ID. Verify with Stripe Identity, then pay. Nothing was charged.',
+    };
+  }
+
   if (rail === 'CARD' && (!buyer.payerId || !buyer.paymentSourceId)) {
     return {
       ok: false,

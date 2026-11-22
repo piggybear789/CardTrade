@@ -616,7 +616,7 @@ function TransferHistory({
         // text hanging off a 2px left stripe — a fourth container style on a tab that
         // already had cards, groups and rows, and a decorative rule carrying no
         // meaning. They are rows in a group now, like the rest of Account.
-        <ol className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <ol className="divide-y divide-border overflow-hidden surface rounded-xl bg-card">
           {shown.map((entry) => (
             <li key={entry.id} className="px-group py-cozy">
               <p className="text-body">{historySentence(entry, currency)}</p>

@@ -36,7 +36,7 @@ export function optionTileClass(selected: boolean): string {
     'disabled:pointer-events-none disabled:opacity-50',
     selected
       ? OPTION_SELECTED
-      : 'border-input text-foreground hover:border-foreground/60 hover:bg-muted/40',
+      : 'border-input text-foreground hover:border-input-hover hover:bg-muted/40',
   );
 }
 

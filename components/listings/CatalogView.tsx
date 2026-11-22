@@ -279,30 +279,20 @@ export function useCatalogView(): CatalogViewValue {
 }
 
 /**
- * Count BESIDE the catalog heading.
- *
- * It used to sit underneath, where it read as a subtitle to the title rather than as the
- * size of the thing being looked at. Every browse reference puts it on the heading line —
- * "All Listings · 1,284 items" — and the caller now composes it that way, which is why
- * this no longer carries its own top margin.
- *
- * The "closer matches" note moved out to the caller for the same reason: appended here
- * it lengthened the heading row, and it belongs on its own line under it.
+ * The result count, for screen readers only. It is rendered beside the catalog
+ * heading but is not visible; see the note in the body.
  */
 export function CatalogResultCount() {
   const { result } = useCatalogView();
   const count = result.total;
 
   return (
-    // `sr-only sm:not-sr-only`, not `hidden sm:block`. The caller used to wrap
-    // this in `hidden sm:block`, and a `display: none` live region does not
-    // announce — so on a phone the result count was neither visible nor spoken.
-    // Visually hiding it keeps the region in the tree and keeps the count
-    // available to a screen reader at every width.
-    <p
-      className="sr-only shrink-0 text-pretty text-meta tabular-nums text-muted-foreground sm:not-sr-only sm:text-body"
-      aria-live="polite"
-    >
+    // NOT SHOWN, AT ANY WIDTH (product decision, 2026-11-21): the count beside
+    // "All listings" was removed from the page. It stays as a screen-reader-only
+    // live region, because it is what announces how many results a filter
+    // change produced. `sr-only`, never `hidden`: a `display: none` live region
+    // does not announce.
+    <p className="sr-only" aria-live="polite">
       {`${COUNT_FORMATTER.format(count)} ${count === 1 ? 'listing' : 'listings'}`}
     </p>
   );

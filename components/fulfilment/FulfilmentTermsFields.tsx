@@ -159,7 +159,7 @@ export function FulfilmentTermsFields({
             disabled={disabled}
             required
           />
-          <p className="text-body text-muted-foreground">{meetingNote}</p>
+          <p className="text-meta text-muted-foreground">{meetingNote}</p>
         </div>
       </>
     );
@@ -245,7 +245,7 @@ export function FulfilmentTermsFields({
               ) : null}
             </p>
           )}
-          <p className="text-body text-muted-foreground">{deliveryCostHint}</p>
+          <p className="text-meta text-muted-foreground">{deliveryCostHint}</p>
         </div>
 
         <div className="space-y-snug">
@@ -257,7 +257,7 @@ export function FulfilmentTermsFields({
             id={`${idPrefix}-delivery-notes`}
             value={deliveryNotes}
             onChange={(event) => onDeliveryNotesChange(event.target.value)}
-            placeholder="Who ships first, preferred carrier, packing notes…"
+            placeholder="Carrier, packing notes"
             maxLength={notesMaxLength}
             rows={3}
             disabled={disabled}

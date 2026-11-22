@@ -111,7 +111,7 @@ export function ContractLiveRow({
           side="bottom"
           hideClose
           overlayClassName="inset-x-0 top-0 bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))]"
-          className="bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] flex h-[min(80dvh,calc(100dvh-env(safe-area-inset-top)-7rem))] max-h-none flex-col gap-0 rounded-t-2xl border-border bg-card p-0 pb-0"
+          className="bottom-[calc(3.5rem+1px+env(safe-area-inset-bottom))] flex h-[min(80dvh,calc(100dvh-env(safe-area-inset-top)-7rem))] max-h-none flex-col gap-0 rounded-t-xl border-border bg-card p-0 pb-0"
         >
           {/* `pr-group`, overriding SheetHeader's `pr-12`: that inset exists to
               keep the title clear of the ✕, which this sheet does not have. */}

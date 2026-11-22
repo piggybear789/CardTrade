@@ -105,7 +105,7 @@ export function CatalogResults() {
                   `items-center`, because the two are different sizes and centring them
                   leaves the count floating above the title's baseline. */}
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-cozy gap-y-0.5">
-                <h2 className="text-balance text-subhead font-semibold tracking-tight md:text-head">
+                <h2 className="text-balance text-subhead font-medium tracking-[-0.02em] md:text-head">
                   {resultTitle}
                 </h2>
                 <CatalogResultCount />
@@ -121,8 +121,17 @@ export function CatalogResults() {
                 the other filters and now lives in the rail. Below `md` the rail
                 is gone and sort lives in the filter sheet, which is why this
                 group is desktop-only. */}
-            <div className="hidden min-w-0 md:flex md:flex-wrap md:items-center md:justify-end md:gap-snug">
-              {result.total > 0 ? <CatalogSortControl /> : null}
+            {/* The sort stays MOUNTED with no results, only hidden: taking it out of
+                the row made the row 10px shorter, so the game pills and everything
+                under them jumped up the moment a filter matched nothing. */}
+            <div
+              className={cn(
+                'hidden min-w-0 md:flex md:flex-wrap md:items-center md:justify-end md:gap-snug',
+                result.total === 0 && 'invisible',
+              )}
+              aria-hidden={result.total === 0 || undefined}
+            >
+              <CatalogSortControl />
             </div>
           </div>
           <GenrePills

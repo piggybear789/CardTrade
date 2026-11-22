@@ -75,7 +75,7 @@ function isViewersMove(step: ContractStep | null): boolean {
 /** "Your move", inline before the step's title. */
 function YourMovePill() {
   return (
-    <span className="mr-snug inline-flex translate-y-[-1px] items-center rounded-full bg-iris/15 px-1.5 align-middle text-meta font-semibold leading-5 text-iris-ink">
+    <span className="mr-snug inline-flex translate-y-[-1px] items-center rounded-md bg-iris/15 px-1.5 align-middle text-meta font-semibold leading-5 text-iris-ink">
       Your move
     </span>
   );

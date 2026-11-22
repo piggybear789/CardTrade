@@ -227,6 +227,12 @@ function answers(tradeInspectionDays: number): Answer[] {
             accepted that check — not a credit score or a guarantee of performance.
           </p>
           <p>
+            Sellers and traders need it. Buyers don&rsquo;t, unless one purchase is priced
+            over 5,000 in Australian, US or Canadian dollars, euros, pounds or Swiss francs
+            (about US$5,000 in other currencies). Then the sale asks you to verify before
+            you pay.
+          </p>
+          <p>
             Start from{' '}
             <Link href="/profile?tab=verification" className={LINK}>
               Verification
@@ -321,7 +327,7 @@ export function HelpCentre({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search help, e.g. payout, tracking, dispute"
+          placeholder="Search help"
           aria-label="Search help"
           className="h-11 pl-10 md:h-11"
         />
@@ -337,10 +343,10 @@ export function HelpCentre({
               aria-pressed={selected}
               onClick={() => setTopic(selected ? null : entry.id)}
               className={cn(
-                'inline-flex h-9 items-center rounded-full border px-group text-body font-medium transition-colors focus:outline-none focus-visible:border-ring',
+                'inline-flex h-9 items-center rounded-md border px-group text-body font-medium transition-colors focus:outline-none focus-visible:border-ring',
                 selected
                   ? 'border-foreground bg-foreground text-primary-foreground'
-                  : 'border-border bg-card text-foreground hover:border-foreground/40',
+                  : 'border-input bg-card text-foreground hover:border-input-hover',
               )}
             >
               {entry.label}
@@ -350,7 +356,7 @@ export function HelpCentre({
       </div>
 
       {visible.length > 0 ? (
-        <Accordion type="multiple" value={open} onValueChange={setOpen} className="rounded-lg border bg-card px-group">
+        <Accordion type="multiple"value={open} onValueChange={setOpen} className="surface rounded-xl bg-card px-group">
           {visible.map((answer) => (
             <AccordionItem key={answer.id} value={answer.id} id={answer.id} className="scroll-mt-24 last:border-b-0">
               <AccordionTrigger>{answer.question}</AccordionTrigger>

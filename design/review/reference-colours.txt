@@ -1,0 +1,395 @@
+﻿
+=== Whatnot
+{
+ "title": "Whatnot: Shop, Sell, Connect",
+ "bodyBg": "rgb(255, 255, 255)",
+ "surfaces": [
+  "rgb(17, 17, 17)  (3.00)",
+  "rgb(255, 255, 255)  (1.00)",
+  "rgb(255, 228, 20)  (1.00)",
+  "rgba(0, 0, 0, 0.4)  (1.00)",
+  "rgb(28, 28, 28)  (0.01)"
+ ],
+ "text": [
+  "rgb(255, 255, 255)  (136.00)",
+  "rgb(0, 0, 0)  (95.00)",
+  "rgb(28, 28, 28)  (19.00)",
+  "rgb(17, 17, 17)  (15.00)"
+ ],
+ "borders": [
+  "rgb(193, 193, 193)  (2.00)"
+ ],
+ "filledButtons": [
+  "rgb(28, 28, 28) on-text rgb(0, 0, 0) r3.35544e+07px  (2.00)"
+ ],
+ "vars": []
+}
+
+=== Depop
+{
+ "title": "Depop - buy, sell, discover unique fashion",
+ "bodyBg": "rgb(255, 255, 255)",
+ "surfaces": [
+  "rgb(255, 255, 255)  (2.19)",
+  "rgb(226, 0, 32)  (0.63)",
+  "rgb(243, 243, 243)  (0.22)",
+  "rgb(227, 227, 227)  (0.13)",
+  "rgb(248, 240, 234)  (0.07)",
+  "rgb(191, 0, 27)  (0.05)"
+ ],
+ "text": [
+  "rgb(38, 38, 38)  (621.00)",
+  "rgb(255, 255, 255)  (241.00)",
+  "rgb(226, 0, 32)  (15.00)"
+ ],
+ "borders": [
+  "rgb(38, 38, 38)  (8.00)",
+  "rgb(227, 227, 227)  (1.00)",
+  "rgba(0, 0, 0, 0.06)  (1.00)"
+ ],
+ "filledButtons": [
+  "rgb(255, 255, 255) on-text rgb(38, 38, 38) r0px  (7.00)",
+  "rgb(255, 255, 255) on-text rgb(226, 0, 32) r0px  (1.00)",
+  "rgb(255, 255, 255) on-text rgb(0, 0, 238) r24px  (1.00)",
+  "rgb(255, 255, 255) on-text rgb(226, 0, 32) r10000px  (1.00)"
+ ],
+ "vars": []
+}
+
+=== Vinted AU
+{
+ "title": "Vinted | Sell and buy clothes, shoes and accessori",
+ "bodyBg": "rgb(237, 242, 242)",
+ "surfaces": [
+  "rgb(255, 255, 255)  (5.08)",
+  "rgb(237, 242, 242)  (2.96)",
+  "rgb(234, 224, 224)  (0.06)",
+  "rgb(241, 214, 209)  (0.06)",
+  "rgb(237, 234, 231)  (0.06)",
+  "rgb(214, 217, 211)  (0.06)"
+ ],
+ "text": [
+  "rgb(90, 101, 102)  (435.00)",
+  "rgb(0, 119, 130)  (142.00)",
+  "rgb(21, 25, 26)  (33.00)",
+  "rgb(255, 255, 255)  (16.00)"
+ ],
+ "borders": [
+  "rgb(242, 242, 242)  (10.00)",
+  "rgb(0, 119, 130)  (1.00)",
+  "rgba(21, 25, 26, 0.08)  (1.00)",
+  "rgba(21, 25, 26, 0.12)  (1.00)"
+ ],
+ "filledButtons": [
+  "rgb(0, 119, 130) on-text rgb(0, 119, 130) r6px  (2.00)",
+  "rgb(255, 255, 255) on-text rgb(0, 119, 130) r6px  (1.00)"
+ ],
+ "vars": []
+}
+
+=== Grailed
+{
+ "title": "Grailed: Online Marketplace to Buy Fashion",
+ "bodyBg": "rgba(0, 0, 0, 0)",
+ "surfaces": [
+  "rgba(0, 0, 0, 0.5)  (1.00)",
+  "rgb(255, 255, 255)  (0.44)",
+  "rgb(0, 0, 0)  (0.08)"
+ ],
+ "text": [
+  "rgb(0, 0, 0)  (418.00)",
+  "rgb(32, 131, 104)  (380.00)",
+  "rgb(105, 105, 105)  (346.00)",
+  "rgb(255, 255, 255)  (272.00)"
+ ],
+ "borders": [
+  "rgb(0, 0, 0)  (5.00)",
+  "rgb(255, 255, 255)  (5.00)",
+  "rgb(225, 225, 225)  (2.00)"
+ ],
+ "filledButtons": [
+  "rgb(255, 255, 255) on-text rgb(0, 0, 0) r0px  (9.00)",
+  "rgb(0, 0, 0) on-text rgb(255, 255, 255) r2px  (3.00)",
+  "rgb(0, 0, 0) on-text rgb(255, 255, 255) r0px  (1.00)"
+ ],
+ "vars": []
+}
+
+=== Courtyard
+{
+ "title": "Courtyard | Digital Packs, Physical Cards. Vaulted",
+ "bodyBg": "rgb(0, 0, 0)",
+ "surfaces": [
+  "rgb(15, 15, 20)  (2.14)",
+  "rgba(255, 255, 255, 0.13)  (1.23)",
+  "rgb(0, 0, 0)  (1.07)",
+  "rgb(28, 28, 33)  (1.04)",
+  "rgb(33, 33, 38)  (0.21)",
+  "rgba(255, 255, 255, 0.85)  (0.03)"
+ ],
+ "text": [
+  "rgb(255, 255, 255)  (740.00)",
+  "rgb(139, 148, 163)  (87.00)",
+  "rgb(19, 22, 25)  (63.00)"
+ ],
+ "borders": [],
+ "filledButtons": [
+  "rgb(47, 91, 249) on-text rgb(255, 255, 255) r8px  (1.00)"
+ ],
+ "vars": [
+  "--text-variant-display-font-size: 36px",
+  "--text-variant-display-line-height: 48px",
+  "--text-variant-display-font-weight: 600",
+  "--text-variant-display-letter-spacing: 0px",
+  "--text-variant-hero-font-size: 28px",
+  "--text-variant-hero-line-height: 34px",
+  "--text-variant-hero-font-weight: 600",
+  "--text-variant-hero-letter-spacing: -.28px",
+  "--text-variant-title-font-size: 20px",
+  "--text-variant-title-line-height: 26px",
+  "--text-variant-title-font-weight: 600",
+  "--text-variant-title-letter-spacing: -.2px",
+  "--text-variant-sectionTitle-font-size: 18px",
+  "--text-variant-sectionTitle-line-height: 24px",
+  "--text-variant-sectionTitle-font-weight: 600",
+  "--text-variant-sectionTitle-letter-spacing: 0px",
+  "--text-variant-bodyStrong-font-size: 14px",
+  "--text-variant-bodyStrong-line-height: 20px",
+  "--text-variant-bodyStrong-font-weight: 600",
+  "--text-variant-bodyStrong-letter-spacing: 0px",
+  "--text-variant-bodyMedium-font-size: 14px",
+  "--text-variant-bodyMedium-line-height: 20px",
+  "--text-variant-bodyMedium-font-weight: 500",
+  "--text-variant-bodyMedium-letter-spacing: 0px"
+ ]
+}
+
+=== Airbnb
+{
+ "title": "Airbnb | Holiday rentals, cabins, beach houses & m",
+ "bodyBg": "rgb(255, 255, 255)",
+ "surfaces": [
+  "rgb(255, 255, 255)  (2.12)",
+  "rgb(221, 221, 221)  (0.76)",
+  "rgb(247, 247, 247)  (0.13)",
+  "color(srgb 1 1 1 / 0.8)  (0.06)",
+  "rgb(218, 18, 73)  (0.00)"
+ ],
+ "text": [
+  "rgb(108, 108, 108)  (2242.00)",
+  "rgb(34, 34, 34)  (2049.00)",
+  "rgb(193, 193, 193)  (70.00)"
+ ],
+ "borders": [
+  "color(srgb 1 1 1 / 0.5)  (30.00)",
+  "rgb(221, 221, 221)  (1.00)"
+ ],
+ "filledButtons": [],
+ "vars": [
+  "--corner-radius-tiny4px-border-radius: 4px",
+  "--corner-radius-small8px-border-radius: 8px",
+  "--corner-radius-medium12px-border-radius: 12px",
+  "--corner-radius-large16px-border-radius: 16px",
+  "--corner-radius-xlarge20px-border-radius: 20px",
+  "--corner-radius-xxlarge24px-border-radius: 24px",
+  "--corner-radius-xxlarge28px-border-radius: 28px",
+  "--corner-radius-xxxlarge32px-border-radius: 32px",
+  "--edge-effects-brand-sharp-before-box-shadow: inset 0 -1px 2px 0 rgba(0,0,0,0.24),inse",
+  "--edge-effects-brand-sharp-before-mix-blend-mode: normal",
+  "--edge-effects-brand-sharp-after-box-shadow: inset -1px 1px 3px 0 rgba(255,255,255,0.",
+  "--edge-effects-brand-sharp-after-mix-blend-mode: plus-lighter",
+  "--edge-effects-brand-soft-before-box-shadow: inset 0 -1px 4px 0 rgba(0,0,0,0.24),inse",
+  "--edge-effects-brand-soft-before-mix-blend-mode: normal",
+  "--edge-effects-brand-soft-after-box-shadow: inset 1px 2px 4px 0 rgba(255,255,255,0.1",
+  "--edge-effects-brand-soft-after-mix-blend-mode: plus-lighter",
+  "--elevation-high-border: 1px solid rgba(0,0,0,0.04)",
+  "--elevation-primary-box-shadow: 0 6px 20px rgba(0,0,0,0.2)",
+  "--elevation-primary-border: 1px solid rgba(0,0,0,0.04)",
+  "--elevation-secondary-border: 1px solid rgba(0,0,0,0.04)",
+  "--elevation-sharp-edge-background: rgba(0,0,0,0.08)",
+  "--elevation-tertiary-border: 1px solid rgba(0,0,0,0.08)",
+  "--elevation-brand-glow-box-shadow: 0 2px 2px 0 rgba(205,13,75,0.20)",
+  "--material-backgrounds-extra-thin-background-color: rgba(218,218,218,0.40)"
+ ]
+}
+
+=== Etsy
+{
+ "title": "etsy.com",
+ "bodyBg": "rgba(0, 0, 0, 0)",
+ "surfaces": [],
+ "text": [],
+ "borders": [],
+ "filledButtons": [],
+ "vars": []
+}
+
+=== Vercel
+{
+ "title": "Agentic Infrastructure - Vercel",
+ "bodyBg": "rgb(250, 250, 250)",
+ "surfaces": [
+  "rgb(250, 250, 250)  (2.00)",
+  "rgb(255, 255, 255)  (0.01)",
+  "rgb(23, 23, 23)  (0.01)"
+ ],
+ "text": [
+  "rgb(23, 23, 23)  (270.00)",
+  "rgb(77, 77, 77)  (81.00)",
+  "rgb(255, 255, 255)  (17.00)"
+ ],
+ "borders": [],
+ "filledButtons": [
+  "rgb(255, 255, 255) on-text rgb(23, 23, 23) r6px  (2.00)",
+  "rgb(23, 23, 23) on-text rgb(255, 255, 255) r6px  (1.00)",
+  "rgb(23, 23, 23) on-text rgb(255, 255, 255) r3.35544e+07px  (1.00)",
+  "rgb(255, 255, 255) on-text rgb(23, 23, 23) r3.35544e+07px  (1.00)"
+ ],
+ "vars": []
+}
+
+=== Stripe
+{
+ "title": "Stripe | Financial Infrastructure to Grow Your Rev",
+ "bodyBg": "rgba(0, 0, 0, 0)",
+ "surfaces": [
+  "rgb(255, 255, 255)  (4.43)",
+  "rgb(229, 237, 245)  (1.31)",
+  "rgba(248, 250, 253, 0.45)  (0.28)",
+  "rgb(13, 23, 56)  (0.04)",
+  "rgb(248, 250, 253)  (0.01)",
+  "rgb(83, 58, 253)  (0.01)"
+ ],
+ "text": [
+  "rgb(6, 27, 49)  (828.00)",
+  "rgb(80, 97, 122)  (356.00)",
+  "rgb(100, 116, 141)  (316.00)",
+  "rgb(60, 79, 105)  (179.00)",
+  "rgb(255, 255, 255)  (150.00)"
+ ],
+ "borders": [
+  "rgb(229, 237, 245)  (9.00)",
+  "rgb(255, 255, 255)  (1.00)",
+  "rgb(185, 185, 249)  (1.00)"
+ ],
+ "filledButtons": [
+  "rgb(83, 58, 253) on-text rgb(255, 255, 255) r4px  (2.00)",
+  "rgba(255, 255, 255, 0.65) on-text rgb(83, 58, 253) r4px  (1.00)"
+ ],
+ "vars": []
+}
+
+=== Attio
+{
+ "title": "Attio: The CRM for agentic revenue",
+ "bodyBg": "lab(99.9987 0.0337958 0.000309944)",
+ "surfaces": [
+  "lab(99.9987 0.0337958 0.000309944)  (4.59)",
+  "lab(98.2947 0.128329 -0.513124)  (2.42)",
+  "oklab(0.966998 -0.000296682 -0.00296348 / 0.8)  (0.63)",
+  "lab(91.5182 -0.365466 -2.84777)  (0.21)",
+  "oklab(0.999997 0.0000899732 0.000023365 / 0.95)  (0.13)",
+  "lab(4.67701 0 0)  (0.12)"
+ ],
+ "text": [
+  "lab(50.3787 -1.31875 -9.56043)  (736.00)",
+  "lab(10.7201 -0.0959039 -1.54182)  (280.00)",
+  "rgb(36, 38, 41)  (262.00)",
+  "rgb(80, 81, 85)  (142.00)",
+  "lab(14.599 -0.159428 -2.99254)  (130.00)"
+ ],
+ "borders": [
+  "oklab(0 0 0 / 0.05)  (4.00)",
+  "lab(83.208 -0.844151 -5.26234)  (3.00)",
+  "lab(37.426 -1.09151 -9.33263)  (3.00)",
+  "rgba(0, 0, 0, 0.05)  (2.00)"
+ ],
+ "filledButtons": [
+  "lab(99.9987 0.0337958 0.000309944) on-text lab(20.5697 -0.638425 -4.44436) r10px  (3.00)",
+  "lab(12.7212 0.103362 -2.22102) on-text lab(96.1596 -0.0828803 -1.13571) r10px  (3.00)"
+ ],
+ "vars": [
+  "--button-outline-bg: lab(99.9987% .0337958 .000309944)",
+  "--button-outline-border: lab(83.208% -.844151 -5.26234)",
+  "--button-outline-text: lab(20.5697% -.638425 -4.44436)",
+  "--button-outline-bg-hover: lab(99.9987% .0337958 .000309944)",
+  "--button-outline-border-hover: lab(50.3787% -1.31875 -9.56043)",
+  "--button-outline-text-hover: lab(20.5697% -.638425 -4.44436)",
+  "--button-outline-bg-focus: lab(99.9987% .0337958 .000309944)",
+  "--button-outline-border-focus: lab(50.3787% -1.31875 -9.56043)",
+  "--button-outline-text-focus: lab(20.5697% -.638425 -4.44436)",
+  "--button-outline-bg-active: lab(96.1596% -.0828803 -1.13571)",
+  "--button-outline-border-active: lab(25.9077% -.872329 -6.43952)",
+  "--button-outline-text-active: lab(14.599% -.159428 -2.99254)",
+  "--button-outline-bg-disabled: lab(99.9987% .0337958 .000309944)",
+  "--button-outline-border-disabled: lab(91.5182% -.365466 -2.84777)",
+  "--button-outline-text-disabled-foreground: lab(83.208% -.844151 -5.26234)",
+  "--button-ghost-bg: transparent",
+  "--button-ghost-text: lab(20.5697% -.638425 -4.44436)",
+  "--button-ghost-bg-hover: lab(96.1596% -.0828803 -1.13571)",
+  "--button-ghost-text-hover: lab(14.599% -.159428 -2.99254)",
+  "--button-ghost-bg-focus: lab(96.1596% -.0828803 -1.13571)",
+  "--button-ghost-text-focus: lab(14.599% -.159428 -2.99254)",
+  "--button-ghost-bg-active: lab(94.3726% -.157326 -2.23036)",
+  "--button-ghost-text-active: lab(12.7212% .103362 -2.22102)",
+  "--button-ghost-bg-disabled: transparent"
+ ]
+}
+
+=== Clerk
+{
+ "title": "Clerk | Authentication and User Management",
+ "bodyBg": "rgb(247, 247, 248)",
+ "surfaces": [
+  "rgb(247, 247, 248)  (5.94)",
+  "rgb(255, 255, 255)  (5.66)",
+  "rgb(19, 19, 22)  (2.05)",
+  "rgb(33, 33, 38)  (0.32)",
+  "rgb(247, 247, 247)  (0.26)",
+  "rgb(47, 48, 55)  (0.08)"
+ ],
+ "text": [
+  "rgb(116, 118, 134)  (793.00)",
+  "rgb(19, 19, 22)  (739.00)",
+  "rgb(0, 0, 0)  (494.00)",
+  "rgb(94, 95, 110)  (265.00)",
+  "rgb(255, 255, 255)  (217.00)"
+ ],
+ "borders": [
+  "rgba(0, 0, 0, 0.06)  (12.00)",
+  "rgb(238, 238, 240)  (5.00)",
+  "rgb(217, 217, 222)  (1.00)"
+ ],
+ "filledButtons": [
+  "rgb(66, 67, 77) on-text rgb(255, 255, 255) r6px  (1.00)",
+  "rgb(19, 19, 22) on-text rgb(255, 255, 255) r0px  (1.00)"
+ ],
+ "vars": []
+}
+
+=== Framer
+{
+ "title": "Framer: Free website builder and AI design agent",
+ "bodyBg": "rgb(0, 0, 0)",
+ "surfaces": [
+  "rgb(0, 0, 0)  (5.88)",
+  "rgb(17, 17, 17)  (1.95)",
+  "rgb(23, 23, 23)  (0.43)",
+  "rgb(255, 255, 255)  (0.04)",
+  "rgb(36, 36, 36)  (0.00)"
+ ],
+ "text": [
+  "rgb(255, 255, 255)  (215.00)",
+  "rgba(255, 255, 255, 0.6)  (126.00)",
+  "rgb(34, 34, 34)  (114.00)",
+  "rgba(255, 255, 255, 0.8)  (43.00)",
+  "rgb(0, 0, 0)  (27.00)"
+ ],
+ "borders": [
+  "rgb(33, 33, 33)  (1.00)"
+ ],
+ "filledButtons": [
+  "rgb(255, 255, 255) on-text rgb(0, 0, 238) r8px  (2.00)"
+ ],
+ "vars": []
+}

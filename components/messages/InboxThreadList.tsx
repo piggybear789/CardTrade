@@ -35,7 +35,7 @@ function statusPill(c: ConversationListEntry) {
   if (c.sale) {
     if (c.sale.activeContractCount > 1) {
       return (
-        <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-foreground">
+        <span className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-foreground">
           {c.sale.activeContractCount} active
         </span>
       );
@@ -49,7 +49,7 @@ function statusPill(c: ConversationListEntry) {
     // No state: a list entry carries the trade's id and nothing else. "Trade" is
     // honest about what is known, and the contract room is one tap away.
     return (
-      <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-muted-foreground">
+      <span className="shrink-0 rounded-md border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-muted-foreground">
         Trade
       </span>
     );

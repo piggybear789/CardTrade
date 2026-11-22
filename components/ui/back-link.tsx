@@ -24,7 +24,7 @@ export function BackLink({ href, children, className }: { href: string; children
       href={href}
       transitionTypes={['nav-back']}
       className={cn(
-        'group inline-flex h-8 items-center gap-1.5 rounded-full border border-border/80 bg-card pl-2.5 pr-3.5 text-meta font-medium text-muted-foreground shadow-2xs transition-colors hover:border-foreground/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'group inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-card pl-2.5 pr-3.5 text-meta font-medium text-muted-foreground shadow-2xs transition-colors hover:border-input-hover hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className,
       )}
     >

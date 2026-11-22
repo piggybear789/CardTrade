@@ -1,0 +1,85 @@
+﻿ok    0.0000  desktop /
+ok    0.0000  desktop / dialog "Notifications, 4 unread"
+ok    0.0000  desktop / dialog "More categories"
+ok    0.0000  desktop /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4
+ok    0.0000  desktop /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4 dialog "Notifications, 4 unread"
+ok    0.0000  desktop /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4 dialog "Close"
+ok    0.0000  desktop /listings/new
+ok    0.0000  desktop /listings/new dialog "Notifications, 4 unread"
+ok    0.0000  desktop /listings/mine
+ok    0.0000  desktop /listings/mine dialog "Notifications, 4 unread"
+ok    0.0000  desktop /saved
+ok    0.0000  desktop /saved dialog "Notifications, 4 unread"
+ok    0.0000  desktop /offers
+ok    0.0000  desktop /offers dialog "Notifications, 4 unread"
+ok    0.0000  desktop /sales
+ok    0.0000  desktop /sales dialog "Notifications, 4 unread"
+ok    0.0000  desktop /purchases
+ok    0.0000  desktop /purchases dialog "Notifications, 4 unread"
+ok    0.0000  desktop /trades
+ok    0.0000  desktop /trades dialog "Notifications, 4 unread"
+ok    0.0000  desktop /trades/new
+ok    0.0000  desktop /trades/new dialog "Notifications, 4 unread"
+ok    0.0000  desktop /messages
+ok    0.0000  desktop /messages dialog "Notifications, 4 unread"
+ok    0.0000  desktop /messages/e75be4ed-edfd-48ca-a54f-43f02f1738d7
+ok    0.0000  desktop /messages/e75be4ed-edfd-48ca-a54f-43f02f1738d7 dialog "Notifications, 4 unread"
+ok    0.0000  desktop /notifications
+ok    0.0000  desktop /notifications dialog "Notifications, 4 unread"
+ok    0.0000  desktop /profile
+ok    0.0000  desktop /profile dialog "Notifications, 4 unread"
+ok    0.0000  desktop /profile dialog "Picture options"
+ok    0.0000  desktop /profile dialog "Send feedback Report a problem or sugges"
+ok    0.0000  desktop /profile?tab=verification
+ok    0.0000  desktop /profile?tab=verification dialog "Notifications, 4 unread"
+ok    0.0000  desktop /profile?tab=verification dialog "Picture options"
+ok    0.0000  desktop /profile?tab=payouts
+ok    0.0000  desktop /profile?tab=payouts dialog "Notifications, 4 unread"
+ok    0.0000  desktop /profile?tab=payouts dialog "Picture options"
+ok    0.0000  desktop /deals
+ok    0.0000  desktop /deals dialog "Notifications, 4 unread"
+SHIFT 0.0252  desktop /trusted-sellers/apply
+        +870ms 0.0252  footer.mt-auto.border-t.border-border "MarketplaceTradesHow it worksStaying saf"  0,691,1280,109 -> 0,0,0,0
+ok    0.0000  desktop /trusted-sellers/apply dialog "Notifications, 4 unread"
+SHIFT 0.0022  desktop /report-scam
+        +607ms 0.0022  footer.mt-auto.border-t.border-border "MarketplaceTradesHow it worksStaying saf"  0,798,1280,2 -> 0,0,0,0
+ok    0.0000  desktop /report-scam dialog "Notifications, 4 unread"
+ok    0.0000  desktop /sales/c3323280-80de-440f-94c1-a1ba3bddeed2
+ok    0.0000  desktop /sales/c3323280-80de-440f-94c1-a1ba3bddeed2 dialog "Notifications, 4 unread"
+ok    0.0000  desktop /sales/c3323280-80de-440f-94c1-a1ba3bddeed2 dialog "Leave a review"
+ok    0.0000  desktop /sales/c3323280-80de-440f-94c1-a1ba3bddeed2 dialog "More actions"
+ok    0.0000  desktop /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4/edit
+ok    0.0000  desktop /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4/edit dialog "Notifications, 4 unread"
+ok    0.0000  phone /
+ok    0.0000  phone / dialog "Filters"
+ok    0.0000  phone /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4
+ok    0.0000  phone /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4 dialog "Close"
+ok    0.0000  phone /listings/new
+ok    0.0000  phone /listings/mine
+ok    0.0000  phone /saved
+ok    0.0000  phone /offers
+ok    0.0000  phone /sales
+ok    0.0000  phone /purchases
+ok    0.0000  phone /trades
+ok    0.0000  phone /trades/new
+ok    0.0000  phone /messages
+ok    0.0000  phone /messages/e75be4ed-edfd-48ca-a54f-43f02f1738d7
+ok    0.0000  phone /notifications
+ok    0.0000  phone /profile
+ok    0.0000  phone /profile dialog "Picture options"
+ok    0.0000  phone /profile dialog "Send feedback Report a problem or sugges"
+ok    0.0000  phone /profile?tab=verification
+ok    0.0000  phone /profile?tab=verification dialog "Picture options"
+ok    0.0000  phone /profile?tab=payouts
+ok    0.0000  phone /profile?tab=payouts dialog "Picture options"
+ok    0.0000  phone /deals
+SHIFT 0.0298  phone /trusted-sellers/apply
+        +564ms 0.0298 (after input)  footer.mt-auto.border-t.border-border "MarketplaceTradesHow it worksStaying saf"  0,682,390,105 -> 0,0,0,0
+SHIFT 0.1244  phone /report-scam
+        +581ms 0.1244 (after input)  footer.mt-auto.border-t.border-border "MarketplaceTradesHow it worksStaying saf"  0,721,390,105 -> 0,0,0,0
+SHIFT 0.1565  phone /sales/c3323280-80de-440f-94c1-a1ba3bddeed2
+        +1470ms 0.1565 (after input)  div.flex.min-h-0.flex-1.flex-col.gap-group "Pokemon 30th Anniversary Pikachu 034/128"  0,145,390,626 -> 0,0,390,771
+ok    0.0000  phone /sales/c3323280-80de-440f-94c1-a1ba3bddeed2 dialog "Contract details"
+ok    0.0000  phone /sales/c3323280-80de-440f-94c1-a1ba3bddeed2 dialog "Leave a review"
+ok    0.0000  phone /sales/c3323280-80de-440f-94c1-a1ba3bddeed2 dialog "More actions"
+ok    0.0000  phone /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4/edit

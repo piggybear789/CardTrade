@@ -146,7 +146,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
 function LinkStatus({ expires }: { expires: string | null }) {
   return (
     <div className="flex flex-wrap items-center gap-x-cozy gap-y-tight text-body text-muted-foreground">
-      <span className="inline-flex items-center gap-snug rounded-full bg-muted px-snug py-0.5 text-meta font-medium text-foreground">
+      <span className="inline-flex items-center gap-snug rounded-md bg-muted px-snug py-0.5 text-meta font-medium text-foreground">
         <span className="size-1.5 rounded-full bg-iris" aria-hidden />
         Waiting for them to join
       </span>
@@ -185,8 +185,8 @@ function DealTicket({
   const amountCents = preview.priceCents ?? preview.item?.fmvCents ?? null;
 
   return (
-    <div className="relative rounded-xl border border-border bg-card">
-      <div className="flex items-center gap-group rounded-t-[calc(var(--radius-xl)-1px)] bg-accent p-5">
+    <div className="relative surface rounded-xl bg-card">
+      <div className="flex items-center gap-group rounded-t-[calc(var(--radius)+3px)] bg-accent p-5">
         {preview.item ? (
           <div className="relative aspect-[5/7] w-20 shrink-0 overflow-hidden rounded-md border bg-card md:w-24">
             {imageUrl ? (

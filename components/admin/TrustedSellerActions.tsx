@@ -102,7 +102,7 @@ export function TrustedSellerActions({
           onChange={(event) => setDraft(event.target.value)}
           maxLength={TRUSTED_SELLER_NOTES_MAX_LENGTH}
           rows={3}
-          placeholder="What you checked, who you spoke to, anything that worried you."
+          placeholder="What you checked"
         />
       </div>
 

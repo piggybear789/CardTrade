@@ -116,9 +116,7 @@ class _PurchaseFlowScreenState extends ConsumerState<PurchaseFlowScreen> {
             TextField(
               controller: _requestController,
               decoration: const InputDecoration(
-                hintText:
-                    'The three Charizards on page 2, both Blastoise, and any '
-                    'NM Pikachu you have.',
+                hintText: 'e.g. The Charizards on page 2',
               ),
               maxLines: 4,
               minLines: 4,

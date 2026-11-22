@@ -1,0 +1,36 @@
+﻿skip  desktop rail /profile -> /  (nothing to click)
+skip  desktop rail / -> /saved  (nothing to click)
+skip  desktop rail /saved -> /purchases  (nothing to click)
+skip  desktop rail /purchases -> /sales  (nothing to click)
+skip  desktop rail /sales -> /trades  (nothing to click)
+skip  desktop rail /trades -> /listings/new  (nothing to click)
+skip  desktop rail /listings/new -> /listings/mine  (nothing to click)
+skip  desktop rail /listings/mine -> /offers  (nothing to click)
+skip  desktop rail /offers -> /messages  (nothing to click)
+skip  desktop rail /messages -> /notifications  (nothing to click)
+skip  desktop rail /notifications -> /profile  (nothing to click)
+SHIFT 0.0039  desktop catalog: pick a game
+        +87ms 0.0039  div.flex.min-h-0.flex-1.flex-col.motion-safe:transition-opacity "No collectibles match these filtersNothi"  288,303,960,457 -> 278,285,980,487
+        +87ms 0.0039  nav.relative.min-w-0 "AllPok├⌐monOne PieceYu-Gi-Oh!Magic: The G"  288,226,960,44 -> 288,216,960,44
+        +87ms 0.0039  button.absolute.right-0.top-0.z-10.flex ""  1201,224,50,50 -> 1201,214,50,50
+ok    0.0000  desktop catalog: back to all
+ok    0.0000  desktop catalog -> listing
+SHIFT 0.1363  desktop references -> a profile
+        +383ms 0.1363  footer.mt-auto.border-t.border-border.max-sm:hidden "MarketplaceTradesHow it worksStaying saf"  0,691,1280,109 -> 0,0,0,0
+skip  desktop references: Given  (nothing to click)
+ok    0.0000  desktop references: next page
+skip  desktop inbox -> thread  (nothing to click)
+skip  desktop profile: Verification tab  (nothing to click)
+skip  desktop profile: Payouts tab  (nothing to click)
+skip  desktop purchases: Past tab  (nothing to click)
+skip  desktop my listings: Hidden tab  (nothing to click)
+skip  desktop notifications: Messages filter  (nothing to click)
+ok    0.0000  phone hub: browse -> references
+ok    0.0000  phone hub: references -> browse
+skip  phone hub: browse -> inbox  (nothing to click)
+skip  phone hub: inbox -> account  (nothing to click)
+skip  phone account -> purchases  (nothing to click)
+skip  phone account -> my listings  (nothing to click)
+ok    0.0000  phone catalog -> listing
+skip  phone inbox -> thread  (nothing to click)
+skip  phone references: Given  (nothing to click)

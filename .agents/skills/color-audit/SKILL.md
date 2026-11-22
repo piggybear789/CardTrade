@@ -29,7 +29,7 @@ Tokens are HSL triplets consumed as `hsl(var(--token))`.
 | `--card` / `--popover` | `40 30% 99%` | Paper surfaces |
 | `--secondary` | `39 28% 88%` | Secondary fills |
 | `--muted` | `40 22% 90%` | Grouping tint on card — never washed with `/20`–`/30`, never a field fill |
-| `--muted-foreground` | `32 10% 34%` | Subtext — de-emphasis is by COLOR, never by smaller size |
+| `--muted-foreground` | `32 10% 34%` | Subtext. De-emphasis is by colour; only field hints also drop to `text-meta` |
 | `--accent` | `41 32% 84%` | Hover tint |
 | `--destructive` | `4 78% 40%` | Errors; cream foreground |
 | `--border` | `36 18% 78%` | Quiet structural hairline (deliberately below 3:1 — see Rules) |
@@ -101,7 +101,7 @@ Scan component files for violations:
 - Mismatched pairs: `bg-primary` without `text-primary-foreground`, `bg-action` without obsidian ink
 - Opacity dropping text below AA: `text-foreground/50`, `text-muted-foreground/70` as running copy
 - `text-white` on light surfaces (the app is single-light-theme; dark surfaces use explicit tokens, not a mode)
-- De-emphasis via font size instead of `text-muted-foreground` (violates the subtext rule)
+- De-emphasis via font size instead of `text-muted-foreground`, other than a field hint at `text-meta` (see the subtext rule)
 
 ## Output Format
 

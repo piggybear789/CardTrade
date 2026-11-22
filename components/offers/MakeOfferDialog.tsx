@@ -188,7 +188,7 @@ export function MakeOfferDialog({
               />
               {/* LIVE, so the buyer sees the figure they would actually be charged
                   while they type, not after the seller accepts. */}
-              <p className="min-h-[1lh] text-body text-muted-foreground" aria-live="polite">
+              <p className="min-h-[1lh] text-meta text-muted-foreground" aria-live="polite">
                 {offerCents ? (
                   <>
                     You&apos;d pay{' '}

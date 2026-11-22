@@ -17,7 +17,7 @@ export default function AccountSuspendedPage() {
   // reports, so it overflows while the address bar is expanded.
   return (
     <main className="flex min-h-[80dvh] items-center justify-center px-group py-12">
-      <section className="w-full max-w-md rounded-xl border bg-card p-6 text-center shadow-sm">
+      <section className="w-full max-w-md surface rounded-xl bg-card p-6 text-center">
         <h1 className="text-head font-semibold">Account permanently suspended</h1>
         <p className="mt-snug text-body text-muted-foreground">
           This account was permanently suspended after a staff-confirmed objective

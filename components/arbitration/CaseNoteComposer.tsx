@@ -83,13 +83,13 @@ export function CaseNoteComposer({ caseKind, caseRef }: CaseNoteComposerProps) {
         rows={4}
         maxLength={MAX_NOTE_LENGTH}
         onChange={(event) => setBody(event.target.value)}
-        placeholder="What you checked, what the evidence shows, what you are minded to decide. Visible to NoDitto staff only — never to either party."
+        placeholder="What you checked and decided"
         aria-describedby={`${fieldId}-help`}
         disabled={isPending}
       />
       <div className="flex flex-wrap items-center justify-between gap-snug">
-        <p id={`${fieldId}-help`} className="text-body text-muted-foreground">
-          Notes cannot be edited or deleted once saved.{' '}
+        <p id={`${fieldId}-help`} className="text-meta text-muted-foreground">
+          Staff only. Notes cannot be edited or deleted once saved.{' '}
           <span className="tabular-nums">
             {trimmed.length}/{MAX_NOTE_LENGTH}
           </span>

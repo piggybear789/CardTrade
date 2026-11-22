@@ -286,7 +286,7 @@ export function MessageComposer({
           <button
             type="button"
             onClick={() => attach(null)}
-            className="grid size-11 place-items-center rounded-full border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring md:size-9"
+            className="grid size-11 place-items-center rounded-md border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring md:size-9"
             aria-label="Remove attachment"
           >
             <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
@@ -318,7 +318,7 @@ export function MessageComposer({
           // ghost box does not. On a phone that reads as ~28px of extra air on
           // the left and the field looks pushed off centre, so the plus takes
           // the same muted surface the field already wears there.
-          className="shrink-0 max-md:rounded-full max-md:bg-muted"
+          className="shrink-0 max-md:rounded-md max-md:bg-muted"
           aria-label="Attach a file"
           disabled={isPending}
           onClick={() => fileRef.current?.click()}
@@ -362,7 +362,7 @@ export function MessageComposer({
             // grows it from there, and `max-h` hands over to scrolling.
             'max-h-32 min-h-11 resize-none overflow-y-auto py-2.5 text-body md:min-h-9 md:py-1.5',
             compact && 'max-h-24',
-            'max-md:rounded-2xl max-md:bg-muted',
+            'max-md:rounded-xl max-md:bg-muted',
           )}
           readOnly={isPending}
           aria-invalid={Boolean(error)}
@@ -371,7 +371,7 @@ export function MessageComposer({
         <Button
           type="submit"
           size="icon-lg"
-          className="shrink-0 max-md:rounded-full"
+          className="shrink-0 max-md:rounded-md"
           disabled={!canSend}
           aria-label={isPending ? 'Sending message…' : 'Send message'}
         >

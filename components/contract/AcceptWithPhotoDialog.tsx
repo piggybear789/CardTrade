@@ -176,7 +176,7 @@ export function AcceptWithPhotoDialog({
                 type="button"
                 onClick={clearPhoto}
                 disabled={isPending}
-                className="absolute -right-2 -top-2 rounded-full bg-background p-tight shadow-sm border hover:bg-muted"
+                className="absolute -right-2 -top-2 rounded-md bg-background p-tight shadow-sm border hover:bg-muted"
                 aria-label={isVideo ? 'Remove video' : 'Remove photo'}
               >
                 <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
@@ -190,7 +190,7 @@ export function AcceptWithPhotoDialog({
               // A row, not a tall dashed panel. `p-section` on an OPTIONAL step
               // made the thing you are allowed to skip the largest object in the
               // dialog — a void the eye has to cross to reach Accept.
-              className="flex w-full items-center gap-cozy rounded-lg border border-input p-cozy text-left text-muted-foreground transition-colors hover:border-foreground/60 hover:bg-muted"
+              className="flex w-full items-center gap-cozy rounded-lg border border-input p-cozy text-left text-muted-foreground transition-colors hover:border-input-hover hover:bg-muted"
             >
               <HugeiconsIcon icon={Camera01Icon} className="size-5 shrink-0" aria-hidden />
               <span className="min-w-0 space-y-tight">

@@ -275,8 +275,8 @@ export function TradeDisputeActions({
               className={cn(
                 'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:border-ring disabled:opacity-60',
                 choice === value
-                  ? 'border-border bg-accent font-semibold text-accent-foreground'
-                  : 'border-border text-foreground/85 hover:bg-muted',
+                  ? 'border-foreground bg-accent font-semibold text-accent-foreground'
+                  : 'border-input text-foreground/85 hover:border-input-hover hover:bg-muted',
               )}
             >
               {label}
@@ -301,8 +301,8 @@ export function TradeDisputeActions({
                 className={cn(
                   'rounded-md border px-cozy py-1.5 text-left text-body transition-colors focus:outline-none focus-visible:border-ring disabled:opacity-60',
                   subjectId === party.id
-                    ? 'border-border bg-accent font-semibold text-accent-foreground'
-                    : 'border-border text-foreground/85 hover:bg-muted',
+                    ? 'border-foreground bg-accent font-semibold text-accent-foreground'
+                    : 'border-input text-foreground/85 hover:border-input-hover hover:bg-muted',
                 )}
               >
                 {party.name}
@@ -324,7 +324,7 @@ export function TradeDisputeActions({
             onChange={(event) => setCompensation(event.target.value)}
             aria-describedby={`compensation-hint-${tradeId}`}
           />
-          <p id={`compensation-hint-${tradeId}`} className="text-body text-muted-foreground">
+          <p id={`compensation-hint-${tradeId}`} className="text-meta text-muted-foreground">
             Up to {money(conditionMax)}. Use a higher amount when the card sent is worth
             much less than the one agreed; a token amount when the difference is minor.
           </p>

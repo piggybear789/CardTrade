@@ -235,7 +235,7 @@ function RegionOption({
         <span className="flex items-center gap-snug">
           <span className="truncate text-body font-medium">{label}</span>
           {tag ? (
-            <span className="shrink-0 rounded-full bg-background/80 px-snug text-meta font-medium text-foreground ring-1 ring-border">
+            <span className="shrink-0 rounded-md bg-background/80 px-snug text-meta font-medium text-foreground ring-1 ring-border">
               {tag}
             </span>
           ) : null}

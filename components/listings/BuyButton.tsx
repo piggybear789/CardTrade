@@ -13,7 +13,7 @@
 // where offered, 0158) is chosen then. A card is no longer required to open the
 // contract: that shut every bank-only buyer out of the listing.
 
-import { useCallback, useEffect, useState, useTransition, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -27,6 +27,7 @@ import { displayLegalName, formatMoney, itemImageUrl } from '@/lib/format';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
+import { useSettledLoading } from '@/lib/hooks/useSettledLoading';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
@@ -177,7 +178,6 @@ export function ShopfrontBuyButton({
     <PurchaseDialog
       itemId={itemId}
       sellerIdentity={sellerIdentity}
-      description="Describe your desired items. You do not pay yet."
       confirmLabel="Open contract and agree terms"
       onReset={() => setRequest(emptyRequest())}
       trigger={trigger}
@@ -217,7 +217,8 @@ function PurchaseDialog({
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
-  description: string;
+  /** Subtitle under the title. Omitted, the dialog has none (the binder form says enough). */
+  description?: string;
   confirmLabel: string;
   prepareSale: () => SalePrep;
   onReset?: () => void;
@@ -243,8 +244,9 @@ function PurchaseDialog({
   // to open the contract, so the form is always one the buyer can back out of.
   const [addingCard, setAddingCard] = useState(false);
 
-  const readCard = useCallback((isCancelled: () => boolean = () => false) => {
-    setLoadingStatus(true);
+  // `silent`: refresh a card already on screen without putting the placeholder back.
+  const readCard = useCallback((isCancelled: () => boolean = () => false, silent = false) => {
+    if (!silent) setLoadingStatus(true);
     getPaymentMethodStatus()
       .then((result) => {
         if (isCancelled()) return;
@@ -262,13 +264,33 @@ function PurchaseDialog({
       });
   }, []);
 
+  // READ THE CARD BEFORE THE DIALOG OPENS. The read goes to Stripe and takes a second or
+  // two, and it used to start only once the dialog was open, so every open sat on a
+  // placeholder for that long. It now starts on the first sign of intent (pointer over
+  // the button, focus, a touch), which is usually enough of a head start for the dialog
+  // to open already filled in. Once read, the card is kept: reopening shows it at once
+  // and refreshes it quietly behind.
+  const readStarted = useRef(false);
+  const prefetchCard = useCallback(() => {
+    if (readStarted.current) return;
+    readStarted.current = true;
+    readCard();
+  }, [readCard]);
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    readCard(() => cancelled);
+    if (!readStarted.current) {
+      readStarted.current = true;
+      readCard(() => cancelled);
+    } else if (card !== undefined && !loadingStatus) {
+      readCard(() => cancelled, true);
+    }
     return () => {
       cancelled = true;
     };
+    // Only on open: `card` and `loadingStatus` are read to pick the path, not watched.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, readCard]);
 
   const cardMethod: PaymentMethodKind = currency ? cardMethodFor(currency, card?.country) : 'CARD';
@@ -306,9 +328,10 @@ function PurchaseDialog({
     });
   }
 
-  const loading = loadingStatus || card === undefined;
+  // Held for a minimum once the placeholder is visible, so a card read that lands just
+  // after the bars appear does not flash them for a few frames (`useSettledLoading`).
+  const loading = useSettledLoading(loadingStatus || card === undefined);
   const showCardForm = !loading && addingCard;
-  const showCheckout = !loading && !addingCard;
 
   return (
     <Dialog
@@ -322,34 +345,22 @@ function PurchaseDialog({
         }
       }}
     >
-      <DialogTrigger asChild>
+      <DialogTrigger
+        asChild
+        onPointerEnter={prefetchCard}
+        onFocus={prefetchCard}
+        onTouchStart={prefetchCard}
+      >
         {trigger ?? (
           <ListingActionIcon icon={ShoppingCart01Icon} label="Buy now" variant="default" />
         )}
       </DialogTrigger>
-      <DialogContent>
-        {loading ? (
-          <>
-            {/* THE CHECKOUT'S OWN HEADER, children and footer, with only the
-                card-dependent block standing in. This used to be a different
-                header ("Checking payment method" / "Please wait…") over the
-                card-ENTRY placeholder, so every open resized the dialog twice. */}
-            <DialogHeader>
-              <DialogTitle>Start a purchase contract</DialogTitle>
-              <DialogDescription>{description}</DialogDescription>
-            </DialogHeader>
-            <div className="space-y-group">
-              {headerNode}
-              {children}
-              <CheckoutSummarySkeleton />
-            </div>
-            <DialogFooter>
-              <Button type="button" disabled aria-hidden tabIndex={-1}>
-                {confirmLabel}
-              </Button>
-            </DialogFooter>
-          </>
-        ) : showCardForm ? (
+      {/* No subtitle (the binder form): tell Radix there is deliberately no
+          description, which it otherwise warns about. The card form has its own. */}
+      <DialogContent
+        {...(description || showCardForm ? {} : { 'aria-describedby': undefined })}
+      >
+        {showCardForm ? (
           <>
             <DialogHeader>
               <DialogTitle>Add a payment method</DialogTitle>
@@ -371,11 +382,17 @@ function PurchaseDialog({
               </Button>
             </DialogFooter>
           </>
-        ) : showCheckout ? (
+        ) : (
           <>
+            {/* ONE TREE WHILE THE CARD IS READ AND AFTER. The header, order summary,
+                binder fields, seller line and footer do not depend on the card, so they
+                render for real throughout and only the card row has a placeholder. The
+                loading state used to be a second copy of this markup, and the two
+                drifted: its skeleton kept a bordered seller box after the real seller
+                line became one short row, so the dialog shrank on every open. */}
             <DialogHeader>
               <DialogTitle>Start a purchase contract</DialogTitle>
-              <DialogDescription>{description}</DialogDescription>
+              {description ? <DialogDescription>{description}</DialogDescription> : null}
             </DialogHeader>
 
             <div className="space-y-group">
@@ -392,33 +409,39 @@ function PurchaseDialog({
 
               {/* ONE GEOMETRY WITH OR WITHOUT A CARD: two lines and a button, so the
                   footer does not move when the card read comes back. */}
-              <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-                <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-body font-medium">
-                    {card ? (card.label ?? 'Card on file') : 'No card needed yet'}
-                  </p>
-                  <p className="text-body text-muted-foreground">
-                    {card
-                      ? tierClause && currency
-                        ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
-                        : 'Stripe method'
-                      : 'You choose how to pay when you pay.'}
-                  </p>
+              {loading ? (
+                <CheckoutSummarySkeleton />
+              ) : (
+                <div className="flex items-center gap-cozy rounded-lg border p-cozy">
+                  <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-body font-medium">
+                      {card ? (card.label ?? 'Card on file') : 'No card needed yet'}
+                    </p>
+                    <p className="text-body text-muted-foreground max-sm:min-h-[2lh]">
+                      {card
+                        ? tierClause && currency
+                          ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
+                          : 'Stripe method'
+                        : 'You choose how to pay when you pay.'}
+                    </p>
+                  </div>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setAddingCard(true)}>
+                    {card ? 'Change' : 'Add a card'}
+                  </Button>
                 </div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setAddingCard(true)}>
-                  {card ? 'Change' : 'Add a card'}
-                </Button>
-              </div>
+              )}
 
               <FieldError message={error ?? undefined} />
             </div>
 
             <DialogFooter>
+              {/* The same button before the card read returns, disabled, so the
+                  footer is drawn once and never swapped. */}
               <Button
                 type="button"
                 onClick={handleBuy}
-                disabled={isPending}
+                disabled={loading || isPending}
                 aria-busy={isPending}
               >
                 <PendingLabel pending={isPending} pendingLabel="Opening contract…">
@@ -427,7 +450,7 @@ function PurchaseDialog({
               </Button>
             </DialogFooter>
           </>
-        ) : null}
+        )}
       </DialogContent>
     </Dialog>
   );

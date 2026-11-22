@@ -212,6 +212,8 @@ const EXPECTED_CODES = new Set([
   'related-accounts',
   // ESC-14: a card fingerprint blocked after a lost fraud chargeback.
   'card-blocked',
+  // A purchase over the unverified-buyer limit by a buyer without a verified ID.
+  'buyer-identity-required',
   // ESC-25: the payout account name does not match the verified ID.
   'payee-identity-mismatch',
   // ESC-20: confirming an in-person handover long before the meeting.

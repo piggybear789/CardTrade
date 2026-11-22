@@ -81,25 +81,21 @@ import { cn } from "@/lib/utils";
 //
 // EDGE AND DEPTH (2026-11-21, from Stripe, Vercel, Clerk and Linear on Mobbin).
 //
-// QUIET variants rest on an ALPHA edge, `foreground/14%`, plus a 1px drop shadow, the
-// bordered-white secondary every one of those apps uses. They used to rest on `--input`
-// (58% grey, the field edge), which made every Cancel and Back as heavy as a text field
-// and heavier than the primary beside it; the references pages had already started
-// overriding it with `border-border` call by call. A label identifies a button, so its
-// edge does not owe the 3:1 a field's does. Because the edge is an alpha it darkens
-// whatever surface it sits on in proportion, which answers the tinted-surface problem
-// noted below better than a fixed token did. A control that stands in for a FIELD (the
-// date picker's trigger) still takes `border-input` at its call site, to match the
-// field beside it.
+// QUIET variants rest on `border-input`, THE control edge, the same one every field,
+// select, chip and filter pill wears, and firm to `border-input-hover` under the
+// pointer (see `input` in tailwind.config.ts). Before that, buttons, chips and fields
+// each had their own edge (an alpha, a 40% input, a 58% grey), so a select sat beside a
+// row of chips in a visibly different outline. Quiet buttons add a 1px drop shadow,
+// the bordered-white secondary Stripe, Vercel and Clerk use; fields do not.
 //
 // FILLED variants get a 1px inner top highlight and a hairline drop shadow: the fill
 // reads as a pressable surface rather than a flat swatch. Not the old `shadow-sm` bloom,
 // which was removed for good reason; both layers here are 1-2px. The focus ring still
 // draws, because Tailwind composes `ring` and `shadow` into one `box-shadow`.
 const FILLED_DEPTH = "shadow-[inset_0_1px_0_hsl(0_0%_100%/0.16),0_1px_2px_hsl(var(--obsidian)/0.14)]";
-const QUIET_EDGE = "border-foreground/[0.14] shadow-[0_1px_2px_hsl(var(--obsidian)/0.05)]";
+const QUIET_EDGE = "border-input shadow-[0_1px_2px_hsl(var(--obsidian)/0.05)]";
 const FILLED_DISABLED = "disabled:opacity-50";
-const QUIET_DISABLED = "disabled:border-foreground/[0.14] disabled:bg-muted disabled:text-muted-foreground";
+const QUIET_DISABLED = "disabled:border-input disabled:bg-muted disabled:text-muted-foreground";
 
 const buttonVariants = cva(
   "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-4 [&_svg]:shrink-0",
@@ -133,8 +129,8 @@ const buttonVariants = cva(
         // exact moment the pointer was on them. The hover state is carried by the
         // fill (`bg-accent` / `bg-secondary/75`); the edge only firms up, from 14% to
         // 25% foreground.
-        outline: `border ${QUIET_EDGE} bg-card text-foreground hover:border-foreground/25 hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
-        secondary: `border ${QUIET_EDGE} bg-secondary text-secondary-foreground hover:border-foreground/25 hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        outline: `border ${QUIET_EDGE} bg-card text-foreground hover:border-input-hover hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        secondary: `border ${QUIET_EDGE} bg-secondary text-secondary-foreground hover:border-input-hover hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
         ghost: `hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
         link: `text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
       },

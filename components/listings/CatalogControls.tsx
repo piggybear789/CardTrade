@@ -490,9 +490,14 @@ function CatalogPropertyRow({
 }) {
   const Icon = icon;
   return (
+    // THE LABEL IS INK, LIKE THE NAV ROWS ABOVE IT. Label, value, icon and chevron
+    // were all `muted-foreground`, so the whole filter block read as disabled. The
+    // label now matches the rail's resting nav rows (`foreground/85`, medium), the
+    // icon and chevron stay grey, and the value stays grey until it narrows the grid.
+    // Open is a white panel with a hairline, lifted off the slate rail.
     <div
       className={cn(
-        'rounded-lg border transition-colors',
+        'rounded-md border transition-colors',
         open ? 'border-border bg-card' : 'border-transparent',
       )}
     >
@@ -500,10 +505,13 @@ function CatalogPropertyRow({
         type="button"
         onClick={onClick}
         aria-expanded={open}
-        className="flex h-10 w-full items-center gap-snug px-cozy text-left border border-transparent focus:outline-none focus-visible:border-ring rounded-lg"
+        className={cn(
+          'flex h-10 w-full items-center gap-snug rounded-md border border-transparent px-cozy text-left transition-colors focus:outline-none focus-visible:border-ring',
+          !open && 'hover:bg-muted/70',
+        )}
       >
         <HugeiconsIcon icon={Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-        <span className="text-body text-muted-foreground">{label}</span>
+        <span className="text-body font-medium text-foreground/85">{label}</span>
         <span
           className={cn(
             'min-w-0 flex-1 truncate text-right text-body tabular-nums',
@@ -742,7 +750,7 @@ function FilterCheckRow({
           know means "you can tick this". */}
       <span
         className={cn(
-          'flex size-4 shrink-0 items-center justify-center rounded-[0.25rem] border transition-colors',
+          'flex size-4 shrink-0 items-center justify-center rounded-sm border transition-colors',
           // Ink, not violet, so the whole panel speaks one language: a chosen
           // thing goes near-black, whether it is a chip or a tickbox. That
           // leaves the price slider as the only violet left down here, which is
@@ -785,7 +793,7 @@ function FilterSquare({
         // uses of the hue on one 9px-tall control.
         pressed
           ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-input bg-card text-muted-foreground hover:border-foreground/60 hover:text-foreground',
+          : 'border-input bg-card text-muted-foreground hover:border-input-hover hover:text-foreground',
       )}
     >
       {label}

@@ -149,9 +149,9 @@ function HeaderSearchFallback({
         className={cn(
           'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
-            'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
+            'h-11 rounded-md border-input bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground md:h-8',
+            'h-8 rounded-md border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground md:h-8',
         )}
         disabled
       />
@@ -522,9 +522,9 @@ function HeaderSearchInner({
         className={cn(
           'h-10 w-full pl-9 md:h-9 [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden',
           appearance === 'inset' &&
-            'h-11 rounded-lg border-foreground/20 bg-card text-foreground placeholder:text-foreground/65 md:h-11',
+            'h-11 rounded-md border-input bg-card text-foreground placeholder:text-foreground/65 md:h-11',
           appearance === 'pill' &&
-            'h-8 rounded-full border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground md:h-8',
+            'h-8 rounded-md border-border bg-card py-0 pl-section leading-none text-foreground placeholder:text-muted-foreground md:h-8',
           trailing && query ? 'pr-[4.5rem]' : trailing || query ? 'pr-10' : 'pr-cozy',
         )}
       />
@@ -535,7 +535,7 @@ function HeaderSearchInner({
           onClick={clearQuery}
           aria-label="Clear search"
           className={cn(
-            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-ring',
+            'absolute top-1/2 z-[1] grid size-8 -translate-y-1/2 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:border-ring',
             trailing ? 'right-9' : 'right-1',
           )}
         >
@@ -615,7 +615,7 @@ function HeaderSearchInner({
                           <PlatformChip key={plat} slug={plat} bare className="size-4" />
                         ))}
                       </span>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-trust/10 px-2 py-0.5 text-meta font-semibold tabular-nums text-trust">
+                      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-trust/10 px-2 py-0.5 text-meta font-semibold tabular-nums text-trust">
                         <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" aria-hidden />
                         {ref.referenceCount}
                       </span>

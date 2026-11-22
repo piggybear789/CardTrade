@@ -97,6 +97,22 @@ import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDial
 import { OffPlatformWarning } from '@/components/deals/DealVerificationNotice';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
+import {
+  IdentityGatePrompt,
+  identityGateDescription,
+} from '@/components/identity/IdentityGatePrompt';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  priceNeedsVerifiedBuyer,
+  unverifiedBuyerPriceLimitMinor,
+} from '@/domain/identity/buyerIdentityLimit';
+import type { VerificationState } from '@/domain/identity/identityGate';
 
 import {
   PROCESSING_FEE_HINT,
@@ -429,6 +445,14 @@ export interface CashSaleViewProps {
    * which bank rails the Pay step offers beside card. Null offers card only.
    */
   buyerRegion?: string | null;
+  /**
+   * Where the VIEWER is in identity verification, when they are the buyer of an unpaid
+   * sale and have not passed the Identity_Gate. Null otherwise, including for a
+   * verified buyer. A sale priced over the unverified-buyer limit
+   * (`domain/identity/buyerIdentityLimit.ts`) then asks them to verify before Pay; the
+   * server refuses the payment regardless.
+   */
+  buyerVerification?: VerificationState | null;
 }
 
 /**
@@ -489,6 +513,7 @@ function CashSaleRoom({
   reviewAction,
   sellerPayReadiness = null,
   buyerRegion = null,
+  buyerVerification = null,
 }: CashSaleViewProps) {
   const router = useRouter();
   const { focusSection } = useContractFocus();
@@ -530,6 +555,10 @@ function CashSaleRoom({
   // step opens, and their confirmation of a private-deal seller's verified name.
   const payCard = usePayCard(confirming === 'pay');
   const [confirmedSeller, setConfirmedSeller] = useState(false);
+  // The identity prompt a large purchase opens in place of Pay, and whether this tab
+  // has seen the buyer verify (the server prop only updates on the next render).
+  const [verifyOpen, setVerifyOpen] = useState(false);
+  const [buyerJustVerified, setBuyerJustVerified] = useState(false);
 
   // Contracts opened before chat was linked (or an interrupted create) heal on first
   // view: the server resolves or creates the participant thread.
@@ -569,6 +598,23 @@ function CashSaleRoom({
       : payoutSetupOnly
         ? `Finish payout setup so ${buyer.name} can pay.`
         : `Verify with Stripe Identity and finish payout setup so ${buyer.name} can pay.`;
+  // A LARGE PURCHASE NEEDS A VERIFIED BUYER (`domain/identity/buyerIdentityLimit.ts`).
+  // Read from the live price, so a price the seller raises over the limit asks for ID
+  // here too. The server applies the same rule at Pay whatever this says.
+  const buyerIdLimitMinor = unverifiedBuyerPriceLimitMinor(sale.currency);
+  const buyerNeedsId =
+    editable &&
+    iAmBuyer &&
+    buyerVerification != null &&
+    !buyerJustVerified &&
+    priceNeedsVerifiedBuyer(sale.agreed_price_cents, sale.currency);
+  // A refusal from the server opens the same prompt; with no state read for this
+  // viewer it starts from the beginning.
+  const buyerPromptState: VerificationState = buyerVerification ?? 'NOT_STARTED';
+  const buyerIdRule =
+    buyerIdLimitMinor === null
+      ? 'This purchase needs a verified ID.'
+      : `Purchases over ${formatMoney(buyerIdLimitMinor, sale.currency)} need a verified ID.`;
   const isDelivery = sale.fulfillment_method === 'DELIVERY';
   const deliveryReady = !isDelivery || sale.delivery_address_configured;
   const sellerCanReceiveDeliveryAddress =
@@ -612,6 +658,10 @@ function CashSaleRoom({
       if (result.ok) {
         onSuccess?.();
         router.refresh();
+      } else if (result.error === 'buyer-identity-required') {
+        // The one refusal with a step to take here: answer it with that step rather
+        // than a toast naming it.
+        setVerifyOpen(true);
       } else {
         toast.error(messageFor(result));
       }
@@ -799,12 +849,12 @@ function CashSaleRoom({
   const disputePrompt = buyerMayReportUnposted
     ? {
         label: 'What has happened with this purchase?',
-        placeholder: 'e.g. The seller has not posted it or replied to my messages…',
+        placeholder: 'e.g. Not posted, no reply',
         hint: 'You can add screenshots as evidence after opening the dispute.',
       }
     : {
         label: 'What is wrong with the item?',
-        placeholder: 'e.g. The card arrived with a crease not shown in the photos…',
+        placeholder: 'e.g. Crease not in the photos',
         hint: 'You can add photos as evidence after opening the dispute.',
       };
 
@@ -1006,6 +1056,7 @@ function CashSaleRoom({
                   // child in the button column.
                   note={
                     verificationNote ??
+                    (buyerNeedsId ? buyerIdRule : undefined) ??
                     shipByNote ??
                     // ESC-02: tracking that cannot be this sale's parcel as recorded.
                     // No inspection clock runs until support confirms it.
@@ -1120,7 +1171,15 @@ function CashSaleRoom({
                           size="sm"
                           disabled={isPending || !deliveryReady || payBlocked}
                           aria-busy={busy('accept')}
+                          aria-haspopup="dialog"
                           onClick={() => {
+                            // Over the unverified-buyer limit: the ID check comes
+                            // first, from here, instead of a Pay dialog that would
+                            // only be refused.
+                            if (buyerNeedsId) {
+                              setVerifyOpen(true);
+                              return;
+                            }
                             // ESC-31: freeze what the buyer is shown.
                             paySnapshot.current = {
                               termsVersion: sale.terms_version,
@@ -1130,7 +1189,7 @@ function CashSaleRoom({
                           }}
                         >
                           <PendingLabel pending={busy('accept')}>
-                            Accept terms and pay
+                            {buyerNeedsId ? 'Verify ID to pay' : 'Accept terms and pay'}
                           </PendingLabel>
                         </Button>
                       ) : null}
@@ -1489,7 +1548,7 @@ function CashSaleRoom({
                             onClick={() => chooseMethod(option.value)}
                             className={cn(
                               'flex size-24 shrink-0 touch-manipulation flex-col items-center justify-center gap-snug rounded-lg border border-input bg-card p-snug text-center text-meta font-semibold transition-colors sm:size-28',
-                              'hover:border-foreground/60 hover:bg-accent focus-visible:border-ring focus-visible:outline-none',
+                              'hover:border-input-hover hover:bg-accent focus-visible:border-ring focus-visible:outline-none',
                               'disabled:pointer-events-none disabled:bg-muted disabled:text-muted-foreground',
                             )}
                           >
@@ -1827,6 +1886,29 @@ function CashSaleRoom({
         initialMethod={detailsFor ?? undefined}
       />
 
+      {/* THE ID CHECK A LARGE PURCHASE NEEDS, opened by Pay in its place. The hosted
+          check returns the buyer to this room, where Pay then opens as usual. */}
+      <Dialog open={verifyOpen} onOpenChange={setVerifyOpen}>
+        <DialogContent className="min-w-0 md:max-w-lg">
+          <DialogHeader className="gap-snug">
+            <DialogTitle>Verify your ID to pay</DialogTitle>
+            <DialogDescription className="text-pretty">
+              {buyerPromptState === 'NOT_STARTED'
+                ? `${buyerIdRule} It takes about a minute with a photo ID. Nothing has been charged.`
+                : `${buyerIdRule} ${identityGateDescription(buyerPromptState, 'pay')}`}
+            </DialogDescription>
+          </DialogHeader>
+          <IdentityGatePrompt
+            state={buyerPromptState}
+            returnPath={`/sales/${sale.id}`}
+            onVerified={() => {
+              setBuyerJustVerified(true);
+              setVerifyOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* Confirmation steps for irreversible actions in this room. */}
       <ConfirmDialog
         open={confirming === 'pay'}
@@ -2044,7 +2126,7 @@ function CashSaleRoom({
             placeholder={disputePrompt.placeholder}
             rows={3}
           />
-          <p className="text-body text-muted-foreground">
+          <p className="text-meta text-muted-foreground">
             {disputePrompt.hint}
           </p>
         </div>

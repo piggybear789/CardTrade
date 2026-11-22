@@ -134,7 +134,7 @@ function SideColumn({
       className={cn(
         'flex h-full w-full min-w-0 flex-col',
         compact ? 'gap-snug' : 'gap-cozy',
-        carded && 'rounded-xl border bg-card p-group shadow-sm',
+        carded && 'surface rounded-xl bg-card p-group',
       )}
     >
       <header className="min-w-0 space-y-snug">

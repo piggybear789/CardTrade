@@ -49,12 +49,17 @@ same scale: it reads the values from `tailwind.config.ts`, preserves their
 size/line-height pairings, and preserves the Subtext_Rule and Compact_Row_Rule below.
 It does not make this document a second source of token values.
 
+**Not yet ported:** the 2026-11-22 field-hint change. Flutter's
+`inputDecorationTheme.helperStyle` (`app_theme.dart`) is still `supportText` (body),
+pinned by `controls_test.dart` and the form goldens. Moving it to `metaText` means
+updating that test and regenerating `test/golden/forms`.
+
 ## Type scale
 
 | Token | Size | Line height | Use it for |
 | --- | --- | --- | --- |
-| `text-meta` | 12px (`0.75rem`) | `1.4` | **Chrome only**: badges, timestamps, counts, dense table cells, key-value micro-labels |
-| `text-body` | 14px (`0.875rem`) | `1.6` | Body copy, helper text, descriptions, disclosure copy, form labels, and all field text |
+| `text-meta` | 12px (`0.75rem`) | `1.4` | Chrome (badges, timestamps, counts, dense table cells, key-value micro-labels) and **field hints** |
+| `text-body` | 14px (`0.875rem`) | `1.6` | Body copy, descriptions, disclosure copy, form labels, field text, and field errors |
 | `text-lead` | 16px (`1rem`) | `1.5` | Lead paragraphs, card titles, emphasised single values |
 | `text-subhead` | 17px (`1.0625rem`) | `1.4` | Panel and card headings |
 | `text-head` | 21px (`1.3125rem`) | `1.25` | Section headings, page titles inside a shell |
@@ -63,25 +68,52 @@ It does not make this document a second source of token values.
 The table is a readable mirror, not a token source: `tailwind.config.ts` owns every
 size and line-height value.
 
-### The subtext rule — this is the one the user asked for
+### The subtext rule
 
-**Subtext is de-emphasised by COLOUR, never by a smaller size.**
+**A field hint is `text-meta` and muted. All other supporting copy is `text-body` and
+muted.**
 
 ```tsx
-// RIGHT — helper text, description, disclosure copy
+// Field hint: belongs to ONE control and sits directly under it
+<Input id="tracking" aria-describedby="tracking-hint" />
+<p id="tracking-hint" className="text-meta text-muted-foreground">
+  Enter the number for this parcel only.
+</p>
+
+// Supporting paragraph: section, card or dialog description, disclosure
 <p className="text-body text-muted-foreground">Buyer pays return postage.</p>
 
-// WRONG — same role, two sizes, which is the bug being fixed
+// WRONG: raw sizes, which is how one role ended up at several sizes
 <p className="text-xs text-muted-foreground">…</p>
 <p className="text-sm text-muted-foreground">…</p>
 ```
 
-`text-meta` is **not** "smaller subtext". It is for inline chrome that is genuinely
-ancillary — a relative timestamp, a badge, a count, a cell in a dense table. If the
-text is a sentence a member is meant to read, it is `text-body`.
+A **field hint** is copy attached to one control, under it (or under its label, for an
+upload): what to enter, a format or limit, what the field is used for, a character
+count, or a live readout of the field's own value ("Currently A$120.00", "You'd pay
+A$124.20"). It is one step below the field's own text so it reads as part of the field
+rather than as a paragraph competing with it.
 
-This is also an accessibility fix: muted foreground is `32 10% 34%`, and at 12px a
-lighter muted was carrying disclosure copy and form help.
+These stay `text-body`:
+
+- Section, card and dialog descriptions (`DialogDescription`, `CardDescription`).
+- A consequence the member must not miss, even beside a field (an irreversible region
+  choice). Give it its own paragraph or a `StatusNotice`, not a hint.
+- Field errors (`text-body text-destructive`): an error is never quieter than the hint
+  it replaces.
+- An option's own description inside a control (`ChoiceTile`, `DialogRow`): that is the
+  control's face, not a hint under it.
+
+**Why this changed (2026-11-22).** The earlier rule, "de-emphasise by colour, never by
+size", put every hint at 14px, the same size as the label and the text in the field, so
+hints read as body copy and forms looked wordy. Material 3 sets supporting text one
+step below the field (Body Small under Body Large); GOV.UK is the main design system
+that keeps hints at body size. The earlier rule's accessibility concern was a lighter
+muted at 12px. Muted foreground is now `215 19% 35%`, about 7.4:1 on white, which passes
+WCAG AAA at 12px.
+
+`text-meta` is still not a general "smaller subtext". A sentence a member reads that is
+not a field hint is `text-body`.
 
 ### The compact-row rule — do not shrink reading text to fit a control
 
@@ -138,7 +170,8 @@ Standard card padding is `p-group`. A dense or nested row is `p-cozy`.
 ## Migration rules for a sweep
 
 1. **Classify, do not blindly substitute.** Every `text-xs` needs the judgement in
-   the subtext rule above: sentence → `text-body`; chrome → `text-meta`.
+   the subtext rule above: chrome or field hint → `text-meta`; any other sentence →
+   `text-body`.
 2. **Never change a colour.** If an element sets `text-primary-foreground`,
    `text-destructive`, `text-trust` or a dark-surface colour, keep it. Only the SIZE
    class is being replaced. Dropping a colour breaks the dark header and the

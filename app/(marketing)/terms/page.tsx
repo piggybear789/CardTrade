@@ -88,7 +88,10 @@ export default function TermsPage() {
       <h2 id="identity">4. Identity verification</h2>
       <p>
         Listing, selling and trading require an identity check by Stripe Identity
-        (a government photo ID and a selfie). Buying for cash does not. When you sell to or
+        (a government photo ID and a selfie). Buying for cash does not, except a single
+        purchase priced over 5,000 in Australian, US or Canadian dollars, euros, pounds or
+        Swiss francs (about US$5,000 in other currencies), which needs the buyer verified
+        before paying. When you sell to or
         trade with someone, we show them your verified legal name so they know who they are
         dealing with. A verified identity shows who a member is. It does not guarantee their
         goods, their honesty, or that a deal will complete.

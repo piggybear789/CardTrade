@@ -224,7 +224,7 @@ export function ReportDialog({
               <Label htmlFor="report-details">Details (optional)</Label>
               <Textarea
                 id="report-details"
-                placeholder="Add any context that will help our moderators…"
+                placeholder="Add details"
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 maxLength={DETAILS_MAX}

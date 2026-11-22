@@ -67,7 +67,7 @@ function PanelCard({
     <div
       role={ariaLabel ? 'group' : undefined}
       aria-label={ariaLabel}
-      className={cn('space-y-1.5 px-3.5 py-3', divided && 'border-t border-border/80')}
+      className={cn('space-y-1.5 px-3.5 py-3', divided && 'border-t border-border')}
     >
       {children}
     </div>
@@ -360,7 +360,7 @@ export function TrustNetworkPanel({ orbits }: { orbits: TrustOrbits }) {
         // One card, two sections (`PanelCard`): who the person is, then what they said.
         // Floats over the drawing's foot; on a phone the drawing shrinks upward out of
         // its way while it is open (`TrustOrbitsCanvas`), so the card covers nothing.
-        'absolute inset-x-2 bottom-2 z-10 mx-auto max-w-[520px] overflow-hidden rounded-2xl border border-border/85 bg-card/95 shadow-xl backdrop-blur-md sm:inset-x-3 sm:bottom-3',
+        'absolute inset-x-2 bottom-2 z-10 mx-auto max-w-[520px] overflow-hidden surface rounded-xl bg-card/95 shadow-xl backdrop-blur-md sm:inset-x-3 sm:bottom-3',
         panel.open < 0.5 && 'pointer-events-none',
       )}
     >

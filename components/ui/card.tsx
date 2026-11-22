@@ -9,7 +9,9 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-lg border border-border bg-card text-card-foreground shadow-market",
+      // `surface` (globals.css): a hairline shadow edge under a soft cool bloom, no
+    // border. The References surface, now the card everywhere.
+    "surface rounded-xl bg-card text-card-foreground",
       className
     )}
     {...props}

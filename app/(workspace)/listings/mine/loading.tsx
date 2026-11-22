@@ -60,7 +60,7 @@ export default function MyListingsLoading() {
       <SectionHeaderSkeleton hasMobileAction mobileActionClassName="w-[8.5rem]" />
       <div aria-hidden="true">
         <SectionFilterSkeleton labels={['All', 'Live', 'Under contract', 'Sold']} />
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="overflow-hidden surface rounded-xl bg-card">
           <div className={cn(ROW_GRID, 'hidden border-b border-border bg-muted px-group py-snug md:grid')}>
             <span />
             <TextLines className="text-meta" widths={['w-1/3']} />

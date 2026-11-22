@@ -88,7 +88,7 @@ const STACKED_PRIMARY_SIZES = '(max-width: 639px) 100vw, 240px';
 
 /** Dark, translucent control that floats over the photo rather than beside it. */
 const LIGHTBOX_CONTROL =
-  'z-10 grid size-10 touch-manipulation place-items-center rounded-full bg-obsidian/60 text-mist backdrop-blur transition-colors hover:bg-obsidian/80 border border-transparent focus:outline-none focus-visible:border-mist';
+  'z-10 grid size-10 touch-manipulation place-items-center rounded-md bg-obsidian/60 text-mist backdrop-blur transition-colors hover:bg-obsidian/80 border border-transparent focus:outline-none focus-visible:border-mist';
 
 export interface ContractImageLightboxProps {
   /** Resolved image URLs, in order. */

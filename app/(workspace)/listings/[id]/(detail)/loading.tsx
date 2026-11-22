@@ -112,7 +112,7 @@ function PhoneStackSkeleton() {
             type scale, so the bar width is texture and draws canonical. The condition
             pill beside it keeps its honest `h-5 w-16` reserve. */}
         <TextLines className="text-display" widths={['w-1/3']} />
-        <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+        <Skeleton className="ml-auto h-5 w-16 rounded-md" />
       </div>
 
       {/* The fee note: one `text-meta` line at `mt-tight`. */}
@@ -128,7 +128,7 @@ function PhoneStackSkeleton() {
       {/* The seller card: `p-cozy` around a 40px avatar beside three lines — the name
           (`text-body`), the rating and the verified name (`text-meta`), `gap-tight`
           apart. Every line always renders, so this is the card's real height. */}
-      <div className="mt-group flex items-center gap-cozy rounded-lg border border-border bg-card p-cozy">
+      <div className="mt-group flex items-center gap-cozy surface rounded-xl bg-card p-cozy">
         <Skeleton className="size-10 shrink-0 rounded-full" />
         <div className="flex min-w-0 flex-1 flex-col gap-tight">
           <TextLines className="text-body" widths={['w-1/3']} />
@@ -181,7 +181,7 @@ function DesktopPaneSkeleton() {
           of name (`text-lead`), rating (`text-meta`) and the disclosed name
           (`text-meta leading-snug`). The column is taller than the avatar, so it — not
           the avatar — sets the card's height. */}
-      <div className="rounded-lg border border-border bg-card p-group shadow-market">
+      <div className="surface rounded-xl bg-card p-group">
         <div className="flex min-w-0 items-center gap-cozy">
           <Skeleton className="size-10 shrink-0 rounded-full" />
           <div className="min-w-0 flex-1 space-y-tight">
@@ -218,7 +218,7 @@ function DesktopPaneSkeleton() {
             <div key={index} className="flex min-w-0 flex-1 flex-col items-center gap-tight">
               {/* The `size-12` chip is geometry (its own reserved box); the label under
                   it is texture in the centred `flex-1` column and draws canonical. */}
-              <Skeleton className="size-12 rounded-full" />
+              <Skeleton className="size-12 rounded-md" />
               <TextLines className="text-body leading-tight" widths={['w-1/2']} />
             </div>
           ))}

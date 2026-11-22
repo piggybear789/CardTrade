@@ -1,0 +1,37 @@
+﻿ok    0.0000  desktop /
+ok    0.0000  desktop / dialog "More categories"
+ok    0.0000  desktop /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4
+ok    0.0000  desktop /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706
+ok    0.0000  desktop /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706 dialog "Leave a reference"
+ok    0.0000  desktop /references
+ok    0.0000  desktop /references/serialcollect
+ok    0.0000  desktop /references/serialcollect dialog "Claim this account"
+ok    0.0000  desktop /references/serialcollect dialog "Leave a reference"
+ok    0.0000  desktop /trusted-sellers
+ok    0.0000  desktop /help
+ok    0.0000  desktop /safety
+ok    0.0000  desktop /terms
+ok    0.0000  desktop /privacy
+ok    0.0000  desktop /sign-in
+ok    0.0000  desktop /sign-up
+ok    0.0000  desktop /forgot-password
+ok    0.0000  desktop /deals
+ok    0.0000  phone /
+ok    0.0000  phone / dialog "Filters"
+ok    0.0000  phone /listings/7345971f-8b9c-4bd2-9088-bdfd3058a6e4
+SHIFT 0.0149  phone /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706
+        +411ms 0.0149 (after input)  div.border-t.border-border.bg-card.px-group.py-group "References received(1)joys_joys0 refs ┬╖ "  16,782,358,62 -> 0,0,0,0
+ok    0.0000  phone /sellers/27cf7959-22ec-438d-9521-0cc8dc53c706 dialog "Leave a reference"
+ok    0.0000  phone /references
+ok    0.0000  phone /references/serialcollect
+ok    0.0000  phone /references/serialcollect dialog "Claim this account"
+ok    0.0000  phone /references/serialcollect dialog "Leave a reference"
+ok    0.0000  phone /trusted-sellers
+ok    0.0000  phone /help
+ok    0.0000  phone /safety
+ok    0.0000  phone /terms
+ok    0.0000  phone /privacy
+ok    0.0000  phone /sign-in
+ok    0.0000  phone /sign-up
+ok    0.0000  phone /forgot-password
+ok    0.0000  phone /deals

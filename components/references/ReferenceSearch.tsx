@@ -281,7 +281,7 @@ export function ReferenceSearch({
       {/* The field keeps the control edge (`border-input`, every field's) and gains the
           references page's soft cool bloom under it (`.ref-surface`) and a 12px corner,
           so the page's one control sits on the page like its cards do. */}
-      <div className="ref-surface group relative flex items-center rounded-xl border border-input bg-card transition-[border-color,box-shadow] duration-300 focus-within:border-ring/50 focus-within:ring-[3px] focus-within:ring-ring/10">
+      <div className="ref-surface group relative flex items-center rounded-md border border-input bg-card transition-[border-color,box-shadow] duration-300 focus-within:border-ring/50 focus-within:ring-[3px] focus-within:ring-ring/10">
         <HugeiconsIcon
           icon={Search01Icon}
           className="pointer-events-none ml-4 size-4 shrink-0 text-muted-foreground transition-colors group-focus-within:text-foreground"
@@ -304,7 +304,7 @@ export function ReferenceSearch({
             setActiveIndex(0);
           }}
           onKeyDown={onKeyDown}
-          placeholder="Paste Instagram/Facebook/eBay link, @handle, or name..."
+          placeholder="@handle, name or link"
           aria-label="Paste a profile link, handle, or name"
           aria-expanded={(!compact || focused) && options.length > 0}
           aria-controls={listId}
@@ -346,7 +346,7 @@ export function ReferenceSearch({
           the search box is focused so it never obscures the report card underneath. */}
       <div
         className={cn(
-          'ref-surface relative mt-2 overflow-hidden rounded-xl bg-card sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:backdrop-blur-md',
+          'ref-surface relative mt-2 overflow-hidden rounded-lg bg-card sm:absolute sm:inset-x-0 sm:top-full sm:z-20 sm:bg-card/95 sm:backdrop-blur-md',
           compact && !focused && 'hidden',
         )}
       >
@@ -395,7 +395,7 @@ export function ReferenceSearch({
           id={listId}
           role="listbox"
           aria-label={needle ? 'Matching profiles' : 'Most referenced traders'}
-          className={cn('divide-y divide-border/60', options.length === 0 && 'hidden')}
+          className={cn('divide-y divide-border', options.length === 0 && 'hidden')}
         >
           {options.map((option, i) => {
             const isActive = i === active;
@@ -418,7 +418,7 @@ export function ReferenceSearch({
                   key={option.key}
                   {...common}
                   className={cn(
-                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border/80 px-4 py-3 transition-colors duration-300',
+                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border px-4 py-3 transition-colors duration-300',
                     isActive ? 'bg-muted/60' : 'bg-muted/25 hover:bg-muted/40',
                   )}
                 >
@@ -446,7 +446,7 @@ export function ReferenceSearch({
                   key={option.key}
                   {...common}
                   className={cn(
-                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border/80 px-4 py-3 transition-colors duration-300',
+                    'flex min-h-14 cursor-pointer items-center justify-between gap-3 border-t border-border px-4 py-3 transition-colors duration-300',
                     isActive ? 'bg-muted/60' : 'bg-muted/15 hover:bg-muted/35',
                   )}
                 >

@@ -103,7 +103,7 @@ export function SettingsGroup({
           ) : null}
         </div>
       ) : null}
-      <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="overflow-hidden surface rounded-xl bg-card">
         {children}
       </div>
     </section>

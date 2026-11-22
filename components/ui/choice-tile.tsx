@@ -89,7 +89,7 @@ export function ChoiceTile({
         // Shared with `OptionButton` (`OPTION_SELECTED`): a 1px foreground edge, an 8%
         // foreground fill and a semibold label, so the chosen tile differs by edge,
         // fill and weight rather than by a thicker frame.
-        checked ? OPTION_SELECTED : 'hover:border-foreground/60 hover:bg-muted/40',
+        checked ? OPTION_SELECTED : 'hover:border-input-hover hover:bg-muted/40',
         invalid && 'border-destructive',
         // Locked groups (a disabled <fieldset>) look and behave locked.
         'has-[:disabled]:pointer-events-none has-[:disabled]:opacity-70',

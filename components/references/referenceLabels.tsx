@@ -149,7 +149,7 @@ export function Tag({
     <span
       title={title}
       className={cn(
-        'ref-tag inline-flex shrink-0 items-center whitespace-nowrap rounded-full font-medium leading-none',
+        'ref-tag inline-flex shrink-0 items-center whitespace-nowrap rounded-md font-medium leading-none',
         size === 'md' ? 'h-7 gap-1.5 pl-2 pr-2.5 text-meta' : 'h-6 gap-1 pl-1.5 pr-2 text-meta',
         style.surface,
         style.text,
@@ -223,7 +223,7 @@ export function PlatformChip({
         aria-label={label}
         className={cn(
           'inline-flex size-6 shrink-0 items-center justify-center',
-          bare ? null : 'rounded-full border border-border/80 bg-muted/40',
+          bare ? null : 'rounded-full border border-border bg-muted/40',
           platformTint(slug),
           className,
         )}
@@ -251,7 +251,7 @@ export function PlatformChip({
       title={label}
       className={cn(
         'inline-flex h-6 shrink-0 items-center text-meta font-medium text-muted-foreground',
-        bare ? null : 'rounded-full border border-border/80 bg-muted/40 px-2',
+        bare ? null : 'rounded-md border border-border bg-muted/40 px-2',
         className,
       )}
     >

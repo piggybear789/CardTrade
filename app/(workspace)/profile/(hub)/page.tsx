@@ -498,7 +498,7 @@ function ProfilePanel({
         ) : null}
         {/* `!h-12`: the button's `sm` size sets 24px from `md` inside a
             media query, which a plain `h-12` cannot override. */}
-        <SignOutButton className="!h-12 w-full justify-start rounded-xl border border-border bg-card px-group text-body font-medium text-destructive hover:bg-destructive/5 hover:text-destructive" />
+        <SignOutButton className="!h-12 w-full justify-start rounded-md border border-input bg-card px-group text-body font-medium text-destructive hover:bg-destructive/5 hover:text-destructive" />
       </div>
     </div>
   );

@@ -64,7 +64,7 @@ export function ListingDetailChrome({
           targetId={reportTargetId}
           triggerLabel="Report listing"
           appearance="icon-only"
-          triggerClassName="size-10 rounded-full text-foreground hover:bg-foreground/5 md:size-10 [&_svg]:size-4"
+          triggerClassName="size-10 rounded-md text-foreground hover:bg-foreground/5 md:size-10 [&_svg]:size-4"
         />
       ) : isAuthenticated && listing == null ? (
         // RESERVE THE REPORT SLOT until the page publishes. The server snapshot is

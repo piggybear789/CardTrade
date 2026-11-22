@@ -222,7 +222,7 @@ function MobileGenreStrip({
             // `pt-snug` because the panel scrolls: with no top inset the first row
             // sat at y=0 of the scroll container and the selected tile's top edge —
             // and any focus edge — was clipped by `overflow-y-auto`.
-            className="absolute left-1/2 top-14 z-10 max-h-[60dvh] w-screen -translate-x-1/2 overflow-y-auto overscroll-contain rounded-b-2xl bg-background px-group pb-group pt-snug shadow-[0_18px_32px_-20px_hsl(var(--obsidian)/0.35)]"
+            className="absolute left-1/2 top-14 z-10 max-h-[60dvh] w-screen -translate-x-1/2 overflow-y-auto overscroll-contain rounded-b-xl bg-background px-group pb-group pt-snug shadow-[0_18px_32px_-20px_hsl(var(--obsidian)/0.35)]"
           >
             <div className="grid grid-cols-4 gap-snug">
               <CategoryChip
@@ -253,7 +253,7 @@ function MobileGenreStrip({
           aria-controls={allOpen ? panelId : undefined}
           aria-label="All categories"
           className={cn(
-            'absolute right-0 top-1.5 z-10 flex size-11 items-center justify-center rounded-full text-foreground outline-none transition-colors hover:text-iris-ink focus-visible:ring-1 focus-visible:border-ring',
+            'absolute right-0 top-1.5 z-10 flex size-11 items-center justify-center rounded-md text-foreground outline-none transition-colors hover:text-iris-ink focus-visible:ring-1 focus-visible:border-ring',
             allOpen ? 'bg-transparent' : 'bg-background',
           )}
         >
@@ -446,7 +446,7 @@ function DesktopGenrePills({
             <button
               type="button"
               aria-label="More categories"
-              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-full border border-[hsl(var(--input)/0.4)] bg-card text-foreground shadow-sm transition-colors hover:border-input hover:bg-accent focus:outline-none focus-visible:border-ring"
+              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-md border border-input bg-card text-foreground shadow-[0_1px_2px_hsl(var(--obsidian)/0.05)] transition-colors hover:border-input-hover hover:bg-accent focus:outline-none focus-visible:border-ring"
             >
               {open ? (
                 <HugeiconsIcon icon={ChevronUpIcon} className="size-4" strokeWidth={1.75} aria-hidden />
@@ -540,12 +540,12 @@ function GenrePill({
       aria-pressed={active}
       title={label}
       className={cn(
-        'flex h-9 min-h-9 items-center gap-1.5 rounded-full border px-2.5 text-left text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-cozy',
+        'flex h-9 min-h-9 items-center gap-1.5 rounded-md border px-2.5 text-left text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-cozy',
         'border border-transparent focus:outline-none focus-visible:border-ring',
         stretched ? 'min-w-0 w-full' : 'shrink-0',
         active
           ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-[hsl(var(--input)/0.4)] bg-card text-foreground hover:border-input hover:bg-accent',
+          : 'border-input bg-card text-foreground hover:border-input-hover hover:bg-accent',
       )}
     >
       {/* THE SAME ICON AS THE PHONE GRID — the real mark via `GameIcon`. This used to

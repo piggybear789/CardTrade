@@ -127,12 +127,14 @@ export async function MarketplaceShell({
             nothing is left to mount. */}
         <aside
           style={{ viewTransitionName: 'persistent-nav' }}
-          // `bg-sidebar`, not `bg-card`: the rail is the layer BELOW the page
-          // (96% against the page's 98%), where a card sits above it at 100%.
-          // The old 28px/4.5% shadow is gone — it was below the perceptual
-          // floor, so the border and the surface step do the separating on
-          // their own.
-          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-sidebar md:px-5"
+          // `bg-sidebar`: A SLATE-50 RAIL BESIDE THE WHITE PAGE. Every reference that
+          // docks a sidebar (Attio, Sprig, Productboard, Givingli on Mobbin,
+          // 2026-11-21) makes exactly one of the two surfaces white and tints the
+          // other. The rail used to be 96.6% grey on a 96.5% grey page, the same
+          // colour, with a lone hairline telling them apart. Since the bright palette
+          // the page is white, so the rail takes the tint. Keep
+          // `MarketplaceShellSkeleton` in step.
+          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-sidebar-border md:bg-sidebar md:px-5"
         >
           {/* The rail background stretches the full column; its contents stay in
               view. The inset px-1/-mx-1 pair gives focus rings room to draw: setting
@@ -273,6 +275,10 @@ export async function MarketplaceShell({
           <div
             className={cn(
               'mx-auto flex min-h-0 w-full flex-col',
+              // `settle` (globals.css): the page arrives with a short fade and a 4px
+              // rise instead of snapping in. Not on flush rooms (a thread, a contract):
+              // a chat whose log drifts on every visit reads as a reload.
+              !flush && 'settle',
               fill ? 'max-w-none' : 'max-w-workspace',
               // `my-auto` rather than `flex-1` so a centred interstitial keeps
               // its natural height instead of stretching to fill the section.

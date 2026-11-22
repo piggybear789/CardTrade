@@ -103,7 +103,7 @@ export function ScamReportActions({ reportId, status, notes }: ScamReportActions
           onChange={(event) => setDraft(event.target.value)}
           maxLength={NOTES_MAX}
           rows={3}
-          placeholder="What you checked, what worried you, who you asked."
+          placeholder="What you checked"
         />
       </div>
 
@@ -174,7 +174,7 @@ export function ScamReportActions({ reportId, status, notes }: ScamReportActions
             onChange={(event) => setReason(event.target.value)}
             maxLength={500}
             rows={3}
-            placeholder="Not enough evidence, a dispute rather than a scam, a false report…"
+            placeholder="e.g. Not enough evidence"
           />
         </div>
       </ConfirmDialog>

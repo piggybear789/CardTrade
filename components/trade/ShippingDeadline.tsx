@@ -111,7 +111,7 @@ export function ShippingDeadline({
     return (
       <span
         className={cn(
-          'inline-flex max-w-full items-center gap-tight truncate rounded-full border px-snug py-0.5 text-meta font-medium',
+          'inline-flex max-w-full items-center gap-tight truncate rounded-md border px-snug py-0.5 text-meta font-medium',
           late || (!viewerShipped && hours <= 12)
             ? 'border-destructive/40 bg-destructive/10 text-destructive'
             : 'border-border bg-muted text-foreground',

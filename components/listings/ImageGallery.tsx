@@ -382,7 +382,7 @@ export function ImageGallery({
         {!activeFailed && !isCover ? (
           <p
             aria-hidden="true"
-            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-full border border-white/15 bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur"
+            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-md border border-white/15 bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur"
           >
             <HugeiconsIcon icon={ZoomInIcon} className="size-3.5" />
             <span className="[@media(hover:none)]:hidden">Click to enlarge</span>
@@ -409,13 +409,13 @@ export function ImageGallery({
 
         {!isCover && images.length > 1 ? (
           <nav
-            className="absolute right-3 top-3 z-[2] flex items-center gap-tight rounded-full border border-white/15 bg-obsidian/65 px-tight py-tight shadow-sm backdrop-blur"
+            className="absolute right-3 top-3 z-[2] flex items-center gap-tight rounded-lg border border-white/15 bg-obsidian/65 px-tight py-tight shadow-sm backdrop-blur"
             aria-label="Image navigation"
           >
             <button
               type="button"
               onClick={prev}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-ring"
+              className="flex size-11 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-ring"
               aria-label="Previous image"
             >
               <HugeiconsIcon icon={ChevronLeftIcon} className="size-4" aria-hidden />
@@ -430,7 +430,7 @@ export function ImageGallery({
             <button
               type="button"
               onClick={next}
-              className="flex size-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-ring"
+              className="flex size-11 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-ring"
               aria-label="Next image"
             >
               <HugeiconsIcon icon={ChevronRightIcon} className="size-4" aria-hidden />
@@ -692,7 +692,7 @@ function SwipeCarousel({
           <>
             <p
               aria-hidden="true"
-              className="pointer-events-none absolute right-3 top-3 z-[2] rounded-full border border-white/15 bg-obsidian/70 px-snug py-0.5 text-meta font-medium tabular-nums text-white/90 shadow-sm backdrop-blur"
+              className="pointer-events-none absolute right-3 top-3 z-[2] rounded-md border border-white/15 bg-obsidian/70 px-snug py-0.5 text-meta font-medium tabular-nums text-white/90 shadow-sm backdrop-blur"
             >
               {visibleIndex + 1}/{images.length}
             </p>

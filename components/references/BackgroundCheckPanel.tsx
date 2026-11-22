@@ -3,8 +3,8 @@
 // components/references/BackgroundCheckPanel.tsx
 //
 // Unified public footprint & background check card modeled on NoDitto's References
-// design system (`ref-surface rounded-2xl bg-card p-group sm:p-6`, globals.css,
-// `PlatformChip`, `divide-y divide-border/70`, `tabular-nums`, flat internal tiles with
+// design system (`ref-surface rounded-xl bg-card p-group sm:p-6`, globals.css,
+// `PlatformChip`, `divide-y divide-border`, `tabular-nums`, flat internal tiles with
 // single-level elevation).
 //
 // Sits directly on `/references/[handle]` (mode="profile") with the same walk fade
@@ -200,7 +200,7 @@ function RowBadge({
           ? 'border-trust/25 bg-trust/10 text-trust'
           : tone === 'destructive'
             ? 'border-destructive/30 bg-destructive/10 text-destructive'
-            : 'border-border/80 bg-muted/40 text-muted-foreground',
+            : 'border-border bg-muted/40 text-muted-foreground',
       )}
     >
       <HugeiconsIcon icon={icon} className="size-4" aria-hidden />
@@ -252,7 +252,7 @@ function SiteFavicon({
       <span
         aria-hidden
         className={cn(
-          'inline-flex shrink-0 items-center justify-center border border-border/70 bg-muted/50 text-muted-foreground',
+          'inline-flex shrink-0 items-center justify-center border border-border bg-muted/50 text-muted-foreground',
           boxClass,
         )}
       >
@@ -264,7 +264,7 @@ function SiteFavicon({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center overflow-hidden border border-border/70 bg-background',
+        'inline-flex shrink-0 items-center justify-center overflow-hidden border border-border bg-background',
         boxClass,
       )}
     >
@@ -295,7 +295,7 @@ function ListingThumb({ src, alt }: { src: string | null; alt: string }) {
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className="size-12 shrink-0 rounded-md border border-border/60 bg-muted object-cover"
+      className="size-12 shrink-0 rounded-md border border-border bg-muted object-cover"
     />
   );
 }
@@ -484,7 +484,7 @@ export function BackgroundCheckPanel({
 
           <section
             aria-busy
-            className="ref-surface rounded-2xl bg-card p-group sm:p-6"
+            className="ref-surface rounded-xl bg-card p-group sm:p-6"
           >
             <CheckProgress
               title="Checking digital footprint"
@@ -500,7 +500,7 @@ export function BackgroundCheckPanel({
 
     return (
       <section
-        className="ref-surface flex flex-col gap-cozy rounded-2xl bg-card p-group sm:flex-row sm:items-center sm:justify-between sm:p-6"
+        className="ref-surface flex flex-col gap-cozy rounded-xl bg-card p-group sm:flex-row sm:items-center sm:justify-between sm:p-6"
         style={{ opacity }}
       >
         <div className="min-w-0">
@@ -609,7 +609,7 @@ export function BackgroundCheckPanel({
       <section
         aria-labelledby="bg-footprint-heading"
         aria-busy={covered}
-        className="ref-surface rounded-2xl bg-card p-group sm:p-6"
+        className="ref-surface rounded-xl bg-card p-group sm:p-6"
       >
         <div className="grid">
           <div className={cn('col-start-1 row-start-1 min-w-0', covered && 'invisible')} inert={covered}>
@@ -651,7 +651,7 @@ export function BackgroundCheckPanel({
               disabled={loading || isPolling}
               onClick={() => void runCheck(true, true)}
               aria-label="Refresh digital footprint"
-              className="size-9 shrink-0 rounded-full text-muted-foreground hover:text-foreground"
+              className="size-9 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
             >
               <HugeiconsIcon
                 icon={RefreshCwIcon}
@@ -699,7 +699,7 @@ export function BackgroundCheckPanel({
               ))}
             </ul>
             {topLookalike ? (
-              <div className="mt-2.5 border-t border-border/60 pt-2 text-meta">
+              <div className="mt-2.5 border-t border-border pt-2 text-meta">
                 <span className="text-muted-foreground">Established lookalike: </span>
                 <Link
                   href={`/references/${encodeURIComponent(topLookalike.handle.replace(/^@/, ''))}?on=${encodeURIComponent(topLookalike.platform)}`}
@@ -717,7 +717,7 @@ export function BackgroundCheckPanel({
         ) : null}
 
         {/* 3. EVIDENCE SECTIONS */}
-        <ul className="mt-group divide-y divide-border/70 border-t border-border/70 pt-group" inert={covered}>
+        <ul className="mt-group divide-y divide-border border-t border-border pt-group" inert={covered}>
           {/* Section A: eBay */}
           <li className="py-group first:pt-0 last:pb-0">
             <div className="flex flex-col gap-cozy sm:flex-row sm:items-start sm:justify-between sm:gap-group">
@@ -1045,7 +1045,7 @@ export function BackgroundCheckPanel({
                         </span>
                       ) : null}
                       {visibleProfile.isPrivate ? (
-                        <span className="rounded-full border border-border bg-muted/60 px-2 py-0.5 text-meta font-medium text-muted-foreground">
+                        <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 text-meta font-medium text-muted-foreground">
                           Private
                         </span>
                       ) : null}
@@ -1059,7 +1059,7 @@ export function BackgroundCheckPanel({
                             {parsedIgBio.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="inline-flex items-center rounded-full border border-border/75 bg-muted/35 px-2 py-0.5 text-meta font-medium text-muted-foreground"
+                                className="inline-flex items-center rounded-md border border-border bg-muted/35 px-2 py-0.5 text-meta font-medium text-muted-foreground"
                               >
                                 {tag}
                               </span>
@@ -1190,7 +1190,7 @@ export function BackgroundCheckPanel({
                         {m.metaPills.map((pill) => (
                           <span
                             key={pill}
-                            className="inline-flex items-center rounded bg-muted/60 px-1.5 py-0.5 text-meta font-medium tabular-nums text-muted-foreground"
+                            className="inline-flex items-center rounded-sm bg-muted/60 px-1.5 py-0.5 text-meta font-medium tabular-nums text-muted-foreground"
                           >
                             {pill}
                           </span>
@@ -1225,7 +1225,7 @@ export function BackgroundCheckPanel({
                 verdict at the top is the one pill. A match is the exception, and keeps
                 its fill so it cannot be read past. */}
             {dossier.scamRisk.matchedReportCount > 0 ? (
-              <span className="inline-flex items-center self-start rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive sm:self-auto">
+              <span className="inline-flex items-center self-start rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive sm:self-auto">
                 {dossier.scamRisk.matchedReportCount} match
                 {dossier.scamRisk.matchedReportCount === 1 ? '' : 'es'}
               </span>
@@ -1306,7 +1306,7 @@ export function BackgroundCheckPanel({
                         href={match.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-muted/40 py-1 pr-2.5 pl-1.5 text-meta font-medium text-foreground transition-colors hover:bg-muted"
+                        className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card py-1 pr-2.5 pl-1.5 text-meta font-medium text-foreground transition-colors hover:border-input-hover hover:bg-accent"
                       >
                         <SiteFavicon faviconUrl={fav} label={match.site} size="sm" />
                         {match.site}
@@ -1584,7 +1584,7 @@ function FacebookIndexRow({ report }: { report: FacebookIndexReport }) {
                   href={account.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-0.5 text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   facebook.com/{account.slug}
                   <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" aria-hidden />

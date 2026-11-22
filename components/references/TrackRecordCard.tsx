@@ -61,7 +61,7 @@ export function TrackRecordCard({
   return (
     <section
       aria-labelledby="track-record-heading"
-      className="ref-surface rounded-2xl bg-card p-group sm:p-6"
+      className="ref-surface rounded-xl bg-card p-group sm:p-6"
       style={{ opacity }}
     >
       <h2 id="track-record-heading" className="text-subhead font-semibold tracking-tight text-foreground">
@@ -71,7 +71,7 @@ export function TrackRecordCard({
         Public feedback from other sites, as each site reports it.
       </p>
 
-      <ul className="mt-group divide-y divide-border/70">
+      <ul className="mt-group divide-y divide-border">
         {records.map((entry) => (
           <li
             key={`${entry.platform}:${entry.username}`}

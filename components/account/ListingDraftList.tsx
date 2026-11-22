@@ -30,7 +30,7 @@ export function ListingDraftList({ drafts }: { drafts: readonly ListingDraftSumm
   }
 
   return (
-    <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+    <ul className="divide-y divide-border overflow-hidden surface rounded-xl bg-card">
       {drafts.map((draft) => (
         <li key={draft.id} className="flex flex-wrap items-center gap-x-group gap-y-snug px-group py-cozy">
           <div className="min-w-0 flex-1">

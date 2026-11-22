@@ -323,7 +323,7 @@ function AddAddressForm({
   }
 
   return (
-    <div className={cn('flex flex-col gap-cozy rounded-xl border bg-card p-group')}>
+    <div className={cn('flex flex-col gap-cozy surface rounded-xl bg-card p-group')}>
       <PlacePicker
         id="new-saved-address"
         label="Address"

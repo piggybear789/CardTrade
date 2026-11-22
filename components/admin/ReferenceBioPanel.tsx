@@ -167,7 +167,7 @@ export function ReferenceBioPanel() {
             value={pasted}
             maxLength={BIO_SOURCE_MAX_LENGTH}
             rows={2}
-            placeholder="Paste what their profile says, flag and #tags included."
+            placeholder="Paste their bio"
             onChange={(event) => setPasted(event.target.value)}
           />
         </div>

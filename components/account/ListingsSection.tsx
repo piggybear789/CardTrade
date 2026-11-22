@@ -184,7 +184,7 @@ export function ListingsSection({
           fill
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="overflow-hidden surface rounded-xl bg-card">
           {/* Column headings, desktop only. On a phone the cells they label are folded
               into the middle cell's sub-line, so a header row would name columns that
               are not there. */}
@@ -267,7 +267,7 @@ export function ListingsSection({
                     </div>
                   </div>
 
-                  <span className="hidden text-right text-body font-semibold tabular-nums md:block">
+                  <span className="hidden whitespace-nowrap text-right text-body font-semibold tabular-nums md:block">
                     {isShopfront ? (
                       <span className="mr-0.5 text-meta font-medium text-muted-foreground">from</span>
                     ) : null}

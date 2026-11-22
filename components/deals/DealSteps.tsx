@@ -101,7 +101,7 @@ export function StepHeader({
               onClick={onBack}
               disabled={backDisabled}
               aria-label="Back"
-              className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50"
+              className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50"
             >
               <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
             </button>
@@ -147,7 +147,7 @@ export function DealCardStep({
         onChange={onCard}
         idPrefix={idPrefix}
         label={selling ? 'What are you selling?' : 'What are you swapping?'}
-        placeholder="Condition details, grade, anything they should know."
+        placeholder="Condition, grade, notes"
       />
       <UnlistedCategoryConditionFields draft={card} onChange={onCard} idPrefix={idPrefix} />
     </>
@@ -206,7 +206,7 @@ export function DealTermsStep({
           onChange={(event) => onWanted(event.target.value)}
           maxLength={1000}
           rows={2}
-          placeholder="The card, set or grade they should put up."
+          placeholder="Card, set or grade"
           className="resize-none"
         />
       </div>

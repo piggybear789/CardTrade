@@ -90,7 +90,7 @@ export function MarketplaceShellSkeleton({
             every workspace navigation, so the two must be edited together. */}
         <aside
           style={{ viewTransitionName: 'persistent-nav' }}
-          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-border md:bg-sidebar md:px-5"
+          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-sidebar-border md:bg-sidebar md:px-5"
         >
           <div className="flex flex-col md:sticky md:top-[calc(4rem+1px+env(safe-area-inset-top))] md:-mx-tight md:h-[calc(100dvh-4rem-1px-env(safe-area-inset-top))] md:gap-6 md:overflow-y-auto md:overscroll-contain md:px-tight md:py-5 md:[-ms-overflow-style:none] md:[scrollbar-width:none] md:[&::-webkit-scrollbar]:hidden">
             <div className="hidden md:block">

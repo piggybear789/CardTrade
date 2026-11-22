@@ -162,8 +162,14 @@ const PAIRS = (P) => [
   ['mist on obsidian header', P.mist, P.obsidian, 4.5],
   ['white on obsidian header', [0, 0, 100], P.obsidian, 4.5],
   // Non-text: control boundaries and focus indication, SC 1.4.11
-  ['field border vs page', P.input, P.background, 3],
-  ['field border vs card', P.input, P.card, 3],
+  //
+  // THE CONTROL EDGE IS BELOW 3:1 ON PURPOSE (product decision, 2026-11-21). One light
+  // edge on every control (fields, selects, buttons, chips) in place of a 3:1 edge on
+  // fields only, which made fields the heaviest outline on every page. Fields keep a
+  // visible label and the 4:1 focus ring below. The floor here stops the edge fading
+  // into the container hairline; set it back to 3 with `--input` 215 14% 56%.
+  ['control edge vs page', P.input, P.background, 1.5],
+  ['control edge vs card', P.input, P.card, 1.5],
   ['focus ring vs page', P.iris, P.background, 3],
   ['focus ring vs card', P.iris, P.card, 3],
   ['action edge vs page', P.actionBorder, P.background, 3],

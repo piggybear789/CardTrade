@@ -130,7 +130,7 @@ export default function OnboardingLoading() {
           centred `max-w-2xl` card from `md` up. `border-0` below `md` because the
           mobile panel sets `rounded-none border-0 shadow-none` — it is the page, and a
           hairline down both edges of the viewport vanished on swap. */}
-      <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex w-full flex-col gap-group border-0 bg-card p-group pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-lg md:border md:border-border md:p-6 md:shadow-lg">
+      <div className="fixed inset-x-0 bottom-0 top-0 z-50 flex w-full flex-col gap-group border-0 bg-card p-group pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] md:inset-x-auto md:bottom-auto md:left-1/2 md:top-1/2 md:max-h-[calc(100dvh-3rem)] md:w-[calc(100%-2rem)] md:max-w-2xl md:-translate-x-1/2 md:-translate-y-1/2 md:rounded-xl md:border md:border-border md:p-6 md:shadow-lg">
         <OnboardingStepSkeletonSwitch
           welcome={<WelcomeStepSkeleton />}
           seller={<SellerStepSkeleton />}

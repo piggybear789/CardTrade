@@ -1,0 +1,513 @@
+﻿
+=== TCGplayer search (https://www.tcgplayer.com/search/pokemon/product?q=charizard)
+{
+ "title": "Search TCGplayer's Massive Trading Card Games Inventory",
+ "page": {
+  "bodyBg": "rgba(0, 0, 0, 0)",
+  "contentBg": "rgb(18, 18, 18)",
+  "font": "Inter, BlinkMacSystemFont, -apple-system, \"Segoe U"
+ },
+ "header": null,
+ "side": null,
+ "buttons": [
+  {
+   "text": "Subscribe",
+   "size": "111x42",
+   "bg": "rgb(34, 35, 35)",
+   "color": "rgb(248, 248, 248)",
+   "font": "16px w600",
+   "radius": "0px 8px 8px 0px",
+   "border": "1px rgb(66, 72, 80)",
+   "pad": "8px 16px"
+  }
+ ],
+ "card": null
+}
+
+=== eBay AU search (https://www.ebay.com.au/sch/i.html?_nkw=pokemon+charizard+card)
+{
+ "title": "Error Page | eBay",
+ "page": {
+  "bodyBg": "rgb(255, 255, 255)",
+  "contentBg": "rgb(255, 255, 255)",
+  "font": "\"Market Sans\", Arial, sans-serif"
+ },
+ "header": null,
+ "side": null,
+ "buttons": [],
+ "card": null
+}
+
+=== Vercel docs (https://vercel.com/docs)
+{
+ "title": "Vercel Documentation",
+ "page": {
+  "bodyBg": "rgb(250, 250, 250)",
+  "contentBg": "rgb(250, 250, 250)",
+  "font": "GeistSans, \"GeistSans Fallback\""
+ },
+ "header": {
+  "size": "1425x64",
+  "bg": "rgb(250, 250, 250)",
+  "color": "rgb(23, 23, 23)",
+  "font": "16px w400",
+  "radius": "0px",
+  "pad": "0px"
+ },
+ "side": {
+  "box": {
+   "size": "280x3037",
+   "bg": "rgb(250, 250, 250)",
+   "color": "rgb(77, 77, 77)",
+   "font": "14px w400",
+   "radius": "0px",
+   "pad": "0px 8px 8px"
+  },
+  "borderRight": "0px rgb(235, 235, 235)",
+  "item": {
+   "text": "Incremental Migration",
+   "size": "264x36",
+   "bg": "rgb(250, 250, 250)",
+   "color": "rgb(77, 77, 77)",
+   "font": "14px w400",
+   "radius": "6px",
+   "pad": "0px 8px 0px 10px"
+  },
+  "active": null,
+  "sectionLabel": null
+ },
+ "buttons": [
+  {
+   "text": "Skip to content",
+   "size": "120x24",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(0, 114, 245)",
+   "font": "16px w400",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "0px 4px"
+  },
+  {
+   "text": "Ask AI",
+   "size": "69x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(23, 23, 23)",
+   "font": "14px w500",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "0px 6px"
+  },
+  {
+   "text": "Log In",
+   "size": "64x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(23, 23, 23)",
+   "font": "14px w500",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "0px 6px"
+  },
+  {
+   "text": "Sign Up",
+   "size": "75x32",
+   "bg": "rgb(23, 23, 23)",
+   "color": "rgb(255, 255, 255)",
+   "font": "14px w500",
+   "radius": "6px",
+   "pad": "0px 6px"
+  },
+  {
+   "text": "Ask AI",
+   "size": "1377x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(23, 23, 23)",
+   "font": "14px w500",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "0px 6px"
+  },
+  {
+   "text": "Sign Up",
+   "size": "1377x32",
+   "bg": "rgb(23, 23, 23)",
+   "color": "rgb(255, 255, 255)",
+   "font": "14px w500",
+   "radius": "6px",
+   "pad": "0px 6px"
+  }
+ ],
+ "card": null
+}
+
+=== Linear docs (https://linear.app/docs)
+{
+ "title": "Linear Docs",
+ "page": {
+  "bodyBg": "rgb(8, 9, 10)",
+  "contentBg": "rgba(255, 255, 255, 0.05)",
+  "font": "\"Inter Variable\", \"SF Pro Display\", -apple-system,"
+ },
+ "header": {
+  "size": "279x64",
+  "bg": "rgb(8, 9, 10)",
+  "color": "rgb(247, 248, 248)",
+  "font": "16px w400",
+  "radius": "0px",
+  "pad": "0px 16px 0px 24px"
+ },
+ "side": {
+  "box": {
+   "size": "251x1962",
+   "bg": "rgb(8, 9, 10)",
+   "color": "rgb(247, 248, 248)",
+   "font": "16px w400",
+   "radius": "0px",
+   "pad": "0px"
+  },
+  "borderRight": "0px rgb(247, 248, 248)",
+  "item": {
+   "text": "Customer Requests",
+   "size": "251x32",
+   "bg": "rgb(8, 9, 10)",
+   "color": "rgb(138, 143, 152)",
+   "font": "14px w510 ls-0.182px",
+   "radius": "8px",
+   "pad": "0px 11px 0px 8px"
+  },
+  "active": {
+   "text": "Start Guide",
+   "size": "251x32",
+   "bg": "rgb(8, 9, 10)",
+   "color": "rgb(138, 143, 152)",
+   "font": "14px w510 ls-0.182px",
+   "radius": "8px",
+   "pad": "0px 11px 0px 8px"
+  },
+  "sectionLabel": null
+ },
+ "buttons": [
+  {
+   "text": "Skip to content ΓåÆ",
+   "size": "1440x32",
+   "bg": "rgb(94, 106, 210)",
+   "color": "rgb(255, 255, 255)",
+   "font": "14px w510",
+   "radius": "0px",
+   "pad": "0px 16px"
+  },
+  {
+   "text": "Sign up",
+   "size": "73x32",
+   "bg": "rgb(229, 229, 230)",
+   "color": "rgb(8, 9, 10)",
+   "font": "13px w510",
+   "radius": "9999px",
+   "border": "1px rgb(229, 229, 230)",
+   "shadow": "rgba(0, 0, 0, 0) 0px 8px 2px 0px, rgba(0, 0, 0, 0.01) 0px 5px 2px 0px, rgba(0, 0, 0, 0.04)",
+   "pad": "0px 12px"
+  }
+ ],
+ "card": null
+}
+
+=== Stripe docs (https://docs.stripe.com/payments)
+{
+ "title": "Payments | Stripe Documentation",
+ "page": {
+  "bodyBg": "rgba(0, 0, 0, 0)",
+  "contentBg": "rgb(255, 255, 255)",
+  "font": "-apple-system, BlinkMacSystemFont, \"Segoe UI\", Rob"
+ },
+ "header": null,
+ "side": {
+  "box": {
+   "size": "252x1538",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(65, 69, 82)",
+   "font": "14px w400",
+   "radius": "0px",
+   "pad": "0px 16px 0px 0px"
+  },
+  "borderRight": "0px rgb(65, 69, 82)",
+  "item": {
+   "text": "Find your use case",
+   "size": "130x20",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(26, 44, 68)",
+   "font": "14px w400",
+   "radius": "0px",
+   "pad": "0px 0px 0px 16px"
+  },
+  "active": {
+   "text": "Overview",
+   "size": "78x20",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(84, 105, 212)",
+   "font": "14px w700",
+   "radius": "0px",
+   "pad": "0px 0px 0px 16px"
+  },
+  "sectionLabel": {
+   "text": "Online payments",
+   "size": "124x20",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(65, 69, 82)",
+   "font": "14px w600",
+   "radius": "0px",
+   "pad": "0px"
+  }
+ },
+ "buttons": [
+  {
+   "text": "Search/",
+   "size": "200x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(84, 105, 212)",
+   "font": "14px w400",
+   "radius": "8px",
+   "shadow": "rgba(16, 17, 26, 0.16) 0px 1px 1px 0px, rgb(212, 222, 233) 0px 0px 0px 1px, rgba(0, 0, 0, ",
+   "pad": "2px 8px"
+  },
+  {
+   "text": "Ask AI",
+   "size": "81x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(80, 97, 122)",
+   "font": "14px w400",
+   "radius": "8px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(212, 222, 233) 0px 0px 0px 1px, rgba(0, 0, 0, 0) 0px",
+   "pad": "6px 12px"
+  },
+  {
+   "text": "Sign in",
+   "size": "60x28",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(39, 57, 81)",
+   "font": "14px w600",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgb(212, 222, 233) 0px 0px 0px 1px, rgba(0, 0, 0, 0) 0px",
+   "pad": "4px 8px"
+  }
+ ],
+ "card": null
+}
+
+=== Supabase dashboard docs (https://supabase.com/docs)
+{
+ "title": "Supabase Docs",
+ "page": {
+  "bodyBg": "oklch(0.995 0 337.5)",
+  "contentBg": "oklch(0.995 0 337.5)",
+  "font": "Inter, \"Inter Fallback\", system-ui, \"Helvetica Neu"
+ },
+ "header": null,
+ "side": null,
+ "buttons": [
+  {
+   "text": "Skip to content",
+   "size": "106x26",
+   "bg": "oklch(1 0 337.5)",
+   "color": "oklch(0.1 0 337.5)",
+   "font": "12px w500",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "4px 10px"
+  },
+  {
+   "text": "SearchCtrlK",
+   "size": "224x30",
+   "bg": "oklch(1 0 337.5)",
+   "color": "oklch(0.52065 0 337.5)",
+   "font": "16px w500",
+   "radius": "6px",
+   "border": "1px oklch(0.1 0 337.5 / 0.0812725)",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "0px 6px 0px 8px"
+  },
+  {
+   "text": "Ask AI",
+   "size": "57x30",
+   "bg": "oklch(1 0 337.5)",
+   "color": "oklch(0.1 0 337.5)",
+   "font": "12px w500",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "4px 10px"
+  },
+  {
+   "text": "Sign up",
+   "size": "63x30",
+   "bg": "oklch(0.525 0.12 157.5)",
+   "color": "oklch(0.99 0.00275 157.5)",
+   "font": "12px w500",
+   "radius": "6px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "4px 10px"
+  },
+  {
+   "text": "Show more",
+   "size": "106x24",
+   "bg": "oklab(0.1 0 0 / 0.0241341)",
+   "color": "oklch(0.1 0 337.5)",
+   "font": "12px w450",
+   "radius": "3.35544e+07px",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0",
+   "pad": "4px 12px 4px 10px"
+  }
+ ],
+ "card": null
+}
+
+=== Vinted AU catalog (https://www.vinted.com.au/catalog?search_text=pokemon)
+{
+ "title": "Items | Vinted",
+ "page": {
+  "bodyBg": "rgb(237, 242, 242)",
+  "contentBg": "rgb(255, 255, 255)",
+  "font": "V_INTER, \"V_INTER Fallback\", \"Helvetica Neue\", Hel"
+ },
+ "header": {
+  "size": "1425x52",
+  "bg": "rgb(255, 255, 255)",
+  "color": "rgb(90, 101, 102)",
+  "font": "13px w400",
+  "radius": "0px",
+  "pad": "0px"
+ },
+ "side": null,
+ "buttons": [
+  {
+   "text": "Catalogue",
+   "size": "122x36",
+   "bg": "rgb(237, 242, 242)",
+   "color": "rgb(90, 101, 102)",
+   "font": "14px w375",
+   "radius": "6px",
+   "border": "1px rgba(0, 0, 0, 0)",
+   "pad": "0px 16px"
+  },
+  {
+   "text": "Sign up | Log in",
+   "size": "113x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(0, 119, 130)",
+   "font": "12px w375",
+   "radius": "6px",
+   "border": "1px rgb(0, 119, 130)",
+   "pad": "0px 12px"
+  },
+  {
+   "text": "Sell now",
+   "size": "74x32",
+   "bg": "rgb(0, 119, 130)",
+   "color": "rgb(0, 119, 130)",
+   "font": "12px w375",
+   "radius": "6px",
+   "border": "1px rgba(0, 0, 0, 0)",
+   "pad": "0px 12px"
+  },
+  {
+   "text": "Category",
+   "size": "110x36",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(90, 101, 102)",
+   "font": "13px w400",
+   "radius": "3996px",
+   "border": "1px rgb(182, 190, 191)",
+   "pad": "8px 12px"
+  },
+  {
+   "text": "Size",
+   "size": "77x36",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(90, 101, 102)",
+   "font": "13px w400",
+   "radius": "3996px",
+   "border": "1px rgb(182, 190, 191)",
+   "pad": "8px 12px"
+  },
+  {
+   "text": "Brand",
+   "size": "88x36",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(90, 101, 102)",
+   "font": "13px w400",
+   "radius": "3996px",
+   "border": "1px rgb(182, 190, 191)",
+   "pad": "8px 12px"
+  }
+ ],
+ "card": {
+  "size": "235x427",
+  "bg": "rgb(255, 255, 255)",
+  "color": "rgb(90, 101, 102)",
+  "font": "13px w400",
+  "radius": "0px",
+  "pad": "0px"
+ }
+}
+
+=== Shopify admin help (https://help.shopify.com/en/manual)
+{
+ "title": "Shopify Help Center",
+ "page": {
+  "bodyBg": "rgba(0, 0, 0, 0)",
+  "contentBg": "rgb(5, 29, 170)",
+  "font": "Inter, -apple-system, BlinkMacSystemFont, \"San Fra"
+ },
+ "header": null,
+ "side": null,
+ "buttons": [
+  {
+   "text": "Start for free",
+   "size": "167x38",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(26, 26, 26)",
+   "font": "14px w450",
+   "radius": "8px",
+   "border": "1px rgb(227, 227, 227)",
+   "pad": "8px 40px"
+  },
+  {
+   "text": "Log in",
+   "size": "121x36",
+   "bg": "rgb(50, 50, 50)",
+   "color": "rgb(255, 255, 255)",
+   "font": "14px w450",
+   "radius": "8px",
+   "pad": "8px 40px"
+  },
+  {
+   "text": "Chat with a human",
+   "size": "177x48",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(26, 26, 26)",
+   "font": "14px w500",
+   "radius": "12px",
+   "border": "1px rgb(227, 227, 227)",
+   "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0.05) 0p",
+   "pad": "13px"
+  },
+  {
+   "text": "Reject all",
+   "size": "95x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(0, 0, 0)",
+   "font": "14px w700 ls-0.32px",
+   "radius": "30px",
+   "border": "2px rgb(255, 255, 255)",
+   "pad": "2px 16px"
+  },
+  {
+   "text": "Accept cookies",
+   "size": "137x32",
+   "bg": "rgb(255, 255, 255)",
+   "color": "rgb(0, 0, 0)",
+   "font": "14px w700 ls-0.32px",
+   "radius": "30px",
+   "border": "2px rgb(255, 255, 255)",
+   "pad": "2px 16px"
+  }
+ ],
+ "card": null
+}

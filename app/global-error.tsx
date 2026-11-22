@@ -51,7 +51,7 @@ export default function GlobalError({
           // Literal `--obsidian` and `--mist`. Hardcoded because a global error
           // boundary replaces the root layout and cannot count on the stylesheet
           // having loaded, so these two must be kept in step with globals.css by
-          // hand — as must `viewport.themeColor` in `app/layout.tsx`.
+          // hand.
           background: '#090e1a',
           color: '#f1f5f9',
           fontFamily:

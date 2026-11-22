@@ -461,7 +461,7 @@ function ProfilePanel({
           the kind of adjacency that gets mis-tapped. */}
       <div className="space-y-group border-t border-border pt-section">
         {/* THE ONLY WAY A PHONE REACHES THE FEEDBACK DIALOG. The header's feedback icon
-            is in the dark bar and the burger's Support row is in the burger — both `md`
+            is in the desktop bar and the burger's Support row is in the burger — both `md`
             and up for a signed-in member. Grouped with Help because "something is wrong
             and I need a human" is one intent, and a member does not know in advance
             whether the answer is a help page or a bug report.

@@ -91,7 +91,7 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
   ];
 
   return (
-    <nav aria-label="Primary" className="hidden items-center text-mist md:flex">
+    <nav aria-label="Primary" className="hidden items-center text-muted-foreground md:flex">
       {links.map((link) => {
         const active = isActive(pathname, link);
         return (
@@ -101,12 +101,12 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
             variant="ghost"
             size="sm"
             className={cn(
-              // The iris underline matches the header's own bottom-border accent,
-              // so "current" is spoken in a language the bar already uses.
+              // Resting links are muted so the current one, in full ink with the
+              // iris underline, reads as a position rather than one more offer.
               'relative',
               link.className,
               active &&
-                'text-mist after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-iris',
+                'text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-iris',
             )}
           >
             <Link href={link.href} aria-current={active ? 'page' : undefined}>

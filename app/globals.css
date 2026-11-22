@@ -102,7 +102,7 @@
     --spacing: 0.25rem;
 
     /* APP-SPECIFIC. */
-    /* Dark chrome: the header bar, overlays, letterboxing, the `contrast` button. Slate, the same family as the ink. */
+    /* Dark surfaces: overlays, letterboxing, the `contrast` button. Slate, the same family as the ink. The header bar is the page colour, not this. */
     --obsidian: 222 47% 7%;
     /* Violet markers (brand accents, link underlines). NOT the focus colour: that is`--ring`. */
     --iris: 250 90% 68%;
@@ -114,7 +114,7 @@
     --action: 38 92% 78%;
     --action-foreground: 30 60% 18%;
     --action-border: 38 82% 40%;
-    /* Light tint for text and fills on the dark header. */
+    /* Light tint for text and fills on obsidian surfaces. */
     --mist: 210 40% 96%;
 
     --duration-exit: 150ms;
@@ -200,8 +200,8 @@
   }
 
   /* The app ships a single light theme (see `colorScheme: 'light'` in the
-     root layout); dark surfaces like the header use explicit tokens instead
-     of a mode switch. */
+     root layout); dark surfaces like overlays and the image lightbox use
+     explicit tokens instead of a mode switch. */
 
   * {
     @apply border-border;
@@ -238,8 +238,8 @@
 
   html {
     /* Height of the sticky top chrome, as ONE number every full-height route can
-       subtract. Phones render the cream strip (`MobileChromeFrame`, inset + 54px);
-       from `md` the dark bar takes over at `h-16` + inset.
+       subtract. Phones render the compact strip (`MobileChromeFrame`, inset + 54px);
+       from `md` the desktop bar takes over at `h-16` + inset.
 
        Six routes used to hardcode the desktop `4rem` at every width — the four
        auth screens and both onboarding surfaces. Subtracting 64px where only 54
@@ -342,36 +342,31 @@
     background-color: hsl(var(--muted));
   }
 
-  /* Mist-on-obsidian field styles for the search that sits directly in
-     the dark top bar. Scoped by class (not `.market-header input`) because
-     the burger menu's light popover also mounts a search inside the header. */
+  /* The search in the desktop top bar. The bar is the page colour, so a white
+     field with the control edge would read as a form input dropped into the
+     chrome. At rest it is a quiet slate fill with no edge (the Vercel, GitHub and
+     Linear header search); the edge firms on hover, and on focus it becomes an
+     ordinary white field with the ring edge. Scoped by class (not
+     `.market-header input`) because the burger menu's popover also mounts a
+     search inside the header. */
   .market-search input {
-    color: hsl(var(--primary-foreground));
-    border-color: hsl(var(--primary-foreground) / 0.17);
-    background: hsl(var(--primary-foreground) / 0.07);
+    border-color: transparent;
+    background: hsl(var(--muted));
   }
 
-  .market-search input::placeholder {
-    color: hsl(var(--primary-foreground) / 0.78);
+  .market-search input:hover {
+    border-color: hsl(var(--input));
   }
 
-  .market-search > svg {
-    color: hsl(var(--primary-foreground) / 0.92);
+  .market-search input:focus-visible {
+    border-color: hsl(var(--ring));
+    background: hsl(var(--card));
   }
 
-  /* Native search cancel fights our X and is unstyled on the dark bar. */
+  /* Native search cancel fights our X. */
   .market-search input[type='search']::-webkit-search-cancel-button,
   .market-search input[type='search']::-webkit-search-decoration {
     appearance: none;
-  }
-
-  .market-search button[aria-label='Clear search'] {
-    color: hsl(var(--primary-foreground) / 0.72);
-  }
-
-  .market-search button[aria-label='Clear search']:hover {
-    color: hsl(var(--primary-foreground));
-    background: hsl(var(--primary-foreground) / 0.12);
   }
 
   .auction-stage {

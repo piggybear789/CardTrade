@@ -14,7 +14,7 @@
 // removes the boundary from the problem.
 //
 // WHY THE ACCOUNT TAB AT ALL, given the header already has a feedback icon: that icon
-// lives in the dark desktop bar, which is `md` and up, and the burger that carries the
+// lives in the desktop bar, which is `md` and up, and the burger that carries the
 // menu row is also `md` and up for a signed-in member. Without this row a member on a
 // phone — most of them — has no way to reach the dialog.
 

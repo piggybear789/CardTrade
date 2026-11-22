@@ -11,7 +11,7 @@
 // in purpose — see the header of `lib/actions/feedback.ts`.
 //
 // ONE COMPONENT, SEVERAL TRIGGERS, because the entry points sit in chrome with three
-// different visual vocabularies: the dark header rail, a light dropdown of ghost
+// different visual vocabularies: the header rail, a light dropdown of ghost
 // buttons, and the Account tab's settings rows. Each is a shape, not a variant of
 // behaviour — the dialog below the trigger is identical in every case.
 

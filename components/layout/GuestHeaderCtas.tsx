@@ -28,11 +28,9 @@ export function GuestHeaderCtas() {
       <Button asChild variant="ghost" size="sm">
         <SignInLink>Sign in</SignInLink>
       </Button>
-      <Button
-        asChild
-        size="sm"
-        className="border-mist/20 bg-mist text-obsidian hover:bg-mist/90"
-      >
+      {/* The theme primary. This was a mist fill, which only stood out on the old
+          obsidian bar; on the page-coloured bar it would be white on white. */}
+      <Button asChild size="sm">
         <SignInLink target="/sign-up">Get started</SignInLink>
       </Button>
     </nav>

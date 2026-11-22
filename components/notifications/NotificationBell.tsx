@@ -130,7 +130,7 @@ export function NotificationBell({
               ? `Notifications, ${unreadCount} unread`
               : 'Notifications'
           }
-          className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-mist/75 transition-colors hover:bg-white/10 hover:text-mist border border-transparent focus:outline-none focus-visible:border-ring"
+          className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground border border-transparent focus:outline-none focus-visible:border-ring data-[state=open]:bg-accent data-[state=open]:text-foreground"
         >
           <HugeiconsIcon icon={BellIcon} className="size-5" aria-hidden />
           <CountBadge count={unreadCount} className="absolute -right-0.5 -top-0.5" />

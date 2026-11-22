@@ -2,7 +2,7 @@
 
 // components/layout/HeaderTooltip.tsx
 //
-// The visible name of an icon-only control in the dark desktop header rail.
+// The visible name of an icon-only control in the desktop header rail.
 //
 // It replaced `title` attributes. The browser shows a title only after a long hover,
 // never on keyboard focus, and in an unstyled box of its own, so hovering an icon to

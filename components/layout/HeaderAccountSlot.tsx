@@ -43,8 +43,8 @@ export function HeaderAccountSlot(
  * chevron. A Fragment, so each box is a flex item of the header column and takes
  * that column's own `gap` exactly as the real controls do.
  *
- * The bars are `bg-white/10` because they sit on the obsidian bar, not on paper —
- * the same override `SiteHeaderSkeleton` uses.
+ * The bars take the default skeleton tint: the bar is the page colour, the same
+ * surface `SiteHeaderSkeleton` draws its search placeholder on.
  */
 export function SignedInHeaderToolsPlaceholder() {
   return (
@@ -55,15 +55,15 @@ export function SignedInHeaderToolsPlaceholder() {
           aria-hidden="true"
           className="inline-flex size-10 shrink-0 items-center justify-center"
         >
-          <Skeleton className="size-5 rounded-full bg-white/10" />
+          <Skeleton className="size-5 rounded-full" />
         </span>
       ))}
       <span
         aria-hidden="true"
         className="hidden h-10 shrink-0 items-center gap-tight pl-tight pr-snug md:inline-flex"
       >
-        <Skeleton className="size-8 shrink-0 rounded-full bg-white/10" />
-        <Skeleton className="size-4 shrink-0 bg-white/10" />
+        <Skeleton className="size-8 shrink-0 rounded-full" />
+        <Skeleton className="size-4 shrink-0" />
       </span>
     </>
   );

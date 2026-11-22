@@ -12,7 +12,7 @@ const Tooltip = TooltipPrimitive.Root
 const TooltipTrigger = TooltipPrimitive.Trigger
 
 /**
- * Portalled, like `PopoverContent`. The first caller is the dark header rail, whose
+ * Portalled, like `PopoverContent`. The first caller is the header rail, whose
  * `backdrop-filter` makes the bar the containing block for fixed-position
  * descendants; `NotificationBell` portals its panel out of it for the same reason.
  */

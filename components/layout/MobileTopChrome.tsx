@@ -1,7 +1,8 @@
 'use client';
 
-// Phone-only top chrome. Desktop keeps the dark SiteHeader; this strip is
-// cream, borderless, and composed per screen instead of one header with modes.
+// Phone-only top chrome. Desktop has its own bar in SiteHeader; this strip is
+// the page colour, borderless, and composed per screen instead of one header
+// with modes.
 //
 // Catalog chrome is static because `/` is the page people actually land on.
 // The other modes share a chunk that loads when a non-catalog route renders

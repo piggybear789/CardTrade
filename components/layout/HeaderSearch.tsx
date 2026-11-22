@@ -134,7 +134,7 @@ function HeaderSearchFallback({
         className={cn(
           'pointer-events-none absolute top-1/2 -translate-y-1/2',
           appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
-          appearance === 'default' ? 'text-mist' : 'text-foreground',
+          appearance === 'default' ? 'text-muted-foreground' : 'text-foreground',
         )}
         strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
@@ -476,7 +476,7 @@ function HeaderSearchInner({
         className={cn(
           'pointer-events-none absolute top-1/2 z-[1] -translate-y-1/2',
           appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
-          appearance === 'default' ? 'text-mist' : 'text-foreground',
+          appearance === 'default' ? 'text-muted-foreground' : 'text-foreground',
         )}
         strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"

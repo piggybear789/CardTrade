@@ -160,20 +160,19 @@ export function SiteMenu({
           aria-label={`${displayName ?? 'Your account'}, account menu`}
           title={displayName ?? undefined}
           className={cn(
-            'flex h-10 shrink-0 touch-manipulation items-center gap-tight rounded-md border border-transparent pl-tight pr-snug text-mist transition-colors hover:bg-white/10 focus:outline-none focus-visible:border-ring',
-            open && 'bg-white/10',
+            'flex h-10 shrink-0 touch-manipulation items-center gap-tight rounded-md border border-transparent pl-tight pr-snug text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:border-ring',
+            open && 'bg-accent',
           )}
         >
           <Avatar
             avatarPath={avatarPath}
             displayName={displayName}
             size="sm"
-            className="border-white/25"
           />
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             className={cn(
-              'size-4 shrink-0 text-mist/75 transition-transform motion-reduce:transition-none',
+              'size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
               open && 'rotate-180',
             )}
             aria-hidden
@@ -186,7 +185,7 @@ export function SiteMenu({
           aria-expanded={open}
           aria-controls="site-menu-panel"
           aria-label={open ? 'Close menu' : 'Open menu'}
-          className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-white/10 focus:outline-none focus-visible:border-ring"
+          className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-accent focus:outline-none focus-visible:border-ring"
         >
           {open ? (
             <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />

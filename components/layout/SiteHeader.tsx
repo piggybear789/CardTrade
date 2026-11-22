@@ -5,8 +5,9 @@
 // cookie-bound Supabase client and renders auth-aware links. Client islands:
 // search, guest CTAs, primary nav, the bell, and the desktop burger.
 //
-// Phone chrome is a separate cream strip (`MobileTopChrome`). The dark
-// marketplace header below is desktop-only (`md+`).
+// Phone chrome is a separate borderless strip (`MobileTopChrome`). The bar
+// below is desktop-only (`md+`). Both are the page colour; the bar's surface
+// and edge live in `SiteHeaderBar`.
 
 import Link from 'next/link';
 
@@ -22,6 +23,7 @@ import { Logo } from '@/components/layout/Logo';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { MobileTopChrome } from '@/components/layout/MobileTopChrome';
 import { PrimaryNav } from '@/components/layout/PrimaryNav';
+import { SiteHeaderBar } from '@/components/layout/SiteHeaderBar';
 
 export async function SiteHeader() {
   const user = await getCachedAuthUser();
@@ -42,19 +44,17 @@ export async function SiteHeader() {
   const avatarPath = (profile?.avatar_path as string | null) ?? null;
 
   // Sticky isolation wraps both chromes so view-transition-name stays unique.
-  // The dark bar is `md+` only; the cream strip is phone-only.
+  // The bar is `md+` only; the phone strip is phone-only.
   //
-  // SOLID, NOT FROSTED. The bar used to be 90-95% obsidian over a `backdrop-blur`: at
-  // that opacity the blur is invisible, but a sticky backdrop filter still makes the
-  // compositor re-blur whatever scrolls under it on every frame.
+  // SOLID, NOT FROSTED. A sticky backdrop filter makes the compositor re-blur
+  // whatever scrolls under it on every frame, so the bar is an opaque page-coloured
+  // surface (`SiteHeaderBar`) rather than a translucent one.
   return (
     <div
       style={{ viewTransitionName: 'site-header' }}
       className="sticky top-0 z-40"
     >
-      <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian pt-[env(safe-area-inset-top)] text-primary-foreground md:block"
-      >
+      <SiteHeaderBar>
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* THE WORDMARK NEEDS MORE ROOM THAN THE NAV ITEMS NEED FROM EACH OTHER.
               At `gap-cozy` the measured ink gap between "NoDitto" and "Marketplace" was
@@ -75,7 +75,7 @@ export async function SiteHeader() {
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-ring"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-foreground focus:outline-none focus-visible:border-ring"
             >
               <Logo />
             </Link>
@@ -86,7 +86,7 @@ export async function SiteHeader() {
             <HeaderSearch className="market-search" />
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-mist md:gap-snug xl:min-w-max xl:flex-1">
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-foreground md:gap-snug xl:min-w-max xl:flex-1">
             <HeaderAccountSlot
               isAuthenticated={isAuthenticated && user != null}
               email={user?.email ?? null}
@@ -101,7 +101,7 @@ export async function SiteHeader() {
             />
           </div>
         </div>
-      </header>
+      </SiteHeaderBar>
       <MobileTopChrome isAuthenticated={isAuthenticated} />
     </div>
   );
@@ -142,9 +142,7 @@ export function SiteHeaderSkeleton({
       style={{ viewTransitionName: 'site-header' }}
       className="sticky top-0 z-40"
     >
-      <header
-        className="market-header relative hidden border-b border-white/15 bg-obsidian pt-[env(safe-area-inset-top)] text-primary-foreground md:block"
-      >
+      <SiteHeaderBar>
         <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
           {/* Same three columns as the real bar above, CLASS FOR CLASS. The side
               columns are sized by their content and the search takes the rest, so a
@@ -154,7 +152,7 @@ export function SiteHeaderSkeleton({
             <Link
               href="/"
               aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-mist focus:outline-none focus-visible:border-ring"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-foreground focus:outline-none focus-visible:border-ring"
             >
               <Logo />
             </Link>
@@ -167,17 +165,17 @@ export function SiteHeaderSkeleton({
           </div>
           <div className="hidden min-w-0 flex-1 justify-center px-snug md:flex">
             {/* `h-9 w-full`: the real field is `md:h-9` and spans this column.
-                `Skeleton` with the tint overridden, because the bar sits on the
-                obsidian header rather than on paper. */}
-            <Skeleton className="h-9 w-full bg-white/10" />
+                The default skeleton tint, since the bar is the page colour and the
+                real field is a muted fill on it. */}
+            <Skeleton className="h-9 w-full" />
           </div>
-          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-mist md:gap-snug xl:min-w-max xl:flex-1">
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-foreground md:gap-snug xl:min-w-max xl:flex-1">
             {/* A guest's links need no session, so they render for real. A member's
                 tools wait on the session; the placeholder is their footprint. */}
             {isAuthenticated ? <SignedInHeaderToolsPlaceholder /> : <GuestHeaderCtas />}
           </div>
         </div>
-      </header>
+      </SiteHeaderBar>
       <MobileTopChrome isAuthenticated={isAuthenticated} />
     </div>
   );

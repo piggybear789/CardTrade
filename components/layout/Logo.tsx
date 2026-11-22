@@ -3,8 +3,8 @@
 // NoDitto brand mark and wordmark.
 //
 // The mark is the "no Ditto" sign — the red prohibition ring and slash over Ditto —
-// keyed to transparency so it sits on the obsidian desktop header and the pale phone
-// chrome alike. It is produced from the logo artwork by `scripts/prepare-brand-mark.mjs`,
+// keyed to transparency so it sits on any surface, the page-coloured header and phone
+// chrome included. It is produced from the logo artwork by `scripts/prepare-brand-mark.mjs`,
 // which also writes `app/icon.png`; regenerate both from there rather than editing
 // either file by hand. Served unoptimized so Next's image pipeline does not re-encode
 // and soften the PNG.

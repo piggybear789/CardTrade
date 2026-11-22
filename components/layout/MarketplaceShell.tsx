@@ -241,9 +241,10 @@ export async function MarketplaceShell({
             // sizing. So a short thread still stretches to fill the column, and only a
             // long one stops at the viewport edge.
             //
-            // The subtrahends are real chrome. Phone flush routes use compact cream
-            // chrome (safe-area only). Desktop still subtracts the dark header:
-            // `h-16` (4rem) + 1px border + the top inset. The mobile hub bar is
+            // The subtrahends are real chrome. Phone flush routes use the compact
+            // strip (safe-area only). Desktop subtracts the header bar: `h-16`
+            // (4rem) + its 1px border (always present, even where it is
+            // transparent) + the top inset. The mobile hub bar is
             // `h-14` (3.5rem) + 1px top border + the bottom inset.
             flush &&
               'max-h-[calc(100dvh-env(safe-area-inset-top)-var(--mobile-hub-offset)-var(--keyboard-inset,0px))] md:max-h-[calc(100dvh-4rem-1px-env(safe-area-inset-top)-var(--keyboard-inset,0px))]',

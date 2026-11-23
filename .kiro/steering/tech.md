@@ -111,6 +111,15 @@ Rules:
 - Expected vs unexpected is `isExpectedFailureCode` in `domain/errors/errorLog.ts`. An unrecognised code is UNEXPECTED on purpose, so a new failure mode surfaces. Expected refusals are only recorded when a member invoked the action (a `Next-Action` request or a mobile Bearer call), never for read-style actions called during a page render.
 - Capture is production-only unless `ERROR_LOGGING=on`; member reports are always saved.
 
+## Shipping
+
+The user wants every finished change taken straight to production. Vercel deploys `main` to production, so:
+
+- Commit the work and push it to `main` (direct push, or a PR merged immediately). Don't leave it on a branch or an open PR waiting for review.
+- Exception: CI pipeline files (`.github/workflows/*`) still go through a PR, but merge it right away.
+- Before pushing, run the relevant tests and lint. If a change breaks something that passes on `main`, fix it first rather than shipping.
+- After pushing, check the commit's Vercel status (`gh api repos/piggybear789/CardTrade/commits/<sha>/status`) and report whether the production deploy succeeded.
+
 ## Deployment region
 
 **`vercel.json` pins `"regions": ["syd1"]`, and that line is load-bearing. Do not remove it.**

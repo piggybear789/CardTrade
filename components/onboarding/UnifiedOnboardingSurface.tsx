@@ -64,7 +64,6 @@ import { Button } from '@/components/ui/button';
 // step's copy, so a label that changed width on press re-wrapped that copy.
 import { PendingLabel } from '@/components/ui/pending-label';
 import { OnboardingSpine, OnboardingSpineStep } from './OnboardingSpine';
-import { OnboardingSpineSkeleton } from './OnboardingSpineSkeleton';
 import { HostedProviderStep } from './HostedProviderStep';
 import type { ProviderReturn } from './providerReturn';
 
@@ -747,22 +746,7 @@ export function UnifiedOnboardingSurface({
     })();
   }
 
-  if (!loaded) {
-    // SHAPED LIKE THE SPINE IT REPLACES: two marker-plus-text rows at the same widths
-    // and heights. The previous skeleton was three unrelated bars roughly a third of
-    // the loaded height, so resolving it resized the dialog and the whole panel moved.
-    //
-    // Three things it still got wrong, all fixed here. The action was drawn on the
-    // SECOND step, but `OnboardingStep` renders its children only while `active`, and
-    // step two stays `upcoming` until identity passes — so the button appeared under
-    // the wrong step, vanished, and reappeared ~130px higher. It was also `h-10 w-44`
-    // against a real `h-9 w-full sm:w-auto`, and its `mt-group` never applied because
-    // the parent's `space-y-tight` outranks a margin utility. And the 3px rail that
-    // runs the height of both steps had no placeholder at all, so it materialised out
-    // of nothing; the gap between steps is `pb-section` INSIDE the content column, not
-    // a hard break across both, which is what keeps that rail continuous.
-    return <OnboardingSpineSkeleton />;
-  }
+  if (!loaded) return null;
 
   if (loadError) {
     return (

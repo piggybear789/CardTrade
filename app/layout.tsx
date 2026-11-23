@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense, type ReactNode } from 'react';
-import { cookies } from 'next/headers';
 import { Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -8,10 +7,9 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
 import { PageViewTracker } from '@/components/analytics/PageViewTracker';
-import { SiteHeader, SiteHeaderSkeleton } from '@/components/layout/SiteHeader';
+import { SiteHeader } from '@/components/layout/SiteHeader';
 import { Toaster } from '@/components/ui/sonner';
 import { DEFAULT_OG_IMAGE, SITE_URL as siteUrl } from '@/lib/seo/site';
-import { hasSupabaseSessionCookie } from '@/lib/supabase/sessionCookie';
 import './globals.css';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -92,24 +90,9 @@ export const viewport: Viewport = {
   interactiveWidget: 'resizes-content',
 };
 
-/**
- * Is there a session cookie on this request?
- *
- * PRESENTATIONAL ONLY. Cookie presence is not proof of a valid session — the
- * token may be expired or revoked, which is why `SiteHeader` still verifies it
- * with `getUser()`. This exists so the header placeholder can pick the same
- * phone chrome the verified header will, and it is passed nowhere else.
- */
-async function hasSessionCookie(): Promise<boolean> {
-  const store = await cookies();
-  return hasSupabaseSessionCookie(store.getAll());
-}
-
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const maybeSignedIn = await hasSessionCookie();
-
   return (
     <html
       lang="en"
@@ -130,7 +113,7 @@ export default async function RootLayout({
           Skip to Main Content
         </a>
         <StartDealProvider>
-          <Suspense fallback={<SiteHeaderSkeleton isAuthenticated={maybeSignedIn} />}>
+          <Suspense fallback={null}>
             <SiteHeader />
           </Suspense>
           <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">

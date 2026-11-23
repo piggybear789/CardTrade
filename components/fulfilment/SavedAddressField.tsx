@@ -28,7 +28,6 @@ import { PlacePicker, type PlaceValue } from '@/components/location';
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Label } from '@/components/ui/label';
-import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 /** True for a place the server would accept: resolved, with real coordinates. */
@@ -181,7 +180,6 @@ export function SavedAddressField({
             {label}
             <span className="text-destructive"> *</span>
           </span>
-          <Skeleton className="h-10 w-full md:h-9" />
           {hint && !error ? (
             <p className="text-meta text-muted-foreground">{hint}</p>
           ) : null}

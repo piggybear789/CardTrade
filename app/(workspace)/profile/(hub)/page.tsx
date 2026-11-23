@@ -77,7 +77,6 @@ import {
   SettingsListRow,
   SettingsPanelRow,
   SettingsPlaceholder,
-  SettingsRowSkeleton,
   TrustLine,
 } from '@/components/account/SettingsPrimitives';
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
@@ -92,7 +91,6 @@ import { Badge } from '@/components/ui/badge';
 import { CountBadge } from '@/components/ui/count-badge';
 // The Payouts tab's Suspense fallback is the SAME placeholder the route loader draws,
 // imported rather than restated, so the two cannot drift apart.
-import { PayoutsPanelSkeleton } from '@/components/account/AccountHubSkeletons';
 import { EmptyState } from '@/components/ui/empty-state';
 import { resolveScope, type SectionScope } from '@/components/layout/SectionFilter';
 import { formatShortDate } from '@/lib/format';
@@ -354,7 +352,7 @@ export default async function ProfilePage({
               // The seven-query chain lives behind this boundary, so it costs the page
               // nothing: it streams while Profile is on screen and is almost always
               // resolved by the time anyone taps through to it.
-              <Suspense fallback={<PayoutsPanelSkeleton />}>
+              <Suspense fallback={null}>
                 <PayoutsPanel scope={scope} />
               </Suspense>
             ),
@@ -430,13 +428,7 @@ function ProfilePanel({
       <SettingsGroup>
         {/* The only live Stripe call on this tab, so it is the only thing on it
             that streams. Everything above is already painted while this resolves. */}
-        <Suspense
-          // `icon`: `PaymentMethodRow` carries a `CreditCardIcon` medallion, and
-          // without a slot for it the label and value slid 48px right on arrival.
-          fallback={
-            <SettingsRowSkeleton icon description labelClassName="w-32" valueClassName="w-24" />
-          }
-        >
+        <Suspense fallback={null}>
           <PaymentMethodRow />
         </Suspense>
       </SettingsGroup>

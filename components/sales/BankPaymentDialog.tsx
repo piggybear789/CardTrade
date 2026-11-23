@@ -9,7 +9,6 @@
 
 import dynamic from 'next/dynamic';
 
-import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +21,7 @@ import type { CashSaleActionResult } from '@/lib/actions/cashSale';
 
 const BankPaymentForm = dynamic(
   () => import('./BankPaymentForm').then((m) => m.BankPaymentForm),
-  { ssr: false, loading: () => <PaymentFormSkeleton /> },
+  { ssr: false, loading: () => null },
 );
 
 export interface BankPaymentSession {

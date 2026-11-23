@@ -20,8 +20,7 @@
 // The desktop rail still lives in `MarketplaceShell` because its title, primary
 // action and filters are per-page, and the catalog's filters read
 // `CatalogViewProvider` context that only the page can mount. What stops the
-// rail flashing is that `MarketplaceShellSkeleton` now draws the real
-// `MarketplaceNav`, reading capability from the provider below.
+// rail flashing is that `MarketplaceNav` reads capability from the provider below.
 
 import type { ReactNode } from 'react';
 import { cookies, headers } from 'next/headers';

@@ -14,15 +14,13 @@ import { CreditCardIcon } from '@hugeicons/core-free-icons';
 
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
-import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
-import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('./AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => <PaymentFormSkeleton />,
+    loading: () => null,
   },
 );
 
@@ -127,26 +125,7 @@ export function SavedCardRow({
     );
   }
 
-  if (hasCard === null) {
-    // THE ROW'S OWN GEOMETRY, not a line of text. "Checking your card…" was one 22px
-    // paragraph standing in for a bordered row with an icon, two lines and a button,
-    // so everything under it dropped by ~40px when the status landed.
-    return (
-      <div className={className} role="status" aria-label="Checking your card">
-        <div className="flex items-center gap-cozy rounded-lg border p-cozy" aria-hidden>
-          {/* The `size-5` glyph and the `h-8` button keep their reserves; the two card
-              lines are texture at `text-body` and draw from the canonical set. */}
-          <Skeleton className="size-5 shrink-0 rounded-sm" />
-          <div className="min-w-0 flex-1">
-            <TextLines className="text-body" widths={['w-1/3']} />
-            <TextLines className="text-body" widths={['w-1/2']} />
-          </div>
-          {/* The ghost `size="sm"` Replace / Add card button. */}
-          <Skeleton className="h-9 w-20 shrink-0 rounded-md md:h-8" />
-        </div>
-      </div>
-    );
-  }
+  if (hasCard === null) return null;
 
   const replaceControl = inline ? (
     <Button type="button" variant="ghost" size="sm" onClick={() => setReplacing(true)}>

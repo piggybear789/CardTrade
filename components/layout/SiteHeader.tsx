@@ -13,12 +13,7 @@ import Link from 'next/link';
 
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 import { listMyNotifications } from '@/lib/actions/notifications';
-import { Skeleton } from '@/components/ui/skeleton';
-import { GuestHeaderCtas } from '@/components/layout/GuestHeaderCtas';
-import {
-  HeaderAccountSlot,
-  SignedInHeaderToolsPlaceholder,
-} from '@/components/layout/HeaderAccountSlot';
+import { HeaderAccountSlot } from '@/components/layout/HeaderAccountSlot';
 import { Logo } from '@/components/layout/Logo';
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { MobileTopChrome } from '@/components/layout/MobileTopChrome';
@@ -99,80 +94,6 @@ export async function SiteHeader() {
                 initialNotifications?.ok ? initialNotifications.notifications : []
               }
             />
-          </div>
-        </div>
-      </SiteHeaderBar>
-      <MobileTopChrome isAuthenticated={isAuthenticated} />
-    </div>
-  );
-}
-
-/**
- * Loading chrome for the root layout's header boundary.
- *
- * THE PHONE STRIP IS REAL, NOT A PLACEHOLDER. This used to draw one hard-coded
- * shape — a full-width search pill and a filled circle — for all seven chrome
- * variants. `MobileTopChrome` picks by pathname, and the majority of the signed-in
- * app (every hub and every thread) resolves to `HubChrome`, which is a compact
- * frame with no row inside it at all. So the placeholder was 54px of bar that
- * collapsed to nothing the moment auth resolved, on `/messages`, `/trades`,
- * `/profile` and nine other routes: a full-width jump on first paint of most of
- * the app. On the routes that DO get a bar it was still the wrong bar — a back
- * chevron, a wordmark and a search pill are not interchangeable.
- *
- * The variant is a pure function of the pathname, which a client component reads
- * without waiting on anything, so the strip can simply render itself. Only
- * `isAuthenticated` needs the session, and it moves the geometry on just the
- * unlisted-route fallback — hence the presentational hint below.
- */
-export function SiteHeaderSkeleton({
-  /**
-   * Cookie-derived guess, for placeholder geometry only — never for access.
-   * On a phone it changes the rendered height on unlisted routes alone (`/help`,
-   * `/terms`, `/privacy`), where a guest gets the marketing bar and a member gets
-   * none. On the desktop bar it picks which nav links and which account rail the
-   * placeholder draws, so the bar does not swap one set for the other on resolve.
-   */
-  isAuthenticated = false,
-}: {
-  isAuthenticated?: boolean;
-}) {
-  return (
-    <div
-      style={{ viewTransitionName: 'site-header' }}
-      className="sticky top-0 z-40"
-    >
-      <SiteHeaderBar>
-        <div className="flex h-16 w-full items-center gap-snug px-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:gap-cozy sm:px-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-[max(2rem,env(safe-area-inset-left))] lg:pr-[max(2rem,env(safe-area-inset-right))]">
-          {/* Same three columns as the real bar above, CLASS FOR CLASS. The side
-              columns are sized by their content and the search takes the rest, so a
-              side column that drew different content here moved the search when the
-              header resolved. That is why what can be real below is real. */}
-          <div className="flex shrink-0 items-center gap-cozy md:gap-6 xl:min-w-max xl:flex-1">
-            <Link
-              href="/"
-              aria-label="NoDitto home"
-              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md border border-transparent text-foreground focus:outline-none focus-visible:border-ring"
-            >
-              <Logo />
-            </Link>
-            {/* THE REAL NAV, not a bar. It reads only the pathname and the session
-                hint, so there is nothing to wait for — and a 96px bar standing in
-                for three or four labelled links was a visible swap on every hard
-                load of every desktop route. The hint can only be wrong about the
-                Trades link, whose route is protected anyway. */}
-            <PrimaryNav isAuthenticated={isAuthenticated} />
-          </div>
-          <div className="hidden min-w-0 flex-1 justify-center px-snug md:flex">
-            {/* `h-9 w-full`: the real field is `md:h-9` and spans this column.
-                The default skeleton tint, since the bar is the page colour and the
-                real field is a muted fill on it. */}
-            <Skeleton className="h-9 w-full" />
-          </div>
-          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-foreground md:gap-snug xl:min-w-max xl:flex-1">
-            {/* A guest's links need no session, so they render for real. A member's
-                tools wait on the session; the placeholder is their footprint. */}
-            {isAuthenticated ? <SignedInHeaderToolsPlaceholder /> : <GuestHeaderCtas />}
           </div>
         </div>
       </SiteHeaderBar>

@@ -484,43 +484,6 @@
   }
 }
 
-/* Skeleton shimmer, and deliberately shallower than Tailwind's `animate-pulse`.
-   
-   `animate-pulse` troughs at 50% opacity. On a phone that is one card breathing
-   and it reads fine, which is why it survived this long. A desktop loader is a
-   different object: sixty to eighty bars spread across a 1440px viewport, every
-   one of them on the same 2s clock with no offset, so the whole screen dims and
-   brightens in unison — and at `bg-muted/70` the trough lands near 35% against a
-   98%-lightness page, faint enough that the placeholder half-disappears on each
-   cycle. The effect is a page that appears to blink at you while it loads rather
-   than one that is visibly working.
-   
-   0.6 keeps every bar continuously legible, so the shape of the page never stops
-   being readable, and 1.8s is slightly quicker so the motion still registers as
-   activity at the lower amplitude. Stopped outright by the
-   prefers-reduced-motion block at the foot of this file, which is why the pulse
-   needs no media query of its own. */
-@keyframes skeleton-pulse {
-  50% { opacity: 0.6; }
-}
-
-/* DELAYED REVEAL. Most navigations resolve in well under a quarter of a second,
-   and a skeleton that paints for 80ms and is then replaced reads as a flicker,
-   not as loading. The bars stay invisible (their space still reserved, so
-   nothing moves) for the first 250ms and only appear when the wait is real.
-   Visibility, not opacity, so it cannot fight the pulse. The reduced-motion
-   block zeroes the delay, which shows the bars at once — the safe direction. */
-@keyframes skeleton-reveal {
-  from { visibility: hidden; }
-  to { visibility: visible; }
-}
-
-.animate-skeleton {
-  animation:
-    skeleton-reveal 0s linear 250ms both,
-    skeleton-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) 250ms infinite;
-}
-
 /* Opacity only. This also animated `filter: blur(3px)`, and `fade` runs on page-sized
    view-transition snapshots (every nav-forward / nav-back change, plus the desktop
    catalog's enter/exit), so each frame re-blurred a large texture: the most

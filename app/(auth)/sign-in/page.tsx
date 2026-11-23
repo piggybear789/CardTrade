@@ -2,7 +2,6 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 
 import { AuthForm } from '@/components/auth/AuthForm';
-import { AuthFormSkeleton } from '@/components/auth/AuthFormSkeleton';
 import { AuthScreen } from '@/components/auth/AuthScreen';
 import { AuthTrustPanel } from '@/components/auth/AuthTrustPanel';
 
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
 export default function SignInPage() {
   return (
     <AuthScreen aside={<AuthTrustPanel />}>
-      <Suspense fallback={<AuthFormSkeleton mode="sign-in" />}>
+      <Suspense fallback={null}>
         <AuthForm mode="sign-in" />
       </Suspense>
     </AuthScreen>

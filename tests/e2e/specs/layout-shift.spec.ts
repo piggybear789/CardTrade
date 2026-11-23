@@ -3,12 +3,9 @@
 // A LAYOUT-SHIFT PROBE. Visits every major surface and measures Cumulative Layout Shift
 // with the browser's own `layout-shift` entries, for two kinds of arrival:
 //
-//   * HARD LOAD — a fresh document. Dynamic routes stream their `loading.tsx` first and
-//     swap the page in when it resolves, so this measures skeleton -> content fidelity
-//     as well as image, font and hydration shifts.
+//   * HARD LOAD — a fresh document. This measures image, font and hydration shifts.
 //   * SOFT NAVIGATION — `router.push` from an already-loaded page, which is the path a
-//     member actually takes most of the time and the one where a mismatched loading
-//     boundary is most visible.
+//     member actually takes most of the time.
 //
 // READ-ONLY. It signs in as seeded members and navigates; it creates no rows. That is
 // deliberate: the visual sweep in `screenshots.spec.ts` provisions contracts through the

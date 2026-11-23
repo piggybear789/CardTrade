@@ -53,7 +53,6 @@ import { m } from 'motion/react';
 
 import { MotionRoot } from '@/components/motion/MotionRoot';
 import { TabIndicator } from '@/components/motion/TabIndicator';
-import { Skeleton } from '@/components/ui/skeleton';
 import { MOTION_TRANSITION } from '@/lib/motion/tokens';
 import { cn } from '@/lib/utils';
 
@@ -271,46 +270,5 @@ export function TabbedPanels<Id extends string>({
       ))}
     </>
     </MotionRoot>
-  );
-}
-
-/**
- * A strip's loading placeholder, drawn from the same shape constants as the strip
- * itself so it occupies an identical box.
- *
- * The first segment carries the chip because that is where a bare URL lands, which
- * keeps the resolved state from appearing to move. Nothing here is interactive: a
- * `loading.tsx` cannot read the query string, so it must not render links that claim
- * to know which tab is current.
- */
-export function TabbedPanelsSkeleton({
-  labels,
-  activeIndex = 0,
-}: {
-  /** The real labels, so each segment reserves the width its text will need. */
-  labels: readonly string[];
-  /**
-   * Which segment carries the chip. A caller that can resolve the tab from the
-   * committed URL (a client switch inside the loader) passes it, so a deep link to the
-   * third tab does not load with the chip on the first and then slide across.
-   */
-  activeIndex?: number;
-}) {
-  return (
-    <div className={NAV_SHAPE} aria-hidden>
-      <div className={TRACK_SHAPE}>
-        {labels.map((text, index) => (
-          <div
-            key={text}
-            className={cn(
-              ITEM_SHAPE,
-              index === activeIndex ? 'bg-card shadow-sm md:bg-transparent md:shadow-none' : null,
-            )}
-          >
-            <Skeleton className="h-4 w-16" />
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }

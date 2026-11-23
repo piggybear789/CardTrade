@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 
 import { finishesOwnOnboarding } from "@/lib/deals/paths";
 import { hasSupabaseSessionCookie } from "@/lib/supabase/sessionCookie";
+import { DB_SCHEMA } from "@/lib/supabase/schema";
 
 // Protected-route middleware (Req 1.7).
 //
@@ -88,7 +89,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const supabase = createServerClient(url, anonKey, {
-    db: { schema: 'cardtrade' },
+    db: { schema: DB_SCHEMA },
     cookies: {
       getAll() {
         return request.cookies.getAll();

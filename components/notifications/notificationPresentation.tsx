@@ -55,13 +55,21 @@ type NotificationType = Enums<'notification_type'>;
  */
 export const NOTIFICATION_TYPE_META: Record<
   NotificationType,
-  { label: string; icon: IconSvgElement }
+  {
+    label: string;
+    /**
+     * The filter chip's label. Spelled out rather than `${label}s`, which made the
+     * SYSTEM chip read "NoDittos".
+     */
+    plural: string;
+    icon: IconSvgElement;
+  }
 > = {
-  OFFER: { label: 'Offer', icon: HandCoinsIcon },
-  MESSAGE: { label: 'Message', icon: MessageCircleIcon },
-  TRADE: { label: 'Trade', icon: RepeatIcon },
-  SALE: { label: 'Sale', icon: Tag01Icon },
-  SYSTEM: { label: 'NoDitto', icon: BellIcon },
+  OFFER: { label: 'Offer', plural: 'Offers', icon: HandCoinsIcon },
+  MESSAGE: { label: 'Message', plural: 'Messages', icon: MessageCircleIcon },
+  TRADE: { label: 'Trade', plural: 'Trades', icon: RepeatIcon },
+  SALE: { label: 'Sale', plural: 'Sales', icon: Tag01Icon },
+  SYSTEM: { label: 'NoDitto', plural: 'Updates', icon: BellIcon },
 };
 
 /** Fall back rather than crash on a kind added by a migration this build predates. */
@@ -129,45 +137,30 @@ export function NotificationRowBody({
   ].filter(Boolean);
   const line = context.length > 0 ? context.join(' · ') : notification.body;
 
+  // THE KIND LEADS THE ROW, THE CARD TRAILS IT (2026-11-23). Slack, LinkedIn and Doji
+  // open each activity row with one fixed-size mark and put the subject's picture at
+  // the end. Here the kind was a 14px glyph wedged between the unread dot and the title,
+  // and the card photo led only the rows that had one, so titles started at two
+  // different x positions down one list. The medallion is on every row, so every title
+  // lines up; the unread dot rides on it.
   return (
     <>
-      {thumb ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a 40px Supabase thumbnail; next/image adds nothing here.
-        <img
-          src={thumb}
-          alt=""
-          width={40}
-          height={40}
-          loading="lazy"
-          className="mt-0.5 size-10 shrink-0 rounded-md border border-border object-cover"
-        />
-      ) : null}
+      <span className="relative mt-0.5 shrink-0" aria-hidden>
+        <span className="grid size-9 place-items-center rounded-full bg-muted text-foreground">
+          <HugeiconsIcon icon={meta.icon} className="size-4" strokeWidth={1.75} />
+        </span>
+        {unread ? (
+          <span className="absolute -left-0.5 -top-0.5 size-2.5 rounded-full bg-iris ring-2 ring-background" />
+        ) : null}
+      </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-snug">
-          <span
-            className={cn(
-              'flex min-w-0 items-baseline gap-tight',
-              unread ? 'font-semibold' : 'font-medium',
-            )}
-          >
-            {/* Read rows keep the dot's slot, so titles line up down the list whether or
-                not the row above them is new. */}
-            <span
-              className={cn('size-2 shrink-0 self-center rounded-full', unread && 'bg-iris')}
-              aria-hidden
-            />
-            {/* `self-center` so the glyph optically centres on the cap height of the
-                title beside it rather than sitting on the baseline. */}
-            <HugeiconsIcon
-              icon={meta.icon}
-              className="size-3.5 shrink-0 self-center text-muted-foreground"
-              aria-hidden
-            />
+          <span className={cn('min-w-0 truncate text-body', unread ? 'font-semibold' : 'font-medium')}>
             <span className="sr-only">
               {meta.label}
               {unread ? ', unread' : ''}:{' '}
             </span>
-            <span className="truncate text-body">{notification.title}</span>
+            {notification.title}
           </span>
           <span
             className="shrink-0 text-meta text-muted-foreground"
@@ -195,6 +188,17 @@ export function NotificationRowBody({
           </span>
         ) : null}
       </span>
+      {thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element -- a 44px Supabase thumbnail; next/image adds nothing here.
+        <img
+          src={thumb}
+          alt=""
+          width={44}
+          height={44}
+          loading="lazy"
+          className="mt-0.5 size-11 shrink-0 rounded-md border border-border object-cover object-top"
+        />
+      ) : null}
     </>
   );
 }

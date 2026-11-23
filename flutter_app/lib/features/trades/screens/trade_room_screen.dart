@@ -500,7 +500,7 @@ class _TradeMoneySection extends ConsumerWidget {
               label: 'Their side is worth',
               value: Money.format(theirSideCents, trade.currency),
               hint: counterpartItem.isShopfront
-                  ? 'A binder or bulk listing is worth whatever is offered '
+                  ? 'A listing with multiple items is worth whatever is offered '
                       'against it.'
                   : null,
             ),

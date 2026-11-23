@@ -66,9 +66,8 @@ export function EmptyState({
    * AT EVERY WIDTH, which is a correction: this landed as a phone-only treatment on
    * the theory that a desktop list area wants its placeholder where the first row
    * would be. It does not. A 160px dashed card at the top of a 700px column is the
-   * same "did this fail to load" question asked with more whitespace, so the dashed
-   * border now stretches to mark out the whole empty list area and the state sits in
-   * the middle of it. `fill` also steps the icon and type up one, because at that
+   * same "did this fail to load" question asked with more whitespace, so the state
+   * takes the whole empty list area and sits in the middle of it, unframed. `fill` also steps the icon and type up one, because at that
    * size the row-matched `text-body` title is smaller than the space it occupies.
    *
    * `variant="page"` is still the different thing: no border, no list area, and a
@@ -133,7 +132,9 @@ export function EmptyState({
         isPage
           ? 'max-md:px-0'
           : cn(
-              'surface-md rounded-xl bg-card max-md:rounded-none max-md:bg-transparent max-md:px-0',
+              // No card chrome at any width: the outlined box read as a frame around
+              // nothing. The state sits directly on the page.
+              'max-md:px-0',
               // `flex-1` and nothing else: the root already centres both axes, so
               // taking the column's leftover height is the whole of the change.
               // `flex-basis: 0` means a short viewport still falls back to the

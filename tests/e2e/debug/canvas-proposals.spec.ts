@@ -60,8 +60,8 @@ async function restInsert<T = Record<string, unknown>>(table: string, body: unkn
     headers: {
       apikey: SERVICE_KEY,
       Authorization: `Bearer ${SERVICE_KEY}`,
-      'Accept-Profile': 'cardtrade',
-      'Content-Profile': 'cardtrade',
+      'Accept-Profile': process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? ENV.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'cardtrade',
+      'Content-Profile': process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? ENV.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'cardtrade',
       'Content-Type': 'application/json',
       Prefer: 'return=representation',
     },
@@ -588,7 +588,7 @@ const PROPOSALS: Record<string, Proposal> = {
         el.textContent = 'Sign in to report a scam';
         n += 1;
       });
-      h.exact('Welcome back. Enter your credentials to continue.').forEach((el: HTMLElement) => {
+      h.exact('Welcome back. Sign in to buy, sell and trade.').forEach((el: HTMLElement) => {
         el.textContent = 'We ask who is reporting so our case team can follow up with you.';
         n += 1;
       });

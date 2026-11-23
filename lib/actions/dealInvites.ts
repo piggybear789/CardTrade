@@ -22,6 +22,7 @@ import { createNotification } from '@/lib/notifications/createNotification';
 import { listingContext, tradeContext } from '@/lib/notifications/notificationContext';
 import { cashSaleRefusalMessage } from '@/lib/cashSaleErrors';
 import { loadSellerIdentityDisclosure, readSellerPayReadiness } from '@/lib/sellerIdentity';
+import { recordNameDisclosureConsent } from '@/lib/identity/nameDisclosureConsent';
 import { readIdentityGate } from '@/lib/identityGate';
 import { removeImages, verifyStoredImages } from '@/lib/storage/itemImages';
 import { readImageDims } from '@/lib/images/dimensions';
@@ -71,10 +72,13 @@ export type DealInviteError =
  *
  * - `ready` — nothing: a seller can be paid, a trader can enter the swap.
  * - `identity-needed` — Stripe Identity is not done yet.
- * - `payout-setup-needed` — a seller is verified but has no buyer-safe disclosure
- *   yet, which only payout setup writes today (`merchant_identity_disclosure_consented_at`).
+ * - `disclosure-needed` — a seller is verified but has not yet agreed to their
+ *   verified name being shown to the buyer. One tap, not payout setup.
+ * - `payout-setup-needed` — a cross-border sale, which Stripe charges on behalf of the
+ *   seller's own account and so cannot take until payouts are live. See
+ *   `readSellerPayReadiness`; no other sale asks for payout setup before Pay.
  */
-export type HostReadiness = 'ready' | 'identity-needed' | 'payout-setup-needed';
+export type HostReadiness = 'ready' | 'identity-needed' | 'disclosure-needed' | 'payout-setup-needed';
 
 export type PrivateDealItemInput = {
   /** Short label for the card. Blank derivations fall back to the description. */
@@ -351,16 +355,20 @@ async function claimBlock(
  * Where the host stands. See {@link HostReadiness}.
  *
  * A seller needs a buyer-safe disclosure, not just the gate: the Buyer confirms the
- * verified name at Pay. A verified seller without one is `payout-setup-needed`,
- * never `identity-needed`, because sending an already-verified member back to a
- * check they passed is the false negative this path was once reported for.
+ * verified name at Pay. A verified seller without one is `disclosure-needed`, never
+ * `identity-needed`, because sending an already-verified member back to a check they
+ * passed is the false negative this path was once reported for.
  */
-async function readHostReadiness(invite: InviteRow): Promise<HostReadiness | null> {
+async function readHostReadiness(
+  invite: InviteRow,
+  /** The deal's currency, from the host's trading region. */
+  currency: string | null,
+): Promise<HostReadiness | null> {
   if (invite.kind === 'TRADE') {
     return (await readIdentityGate(invite.host_id)).satisfied ? 'ready' : 'identity-needed';
   }
   if (invite.host_role !== 'SELLER') return null;
-  return (await readSellerPayReadiness(invite.host_id)).state;
+  return (await readSellerPayReadiness(invite.host_id, currency)).state;
 }
 
 /**
@@ -507,6 +515,12 @@ export const createDealInvite = withActionLog('dealInvites.createDealInvite', as
     return fail('rejected', 'That deal could not be created. Please retry.');
   }
 
+  // A private sale's seller agrees here to the buyer seeing their verified name: the
+  // composer states it beside Get link (`nameDisclosureConsent.ts`). Best effort: a
+  // failure leaves the link made, and Pay still refuses without it.
+  if (input.kind === 'CASH_SALE' && hostRole === 'SELLER') {
+    await recordNameDisclosureConsent(userId, { requireVerified: false });
+  }
   revalidatePath('/trades');
   revalidatePath('/sales');
   revalidatePath('/purchases');
@@ -673,6 +687,10 @@ export const updateDealInvite = withActionLog('dealInvites.updateDealInvite', as
   revalidatePath(invitePath(invite.token));
   revalidatePath('/trades');
   revalidatePath('/sales');
+  // As at create: Save changes states the name disclosure beside it.
+  if (invite.kind === 'CASH_SALE' && invite.host_role === 'SELLER') {
+    await recordNameDisclosureConsent(userId, { requireVerified: false });
+  }
   return ok({ path: invitePath(invite.token) });
 });
 
@@ -854,7 +872,9 @@ export const getDealInvitePreview = withActionLog('dealInvites.getDealInvitePrev
   // nothing left to block.
   const [sellerIdentity, hostReadiness, viewerBlock] = await Promise.all([
     sellerId ? loadSellerIdentityDisclosure(sellerId) : Promise.resolve(null),
-    status === 'open' ? readHostReadiness(invite) : Promise.resolve(null),
+    status === 'open'
+      ? readHostReadiness(invite, regionCurrency((host?.region_code as string | null) ?? null))
+      : Promise.resolve(null),
     userId && userId !== invite.host_id && status === 'open'
       ? claimBlock(invite, userId)
       : Promise.resolve(null),

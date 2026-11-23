@@ -219,6 +219,7 @@ export default async function SellerProfilePage({
     isVerified: Boolean(sellerRow.is_verified),
     identityFirstName: (sellerRow.identity_first_name as string | null) ?? null,
     avatarPath: (sellerRow.avatar_path as string | null) ?? null,
+    isTrustedSeller: Boolean(sellerRow.is_trusted_seller),
   };
 
   const items = (itemsData ?? []) as ItemRow[];

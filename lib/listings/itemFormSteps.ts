@@ -1,10 +1,11 @@
 // lib/listings/itemFormSteps.ts
 //
-// The three steps of the "Sell an item" form (`components/listings/ItemForm.tsx`):
-// 1 Details (kind, title, description, price), 2 Condition & location (photos below
-// `lg`, game, condition, place). There is no slab-details question: Graded is one entry
-// in the condition list. Which field lives on which step, and what
-// each step still needs before Next lets the seller on.
+// The two steps of the "Sell an item" form (`components/listings/ItemForm.tsx`):
+// 1 Your item (kind, photos, title, description), 2 Price & details (price, game,
+// condition, place), the same split as the deal composer's card and terms screens.
+// There is no slab-details question: Graded is one entry in the condition list. Which
+// field lives on which step, and what each step still needs before Next lets the
+// seller on.
 //
 // PURE, so the form and its tests share one copy of the rules. The checks MIRROR the
 // server's validators rather than restating them: the description and condition run
@@ -21,7 +22,7 @@ import { IMAGES_MAX, IMAGES_MIN, itemSubmissionSchema } from '@/domain/validatio
 export type ItemFormStep = 1 | 2;
 
 /** The steps' names, in order. Static, so the indicator never changes width. */
-export const ITEM_FORM_STEP_LABELS = ['Details', 'Condition & location'] as const;
+export const ITEM_FORM_STEP_LABELS = ['Your item', 'Price & details'] as const;
 
 /** Every field the form can report an inline error against. */
 export type ItemFormErrorField =
@@ -44,8 +45,8 @@ const FIELD_STEP: Record<ItemFormErrorField, ItemFormStep> = {
   grader: 2,
   grade: 2,
   certNumber: 2,
-  images: 2,
-  fmvCents: 1,
+  images: 1,
+  fmvCents: 2,
   location: 2,
 };
 
@@ -109,24 +110,22 @@ export function itemFormStepProblem(
   input: ItemFormStepInput,
 ): ItemFormStepProblem | null {
   if (step === 1) {
-    const description = runSchema(descriptionSchema, { description: input.description });
-    if (!description.ok) {
-      return { field: 'description', message: description.message };
-    }
-    if (dollarsToCents(input.fmvDollars) === null) {
-      return { field: 'fmvCents', message: 'Enter a price in dollars (e.g. 123.45).' };
-    }
-    return null;
-  }
-
-  if (step === 2) {
-    // Photos first: from `lg` the panel is beside every step, and below `lg` it sits
-    // above the condition fields on this one.
+    // In field order: photos lead the screen, then the title and description.
     if (input.totalImages < IMAGES_MIN) {
       return { field: 'images', message: 'Add at least one image of your item.' };
     }
     if (input.totalImages > IMAGES_MAX) {
       return { field: 'images', message: `You can add at most ${IMAGES_MAX} images.` };
+    }
+    const description = runSchema(descriptionSchema, { description: input.description });
+    if (!description.ok) {
+      return { field: 'description', message: description.message };
+    }
+    return null;
+  }
+  if (step === 2) {
+    if (dollarsToCents(input.fmvDollars) === null) {
+      return { field: 'fmvCents', message: 'Enter a price in dollars (e.g. 123.45).' };
     }
     if (!input.game) {
       return { field: 'category', message: 'Select the card game.' };
@@ -139,9 +138,7 @@ export function itemFormStepProblem(
       return { field: 'location', message: 'Add where this listing is based (suburb or city).' };
     }
     return null;
-  }
-
-  return null;
+  }  return null;
 }
 
 /** The first step with something missing, or `null` when the whole form is complete. */

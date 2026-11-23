@@ -17,6 +17,7 @@
 // price-plus-fee a total is a promise the flow cannot keep.
 
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { formatMoneyWhole } from '@/lib/format';
 
 // The member-facing rate label is `processingFeeRateLabel` in `lib/fees/feeLabels.ts`.
 // The headline is the fee before postage: postage is agreed later and moves the fee.
@@ -58,6 +59,22 @@ export function listedPriceCents(
   isShopfront: boolean,
 ): number {
   return isShopfront ? priceCents : buyerPaysCents(priceCents, currency);
+}
+
+/**
+ * {@link listedPriceCents} as the text a browse surface shows, rounded to the nearest
+ * whole unit (`formatMoneyWhole`). The tile, the listing page and search suggestions
+ * all read this, so they show one figure. The exact amount appears at Pay.
+ */
+export function listedPriceText(
+  priceCents: number,
+  currency: string | null,
+  isShopfront: boolean,
+): string {
+  return formatMoneyWhole(
+    listedPriceCents(priceCents, currency, isShopfront),
+    currency ?? 'aud',
+  );
 }
 
 /**

@@ -1263,7 +1263,7 @@ function TradeContractRoom({
                         {trade.counterpart_goods_description}
                       </p>
                       <p className="text-body text-muted-foreground">
-                        This is a binder or bulk listing, so nothing in it is held.
+                        This listing has multiple items, so nothing in it is held.
                         This description is what the two of you agreed to swap.
                       </p>
                     </div>

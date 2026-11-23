@@ -112,7 +112,7 @@ export default function TermsPage() {
         <li>it is genuine, not stolen, and not subject to any claim that would stop you selling it.</li>
       </ul>
       <p>
-        A <strong>binder or bulk listing</strong> is an inventory. Nothing is held for any
+        A <strong>listing with multiple items</strong> is an inventory. Nothing is held for any
         buyer: what a buyer is purchasing is set out in the line items of their own contract,
         and the same card may be requested by more than one buyer.
       </p>
@@ -133,7 +133,7 @@ export default function TermsPage() {
       <p>
         A buyer opens a contract from a listing, an accepted offer or a private-deal link.
         Opening it reserves a single-item listing but commits neither party. The buyer and
-        seller agree the price, the items (for a binder or bulk listing) and how the goods
+        seller agree the price, the items (for a listing with multiple items) and how the goods
         will change hands. <strong>The sale is binding when the buyer pays.</strong> Changing
         what is bought, or the price, requires both of you to agree again.
       </p>

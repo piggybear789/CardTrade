@@ -3,6 +3,8 @@
 // Fixed seed data from supabase/seed.sql, typed for reuse across specs.
 // Never edit a row referenced here without updating seed.sql to match.
 
+import { envValue } from './db';
+
 export interface SeedUser {
   id: string;
   email: string;
@@ -10,7 +12,12 @@ export interface SeedUser {
   password: string;
 }
 
-export const PASSWORD = 'password123';
+/**
+ * The seeded accounts' password. In the dev sandbox these accounts live in the
+ * production project's `auth.users`, so `scripts/dev/resetDevSchema.mjs` gives them
+ * E2E_SEED_PASSWORD from `.env.local` instead of seed.sql's public one.
+ */
+export const PASSWORD = envValue('E2E_SEED_PASSWORD') ?? 'password123';
 
 export const ALICE: SeedUser = {
   id: '11111111-1111-1111-1111-111111111111',

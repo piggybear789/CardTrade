@@ -24,6 +24,7 @@ import type {
 import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 /**
  * A notification row, strongly typed from the generated database types, plus the
@@ -291,7 +292,7 @@ export function useNotifications(
           'postgres_changes',
           {
             event: 'INSERT',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'notifications',
             filter: `user_id=eq.${meId}`,
           },
@@ -307,7 +308,7 @@ export function useNotifications(
           'postgres_changes',
           {
             event: 'UPDATE',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'notifications',
             filter: `user_id=eq.${meId}`,
           },

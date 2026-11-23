@@ -22,6 +22,7 @@ import type { IdentityCheckStatus } from '@/domain/identity/identityGate';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
 import { pushVerifiedIdentityToConnect } from '@/lib/identity/pushVerifiedIdentity';
 import { applyIdentityDecision } from '@/lib/identity/applyIdentityDecision';
+import { recordNameDisclosureConsent } from '@/lib/identity/nameDisclosureConsent';
 import {
   DEFAULT_IDENTITY_RETURN_PATH,
   IDENTITY_RETURN_COOKIE,
@@ -369,4 +370,34 @@ export const refreshIdentityCheck = withActionLog('identity.refreshIdentityCheck
           ? 'We need to check something before you can sell. Contact support.'
           : null,
   });
+});
+
+/**
+ * The seller agrees that their verified name is shown to a buyer before they pay
+ * (Req 4.8-4.12): records `merchant_identity_disclosure_consented_at`, the one field
+ * `sellerIdentityDisclosure` needs beyond Stripe Identity.
+ *
+ * WHY THIS EXISTS. That consent was only ever written when the member started PAYOUT
+ * setup (`createMerchantOnboarding`), so a seller who had verified their ID still
+ * could not be paid until they had also opened a Connect account, though nothing about
+ * collecting a buyer's money into the platform balance needs one: the payout waits for
+ * payout setup on its own (`SELLER_NOT_PAYABLE` at the drain). The caller states the
+ * disclosure beside the control, as the payout screen does; that is the consent.
+ *
+ * Only for a member who has passed Stripe Identity: consent to disclose a name nobody
+ * has verified would disclose nothing. Written once, absent to present, like the names
+ * it governs. Service role, because the column has no member update grant.
+ */
+export const allowSellerNameDisclosure = withActionLog('identity.allowSellerNameDisclosure', async function allowSellerNameDisclosure(): Promise<
+  ActionResult<{ consentedAt: string }, 'NOT_AUTHENTICATED' | 'NOT_VERIFIED' | 'PERSIST_FAILED'>
+> {
+  const user = await getCachedAuthUser();
+  if (!user) return fail('NOT_AUTHENTICATED', 'Sign in first.');
+  const recorded = await recordNameDisclosureConsent(user.id, { requireVerified: true });
+  if (!recorded.ok) {
+    return recorded.reason === 'NOT_VERIFIED'
+      ? fail('NOT_VERIFIED', 'Verify with Stripe Identity first.')
+      : fail('PERSIST_FAILED', 'Could not save that. Try again.');
+  }
+  return ok({ consentedAt: recorded.consentedAt ?? new Date().toISOString() });
 });

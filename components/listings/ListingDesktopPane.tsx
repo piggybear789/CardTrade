@@ -8,12 +8,11 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
-import { ListingFeeNote, ListingProtectionLine } from '@/components/listings/ListingTrust';
-import { displayLegalName, formatMoney, formatRelativeTime } from '@/lib/format';
+import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
+import { ListingProtectionLine } from '@/components/listings/ListingTrust';
+import { displayLegalName, formatRelativeTime } from '@/lib/format';
 
-/* The fee note and its (i) breakdown are `ListingFeeNote` in `ListingTrust.tsx`, shared
-   with `ListingDetailStack`; the fee-inclusive figure and `splitMoney` are in
+/* The fee-inclusive, whole-unit figure and `splitMoney` are in
    `lib/listings/buyerPrice.ts`. */
 
 /**
@@ -44,10 +43,28 @@ export function ListingDesktopPane({
   locationLabel,
   createdAt,
   showTrust,
+  pricePlaceholder,
+  condition = null,
+  watchCount = 0,
   children,
 }: {
+  /**
+   * The item's condition, stated in the meta line under the price ("Unopened · Listed
+   * 21 Sept · Croydon"), as Depop states it. It used to be a badge above the title.
+   */
+  condition?: string | null;
+  /**
+   * How many members have saved it: on the heart when the viewer can save, otherwise
+   * in the meta line, so it is shown once either way.
+   */
+  watchCount?: number;
   /** A buyer who can buy: the fee note under the price and the protection strip. */
   showTrust: boolean;
+  /**
+   * Shown in place of the price while there is none yet (the listing editor's
+   * preview), as `ListingDetailStack` does. The fee note goes with it.
+   */
+  pricePlaceholder?: string;
   title: string;
   description: string;
   priceCents: number;
@@ -81,9 +98,7 @@ export function ListingDesktopPane({
   const listedAgo = formatRelativeTime(createdAt);
   // A binder shows its own indicative "from" figure; a single listing shows what the
   // buyer is actually charged — the same figure as its catalog tile.
-  const headline = splitMoney(
-    formatMoney(listedPriceCents(priceCents, currency, isShopfront), currency),
-  );
+  const headline = splitMoney(listedPriceText(priceCents, currency, isShopfront));
 
   return (
     <div className="hidden h-full flex-col gap-group lg:flex">
@@ -108,6 +123,11 @@ export function ListingDesktopPane({
               A SHOPFRONT KEEPS ITS ASKING PRICE. `priceCents` there is a whole binder's
               indicative "from" figure, so adding a precise fee to an imprecise number
               would be worse than saying nothing. */}
+          {pricePlaceholder ? (
+            <p className="mt-tight font-display text-display font-semibold tracking-tight text-muted-foreground/60">
+              {pricePlaceholder}
+            </p>
+          ) : (
           <p className="mt-tight font-display font-semibold tabular-nums tracking-tight">
             {isShopfront ? (
               <span className="mr-tight text-body font-medium text-muted-foreground">
@@ -129,15 +149,9 @@ export function ListingDesktopPane({
               </span>
             ) : null}
           </p>
-          {/* "Includes $X buyer fee" and the (i) breakdown, directly under the price.
-              Disclosure has to happen here: the fee otherwise first appears in the
-              contract room's Payment tab, so a buyer could reach the pay confirmation
-              having only ever seen a figure without being told it contains the fee.
-              Buyers only (the owner reads "Buyers pay / You receive" in their tools),
-              and never on a binder, whose price is an indicative "from". */}
-          {showTrust && !isShopfront ? (
-            <ListingFeeNote priceCents={priceCents} currency={currency} className="mt-tight" />
-          ) : null}
+          )}
+          {/* No "Includes $X service fee" line under the price (2026-11-23, product
+              decision: the buyer just needs the price). The Pay dialog itemises it. */}
 
           {/* WHAT THE MAP USED TO SAY, IN ONE LINE.
               
@@ -146,16 +160,26 @@ export function ListingDesktopPane({
               and adds listing age, which the map never showed and which every resale
               reference puts on the page — a card listed four hours ago and one listed
               four months ago are different propositions at the same price. */}
+          {/* `min-h-[1lh]`: the line holds its height when it has nothing to say yet
+              (the editor's preview of a new listing with no place), so the kind arriving
+              in it does not push the seller card down. */}
           <p
-            className="mt-1.5 text-meta text-muted-foreground"
+            className="mt-1.5 min-h-[1lh] text-meta text-muted-foreground"
             suppressHydrationWarning
           >
             {[
               // Kept to one short line. That nothing on a binder is held is said by the
               // buy bar, at the moment it applies.
-              isShopfront ? 'Binder' : null,
+              isShopfront ? 'Multiple items' : null,
+              condition,
               listedAgo ? `Listed ${listedAgo}` : null,
               locationLabel,
+              // The save count rides on the heart when there is one to press.
+              !showWatch && watchCount > 0
+                ? watchCount === 1
+                  ? '1 save'
+                  : `${watchCount} saves`
+                : null,
             ]
               .filter(Boolean)
               .join(' · ')}
@@ -167,10 +191,14 @@ export function ListingDesktopPane({
             role="group"
             aria-label="Listing actions"
           >
+            {/* The count beside the heart, as on the catalog tile, so how many
+                members saved it sits on the control that saves it. */}
             <WatchButton
               itemId={itemId}
               initialWatching={initialWatching}
               variant="icon"
+              count={watchCount}
+              className={watchCount > 0 ? 'gap-1 md:w-auto md:px-2' : undefined}
             />
             <ReportDialog
               targetType="item"

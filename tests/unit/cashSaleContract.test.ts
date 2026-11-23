@@ -146,9 +146,10 @@ describe('cash sale — agreement stage', () => {
     expect(calls.transfers).toHaveLength(0);
   });
 
-  it('opens for a buyer with no saved card, who chooses how to pay at Pay', async () => {
-    // A buyer may pay from their bank (0158), so a card is asked for at Pay, where the
-    // sale stays untouched until one is added, and never to open the contract.
+  it('refuses a buyer with no saved card, leaving the item in the catalog', async () => {
+    // Reserving takes a single listing off the catalog, so it needs a card on file
+    // (2026-11-23, reversing 0158's card-free Buy Now). The buyer may still pay from
+    // their bank at Pay; the card is the commitment, not the rail.
     const { repository, state } = makeCashSaleRepository({
       buyer: { ...BUYER, payerId: null, paymentSourceId: null },
     });
@@ -161,9 +162,8 @@ describe('cash sale — agreement stage', () => {
       },
       CONFIRMED_PURCHASE,
     );
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.sale.status).toBe('AGREEMENT');
-    expect(state.item.status).toBe('RESERVED');
+    expect(result).toMatchObject({ ok: false, error: 'BUYER_NO_PAYMENT_METHOD' });
+    expect(state.item.status).toBe('AVAILABLE');
     expect(calls.transfers).toHaveLength(0);
   });
 

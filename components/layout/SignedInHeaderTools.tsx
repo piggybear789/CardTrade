@@ -3,11 +3,20 @@
 // Signed-in header tools. Loaded with the session, not with the catalog: a
 // guest document that imported this file also imported the notification
 // popover and the account menu.
+//
+// Sell, then Saved, Messages and the bell, then the avatar. The look and the reasons
+// for it are in `HeaderControls`.
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { HeartIcon, MessageCircleIcon } from '@hugeicons/core-free-icons';
 
+import {
+  HEADER_ICON_BUTTON,
+  HEADER_ICON_GLYPH,
+  HEADER_ICON_STROKE,
+  HeaderSellLink,
+} from '@/components/layout/HeaderControls';
 import { HeaderTooltip } from '@/components/layout/HeaderTooltip';
 import { SiteMenu } from '@/components/layout/SiteMenu';
 import {
@@ -39,26 +48,27 @@ export function SignedInHeaderTools({
     // here rather than in the root layout so the tooltip code ships in this
     // signed-in chunk, not in the guest catalog document.
     <TooltipProvider delayDuration={300}>
+      <HeaderSellLink />
       {/* A HEART, because saving IS the heart: `WatchButton` draws one on every
-          listing, and the /saved empty state tells members to tap it. This was a
-          bookmark, so the control you pressed and the place it filed things
-          under did not look alike. */}
+          listing, and the /saved empty state tells members to tap it. */}
       <HeaderTooltip label="Saved">
-        <Link
-          href="/saved"
-          aria-label="Saved listings"
-          className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:border-ring md:inline-flex"
-        >
-          <HugeiconsIcon icon={HeartIcon} className="size-5" aria-hidden />
+        <Link href="/saved" aria-label="Saved listings" className={HEADER_ICON_BUTTON}>
+          <HugeiconsIcon
+            icon={HeartIcon}
+            className={HEADER_ICON_GLYPH}
+            strokeWidth={HEADER_ICON_STROKE}
+            aria-hidden
+          />
         </Link>
       </HeaderTooltip>
       <HeaderTooltip label="Messages">
-        <Link
-          href="/messages"
-          aria-label="Messages"
-          className="hidden size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:border-ring md:inline-flex"
-        >
-          <HugeiconsIcon icon={MessageCircleIcon} className="size-5" aria-hidden />
+        <Link href="/messages" aria-label="Messages" className={HEADER_ICON_BUTTON}>
+          <HugeiconsIcon
+            icon={MessageCircleIcon}
+            className={HEADER_ICON_GLYPH}
+            strokeWidth={HEADER_ICON_STROKE}
+            aria-hidden
+          />
         </Link>
       </HeaderTooltip>
       <NotificationBell initialNotifications={initialNotifications} />

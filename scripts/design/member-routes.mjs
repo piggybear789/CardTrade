@@ -7,7 +7,7 @@ import WebSocket from 'ws';
 if (!('WebSocket' in globalThis)) globalThis.WebSocket = WebSocket;
 const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
-  db: { schema: 'cardtrade' },
+  db: { schema: process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'cardtrade' },
 });
 const name = process.argv[2];
 const { data: me } = await db.from('profiles').select('id').eq('display_name', name).single();

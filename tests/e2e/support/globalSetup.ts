@@ -10,10 +10,24 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, readdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
+import { e2eSchema } from './db';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
 
 export default async function globalSetup() {
+  // THE SUITE RUNS ON THE DEV SANDBOX. It seeds accounts, creates listings and
+  // contracts, and its cleanup deletes rows by marker, all with the service role. On
+  // production `cardtrade` that is real members' tables. `npm run dev:db:reset` builds
+  // the sandbox; E2E_ALLOW_PRODUCTION_SCHEMA=1 is the deliberate way past this.
+  const schema = e2eSchema();
+  if (schema !== 'cardtrade_dev' && process.env.E2E_ALLOW_PRODUCTION_SCHEMA !== '1') {
+    throw new Error(
+      `The e2e suite would run against the "${schema}" schema. Set ` +
+        'NEXT_PUBLIC_SUPABASE_SCHEMA=cardtrade_dev in .env.local (and run `npm run dev:db:reset`), ' +
+        'or set E2E_ALLOW_PRODUCTION_SCHEMA=1 if you really mean production.',
+    );
+  }
+
   for (const dir of ['test-results', 'playwright-report']) {
     rmSync(path.join(repoRoot, dir), { recursive: true, force: true });
   }

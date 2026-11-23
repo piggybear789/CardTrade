@@ -1,6 +1,7 @@
 import 'server-only';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import type { Database } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 /**
  * Service-role Supabase client for **trusted server-only tasks** (e.g. the
@@ -22,7 +23,7 @@ export function createAdminClient() {
   }
 
   return createSupabaseClient<Database>(url, serviceRoleKey, {
-    db: { schema: 'cardtrade' },
+    db: { schema: DB_SCHEMA },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

@@ -31,8 +31,9 @@
  */
 export const CASH_SALE_REFUSAL_COPY: Record<string, string> = {
   // ACTIONABLE, and it must stay that way. This is the refusal that used to be
-  // reported as "the item may no longer be available". Since opening a contract
-  // stopped needing a card, it comes only from Pay, where a bank may also be offered.
+  // reported as "the item may no longer be available". It comes from Pay (where a bank
+  // may also be offered) and from opening a contract, which needs a card on file
+  // again (2026-11-23); the orchestrator's own `detail` says which, and is preferred.
   BUYER_NO_PAYMENT_METHOD: 'Add a card to pay by card, or choose another way to pay.',
   BUYER_CONFIRMATION_REQUIRED: 'Confirm the verified seller identity to continue.',
   // Two DIFFERENT blocks, and they must not read the same. Identity is step one and

@@ -8,6 +8,7 @@ import type {
 import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 /** A trade row, strongly typed from the generated database types. */
 export type TradeRow = Tables<'trades'>;
@@ -219,7 +220,7 @@ export function useTradeRealtime(
           'postgres_changes',
           {
             event: '*',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'trades',
             filter: `id=eq.${tradeId}`,
           },
@@ -232,7 +233,7 @@ export function useTradeRealtime(
           'postgres_changes',
           {
             event: '*',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'pre_auth_holds',
             filter: `trade_id=eq.${tradeId}`,
           },
@@ -245,7 +246,7 @@ export function useTradeRealtime(
           'postgres_changes',
           {
             event: 'INSERT',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'trade_state_transitions',
             filter: `trade_id=eq.${tradeId}`,
           },

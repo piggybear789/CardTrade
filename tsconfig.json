@@ -59,7 +59,9 @@
     ".next-mock2/dev/types/**/*.ts",
     "vitest.config.mts",
     ".next-e2e-stripe/types/**/*.ts",
-    ".next-e2e-stripe/dev/types/**/*.ts"
+    ".next-e2e-stripe/dev/types/**/*.ts",
+    ".next-devcheck/types/**/*.ts",
+    ".next-devcheck/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

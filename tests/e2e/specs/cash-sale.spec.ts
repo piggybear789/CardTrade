@@ -113,12 +113,11 @@ test.describe.serial('Cash sale lifecycle', () => {
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: RENDERED });
   
-  // The dialog reads the saved card on open and then shows the checkout. A card is not
-  // needed to open the contract (0158), so a first-time buyer sees "No card needed yet"
-  // with an optional "Add a card". This spec pays by card later, so it adds one here.
+  // The dialog reads the saved card on open and then shows the checkout. Reserving
+  // needs a card on file, so a first-time buyer is asked to add one first.
   const checkout = dialog.getByRole('heading', { name: 'Start a purchase contract' });
   await expect(checkout).toBeVisible({ timeout: 25_000 });
-  const addCard = dialog.getByRole('button', { name: 'Add a card' });
+  const addCard = dialog.getByRole('button', { name: 'Add a card to continue' });
   if (await addCard.isVisible().catch(() => false)) {
     await addCard.click();
     // Under the mock provider the card form offers a single button, because real

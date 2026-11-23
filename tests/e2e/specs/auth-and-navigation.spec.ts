@@ -89,7 +89,9 @@ test.describe('public routes are accessible without auth', () => {
     // The account is asked for at Get link, after the deal is written, not before.
     await page.goto('/deals');
     await expect(page).not.toHaveURL(/\/sign-in/);
-    await expect(page.getByRole('heading', { name: 'Start a deal' })).toBeVisible();
+    // The composer's `<h1>`: visible on a phone, kept for the outline from `md`, where
+    // the editor bar names the page.
+    await expect(page.getByRole('heading', { name: 'Start a private deal' })).toBeAttached();
   });
 
   test('/deals/new -> permanently redirects to /deals', async ({ page }) => {

@@ -13,9 +13,8 @@
 
        FOUR VALUES DEPART FROM THE SUPPLIED THEME, each to clear a WCAG 2.2 AA
        floor that `node scripts/palette-contrast.mjs` checks:
-         --primary      deepened 67.8% -> 60% lightness so its white label
-                        clears 4.5:1 (it measured 3.85). The bright violet lives
-                        on as `--ring` / `--iris`, the marker and focus colour.
+         --primary      replaced outright by the ink (see INK PRIMARY below). The
+                        theme's violet lives on as `--iris`, the marker colour.
          --destructive  deepened so a red label and red error text clear 4.5:1
                         (both measured ~3.5).
          --input        the field edge owes 3:1 against the page and a card
@@ -45,19 +44,31 @@
                         takes the tint (`--sidebar`), the Attio / Sprig pattern.
          neutrals       slate (a blue-grey) instead of a flat grey: cooler and
                         cleaner beside the violet, the Tailwind slate ramp.
-         primary        250 88% 60%, the vivid end of the brand violet (Stripe's
-                        #533AFD is the same family). White on it is 6.0:1.
+         primary        was 250 88% 60%, the vivid violet; now ink (below).
        Every pairing is checked by `node scripts/palette-contrast.mjs`. */
+    /* INK PRIMARY, VIOLET AS AN ACCENT. The primary was the vivid violet, so every
+       filled button, selected step, slider, own-message bubble and badge was the
+       brand hue, and the brand hue was the loudest and most repeated colour in the
+       product. Measured against the collectibles marketplaces (StockX, Goldin,
+       Whatnot, Fanatics Collect all fill their main button black), a violet fill read
+       as a SaaS tool rather than a shop, and left the hue nothing to MEAN.
+         --primary      the ink, same value as `--foreground`. White on it is 17:1.
+         --secondary    neutral slate, so a secondary button is not a lavender
+                        chip with violet text.
+       Violet survives where it marks something: `--iris` (the current nav link's
+       underline, rating stars, small markers, the References glow) and `--iris-ink`
+       (links and inline brand text). Reach for those, not `--primary`, when a thing
+       should be violet. */
     --background: 0 0% 100%;
     --foreground: 222 47% 11%;
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 250 88% 60%;
+    --primary: 222 47% 11%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 250 100% 97.5%;
-    --secondary-foreground: 250 55% 38%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
     --muted: 210 40% 96.1%;
     /* Slate 600: 7.5:1 on white. */
     --muted-foreground: 215 19% 35%;
@@ -92,7 +103,7 @@
     /* The rail: slate 50, one step off the white page, edged by `--sidebar-border`. */
     --sidebar: 210 40% 98%;
     --sidebar-foreground: 215 25% 27%;
-    --sidebar-primary: 250 88% 60%;
+    --sidebar-primary: 222 47% 11%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 210 40% 96.1%;
     --sidebar-accent-foreground: 222 47% 11%;
@@ -422,6 +433,15 @@
       radial-gradient(55% 60% at 82% 88%, hsl(330 80% 60% / 0.12), transparent 70%),
       radial-gradient(45% 45% at 20% 92%, hsl(265 80% 60% / 0.12), transparent 70%);
   }
+  /* PHONES GET THE PLAIN PAGE (2026-11-23). Below `sm` the form is full-bleed (see
+     `AuthScreen`), so a mesh behind it would sit under the fields themselves rather
+     than around a card. */
+  @media (max-width: 639px) {
+    .auth-backdrop,
+    .dark .auth-backdrop {
+      background-image: none;
+    }
+  }
 
   /* Hackathon / simulated-provider controls — violet quarantine, never product
      chrome.
@@ -716,17 +736,16 @@
 
 /* SURFACES AND MOTION, SITE-WIDE (2026-11-21). Born on References (`/references`,
    `/references/[handle]`, the proof page) and promoted to the whole web app, because
-   that page was the one that felt smooth. The generic names are the API; the `ref-*`
-   names are kept as aliases so the References code did not have to change.
+   that page was the one that felt smooth.
 
      .surface   a card or panel: hairline shadow edge + cool bloom, NO border
-     .lift      a whole tile that is a link: rises 2px under a stronger bloom on hover
-     .rise      one block arriving (opacity + 14px), ordered by `--ref-step`
-     .stagger   a list or grid whose children rise in order on mount
-     .swap      a region whose content was replaced (filter, page, tab): 6px settle
-     .settle    a whole page arriving: a short fade and 4px, gentle enough to sit
-                on top of a skeleton swap
-     .focus-in  a short text block arriving with its blur clearing
+
+   NO MOTION OUTSIDE REFERENCES (2026-11-23). The generic motion classes this block also
+   promoted (`.lift`, `.rise`, `.stagger`, `.swap`, `.settle`, `.focus-in`) are gone: the
+   marketplace pages, the catalog and the editors appear without entrances or hover
+   lifts, as eBay's do. Only the References pages keep theirs, under the `ref-*` names
+   below (`ref-tile`, `ref-rise`, `ref-enter`, `ref-swap`, `ref-focus-in`). Do not
+   reintroduce a generic alias.
 
 
    Taken from a recon of RevenueCat's feature pages (probed live, 2026-11-21), which is
@@ -799,7 +818,6 @@
    a soft cool shadow. Hover-capable pointers only: on touch a :hover sticks after the
    tap and leaves the tile lifted. `translate`, not `transform`, so the lift composes
    with a Tailwind `active:scale-*` on the same element instead of overriding it. */
-.lift,
 .ref-tile {
   transition:
     translate 300ms var(--ref-ease-standard),
@@ -809,7 +827,6 @@
     border-color 300ms var(--ref-ease-standard);
 }
 @media (hover: hover) {
-  .lift:hover,
   .ref-tile:hover {
     translate: 0 -2px;
     --tw-shadow: 0 2px 6px hsl(var(--obsidian) / 0.05), 0 14px 28px -12px hsl(236 32% 42% / 0.28);
@@ -872,13 +889,11 @@
   }
 }
 
-.focus-in,
 .ref-focus-in {
   animation: ref-focus-in 900ms var(--ref-ease) backwards;
   animation-delay: calc(var(--ref-step, 0) * 80ms);
 }
 
-.rise,
 .ref-rise {
   animation: ref-rise 720ms var(--ref-ease) backwards;
   animation-delay: calc(var(--ref-step, 0) * 80ms);
@@ -886,39 +901,25 @@
 
 /* A page's cards, in order, on FIRST LOAD only. The class is removed once they have
    arrived (`ReferenceProfile`), so a card the graph remounts while walking to another
-   person does not rise again; it fades in with the walk instead. `.stagger` is the
-   same thing for any list or grid; 60ms apart, capped at the seventh child so a long
-   grid is not still arriving half a second later. */
-.stagger > *,
+   person does not rise again; it fades in with the walk instead. 60ms apart, capped at
+   the seventh child. */
 .ref-enter > * {
   animation: ref-rise 720ms var(--ref-ease) backwards;
 }
-.stagger > :nth-child(2), .ref-enter > :nth-child(2) { animation-delay: 60ms; }
-.stagger > :nth-child(3), .ref-enter > :nth-child(3) { animation-delay: 120ms; }
-.stagger > :nth-child(4), .ref-enter > :nth-child(4) { animation-delay: 180ms; }
-.stagger > :nth-child(5), .ref-enter > :nth-child(5) { animation-delay: 240ms; }
-.stagger > :nth-child(6), .ref-enter > :nth-child(6) { animation-delay: 300ms; }
-.stagger > :nth-child(n + 7), .ref-enter > :nth-child(n + 7) { animation-delay: 360ms; }
+.ref-enter > :nth-child(2) { animation-delay: 60ms; }
+.ref-enter > :nth-child(3) { animation-delay: 120ms; }
+.ref-enter > :nth-child(4) { animation-delay: 180ms; }
+.ref-enter > :nth-child(5) { animation-delay: 240ms; }
+.ref-enter > :nth-child(6) { animation-delay: 300ms; }
+.ref-enter > :nth-child(n + 7) { animation-delay: 360ms; }
 
-/* A list whose contents were replaced (another page, another filter). */
-.swap,
+/* A References region whose contents were replaced (another lookup, another person).
+   Ordered by `--ref-step` like `.ref-rise`; unset, it starts at once. */
 .ref-swap {
   animation: ref-swap 420ms var(--ref-ease) backwards;
+  animation-delay: calc(var(--ref-step, 0) * 80ms);
 }
 
-@keyframes settle {
-  from {
-    opacity: 0.4;
-    transform: translateY(4px);
-  }
-}
-
-/* A whole page arriving. Starts at 40% rather than 0 so the swap from a loading
-   skeleton never flashes an empty frame, and moves 4px rather than 14px because the
-   whole column moves. */
-.settle {
-  animation: settle 360ms var(--ref-ease) backwards;
-}
 
 /* next dev paints a circular N on the bottom-right, on top of Account. */
 @media (max-width: 767px) {

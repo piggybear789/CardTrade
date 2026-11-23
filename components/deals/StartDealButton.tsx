@@ -28,13 +28,16 @@ export function StartDealButton({
   className,
   children = 'Private Deal',
   onOpen,
+  current = false,
 }: {
   variant?: ButtonProps['variant'];
   size?: ButtonProps['size'];
   className?: string;
   children?: ReactNode;
-  /** Called before the dialog opens — used to close the overflow menu. */
+  /** Called before the composer opens — used to close the overflow menu. */
   onOpen?: () => void;
+  /** The composer page is the current page (the header link's "you are here"). */
+  current?: boolean;
 }) {
   const { openDeal } = useStartDeal();
 
@@ -44,6 +47,7 @@ export function StartDealButton({
       variant={variant}
       size={size}
       className={className}
+      aria-current={current ? 'page' : undefined}
       onClick={() => {
         onOpen?.();
         openDeal();

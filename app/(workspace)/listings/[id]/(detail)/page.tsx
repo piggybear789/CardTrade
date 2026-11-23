@@ -14,12 +14,12 @@
 // The buy/trade actions re-enforce these gates server-side; the gating here
 // only decides what to surface.
 
-import { Suspense, ViewTransition } from "react";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { HugeiconsIcon } from '@hugeicons/react';
-import { FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
+import { ArrowRight01Icon, FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
 
 import { getItem } from "@/lib/actions/listings";
 import type { TradeOfferOwnItem } from "@/components/trade/TradeOfferForm";
@@ -77,8 +77,8 @@ import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
    the meta line in both layouts now, not a plotted map. */
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { BackLink } from "@/components/ui/back-link";
 import { StatusNotice } from "@/components/ui/status-notice";
+import { cn } from "@/lib/utils";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -535,37 +535,63 @@ export default async function ItemDetailPage({
       >
         <nav
           className="mb-snug hidden flex-wrap items-center justify-between gap-snug lg:flex"
-          aria-label="Listing"
+          aria-label="Breadcrumb"
         >
           {/* INSET TO SIT OVER THE PHOTO, NOT OVER THE THUMBNAIL RAIL.
               
-              Only the back button moves. The badge cluster opposite it stays flush with
-              the content box's right edge, which is also the details column's edge, so
-              indenting the whole row would pull the badges 64px off that line to fix a
-              smaller misalignment on the other side.
+              Only the breadcrumb moves. The status badge opposite it (when there is
+              one) stays flush with the content box's right edge, which is also the
+              details column's edge.
               
               Conditional on the same thing the rail is: with one photo there is no rail,
               the photo starts at the column's edge, and an inset here would create the
               notch instead of removing it. */}
-          <BackLink href="/" className={images.length > 1 ? GALLERY_RAIL_BAND_ML : undefined}>
-            Back to marketplace
-          </BackLink>
+          {/* A BREADCRUMB, NOT A ROW OF BADGES (2026-11-23). This row was a back pill
+              and four chips: availability, game, condition and the save count. Read
+              off Depop's and eBay's listing pages, each of those has a better home:
+              the game is the breadcrumb (and a way into that game's catalog), the
+              condition joins the meta line under the price ("Unopened · Listed …"),
+              the save count sits on the heart, and availability is said only when it
+              is NOT the normal state, below. */}
+          <ol
+            className={cn(
+              "flex h-8 min-w-0 items-center gap-tight text-meta text-muted-foreground",
+              images.length > 1 ? GALLERY_RAIL_BAND_ML : undefined,
+            )}
+          >
+            <li>
+              <Link href="/" className="rounded-sm hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                Marketplace
+              </Link>
+            </li>
+            {item.category ? (
+              <>
+                <li aria-hidden>
+                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+                </li>
+                <li className="min-w-0 truncate">
+                  <Link
+                    href={`/?category=${encodeURIComponent(item.category)}`}
+                    className="rounded-sm hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {item.category}
+                  </Link>
+                </li>
+              </>
+            ) : null}
+          </ol>
 
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-snug">
+          {/* Only when it is not for sale: "Sold", "Under contract", "Closed". An open
+              listing says nothing here, as on eBay, because being for sale is what a
+              listing page is. */}
+          {isAvailable ? null : (
             <Badge
               variant={statusBadge.variant}
               aria-label={`Availability: ${statusBadge.label}`}
             >
               {statusBadge.label}
             </Badge>
-            {item.category ? <Badge variant="secondary">{item.category}</Badge> : null}
-            <Badge variant="outline">{item.condition}</Badge>
-            {watchCount > 0 ? (
-              <span className="text-meta tabular-nums text-muted-foreground">
-                {watchCount} {watchCount === 1 ? "save" : "saves"}
-              </span>
-            ) : null}
-          </div>
+          )}
         </nav>
 
         <div className="flex min-h-0 flex-col items-stretch lg:flex-1 lg:flex-row lg:gap-6">
@@ -581,32 +607,28 @@ export default async function ItemDetailPage({
               at the photo, and the two attempts at squaring that (`lg:justify-center`,
               then `lg:justify-end`) were only choosing which end of the column the
               leftover thumbnail band showed up at. */}
+          {/* No `<ViewTransition>` around the gallery: the cover no longer morphs in
+              from the catalog tile (see `CatalogItemCard`). */}
           <div className="hidden min-w-0 lg:flex lg:flex-1 lg:flex-col">
-            <ViewTransition
-              name={`listing-image-${item.id}`}
-              share="morph"
-              default="none"
-            >
-              <ImageGallery
-                images={images}
-                title={listingTitle}
-                // Thumbnails under the frame. For a graded card the photo set is the
-                // evidence a buyer is reading — the back, the corners, the slab label —
-                // and paging through nine images with the «1/9» pill to reach one of
-                // them is the wrong cost for the most-scrutinised part of the page.
-                filmstrip
-                // The photo IS the goods, so it gets the priority hint. Set on BOTH
-                // galleries on this page, deliberately: they are alternatives chosen
-                // by CSS, not companions, and whichever one this viewport hides never
-                // intersects the viewport and so is never fetched. See `hero`.
-                hero
-                emptyHint={
-                  isOwner
-                    ? 'Add a photo so buyers can see the card.'
-                    : 'No photo yet'
-                }
-              />
-            </ViewTransition>
+            <ImageGallery
+              images={images}
+              title={listingTitle}
+              // Thumbnails under the frame. For a graded card the photo set is the
+              // evidence a buyer is reading — the back, the corners, the slab label —
+              // and paging through nine images with the «1/9» pill to reach one of
+              // them is the wrong cost for the most-scrutinised part of the page.
+              filmstrip
+              // The photo IS the goods, so it gets the priority hint. Set on BOTH
+              // galleries on this page, deliberately: they are alternatives chosen
+              // by CSS, not companions, and whichever one this viewport hides never
+              // intersects the viewport and so is never fetched. See `hero`.
+              hero
+              emptyHint={
+                isOwner
+                  ? 'Add a photo so buyers can see the card.'
+                  : 'No photo yet'
+              }
+            />
           </div>
 
           {/* NO BOTTOM PADDING AT `lg`, SO THE ACTION BLOCK ENDS WHERE THE PHOTO DOES.
@@ -747,6 +769,8 @@ export default async function ItemDetailPage({
               sellerIdentity={sellerIdentity}
               locationLabel={item.location_label}
               createdAt={item.created_at ?? null}
+              condition={item.condition}
+              watchCount={watchCount}
             >
               {renderListingActions('message-seller-heading-desktop')}
             </ListingDesktopPane>

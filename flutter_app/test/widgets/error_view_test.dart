@@ -63,7 +63,7 @@ const List<String> _safe = [
   'Check your connection and try again.',
   'This listing is no longer available.',
   'Your card was declined. Try another card.',
-  'The seller has closed this binder or bulk listing.',
+  'The seller has closed this listing.',
   'You cannot open a contract with a member who trades in another region.',
 ];
 

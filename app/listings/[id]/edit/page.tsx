@@ -16,7 +16,8 @@ import { getCachedAuthUser } from "@/lib/supabase/cachedAuth";
 import { getItem } from "@/lib/actions/listings";
 import { ItemForm } from "@/components/listings/ItemForm";
 import { EmptyState } from "@/components/ui/empty-state";
-import { MarketplaceShell } from "@/components/layout/MarketplaceShell";
+import { createClient } from "@/lib/supabase/server";
+import { readPreviewSeller } from "@/lib/listings/previewSeller";
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -36,7 +37,7 @@ export default async function EditListingPage({
   // No KYC gate here (revised Req 3.1): an unverified Seller may list, so they
   // must be able to correct what they listed. `updateItem` enforces owner-only
   // access and the AVAILABLE-only rule, which are the constraints that matter.
-  const [user, result] = await Promise.all([getCachedAuthUser(), getItem(id)]);
+  const [user, result, supabase] = await Promise.all([getCachedAuthUser(), getItem(id), createClient()]);
   if (!user) {
     redirect(`/sign-in?redirectTo=/listings/${id}/edit`);
   }
@@ -55,18 +56,19 @@ export default async function EditListingPage({
   // Only AVAILABLE items are mutable (Req 3.5).
   if (item.status !== "AVAILABLE") {
     return (
-      <MarketplaceShell title="Edit listing" center>
+      <main className="flex flex-1 items-center justify-center px-group py-12">
         <NotEditable itemId={item.id} status={item.status} />
-      </MarketplaceShell>
+      </main>
     );
   }
 
-  // Same canvas as the create flow, so the form renders identically in both
-  // entry points.
+  // The same full-screen editor as the create flow, outside the workspace shell, so the
+  // form renders identically in both entry points. The seller row is for the preview.
+  const previewSeller = await readPreviewSeller(supabase, user.id);
   return (
-    <MarketplaceShell title="Edit listing">
-      <ItemForm mode="edit" item={item} />
-    </MarketplaceShell>
+    <main className="flex flex-1 flex-col">
+      <ItemForm mode="edit" item={item} previewSeller={previewSeller} />
+    </main>
   );
 }
 

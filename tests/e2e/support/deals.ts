@@ -48,9 +48,12 @@ export async function chooseTile(page: Page, label: RegExp | string): Promise<vo
 }
 
 /**
- * TWO SHAPES, ONE HELPER. The compose form renders `UnlistedItemFields` INLINE
- * (ids `deal-card-*`); the join form still opens `UnlistedItemDialog` behind a
- * "Your card" row (ids `unlisted-*`). Which one is on screen decides the path.
+ * TWO SHAPES, ONE HELPER. The compose form renders `UnlistedItemFields` INLINE on the
+ * `/deals` page (ids `deal-card-*`); the join form still opens `UnlistedItemDialog`
+ * behind a "Your card" row (ids `unlisted-*`). Which one is on screen decides the path.
+ *
+ * The composer is a page now, not a dialog, so its fields are scoped to the page
+ * itself: the `deal-card-*` ids are unique on it.
  */
 export async function fillUnlistedCard(
   page: Page,
@@ -59,8 +62,7 @@ export async function fillUnlistedCard(
   const inline = (await page.locator('#deal-card-game').count()) > 0;
 
   if (inline) {
-    const scope = page.getByRole('dialog').filter({ has: page.locator('#deal-card-game') });
-    await fillFields(page, scope, 'deal-card', description);
+    await fillFields(page, page.locator('body'), 'deal-card', description);
     return;
   }
 
@@ -96,6 +98,10 @@ async function fillFields(
   await page.getByRole('option', { name: 'Near Mint' }).click();
   await expect(scope.locator(`#${idPrefix}-condition`)).toBeFocused({ timeout: RENDERED });
 
+  // A title is required before Get link enables (`unlistedDraftGap`). The description's
+  // first line stands in for it, the way a member would name the card.
+  const title = scope.locator(`#${idPrefix}-title`);
+  if ((await title.count()) > 0) await title.fill(description.slice(0, 80));
   // By id, not label: the compose form asks "What are you selling?" / "What are you
   // trading?" while the join dialog says "Describe the card".
   await scope.locator(`#${idPrefix}-description`).fill(description);
@@ -103,18 +109,35 @@ async function fillFields(
   await expect(scope.getByText(/1 of 10/)).toBeVisible({ timeout: 20_000 });
 }
 
-/** Press Get link on the Review step and return the invite path it lands on. */
+/**
+ * Press Get link on the terms screen and return the invite path it lands on. There is
+ * no review step to wait for: the button enables once the terms are complete, and it
+ * sits in the one footer under the form at every width.
+ */
 async function getLink(page: Page): Promise<string> {
-  await expect(page.getByRole('heading', { name: 'Review your deal' })).toBeVisible({
-    timeout: RENDERED,
-  });
-  await page.getByRole('button', { name: 'Get link' }).click();
+  const button = page.getByRole('button', { name: 'Get link' });
+  await expect(button).toBeEnabled({ timeout: RENDERED });
+  await button.click();
   await expect(page).toHaveURL(/\/t\/[A-Za-z0-9_-]{16,}/, { timeout: COLD_ROUTE });
   return new URL(page.url()).pathname;
 }
 
 /**
- * Compose a sale as a signed-in member: deal type, card, price, review, Get link.
+ * Leave the composer's first screen (deal type and card) for the second (terms). The
+ * actions are in one footer under the form, so there is one Next at every width.
+ */
+async function nextScreen(page: Page): Promise<void> {
+  const button = page.getByRole('button', { name: 'Next', exact: true });
+  await expect(button).toBeEnabled({ timeout: RENDERED });
+  await button.click();
+  await expect(page.getByRole('heading', { name: 'Terms', exact: true })).toBeVisible({
+    timeout: RENDERED,
+  });
+}
+
+/**
+ * Compose a sale as a signed-in member: the deal type (preselected, chosen anyway so
+ * the helper does not depend on the default), the card, Next, the price, Get link.
  * Returns the invite path.
  */
 export async function composeCashDeal(
@@ -124,15 +147,14 @@ export async function composeCashDeal(
 ): Promise<string> {
   await chooseTile(page, /Sell a card/i);
   await fillUnlistedCard(page, description);
-  await page.getByRole('button', { name: 'Next' }).click();
+  await nextScreen(page);
   await page.getByLabel('Price', { exact: true }).fill(price);
-  await page.getByRole('button', { name: 'Next' }).click();
   return getLink(page);
 }
 
 /**
- * Compose a swap as a signed-in member: deal type, card, swap terms, review, Get
- * link. Returns the invite path.
+ * Compose a swap as a signed-in member: the deal type, the card, Next, the swap
+ * terms, Get link. Returns the invite path.
  */
 export async function composeSwapDeal(
   page: Page,
@@ -142,9 +164,8 @@ export async function composeSwapDeal(
 ): Promise<string> {
   await chooseTile(page, /Trade cards/i);
   await fillUnlistedCard(page, description);
-  await page.getByRole('button', { name: 'Next' }).click();
+  await nextScreen(page);
   await page.getByLabel('What do you want for it?').fill(wanted);
   await page.getByLabel('What is your card worth?').fill(value);
-  await page.getByRole('button', { name: 'Next' }).click();
   return getLink(page);
 }

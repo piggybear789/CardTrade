@@ -13,7 +13,7 @@ import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator'
 import {
   PROCESSING_FEE_NAME,
   TRADE_NO_FEE_NOTE,
-  processingFeeExplanation,
+  processingFeeShortNote,
   processingFeeRateLabel,
 } from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
@@ -26,32 +26,46 @@ import { formatMoney } from '@/lib/format';
 export function SaleTermsBreakdown({
   priceCents,
   currency,
+  payerLabel = 'They pay',
+  holdHeight = false,
 }: {
   priceCents: number | null;
   currency: string;
+  /** Who pays, as the first row names them: the deal's other person, or "Buyers". */
+  payerLabel?: string;
+  /**
+   * Draw the rows with "—" before a price is typed, instead of the one-line note, so
+   * the box is the same height empty and filled. For a form where fields follow the
+   * breakdown (the listing form), which would otherwise move down on the first digit.
+   */
+  holdHeight?: boolean;
 }) {
-  if (!priceCents) {
+  if (!priceCents && !holdHeight) {
     return (
       <p className="text-meta text-muted-foreground">
         {`The buyer pays a service fee on top (${processingFeeRateLabel(currency)} by card), so you receive your full price.`}
       </p>
     );
   }
-  const fee = platformFeeCentsFor(priceCents, currency);
+  const fee = priceCents ? platformFeeCentsFor(priceCents, currency) : null;
+  const figure = (cents: number | null) => (cents == null ? '—' : formatMoney(cents, currency));
   return (
     <Breakdown>
-      <BreakdownRow label="They pay" value={formatMoney(priceCents + fee, currency)} />
+      <BreakdownRow
+        label={payerLabel}
+        value={figure(priceCents && fee != null ? priceCents + fee : null)}
+      />
       <BreakdownRow
         label={PROCESSING_FEE_NAME}
-        value={formatMoney(fee, currency)}
-        info={processingFeeExplanation(currency)}
+        value={figure(fee)}
+        info={processingFeeShortNote(currency)}
       />
       <BreakdownRule />
       <BreakdownRow
         label="You receive"
-        value={formatMoney(priceCents, currency)}
+        value={figure(priceCents || null)}
         strong
-        info="Paid to you through Stripe after they accept the card."
+        info="Paid to you through Stripe after the buyer accepts the card."
       />
     </Breakdown>
   );
@@ -69,14 +83,15 @@ export function TradeTermsBreakdown({
   valueCents: number | null;
   currency: string;
 }) {
+  // NO "Transaction details / Held collateral" HEADER ROW. It repeated the row under
+  // it in other words and cost the composer's deal screen its fit beside the preview.
+  // The collateral row names itself, in the member copy for it.
   return (
     <Breakdown>
-      <BreakdownRow label="Transaction details" value="Held collateral" strong />
-      <BreakdownRule />
       <BreakdownRow
-        label="Held on your payment card"
+        label="Trade collateral, held on your card"
         value={valueCents ? formatMoney(valueCents, currency) : "Your card's value"}
-        info="A hold, not a charge. It's released when the trade completes."
+        info="A temporary hold, not a charge. It's released when the trade completes."
       />
       <BreakdownRow label="Your fee" value={formatMoney(0, currency)} info={TRADE_NO_FEE_NOTE} />
     </Breakdown>

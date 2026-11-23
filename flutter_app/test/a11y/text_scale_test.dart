@@ -46,7 +46,7 @@ const List<String> _paragraphs = [
   'Charizard Holo 1st Edition, near mint, sleeved since pull.',
   'Reallylongsinglewordwithnobreakopportunityanywhereinside',
   'ポケモンカード リザードン 1st Edition ニアミント',
-  'A binder or bulk listing holds nothing until both members agree terms, so '
+  'A listing with multiple items holds nothing until both members agree terms, so '
       'another buyer can ask about the same card while you are deciding.',
 ];
 

@@ -227,7 +227,7 @@ class _ProposeTradeScreenState extends ConsumerState<ProposeTradeScreen> {
                 controller: _descriptionController,
                 label: 'What you want from this listing (optional)',
                 helperText:
-                    'If trading for specific cards from a binder, describe them here.',
+                    'If you want specific cards from this listing, describe them here.',
                 hint: 'e.g. "PSA 10 Charizard 1st edition"',
                 maxLines: 3,
                 minLines: 2,

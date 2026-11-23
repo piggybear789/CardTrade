@@ -15,22 +15,26 @@
 // form, and repeated that five times. `useItemFormDraft` closes that loop for create mode;
 // the photos are the one thing it cannot keep, and the restore notice says so.
 //
-// THREE STEPS, not one long scroll: 1 Details (listing kind, title, description, game,
-// condition and slab details), 2 Photos, 3 Price & location, which publishes. The rules
-// for which field is on which step, and what each step needs before Next, live in
-// `lib/listings/itemFormSteps.ts`. The steps apply at every width with one behaviour:
-// the open step is `useState`, visibility is CSS and `hidden`, so the server render and
-// the first client render agree. From `lg` the photo panel stays the left column on
-// every step (hiding it would empty most of the fixed two-column card); below `lg` it is
-// step 2's body. Every field's state lives here and hidden steps stay mounted, so Back
-// never loses input. Edit mode may jump to any step; create mode reaches no further than
-// the first incomplete one. A server error naming a field opens that field's step.
+// A FULL-SCREEN EDITOR, the deal composer's frame (`components/editor/`): the editor
+// bar with its close, the form on the left with its actions in a footer under it, and
+// from `lg` a canvas on the right with a live preview of the listing, as its catalog
+// tile or its page, with no device frame (`ListingPreview`). The pages render it outside
+// the workspace shell, so there is no rail and no hub bar.
+//
+// TWO STEPS, not one long scroll: 1 Your item (listing kind, photos, title,
+// description), 2 Price & details (price, game, condition, place), which publishes. The
+// rules for which field is on which step, and what each step needs before Next, live in
+// `lib/listings/itemFormSteps.ts`. The open step is `useState`, visibility is `hidden`,
+// so the server render and the first client render agree. Every field's state lives
+// here and hidden steps stay mounted, so Back never loses input. Edit mode may jump to
+// any step; create mode reaches no further than the first incomplete one. A server
+// error naming a field opens that field's step.
 //
 // Key behaviours:
 //  - Fair_Market_Value is entered in DOLLARS in the UI but converted to integer
 //    AUD cents (`Math.round(dollars * 100)`) before calling the action, since
 //    money is integer cents end-to-end.
-//  - Image count is enforced client-side (1–10) on step 2 with a friendly message
+//  - Image count is enforced client-side (1–10) on step 1 with a friendly message
 //    before any upload work happens on the server (Req 3.3).
 //  - Selected files are uploaded browser → Supabase Storage first
 //    (`uploadItemImages`), and only the resulting object paths are sent to the
@@ -52,14 +56,11 @@ import { toast } from "sonner";
 import { HugeiconsIcon } from '@hugeicons/react';
 import {
   ArrowLeft01Icon,
-  ImageOffIcon,
-  ImagePlusIcon,
   LibraryIcon,
   PackageIcon,
-  XIcon,
 } from '@hugeicons/core-free-icons';
 
-import { createItem, updateItem, type ItemRow } from "@/lib/actions/listings";
+import { createItem, updateItem, type CatalogSeller, type ItemRow } from "@/lib/actions/listings";
 import { IMAGES_MAX, TITLE_MAX_LENGTH } from "@/domain/validation/item";
 import {
   dollarsToCents,
@@ -71,7 +72,6 @@ import {
   type ItemFormStep,
   type ItemFormStepInput,
 } from "@/lib/listings/itemFormSteps";
-import { StepProgress } from "@/components/ui/step-progress";
 import { Input } from "@/components/ui/input";
 import type { ListingKind } from "@/domain/orchestrator/cashSaleOrchestrator";
 import {
@@ -81,17 +81,31 @@ import {
   useItemFormDraft,
 } from "@/lib/listings/useItemFormDraft";
 import { trackActionFailure, trackFormAbandoned, UX_NAMES } from "@/lib/analytics/track";
-import { ChoiceTile } from "@/components/ui/choice-tile";
 import { PlacePicker } from "@/components/location";
 import type { PlaceValue } from "@/lib/location/types";
-import { formatMoney, itemImageUrl } from "@/lib/format";
-import { nodittoFeeRateLabel, processingFeeRateLabel } from "@/lib/fees/feeLabels";
-import { buyerPaysCents } from "@/lib/listings/buyerPrice";
+import { itemImageUrl } from "@/lib/format";
+import { SaleTermsBreakdown } from "@/components/deals/DealTermsBreakdown";
 import { CARD_GAMES, cardGameName, cardGameSlug } from "@/lib/catalog/cardGames";
 import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
 import { deleteListingDraft, saveListingDraft } from "@/lib/actions/listingDrafts";
 import type { ItemFormDraftFields } from "@/lib/listings/useItemFormDraft";
 import { cn } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  ActionFooter,
+  EDITOR_CANVAS_CLASS,
+  EDITOR_GRID_HEIGHT_BARLESS,
+  EditorPageHeader,
+  EditorSteps,
+  OptionCard,
+  ScreenHeading,
+} from "@/components/editor/EditorFrame";
+import { PhotoGrid } from "@/components/trade/UnlistedItemFields";
+import {
+  ListingPreview,
+  type ListingPreviewInput,
+  type PreviewPhotos,
+} from "@/components/listings/ListingPreview";
 
 /** A publish submit this soon after the step changed is a stray second click. */
 const STEP_SUBMIT_GUARD_MS = 400;
@@ -103,12 +117,6 @@ import { uploadItemImages } from "@/lib/storage/uploadItemImages";
 import type { ImageDim } from "@/lib/images/dimensions";
 import { usePreviewFiles } from "@/lib/images/usePreviewFiles";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/ui/money-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -177,6 +185,14 @@ export interface ItemFormProps {
    * place of the session draft, which is the unsaved scratch copy.
    */
   serverDraft?: { id: string; fields: ItemFormDraftFields } | null;
+  /**
+   * The currency the price is quoted in: the listing's own when editing, else the
+   * seller's trading region's, which is what `set_row_currency_from_region` gives
+   * the new row (0068). Defaults to AUD.
+   */
+  currency?: string;
+  /** The seller as buyers see them, for the preview's seller line. */
+  previewSeller?: CatalogSeller | null;
 }
 
 /**
@@ -187,57 +203,21 @@ export interface ItemFormProps {
  * Everything downstream — no reservation, several concurrent contracts, a price
  * that comes from each contract rather than from this form — follows from it.
  */
-/** One line under the bar per step, in ITEM_FORM_STEP_LABELS order. */
-const STEP_HINTS = [
-  "",
-  "",
-] as const;
-
 const LISTING_KINDS = [
   {
     value: "SINGLE" as const,
     icon: PackageIcon,
     label: "One item",
+    hint: "A card or sealed product",
   },
   {
     value: "SHOPFRONT" as const,
     icon: LibraryIcon,
     label: "Multiple items",
+    hint: "Buyers pick cards. Nothing is held",
   },
 ];
 
-/**
- * What the price means to each side, once one is typed: what buyers will see on the
- * listing, and what the seller receives. The fee is added on top of the seller's
- * price, so a seller entering $100 could not tell whether buyers would see $100 or
- * more — and nothing said they keep the full $100.
- *
- * Nothing shows until there is a price: two empty figures read as disabled fields. The
- * line is the last thing in the step, so its arrival moves nothing a seller is using.
- * The live region stays mounted while empty, or the first figure would not be announced.
- */
-function PriceReadout({ cents, currency }: { cents: number | null; currency: string }) {
-  const valid = cents != null && cents > 0;
-  return (
-    <div className="space-y-tight">
-      <p className="text-body" aria-live="polite">
-        {valid ? (
-          <>
-            Buyers see{" "}
-            <span className="font-medium tabular-nums">
-              {formatMoney(buyerPaysCents(cents, currency), currency)}
-            </span>
-            {" · "}you&apos;ll get{" "}
-            <span className="font-medium tabular-nums">{formatMoney(cents, currency)}</span>
-          </>
-        ) : null}
-      </p>
-      <p className="text-meta text-muted-foreground">
-        {`The buyer pays a service fee on top (${processingFeeRateLabel(currency)} by card: Stripe's costs plus about ${nodittoFeeRateLabel()} to NoDitto), so you get your full price.`}
-      </p>
-    </div>
-  );
-}
 
 /** Format integer AUD cents back to a plain dollars string for the input. */
 function centsToDollars(cents: number): string {
@@ -294,10 +274,14 @@ function ItemFormInner({
   item,
   defaultLocation = null,
   serverDraft = null,
+  currency: currencyProp,
+  previewSeller = null,
   restoreDraft,
   draftDecided,
 }: ItemFormProps & { restoreDraft: boolean; draftDecided: boolean }) {
   const router = useRouter();
+  const currency = item?.currency ?? currencyProp ?? "aud";
+  const [confirmingClose, setConfirmingClose] = React.useState(false);
 
   // CREATE ONLY. An edit form is backed by a row, so a stored draft would raise a
   // "which is newer" conflict with no safe default — see `useItemFormDraft`.
@@ -392,8 +376,6 @@ function ItemFormInner({
     (element ?? stepHeadingRef.current)?.focus();
   }, [step, error]);
 
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
-
   /** The submit control's resting label, shared by the footer and the phone header. */
   const submitLabel = mode === "create" ? "Create listing" : "Save changes";
   /** The primary control's label on the open step: Next until the last one. */
@@ -417,6 +399,23 @@ function ItemFormInner({
     description.trim() !== "" ||
     newFiles.length > 0 ||
     fmvDollars.trim() !== "";
+  // WHETHER CLOSING LOSES ANYTHING, for the editor bar's close. Create: any input at
+  // all. Edit: the row always has a title, so it is a change from what was loaded.
+  const editSnapshot = JSON.stringify({
+    title,
+    description,
+    game,
+    condition,
+    fmvDollars,
+    place: location?.placeId ?? null,
+    kept: keptPaths,
+    added: newFiles.length,
+  });
+  const [loadedSnapshot] = React.useState(editSnapshot);
+  const hasWork =
+    mode === "create"
+      ? isDirty || game !== "" || condition !== "" || keptPaths.length > 0
+      : editSnapshot !== loadedSnapshot;
   React.useEffect(() => {
     if (!isDirty || isSubmitting) return;
 
@@ -506,7 +505,7 @@ function ItemFormInner({
 
   // WHEN THE OPEN STEP LAST CHANGED. A publish submit inside `STEP_SUBMIT_GUARD_MS` of
   // it is ignored: Next and publish sit in the same spot, so the second click of a fast
-  // double-click on step 2's Next would otherwise land on step 3's publish and save a
+  // double-click on step 1's Next would otherwise land on step 2's publish and save a
   // listing the seller never saw. The phone header's button submits this form too and
   // is caught by the same check.
   const stepChangedAt = React.useRef(0);
@@ -552,16 +551,6 @@ function ItemFormInner({
     return error?.field === field ? error.message : undefined;
   }
 
-  function handleFilesSelected(event: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(event.target.files ?? []);
-    if (picked.length > 0) {
-      pending.add(picked);
-      setError(null);
-    }
-    // Reset the native input so re-picking the same file fires onChange again.
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
   function removeKeptPath(path: string) {
     setKeptPaths((prev) => prev.filter((p) => p !== path));
   }
@@ -601,13 +590,13 @@ function ItemFormInner({
     event.preventDefault();
     setError(null);
 
-    // ONE SUBMIT, THREE MEANINGS. The footer button and the phone header both submit
+    // ONE SUBMIT, TWO MEANINGS. The footer button and the phone header both submit
     // this form (Enter in a field does too); before the last step that is Next.
     if (step < 2) {
       goNext();
       return;
     }
-    // Only a deliberate publish from a step 3 the seller has had time to see.
+    // Only a deliberate publish from a step 2 the seller has had time to see.
     if (Date.now() - stepChangedAt.current < STEP_SUBMIT_GUARD_MS) return;
 
     // Publishing re-checks every step, in order, because an edit can jump straight
@@ -621,7 +610,7 @@ function ItemFormInner({
         return;
       }
     }
-    // Both guaranteed by step 3's check above.
+    // Both guaranteed by step 2's check above.
     const fmvCents = dollarsToCents(fmvDollars)!;
     if (!location) return;
 
@@ -794,788 +783,525 @@ function ItemFormInner({
   const locationError = errorFor("location");
   const generalError = error && error.field === null ? error.message : undefined;
 
-  // The first image (kept or newly added) is the cover shown in the big
-  // left-hand preview, mirroring how Facebook Marketplace always leads with a
-  // large primary photo and keeps the rest as a filmstrip beside it. The preview URL
-  // is the file's own stable one — never minted here, where it would change on every
-  // render and make the browser re-decode the cover each time anything re-rendered.
-  const coverUrl =
-    keptPaths.length > 0
-      ? itemImageUrl(keptPaths[0])
-      : newFiles.length > 0
-        ? newFiles[0].url
-        : null;
+  // The photos in the order shown: the ones already on the listing, then the ones
+  // just picked. The first is the cover. The preview URL is each file's own stable
+  // one, never minted here, where it would change on every render and make the
+  // browser decode every photo again.
+  const photos = [
+    ...keptPaths.map((path) => ({
+      key: path,
+      src: itemImageUrl(path),
+      remove: () => removeKeptPath(path),
+    })),
+    ...newFiles.map(({ key, url }) => ({
+      key,
+      src: url as string | null,
+      remove: () => pending.remove(key),
+    })),
+  ];
+  const coverUrl = photos[0]?.src ?? null;
 
-  // FIXED HEIGHT ON DESKTOP, and the details rail scrolls inside it.
-  //
-  // Previously the grid was `min-h`, so its height was whatever the rail's content
-  // came to and the photo panel grew with every field added. Making the height
-  // definite is what lets the middle row scroll and what keeps the left column the
-  // same size no matter how much is in the form.
-  //
-  // Definite against the dynamic viewport so the internal rail, rather than the
-  // document, owns scrolling. The shell budget is subtracted below; overlay
-  // keyboards subtract their published inset as well.
-  //
-  // A CONSEQUENCE FOR THE LAST FIELD ON STEP 3. `Based near` is a combobox, and
-  // `PlaceSearch` positions its suggestions absolutely against the input. Once the rail
-  // became a scroll box (today, the step body inside it — the footer is pinned beneath)
-  // the suggestions were clipped at its bottom edge, so the third
-  // one down was sliced in half and the rest were unreachable. `PlaceSearch` measures
-  // its nearest clipping ancestor and opens upwards when there is no room below, which
-  // is what keeps that field usable inside a definite-height card — do not assume a
-  // popover in this rail can grow downwards.
+  function addPhotos(picked: File[]) {
+    const room = IMAGES_MAX - totalImages;
+    if (room <= 0 || picked.length === 0) return;
+    pending.add(picked.slice(0, room));
+    setError(null);
+  }
+
+  /**
+   * Move a photo within the order shown. Kept photos are saved ahead of new ones (see
+   * `handleSubmit`), so a move applies within whichever of the two lists it falls
+   * in; a move across them is not one the save can store, and is ignored.
+   */
+  function movePhoto(from: number, to: number) {
+    const kept = keptPaths.length;
+    if (from < kept !== to < kept) return;
+    if (from < kept) {
+      setKeptPaths((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return next;
+      });
+    } else {
+      pending.move(from - kept, to - kept);
+    }
+  }
+
+  /** Close: back where they came from. Asks first if there is work to lose. */
+  function requestClose() {
+    if (hasWork) {
+      setConfirmingClose(true);
+      return;
+    }
+    leave();
+  }
+
+  function leave() {
+    // Discarding is deliberate, so the session copy goes too. A saved draft stays
+    // under My listings: it was saved on purpose.
+    if (mode === "create") clearItemFormDraft();
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+    navigateWithType(
+      router,
+      mode === "edit" && item ? `/listings/${item.id}` : "/listings/mine",
+      "nav-back",
+    );
+  }
+
+  const preview: ListingPreviewInput = {
+    title,
+    description,
+    priceCents: dollarsToCents(fmvDollars),
+    currency,
+    category: game ? cardGameName(game) : null,
+    condition,
+    isShopfront,
+    locationLabel: location?.label ?? null,
+    coverSrc: coverUrl,
+    photoCount: totalImages,
+    createdAt: item?.created_at ?? null,
+    seller: previewSeller,
+  };
+
+  // The same photos and actions as the form's grid, so the canvas can work on them in
+  // place (browse, reorder, make cover, remove, add) and the two always agree.
+  const previewPhotos: PreviewPhotos = {
+    items: photos,
+    canAdd: totalImages < IMAGES_MAX,
+    onAdd: addPhotos,
+    onRemove: (index) => photos[index]?.remove(),
+    onMove: movePhoto,
+    // `movePhoto` ignores a move across saved and new photos (saved ones are stored
+    // first), so the preview offers only the moves it will keep.
+    canMove: (from, to) =>
+      from !== to && from < keptPaths.length === to < keptPaths.length,
+    disabled: isSubmitting,
+  };
+
+  const footerNote = generalError
+    ? generalError
+    : step === 2
+      ? mode === "create"
+        ? "It goes live in the catalog as soon as you publish."
+        : "Saved changes show on the listing straight away."
+      : null;
+
+  const heading = mode === "create" ? "Sell an item" : "Edit listing";
+
   return (
-    // `overflow-clip`, NEVER `overflow-hidden`. Both clip identically, and the
-    // difference is the whole bug: `hidden` makes this a SCROLL CONTAINER on both
-    // axes, and below `lg` this card wraps every field on the page. Nothing here is
-    // meant to scroll sideways, but a scroll container does not need a scrollbar to
-    // be scrolled — the browser's own "bring the focused element into view" scrolls
-    // it on every focus, and the member cannot pan it back, because a touch drag on
-    // an `overflow:hidden` box is refused. That is the shift-to-the-left on tapping
-    // any field, and Radix makes it worse on a Select: opening moves focus into the
-    // portalled list and closing restores it to the trigger, so one interaction is
-    // three scroll-into-view calls.
-    //
-    // `clip` is not a scroll container at all, so there is no scroll offset to
-    // acquire. The clipping the rounded corners rely on is unchanged.
-    //
-    // AND BELOW `lg` IT CLIPS THE X-AXIS ONLY (`max-lg:overflow-x-clip`), because clipping
-    // the y-axis here broke the last field in the form. This card is the nearest clipping
-    // ancestor of `Based near`, which sits at the bottom of it with only `CardContent`'s
-    // padding underneath — so `PlaceSearch` measured about 24px of room, floored its
-    // suggestion list to one clipped row, and the field was unusable until a failed submit
-    // added a validation message and grew the box. The horizontal clip is the half that is
-    // actually load-bearing (it stops an intrinsically-wide input shearing the layout on a
-    // phone); nothing needs the vertical half below `lg`, where there is no internal scroll
-    // region to contain.
-    //
-    // `overflow-x: clip` with `overflow-y: visible` is a legal pair — `clip` is the only
-    // clipping value that does not force the other axis to `auto`, which is exactly why
-    // `hidden` could not be used for this. `clippingBounds` now tests `overflow-y` alone, so
-    // it walks past this card below `lg` and measures the viewport instead. From `lg` the
-    // full `overflow-clip` returns and the rail's step body (`overflow-y-auto`) is the
-    // clipping ancestor, which is the behaviour the drop-up logic was written for.
-    // NO `lg:max-h`. The card uses the shell's full desktop budget and that is
-    // all — it was also capped
-    // at `52rem` (832px), which on anything taller than about a 950px viewport left
-    // the card short of the space it had while the details rail scrolled internally
-    // anyway. Measured at 1920x1080: the card stopped at 832px with 155px of viewport
-    // still empty below it, and the rail hid 49px of itself. Removing the cap lets it
-    // use the height and the rail's scrollbar goes away on a tall display.
-    //
-    // The height is still PINNED to the viewport, deliberately. That is what keeps
-    // the header in place and makes the rail the single scrolling region, and it is
-    // what gives both columns a definite height to fill. Unpinning it was tried and
-    // reverted: with a content-sized row the two columns compete to set the height
-    // and the photo panel wins as soon as the filmstrip has a few rows in it.
-    <Card className="mx-auto w-full min-w-0 max-w-7xl max-lg:overflow-x-clip lg:overflow-clip lg:grid lg:h-[calc(100dvh-8.25rem-var(--keyboard-inset,0px))] lg:min-h-[34rem] lg:grid-cols-[minmax(0,1.65fr)_minmax(min(340px,40%),0.95fr)] lg:grid-rows-[auto_1fr]">
-      {/* THE HEADER IS ALWAYS RENDERED NOW, in create mode on a phone too. It used to be
-          `max-md:hidden` in create mode, because the phone chrome already says "New
-          listing" and the card's title duplicated it — that half is still hidden. What
-          is new is the step row above it: Back, which step this is, and the
-          indicator, which a phone needs as much as a desktop does.
+    <div className="flex flex-1 flex-col">
+      {/* NO EDITOR BAR. It held a close button beside "Sell an item", a name the step
+          tabs and the site header's Sell already make plain, and it cost the one-screen
+          editor 56px of height. Closing is Cancel in the footer now (Etsy's listing
+          editor), and on a phone the site's back strip, as before. */}
 
-          THE STEPPER LEADS THE CARD. It used to sit under the title with its own
-          visible step heading ("Details" beside "Step 1 of 3"), which named the step
-          twice — once there and once under its bar. The heading is now `sr-only`: it
-          is still the focus target on a step change, so a screen reader announces
-          the step, but the bar's label is the only visible name. */}
-      <CardHeader className="lg:col-start-2 lg:row-start-1 lg:border-l lg:border-border lg:px-7 lg:pb-5 lg:pt-7">
-        {/* ONE TOP ROW: Back, the page title, and the step counter on the right, then
-            the bar. No subtitle: the one that was here talked about price on every
-            step. The title is hidden below `md` in create mode because the phone chrome
-            already says "New listing". Back is dropped on step 1 and appears before the
-            title from step 2; the row's `min-h-8` keeps the bar below from moving. */}
-        <div className="flex min-h-8 items-center gap-snug">
-          <button
-            type="button"
-            onClick={() => goToStep((step - 1) as ItemFormStep)}
-            disabled={step === 1 || isSubmitting}
-            aria-hidden={step === 1 || undefined}
-            tabIndex={step === 1 ? -1 : undefined}
-            aria-label={step > 1 ? `Back to ${ITEM_FORM_STEP_LABELS[step - 2]}` : undefined}
-            className={cn(
-              "-ml-1.5 grid size-8 shrink-0 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50",
-              // Gone, not invisible, on step 1, so the title starts flush left.
-              step === 1 && "hidden",
-            )}
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
-          </button>
-          <CardTitle
-            className={cn("min-w-0 flex-1 truncate text-subhead", mode === "create" && "max-md:invisible")}
-          >
-            {mode === "create" ? "Sell an item" : "Edit listing"}
-          </CardTitle>
-          <span className="ml-auto shrink-0 text-meta tabular-nums text-muted-foreground">
-            Step {step} of 2
-          </span>
-        </div>
-        <StepProgress
-          steps={ITEM_FORM_STEP_LABELS}
-          current={step}
-          onSelect={(n) => goToStep(n as ItemFormStep)}
-          canSelect={(n) => !isSubmitting && (n <= reachableUpTo || n < step)}
-        />
-        {STEP_HINTS[step - 1] ? (
-          <p className="hidden pt-snug text-body text-muted-foreground md:block">
-            {STEP_HINTS[step - 1]}
-          </p>
-        ) : null}
-        {/* The step's heading, for assistive tech only: the focus target on a step
-            change (see `goToStep`). Visually the bar's label above names the step. */}
-        <h4
-          ref={stepHeadingRef}
-          tabIndex={-1}
-          className="sr-only focus:outline-none"
-        >
-          {ITEM_FORM_STEP_LABELS[step - 1]}
-        </h4>
-      </CardHeader>
-
-      <form
-        // Unconditional. It was create-only, for the phone header's benefit; the
-        // header now submits in edit mode too and `form=` needs the id to exist.
-        id={ITEM_FORM_ID}
-        onSubmit={handleSubmit}
-        noValidate
-        className="lg:contents"
+      {/* FROM `lg` THE EDITOR IS EXACTLY ONE SCREEN, as `/deals` is: the form column
+          scrolls inside itself if a step outgrows it, and the preview centres in the
+          canvas beside it. Below `lg` there is no canvas and the page scrolls. */}
+      <div
+        className={cn(
+          "grid flex-1 lg:flex-none lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]",
+          EDITOR_GRID_HEIGHT_BARLESS,
+        )}
       >
-        {/* `pt-0` is `CardContent`'s default, and it is right because the `CardHeader`
-            above supplies the top padding at every width. It did not in CREATE mode on
-            a phone while that whole header was `max-md:hidden`, and this restored
-            `max-md:pt-group` to compensate; the header's step row now always renders,
-            so the compensation went with it. */}
-        {/* `grid-cols-1`, not a bare `grid`. Below `lg` this is the stacked
-            single-column layout, and a bare grid gives its one implicit column a
-            track of `auto`, which sizes to the widest child's MIN-CONTENT. An
-            `<input>`/`<textarea>`/`SelectTrigger` carries a large intrinsic width —
-            larger still at the 16px touch type floor these fields use to stop iOS
-            zooming — so that `auto` track grew past the phone's width, and because
-            the `Card` clips (`overflow-clip`), the surplus was sheared off the right
-            edge: the "right side shrinking" a member sees. `grid-cols-1` is
-            `minmax(0, 1fr)`, whose `0` floor lets the column shrink to the container
-            instead of the content, so the fields track the card's width and wrap
-            rather than overflow. Irrelevant from `lg`, where `lg:contents` dissolves
-            this grid entirely. */}
-        <CardContent className="grid grid-cols-1 gap-5 lg:contents">
-          {/* Photos occupy the full-height left panel, keeping image entry
-              visually distinct from the listing details rail. */}
-          {/* `lg:min-h-0` + `lg:overflow-hidden` are what make the photo actually
-              yield space to the filmstrip instead of overflowing the fixed panel: a
-              grid item defaults to `min-height:auto`, which refuses to shrink below
-              its content. */}
-          {/* `flex flex-col` WITH `gap`, not `space-y`. The column was `space-y-cozy`
-              with an `lg:space-y-group` override, and stacking two `space-y` values
-              through a breakpoint is hard to reason about — `gap` is one declaration
-              that the flex container owns.
-              
-              `gap-group` (16px) at `lg`, up from 12px: at `cozy` the label sat almost
-              on the cover and the filmstrip almost on that, so three separate things
-              read as one crowded block. `group` is the scale's "between related
-              components" step, which the form's own field blocks already use. */}
-          {/* STEP 2 BELOW `lg`, AND THE LEFT COLUMN ON EVERY STEP FROM `lg`. The desktop
-              card is a fixed two-column grid, and hiding this panel on steps 1 and 3
-              would leave most of the card empty; below `lg` the panel is the whole of
-              step 2's body. Hidden by a `max-lg:` class rather than unmounted, so the
-              picked files and their previews survive every step change. */}
-          <div
-            className={cn(
-              "flex flex-col gap-cozy lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:gap-group lg:overflow-hidden lg:bg-card lg:p-section",
-              step !== 2 && "max-lg:hidden",
-            )}
-          >
-            {/* NO COUNT LINE UNDER THE LABEL. "Add 1–10 photos. N selected." spent a
-                whole row restating what the panel already shows: the tiles are the
-                count, and the add target disappearing at ten is the ceiling. The
-                bounds are still enforced — `IMAGES_MIN` on step 2's Next, `IMAGES_MAX` on the
-                add tile — and a shortfall is reported by `imagesError` below, which is
-                where a member actually needs to read it. */}
-            {/* Says it is required up front, rather than at step 2's Next. The count is
-                live, so the ceiling is visible before the add tile disappears. */}
-            <div className="flex items-baseline justify-between gap-snug">
-              <Label htmlFor="images">
-                Photos <span className="font-normal text-muted-foreground">· required</span>
-              </Label>
-              <span className="text-meta tabular-nums text-muted-foreground">
-                {totalImages} of {IMAGES_MAX}
-              </span>
-            </div>
-
-            {/* TWO LAYOUTS, SPLIT AT `lg`.
-
-                From `lg`: the cover in the left two thirds, every photo stacked down the
-                right third, two to the column, each exactly half its height. The panel
-                has a FIXED height there (see the Card), so the row is the flex child that
-                takes the remainder (`lg:flex-1`) and `lg:grid-rows-[minmax(0,1fr)]`
-                hands that definite height to both cells, which is what lets the strip's
-                percentage rows resolve. Past two photos the column scrolls.
-
-                Below `lg`: the cover full width, and the photos as a WRAPPING grid of
-                small squares under it. The phone used to run the desktop layout too,
-                and with a third of a ~330px row to work in each tile was ~125x165px, so
-                only two photos were ever visible and the rest sat below an internal
-                scroll with nothing saying they were there. Five to a row, ten photos
-                plus the add tile is three rows of ~60px squares: every photo on screen
-                at once.
-
-                `grid-cols-1` when there are no photos yet, at every width — otherwise the
-                desktop drop target would sit in two thirds of the row with a dead column
-                beside it. The empty state's height is an aspect ratio capped at `22svh`;
-                `lg:max-h-none lg:aspect-auto` lets it take the desktop panel instead.
-
-                `min-h-0` AT EVERY WIDTH. This row is a flex item in a column, and a flex
-                item's automatic minimum height is its CONTENT height, which beats an
-                aspect ratio — a tall phone photo once stretched the whole row to ~3x
-                its intended height. */}
-            <div
-              className={`relative grid min-h-0 grid-cols-1 gap-cozy lg:aspect-auto lg:max-h-none lg:flex-1 lg:grid-rows-[minmax(0,1fr)]${
-                totalImages > 1
-                  ? " lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"
-                  : totalImages === 1
-                  ? ""
-                  : " aspect-[16/10] max-h-[22svh]"
-              }`}
-            >
-            {/* Large cover preview / empty drop target. Clicking it opens the
-                file picker, same affordance as the add tile in the strip beside it.
-
-                Empty, or from `lg`: `h-full min-h-0` and nothing about its own size —
-                the row above decides the height and this fills its cell. With photos
-                below `lg` the row has no height of its own (it is the cover plus the
-                thumbnail grid stacked), so the cover carries an `aspect-[4/3]`. The image
-                is `object-contain` throughout, so nothing crops. */}
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isSubmitting}
-              // `p-cozy lg:p-group` — the photo needs room INSIDE its own frame. The
-              // image is `h-full w-full object-contain`, so with no padding it grew to
-              // the button's edges and sat directly against the border, which read as
-              // the frame gripping the card rather than presenting it.
-              //
-              // The `--input` edge, because this is a control: the same edge every field
-              // on this form wears, at the 3:1 SC 1.4.11 wants, and one pixel so it is no
-              // heavier than they are. Empty, it is dashed on white with a violet glyph,
-              // which reads as the place photos go. With a cover it turns solid and the
-              // fill muted, which letterboxes the photo instead of framing a drop target.
-              className={`flex ${totalImages > 0 ? "max-lg:aspect-[4/3] lg:h-full" : "h-full"} ${coverUrl ? "bg-muted" : "border-dashed bg-card"} min-h-0 w-full flex-col items-center justify-center gap-snug overflow-hidden rounded-lg border border-input p-cozy text-muted-foreground transition-colors hover:border-input-hover hover:bg-accent focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground lg:p-group`}
-              // NAMED ONLY IN THE COVER STATE, and that is the whole of F41.
-              //
-              // With no photo the button's own words ("Add photos", below) are its
-              // accessible name. With one, the words are replaced by the image — so on
-              // `/listings/[id]/edit`, which always has a cover, this became a button
-              // announced as nothing at all. The photo's `alt` was the only text left,
-              // and "Cover photo" describes what is SHOWN rather than what pressing it
-              // does, which is why the label goes here and the image goes decorative
-              // rather than the other way round.
-              aria-label={coverUrl ? 'Add or replace photos' : undefined}
-              aria-describedby={imagesError ? "images-error" : undefined}
-            >
-              {coverUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={coverUrl}
-                  alt=""
-                  width={640}
-                  height={640}
-                  className="h-full w-full object-contain"
-                />
-              ) : (
-                <>
-                  <HugeiconsIcon icon={ImagePlusIcon} className="size-8 text-iris" aria-hidden />
-                  <span className="text-body font-medium text-foreground">Add photos</span>
-                  {/* THE SHOTS A CARD BUYER LOOKS FOR, named. A blank box said nothing
-                      about what to photograph, and the slab label and the corners are
-                      what a buyer of a graded or raw card checks first. Labels only —
-                      every slot is the same picker, and the first photo is the cover. */}
-                  {/* The slot grid needs the desktop panel's height; a phone's empty
-                      cover is capped at 22svh, so it gets the same list as one line. */}
-                  <span className="text-meta lg:hidden">Front, back, slab label and corners</span>
-                  {/* Plain text, not boxes: dashed chips inside the button read as
-                      four separate targets. */}
-                  <span className="hidden text-meta lg:inline">
-                    Front · Back · Slab label or cert · Corners and flaws
-                  </span>
-                  <span className="text-meta">
-                    Up to {IMAGES_MAX} photos · the first is the cover
-                  </span>
-                </>
-              )}
-            </button>
-
-            {/* ONE PHOTO: no filmstrip (it would only repeat the cover), so the cover
-                carries the remove control the strip tile used to. A sibling, not a
-                child, because a button cannot sit inside the cover button. */}
-            {totalImages === 1 ? (
-              <button
-                type="button"
-                onClick={() =>
-                  keptPaths.length === 1
-                    ? removeKeptPath(keptPaths[0])
-                    : pending.remove(newFiles[0].key)
+        <form
+          // Unconditional: the phone header submits this form in both modes, and
+          // `form=` needs the id to exist.
+          id={ITEM_FORM_ID}
+          onSubmit={handleSubmit}
+          noValidate
+          className="flex min-w-0 flex-col lg:min-h-0"
+        >
+          {/* THE ONLY SCROLLING REGION from `lg`, and so the clipping ancestor
+              `PlaceSearch` measures for `Based near`, the last field on step 2: it
+              opens its suggestions upwards when there is no room below. Do not assume
+              a popover in this pane can grow downwards. Below `lg` the page scrolls and
+              the viewport is the bound. */}
+          <div className="min-w-0 flex-1 px-4 pb-section pt-group sm:px-6 md:px-8 md:pt-section lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-10 lg:pb-8 lg:pt-8">
+            <div className="mx-auto w-full max-w-xl space-y-5">
+              {/* The page's `<h1>` and line, with the editor's close beside the title,
+                  as `/deals` has it (`EditorPageHeader`). From `md`; below it the phone
+                  header names the page and the site's back strip closes, so it stays
+                  for the outline only. The close asks before discarding work
+                  (`requestClose`). The column's `space-y-5` spaces it from the tabs. */}
+              <EditorPageHeader
+                title={heading}
+                description={
+                  mode === "create"
+                    ? "List one card, or multiple items buyers can pick from."
+                    : "Update the photos, price and details."
                 }
-                disabled={isSubmitting}
-                className="group/remove absolute right-1 top-1 grid size-8 place-items-center focus:outline-none"
-                aria-label="Remove image"
-              >
-                <RemoveMark />
-              </button>
-            ) : null}
+                onClose={requestClose}
+                closeLabel={mode === "create" ? "Close" : "Close without saving"}
+                className="sr-only md:not-sr-only"
+              />
 
-            {/* A BARE `<input>`, NEVER THE `Input` COMPONENT. This is visually
-                hidden and driven by the dropzone button above it, so none of
-                `Input`'s styling is wanted — and applying it made the whole page
-                scroll sideways on a phone.
-                
-                `sr-only` sets `position:absolute; width:1px; margin:-1px`, while
-                `Input`'s base string sets `w-full h-9`. tailwind-merge keeps both:
-                it groups `sr-only` on its own and does not treat it as conflicting
-                with `w-*`, so the two land in the same CSS layer and `w-full` wins
-                on source order. That left an ABSOLUTELY POSITIONED, 100%-wide box.
-                
-                Nothing between here and the root is positioned, so its containing
-                block was the initial containing block: `width:100%` resolved
-                against the VIEWPORT rather than the card, and the `Card`'s
-                `overflow-clip` did not clip it, because an abs-pos box is only
-                clipped by an ancestor that is inside its containing block. Sitting
-                at its static-position offset — the shell and card padding, a
-                constant 32px — it reached 32px past the right edge at EVERY
-                viewport width, and `body`'s `overflow-x: clip` could not absorb it
-                either, for the same containing-block reason. Measured at 320px and
-                390px: `documentElement.scrollWidth` 352 and 422.
-                
-                The three other file inputs in the app (`MessageComposer`,
-                `AvatarUploadField`, `UnlistedItemDialog`) are already bare
-                `<input>`s. This was the only one that was not. */}
-            <input
-              id="images"
-              name="images"
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleFilesSelected}
-              className="sr-only"
-              aria-invalid={imagesError ? true : undefined}
-              aria-describedby={imagesError ? "images-error" : undefined}
-              disabled={isSubmitting}
-            />
-
-            {/* Filmstrip of every selected photo, including the cover, so each
-                one can be removed individually, plus the add tile while there is room.
-
-                BELOW `lg`: a wrapping grid of `aspect-square` tiles, five to a row
-                (six from `sm`), sized by WIDTH. Nothing scrolls and nothing hides.
-
-                FROM `lg`, TWO TILES TALL. `lg:auto-rows-[calc(50%_-_0.25rem)]` makes every
-                row exactly half the strip's height less half the `gap-snug` (0.5rem)
-                between them, so two tiles fill the column edge to edge and a third
-                starts below the fold: the strip scrolls for the rest. The tiles used to
-                be `aspect-[5/7]` — sized by their WIDTH — so in a third of the row they
-                stopped well short of the bottom of the panel with two photos and
-                overflowed it with three, and the panel's height had nothing to do with
-                how tall they were. A percentage row only resolves against a definite
-                height, which is why the wrapper above goes to the trouble of having one
-                and why this is `h-full min-h-0` inside it.
-
-                `content-start` is deliberate even though two rows fill the column: with
-                a single photo the strip holds that photo and the add tile, and with ten
-                it holds eleven tiles that scroll; neither wants distributing. */}
-            {totalImages > 1 ? (
-              <ul className="grid grid-cols-5 gap-snug sm:grid-cols-6 lg:h-full lg:min-h-0 lg:auto-rows-[calc(50%_-_0.25rem)] lg:grid-cols-1 lg:content-start lg:overflow-y-auto">
-                {keptPaths.map((path) => {
-                  const url = itemImageUrl(path);
-                  return (
-                    <li
-                      key={path}
-                      className="group relative aspect-square min-h-0 overflow-hidden rounded-md border bg-muted lg:aspect-auto"
-                    >
-                      {url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={url}
-                          alt="Existing item image"
-                          width={320}
-                          height={320}
-                          loading="lazy"
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <HugeiconsIcon icon={ImageOffIcon} className="size-5" aria-hidden />
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removeKeptPath(path)}
-                        disabled={isSubmitting}
-                        className="group/remove absolute right-0 top-0 grid size-8 place-items-center focus:outline-none"
-                        aria-label="Remove image"
-                      >
-                        <RemoveMark />
-                      </button>
-                    </li>
-                  );
+              <EditorSteps
+                steps={ITEM_FORM_STEP_LABELS.map((label, index) => {
+                  const n = (index + 1) as ItemFormStep;
+                  return {
+                    label,
+                    done: n < step,
+                    enabled: !isSubmitting && (n <= reachableUpTo || n < step),
+                  };
                 })}
-                {newFiles.map(({ key, file, url }) => (
-                  <li
-                    key={key}
-                    className="group relative aspect-square min-h-0 overflow-hidden rounded-md border bg-muted lg:aspect-auto"
-                  >
-                    {/* The file's own stable preview URL. Minting one here re-decoded
-                        every thumbnail on every render — see `usePreviewFiles`. */}
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={url}
-                      alt={file.name}
-                      width={320}
-                      height={320}
-                      className="h-full w-full object-cover"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => pending.remove(key)}
-                      disabled={isSubmitting}
-                      className="group/remove absolute right-0 top-0 grid size-8 place-items-center focus:outline-none"
-                      aria-label={`Remove ${file.name}`}
-                    >
-                      <RemoveMark />
-                    </button>
-                  </li>
-                ))}
-                {totalImages < IMAGES_MAX ? (
-                  <li className="aspect-square min-h-0 lg:aspect-auto">
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={isSubmitting}
-                      className="flex h-full w-full items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-input-hover hover:bg-muted focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground"
-                      aria-label="Add another photo"
-                    >
-                      <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
-                    </button>
-                  </li>
-                ) : null}
-              </ul>
-            ) : null}
-            </div>
+                current={step - 1}
+                onSelect={(index) => goToStep((index + 1) as ItemFormStep)}
+                disabled={isSubmitting}
+              />
 
-            {imagesError ? (
-              <FieldError id="images-error" message={imagesError} />
-            ) : null}
-          </div>
+              <ScreenHeading
+                headingRef={stepHeadingRef}
+                title={ITEM_FORM_STEP_LABELS[step - 1]}
+                description={
+                  step === 1
+                    ? "Photos first, then what it is."
+                    : isShopfront
+                      ? "A typical price, the game, and where you trade from."
+                      : "What you want for it, the game, and where you trade from."
+                }
+              />
 
-          {/* Details form — a dedicated right-hand rail: the open step's body, then the
-              footer pinned beneath it.
+              {/* STEP 1: what it is. Hidden steps stay mounted (`hidden`), so their state,
+                  and `PlacePicker`'s typed query, survive every step change. */}
+              <div hidden={step !== 1} className="space-y-group">
+                {/* Listing kind (0064). First, because it changes what the rest of the
+                    form means: for a binder the price is only a guide and the condition
+                    covers a mixed pile. Locked in edit mode. */}
+                <fieldset disabled={mode === "edit" || isSubmitting} className="space-y-snug">
+                  <legend className="sr-only">What are you listing?</legend>
+                  <div role="radiogroup" aria-label="Listing kind" className="grid gap-cozy sm:grid-cols-2">
+                    {LISTING_KINDS.map((kind) => (
+                      <OptionCard
+                        key={kind.value}
+                        id={`listing-kind-${kind.value}`}
+                        name="listingKind"
+                        checked={listingKind === kind.value}
+                        onSelect={() => setListingKind(kind.value)}
+                        icon={kind.icon}
+                        label={kind.label}
+                        hint={kind.hint}
+                        disabled={mode === "edit" && listingKind !== kind.value}
+                      />
+                    ))}
+                  </div>
+                  {/* NO "nothing is reserved" NOTE beyond the binder card's own line. The
+                      seller gets the rest where it is actionable: on their own listing,
+                      the shopfront branch of `ItemActions` lists the open contracts so
+                      they don't promise the same card twice. The buyer-facing half is
+                      separate (`BuyButton`: "Nothing is held for you yet"). */}
+                  {mode === "edit" ? (
+                    <p className="text-meta text-muted-foreground">
+                      This can&apos;t be changed after a listing is created.
+                    </p>
+                  ) : null}
+                </fieldset>
 
-              `lg:min-h-0` is required, not cosmetic: this is the grid's `1fr` row and a
-              grid item defaults to `min-height:auto`, which grows the row to fit its
-              content and would push the footer out of the card. */}
-          <div className="flex min-w-0 flex-col gap-5 lg:col-start-2 lg:row-start-2 lg:min-h-0 lg:border-l lg:border-border">
-            {/* THE ONLY SCROLLING REGION. Now that the card's height is definite this is
-                where the overflow belongs — the header stays pinned, the photo column
-                stays put, and the footer below stays where it is on every step. It is
-                also the clipping ancestor `PlaceSearch` measures from `lg`. */}
-            <div
-              className="space-y-5 lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:px-7"
-            >
-            {/* STEP 1: the card. Hidden steps stay mounted (`hidden`), so their state,
-                and `PlacePicker`'s typed query, survive every step change. */}
-            <div hidden={step !== 1} className={cn("space-y-5", step === 1 && "lg:flex lg:flex-1 lg:flex-col")}>
-            {/* Listing kind (0064). First, because it changes what the rest of
-                this form means: for a shopfront the price below is only a guide
-                and the condition covers a mixed pile. Locked in edit mode. */}
-            <fieldset className="space-y-snug" disabled={mode === "edit"}>
-              <legend className="mb-snug text-body font-medium leading-none">
-                What are you listing?
-              </legend>
-              <div className="grid grid-cols-2 gap-snug">
-                {LISTING_KINDS.map((kind) => (
-                  <ChoiceTile
-                    key={kind.value}
-                    id={`listing-kind-${kind.value}`}
-                    name="listingKind"
-                    type="radio"
-                    icon={kind.icon}
-                    label={kind.label}
-                    checked={listingKind === kind.value}
-                    onChange={() => setListingKind(kind.value)}
+                {/* THE PHOTO GRID THE DEAL COMPOSER USES: Add first, six to a row, drag
+                    to reorder, "Make cover", and the same height with none or ten, so
+                    nothing under it moves when a photo is added. */}
+                <div className="space-y-snug">
+                  <PhotoGrid
+                    labelId="images-label"
+                    inputId="images"
+                    count={totalImages}
+                    atCap={totalImages >= IMAGES_MAX}
+                    max={IMAGES_MAX}
+                    photos={photos}
+                    onAdd={addPhotos}
+                    onMove={movePhoto}
+                    disabled={isSubmitting}
+                    describedBy={imagesError ? "images-error" : undefined}
                   />
-                ))}
+                  {imagesError ? <FieldError id="images-error" message={imagesError} /> : null}
+                </div>
+
+                {/* Title, its own field: a label for contracts and emails, and the line
+                    on the tile. A blank title falls back to the description's first
+                    sentence (`deriveItemTitle`). */}
+                <div className="space-y-snug">
+                  <Label htmlFor="title">Title</Label>
+                  <Input
+                    id="title"
+                    name="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    maxLength={TITLE_MAX_LENGTH}
+                    placeholder="e.g. Charizard ex 199/165, PSA 10"
+                    autoComplete="off"
+                    spellCheck={false}
+                    aria-invalid={titleError ? true : undefined}
+                    aria-describedby={titleError ? "title-error" : undefined}
+                    disabled={isSubmitting}
+                  />
+                  {titleError ? <FieldError id="title-error" message={titleError} /> : null}
+                </div>
+
+                <div className="space-y-snug">
+                  <Label htmlFor="description">Description</Label>
+                  {/* GROWS WITH WHAT IS TYPED. A fixed four lines (112px) held about 300
+                      of the 2,000 characters allowed, so a seller describing wear
+                      corner by corner typed into a box that scrolled. Six lines to
+                      start, then it grows to about fourteen and only then scrolls
+                      (`field-sizing: content`; where that is unsupported, `rows`
+                      gives the six-line box and the corner handle resizes it). */}
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    maxLength={2000}
+                    rows={6}
+                    placeholder="Set and number, edition, and anything a buyer should know: whitening, scratches, centring."
+                    className="min-h-36 max-h-80 resize-y [field-sizing:content]"
+                    aria-invalid={descriptionError ? true : undefined}
+                    aria-describedby={descriptionError ? "description-error" : undefined}
+                    disabled={isSubmitting}
+                  />
+                  {descriptionError ? (
+                    <FieldError id="description-error" message={descriptionError} />
+                  ) : description.length > 1800 ? (
+                    // Only near the ceiling, where it is information rather than noise.
+                    <p className="text-right text-meta tabular-nums text-muted-foreground">
+                      {2000 - description.length} characters left
+                    </p>
+                  ) : null}
+                </div>
               </div>
-              {/* NO "nothing is reserved" NOTE HERE, and that is not the rule being
-                  dropped. `product.md` requires the fact to be stated, and the
-                  seller gets it where it is actionable rather than hypothetical: on
-                  their own listing, the shopfront branch of `ItemActions` renders
-                  "N open contracts — Nothing here is reserved. Check what each buyer
-                  has asked for before you accept, so you don't promise the same card
-                  twice", above a linked list of those contracts with buyer names and
-                  amounts. A paragraph at creation time warned about a collision that
-                  could not exist yet and named no contracts to check. The
-                  buyer-facing half is separate and untouched (`BuyButton`: "Nothing
-                  is held for you yet"). */}
-              {mode === "edit" ? (
-                <p className="text-meta text-muted-foreground">
-                  This can&apos;t be changed after a listing is created.
-                </p>
-              ) : null}
-            </fieldset>
 
-            {/* Title FIRST, its own field again. It was derived from the description's
-                first line, which made the seller's one sentence do two jobs — a
-                label for contracts and emails, and the pitch shown on the tile —
-                and wrote the first words twice when both were shown. */}
-            <div className="space-y-snug">
-              <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                name="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                maxLength={TITLE_MAX_LENGTH}
-                placeholder="Charizard Base Set Holo"
-                autoComplete="off"
-                spellCheck={false}
-                aria-invalid={titleError ? true : undefined}
-                aria-describedby={titleError ? "title-error" : undefined}
-                disabled={isSubmitting}
-              />
-              {titleError ? (
-                <FieldError id="title-error" message={titleError} />
-              ) : null}
-            </div>
+              {/* STEP 2: the price, the game and condition, and the place, then publish.
+                  No "Is it graded?" question: Graded is one entry in the condition list. */}
+              <div hidden={step !== 2} className="space-y-group">
+                {/* For a binder the price is INDICATIVE only: each contract's real total
+                    is the sum of the cards that buyer asks for, so the label must not
+                    promise a purchase price. */}
+                {/* THE PRICE IS THE POINT OF THIS STEP, so it is the deal composer's
+                    large field (`MoneyInput size="lg"`) with the same breakdown under
+                    it: what buyers pay, the service fee, and what the seller receives.
+                    `holdHeight` draws the rows with "—" until a price is typed, so the
+                    fields below do not move on the first digit. A listing with
+                    multiple items keeps its one-line hint: its price is only a guide,
+                    so there is no total to break down. */}
+                <div className="space-y-snug">
+                  <Label htmlFor="fmv">{isShopfront ? "Typical price" : "Price"}</Label>
+                  <MoneyInput
+                    id="fmv"
+                    name="fmv"
+                    size="lg"
+                    min="0.01"
+                    value={fmvDollars}
+                    onChange={(e) => setFmvDollars(e.target.value)}
+                    aria-invalid={fmvError ? true : undefined}
+                    aria-describedby={fmvError ? "fmv-error" : isShopfront ? "fmv-hint" : undefined}
+                    disabled={isSubmitting}
+                  />
+                  <FieldError id="fmv-error" message={fmvError} />
+                  {isShopfront ? (
+                    <p id="fmv-hint" className="text-meta text-muted-foreground">
+                      Prices are only a guide until terms are agreed.
+                    </p>
+                  ) : (
+                    <div aria-live="polite">
+                      <SaleTermsBreakdown
+                        priceCents={dollarsToCents(fmvDollars)}
+                        currency={currency}
+                        payerLabel="Buyers pay"
+                        holdHeight
+                      />
+                    </div>
+                  )}
+                </div>
 
-            {/* FILLS THE REST OF THE RAIL from `lg`, so there is no dead band above the
-                footer on a tall screen and nothing to scroll on a short one. */}
-            <div className="space-y-snug lg:flex lg:min-h-0 lg:flex-1 lg:flex-col">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                name="description"
-                placeholder="Set, number, condition notes"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={2000}
-                rows={6}
-                className="min-h-36 resize-none lg:flex-1"
-                aria-invalid={descriptionError ? true : undefined}
-                aria-describedby={
-                  descriptionError ? "description-error" : undefined
-                }
-                disabled={isSubmitting}
-              />
-              {descriptionError ? (
-                <FieldError id="description-error" message={descriptionError} />
-              ) : description.length > 1800 ? (
-                // Only near the ceiling, where it is information rather than noise.
-                <p className="text-right text-meta tabular-nums text-muted-foreground">
-                  {2000 - description.length} characters left
-                </p>
-              ) : null}
-            </div>
+                {/* `grid-cols-1` below `sm`: a bare grid's implicit `auto` column sizes
+                    to the Select triggers' min-content and overflows on a phone. */}
+                <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
+                  <div className="space-y-snug">
+                    <Label htmlFor="game">Game</Label>
+                    <Select value={game} onValueChange={setGame} disabled={isSubmitting}>
+                      <SelectTrigger
+                        id="game"
+                        aria-invalid={gameError ? true : undefined}
+                        aria-describedby={gameError ? "game-error" : undefined}
+                      >
+                        <SelectValue placeholder="Choose" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CARD_GAMES.map((option) => (
+                          <SelectItem key={option.slug} value={option.slug}>
+                            {option.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {gameError ? <FieldError id="game-error" message={gameError} /> : null}
+                  </div>
 
-            {/* Price, on step 1 with what is being sold. For a binder this is
-                INDICATIVE only: each contract's real total is the sum of the cards
-                that buyer asks for, so the label must not promise a purchase price. */}
-            <div className="space-y-snug">
-              <Label htmlFor="fmv">
-                {isShopfront ? "Typical price" : "Price"}
-              </Label>
-              <MoneyInput
-                id="fmv"
-                name="fmv"
-                min="0.01"
-                placeholder="123.45"
-                value={fmvDollars}
-                onChange={(e) => setFmvDollars(e.target.value)}
-                aria-invalid={fmvError ? true : undefined}
-                aria-describedby={
-                  fmvError ? "fmv-error" : isShopfront ? "fmv-hint" : undefined
-                }
-                disabled={isSubmitting}
-              />
-              <FieldError id="fmv-error" message={fmvError} />
-              {isShopfront ? (
-                <p id="fmv-hint" className="text-meta text-muted-foreground">
-                  Prices are only a guide until terms are agreed.
-                </p>
-              ) : (
-                <PriceReadout cents={dollarsToCents(fmvDollars)} currency={item?.currency ?? "aud"} />
-              )}
-            </div>
-            </div>
+                  <div className="space-y-snug">
+                    <Label htmlFor="condition">
+                      {isShopfront ? "Typical condition" : "Condition"}
+                    </Label>
+                    <Select value={condition} onValueChange={(v) => setCondition(v)} disabled={isSubmitting}>
+                      <SelectTrigger
+                        id="condition"
+                        aria-invalid={conditionError ? true : undefined}
+                        aria-describedby={conditionError ? "condition-error" : undefined}
+                      >
+                        <SelectValue placeholder="Choose" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ITEM_CONDITIONS.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {conditionError ? (
+                      <FieldError id="condition-error" message={conditionError} />
+                    ) : null}
+                  </div>
+                </div>
 
-            {/* STEP 2: game, condition and place, then publish (below `lg` the photo
-                panel sits above it). No "Is it graded?" question: Graded is one entry in
-                the condition list, and slab details are not asked for. */}
-            <div hidden={step !== 2} className="space-y-5">
-            {/* `grid-cols-1` below `sm` for the same reason as the outer grid: a
-                bare grid's implicit `auto` column sizes to the Select triggers'
-                min-content and overflows the clipped card on a phone. `minmax(0,
-                1fr)` lets the single column shrink to the row's width. */}
-            <div className="grid grid-cols-1 gap-cozy sm:grid-cols-2">
-              <div className="space-y-snug">
-                <Label htmlFor="game">Game</Label>
-                <Select
-                  value={game}
-                  onValueChange={setGame}
+                <PlacePicker
+                  label="Based near"
+                  precision="suburb"
+                  value={location}
+                  onChange={setLocation}
                   disabled={isSubmitting}
-                >
-                  <SelectTrigger
-                    id="game"
-                    aria-invalid={gameError ? true : undefined}
-                    aria-describedby={gameError ? "game-error" : undefined}
-                  >
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CARD_GAMES.map((option) => (
-                      <SelectItem key={option.slug} value={option.slug}>
-                        {option.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {gameError ? (
-                  <FieldError id="game-error" message={gameError} />
-                ) : null}
+                  required
+                  error={locationError}
+                  locate
+                />
+
+                {/* Below `lg` there is no canvas beside the form, so the tile ends the
+                    last step, without a device frame: the reader is already on one. */}
+                <div className="space-y-cozy border-t border-border pt-5 lg:hidden">
+                  <h3 className="text-subhead font-semibold text-foreground">
+                    How buyers see it
+                  </h3>
+                  <ListingPreview input={preview} frame="none" />
+                </div>
               </div>
-
-              <div className="space-y-snug">
-                <Label htmlFor="condition">
-                  {isShopfront ? "Typical condition" : "Condition"}
-                </Label>
-                <Select
-                  value={condition}
-                  onValueChange={(v) => setCondition(v)}
-                  disabled={isSubmitting}
-                >
-                  <SelectTrigger
-                    id="condition"
-                    aria-invalid={conditionError ? true : undefined}
-                    aria-describedby={conditionError ? "condition-error" : undefined}
-                  >
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ITEM_CONDITIONS.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {conditionError ? (
-                  <FieldError id="condition-error" message={conditionError} />
-                ) : null}
-              </div>
-            </div>
-
-            <div className="space-y-snug">
-              <PlacePicker
-                label="Based near"
-                precision="suburb"
-                value={location}
-                onChange={setLocation}
-                disabled={isSubmitting}
-                required
-                error={locationError}
-                locate
-              />
-            </div>
-            </div>
-            </div>
-
-            {/* Outside the step body, so a general error shows on whichever step is open. */}
-            {generalError ? (
-              <div className="lg:px-7">
-                <FieldError message={generalError} />
-              </div>
-            ) : null}
-
-            {/* THE FOOTER IS PINNED BENEATH THE STEP'S SCROLL REGION from `lg`, so Back,
-                Next and Save draft sit in the same place on every step. When this was one
-                long form the submit ended it and scrolled with the fields, because a
-                frozen button beside moving fields read as chrome; with one step's fields
-                at a time there is little to scroll, and a Next that moves between steps
-                would be the worse jump. Full width in the narrow desktop rail,
-                right-aligned in the wide stacked layout.
-
-                The primary is `max-md:hidden`, because below `md` the phone header
-                carries it and a second one here would be a duplicate — two controls with
-                the same accessible name break the strict locator in
-                `tests/e2e/support/listings.ts`. In edit mode nothing else is in this row,
-                so the whole row goes below `md`.
-
-                NO CANCEL. Dismissal is the back chevron in the header on a phone and
-                browser-back elsewhere, and a "Cancel" beside "Save changes" invited the
-                misread that it discards rather than navigates. */}
-            <div
-              className={cn(
-                "flex shrink-0 flex-col gap-snug border-t border-border pt-5 sm:flex-row sm:justify-end lg:justify-between lg:px-7 lg:pb-7",
-                mode === "edit" && "max-md:hidden",
-              )}
-            >
-              {mode === "create" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={saveDraft}
-                  disabled={isSubmitting || savingDraft}
-                  aria-busy={savingDraft}
-                  className="w-full sm:w-auto lg:-ml-3"
-                >
-                  {draftId ? "Update draft" : "Save draft"}
-                </Button>
-              ) : null}
-              {/* TWO ELEMENTS, NOT ONE RELABELLED. Next is a plain button and publish is
-                  the submit, keyed apart so React swaps the node rather than retyping it;
-                  with `handleSubmit`'s step-change window this keeps the second click of
-                  a double-click on Next from publishing. */}
-              <Button
-                key={step === 2 ? "publish" : "next"}
-                type={step === 2 ? "submit" : "button"}
-                onClick={step === 2 ? undefined : goNext}
-                disabled={isSubmitting}
-                aria-busy={isSubmitting}
-                className="w-full max-md:hidden sm:w-auto lg:ml-auto lg:min-w-36"
-              >
-                {/* WIDTH PINNED TO THE RESTING LABEL. Where the button is `w-auto`,
-                    swapping "Create listing" for the shorter "Saving…" shrank it under
-                    the pointer on every submit. The resting label stays in the box,
-                    `invisible` (so it is out of the accessibility tree and the name
-                    stays single), and the live label is laid over it in the same grid
-                    cell. The sizer is always the submit label, which is longer than
-                    "Next", so the button is one width on every step too. */}
-                <span className="grid">
-                  <span className="invisible col-start-1 row-start-1">{submitLabel}</span>
-                  <span className="col-start-1 row-start-1">
-                    {isSubmitting ? "Saving…" : primaryLabel}
-                  </span>
-                </span>
-              </Button>
             </div>
           </div>
-        </CardContent>
-      </form>
-    </Card>
+
+          {/* THE FOOTER, under the form as on `/deals`: what to know on the left, the
+              actions on the right. Not sticky on a phone, where the header carries the
+              primary and a pinned bar would sit over the place suggestions; in edit
+              mode it holds nothing on step 1 there, so it goes.
+
+              The primary is `max-md:hidden`, because below `md` the phone header
+              carries it and a second one would be a duplicate: two controls with the
+              same accessible name break the strict locator in
+              `tests/e2e/support/listings.ts`. NO CANCEL: closing is the close at the
+              end of the step tabs, and the phone header's back. */}
+          <ActionFooter
+            note={footerNote}
+            error={Boolean(generalError)}
+            className={cn("max-md:static", mode === "edit" && step === 1 && "max-md:hidden")}
+          >
+            {mode === "create" ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="lg"
+                onClick={saveDraft}
+                disabled={isSubmitting || savingDraft}
+                aria-busy={savingDraft}
+                className="min-w-0 flex-1 sm:flex-none"
+              >
+                {draftId ? "Update draft" : "Save draft"}
+              </Button>
+            ) : null}
+            {step === 2 ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                onClick={() => goToStep(1)}
+                disabled={isSubmitting}
+                className="min-w-0 flex-1 sm:flex-none"
+              >
+                <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+                Back
+              </Button>
+            ) : null}
+            {/* TWO ELEMENTS, NOT ONE RELABELLED. Next is a plain button and publish is
+                the submit, keyed apart so React swaps the node rather than retyping it;
+                with `handleSubmit`'s step-change window this keeps the second click of a
+                double-click on Next from publishing. */}
+            <Button
+              key={step === 2 ? "publish" : "next"}
+              type={step === 2 ? "submit" : "button"}
+              size="lg"
+              onClick={step === 2 ? undefined : goNext}
+              disabled={isSubmitting}
+              aria-busy={isSubmitting}
+              className="max-md:hidden sm:min-w-36"
+            >
+              {/* WIDTH PINNED TO THE RESTING LABEL: the submit label sits `invisible`
+                  in the box and the live label is laid over it, so "Saving…" does not
+                  shrink the button under the pointer and Next is the same width. */}
+              <span className="grid">
+                <span className="invisible col-start-1 row-start-1">{submitLabel}</span>
+                <span className="col-start-1 row-start-1">
+                  {isSubmitting ? "Saving…" : primaryLabel}
+                </span>
+              </span>
+            </Button>
+          </ActionFooter>
+        </form>
+
+        {/* THE CANVAS: the listing page as a buyer on a computer sees it, with its
+            photos live (`ListingPreview`). One view: the catalog tile it used to toggle
+            to was the cover cropped square beside the title and price, which the page
+            already shows. */}
+        <div className={EDITOR_CANVAS_CLASS}>
+          <div className="flex min-h-0 flex-1 flex-col gap-group px-8 py-8">
+            <div className="flex min-h-9 items-center gap-cozy">
+              <p className="min-w-0 flex-1 truncate text-body font-semibold text-foreground">
+                Preview
+              </p>
+              <p className="shrink-0 text-meta text-muted-foreground">
+                Drag the thumbnails to reorder
+              </p>
+            </div>
+            <div className="min-h-0 flex-1">
+              <ListingPreview input={preview} frame="canvas" photos={previewPhotos} />
+            </div>
+            <p className="mx-auto min-h-[2lh] max-w-md text-balance text-center text-meta text-muted-foreground">
+              {isShopfront
+                ? "Buyers see your typical price as a guide, and nothing is held when they ask."
+                : "Buyers see the price with the service fee included. You get your full price."}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={confirmingClose}
+        onOpenChange={setConfirmingClose}
+        title={mode === "create" ? "Discard this listing?" : "Discard your changes?"}
+        description={
+          mode === "create"
+            ? draftId
+              ? "Changes since you last saved the draft will be lost."
+              : "Your photos and details will not be saved."
+            : "The listing stays as it was saved."
+        }
+        confirmLabel="Discard"
+        confirmVariant="destructive"
+        cancelLabel="Keep editing"
+        onConfirm={() => {
+          setConfirmingClose(false);
+          leave();
+        }}
+      />
+    </div>
   );
 }
 
-/**
- * The visible half of a thumbnail's remove control: a 24px disc inside the 32px
- * button that is its hit area. The disc was the hit area itself — 44px on a phone —
- * which on a thumbnail-sized tile covered a third of the photo it was removing.
- * 32px clears WCAG 2.5.8's 24px minimum with room to spare, and the extra 8px sits
- * in the tile's corner where there is nothing else to tap. The focus ring is drawn
- * on the disc, which is the part a keyboard user can see.
- */
-function RemoveMark() {
-  return (
-    <span className="grid size-6 place-items-center rounded-md border border-transparent bg-background/85 text-foreground shadow-sm transition-colors group-hover/remove:bg-background group-focus-visible/remove:border-ring">
-      <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
-    </span>
-  );
-}

@@ -1081,7 +1081,7 @@ void main() {
         expect(find.byType(VerifiedBadge), findsOneWidget);
       });
 
-      testWidgets('shows Binder indicator for shopfront', (tester) async {
+      testWidgets('shows the Multiple items indicator for shopfront', (tester) async {
         final item = makeTestItemSummary(
           listingKind: ListingKind.shopfront,
         );
@@ -1102,7 +1102,7 @@ void main() {
         ));
         await tester.pumpAndSettle();
 
-        expect(find.text('Binder'), findsOneWidget);
+        expect(find.text('Multiple items'), findsOneWidget);
       });
 
       testWidgets('keeps location off the tile (Req 5.3)', (tester) async {

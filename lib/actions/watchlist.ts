@@ -255,7 +255,7 @@ export const listMyWatchlist = withActionLog('watchlist.listMyWatchlist', async 
   const { data: sellersData } = await supabase
     .from('public_profiles')
     .select(
-      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path',
+      'id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, is_trusted_seller',
     )
     .in('id', ownerIds);
 
@@ -270,6 +270,7 @@ export const listMyWatchlist = withActionLog('watchlist.listMyWatchlist', async 
         isVerified: Boolean(s.is_verified),
         identityFirstName: (s.identity_first_name as string | null) ?? null,
         avatarPath: (s.avatar_path as string | null) ?? null,
+        isTrustedSeller: Boolean(s.is_trusted_seller),
       },
     ]),
   );

@@ -35,8 +35,8 @@ describe('stepForField', () => {
     ['grader', 2],
     ['grade', 2],
     ['certNumber', 2],
-    ['images', 2],
-    ['fmvCents', 1],
+    ['images', 1],
+    ['fmvCents', 2],
     ['location', 2],
   ] as const)('%s is on step %i', (field, step) => {
     expect(stepForField(field)).toBe(step);
@@ -76,23 +76,23 @@ describe('itemFormStepProblem, step 1', () => {
   });
 });
 
-describe('itemFormStepProblem, step 2', () => {
+describe('itemFormStepProblem, photos', () => {
   it.each([
     [0, 'Add at least one image of your item.'],
     [1, null],
     [10, null],
     [11, 'You can add at most 10 images.'],
   ] as const)('%i photos', (totalImages, message) => {
-    const problem = itemFormStepProblem(2, { ...valid, totalImages });
+    const problem = itemFormStepProblem(1, { ...valid, totalImages });
     expect(problem?.message ?? null).toBe(message);
     if (problem) expect(problem.field).toBe('images');
   });
 });
 
-describe('itemFormStepProblem, step 3', () => {
+describe('itemFormStepProblem, price and place', () => {
   it('needs a price that parses', () => {
-    expect(itemFormStepProblem(1, { ...valid, fmvDollars: '' })?.field).toBe('fmvCents');
-    expect(itemFormStepProblem(1, { ...valid, fmvDollars: 'abc' })?.field).toBe('fmvCents');
+    expect(itemFormStepProblem(2, { ...valid, fmvDollars: '' })?.field).toBe('fmvCents');
+    expect(itemFormStepProblem(2, { ...valid, fmvDollars: 'abc' })?.field).toBe('fmvCents');
   });
 
   it('needs a place', () => {
@@ -107,7 +107,7 @@ describe('firstIncompleteStep', () => {
   });
 
   it('names the first broken step', () => {
-    expect(firstIncompleteStep({ ...valid, totalImages: 0 })).toBe(2);
+    expect(firstIncompleteStep({ ...valid, fmvDollars: '' })).toBe(2);
     expect(firstIncompleteStep({ ...valid, totalImages: 0, fmvDollars: '' })).toBe(1);
   });
 });

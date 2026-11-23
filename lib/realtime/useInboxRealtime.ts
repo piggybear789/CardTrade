@@ -34,6 +34,7 @@ import type {
 import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 type MessageRow = Tables<'messages'>;
 
@@ -118,7 +119,7 @@ export function useInboxRealtime(
         .channel(uniqueRealtimeTopic('inbox'))
         .on(
           'postgres_changes',
-          { event: 'INSERT', schema: 'cardtrade', table: 'messages' },
+          { event: 'INSERT', schema: DB_SCHEMA, table: 'messages' },
           (payload) => {
             const row = rowOf(payload as RealtimePostgresChangesPayload<MessageRow>);
             if (row) handlersRef.current.onInsert(row);
@@ -126,7 +127,7 @@ export function useInboxRealtime(
         )
         .on(
           'postgres_changes',
-          { event: 'UPDATE', schema: 'cardtrade', table: 'messages' },
+          { event: 'UPDATE', schema: DB_SCHEMA, table: 'messages' },
           (payload) => {
             const row = rowOf(payload as RealtimePostgresChangesPayload<MessageRow>);
             if (row) handlersRef.current.onUpdate(row);

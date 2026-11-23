@@ -255,7 +255,7 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
     final isShopfront = item.isShopfront;
     final action = isShopfront ? 'Close' : 'Delete';
     final message = isShopfront
-        ? 'Close this binder? Existing contracts will continue, but no new ones can be opened.'
+        ? 'Close this listing? Existing contracts will continue, but no new ones can be opened.'
         : 'Delete this listing? This action cannot be undone.';
 
     final confirmed = await showDialog<bool>(
@@ -460,7 +460,7 @@ class _EditListingScreenState extends ConsumerState<EditListingScreen> {
                   ),
                   ButtonSegment(
                     value: ListingKind.shopfront,
-                    label: Text('Binder'),
+                    label: Text('Multiple items'),
                     icon: Icon(Icons.library_books_outlined),
                   ),
                 ],

@@ -938,7 +938,7 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
         ok: false,
         error: 'invalid-terms',
         message:
-          'A binder or bulk listing cannot be put up as your side of a trade. Offer the individual cards instead.',
+          'A listing with multiple items cannot be put up as your side of a trade. Offer the individual cards instead.',
       };
     }
     if (error.message.includes('counterpart-goods-required')) {

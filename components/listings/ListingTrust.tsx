@@ -1,8 +1,9 @@
 // components/listings/ListingTrust.tsx
 //
-// What protects a buyer, said where they decide: a muted fee note under the price and
-// one protection line under the buy actions (with the price on a phone, where the
-// actions are the sticky buyer bar).
+// What protects a buyer, said where they decide: one protection line under the buy
+// actions (with the price on a phone, where the actions are the sticky buyer bar).
+// The fee note that sat under the price was removed on 2026-11-23 (product decision:
+// the buyer just needs the price); the Pay dialog itemises the fee.
 //
 // WHY ON THE LISTING. The references (Vinted, Depop) put "payment held until you
 // accept" beside the price and the buy button. We had the facts, but they lived in an
@@ -12,54 +13,19 @@
 //
 // ONE QUIET LINE EACH. This used to be a green fee-and-hold line under the price and a
 // bordered three-row card under the actions, which together said the same thing twice
-// at two weights and made the pane read as busy. The fee note names the fee and opens
-// the breakdown; the protection line says the one promise and links to the rest.
+// at two weights and made the pane read as busy. The protection line says the one
+// promise and links to the rest.
 
 import Link from 'next/link';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 
-import { FeeInfoPopover } from '@/components/listings/FeeInfoPopover';
-import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { otherCardRatesNote, processingFeeRateLabel } from '@/lib/fees/feeLabels';
-import { formatMoney } from '@/lib/format';
-import { buyerPaysCents } from '@/lib/listings/buyerPrice';
-import { cn } from '@/lib/utils';
-
-/**
- * "Includes $X service fee" under a single listing's fee-inclusive price, with the
- * (i) that breaks the figure down. The headline already contains the fee; this says so.
- */
-export function ListingFeeNote({
-  priceCents,
-  currency,
-  className,
-}: {
-  /** The seller's asking price; the fee is computed from it. */
-  priceCents: number;
-  currency: string;
-  className?: string;
-}) {
-  const feeCents = platformFeeCentsFor(priceCents, currency);
-  const fee = formatMoney(feeCents, currency);
-  return (
-    <p className={cn('flex items-center gap-tight text-meta text-muted-foreground', className)}>
-      <span>Includes {fee} service fee</span>
-      <FeeInfoPopover
-        priceText={formatMoney(priceCents, currency)}
-        feeText={fee}
-        totalText={formatMoney(buyerPaysCents(priceCents, currency), currency)}
-        rateLabel={processingFeeRateLabel(currency)}
-        otherCardsNote={otherCardRatesNote(currency)}
-      />
-    </p>
-  );
-}
 
 /**
  * How a purchase is protected, in one unboxed line. A Cash_Sale's payment is collected
  * into the platform balance and released only when the buyer accepts the goods (or the
- * inspection window lapses); "How it works" is the Safety page for the details.
+ * inspection window lapses). "Buyer protection" itself links to the Safety page for the
+ * details, rather than a trailing "How it works" link.
  */
 export function ListingProtectionLine({
   isShopfront,
@@ -84,14 +50,14 @@ export function ListingProtectionLine({
           aria-hidden
         />
         <span>
-          <span className="font-medium text-foreground">Buyer protection:</span> your payment
-          is held until you accept the {isShopfront ? 'cards' : 'card'}.{' '}
           <Link
             href="/safety"
             className="font-medium text-foreground underline underline-offset-4 hover:text-iris-ink"
           >
-            How it works
+            Buyer protection
           </Link>
+          <span className="font-medium text-foreground">:</span> your payment is held until you
+          accept the {isShopfront ? 'cards' : 'card'}.
         </span>
       </p>
     </section>

@@ -53,10 +53,10 @@ const CHARIZARD = {
  * under test here.
  */
 const HIDDEN_TITLES = [
-  '2003 LeBron James Topps Chrome Rookie #111 PSA 9', // RESERVED
+  '2002 Yu-Gi-Oh! Blue-Eyes White Dragon LOB-001 PSA 9', // RESERVED
   '1928 Babe Ruth Signed Baseball (JSA)', // RESERVED
-  '1952 Topps Mickey Mantle #311 (Authentic)', // SOLD
-  '1954 Superman #100 CGC 3.5', // SOLD
+  '1999 Pokémon Base Set Blastoise #2 PSA 8', // SOLD
+  '2002 Yu-Gi-Oh! Dark Magician SDY-006 PSA 8', // SOLD
 ];
 
 // The form-filling detail lives in `../support/listings` because the offers spec
@@ -103,7 +103,7 @@ test.describe('Catalog', () => {
 
     await expect(page).toHaveURL(/q=Charizard/);
     await expect(page.getByText(/Charizard/).first()).toBeVisible();
-    await expect(page.getByText('1986 Fleer Michael Jordan Rookie #57 BGS 7')).toHaveCount(0);
+    await expect(page.getByText('1993 Magic Unlimited Shivan Dragon PSA 7')).toHaveCount(0);
   });
 });
 
@@ -167,9 +167,9 @@ test.describe('My listings', () => {
     await expect(page.getByText(/Charizard/).first()).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/Inverted Jenny/).first()).toBeVisible();
 
-    // Bob's rookie card must not appear on Alice's page.
+    // Bob's Shivan Dragon must not appear on Alice's page.
     await expect(
-      page.getByText('1986 Fleer Michael Jordan Rookie #57 BGS 7'),
+      page.getByText('1993 Magic Unlimited Shivan Dragon PSA 7'),
     ).toHaveCount(0);
   });
 

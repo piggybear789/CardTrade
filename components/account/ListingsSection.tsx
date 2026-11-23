@@ -237,7 +237,7 @@ export function ListingsSection({
                         ? 'Hidden by NoDitto staff, so buyers cannot see it.'
                         : [
                             item.category,
-                            isShopfront ? 'Binder or bulk listing' : item.condition,
+                            isShopfront ? 'Multiple items' : item.condition,
                             listedAgo ? `listed ${listedAgo}` : null,
                           ]
                             .filter(Boolean)

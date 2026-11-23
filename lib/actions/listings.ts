@@ -1060,6 +1060,11 @@ export interface CatalogSeller {
    * for it. A picture is recognisability, not assurance.
    */
   avatarPath: string | null;
+  /**
+   * `public_profiles.is_trusted_seller` (0152): NoDitto staff reviewed this seller's
+   * history by hand. A different fact from `isVerified`, and never a substitute for it.
+   */
+  isTrustedSeller: boolean;
 }
 
 /** An AVAILABLE item plus its seller's public profile for the marketplace grid. */
@@ -1097,7 +1102,7 @@ export const listCatalogItems = withActionLog('listings.listCatalogItems', async
   const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
   const { data: sellersData } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path')
+    .select('id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, is_trusted_seller')
     .in('id', ownerIds);
 
   const sellerById = new Map<string, CatalogSeller>(
@@ -1112,6 +1117,7 @@ export const listCatalogItems = withActionLog('listings.listCatalogItems', async
         identityFirstName: (s.identity_first_name as string | null) ?? null,
 
         avatarPath: (s.avatar_path as string | null) ?? null,
+        isTrustedSeller: Boolean(s.is_trusted_seller),
       },
     ]),
   );
@@ -1142,8 +1148,9 @@ export type CatalogSort = 'newest' | 'price-asc' | 'price-desc' | 'rating';
  * price, watch count, listing kind and status. `owner_id` is here because
  * `enrichWithSellers` joins on it and the grid compares it against the viewer.
  *
- * Sort columns do not need to be selected — `seller_rating` and `created_at` are
- * ordered on in SQL and never read on the client.
+ * Sort columns do not need to be selected for sorting — `seller_rating` is ordered on
+ * in SQL and never read on the client. `created_at` IS selected, because the tile
+ * reads it for its "New" badge (`NewListingPill`).
  *
  * Keep this in step with `CatalogItemCard`. A field added to the tile without
  * being added here arrives `undefined`.
@@ -1157,7 +1164,7 @@ export type CatalogSort = 'newest' | 'price-asc' | 'price-desc' | 'rating';
  * column is a handful of integers per row.
  */
 const CATALOG_TILE_COLUMNS =
-  'id, owner_id, title, category, condition, image_paths, image_dims, fmv_cents, currency, watch_count, listing_kind, status';
+  'id, owner_id, title, category, condition, image_paths, image_dims, fmv_cents, currency, watch_count, listing_kind, status, created_at';
 
 /** Parameters accepted by {@link searchCatalog} (all optional). */
 export interface SearchCatalogParams {
@@ -1269,7 +1276,7 @@ async function enrichWithSellers(
   const ownerIds = Array.from(new Set(items.map((i) => i.owner_id)));
   const { data: sellersData } = await supabase
     .from('public_profiles')
-    .select('id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path')
+    .select('id, display_name, rating, rating_count, is_verified, identity_first_name, avatar_path, is_trusted_seller')
     .in('id', ownerIds);
 
   const sellerById = new Map<string, CatalogSeller>(
@@ -1284,6 +1291,7 @@ async function enrichWithSellers(
         identityFirstName: (s.identity_first_name as string | null) ?? null,
 
         avatarPath: (s.avatar_path as string | null) ?? null,
+        isTrustedSeller: Boolean(s.is_trusted_seller),
       },
     ]),
   );

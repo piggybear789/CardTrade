@@ -187,7 +187,7 @@ export default async function CashSalePage({
   // Null for a verified buyer, so the room never asks them.
   const [sellerPayReadiness, buyerGate] = await Promise.all([
     sale.status === 'AGREEMENT' && !sale.seller_identity_version
-      ? readSellerPayReadiness(sale.seller_id)
+      ? readSellerPayReadiness(sale.seller_id, sale.currency)
       : Promise.resolve(null),
     sale.status === 'AGREEMENT' && sale.buyer_id === user.id
       ? readIdentityGate(user.id)

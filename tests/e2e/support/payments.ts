@@ -1,12 +1,12 @@
 // tests/e2e/support/payments.ts
 //
-// Giving a buyer a saved card. Opening a Cash_Sale no longer needs one (a buyer may pay
-// from their bank, 0158), but PAYING by card does, and so does trade collateral.
+// Giving a buyer a saved card. Opening a Cash_Sale from a listing or an offer needs one,
+// and so do paying by card and trade collateral.
 //
 // The seeded profiles carry a mock `payer_id` but no attached instrument, which is a
 // deliberately realistic starting state: a member exists before they have paid for
-// anything. The Buy dialog therefore opens on the checkout with "No card needed yet"
-// and an "Add a card" button, which is the entry point used here.
+// anything. The Buy dialog therefore opens on the checkout with "Add a card to reserve"
+// and an "Add a card to continue" button, which is the entry point used here.
 //
 // Under `PAYMENTS_PROVIDER=mock` the card form offers a single "Save demo card"
 // button instead of a Stripe Payment Element, because card fields are rendered by
@@ -47,7 +47,7 @@ export async function ensureSavedCard(page: Page, itemId: string): Promise<void>
   await page.waitForLoadState('domcontentloaded');
 
   const dialog = await openBuyCheckout(page);
-  const addCard = dialog.getByRole('button', { name: 'Add a card' });
+  const addCard = dialog.getByRole('button', { name: 'Add a card to continue' });
   if (await addCard.isVisible().catch(() => false)) {
     await addCard.click();
     await expect(dialog.getByRole('heading', { name: 'Add a payment method' })).toBeVisible({

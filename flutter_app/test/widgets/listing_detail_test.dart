@@ -346,7 +346,7 @@ void main() {
         ),
       );
 
-      expect(find.textContaining('closed this binder or bulk listing'),
+      expect(find.textContaining('closed this listing'),
           findsOneWidget);
       expect(find.text('Browse and buy'), findsNothing);
     });

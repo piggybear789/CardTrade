@@ -216,7 +216,7 @@ void main() {
 
       // Member-facing copy: binder or bulk listing, and nothing is held on it.
       expect(
-        find.text('From a binder or bulk listing — nothing is held on it'),
+        find.text('From a listing with multiple items — nothing is held on it'),
         findsOneWidget,
       );
       expect(find.text('WHAT THIS COVERS'), findsOneWidget);

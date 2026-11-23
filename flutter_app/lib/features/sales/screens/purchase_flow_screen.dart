@@ -159,7 +159,7 @@ class _PurchaseFlowScreenState extends ConsumerState<PurchaseFlowScreen> {
               ),
               child: Text(
                 'Nothing is held. Other buyers may be shopping from this '
-                'binder at the same time.',
+                'listing at the same time.',
                 style: AppTheme.supportText.copyWith(color: AppColors.actionBorder),
               ),
             ),
@@ -321,7 +321,7 @@ class _ItemSummaryCard extends StatelessWidget {
                         color: AppTint.caution.fill!,
                         borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                       ),
-                      child: Text('Binder / Bulk Listing', style: AppTheme.badgeText.copyWith(color: AppColors.actionBorder)),
+                      child: Text('Multiple items', style: AppTheme.badgeText.copyWith(color: AppColors.actionBorder)),
                     ),
                 ],
               ),

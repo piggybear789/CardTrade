@@ -130,6 +130,9 @@
 // program.
 export {};
 
+/** The schema the app under test uses (lib/supabase/schema.ts); production unless .env.local says otherwise. */
+const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA?.trim() || 'cardtrade';
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -153,8 +156,8 @@ function restHeaders(): Record<string, string> {
   return {
     apikey: key,
     Authorization: `Bearer ${key}`,
-    'Accept-Profile': 'cardtrade',
-    'Content-Profile': 'cardtrade',
+    'Accept-Profile': SCHEMA,
+    'Content-Profile': SCHEMA,
     'Content-Type': 'application/json',
   };
 }

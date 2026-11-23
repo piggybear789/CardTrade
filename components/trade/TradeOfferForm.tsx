@@ -256,7 +256,7 @@ export function TradeOfferForm({
     // figure, stated here, rather than inherited from a "from" price.
     if (isShopfront && unlisted && declaredValueCents <= 0) {
       setError(
-        'Set what your side is worth under Add cash. A binder or bulk listing has no single price to match against.',
+        'Set what your side is worth under Add cash. A listing with multiple items has no single price to match against.',
       );
       return;
     }
@@ -360,7 +360,7 @@ export function TradeOfferForm({
               here as what this trader gives would overstate their side by an order of
               magnitude. The running total below states the real figure. */}
           {isShopfront ? (
-            <span className="ml-auto shrink-0 text-meta text-muted-foreground">binder or bulk listing</span>
+            <span className="ml-auto shrink-0 text-meta text-muted-foreground">Multiple items</span>
           ) : (
             <span className="ml-auto shrink-0 text-body font-semibold tabular-nums">
               {formatMoney(requested.fmvCents, currency)}
@@ -540,8 +540,8 @@ export function TradeOfferForm({
         </div>
         {isShopfront ? (
           <p className="mt-snug border-t pt-snug text-body text-muted-foreground">
-            A binder or bulk listing has no single price, so their side is valued at what
-            you put up. That is the figure both of you hold collateral against.
+            A listing with multiple items has no single price, so their side is valued at
+            what you put up. That is the figure both of you hold collateral against.
           </p>
         ) : null}
         <p className="mt-snug border-t pt-snug text-body text-muted-foreground">

@@ -42,7 +42,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/browseEvents';
 import { Input } from '@/components/ui/input';
 import { StorageImage } from '@/components/ui/storage-image';
-import { formatMoney, itemImageUrl } from '@/lib/format';
+import { formatMoneyWhole, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const PLACEHOLDER = 'Search cards, @handles, or sellers…';
@@ -654,7 +654,7 @@ function HeaderSearchInner({
                           {hit.category}
                           {' · '}
                           {hit.isShopfront ? 'from ' : null}
-                          {formatMoney(hit.listedCents, hit.currency)}
+                          {formatMoneyWhole(hit.listedCents, hit.currency)}
                         </span>
                       </span>
                     </Link>

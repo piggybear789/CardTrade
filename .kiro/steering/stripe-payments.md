@@ -143,8 +143,10 @@ turned on in the Dashboard.
   platform; it read the default AU account, so a US/UK/EEA member's card was invisible.
   Verified in test mode 2026-10-22: `pm_card_visa` on the AU platform cost 454 on
   A$121.35 (table 455), charged 635; `pm_card_gb` to a German seller priced 520.
-- **Buy Now needs no saved card.** `initiateCashSale` opens the agreement without one,
-  like `openPrivateDealCashSale`; the card (or a bank rail) is required at Pay.
+- **Buy Now needs a saved card** (2026-11-23, reversing the 0158 card-free Buy Now).
+  `initiateCashSale` refuses `BUYER_NO_PAYMENT_METHOD` without one, because a
+  reservation with nothing on file cost the buyer nothing. A bank rail can still be
+  chosen at Pay. `openPrivateDealCashSale` still opens with no card and takes it at Pay.
 - **The cash-sale money actions are bound to the SALE'S platform** (`orchestratorFor` in
   `lib/actions/cashSale.ts`, via `regionForCashSale`): Pay, the read-back, the resume,
   inspection acceptance and the in-person handover (both pay the seller on completion),

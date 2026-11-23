@@ -35,12 +35,12 @@ import {
   isUnlistedDraftComplete,
   type UnlistedItemDraft,
 } from '@/components/trade/UnlistedItemDialog';
-import { DealInviteFacts } from '@/components/deals/DealInviteFacts';
-import { DealInviteShare } from '@/components/deals/DealInviteShare';
 import {
-  InviteeVerificationNotice,
-  InviteeVerificationStatus,
-} from '@/components/deals/DealVerificationNotice';
+  DealInviteFacts,
+  DealInviteGuestCard,
+} from '@/components/deals/DealInviteFacts';
+import { DealInviteShare } from '@/components/deals/DealInviteShare';
+import { InviteeVerificationNotice } from '@/components/deals/DealVerificationNotice';
 import { DEAL_INVITE_ERROR_COPY } from '@/components/deals/inviteErrors';
 import { QuickProfileFields } from '@/components/deals/QuickProfileFields';
 import { pathsFromUnlistedDraft } from '@/components/deals/uploadDealItem';
@@ -71,12 +71,6 @@ function statusCopy(status: DealInvitePreview['status']): {
     default:
       return { title: 'Private deal', description: '' };
   }
-}
-
-function headline(preview: DealInvitePreview): string {
-  const host = preview.hostName ?? 'A member';
-  if (preview.kind === 'TRADE') return `${host} wants to trade`;
-  return preview.hostRole === 'BUYER' ? `${host} wants to buy` : `${host} is selling`;
 }
 
 function ClosedInvite({ preview }: { preview: DealInvitePreview }) {
@@ -316,31 +310,18 @@ export function PublicDealInvitePreview({ preview }: { preview: DealInvitePrevie
   if (preview.status !== 'open') return <ClosedInvite preview={preview} />;
 
   const path = dealInvitePath(preview.token);
+  // The same card the composer previews (`DealInviteGuestCard`).
   return (
-    <Card className="mx-auto w-full max-w-lg">
-      <CardHeader>
-        <CardTitle>{headline(preview)}</CardTitle>
-        <CardDescription>
-          Nothing is paid or held when you join.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-group">
-        <DealInviteFacts preview={preview} audience="guest" />
-        {preview.kind ? (
-          <InviteeVerificationStatus
-            kind={preview.kind}
-            readiness={preview.hostReadiness}
-            hostName={preview.hostName ?? 'They'}
-          />
-        ) : null}
-      </CardContent>
-      {/* Sign-in offers Google and "Create an account", and keeps `redirectTo` through
-          both, so one button covers new and returning members. */}
-      <CardFooter className="flex-col items-stretch">
+    <DealInviteGuestCard
+      invite={preview}
+      readiness={preview.hostReadiness}
+      // Sign-in offers Google and "Create an account", and keeps `redirectTo` through
+      // both, so one button covers new and returning members.
+      action={
         <Button asChild size="lg" className="w-full">
           <Link href={`/sign-in?redirectTo=${encodeURIComponent(path)}`}>Sign in</Link>
         </Button>
-      </CardFooter>
-    </Card>
+      }
+    />
   );
 }

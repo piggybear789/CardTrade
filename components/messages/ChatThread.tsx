@@ -377,7 +377,11 @@ export function ChatThread({
           {/* A ROW, NOT A SENTENCE. Price as a figure, status as a badge, then the
               counterparty; the badge cannot live inside a truncating `<p>`, so this is
               flex with the text parts each truncating on their own. */}
-          <div className="mt-0.5 flex min-w-0 items-center gap-snug text-body text-muted-foreground">
+          {/* `overflow-hidden`: the badges are `shrink-0`, so on a narrow phone the row
+              ran past its column and the status badge was drawn under the dock button.
+              On a phone the last 1rem fades, so a clipped badge reads as "more" rather
+              than as a word cut in half. */}
+          <div className="mt-0.5 flex min-w-0 items-center gap-snug overflow-hidden text-body text-muted-foreground max-sm:[mask-image:linear-gradient(to_right,black_calc(100%-1rem),transparent)]">
             {price ? (
               <span className="display-value shrink-0 font-semibold text-foreground">{price}</span>
             ) : null}
@@ -409,7 +413,16 @@ export function ChatThread({
         {dock ? (
           <Button asChild variant={tradeYourMove ? 'default' : 'outline'} size="sm" className="shrink-0">
             <Link href={dock.href} transitionTypes={['nav-forward']}>
-              {dock.label}
+              {/* "Open contract" is a quarter of a phone's bar; below `sm` the verb goes,
+                  and the status line beside it gets the width back. */}
+              {dock.label === 'Open contract' ? (
+                <>
+                  <span className="sm:hidden">Contract</span>
+                  <span className="max-sm:hidden">Open contract</span>
+                </>
+              ) : (
+                dock.label
+              )}
             </Link>
           </Button>
         ) : null}

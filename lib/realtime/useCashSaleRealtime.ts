@@ -12,6 +12,7 @@ import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import { CASH_SALE_PUBLIC_SELECT } from '@/lib/supabase/cashSaleProjection';
 import type { Tables } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 export type CashSaleRow = Tables<'cash_sales'>;
 export type CashSaleEventRow = Tables<'cash_sale_events'>;
@@ -86,7 +87,7 @@ export function useCashSaleRealtime(cashSaleId: string) {
           'postgres_changes',
           {
             event: '*',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'cash_sales',
             filter: `id=eq.${cashSaleId}`,
           },
@@ -103,7 +104,7 @@ export function useCashSaleRealtime(cashSaleId: string) {
           'postgres_changes',
           {
             event: 'INSERT',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'cash_sale_events',
             filter: `cash_sale_id=eq.${cashSaleId}`,
           },

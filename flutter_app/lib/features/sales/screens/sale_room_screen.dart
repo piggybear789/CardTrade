@@ -484,7 +484,7 @@ class _ItemSection extends StatelessWidget {
           // nothing is held on a binder.
           const ContractDetailRow(
             label: 'Listing',
-            value: 'From a binder or bulk listing — nothing is held on it',
+            value: 'From a listing with multiple items — nothing is held on it',
           ),
       ],
     );

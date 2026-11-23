@@ -81,7 +81,7 @@ Profile tabs (`/profile?tab=`): `profile` | `verification` | `payouts`. Connect 
 **Listing kinds** (`items.listing_kind`, immutable after create):
 
 - **SINGLE** — one object. Opening a cash sale reserves it. One live cash sale (`cash_sales_one_active_per_item`). May be offered.
-- **SHOPFRONT** — member copy: **binder or bulk listing**. Inventory. Never reserved, never `SOLD`. Closed via `closed_at`. `fmv_cents` is an indicative "from" price. Several concurrent cash sales and trades are allowed. **Cannot be offered. Cannot be the offering side of a trade.** Copy must always say **nothing is held**.
+- **SHOPFRONT** — member copy: **Multiple items** ("a listing with multiple items" in a sentence). Inventory. Never reserved, never `SOLD`. Closed via `closed_at`. `fmv_cents` is an indicative "from" price. Several concurrent cash sales and trades are allowed. **Cannot be offered. Cannot be the offering side of a trade.** Copy must always say **nothing is held**.
 
 Create requires Identity_Gate and a seller identity disclosure. The seller types a **title** and a description; a blank title falls back to the description's leading sentence (`deriveItemTitle`), the same value contracts snapshot. Images: 1–10. Location is suburb-level.
 
@@ -118,7 +118,7 @@ Terminal: `CANCELLED` | `FAILED` | `REFUNDED`. Mid-flight returns: `RETURN_PENDI
 
 Lifecycle:
 
-1. Buyer opens agreement. SINGLE is reserved. Shopfront needs line items (`cash_sale_items`). Region + seller Identity_Gate + seller-identity confirmation snapshot. Buyer does not need Identity, and **does not need a saved card**: since a buyer may pay from their bank (0158), Buy Now and accepting an offer open the contract with no card, exactly like a private deal. The way to pay is chosen at Pay, where a card payment with no card is refused with the sale untouched and the room collects one. The Buy dialog shows "No card needed yet" with an optional "Add a card".
+1. Buyer opens agreement. SINGLE is reserved. Shopfront needs line items (`cash_sale_items`). Region + seller Identity_Gate + seller-identity confirmation snapshot. Buyer does not need Identity, but **does need a saved card**: Buy Now and accepting an offer both go through `initiateCashSale`, which refuses `BUYER_NO_PAYMENT_METHOD` without one, because reserving takes a SINGLE listing off the catalog and with nothing on file that cost the buyer nothing (reversing 0158's card-free Buy Now, product decision 2026-11-23). The card is a commitment, not the rail: the way to pay (card or a bank rail) is still chosen at Pay, which re-checks the card for a card payment. The Buy dialog says "Add a card to reserve" and its button is "Add a card to continue" until one is saved. When a SELLER accepts an offer from a buyer with no card, the offer stays PENDING, the seller is told, and the buyer is notified to add one (`buyer-needs-card`). Private deals are unchanged (below).
 2. Negotiate price, line items, fulfilment (`DELIVERY` / `IN_PERSON`), shipping cost, meeting place/time.
 3. **Payment is the commitment.** There is no mutual confirm-to-pay (0099). The seller sets handover details; the buyer pays. Card is collected into the platform balance. The buyer pays a **Service_Fee** on top: Stripe's card and payout costs passed through at cost on price plus postage, plus NoDitto's 1% of the item price (`domain/fees/processingFee.ts`). The seller receives price plus postage in full.
 4. Fulfil:
@@ -156,7 +156,7 @@ A shareable invite (`deal_invites`, 0103) that opens a normal Cash_Sale or Trade
 
 | Route | What |
 |---|---|
-| `/deals` | Deal composer dialog. `/deals/new` redirects here (`next.config.ts`) |
+| `/deals` | Deal composer: a focused editor outside the workspace shell, two screens (card, terms) beside a live preview of the invite card (from `lg`). `?link=<token>` is the host's own page for an open deal: the same editor, filled in, saved with Save changes, with the link (Copy, Share, QR) above the preview. Get link lands there and `/t/[token]` redirects the host there. `/deals/new` redirects here (`next.config.ts`) |
 | `/t/[token]` | Public join. Signed-out preview + sign-in. Claim opens a Cash_Sale or a Trade |
 
 Invite kinds:
@@ -165,7 +165,7 @@ Invite kinds:
 - `CASH_SALE` + host `BUYER` — host states a wanted description and a price; the joiner puts up the card
 - `TRADE` — host hidden card + wanted description + optional cash-to-even
 
-TTL **14 days**. Host can revoke. Self-join refused. Region enforced on create and claim. **Identity is not asked for to create or join an invite, and a buyer needs no saved card to join.** Those checks sit where money or a hold moves: a private-deal Cash_Sale opens with no seller identity frozen (`openPrivateDealCashSale`), and its Pay step (`acceptCashSaleTerms`) requires the seller's disclosure (Stripe Identity plus payout setup), takes the buyer's confirmation of the verified name and freezes it, and requires a card, collected in the room if missing. A swap's terms acceptance (`acceptTradeTerms`) requires Stripe Identity for **both** traders, and every swap surface says so plainly. A catalog listing cannot be attached (`privateItemProblem`). Pending invites are listed on `/sales`, `/purchases` and `/trades`.
+TTL **14 days**. Host can revoke. Self-join refused. Region enforced on create and claim. **Identity is not asked for to create or join an invite, and a buyer needs no saved card to join.** Those checks sit where money or a hold moves: a private-deal Cash_Sale opens with no seller identity frozen (`openPrivateDealCashSale`), and its Pay step (`acceptCashSaleTerms`) requires the seller's disclosure (Stripe Identity plus the seller's one-tap agreement to their verified name being shown, `allowSellerNameDisclosure`; NOT payout setup, except for a sale charged on behalf of the seller, where Stripe needs the account live), takes the buyer's confirmation of the verified name and freezes it, and requires a card, collected in the room if missing. A swap's terms acceptance (`acceptTradeTerms`) requires Stripe Identity for **both** traders, and every swap surface says so plainly. A catalog listing cannot be attached (`privateItemProblem`). Pending invites are listed on `/sales`, `/purchases` and `/trades`.
 
 The composer keeps a signed-out visitor's draft, photos included, in IndexedDB (`components/deals/dealDraftStore.ts`) and restores it on `/deals?resume=1` after sign-in.
 
@@ -175,11 +175,11 @@ Routes: `/messages`, `/messages/[id]`.
 
 1:1 conversations, deduped by ordered `(participant_a, participant_b)` plus optional `item_id`. Body 1–4000 characters. Attachment-only messages are allowed (0102). Attachments (0100) use a signed upload; the path is verified against the caller prefix.
 
-Contract rooms embed chat. Listing pages open or reuse a conversation via `getOrCreateConversation`. Sending creates an in-app notification. Mark-read is supported.
+Contract rooms embed chat. Listing pages open or reuse a conversation via `getOrCreateConversation`. Mark-read is supported. Sending does **not** create a notification (0176): the inbox badge counts unread messages and the bell counts events, so one message is never counted twice.
 
 ### Notifications and email
 
-Route: `/notifications`. Types: `OFFER` | `MESSAGE` | `TRADE` | `SALE` | `SYSTEM`. Header bell: `NotificationBell` / `NotificationCenter`.
+Route: `/notifications`. Types: `OFFER` | `MESSAGE` | `TRADE` | `SALE` | `SYSTEM`. `MESSAGE` is legacy: nothing writes it since 0176, and messages are counted by the inbox alone. Header bell: `NotificationBell` / `NotificationCenter`.
 
 Email via AWS SES (`lib/email/notify.ts`), fire-and-forget, threaded per contract: inspection deadline warning, return deadline warning, dispute raised, payout settled, new purchase request, trade offer received, item shipped.
 
@@ -417,7 +417,7 @@ Use these terms consistently in code and docs: Profile, Identity_Gate, Payout_Ga
 
 **Trading_Region and Browse_Region are different things** — see the regional note under Transaction models. Trading_Region is `profiles.region_code`, gates contracts, and never comes from an IP. Browse_Region is a display preference and may be guessed. Member-facing copy says **region**; say what it governs rather than which of the two it is.
 
-Member-facing copy says **binder or bulk listing**, never "shopfront" — that is the internal name (`listing_kind = 'SHOPFRONT'`). And it must always state that **nothing is held**: on every other listing opening a contract reserves the goods, so leaving that implicit is the difference between a disappointed buyer and a misled one.
+Member-facing copy calls a SHOPFRONT listing **Multiple items** (as a label) or **a listing with multiple items** (in a sentence), never "shopfront" — that is the internal name (`listing_kind = 'SHOPFRONT'`) — and no longer "binder or bulk listing" (renamed 2026-11-23; 0175 rewrote the chat copy). And it must always state that **nothing is held**: on every other listing opening a contract reserves the goods, so leaving that implicit is the difference between a disappointed buyer and a misled one.
 
 **Trade_State and Trade_Event are different sets — do not merge them.** This document previously listed one flat union containing both, which reads as a state list and is not one.
 

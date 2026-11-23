@@ -112,7 +112,7 @@ class _ListingCardState extends ConsumerState<ListingCard>
     final String price = Money.format(item.fmvCents, item.currency);
     final List<String> parts = <String>[
       item.title,
-      isBinder ? 'Binder or bulk listing, from $price' : price,
+      isBinder ? 'Multiple items, from $price' : price,
       if (isBinder)
         'Nothing is held until you and the seller agree terms'
       else if (item.condition.isNotEmpty)

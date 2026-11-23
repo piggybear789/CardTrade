@@ -19,7 +19,7 @@ if (!displayName) throw new Error('usage: session.mjs <display_name> [baseUrl]')
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
-  db: { schema: 'cardtrade' },
+  db: { schema: process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'cardtrade' },
 });
 
 const { data: profile, error: profileError } = await admin

@@ -25,7 +25,7 @@ export function PolicyArticle({
   // to the same destination on every policy page..
   return (
     <article className="mx-auto max-w-3xl px-group py-section sm:px-6 md:py-12 lg:px-section">
-      <h1 className="text-subhead font-semibold tracking-tight text-foreground md:text-head">{title}</h1>
+      <h1 className="text-head font-semibold tracking-tight text-foreground">{title}</h1>
       {lede ? (
         <p className="mt-snug text-body text-muted-foreground md:mt-cozy md:text-lead">{lede}</p>
       ) : null}

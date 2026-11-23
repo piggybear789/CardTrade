@@ -13,9 +13,9 @@ import { Button, type ButtonProps } from '@/components/ui/button';
 
 const CREATE_GLYPH = <HugeiconsIcon icon={PlusIcon} aria-hidden="true" />;
 
-// The theme primary. This was obsidian while the rail was full of lilac chrome
-// and a violet fill would have been one more purple rectangle; the chrome is
-// neutral now, so the violet is again the one thing on screen that says "press".
+// The theme primary, which is the ink (see INK PRIMARY in globals.css): a solid
+// black button is what says "press" on a retail page, the way StockX, Goldin and
+// Whatnot fill theirs.
 const ACTION_VARIANT = 'default' as const;
 const ACTION_CLASS = 'w-full';
 

@@ -3,11 +3,12 @@
 // components/deals/DealSteps.tsx
 //
 // The three steps of a private deal — Card, Terms, Review — shared by the composer
-// (`DealComposeForm`) and the editor (`DealEditDialog`), so the host edits a deal in
+// (`DealComposeForm`), which is also where a host edits a deal (`?link=`), so it is edited in
 // the same shape they built it. Each caller keeps its own state machine and its own
 // final action (Get link vs Save changes); the step bodies, the header with its
 // "Step N of 3" counter, and the presence rules behind the disabled Next live here
-// once.
+// once. The composer page (`DealComposeForm`) uses the card and terms bodies as
+// sections of one form, plus `NextSteps` / `dealNextSteps` and `useDraftThumb`.
 
 import { useEffect, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
@@ -29,6 +30,7 @@ import { StepProgress } from '@/components/ui/step-progress';
 import { Textarea } from '@/components/ui/textarea';
 import { dollarsToCents } from '@/domain/deals/dealInvite';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
+import { chargesOnBehalfOfSeller } from '@/domain/payments/onBehalfOf';
 import { deriveItemTitle } from '@/domain/validation';
 import { formatMoney, itemImageUrl } from '@/lib/format';
 
@@ -135,19 +137,28 @@ export function DealCardStep({
 }: {
   card: UnlistedItemDraft;
   onCard: (next: UnlistedItemDraft) => void;
-  selling: boolean;
+  /**
+   * Words the description label for the deal. `null` where the deal type is not
+   * chosen yet: the composer asks about the card before the deal.
+   */
+  selling: boolean | null;
   idPrefix: string;
 }) {
   return (
     <>
-      <UnlistedPhotoField draft={card} onChange={onCard} idPrefix={idPrefix} />
+      <UnlistedPhotoField draft={card} onChange={onCard} idPrefix={idPrefix} layout="grid" />
       <UnlistedTitleField draft={card} onChange={onCard} idPrefix={idPrefix} />
       <UnlistedDescriptionField
         draft={card}
         onChange={onCard}
         idPrefix={idPrefix}
-        label={selling ? 'What are you selling?' : 'What are you swapping?'}
-        placeholder="Condition, grade, notes"
+        label={
+          selling === null
+            ? 'Describe the card'
+            : selling
+              ? 'What are you selling?'
+              : 'What are you swapping?'
+        }
       />
       <UnlistedCategoryConditionFields draft={card} onChange={onCard} idPrefix={idPrefix} />
     </>
@@ -206,7 +217,7 @@ export function DealTermsStep({
           onChange={(event) => onWanted(event.target.value)}
           maxLength={1000}
           rows={2}
-          placeholder="Card, set or grade"
+          placeholder="e.g. Umbreon VMAX 215/203, raw or graded"
           className="resize-none"
         />
       </div>
@@ -223,6 +234,62 @@ export function DealTermsStep({
       <TradeTermsBreakdown valueCents={dollarsToCents(valueDollars)} currency={currency} />
     </>
   );
+}
+
+/**
+ * What the other person is told happens after they open the link, per deal type.
+ *
+ * PAYOUTS ARE NOT A STEP BEFORE PAYING, except where Stripe makes them one. A sale is
+ * paid into the platform balance and waits there until the seller sets up payouts
+ * (`SELLER_NOT_PAYABLE` at the payout drain), so only Stripe Identity stands between the
+ * deal and the buyer paying. The exception is a sale charged on the seller's own Stripe
+ * account (`chargesOnBehalfOfSeller`: EUR, GBP, CAD, CHF and the like), which Stripe
+ * cannot charge until that account is live, so the Pay step refuses it first
+ * (`cashSaleOrchestrator`). The copy follows the same rule.
+ */
+export function dealNextSteps(selling: boolean, currency?: string | null): string[] {
+  return selling
+    ? [
+        'They join. Nothing is charged.',
+        'You agree the handover in the deal room.',
+        chargesOnBehalfOfSeller(currency)
+          ? 'You verify with Stripe Identity and set up payouts, then they pay.'
+          : 'You verify with Stripe Identity, then they pay.',
+      ]
+    : [
+        'They join with the card they are offering.',
+        'You agree the trade in the deal room.',
+        'You both verify with Stripe Identity, then a hold goes on each card.',
+      ];
+}
+
+/**
+ * The line under the card in a preview: what the buyer pays (the same figure the
+ * fee breakdown states), or what the host wants in exchange. Null before there is
+ * anything to say.
+ */
+function previewLine({
+  selling,
+  priceCents,
+  wanted,
+  currency,
+}: {
+  selling: boolean;
+  priceCents: number | null;
+  wanted: string;
+  currency: string;
+}): string | null {
+  if (selling) {
+    return priceCents
+      ? `They pay ${formatMoney(priceCents + platformFeeCentsFor(priceCents, currency), currency)}`
+      : null;
+  }
+  return wanted.trim() ? `Wants: ${wanted.trim()}` : null;
+}
+
+/** The name an invite shows: the typed title, else the description's lead, as the server derives it. */
+export function draftTitle(card: UnlistedItemDraft): string {
+  return card.title.trim() || deriveItemTitle(card.description);
 }
 
 /** Step 3: the invite as they will see it, and what happens next. */
@@ -245,40 +312,22 @@ export function DealReviewStep({
         <p className="text-meta text-muted-foreground">What they will see</p>
         <DraftPreview
           card={card}
-          line={
-            selling
-              ? priceCents
-                ? `They pay ${formatMoney(priceCents + platformFeeCentsFor(priceCents, currency), currency)}`
-                : null
-              : `Wants: ${wanted.trim()}`
-          }
+          line={previewLine({ selling, priceCents, wanted, currency })}
         />
       </div>
       <div className="space-y-snug">
         <p className="text-meta text-muted-foreground">What happens next</p>
-        <NextSteps
-          items={
-            selling
-              ? [
-                  'They join. Nothing is charged.',
-                  'You agree the handover in the deal room.',
-                  'You verify with Stripe Identity and set up payouts, then they pay.',
-                ]
-              : [
-                  'They join with the card they are offering.',
-                  'You agree the trade in the deal room.',
-                  'You both verify with Stripe Identity, then a hold goes on each card.',
-                ]
-          }
-        />
+        <NextSteps items={dealNextSteps(selling, currency)} />
       </div>
     </>
   );
 }
 
-function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | null }) {
-  // Kept photos come first in the strip, so an edit's existing first photo leads.
-  // Only a new upload needs an object URL.
+/**
+ * The first photo of a draft as a URL. Kept photos come first in the strip, so an
+ * edit's existing first photo leads; only a new upload needs an object URL.
+ */
+export function useDraftThumb(card: UnlistedItemDraft): string | null {
   const keptUrl = itemImageUrl(card.keptPaths[0]);
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -291,7 +340,11 @@ function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | 
     setObjectUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [card.images]);
-  const thumb = keptUrl ?? objectUrl;
+  return keptUrl ?? objectUrl;
+}
+
+function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | null }) {
+  const thumb = useDraftThumb(card);
 
   return (
     <div className="flex items-center gap-cozy rounded-lg border p-cozy">
@@ -302,7 +355,7 @@ function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | 
         ) : null}
       </div>
       <div className="min-w-0 space-y-tight">
-        <p className="truncate text-body font-medium">{deriveItemTitle(card.description)}</p>
+        <p className="truncate text-body font-medium">{draftTitle(card)}</p>
         <p className="text-meta text-muted-foreground">
           {[card.condition, card.category].filter(Boolean).join(' · ')}
         </p>
@@ -312,22 +365,26 @@ function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | 
   );
 }
 
-function NextSteps({ items }: { items: string[] }) {
+/**
+ * "What happens next", as a numbered list. The last step, where the money or the
+ * holds come in, is filled: it is the one that is different in kind.
+ */
+export function NextSteps({ items }: { items: string[] }) {
   return (
     <ol className="grid gap-snug">
       {items.map((item, index) => (
-        <li key={item} className="flex items-center gap-snug">
+        <li key={item} className="flex items-start gap-snug">
           <span
             aria-hidden
             className={
               index === items.length - 1
-                ? 'grid size-5 shrink-0 place-items-center rounded-full bg-primary text-meta font-semibold text-primary-foreground'
-                : 'grid size-5 shrink-0 place-items-center rounded-full bg-muted text-meta font-semibold text-muted-foreground'
+                ? 'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-primary text-meta font-semibold text-primary-foreground'
+                : 'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-muted text-meta font-semibold text-muted-foreground'
             }
           >
             {index + 1}
           </span>
-          <span className="text-body text-muted-foreground">{item}</span>
+          <span className="text-pretty text-body text-muted-foreground">{item}</span>
         </li>
       ))}
     </ol>

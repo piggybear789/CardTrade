@@ -172,7 +172,7 @@ class _MyListingTile extends StatelessWidget {
                       if (isShopfront) ...[
                         const SizedBox(width: AppSpacing.tight),
                         const StatusBadge(
-                          label: 'Binder',
+                          label: 'Multiple items',
                           variant: StatusBadgeVariant.neutral,
                         ),
                       ],

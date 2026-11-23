@@ -6,12 +6,13 @@
 //   1. Fetch their payment method status from the server.
 //   2a. Saved card → show a compact card widget ("Visa •••• 4242"), priced at that
 //       card's own tier (0159): a card issued outside the seller's card zone costs more.
-//   2b. No card → say none is needed yet, with an optional "Add a card".
+//   2b. No card → the footer's button is "Add a card to continue", which opens the
+//       card form; once a card is saved it becomes the reserve button.
 //
-// Confirming reserves the item and opens the contract room. No money moves until
-// the buyer pays after handover details are set, and HOW they pay (card, or their bank
-// where offered, 0158) is chosen then. A card is no longer required to open the
-// contract: that shut every bank-only buyer out of the listing.
+// Confirming reserves the item and opens the contract room. A saved card is required
+// to get here (`initiateCashSale`, 2026-11-23), because reserving takes the listing off
+// the catalog. No money moves until the buyer pays after handover details are set, and
+// HOW they pay (card, or their bank where offered, 0158) is still chosen then.
 
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
@@ -237,8 +238,10 @@ function PurchaseDialog({
   // undefined: not read yet; null: no card saved.
   const [card, setCard] = useState<SavedCard | null | undefined>(undefined);
   const [loadingStatus, setLoadingStatus] = useState(false);
-  // The optional card form, opened by "Add a card" or "Change". A card is not needed
-  // to open the contract, so the form is always one the buyer can back out of.
+  // The card form, opened by "Add a card to continue" or "Change". A saved card is
+  // needed to open the contract (`initiateCashSale`, 2026-11-23): reserving takes a
+  // listing off the catalog, and with nothing on file that cost the buyer nothing. It
+  // is a commitment, not the rail; the way to pay is still chosen at Pay.
   const [addingCard, setAddingCard] = useState(false);
 
   // `silent`: refresh a card already on screen without putting the placeholder back.
@@ -400,26 +403,29 @@ function PurchaseDialog({
                 </span>
               </p>
 
-              {/* ONE GEOMETRY WITH OR WITHOUT A CARD: two lines and a button, so the
-                  footer does not move when the card read comes back. */}
+              {/* ONE GEOMETRY WITH OR WITHOUT A CARD: two lines, so the footer does
+                  not move when the card read comes back. With no card the way forward
+                  is the footer's own button, so this row only explains. */}
               {loading ? null : (
                 <div className="flex items-center gap-cozy rounded-lg border p-cozy">
                   <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-body font-medium">
-                      {card ? (card.label ?? 'Card on file') : 'No card needed yet'}
+                      {card ? (card.label ?? 'Card on file') : 'Add a card to reserve'}
                     </p>
                     <p className="text-body text-muted-foreground max-sm:min-h-[2lh]">
                       {card
                         ? tierClause && currency
                           ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
                           : 'Stripe method'
-                        : 'You choose how to pay when you pay.'}
+                        : 'Stripe keeps it on file. Nothing is charged until you pay.'}
                     </p>
                   </div>
-                  <Button type="button" variant="ghost" size="sm" onClick={() => setAddingCard(true)}>
-                    {card ? 'Change' : 'Add a card'}
-                  </Button>
+                  {card ? (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setAddingCard(true)}>
+                      Change
+                    </Button>
+                  ) : null}
                 </div>
               )}
 
@@ -431,12 +437,12 @@ function PurchaseDialog({
                   footer is drawn once and never swapped. */}
               <Button
                 type="button"
-                onClick={handleBuy}
+                onClick={card === null ? () => setAddingCard(true) : handleBuy}
                 disabled={loading || isPending}
                 aria-busy={isPending}
               >
                 <PendingLabel pending={isPending} pendingLabel="Opening contract…">
-                  {confirmLabel}
+                  {card === null ? 'Add a card to continue' : confirmLabel}
                 </PendingLabel>
               </Button>
             </DialogFooter>

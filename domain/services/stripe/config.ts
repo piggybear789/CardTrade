@@ -351,6 +351,17 @@ export function readStripeConfig(
     );
   }
 
+  // THE DEV SANDBOX NEVER HOLDS A LIVE KEY. `cardtrade_dev` (lib/supabase/schema.ts)
+  // is test data in the production project; a live key there would charge real cards
+  // against contracts nobody can see in production. Read from `env` directly because
+  // `domain/` may not import `lib/`.
+  if (env.NEXT_PUBLIC_SUPABASE_SCHEMA?.trim() === 'cardtrade_dev' && isLiveSecretKey(secretKey)) {
+    throw new Error(
+      `A live Stripe key is configured for platform ${code} while the app runs on the dev ` +
+        'schema (cardtrade_dev). Use a sk_test_ key for local development.',
+    );
+  }
+
   const tolerance = Number.parseInt(env.STRIPE_WEBHOOK_TOLERANCE_SECONDS?.trim() ?? '', 10);
   const definition = findRegion(code);
 

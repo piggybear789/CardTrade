@@ -98,8 +98,8 @@ async function rest<T>(
     Prefer: 'return=representation',
   };
   // GET selects a schema with Accept-Profile; writes use Content-Profile.
-  if (method === 'GET') headers['Accept-Profile'] = 'cardtrade';
-  else headers['Content-Profile'] = 'cardtrade';
+  if (method === 'GET') headers['Accept-Profile'] = e2eSchema();
+  else headers['Content-Profile'] = e2eSchema();
 
   const response = await fetch(`${url}/rest/v1/${pathAndQuery}`, {
     method,
@@ -147,6 +147,16 @@ export async function confirmUserEmail(userId: string): Promise<void> {
 /** A value from the environment or `.env.local`, for specs that call a provider. */
 export function envValue(name: string): string | undefined {
   return process.env[name] ?? readEnvFile()[name];
+}
+
+/**
+ * The schema the app under test reads (`lib/supabase/schema.ts`): `cardtrade_dev` when
+ * `.env.local` points localhost at the dev sandbox, else production `cardtrade`. The
+ * helpers must use the same one as the server, or an arranged row lands where the app
+ * never looks.
+ */
+export function e2eSchema(): string {
+  return envValue('NEXT_PUBLIC_SUPABASE_SCHEMA')?.trim() || 'cardtrade';
 }
 
 /**

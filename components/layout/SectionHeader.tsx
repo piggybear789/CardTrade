@@ -34,7 +34,11 @@ export function SectionHeader({
           button's height whether or not it renders makes the header one height on
           every page. */}
       <div className="flex min-h-10 min-w-0 flex-col justify-center md:block md:min-h-0">
-        <h2 className="text-balance text-subhead font-medium tracking-[-0.02em] md:text-head">
+        {/* RETAIL WEIGHT: 28px bold from `md` (21px on a phone), the register eBay,
+            Alt and Fanatics Collect title a page in. At 21px medium the heading was
+            barely larger than the copy under it, so nothing on the page led. Keep
+            `CatalogResults` in step. */}
+        <h2 className="text-balance text-head font-bold tracking-[-0.025em] md:text-display">
           {title}
         </h2>
         {description ? (

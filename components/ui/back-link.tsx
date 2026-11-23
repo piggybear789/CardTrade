@@ -30,7 +30,7 @@ export function BackLink({ href, children, className }: { href: string; children
     >
       <HugeiconsIcon
         icon={ArrowLeft02Icon}
-        className="size-3.5 transition-transform group-hover:-translate-x-0.5"
+        className="size-3.5"
         aria-hidden
       />
       {children}

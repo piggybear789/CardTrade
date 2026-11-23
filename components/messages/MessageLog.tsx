@@ -327,21 +327,22 @@ function contractEventBody(
   // failing on exactly those.
   if (!saleContext || !belongsToSelectedSale(message, saleContext)) return message.body;
 
-  // The same sentences `describe_cash_sale_event` writes (0133), for STORED rows
-  // written by an earlier version of it: the pre-0113 single-listing wording, and the
-  // 0119–0132 "multi-item listing" wording that 0133 reverted to "binder or bulk
-  // listing". The transcript is persisted in `messages.body`, so these rewrites keep
-  // any row the 0133 backfill did not reach reading the current copy.
+  // The same sentences `describe_cash_sale_event` writes (0175), for STORED rows
+  // written by an earlier version of it: the pre-0113 single-listing wording, 0119's
+  // "multi-item listing" and 0133's "binder or bulk listing". The transcript is
+  // persisted in `messages.body`, so these rewrites keep any row a backfill did not
+  // reach reading the current copy: "a listing with multiple items".
   if (message.system_event === 'AGREEMENT_CREATED' && saleContext.fromShopfront) {
     return message.body
       .replace(
         'started this purchase contract and reserved the item. No money has moved yet.',
-        'started this purchase contract for a binder or bulk listing. Nothing in the listing is held, and no money has moved yet.',
+        'started this purchase contract for a listing with multiple items. Nothing in the listing is held, and no money has moved yet.',
       )
-      .replace('for a multi-item listing.', 'for a binder or bulk listing.');
+      .replace('for a multi-item listing.', 'for a listing with multiple items.')
+      .replace('for a binder or bulk listing.', 'for a listing with multiple items.');
   }
   if (message.system_event === 'PAYMENT_FAILED' && saleContext.fromShopfront) {
-    return 'The payment failed. This contract did not proceed. The binder or bulk listing remains open, and nothing from it was held.';
+    return 'The payment failed. This contract did not proceed. The listing remains open, and nothing from it was held.';
   }
   if (message.system_event !== 'PAYMENT_CLEARED') return message.body;
 
@@ -531,10 +532,9 @@ function MessageBubble({
     <div
       className={cn(
         'min-w-0 overflow-hidden text-body',
-        // VIOLET FOR YOUR OWN MESSAGES, the same `--primary` on `--primary-foreground`
-        // pair the app's bubble draws (`message_bubble.dart`), so the two clients read
-        // as one product. The label has to be `--primary-foreground`: white on
-        // `--primary` is the pairing that clears 4.5:1, and the lighter `--iris` would not.
+        // YOUR OWN MESSAGES IN THE PRIMARY (ink since the primary stopped being
+        // violet), the same `--primary` on `--primary-foreground` pair the app's bubble
+        // draws (`message_bubble.dart`), so the two clients read as one product.
         mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
         mine
           ? last

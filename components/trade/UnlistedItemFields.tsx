@@ -13,9 +13,11 @@
 //
 // Controlled: the caller owns the draft. Nothing here persists anything.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type DragEvent } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ImagePlusIcon, XIcon } from '@hugeicons/core-free-icons';
+
+import { cn } from '@/lib/utils';
 
 import { TITLE_MAX_LENGTH } from '@/domain/validation/item';
 import { Label } from '@/components/ui/label';
@@ -116,7 +118,10 @@ export function UnlistedTitleField({ draft, onChange, idPrefix = 'unlisted' }: P
         value={draft.title}
         onChange={(e) => update(draft, onChange, 'title', e.target.value)}
         maxLength={TITLE_MAX_LENGTH}
-        placeholder="1999 Charizard holo"
+        // ONE EXAMPLE, ON THE ONE FIELD WHERE THE FORMAT MATTERS (Depop, Airtasker:
+        // "e.g. ..."). A title is name, set number and grade, which is what a collector
+        // searches by; the other fields here explain themselves and carry none.
+        placeholder="e.g. Charizard ex 199/165, PSA 10"
         autoComplete="off"
         spellCheck={false}
       />
@@ -129,7 +134,7 @@ export function UnlistedDescriptionField({
   onChange,
   idPrefix = 'unlisted',
   label = 'Describe the card',
-  placeholder = 'Condition details, grading, anything they should know…',
+  placeholder,
 }: PieceProps & {
   /**
    * A flow that knows what the card is FOR should say so — "What are you selling?",
@@ -140,8 +145,9 @@ export function UnlistedDescriptionField({
 }) {
   const id = `${idPrefix}-description`;
   return (
-    // The placeholder names facts rather than repeating the title's example: the title
-    // carries what the card is and this carries what condition it is in.
+    // NO PLACEHOLDER BY DEFAULT. The label asks the question, and grey text in an
+    // empty box reads as a filled-in field at a glance (Etsy and Stripe leave theirs
+    // blank). A caller may still pass one.
     <div className="space-y-snug">
       <Label htmlFor={id}>{label}</Label>
       <Textarea
@@ -179,7 +185,7 @@ export function UnlistedCategoryConditionFields({
           onValueChange={(value) => update(draft, onChange, 'category', cardGameName(value))}
         >
           <SelectTrigger id={gameId}>
-            <SelectValue placeholder="Select" />
+            <SelectValue placeholder="Choose" />
           </SelectTrigger>
           <SelectContent>
             {CARD_GAMES.map((game) => (
@@ -198,7 +204,7 @@ export function UnlistedCategoryConditionFields({
           onValueChange={(value) => update(draft, onChange, 'condition', value)}
         >
           <SelectTrigger id={conditionId}>
-            <SelectValue placeholder="Select" />
+            <SelectValue placeholder="Choose" />
           </SelectTrigger>
           <SelectContent>
             {ITEM_CONDITIONS.map((c) => (
@@ -213,7 +219,21 @@ export function UnlistedCategoryConditionFields({
   );
 }
 
-export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: PieceProps) {
+export function UnlistedPhotoField({
+  draft,
+  onChange,
+  idPrefix = 'unlisted',
+  layout = 'strip',
+}: PieceProps & {
+  /**
+   * `strip` (default): a picker button beside the label and a row of small
+   * thumbnails, for the compact join dialog. `grid`: the gallery the marketplaces
+   * use (Depop, Etsy, Turo on Mobbin), square tiles with the first marked as the
+   * cover and an Add tile after them, and a drop zone while there are none. For the
+   * deal composer, where the photos are the largest thing on the form.
+   */
+  layout?: 'strip' | 'grid';
+}) {
   // Object URLs for the preview strip, revoked whenever the selection changes or
   // the component goes away. Held in state rather than derived on render so each
   // URL is created exactly once and can be revoked by the effect that made it.
@@ -252,6 +272,23 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
     );
   }
 
+  /**
+   * Move a photo within the order shown. The draft stores kept photos (already in
+   * Storage) ahead of new ones, and that order is the order saved, so a move is
+   * applied within whichever of the two lists it falls in. A move across them (a new
+   * photo in front of a kept one, when editing) is not one the draft can store, and
+   * is ignored. A new deal has no kept photos, so every move applies there.
+   */
+  function movePhoto(from: number, to: number) {
+    const kept = draft.keptPaths.length;
+    if (from < kept !== to < kept) return;
+    if (from < kept) {
+      update(draft, onChange, 'keptPaths', reorder(draft.keptPaths, from, to));
+    } else {
+      update(draft, onChange, 'images', reorder(draft.images, from - kept, to - kept));
+    }
+  }
+
   const count = unlistedPhotoCount(draft);
   const atImageCap = count >= UNLISTED_IMAGES_MAX;
   const labelId = `${idPrefix}-photos-label`;
@@ -267,6 +304,19 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
       remove: () => removeImageAt(index),
     })),
   ];
+
+  if (layout === 'grid') {
+    return (
+      <PhotoGrid
+        labelId={labelId}
+        count={count}
+        atCap={atImageCap}
+        photos={strip}
+        onAdd={addImages}
+        onMove={movePhoto}
+      />
+    );
+  }
 
   return (
     <div className="space-y-snug">
@@ -332,6 +382,239 @@ export function UnlistedPhotoField({ draft, onChange, idPrefix = 'unlisted' }: P
           ))}
         </ul>
       ) : null}
+    </div>
+  );
+}
+
+/** `list` with the item at `from` moved to `to`. */
+function reorder<T>(list: T[], from: number, to: number): T[] {
+  const next = [...list];
+  const [moved] = next.splice(from, 1);
+  if (moved === undefined) return list;
+  next.splice(to, 0, moved);
+  return next;
+}
+
+/**
+ * The `grid` layout of {@link UnlistedPhotoField}, laid out the way the marketplace
+ * listing forms on Mobbin do it (Etsy, Zillow, Depop, Nextdoor, 2026-11-22):
+ *
+ * - SMALL TILES, MANY TO A ROW. Six to a row at the form's width (five on a phone),
+ *   so ten photos and the Add tile take two short rows. Four large tiles to a row
+ *   put eight photos over three rows and pushed the title off the screen.
+ * - ADD COMES FIRST (Zillow, Depop), so adding another never means looking for the
+ *   end of the list, and the button does not move as photos arrive.
+ * - DRAG TO REORDER (Zillow, Nextdoor), with "Make cover" on each tile for a keyboard
+ *   or a phone. The first photo is the cover: the one the other person sees first.
+ *
+ * With no photos it is one drop zone the width of the form (Airtasker's main-image
+ * area). Files can be dropped on the zone or the Add tile as well as picked.
+ */
+export function PhotoGrid({
+  labelId,
+  count,
+  atCap,
+  photos,
+  onAdd,
+  onMove,
+  max = UNLISTED_IMAGES_MAX,
+  inputId,
+  disabled = false,
+  describedBy,
+}: {
+  labelId: string;
+  count: number;
+  atCap: boolean;
+  photos: { key: string; src: string | null; remove: () => void }[];
+  onAdd: (files: File[]) => void;
+  /** Move the photo at `from` to `to`. A move the draft cannot store is ignored. */
+  onMove: (from: number, to: number) => void;
+  /** The photo cap, for the count and the slot count. */
+  max?: number;
+  /** The file input's id, for a form that points a label or an error at it. */
+  inputId?: string;
+  disabled?: boolean;
+  /** An error message's id, announced with the picker. */
+  describedBy?: string;
+}) {
+  const [fileOver, setFileOver] = useState(false);
+  const empty = photos.length === 0;
+  /** Every tile the grid can hold: the Add tile and the photo cap. */
+  const slots = max + 1;
+  const emptySlots = Math.max(slots - photos.length - (atCap || empty ? 0 : 1), 0);
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  const isFileDrag = (event: DragEvent) => Array.from(event.dataTransfer.types).includes('Files');
+
+  const fileDropHandlers = {
+    onDragOver: (event: DragEvent) => {
+      if (!isFileDrag(event)) return;
+      event.preventDefault();
+      setFileOver(true);
+    },
+    onDragLeave: () => setFileOver(false),
+    onDrop: (event: DragEvent) => {
+      if (!isFileDrag(event)) return;
+      event.preventDefault();
+      setFileOver(false);
+      onAdd(Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith('image/')));
+    },
+  };
+
+  const input = (
+    <input
+      id={inputId}
+      type="file"
+      accept="image/*"
+      multiple
+      aria-label="Add photos"
+      aria-describedby={describedBy}
+      aria-invalid={describedBy ? true : undefined}
+      disabled={disabled}
+      className="sr-only"
+      onChange={(event) => {
+        onAdd(Array.from(event.target.files ?? []));
+        // Clear the input so picking the same file again still fires a change event.
+        event.currentTarget.value = '';
+      }}
+    />
+  );
+
+  return (
+    <div className="space-y-snug">
+      <div className="flex items-baseline justify-between gap-cozy">
+        <p className="text-body font-medium" id={labelId}>
+          Photos
+          <span className="ml-1.5 font-normal text-muted-foreground">
+            {count === 0 ? '(required)' : `${count} of ${max}`}
+          </span>
+        </p>
+        {photos.length > 1 ? (
+          <p className="text-meta text-muted-foreground">Drag to reorder</p>
+        ) : null}
+      </div>
+
+      {/* ONE SIZE, EMPTY OR FULL. The grid always lays out every slot it can hold
+          (the Add tile plus ten photos), the unused ones as faint empty tiles the way
+          Depop and Etsy show theirs, so it is the same height with no photos, one, or
+          ten, and nothing under it moves when a photo is added or removed. With no
+          photos the drop zone lies over the grid at exactly its size. */}
+      <div className="relative">
+        <ul
+          aria-labelledby={labelId}
+          aria-hidden={empty || undefined}
+          className="grid grid-cols-5 gap-snug sm:grid-cols-6"
+        >
+          {atCap || empty ? null : (
+            <li>
+              <label
+                {...fileDropHandlers}
+                className={cn(
+                  'flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-input bg-card text-muted-foreground transition-colors hover:border-input-hover hover:bg-accent hover:text-foreground has-[:focus-visible]:border-ring',
+                  fileOver && 'border-foreground bg-accent text-foreground',
+                )}
+              >
+                <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
+                <span className="text-meta font-medium">Add</span>
+                {input}
+              </label>
+            </li>
+          )}
+          {photos.map((photo, index) => (
+            <li
+              key={photo.key}
+              draggable
+              onDragStart={(event) => {
+                setDragFrom(index);
+                event.dataTransfer.effectAllowed = 'move';
+                // Some browsers start no drag without data.
+                event.dataTransfer.setData('text/plain', String(index));
+              }}
+              onDragOver={(event) => {
+                if (dragFrom === null) return;
+                event.preventDefault();
+                setDragOver(index);
+              }}
+              onDragLeave={() => setDragOver((over) => (over === index ? null : over))}
+              onDrop={(event) => {
+                if (dragFrom === null) return;
+                event.preventDefault();
+                if (dragFrom !== index) onMove(dragFrom, index);
+                setDragFrom(null);
+                setDragOver(null);
+              }}
+              onDragEnd={() => {
+                setDragFrom(null);
+                setDragOver(null);
+              }}
+              className={cn(
+                'group relative aspect-square cursor-grab overflow-hidden rounded-lg border bg-muted transition-[opacity,box-shadow] active:cursor-grabbing',
+                index === 0 ? 'border-foreground' : 'border-border',
+                dragFrom === index && 'opacity-40',
+                dragOver === index && dragFrom !== index && 'ring-2 ring-foreground ring-offset-1',
+              )}
+            >
+              {photo.src ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={photo.src}
+                  alt={`Photo ${index + 1} of ${photos.length}${index === 0 ? ', the cover' : ''}`}
+                  draggable={false}
+                  className="pointer-events-none size-full object-cover"
+                />
+              ) : null}
+              {index === 0 ? (
+                <span className="absolute inset-x-0 bottom-0 bg-obsidian/75 py-0.5 text-center text-[0.6875rem] font-medium leading-tight text-mist">
+                  Cover
+                </span>
+              ) : (
+                // For a keyboard or a phone, where a drag is not available: shown on
+                // hover and on focus, and always reachable by Tab.
+                <button
+                  type="button"
+                  onClick={() => onMove(index, 0)}
+                  className="absolute inset-x-0 bottom-0 bg-obsidian/75 py-0.5 text-center text-[0.6875rem] font-medium leading-tight text-mist opacity-0 transition-opacity focus-visible:opacity-100 focus-visible:outline-none group-hover:opacity-100"
+                >
+                  Make cover
+                  <span className="sr-only"> (photo {index + 1})</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={photo.remove}
+                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-md border border-transparent bg-obsidian/75 text-mist transition-colors hover:bg-obsidian focus-visible:border-ring focus-visible:outline-none"
+              >
+                <HugeiconsIcon icon={XIcon} aria-hidden="true" className="size-3" />
+                <span className="sr-only">Remove photo {index + 1}</span>
+              </button>
+            </li>
+          ))}
+          {/* The empty slots that keep the grid one size (see above). */}
+          {Array.from({ length: emptySlots }, (_, slot) => (
+            <li key={`slot-${slot}`} aria-hidden className="aspect-square rounded-lg bg-muted/50" />
+          ))}
+        </ul>
+        {empty ? (
+          <label
+            {...fileDropHandlers}
+            className={cn(
+              'absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-snug rounded-xl border border-input bg-muted/40 px-group text-center transition-colors hover:border-input-hover hover:bg-muted/70 has-[:focus-visible]:border-ring',
+              fileOver && 'border-foreground bg-accent',
+            )}
+          >
+            <span className="grid size-11 place-items-center rounded-full border border-border bg-card text-foreground">
+              <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
+            </span>
+            <span className="text-body font-medium text-foreground">Add photos</span>
+            <span className="max-w-xs text-pretty text-meta text-muted-foreground">
+              Drag them here or choose files. Up to {max}, and the first is
+              the cover.
+            </span>
+            {input}
+          </label>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -16,6 +16,7 @@ import { usePathname } from 'next/navigation';
 
 import { StartDealButton } from '@/components/deals/StartDealButton';
 import { Button } from '@/components/ui/button';
+import { DEAL_OPEN_PATH } from '@/lib/deals/paths';
 import { cn } from '@/lib/utils';
 
 interface NavLink {
@@ -91,7 +92,11 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
   ];
 
   return (
-    <nav aria-label="Primary" className="hidden items-center text-muted-foreground md:flex">
+    // RETAIL WEIGHT: 16px semibold in full ink, the way Fanatics Collect, StockX and
+    // eBay set their section links. At 14px medium grey the bar read as a tool's
+    // chrome. Every link is the same ink, so "current" is carried by the iris
+    // underline alone, the one violet mark in the header.
+    <nav aria-label="Primary" className="hidden items-center text-foreground md:flex">
       {links.map((link) => {
         const active = isActive(pathname, link);
         return (
@@ -101,12 +106,10 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
             variant="ghost"
             size="sm"
             className={cn(
-              // Resting links are muted so the current one, in full ink with the
-              // iris underline, reads as a position rather than one more offer.
-              'relative',
+              'relative text-lead font-semibold',
               link.className,
               active &&
-                'text-foreground after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-iris',
+                'after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-iris',
             )}
           >
             <Link href={link.href} aria-current={active ? 'page' : undefined}>
@@ -120,7 +123,16 @@ export function PrimaryNav({ isAuthenticated }: { isAuthenticated: boolean }) {
         size="sm"
         // A guest's side of the bar is two short links rather than the member's
         // icon rail, so there is room for this link a breakpoint earlier.
-        className={cn('relative hidden', isAuthenticated ? 'xl:inline-flex' : 'lg:inline-flex')}
+        //
+        // `/deals` is a page now, so it takes the same underline as the links when
+        // you are on it.
+        current={pathname === DEAL_OPEN_PATH}
+        className={cn(
+          'relative hidden text-lead font-semibold',
+          isAuthenticated ? 'xl:inline-flex' : 'lg:inline-flex',
+          pathname === DEAL_OPEN_PATH &&
+            'after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full after:bg-iris',
+        )}
       />
     </nav>
   );

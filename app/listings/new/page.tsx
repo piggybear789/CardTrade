@@ -19,20 +19,26 @@
 // setup never started, form rendered in full, refused on submit. That is what
 // `lib/sellerListingGate.ts` was extracted to prevent — read the gate from there rather
 // than re-deriving any part of it here.
+//
+// A FOCUSED EDITOR, OUTSIDE `(workspace)` ON PURPOSE, as `/deals` is: no rail and no
+// phone hub bar. Listing an item takes the screen, with its own close and a live
+// preview beside the form (`ItemForm`). The URL is unchanged, so `proxy.ts` and every
+// "Sell" link still point here.
 
 import { redirect } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
-import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
+import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 import type { PlaceValue } from '@/lib/location/types';
 import { readListingGate } from '@/lib/sellerListingGate';
 import { ItemForm } from '@/components/listings/ItemForm';
 import { getListingDraft } from '@/lib/actions/listingDrafts';
-import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { EmptyState } from '@/components/ui/empty-state';
 import { GateBlockedTracker } from '@/components/analytics/GateBlockedTracker';
+import { regionCurrency } from '@/domain/region';
+import { readPreviewSeller } from '@/lib/listings/previewSeller';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -56,14 +62,19 @@ export default async function NewListingPage({
 
   // In parallel: the default place is wanted only if the gate passes, but it is one
   // indexed row and costs nothing to fetch alongside rather than after.
-  const [gate, defaultLocation, serverDraft] = await Promise.all([
+  //
+  // The profile and the public seller row are for the preview: the price's currency
+  // (the row's will come from the seller's region, 0068) and the seller line.
+  const [gate, defaultLocation, serverDraft, profile, previewSeller] = await Promise.all([
     readListingGate(user.id),
     lastListingLocation(supabase, user.id),
     draftId ? getListingDraft(draftId) : Promise.resolve(null),
+    getCachedProfile(user.id),
+    readPreviewSeller(supabase, user.id),
   ]);
   if (!gate.satisfied) {
     return (
-      <MarketplaceShell title="New listing" center>
+      <main className="flex flex-1 items-center justify-center px-group py-12">
         {/* SENDS THEM WHERE THE REQUIREMENT IS ACTUALLY RESOLVED, and says which of the
             two steps is outstanding. This used to read "Set Up Payouts First" and link to
             payout setup for an IDENTITY failure, which after 0069 does not open that gate
@@ -82,14 +93,20 @@ export default async function NewListingPage({
             verified one with no payout account. In aggregate those two need different
             product responses, and before 0121 they were indistinguishable. */}
         <GateBlockedTracker gate={gate.gateName} />
-      </MarketplaceShell>
+      </main>
     );
   }
 
   return (
-    <MarketplaceShell title="New listing">
-      <ItemForm mode="create" defaultLocation={defaultLocation} serverDraft={serverDraft} />
-    </MarketplaceShell>
+    <main className="flex flex-1 flex-col">
+      <ItemForm
+        mode="create"
+        defaultLocation={defaultLocation}
+        serverDraft={serverDraft}
+        currency={regionCurrency(profile?.region_code ?? null) ?? 'aud'}
+        previewSeller={previewSeller}
+      />
+    </main>
   );
 }
 

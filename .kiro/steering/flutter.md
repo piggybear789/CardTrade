@@ -86,8 +86,9 @@ did: `features/deals/screens/deals_screen.dart` is 20KB and `router.dart` wires
 
 `Deal`, `DittoBond`, `KYC_Status` and `Police_Evidence_Pack` are refused by name in
 `mobileDomainAgreement.test.ts`. Member-facing copy says **trade collateral** and
-explains it as a temporary card hold; it says **binder or bulk listing**, never
-"shopfront"; and it always states that nothing is held on a binder.
+explains it as a temporary card hold; it calls a SHOPFRONT listing **Multiple items**
+(in a sentence, "a listing with multiple items"), never "shopfront" or "binder"; and it
+always states that nothing is held on one.
 
 ## Adding a check
 

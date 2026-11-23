@@ -41,7 +41,7 @@ export default function SafetyPage() {
   return (
     <article className="mx-auto max-w-2xl px-group py-section sm:px-6 md:py-12">
       <header>
-        <h1 className="text-subhead font-semibold tracking-tight text-foreground md:text-head">
+        <h1 className="text-head font-semibold tracking-tight text-foreground">
           Staying safe on NoDitto
         </h1>
         <Prose className="mt-cozy md:text-lead">
@@ -232,8 +232,8 @@ export default function SafetyPage() {
               <p>
                 We never handle the cards ourselves, so we can&rsquo;t authenticate them, and we
                 can&rsquo;t help with anything that was paid for outside NoDitto. When neither side has
-                any evidence, we usually can&rsquo;t decide a claim either way. Binder and bulk listings
-                don&rsquo;t reserve individual cards, so nothing on them is held for you. And we&rsquo;re
+                any evidence, we usually can&rsquo;t decide a claim either way. Listings with multiple
+                items don&rsquo;t reserve individual cards, so nothing on them is held for you. And we&rsquo;re
                 not a replacement for the police, so if you&rsquo;ve been the victim of serious fraud,
                 report it to them and to ReportCyber as well.
               </p>

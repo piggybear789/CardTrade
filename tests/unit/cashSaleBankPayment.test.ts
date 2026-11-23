@@ -37,8 +37,8 @@ const T0 = Date.parse('2026-10-21T00:00:00.000Z');
 
 /**
  * An AUD sale with posted terms agreed, ready for the buyer to press Pay. `buyerAtPay`
- * swaps the buyer record after the agreement opens, e.g. to a buyer with no saved card,
- * who may open a contract from a listing and pay from their bank.
+ * swaps the buyer record after the agreement opens, e.g. to a buyer whose saved card is
+ * gone by Pay (opening needs one), who can still pay from their bank.
  */
 async function payableSale(options: { buyerAtPay?: typeof BUYER; payments?: InMemoryService } = {}) {
   const payments = options.payments ?? new InMemoryService();

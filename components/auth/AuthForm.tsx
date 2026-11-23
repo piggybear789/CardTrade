@@ -60,7 +60,7 @@ const COPY: Record<
 > = {
   "sign-in": {
     title: "Sign in",
-    description: "Welcome back. Enter your credentials to continue.",
+    description: "Welcome back. Sign in to buy, sell and trade.",
     submitLabel: "Sign in",
     pendingLabel: "Signing in…",
     switchPrompt: "New to NoDitto?",
@@ -346,7 +346,9 @@ export function AuthForm({ mode }: { mode: Mode }) {
           </div>
 
           {mode === "sign-up" ? (
-            <label className="flex min-h-11 cursor-pointer items-center justify-center gap-2.5 text-center text-body text-muted-foreground">
+            // Left-aligned with the fields above it: centred, the box floated in from
+            // the edge the inputs start on and read as indented.
+            <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-body text-muted-foreground">
               <input
                 type="checkbox"
                 name="acceptedTerms"
@@ -360,14 +362,14 @@ export function AuthForm({ mode }: { mode: Mode }) {
                 I accept the{" "}
                 <Link
                   href="/terms"
-                  className="font-medium text-primary underline-offset-4 hover:underline"
+                  className="font-medium text-iris-ink underline-offset-4 hover:underline"
                 >
                   Terms
                 </Link>{" "}
                 and{" "}
                 <Link
                   href="/privacy"
-                  className="font-medium text-primary underline-offset-4 hover:underline"
+                  className="font-medium text-iris-ink underline-offset-4 hover:underline"
                 >
                   Privacy
                 </Link>{" "}
@@ -385,7 +387,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
             {copy.switchPrompt}{" "}
             <Link
               href={withRedirect(copy.switchHref, destination)}
-              className="inline-flex min-h-11 items-center font-medium text-primary underline-offset-4 hover:underline"
+              className="inline-flex min-h-11 items-center font-medium text-iris-ink underline-offset-4 hover:underline"
             >
               {copy.switchCta}
             </Link>

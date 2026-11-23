@@ -3,6 +3,7 @@ import 'server-only';
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 import type { Database } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 type PublicCatalogClient = ReturnType<typeof createSupabaseClient<Database>>;
 
@@ -27,7 +28,7 @@ export function publicCatalogClient(): PublicCatalogClient {
   }
 
   client = createSupabaseClient<Database>(url, anonKey, {
-    db: { schema: 'cardtrade' },
+    db: { schema: DB_SCHEMA },
     auth: {
       autoRefreshToken: false,
       persistSession: false,

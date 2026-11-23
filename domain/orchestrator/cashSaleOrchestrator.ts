@@ -1269,26 +1269,31 @@ type AgreementIdentity =
   | { when: 'AT_PAYMENT' };
 
 /**
- * Buy Now creates a reserved agreement; it does not submit payment.
+ * Buy Now (and accepting an Offer, which calls this) creates a reserved agreement; it
+ * does not submit payment.
  *
- * NO SAVED CARD IS NEEDED TO OPEN IT. Opening collects nothing (payment is the
- * commitment, 0099), and since 0158 a buyer may pay from their bank instead of a card,
- * so asking for a card here shut every bank-only buyer out of the listing. The way to
- * pay is chosen and checked at Pay (`acceptCashSaleTerms`), which refuses a card
- * payment with no card while leaving the sale untouched so the room can collect one,
- * exactly as a private deal has always worked. Related accounts are checked again at
- * Pay, once a card has been added.
+ * A SAVED CARD IS NEEDED TO OPEN IT. Opening a SINGLE listing takes it out of the
+ * catalog, and with nothing on file that reservation cost the buyer nothing: anyone
+ * could park on a card. 0158's card-free Buy Now (so bank-only buyers were not asked
+ * for a card they would not use) was reversed by product decision on 2026-11-23. The
+ * card is a commitment, not the rail: a buyer can still pay from their bank at Pay,
+ * and `acceptCashSaleTerms` re-checks the card for a card payment because it can be
+ * removed in between.
+ *
+ * Private deals (`openPrivateDealCashSale`) are unchanged and still take the card at Pay.
  */
 export async function initiateCashSale(
   deps: CashSaleOrchestratorDeps,
   params: InitiateCashSaleParams,
 ): Promise<CashSaleResult> {
-  // A missing Profile still reaches the region guard, which refuses an unknown region.
-  const buyer = (await deps.repository.loadBuyer(params.buyerId)) ?? {
-    profileId: params.buyerId,
-    payerId: null,
-    paymentSourceId: null,
-  };
+  const buyer = await deps.repository.loadBuyer(params.buyerId);
+  if (!buyer?.payerId || !buyer.paymentSourceId) {
+    return {
+      ok: false,
+      error: 'BUYER_NO_PAYMENT_METHOD',
+      detail: 'Add a card before you reserve this. You can still choose how to pay when you pay.',
+    };
+  }
 
   return openAgreement(deps, buyer, {
     buyerId: params.buyerId,

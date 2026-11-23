@@ -17,6 +17,7 @@ import type {
 import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 /** A message row, strongly typed from the generated database types. */
 export type MessageRow = Tables<'messages'>;
@@ -380,7 +381,7 @@ export function useConversationRealtime(
           'postgres_changes',
           {
             event: 'INSERT',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'messages',
             filter: `conversation_id=eq.${conversationId}`,
           },
@@ -393,7 +394,7 @@ export function useConversationRealtime(
           'postgres_changes',
           {
             event: 'UPDATE',
-            schema: 'cardtrade',
+            schema: DB_SCHEMA,
             table: 'messages',
             filter: `conversation_id=eq.${conversationId}`,
           },

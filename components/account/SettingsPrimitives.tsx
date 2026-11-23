@@ -227,10 +227,11 @@ export function SettingsListRow({
           ) : null}
         </span>
         {description ? (
-          // ONE LINE, and it gets the row's full width — which is the point of using
-          // it over `value` for something long. One line is also what
-          // `SettingsRowSkeleton` reserves.
-          <span className="mt-0.5 line-clamp-1 text-body leading-snug text-muted-foreground">
+          // UP TO TWO LINES, across the row's full width. One line cut most
+          // descriptions on a phone to a few words ("Which region'…", "Used to
+          // pay…"), which left the row's purpose unstated exactly where it was meant
+          // to be explained.
+          <span className="mt-0.5 line-clamp-2 text-body leading-snug text-muted-foreground">
             {description}
           </span>
         ) : null}

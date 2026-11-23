@@ -75,7 +75,7 @@ export function SectionFilter({
 }
 
 // ---------------------------------------------------------------------------
-// Contract lists: Active / Needs you / Waiting / Past
+// Contract lists: Open / Your move / Their move / Finished (keys: active / needs-you / waiting / past)
 // ---------------------------------------------------------------------------
 //
 // A contract section splits FOUR ways, not two, because "active" is the answer to a
@@ -185,26 +185,30 @@ export function ContractFilter({
       tabs={[
         {
           key: 'active',
-          label: 'Active',
+          label: 'Open',
+          hint: 'Everything still in progress',
           count: groups.active.length + extraActive,
           href: withQuery(basePath, { show: null }),
         },
         {
           key: 'needs-you',
-          label: 'Needs you',
+          label: 'Your move',
+          hint: 'Waiting on you to do the next step',
           count: groups.needsYou.length,
           tone: 'attention',
           href: withQuery(basePath, { show: 'needs-you' }),
         },
         {
           key: 'waiting',
-          label: 'Waiting',
+          label: 'Their move',
+          hint: 'Waiting on the other person',
           count: groups.waiting.length,
           href: withQuery(basePath, { show: 'waiting' }),
         },
         {
           key: 'past',
-          label: 'Past',
+          label: 'Finished',
+          hint: 'Completed or cancelled',
           count: groups.past.length,
           href: withQuery(basePath, { show: 'past' }),
         },
@@ -243,6 +247,8 @@ export interface SectionTab {
   /** Stable key, also the React key, compared against `currentKey`. */
   key: string;
   label: string;
+  /** One-line explanation of what the tab holds, shown on hover. */
+  hint?: string;
   /** Shorter label below `md` when the full word clips the last tab. */
   shortLabel?: string;
   /**
@@ -252,7 +258,7 @@ export interface SectionTab {
   count?: number;
   /**
    * `attention` draws a non-zero count as an amber pill — for the tab that holds
-   * work waiting on the reader ("Needs you"), so it is seen without being read.
+   * work waiting on the reader ("Your move"), so it is seen without being read.
    */
   tone?: 'attention';
   href: string;
@@ -290,6 +296,7 @@ export function SectionTabs({
             key={tab.key}
             href={tab.href}
             aria-current={current ? 'page' : undefined}
+            title={tab.hint}
             className={cn(
               SECTION_TABS_ITEM_SHAPE,
               'transition-colors active:opacity-70 focus:outline-none focus-visible:border-ring',

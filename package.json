@@ -7,6 +7,9 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:db:reset": "node scripts/dev/resetDevSchema.mjs",
+    "dev:db:apply": "node scripts/dev/applyToDev.mjs",
+    "dev:stripe": "node scripts/dev/stripeListen.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

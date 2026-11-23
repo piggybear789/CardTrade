@@ -52,8 +52,8 @@ async function restInsert<T = Record<string, unknown>>(table: string, body: unkn
     headers: {
       apikey: SERVICE_KEY,
       Authorization: `Bearer ${SERVICE_KEY}`,
-      'Accept-Profile': 'cardtrade',
-      'Content-Profile': 'cardtrade',
+      'Accept-Profile': process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? ENV.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'cardtrade',
+      'Content-Profile': process.env.NEXT_PUBLIC_SUPABASE_SCHEMA ?? ENV.NEXT_PUBLIC_SUPABASE_SCHEMA ?? 'cardtrade',
       'Content-Type': 'application/json',
       Prefer: 'return=representation',
     },

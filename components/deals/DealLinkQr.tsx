@@ -16,7 +16,7 @@
 // whatever the theme, because a scanner needs that contrast more than the code
 // needs to match the palette.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -31,7 +31,19 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
-export function DealLinkQr({ path }: { path: string }) {
+export function DealLinkQr({
+  path,
+  trigger,
+}: {
+  path: string;
+  /**
+   * The control that opens the large code, in place of the printed thumbnail. The
+   * link screen uses a "QR code" button (Fresha's "Generate QR code"): a code drawn
+   * on the page is a square that arrives after the encoder loads, and it is only
+   * useful at a meetup, where the dialog's large one scans better anyway.
+   */
+  trigger?: ReactElement;
+}) {
   const [matrix, setMatrix] = useState<boolean[][] | null>(null);
 
   useEffect(() => {
@@ -48,14 +60,16 @@ export function DealLinkQr({ path }: { path: string }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label="Show a larger QR code"
-          title="Show a larger QR code"
-          className="size-24 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border bg-white transition-colors hover:border-foreground/20 focus:outline-none focus-visible:border-ring"
-        >
-          <QrImage matrix={matrix} decorative />
-        </button>
+        {trigger ?? (
+          <button
+            type="button"
+            aria-label="Show a larger QR code"
+            title="Show a larger QR code"
+            className="size-24 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-border bg-white transition-colors hover:border-foreground/20 focus:outline-none focus-visible:border-ring"
+          >
+            <QrImage matrix={matrix} decorative />
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="md:max-w-sm">
         <DialogHeader>

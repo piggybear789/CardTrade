@@ -24,8 +24,10 @@
 // note there on why the reference's dark classes are translated rather than copied.
 
 import { Suspense } from 'react';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { BellIcon, CheckmarkBadge01Icon, HandCoinsIcon, HeartIcon, HelpCircleIcon, ShieldCheckIcon, TagsIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
+import { HugeiconsIcon } from '@hugeicons/react';
+import { ArrowRight01Icon, CheckmarkBadge01Icon, HelpCircleIcon, ShieldCheckIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -82,13 +84,11 @@ import {
 import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { SignOutButton } from '@/components/layout/SignOutButton';
 import {
-  CONTRACT_LINKS,
   STAFF_NAV_GROUP,
   staffNavLinksFor,
 } from '@/components/layout/marketplace-nav-config';
-import { StartDealSettingRow } from '@/components/deals/StartDealButton';
+import { AccountShortcuts } from '@/components/account/AccountShortcuts';
 import { Badge } from '@/components/ui/badge';
-import { CountBadge } from '@/components/ui/count-badge';
 // The Payouts tab's Suspense fallback is the SAME placeholder the route loader draws,
 // imported rather than restated, so the two cannot drift apart.
 import { EmptyState } from '@/components/ui/empty-state';
@@ -268,40 +268,29 @@ export default async function ProfilePage({
               payoutsActive={payoutsActive}
             />
           </div>
+          {/* WHAT OTHER MEMBERS SEE. Shop and TradingView open the account tab with
+              the member's own card linking to their public page; here the avatar is
+              already a control (it changes the picture), so the link sits beside it. */}
+          {/* A chevron rather than a "View profile" button: the button took the width
+              the trust line needs and wrapped it onto a third line. */}
+          <Link
+            href={`/sellers/${user.id}`}
+            aria-label="View your public profile"
+            className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <HugeiconsIcon icon={ArrowRight01Icon} className="size-5" aria-hidden />
+          </Link>
         </header>
 
-        {/* ACTIVITY, ON A PHONE ONLY. The Account tab was settings and nothing else,
-            so notifications, saves, offers and listings had no home on a phone — the
-            bell lives in the desktop header, and My listings and Offers left the Sell
-            tab when it became the form. Desktop has all four in the rail. */}
-        <SettingsGroup className="mb-group md:hidden">
-          <SettingsListRow
-            href="/notifications"
-            icon={BellIcon}
-            label="Notifications"
-            trailing={<CountBadge count={unreadNotifications.count ?? 0} />}
-          />
-          <SettingsListRow href="/saved" icon={HeartIcon} label="Saved" />
-          <SettingsListRow
-            href="/offers"
-            icon={HandCoinsIcon}
-            label="Offers"
-            trailing={<CountBadge count={offersWaiting.count ?? 0} />}
-          />
-          <SettingsListRow href="/listings/mine" icon={TagsIcon} label="My listings" />
-        </SettingsGroup>
-
-        {/* CONTRACTS, ALSO PHONE ONLY. These were the bar's second tab, a sheet of
-            Private Deal plus the three inboxes. References took that slot, and a
-            member's contracts are their own activity, which is what this screen holds
-            on a phone; the Account tab lights up on them for the same reason. The rows
-            come from the rail's own Contracts group, so the two cannot drift. */}
-        <SettingsGroup className="mb-group md:hidden">
-          {CONTRACT_LINKS.map((link) => (
-            <SettingsListRow key={link.href} href={link.href} icon={link.icon} label={link.label} />
-          ))}
-          <StartDealSettingRow />
-        </SettingsGroup>
+        {/* ACTIVITY AND CONTRACTS, ON A PHONE ONLY, as one grid of tiles. The bell,
+            My listings, Offers and the contract inboxes have no other home on a phone;
+            desktop has them in the rail. A grid rather than two lists so the settings
+            tabs below start on the first screen; see `AccountShortcuts`. */}
+        <AccountShortcuts
+          className="mb-group md:hidden"
+          unreadNotifications={unreadNotifications.count ?? 0}
+          offersWaiting={offersWaiting.count ?? 0}
+        />
 
         {/* All three panels are built here, once, and handed over as content. The
             strip owns which one is showing, so a tab change is local state rather than

@@ -418,11 +418,14 @@ function DesktopGenrePills({
   }
 
   return (
-    <nav aria-label="Categories" className="relative min-w-0">
+    // `-ml-cozy`: each tab is padded `px-cozy`, so without this the first logo sat 12px
+    // in from the heading above it. Pulling the row out by the same 12px puts the first
+    // logo, and the bar under the picked tab, on the heading's left edge.
+    <nav aria-label="Categories" className="relative -ml-cozy min-w-0">
       <div
         ref={trackRef}
         className={cn(
-          'flex min-w-0 items-center gap-1.5 overflow-x-auto [overflow-anchor:none] [overscroll-behavior-x:contain]',
+          'flex min-w-0 items-center gap-0.5 overflow-x-auto [overflow-anchor:none] [overscroll-behavior-x:contain]',
           '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           hidden.length > 0 && 'scroll-pe-14 pr-14',
           fadeRight &&
@@ -446,7 +449,10 @@ function DesktopGenrePills({
             <button
               type="button"
               aria-label="More categories"
-              className="absolute right-0 top-0 z-10 flex size-11 items-center justify-center rounded-md border border-input bg-card text-foreground shadow-[0_1px_2px_hsl(var(--obsidian)/0.05)] transition-colors hover:border-input-hover hover:bg-accent focus:outline-none focus-visible:border-ring"
+              // A quiet icon button at the end of the tabs, not a bordered box: the
+              // box was the heaviest object in the row. White behind it so the tabs
+              // fading out under it do not show through.
+              className="absolute right-0 top-1 z-10 flex size-9 items-center justify-center rounded-md bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring aria-expanded:bg-accent aria-expanded:text-foreground"
             >
               {open ? (
                 <HugeiconsIcon icon={ChevronUpIcon} className="size-4" strokeWidth={1.75} aria-hidden />
@@ -459,7 +465,7 @@ function DesktopGenrePills({
             <p className="px-snug pb-1.5 text-meta font-semibold text-muted-foreground">
               More games
             </p>
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-0.5">
               {hidden.map((item) => (
                 <GenrePill
                   key={item.slug}
@@ -540,32 +546,35 @@ function GenrePill({
       aria-pressed={active}
       title={label}
       className={cn(
-        'flex h-9 min-h-9 items-center gap-1.5 rounded-md border px-2.5 text-left text-meta font-semibold tracking-tight transition-colors md:h-11 md:min-h-11 md:px-cozy',
-        'border border-transparent focus:outline-none focus-visible:border-ring',
-        stretched ? 'min-w-0 w-full' : 'shrink-0',
-        active
-          ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-input bg-card text-foreground hover:border-input-hover hover:bg-accent',
+        'relative flex items-center gap-2 text-left text-body font-medium transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring',
+        stretched
+          ? // In the "More games" list: a menu row.
+            cn(
+              'h-10 w-full min-w-0 rounded-sm px-snug',
+              active ? 'bg-accent text-foreground' : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+            )
+          : // In the row: a TAB, the Airbnb category bar. No box, no fill: the game's own
+            // logo and its name, grey at rest, ink on hover, ink with a 2px bar under it
+            // when picked. Sixteen bordered chips side by side were sixteen competing
+            // boxes; every marketplace and trading-card site checked live (Airbnb,
+            // StockX, Depop, Vinted, TCGplayer, 2026-11-21) draws categories as
+            // labels, keeping boxes for filters. ONE WEIGHT in both states, so a pick
+            // never changes a tab's width and slides the row under the pointer.
+            cn(
+              'h-11 shrink-0 rounded-md px-cozy',
+              'after:absolute after:inset-x-cozy after:bottom-0 after:h-0.5 after:rounded-full after:transition-colors after:duration-200',
+              active
+                ? 'text-foreground after:bg-foreground'
+                : 'text-muted-foreground after:bg-transparent hover:text-foreground hover:after:bg-border',
+            ),
       )}
     >
-      {/* THE SAME ICON AS THE PHONE GRID — the real mark via `GameIcon`. This used to
-          be the monochrome drawn mark because the active pill inverts to a near-black
-          fill and a full-colour logo cannot follow the foreground; several of the
-          real marks are themselves black (Magic, Gundam, One Piece) and would vanish.
-          The answer is a surface, not a different icon: when active the logo sits in
-          a small white disc, so the pill inverts and the mark stays legible.
-
-          `size-6` IN BOTH STATES; only the disc's fill is conditional. The slot used
-          to be sized only when active, so it was the 20px icon at rest and the 24px
-          disc when picked — every pick widened one pill by 4px and narrowed another,
-          and the whole row after them slid sideways under the pointer. */}
-      <span
-        className={cn(
-          'grid size-6 shrink-0 place-items-center rounded-full',
-          active && 'bg-card',
-        )}
-      >
-        <GameIcon slug={slug} active={active} className={cn(active && 'scale-[0.8]')} />
+      {/* THE SAME ICON AS THE PHONE GRID, the real mark via `GameIcon`, bare at a fixed
+          20px in both states (a slot that changed size on pick slid the row sideways).
+          `GameIcon` dims a brand logo at rest and brings it to full strength when
+          picked. */}
+      <span className="grid size-5 shrink-0 place-items-center">
+        <GameIcon slug={slug} active={active} />
       </span>
       <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
     </button>

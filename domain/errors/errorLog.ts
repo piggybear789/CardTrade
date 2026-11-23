@@ -189,6 +189,7 @@ const EXPECTED_CODES = new Set([
   'email-not-confirmed',
   'account-banned',
   'buyer-no-payment-method',
+  'buyer-needs-card',
   'seller-not-payable',
   'seller-fraud-banned',
   'item-not-available',

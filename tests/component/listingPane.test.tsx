@@ -2,8 +2,8 @@
 //
 // The listing page's right-hand pane and phone stack, restored to the design before
 // 81ca4e8 (Watch and Report beside the title, seller card, actions pinned to the
-// bottom), with three pieces kept from the later redesign: the fee-inclusive price,
-// the muted "Includes $X service fee" note under it, and the one-line buyer
+// bottom), with pieces kept from the later redesign: the fee-inclusive price (in
+// whole units, with no fee note under it since 2026-11-23) and the one-line buyer
 // protection strip.
 
 import { describe, expect, it, vi } from 'vitest';
@@ -39,33 +39,16 @@ vi.mock('@/components/reports/ReportDialog', () => ({
 import { ListingDesktopPane } from '@/components/listings/ListingDesktopPane';
 import { ListingDetailStack } from '@/components/listings/ListingDetailStack';
 import { MessageSellerButton } from '@/components/messages/MessageSellerButton';
-import { ListingFeeNote, ListingProtectionLine } from '@/components/listings/ListingTrust';
-import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { formatMoney } from '@/lib/format';
+import { ListingProtectionLine } from '@/components/listings/ListingTrust';
+import { formatMoneyWhole } from '@/lib/format';
 import { buyerPaysCents } from '@/lib/listings/buyerPrice';
-
-/** The note under a single listing's price: the service fee on that price. */
-const feeNote = (priceCents: number) =>
-  `Includes ${formatMoney(platformFeeCentsFor(priceCents, 'aud'), 'aud')} service fee`;
-
-describe('ListingFeeNote', () => {
-  it('names the service fee in muted text with the breakdown trigger', () => {
-    const { container } = render(<ListingFeeNote priceCents={40_000_000} currency="aud" />);
-    expect(screen.getByText(feeNote(40_000_000))).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: "Price includes the service fee. Show breakdown" }),
-    ).toBeInTheDocument();
-    expect(container.textContent?.toLowerCase()).not.toContain('beta');
-    expect(container.querySelector('.text-trust')).toBeNull();
-  });
-});
 
 describe('ListingProtectionLine', () => {
   it('says the one promise and links to how it works', () => {
     const { container } = render(<ListingProtectionLine isShopfront={false} />);
-    expect(screen.getByText('Buyer protection:')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Buyer protection' })).toBeInTheDocument();
     expect(container.textContent).toContain('your payment is held until you accept the card.');
-    expect(screen.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/safety');
+    expect(screen.getByRole('link', { name: 'Buyer protection' })).toHaveAttribute('href', '/safety');
     expect(container.textContent?.toLowerCase()).not.toContain('escrow');
   });
 
@@ -104,14 +87,16 @@ describe('ListingDesktopPane', () => {
     createdAt: null,
   };
 
-  it('leads with the fee-inclusive price and the service fee note under it', () => {
+  it('leads with the fee-inclusive price in whole units, with no fee note', () => {
     const { container } = render(
       <ListingDesktopPane {...props}>
         <button type="button">Buy now</button>
       </ListingDesktopPane>,
     );
-    expect(container.textContent).toContain(formatMoney(buyerPaysCents(400_000, 'aud'), 'aud'));
-    expect(screen.getByText(feeNote(400_000))).toBeInTheDocument();
+    expect(container.textContent).toContain(
+      formatMoneyWhole(buyerPaysCents(400_000, 'aud'), 'aud').replace(/\s[A-Z]{3}$/, ''),
+    );
+    expect(screen.queryByText(/service fee/)).toBeNull();
   });
 
   it('puts Save and Report beside the title', () => {
@@ -132,7 +117,7 @@ describe('ListingDesktopPane', () => {
       </ListingDesktopPane>,
     );
     const buy = screen.getByRole('button', { name: 'Buy now' });
-    const strip = screen.getByText('Buyer protection:');
+    const strip = screen.getByRole('link', { name: 'Buyer protection' });
     expect(buy.parentElement).toContainElement(strip);
     expect(buy.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
@@ -144,18 +129,18 @@ describe('ListingDesktopPane', () => {
       </ListingDesktopPane>,
     );
     expect(screen.queryByText(/service fee/)).toBeNull();
-    expect(screen.queryByText('Buyer protection:')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Buyer protection' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Listing actions' })).toBeNull();
   });
 
-  it('labels a binder concisely, with no fee note', () => {
+  it('labels a multiple-item listing concisely, with no fee note', () => {
     render(
       <ListingDesktopPane {...props} isShopfront>
         <span />
       </ListingDesktopPane>,
     );
-    expect(screen.getByText(/^Binder · /)).toBeInTheDocument();
-    expect(screen.queryByText(/Multiple items/)).toBeNull();
+    expect(screen.getByText(/^Multiple items · /)).toBeInTheDocument();
+    expect(screen.queryByText(/Binder/)).toBeNull();
     expect(screen.queryByText(/service fee/)).toBeNull();
     expect(screen.getByText(/until you accept the cards\./)).toBeInTheDocument();
   });
@@ -187,21 +172,21 @@ describe('ListingDetailStack', () => {
     isOwner: false,
   };
 
-  it('shows the fee note and the protection strip to a buyer who can buy', () => {
+  it('shows the protection strip, and no fee note, to a buyer who can buy', () => {
     render(<ListingDetailStack {...props} showTrust />);
-    expect(screen.getByText(feeNote(400_000))).toBeInTheDocument();
-    expect(screen.getByText('Buyer protection:')).toBeInTheDocument();
+    expect(screen.queryByText(/service fee/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Buyer protection' })).toBeInTheDocument();
   });
 
   it('shows neither when the viewer cannot buy', () => {
     render(<ListingDetailStack {...props} showTrust={false} />);
     expect(screen.queryByText(/service fee/)).toBeNull();
-    expect(screen.queryByText('Buyer protection:')).toBeNull();
+    expect(screen.queryByRole('link', { name: 'Buyer protection' })).toBeNull();
   });
 
-  it('labels a binder concisely', () => {
+  it('labels a multiple-item listing concisely', () => {
     render(<ListingDetailStack {...props} isShopfront showTrust />);
-    expect(screen.getByText(/(^|· )Binder( ·|$)/)).toBeInTheDocument();
+    expect(screen.getByText(/(^|· )Multiple items( ·|$)/)).toBeInTheDocument();
     expect(screen.queryByText(/nothing is held/)).toBeNull();
     expect(screen.queryByText(/service fee/)).toBeNull();
   });

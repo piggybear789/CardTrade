@@ -426,7 +426,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                       ),
                       ButtonSegment(
                         value: ListingKind.shopfront,
-                        label: Text('Binder'),
+                        label: Text('Multiple items'),
                         icon: Icon(Icons.library_books_outlined),
                       ),
                     ],
@@ -450,7 +450,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                       // Member copy always says nothing is held on a binder: on
                       // every other listing opening a contract reserves the goods.
                       child: Text(
-                        'A binder or bulk listing lets buyers browse and request '
+                        'A listing with multiple items lets buyers browse and request '
                         'specific cards. Nothing is held — several buyers can '
                         'negotiate at the same time.',
                         style: AppText.bodyText

@@ -80,6 +80,16 @@ export function processingFeeExplanation(currency?: string | null): string {
   return `The service fee is ${processingFeeRateLabel(currency)} of the price and postage by ${domestic ? `a card ${domestic}` : 'card'}.${others ? ` ${others}` : ''} It covers what Stripe charges to take the payment and pay the seller, plus about ${nodittoFeeRateLabel()} to NoDitto. Paying from your bank, where offered, can cost less.`;
 }
 
+/**
+ * The fee in two short sentences, for the SELLER's popover beside the fee row in the
+ * deal composer. The seller needs the rate, who pays it and what it is for; the
+ * other card tiers and the bank rails are the buyer's choice, made at Pay, where the
+ * Pay dialog prices them. `processingFeeExplanation` keeps the full version for Help.
+ */
+export function processingFeeShortNote(currency?: string | null): string {
+  return `Paid by the buyer on top of your price: ${processingFeeRateLabel(currency)} by card. It covers Stripe's costs, plus about ${nodittoFeeRateLabel()} to NoDitto.`;
+}
+
 /** Hint beside the fee row in a contract's money table. */
 export const PROCESSING_FEE_HINT = `Covers Stripe's payment and payout costs, plus about ${bpsLabel(NODITTO_FEE_BPS)} to NoDitto. Returned if the sale is refunded in full.`;
 

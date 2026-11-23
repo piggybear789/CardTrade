@@ -7,10 +7,10 @@ import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
-import { displayLegalName, formatMoney, formatRelativeTime } from '@/lib/format';
+import { displayLegalName, formatRelativeTime } from '@/lib/format';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
-import { ListingFeeNote, ListingProtectionLine } from '@/components/listings/ListingTrust';
+import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
+import { ListingProtectionLine } from '@/components/listings/ListingTrust';
 import { cn } from '@/lib/utils';
 
 /**
@@ -46,6 +46,7 @@ export function ListingDetailStack({
   sellerIdentity,
   media,
   showTrust = false,
+  pricePlaceholder,
 }: {
   /** A buyer who can buy: the fee note under the price and the protection strip. */
   showTrust?: boolean;
@@ -74,10 +75,12 @@ export function ListingDetailStack({
   sellerIdentity: SellerIdentityDisclosure | null;
   /** The photo carousel, which heads the stack. */
   media?: ReactNode;
+  /** Shown in place of the price while the listing editor's price field is empty. */
+  pricePlaceholder?: string;
 }) {
   // Kept to one short line. That nothing on a binder is held is said by the buy bar,
   // at the moment it applies.
-  const kindLabel = isShopfront ? 'Binder' : null;
+  const kindLabel = isShopfront ? 'Multiple items' : null;
   const savesLabel = watchCount === 1 ? '1 save' : `${watchCount} saves`;
   // Relative, and hydration-suppressed where it renders — see the same note in
   // `ListingDesktopPane`. Every resale reference carries listing age: a card listed
@@ -85,10 +88,8 @@ export function ListingDetailStack({
   // the same price.
   const listedAgo = formatRelativeTime(createdAt);
   // A binder shows its own indicative "from" figure; a single listing shows what the
-  // buyer is actually charged — the same figure as its catalog tile.
-  const headline = splitMoney(
-    formatMoney(listedPriceCents(priceCents, currency, isShopfront), currency),
-  );
+  // buyer is actually charged — the same figure as its catalog tile, in whole units.
+  const headline = splitMoney(listedPriceText(priceCents, currency, isShopfront));
   const meta = [
     watchCount > 0 ? savesLabel : null,
     category,
@@ -119,6 +120,11 @@ export function ListingDetailStack({
       <div className="mt-snug flex items-center gap-cozy">
         {/* INK AND FEE-INCLUSIVE, matching the desktop pane. Symbol and cents recede
             so the dollars carry the weight at this size. */}
+        {pricePlaceholder ? (
+          <p className="min-w-0 flex-1 font-display text-display font-bold leading-none tracking-tight text-muted-foreground/60">
+            {pricePlaceholder}
+          </p>
+        ) : (
         <p className="min-w-0 flex-1 font-display font-bold leading-none tracking-tight text-foreground">
           {isShopfront ? (
             <span className="mr-tight text-lead font-medium text-muted-foreground">from </span>
@@ -138,16 +144,13 @@ export function ListingDetailStack({
             </span>
           ) : null}
         </p>
+        )}
         <span className="shrink-0 rounded-md bg-mist px-snug py-0.5 text-meta font-semibold text-muted-foreground">
           {condition}
         </span>
       </div>
-      {/* "Includes $X buyer fee" and the (i) breakdown, directly under the price, as
-          on desktop. Buyers who can buy only, and never on a binder, whose price is
-          an indicative "from". */}
-      {showTrust && !isShopfront ? (
-        <ListingFeeNote priceCents={priceCents} currency={currency} className="mt-tight" />
-      ) : null}
+      {/* No "Includes $X service fee" line under the price (2026-11-23, product
+          decision: the buyer just needs the price). The Pay dialog itemises it. */}
 
       {meta ? (
         <p

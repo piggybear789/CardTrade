@@ -253,6 +253,9 @@ export function PlatformChip({
         'inline-flex h-6 shrink-0 items-center text-meta font-medium text-muted-foreground',
         bare ? null : 'rounded-md border border-border bg-muted/40 px-2',
         className,
+        // A word, not a mark: a caller's square size (`size-4`, sized for the logos
+        // beside it) squeezed "Other" to 16px and the next logo was drawn over it.
+        '!w-auto',
       )}
     >
       {label}

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Suspense, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Inter } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -113,9 +113,15 @@ export default function RootLayout({
           Skip to Main Content
         </a>
         <StartDealProvider>
-          <Suspense fallback={null}>
-            <SiteHeader />
-          </Suspense>
+          {/* NO SUSPENSE AROUND THE HEADER. Behind `<Suspense fallback={null}>` it
+              streamed as its own segment and React revealed it after the page body
+              had painted, so on a phone every hard load pushed `#main-content` down
+              by the 54px strip (measured on production, 2026-11-23: one 0.064 shift
+              per page, guest or member). The header now renders with the shell. It
+              costs only its own reads, which run alongside the page's: the auth read
+              is the request-cached one the page and layouts already await, and the
+              notifications and profile reads run in parallel. */}
+          <SiteHeader />
           <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">
             {children}
           </div>

@@ -276,10 +276,9 @@ export async function MarketplaceShell({
           <div
             className={cn(
               'mx-auto flex min-h-0 w-full flex-col',
-              // `settle` (globals.css): the page arrives with a short fade and a 4px
-              // rise instead of snapping in. Not on flush rooms (a thread, a contract):
-              // a chat whose log drifts on every visit reads as a reload.
-              !flush && 'settle',
+              // NO PAGE ENTRANCE. This carried `settle`, which rose the page's blocks
+              // into place on every navigation; a marketplace page is read, not
+              // presented, and it simply appears (eBay, 2026-11-23).
               fill ? 'max-w-none' : 'max-w-workspace',
               // `my-auto` rather than `flex-1` so a centred interstitial keeps
               // its natural height instead of stretching to fill the section.

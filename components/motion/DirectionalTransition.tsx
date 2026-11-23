@@ -6,9 +6,8 @@ import type { ReactNode } from 'react';
  * This used to be a `<ViewTransition>` that slid the whole page 60px sideways
  * and cross-faded it on every forward/back navigation (~150ms exit + 240–400ms
  * move). That made the app feel animated rather than fast: SaaS navigation is
- * an instant swap. The listing-cover morph (`listing-image-*`) is the one
- * navigation motion kept, because it carries information — the card you
- * clicked becomes the page.
+ * an instant swap. The listing-cover morph (`listing-image-*`) outlived it until
+ * 2026-11-23 and is gone too, so no navigation in the app animates.
  *
  * Kept as a component so the call sites in `MarketplaceShell` stay put, and so
  * a transition can be reintroduced in one place if it is ever wanted.

@@ -177,7 +177,7 @@ function MediaTile({
         alt="Dispute evidence"
         fill
         unoptimized
-        className="object-cover transition-transform group-hover:scale-105"
+        className="object-cover"
       />
     </button>
   );

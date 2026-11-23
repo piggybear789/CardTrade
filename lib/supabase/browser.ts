@@ -1,5 +1,6 @@
 import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 /**
  * Supabase client for use in **Client Components** (browser).
@@ -19,6 +20,6 @@ export function createClient() {
   }
 
   return createBrowserClient<Database>(url, anonKey, {
-    db: { schema: 'cardtrade' },
+    db: { schema: DB_SCHEMA },
   });
 }

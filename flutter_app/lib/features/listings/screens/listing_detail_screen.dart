@@ -211,7 +211,7 @@ class _DetailView extends ConsumerWidget {
                     const ListingNotice(
                       icon: Icons.collections_bookmark_outlined,
                       message:
-                          'This is a binder or bulk listing. Browse it and ask '
+                          'This listing has multiple items. Browse it and ask '
                           'the seller for the cards you want — nothing is held '
                           'until you and the seller agree terms.',
                     ),
@@ -345,7 +345,7 @@ class _ConditionAndCategory extends ConsumerWidget {
     final int watchCount = ref.watch(watchCountProvider(item.id)).value ?? 0;
     final List<String> meta = <String>[
       item.category,
-      item.isShopfront ? 'Binder or bulk listing' : 'Single item',
+      item.isShopfront ? 'Multiple items' : 'Single item',
       if (watchCount > 0) watchCount == 1 ? '1 save' : '$watchCount saves',
     ];
 

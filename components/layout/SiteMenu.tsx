@@ -151,7 +151,8 @@ export function SiteMenu({
         // beside the avatar it was cut to "Alice Nguy…" at most widths and took
         // its room from the search. The panel this opens states the account in
         // full on its first row, which is where the answer to "which account am
-        // I in?" belongs. 40px tall, matching the icon targets beside it.
+        // I in?" belongs. 40px tall and round, matching the icon targets beside it:
+        // the avatar with a small ink caret, Etsy's account control.
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -160,7 +161,7 @@ export function SiteMenu({
           aria-label={`${displayName ?? 'Your account'}, account menu`}
           title={displayName ?? undefined}
           className={cn(
-            'flex h-10 shrink-0 touch-manipulation items-center gap-tight rounded-md border border-transparent pl-tight pr-snug text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:border-ring',
+            'ml-tight flex h-10 shrink-0 touch-manipulation items-center gap-0.5 rounded-full border border-transparent pl-1 pr-1.5 text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:border-ring',
             open && 'bg-accent',
           )}
         >
@@ -172,9 +173,10 @@ export function SiteMenu({
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             className={cn(
-              'size-4 shrink-0 text-muted-foreground transition-transform motion-reduce:transition-none',
+              'size-3.5 shrink-0 transition-transform motion-reduce:transition-none',
               open && 'rotate-180',
             )}
+            strokeWidth={2}
             aria-hidden
           />
         </button>
@@ -198,7 +200,7 @@ export function SiteMenu({
       {open ? (
         <div
           id="site-menu-panel"
-          className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-auction animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150 motion-reduce:animate-none"
+          className="absolute right-0 top-12 z-50 max-h-[calc(100dvh-5rem)] w-[min(18rem,calc(100vw-2rem))] origin-top-right overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1.5 text-popover-foreground shadow-auction"
         >
           <nav aria-label="Menu" className="grid gap-0.5">
             {!isAuthenticated ? (

@@ -236,7 +236,7 @@ class _BinderMarker extends StatelessWidget {
               size: AppIconSize.micro,
               color: AppColors.mist,
             ),
-            Text('Binder', style: markerStyle),
+            Text('Multiple items', style: markerStyle),
           ],
         ),
       ),

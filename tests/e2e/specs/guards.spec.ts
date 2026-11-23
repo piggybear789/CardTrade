@@ -25,7 +25,7 @@ import { ALICE, BOB } from '../support/users';
 import { marked, markedEmail } from '../support/marker';
 import { COLD_ROUTE, RENDERED } from '../support/waiting';
 import { ensureFreshSessions, isSignedInDestination } from '../support/auth';
-import { profileIdByEmail } from '../support/db';
+import { e2eSchema, profileIdByEmail } from '../support/db';
 
 // Repair any stored cookie jar this file relies on before its first test.
 test.beforeAll(async ({ browser }) => {
@@ -74,7 +74,7 @@ async function patchProfile(
         apikey: serviceKey,
         Authorization: `Bearer ${serviceKey}`,
         'Content-Type': 'application/json',
-        'Content-Profile': 'cardtrade',
+        'Content-Profile': e2eSchema(),
         Prefer: 'return=representation',
       },
       body: JSON.stringify(patch),
@@ -204,7 +204,7 @@ test.describe('Region guard', () => {
     await page.waitForLoadState('domcontentloaded');
 
     await expect(
-      page.getByRole('heading', { name: /Jordan/ }),
+      page.getByRole('heading', { name: /Shivan Dragon/ }),
     ).toBeVisible({ timeout: COLD_ROUTE });
 
     // The listing page renders its action column twice — once in the `lg:hidden`
@@ -300,13 +300,14 @@ test.describe('Identity gate', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: RENDERED });
 
-    // It opens the checkout, with no card required yet (the buyer chooses how to pay
-    // at Pay, 0158), rather than refusing with an identity gate message.
+    // It opens the checkout rather than refusing with an identity gate message. With
+    // no card on file the way forward is adding one: reserving needs a card.
     await expect(
       dialog.getByRole('heading', { name: 'Start a purchase contract' }),
     ).toBeVisible({ timeout: 20_000 });
-    await expect(dialog.getByText('No card needed yet')).toBeVisible();
-    await expect(dialog.getByRole('button', { name: 'Reserve item and agree terms' })).toBeEnabled();
+    await expect(dialog.getByText('Add a card to reserve')).toBeVisible();
+    await expect(dialog.getByRole('button', { name: 'Add a card to continue' })).toBeEnabled();
+    await expect(dialog.getByRole('button', { name: 'Reserve item and agree terms' })).toHaveCount(0);
 
     // Confirm there is NO identity gate refusal anywhere in the dialog.
     await expect(dialog.getByText(/Verify your identity/)).toHaveCount(0);

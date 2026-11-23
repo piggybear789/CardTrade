@@ -99,10 +99,10 @@ describe('private-deal cash sale — opening the room', () => {
     expect(fake.state.sale).toBeNull();
   });
 
-  it('lets Buy Now open without a card too, and asks for one only at Pay', async () => {
-    // Buy Now used to ask for a card up front, which shut out a buyer paying from their
-    // bank (0158). It now opens like a private deal: nothing is collected, and a card
-    // payment with no card is refused at Pay with the sale untouched.
+  it('asks for a card before Buy Now reserves, unlike a private deal', async () => {
+    // Reversed on 2026-11-23 (product decision, see `initiateCashSale`): a card-free
+    // Buy Now let anyone take a SINGLE listing out of the catalog at no cost to
+    // themselves. Private deals still open without one and take the card at Pay.
     const { deps, state, calls } = makeWorld({ buyerHasCard: false });
 
     const bought = await initiateCashSale(deps, {
@@ -112,8 +112,9 @@ describe('private-deal cash sale — opening the room', () => {
       buyerConfirmedSellerIdentity: true,
     });
 
-    expect(bought.ok).toBe(true);
-    expect(state.item.status).toBe('RESERVED');
+    expect(bought.ok).toBe(false);
+    if (!bought.ok) expect(bought.error).toBe('BUYER_NO_PAYMENT_METHOD');
+    expect(state.item.status).toBe('AVAILABLE');
     expect(calls.transfers).toHaveLength(0);
   });
 });

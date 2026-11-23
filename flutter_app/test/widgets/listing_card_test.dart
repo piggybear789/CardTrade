@@ -312,14 +312,14 @@ void main() {
       );
     });
 
-    testWidgets('a binder is marked Binder, states no condition, and says '
+    testWidgets('a multiple-item listing is marked Multiple items, states no condition, and says '
         'nothing is held', (tester) async {
       await pumpTile(
         tester,
         makeSummary(listingKind: ListingKind.shopfront, condition: 'Near Mint'),
       );
 
-      expect(find.text('Binder'), findsOneWidget);
+      expect(find.text('Multiple items'), findsOneWidget);
       // Never the internal name for the listing kind (Req 5.8).
       expect(find.textContaining('hopfront'), findsNothing);
       // Mixed stock states no single condition.
@@ -327,7 +327,7 @@ void main() {
       expect(find.textContaining('From'), findsOneWidget);
 
       final String label = tileLabel(tester);
-      expect(label, contains('Binder or bulk listing'));
+      expect(label, contains('Multiple items'));
       expect(label, contains('Nothing is held'));
     });
   });

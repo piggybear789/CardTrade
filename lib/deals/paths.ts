@@ -18,6 +18,17 @@ export function dealInvitePath(token: string): string {
   return `/t/${token}`;
 }
 
+/** Set on the composer's URL to open an existing deal of the host's. */
+export const DEAL_LINK_PARAM = 'link';
+
+/**
+ * The host's own page for a deal: the composer, filled in, with the link to share
+ * above the preview. Get link lands here, and `/t/[token]` sends the host here.
+ */
+export function dealHostPath(token: string): string {
+  return `${DEAL_OPEN_PATH}?${DEAL_LINK_PARAM}=${encodeURIComponent(token)}`;
+}
+
 /**
  * Whether a destination finishes a brand-new account's onboarding itself, with two
  * questions: the name others see, and where they trade.

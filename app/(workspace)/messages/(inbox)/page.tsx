@@ -58,13 +58,17 @@ export default async function MessagesPage() {
           <SectionLoadError label="conversations" />
         </div>
       ) : conversations.length === 0 ? (
-        <EmptyState
-          icon={<HugeiconsIcon icon={MessageSquareIcon} className="size-6" aria-hidden="true" />}
-          title="No conversations yet"
-          description="Messages with buyers and sellers appear here. Ask a seller about any listing to start one."
-          action={{ label: 'Browse marketplace', href: '/' }}
-          compact
-        />
+        // `fill`, as the other inboxes (Activity, Saved, Sales) draw theirs: this one was
+        // the only empty list on a phone drawn as a left-aligned block at the top.
+        <div className="flex min-h-0 w-full flex-1 flex-col">
+          <EmptyState
+            icon={<HugeiconsIcon icon={MessageSquareIcon} className="size-6" aria-hidden="true" />}
+            title="No conversations yet"
+            description="Messages with buyers and sellers appear here. Ask a seller about any listing to start one."
+            action={{ label: 'Browse the marketplace', href: '/', variant: 'outline' }}
+            fill
+          />
+        </div>
       ) : (
         <InboxThreadList conversations={conversations} />
       )}

@@ -253,7 +253,9 @@ export function MessageComposer({
         compact ? 'border-t p-cozy' : 'border-t py-group',
         'max-md:border-border',
         compact
-          ? 'max-md:pb-0 max-md:pl-[env(safe-area-inset-left)] max-md:pr-[env(safe-area-inset-right)]'
+          ? // At least the `p-cozy` inset on a phone: with the safe-area inset alone (0 on
+            // most phones) the attach and send buttons sat flush against the screen edges.
+            'max-md:pb-0 max-md:pl-[max(0.75rem,env(safe-area-inset-left))] max-md:pr-[max(0.75rem,env(safe-area-inset-right))]'
           : MESSAGE_GUTTER,
       )}
     >

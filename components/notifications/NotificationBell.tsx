@@ -24,6 +24,11 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { BellIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
+import {
+  HEADER_ICON_BUTTON,
+  HEADER_ICON_GLYPH,
+  HEADER_ICON_STROKE,
+} from '@/components/layout/HeaderControls';
 import { HeaderTooltip } from '@/components/layout/HeaderTooltip';
 import {
   NotificationRowBody,
@@ -130,10 +135,20 @@ export function NotificationBell({
               ? `Notifications, ${unreadCount} unread`
               : 'Notifications'
           }
-          className="relative inline-flex size-10 touch-manipulation items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground border border-transparent focus:outline-none focus-visible:border-ring data-[state=open]:bg-accent data-[state=open]:text-foreground"
+          className={HEADER_ICON_BUTTON}
         >
-          <HugeiconsIcon icon={BellIcon} className="size-5" aria-hidden />
-          <CountBadge count={unreadCount} className="absolute -right-0.5 -top-0.5" />
+          <HugeiconsIcon
+            icon={BellIcon}
+            className={HEADER_ICON_GLYPH}
+            strokeWidth={HEADER_ICON_STROKE}
+            aria-hidden
+          />
+          {/* On the bell's shoulder, inside the round target, with a page-coloured
+              ring so it reads as sitting on the icon rather than beside it. */}
+          <CountBadge
+            count={unreadCount}
+            className="absolute right-0.5 top-0.5 ring-2 ring-background"
+          />
         </PopoverTrigger>
       </HeaderTooltip>
 

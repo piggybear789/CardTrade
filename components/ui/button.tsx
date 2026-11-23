@@ -53,7 +53,7 @@ import { cn } from "@/lib/utils";
 //     alpha edge they rest at.
 //   - FILLED variants keep their edge and draw a 2px inset ring in their own LABEL
 //     colour. The label colour is by construction the one that contrasts with the
-//     fill (white on violet 5.3:1, brown on amber 8.9:1), so the indicator holds on
+//     fill (white on ink 17:1, white on red 6:1), so the indicator holds on
 //     every fill without a per-surface tweak.
 //
 // A button matches `:focus-visible` from the keyboard only, so the frame never
@@ -67,7 +67,7 @@ import { cn } from "@/lib/utils";
 //
 // A FILLED variant keeps its own fill at half strength. It is the action a form or
 // dialog is working towards, and greyed out it read as one more outline button, so the
-// main action vanished until it was ready. Half-strength violet still says which
+// main action vanished until it was ready. A half-strength fill still says which
 // control it will be, and holds its shape on a tinted surface because the fill is
 // its own colour, not a surface token.
 //
@@ -104,9 +104,9 @@ const buttonVariants = cva(
       variant: {
         default: `border border-primary bg-primary text-primary-foreground ${FILLED_DEPTH} hover:bg-primary/90 active:bg-primary/80 focus-visible:ring-2 focus-visible:ring-primary-foreground ${FILLED_DISABLED}`,
         // Obsidian, for a committing control that sits beside a destructive
-        // one. Purple and red are two saturated hues arguing at the same
-        // weight; black reads as "the thing to do" and lets the red mean
-        // danger on its own.
+        // one: black reads as "the thing to do" and lets the red mean danger on
+        // its own. Since the primary became ink this is a shade darker than
+        // `default` and nothing more; kept so call sites still say what they mean.
         contrast: `border border-obsidian bg-obsidian text-white ${FILLED_DEPTH} hover:bg-obsidian/90 active:bg-obsidian/80 focus-visible:ring-2 focus-visible:ring-white ${FILLED_DISABLED}`,
         // ONE FILLED CTA COLOUR. `action` was a pastel amber fill; under the
         // monochrome palette it renders exactly as `default` (ink), so the buy

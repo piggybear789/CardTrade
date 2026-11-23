@@ -105,7 +105,8 @@ export function CatalogResults() {
                   `items-center`, because the two are different sizes and centring them
                   leaves the count floating above the title's baseline. */}
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-cozy gap-y-0.5">
-                <h2 className="text-balance text-subhead font-medium tracking-[-0.02em] md:text-head">
+                {/* Same register as `SectionHeader`: 28px bold from `md`. */}
+                <h2 className="text-balance text-head font-bold tracking-[-0.025em] md:text-display">
                   {resultTitle}
                 </h2>
                 <CatalogResultCount />

@@ -108,13 +108,12 @@ export function ChoiceTile({
       />
       {/* VIOLET GLYPH, NEUTRAL TILE. The tiles are the way forward on their step, and
           with a grey glyph they read exactly like the neutral Cancel beside them. The
-          glyph carries the brand colour (5.3:1 on white) so the paths read as paths;
-          the edge and fill stay neutral, because a violet edge or wash is the
-          selected state. */}
+          glyph carries the brand colour (`--iris-ink`, not `--primary`, which is ink)
+          so the paths read as paths; the edge and fill stay neutral. */}
       {Icon ? (
         <HugeiconsIcon
           icon={Icon}
-          className={cn(stacked ? 'size-6' : 'size-4', 'shrink-0 text-primary')}
+          className={cn(stacked ? 'size-6' : 'size-4', 'shrink-0 text-iris-ink')}
           aria-hidden
         />
       ) : null}

@@ -216,7 +216,9 @@ export default async function TrustedSellerApplyPage({
                   <Link href="/trusted-sellers/apply?edit=1">Edit application</Link>
                 </Button>
               ) : null}
-              <Button asChild variant="ghost">
+              {/* Outline, not ghost: on its own (an approved review has no Edit) a ghost
+                  button's padding read as the text being indented from the card edge. */}
+              <Button asChild variant="outline">
                 <Link href="/references">See References</Link>
               </Button>
             </div>

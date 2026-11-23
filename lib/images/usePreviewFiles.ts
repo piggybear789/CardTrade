@@ -43,6 +43,8 @@ export interface PreviewFiles {
   add: (picked: File[]) => void;
   /** Remove one entry and revoke its URL. */
   remove: (key: string) => void;
+  /** Move the entry at `from` to `to`, for reordering photos. */
+  move: (from: number, to: number) => void;
   /** Remove every entry and revoke every URL — a form resetting after submit. */
   clear: () => void;
 }
@@ -85,6 +87,17 @@ export function usePreviewFiles(max?: number): PreviewFiles {
     setItems((prev) => prev.filter((item) => item.key !== key));
   }, []);
 
+  const move = useCallback((from: number, to: number) => {
+    setItems((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
   const clear = useCallback(() => {
     for (const item of latest.current) URL.revokeObjectURL(item.url);
     setItems([]);
@@ -103,6 +116,7 @@ export function usePreviewFiles(max?: number): PreviewFiles {
     files: items.map((item) => item.file),
     add,
     remove,
+    move,
     clear,
   };
 }

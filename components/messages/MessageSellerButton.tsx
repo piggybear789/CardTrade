@@ -180,10 +180,13 @@ export function MessageSellerButton({
   if (variant === 'inline') {
     return (
       <div className="space-y-snug">
-        {/* `bg-card`, NOT `bg-muted`: nothing here is selected, active or grouped in a
-            way a tinted panel would signal. The border still separates the panel; on a
-            white page that is the only thing that needs to. */}
-        <div className="rounded-lg border bg-card p-cozy">
+        {/* A TINTED PANEL with a white field inside it, as Airtasker's composer and
+            Dribbble's checkout panel do. On `bg-card` the panel was white on a white
+            page with a hairline edge, so it read as empty space and the field inside
+            it had nothing to stand against. The tint sets the composer apart from the
+            listing details; the field keeps `bg-card` (from `Input`), so it is the
+            brightest thing in the panel and reads as the place to type. */}
+        <div className="rounded-lg border bg-muted p-cozy">
           {/* UNIQUE PER INSTANCE, and the listing page mounts two of these — one
               in the `lg:hidden` phone stack, one in the desktop pane. Both used
               a hardcoded `message-seller-input`, so the document carried the id

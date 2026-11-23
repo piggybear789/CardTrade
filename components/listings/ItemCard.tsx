@@ -1,16 +1,18 @@
 import type { CSSProperties } from 'react';
-import { memo, ViewTransition } from 'react';
+import { memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { HeartIcon, LibraryIcon, StarIcon } from '@hugeicons/core-free-icons';
 import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
+import { NewListingPill } from '@/components/listings/NewListingPill';
+import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 
 import { Card } from '@/components/ui/card';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { Avatar } from '@/components/ui/avatar';
-import { formatMoney, itemImageUrl } from '@/lib/format';
-import { listedPriceCents, splitMoney } from '@/lib/listings/buyerPrice';
+import { itemImageUrl } from '@/lib/format';
+import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
 import { cn } from '@/lib/utils';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
 import { tileIntrinsicHeight } from '@/components/listings/catalogGrid';
@@ -58,6 +60,14 @@ export interface ItemCardProps {
    * to a guess.
    */
   eager?: boolean;
+  /**
+   * The cover as a ready URL, in place of `item.image_paths[0]`. For the listing
+   * editor's live preview, whose photos are local files not yet uploaded (object
+   * URLs the image optimizer cannot fetch), so it is drawn as a plain `<img>`.
+   */
+  coverSrc?: string | null;
+  /** Shown in place of the price while the editor's price field is empty. */
+  pricePlaceholder?: string;
 }
 
 /** Human-readable label for a non-AVAILABLE item, shown as an overlay badge. */
@@ -75,14 +85,11 @@ const COVER_SIZES = '(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw';
 /**
  * The tile's price: the same figure the listing page leads with, so opening a card
  * never shows a different number from the one that was clicked. Fee-inclusive for a
- * single listing, the indicative "from" price for a binder — see `listedPriceCents`.
+ * single listing, the indicative "from" price for a binder, rounded to the whole unit —
+ * see `listedPriceText`.
  */
 function tilePrice(item: CatalogItem): string {
-  const isShopfront = item.listing_kind === 'SHOPFRONT';
-  return formatMoney(
-    listedPriceCents(item.fmv_cents, item.currency, isShopfront),
-    item.currency,
-  );
+  return listedPriceText(item.fmv_cents, item.currency, item.listing_kind === 'SHOPFRONT');
 }
 
 function unavailableLabelFor(item: CatalogItem): string | undefined {
@@ -109,11 +116,14 @@ export const CatalogItemCard = memo(function CatalogItemCard({
   initialWatching,
   coverDim,
   eager = false,
+  coverSrc,
+  pricePlaceholder,
 }: ItemCardProps) {
   const unavailableLabel = unavailableLabelFor(item);
   const isShopfront = item.listing_kind === 'SHOPFRONT';
   const showWatch = initialWatching !== undefined;
-  const imageUrl = itemImageUrl(item.image_paths?.[0] ?? null);
+  const imageUrl =
+    coverSrc !== undefined ? coverSrc : itemImageUrl(item.image_paths?.[0] ?? null);
   // `undefined` means "not in a mosaic" and leaves every class untouched; see
   // the prop doc. `null` is an opted-in tile with an unknown photo.
   const inMosaic = coverDim !== undefined;
@@ -129,24 +139,19 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         // the page grow — and the scrollbar jump — each time a row came into range.
         // The mosaic replaces this per tile below md (`.catalog-tile`).
         //
-        // `surface lift` (globals.css): the card and the page are both white, so the
-        // hairline shadow edge is what separates them, and on hover the tile rises 2px
-        // under a stronger bloom, the References tile behaviour.
-        'surface lift group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-card p-0 [content-visibility:auto] [contain-intrinsic-size:auto_26rem]',
+        // `surface` (globals.css): the card and the page are both white, so the
+        // hairline shadow edge is what separates them.
+        //
+        // NO MOTION ON THE TILE (2026-11-23). It rose 2px under a stronger shadow on
+        // hover and shrank to 97% on press. A marketplace grid is scanned, not played
+        // with, and eBay's tiles do neither: the hover is the title underlining, below.
+        'surface group relative flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-card p-0 [content-visibility:auto] [contain-intrinsic-size:auto_26rem]',
         // `cursor-pointer` ON THE CARD, not left to the anchor. The hit area is
         // `absolute inset-0 z-0` and the cover paints above it without
         // `pointer-events-none`, so hovering the photo — most of the tile —
         // never reached the link and showed the default arrow. Setting it here
         // covers every child regardless of which one is under the pointer.
-        // The LIFT is the hover, not a colour change: a violet edge under the pointer
-        // would make the accent the most frequent thing in the product. `.lift`
-        // moves with `translate`, so the press scale below still composes with it.
-        'cursor-pointer active:scale-[0.97]',
-        // …but not when the press is on the heart. `:active` matches every
-        // ANCESTOR of the pressed element, so tapping save pressed the whole tile
-        // in, which is the open-this-listing feedback for a tap that opens
-        // nothing. The heart is the only `<button>` in the tile.
-        'has-[button:active]:scale-100',
+        'cursor-pointer',
         inMosaic && 'catalog-tile',
         unavailableLabel && 'opacity-70',
       )}
@@ -192,26 +197,30 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           inMosaic ? 'catalog-cover' : 'aspect-square',
         )}
       >
-        {imageUrl ? (
-          <ViewTransition
-            name={`listing-image-${item.id}`}
-            share="morph"
-            default="none"
-          >
-            <div className="absolute inset-0">
-              <Image
-                src={imageUrl}
-                alt={item.title}
-                fill
-                sizes={COVER_SIZES}
-                // Anchored to the TOP: a slab's grade label is at the top of the photo,
-                // and a centred crop of anything taller than 3:4 cut it off.
-                className={cn('object-cover object-top', unavailableLabel && 'grayscale-[35%]')}
-                loading={eager ? 'eager' : 'lazy'}
-                fetchPriority={eager ? 'high' : undefined}
-              />
-            </div>
-          </ViewTransition>
+        {imageUrl && coverSrc !== undefined ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt={item.title}
+            className="absolute inset-0 size-full object-cover object-top"
+          />
+        ) : imageUrl ? (
+          // NO MORPH INTO THE LISTING PAGE. This was a `<ViewTransition>` that flew the
+          // cover from the tile into the page's gallery on every open; the page now
+          // simply replaces the catalog, as it does on eBay.
+          <div className="absolute inset-0">
+            <Image
+              src={imageUrl}
+              alt={item.title}
+              fill
+              sizes={COVER_SIZES}
+              // Anchored to the TOP: a slab's grade label is at the top of the photo,
+              // and a centred crop of anything taller than 3:4 cut it off.
+              className={cn('object-cover object-top', unavailableLabel && 'grayscale-[35%]')}
+              loading={eager ? 'eager' : 'lazy'}
+              fetchPriority={eager ? 'high' : undefined}
+            />
+          </div>
         ) : (
           // ONE EMPTY-PHOTO TREATMENT AT EVERY WIDTH. Desktop used to branch to
           // a bare `ImageOff` — the universal "this image failed to load" glyph
@@ -230,14 +239,19 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             </span>
           </span>
         ) : null}
-        {isShopfront ? (
-          <span className="absolute left-1.5 top-1.5 z-[1] inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-mist">
-            <HugeiconsIcon icon={LibraryIcon} className="size-3" aria-hidden />
-            {/* Short on the photo, which it shares with the heart; the full name for
-                assistive tech. */}
-            Binder or bulk<span className="sr-only"> listing</span>
-          </span>
-        ) : null}
+        {/* THE TOP-LEFT STACK: what kind of listing, then how fresh. One column so
+            the two never overlap and the heart keeps the top-right corner. */}
+        <div className="absolute left-1.5 top-1.5 z-[1] flex flex-col items-start gap-1">
+          {isShopfront ? (
+            <span className="inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-mist">
+              <HugeiconsIcon icon={LibraryIcon} className="size-3" aria-hidden />
+              Multiple items
+            </span>
+          ) : null}
+          {/* Not on a sold or reserved tile: "New" there would advertise something
+              nobody can buy. */}
+          <NewListingPill listedAt={unavailableLabel ? null : item.created_at} />
+        </div>
         {showWatch || item.watch_count > 0 ? (
           // ONE CHIP AT EVERY WIDTH: 32px around an 18px heart. From `md` it was
           // 40px around 16px, and since the heart only spans 20 of its 24 viewBox
@@ -296,7 +310,8 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         {/* `min-h-[2lh]`: always TWO lines tall. A one-line title made its tile 22px
             shorter than the next, so a grid row's height (and the mosaic column's)
             depended on how long sellers' titles happened to be. */}
-        <h3 className="line-clamp-2 min-h-[2lh] text-body font-medium text-foreground">
+        {/* The tile's hover: the title underlines, on a pointer that can hover. */}
+        <h3 className="line-clamp-2 min-h-[2lh] text-body font-medium text-foreground underline-offset-2 [@media(hover:hover)]:group-hover:underline">
           {item.title}
         </h3>
         {/* THE GAME ONLY. Condition used to follow it behind a hairline — the
@@ -313,18 +328,15 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             
             The filter-confirmation argument is real but belongs to a surface with
             room — the listing page states condition in full. */}
-        {/* GAME · CONDITION. Condition came back because the cover alone does not
-            say it: a raw card's wear is invisible at tile size, and filtering to Near
-            Mint showed nothing that confirmed it. A graded card's grade stays in its
-            title, where sellers already write it. */}
+        {/* THE GAME ONLY, again (2026-11-23, product decision). Condition and grade
+            are off the tile: a graded card's grade is already in its title, and the
+            listing page states condition in full. */}
         <p className="min-w-0 truncate text-body leading-tight text-muted-foreground">
           {item.category}
-          {item.condition && !isShopfront ? ` · ${item.condition}` : null}
         </p>
-        {/* THE PRICE, AND WHAT IT INCLUDES. A single listing's figure is what the
-            buyer pays — the asking price plus the buyer fee — so it says so in a word;
-            a binder's "from" price is the seller's own and carries no note. */}
-        <div className="flex min-w-0 items-center justify-between gap-snug">
+        {/* THE PRICE. No "incl. fees" note on the tile (2026-11-23, product
+            decision); the listing page states the fee. */}
+        <div className="flex min-w-0 items-center gap-snug">
           {/* INK, NOT VIOLET, and this is the change the pastel retune specified and
               never delivered here.
 
@@ -336,38 +348,35 @@ export const CatalogItemCard = memo(function CatalogItemCard({
               board and the app disagreed about the single most repeated element in the
               product.
 
-              The symbol and the cents stay muted: the dollars are what decides a
-              purchase, and the rest is scaffolding around them. */}
-          <p className="shrink-0 font-display font-bold leading-none text-foreground">
+              THE PRICE IS THE LOUDEST THING ON THE TILE. It was 16px dollars beside
+              a 14px muted symbol, smaller than the title above it. Every
+              collectibles marketplace measured (Alt, Fanatics Collect, StockX,
+              TCGplayer) sets the figure at 20-24px bold in full ink, symbol and all,
+              because it is what a buyer scans a grid for. So the symbol and dollars
+              are one run at `text-subhead` (17px) on a phone tile and `text-head`
+              (21px) from `md`; only the cents and the currency code recede.
+              `CatalogTileSkeleton` reserves the same line. */}
+          {pricePlaceholder ? (
+            <p className="shrink-0 font-display text-subhead font-bold leading-none text-muted-foreground/60 md:text-head">
+              {pricePlaceholder}
+            </p>
+          ) : (
+          <p className="shrink-0 font-display font-bold leading-none tracking-[-0.01em] text-foreground">
             {isShopfront ? (
               <span className="text-meta font-semibold text-muted-foreground">From </span>
             ) : null}
-            {/* Three sizes: symbol smallest, digits largest, cents between.
-                Only the digits decide the purchase. */}
-            <span className="text-body font-semibold text-muted-foreground">
+            <span className="text-subhead md:text-head">
               {price.symbol}
+              {price.major}
             </span>
-            <span className="text-lead">{price.major}</span>
-            {/* WHOLE DOLLARS STAY WHOLE. ".00" on every tile was two muted digits of
-                noise in a grid of prices; real cents still show. */}
-            {price.minor && /[1-9]/.test(price.minor) ? (
-              <span className="text-body font-semibold text-muted-foreground">
-                {price.minor}
-              </span>
-            ) : null}
+            {/* No cents: browse prices are rounded to the whole unit (`listedPriceText`). */}
             {price.code ? (
               <span className="text-meta font-semibold text-muted-foreground">
                 {price.code}
               </span>
             ) : null}
           </p>
-          {!isShopfront ? (
-            // From `sm` only: a two-column phone tile has ~150px for this row and a
-            // six-figure price takes most of it. The listing page states the fee.
-            <span className="hidden shrink-0 text-meta text-muted-foreground sm:inline">
-              incl. fees
-            </span>
-          ) : null}
+          )}
         </div>
         {item.seller ? (
           <Link
@@ -394,8 +403,20 @@ export const CatalogItemCard = memo(function CatalogItemCard({
                 Within the type scale's rules: `meta` is the CHROME register and a
                 grid cell's supporting metadata is exactly that. It is floored at
                 12px precisely so this kind of reach-for-smaller stops here. */}
-            <span className="min-w-0 flex-1 truncate text-meta text-muted-foreground">
-              {item.seller.displayName ?? 'Seller'}
+            {/* The name truncates and the seal does not: `min-w-0` on the name, the
+                seal after it as its own flex item, so a long name cannot push the mark
+                out. Icon-only because this row has about 125px; the label is the
+                badge's accessible name. Renders nothing for most sellers. */}
+            <span className="flex min-w-0 flex-1 items-center gap-1">
+              <span className="min-w-0 truncate text-meta text-muted-foreground">
+                {item.seller.displayName ?? 'Seller'}
+              </span>
+              <TrustedSellerBadge
+                trusted={item.seller.isTrustedSeller}
+                iconOnly
+                size={12}
+                className="shrink-0"
+              />
             </span>
             <SellerReputation seller={item.seller} />
           </Link>

@@ -27,6 +27,7 @@ import { BellOffIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-f
 import { toast } from 'sonner';
 
 import { navigateWithType } from '@/lib/motion/navigate';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import {
@@ -115,8 +116,9 @@ export function NotificationsToolbar() {
   return (
     <div className="flex items-center gap-cozy">
       {/* THE COUNT IS STATED, not left to be inferred from the disabled button: it is
-          the one figure a member opens this page for. */}
-      <p className="whitespace-nowrap text-body text-muted-foreground" aria-live="polite">
+          the one figure a member opens this page for. From `sm` only: on a phone it
+          crowded the title, and the "Unread" chip under the header states it there. */}
+      <p className="hidden whitespace-nowrap text-body text-muted-foreground sm:block" aria-live="polite">
         {unreadCount === 0 ? 'All caught up' : `${unreadCount} unread`}
       </p>
       <Button
@@ -152,7 +154,7 @@ export function NotificationCenter({
 
   const { notifications, markReadLocal } = useNotificationsState();
 
-  const [typeFilter, setTypeFilter] = useState<NotificationRow['type'] | 'ALL'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<NotificationRow['type'] | 'ALL' | 'UNREAD'>('ALL');
 
   /** Open a row (or a collapsed run): every notification in it is read by opening it. */
   function handleSelect(head: NotificationRow, rest: NotificationRow[] = []) {
@@ -176,7 +178,7 @@ export function NotificationCenter({
       <EmptyState
         icon={<HugeiconsIcon icon={BellOffIcon} className="size-6" aria-hidden />}
         title="No notifications yet"
-        description="Offers, messages, trades, and sales updates will show up here."
+        description="Updates on your offers, sales and trades will show up here. Messages are in your inbox."
         fill
       />
     );
@@ -186,32 +188,67 @@ export function NotificationCenter({
   // do not record which side of a deal the member was on, so the honest split is the
   // kind of thing that happened.
   const kinds = Array.from(new Set(notifications.map((row) => row.type)));
-  const visible = typeFilter === 'ALL' ? notifications : notifications.filter((row) => row.type === typeFilter);
+  const unreadTotal = notifications.filter((row) => row.read_at === null).length;
+  const matches = (row: NotificationRow, filter: typeof typeFilter) =>
+    filter === 'ALL' ? true : filter === 'UNREAD' ? row.read_at === null : row.type === filter;
+  // "Unread" is offered while there is something unread, plus while it is the
+  // selection, so reading the last row does not pull the chip out from under the tap.
+  const filters: (typeof typeFilter)[] = [
+    'ALL',
+    ...(unreadTotal > 0 || typeFilter === 'UNREAD' ? (['UNREAD'] as const) : []),
+    ...(kinds.length > 1 ? kinds : []),
+  ];
+  const visible = notifications.filter((row) => matches(row, typeFilter));
   const groups = groupNotificationsByAge(visible, now);
 
   return (
     <div className="space-y-group">
-      {kinds.length > 1 ? (
-        <div className="flex flex-wrap gap-snug" role="group" aria-label="Show notifications">
-          {(['ALL', ...kinds] as const).map((kind) => {
+      {filters.length > 1 ? (
+        // ONE ROW THAT SCROLLS, not a wrapping block (2026-11-23). Five outlined
+        // buttons wrapped onto two lines on a phone and pushed the list down. Slack,
+        // Fresha and LinkedIn all use one sideways row of round chips, the selected one
+        // filled. `-mx-4 px-4` (the shell's phone inset) lets the row run to the screen edge on a phone so
+        // a cut-off chip reads as "more this way".
+        <div
+          className="-mx-4 flex gap-snug overflow-x-auto px-4 [-ms-overflow-style:none] sm:-mx-6 sm:px-6 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0 [&::-webkit-scrollbar]:hidden"
+          role="group"
+          aria-label="Show notifications"
+        >
+          {filters.map((kind) => {
             const selected = typeFilter === kind;
-            const count = kind === 'ALL' ? notifications.length : notifications.filter((row) => row.type === kind).length;
+            const count =
+              kind === 'ALL'
+                ? notifications.length
+                : notifications.filter((row) => matches(row, kind)).length;
+            const label =
+              kind === 'ALL' ? 'All' : kind === 'UNREAD' ? 'Unread' : NOTIFICATION_TYPE_META[kind].plural;
             return (
-              <Button
+              <button
                 key={kind}
                 type="button"
-                size="sm"
-                variant="outline"
                 aria-pressed={selected}
-                className="aria-[pressed=true]:border-foreground aria-[pressed=true]:bg-accent aria-[pressed=true]:text-accent-foreground"
                 onClick={() => setTypeFilter(kind)}
+                className={cn(
+                  'inline-flex h-9 shrink-0 touch-manipulation items-center gap-tight rounded-full border px-cozy text-body font-medium transition-colors',
+                  'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
+                  selected
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-input bg-card text-foreground hover:bg-muted',
+                )}
               >
-                {kind === 'ALL' ? 'All' : `${NOTIFICATION_TYPE_META[kind].label}s`}
-                <span className="tabular-nums text-muted-foreground">{count}</span>
-              </Button>
+                {label}
+                <span className={cn('tabular-nums', selected ? 'text-background/70' : 'text-muted-foreground')}>
+                  {count}
+                </span>
+              </button>
             );
           })}
         </div>
+      ) : null}
+      {visible.length === 0 ? (
+        <p className="px-tight py-section text-center text-body text-muted-foreground">
+          Nothing unread. You&apos;re all caught up.
+        </p>
       ) : null}
       {groups.map((group) => (
         <section key={group.key} aria-labelledby={`notifications-${group.key}`}>
@@ -226,7 +263,10 @@ export function NotificationCenter({
           >
             {group.label}
           </h2>
-          <ul role="list" className="divide-y rounded-lg border">
+          {/* FLAT ON A PHONE, a bordered list from `md`. A box around every run, on a
+              screen this narrow, spent 32px of width on borders and margins and made
+              each age group read as a separate card. */}
+          <ul role="list" className="-mx-4 divide-y border-y sm:-mx-6 md:mx-0 md:rounded-lg md:border">
             {collapseRuns(group.rows).map(({ head, rest }) => {
               const unread = [head, ...rest].some((row) => row.read_at === null);
               return (

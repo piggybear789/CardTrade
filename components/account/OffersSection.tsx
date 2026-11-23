@@ -379,9 +379,9 @@ function OfferNegotiation({
         // SURFACE THE REASON THE SERVER SENT. This branch used to replace every
         // `sale-failed` with "the item may no longer be available", which threw away
         // the one thing that made the refusal actionable — `detail` carries the
-        // underlying `initiateCashSale` code. For a buyer with no saved card, the
-        // substituted copy was also simply untrue, so they abandoned a purchase that
-        // needed one more click.
+        // underlying `initiateCashSale` code. A buyer with no saved card comes back as
+        // `buyer-needs-card`, whose `detail` is already worded for whichever party
+        // pressed Accept, so it takes the plain branch below.
         const message =
           result.error === 'sale-failed'
             ? cashSaleRefusalMessage(result.detail, result.detail)

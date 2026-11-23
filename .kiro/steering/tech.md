@@ -87,7 +87,27 @@ Copy `.env.local.example` to `.env.local`:
 - `JOBS_SECRET` — server-only bearer secret for the scheduled money-moving routes (`/api/jobs/cash-sale-payouts`, `/api/jobs/trade-inspections`). Both **fail closed** without it. Set `CRON_SECRET` to the same value, because Vercel Cron sends it as a bearer token on a GET.
 - `INSTAGRAM_DM_CODE_SECRET` — server-only HMAC key for the per-claimant Instagram DM claim codes (`ND-XXXXXX`). Optional: unset, `IDENTITY_FINGERPRINT_SECRET` is used (domain-separated by an `ig-dm:` prefix). With neither, DM claims are refused and `references.instagram_dm.code` / `NO_CODE_SECRET` is logged. Never a credential or a public value: anyone holding the key can compute a member's code. Changing it changes every pending code (members just DM the new one).
 
+- `NEXT_PUBLIC_SUPABASE_SCHEMA` — `cardtrade` (production, the default) or `cardtrade_dev` (the dev sandbox). Read only by `lib/supabase/schema.ts`; production deployments refuse the dev value. `.env.local` sets `cardtrade_dev`, see "Dev sandbox" below
+- `E2E_SEED_PASSWORD` — password of the seeded sandbox accounts (`alice@example.com` …). Local only
+
 Never expose non-`NEXT_PUBLIC_` values to the client, and never echo secret values back in output.
+
+## Dev sandbox
+
+Localhost and the e2e suites run on **`cardtrade_dev`**, a structural clone of `cardtrade` in the SAME Supabase project holding only seeded test data, and on Stripe **test** keys. It is not a second Supabase project.
+
+```cmd
+npm run dev:db:reset                 :: drop + re-clone cardtrade_dev from the live cardtrade catalog, then seed (supabase/seed.sql)
+npm run dev:db:apply -- <file.sql>   :: try a migration on the sandbox first (refuses cron, storage and auth writes)
+npm run dev:stripe                   :: stripe listen for both test accounts, forwarding to localhost:3000
+```
+
+- Every Supabase client, `proxy.ts` and every Realtime channel take the schema from `DB_SCHEMA` (`lib/supabase/schema.ts`). Never write the schema name as a literal in app code.
+- The clone (`scripts/dev/resetDevSchema.mjs`) copies tables, constraints, indexes, views, functions, triggers, RLS, grants, replica identity and Realtime membership, plus the `regions` and `categories` rows. It does NOT copy production rows or pg_cron jobs: run a job by hand (`select cardtrade_dev.auto_complete_due_cash_sales()`). Re-run it after a migration ships to production.
+- **Shared with production**: `auth.users` (sandbox accounts carry `app_metadata.sandbox = true` and the private `E2E_SEED_PASSWORD`, never seed.sql's public one), Storage buckets, and the Stripe test accounts' dashboards.
+- `readStripeConfig` throws if a live key is configured while the schema is `cardtrade_dev`.
+- The e2e `globalSetup` refuses to run unless the schema is `cardtrade_dev` (`E2E_ALLOW_PRODUCTION_SCHEMA=1` overrides). Its helpers read the schema through `e2eSchema()` in `tests/e2e/support/db.ts`.
+- Delete the `NEXT_PUBLIC_SUPABASE_SCHEMA` line in `.env.local` to point localhost back at production data.
 
 ## Error logging (0123)
 

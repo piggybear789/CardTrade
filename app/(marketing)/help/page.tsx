@@ -19,7 +19,7 @@ export default async function HelpPage() {
     // turns every list inside it into a bulleted paragraph list, which the topic chips
     // and the answer list here are not.
     <article className="mx-auto max-w-3xl px-group py-section sm:px-6 md:py-12 lg:px-section">
-      <h1 className="text-subhead font-semibold tracking-tight text-foreground md:text-head">
+      <h1 className="text-head font-semibold tracking-tight text-foreground">
         How can we help?
       </h1>
       <p className="mt-snug text-body text-muted-foreground md:mt-cozy md:text-lead">

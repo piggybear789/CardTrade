@@ -6,8 +6,6 @@ import { redirect } from 'next/navigation';
 
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { listMyWatchlist } from '@/lib/actions/watchlist';
-import { searchCatalog } from '@/lib/actions/listings';
-import { resolveBrowseRegion } from '@/lib/location/resolveRegion';
 import { WatchlistSection } from '@/components/account/WatchlistSection';
 import {
   MarketplaceShell,
@@ -30,14 +28,6 @@ export default async function SavedPage() {
     redirect('/sign-in?redirectTo=/saved');
   }
   const hasItems = result.ok && result.items.length > 0;
-  // Something to save, under an empty list: the newest listings in the member's region.
-  const suggestions =
-    result.ok && !hasItems
-      ? await resolveBrowseRegion(undefined)
-          .then((region) => searchCatalog({ sort: 'newest', pageSize: 4, regionCode: region.code }))
-          .then((page) => (page.ok ? page.items.slice(0, 4) : []))
-          .catch(() => [])
-      : [];
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   // No plus: browsing the marketplace creates nothing.
@@ -55,7 +45,7 @@ export default async function SavedPage() {
         mobileAction={hasItems ? browseMarketplace() : undefined}
       />
       {result.ok ? (
-        <WatchlistSection items={result.items} suggestions={suggestions} />
+        <WatchlistSection items={result.items} />
       ) : (
         <SectionLoadError label="saved listings" />
       )}

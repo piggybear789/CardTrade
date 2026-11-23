@@ -21,8 +21,6 @@ import { logBackgroundFailure } from '@/lib/errors/errorLog';
 import { offPlatformSignals } from '@/domain/messages/offPlatformSignals';
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
-import { createNotification } from '@/lib/notifications/createNotification';
-import { listingContext } from '@/lib/notifications/notificationContext';
 import { MESSAGE_BODY_MIN, MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
 import type { Enums, Tables } from '@/lib/supabase/database.types';
 import { friendlyWriteFailure } from '@/lib/actions/writeFailure';
@@ -810,27 +808,10 @@ export const sendMessage = withActionLog('messages.sendMessage', async function 
     .update({ last_message_at: new Date().toISOString() })
     .eq('id', conversationId);
 
-  // Best-effort: notify the OTHER participant of the new message. Never blocks
-  // the sent message on failure.
-  const recipientId =
-    conversation.participant_a === me
-      ? conversation.participant_b
-      : conversation.participant_a;
-  await createNotification({
-    userId: recipientId,
-    type: 'MESSAGE',
-    title: 'New message',
-    body: (() => {
-      const preview = attachmentPreviewLabel({
-        body: trimmed,
-        attachmentMime: storedAttachment?.mime,
-        attachmentName: storedAttachment?.name,
-      });
-      return preview.length > 120 ? `${preview.slice(0, 117)}…` : preview;
-    })(),
-    link: `/messages/${conversationId}`,
-    context: listingContext({ itemId: conversation.item_id, actorId: me }),
-  });
+  // NO NOTIFICATION ROW FOR A MESSAGE (0176). The inbox is where messages live and
+  // its badge already counts this one; writing a MESSAGE notification as well made
+  // one message light both the Messages icon and the bell. Notifications are for
+  // events with nothing to reply to (offers, sales, trades, system notices).
 
   // ESC-27: a message that tries to take the deal off the platform is flagged for
   // staff and the sender is warned. Never blocked: a false positive costs a warning.

@@ -123,7 +123,7 @@ class ListingActions extends ConsumerWidget {
       return <Widget>[
         Text(
           item.isShopfront
-              ? 'The seller has closed this binder or bulk listing.'
+              ? 'The seller has closed this listing.'
               : 'This listing is no longer available.',
           style: AppText.supportText,
         ),

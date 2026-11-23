@@ -81,7 +81,7 @@ export async function SiteHeader() {
             <HeaderSearch className="market-search" />
           </div>
 
-          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-foreground md:gap-snug xl:min-w-max xl:flex-1">
+          <div className="ml-auto flex shrink-0 items-center justify-end gap-1.5 text-foreground md:gap-1 xl:min-w-max xl:flex-1">
             <HeaderAccountSlot
               isAuthenticated={isAuthenticated && user != null}
               email={user?.email ?? null}

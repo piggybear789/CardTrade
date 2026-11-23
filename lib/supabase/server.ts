@@ -2,6 +2,7 @@ import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { Database } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 /**
  * Cookie-bound Supabase client for use in **Server Components, Server Actions,
@@ -51,7 +52,7 @@ export const createClient = cache(async function createClient() {
   }
 
   return createServerClient<Database>(url, anonKey, {
-    db: { schema: 'cardtrade' },
+    db: { schema: DB_SCHEMA },
     global: bearerToken
       ? {
           headers: { Authorization: `Bearer ${bearerToken}` },

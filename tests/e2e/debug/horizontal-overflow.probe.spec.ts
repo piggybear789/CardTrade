@@ -10,11 +10,12 @@
 // Run:
 //   npx playwright test --config=playwright.debug.config.ts --grep "overflow"
 import { test, expect } from '@playwright/test';
+import { PASSWORD } from '../support/users';
 
 // Signs in inline rather than reusing a storageState file: the demo seed users are
 // not in this database, so the `setup` project cannot write one.
 const PROBE_EMAIL = 'ux-probe@example.com';
-const PROBE_PASSWORD = 'password123';
+const PROBE_PASSWORD = PASSWORD;
 
 // CHROMIUM WITH A PHONE VIEWPORT, not `devices['iPhone 14']`.
 //

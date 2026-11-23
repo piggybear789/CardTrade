@@ -97,6 +97,7 @@ import { AcceptWithPhotoDialog } from '@/components/contract/AcceptWithPhotoDial
 import { OffPlatformWarning } from '@/components/deals/DealVerificationNotice';
 import { ReportDialog } from '@/components/reports/ReportDialog';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
+import { allowSellerNameDisclosure } from '@/lib/actions/identity';
 import {
   IdentityGatePrompt,
   identityGateDescription,
@@ -581,23 +582,33 @@ function CashSaleRoom({
   const termsSet = sale.fulfillment_method !== null;
   const editable = sale.status === 'AGREEMENT';
 
-  // A PRIVATE DEAL CANNOT BE PAID UNTIL ITS SELLER CAN BE. The room opened before
-  // they verified; the terms can be agreed meanwhile, but Pay waits for Stripe
-  // Identity and payout setup. Once they are ready, the buyer confirms the verified
-  // name on the Pay step. Null for a sale whose seller was confirmed at Buy.
+  // A PRIVATE DEAL CANNOT BE PAID UNTIL ITS SELLER IS VERIFIED. The room opened
+  // before they verified; the terms can be agreed meanwhile, but Pay waits for Stripe
+  // Identity and the seller agreeing to their verified name being shown. PAYOUT SETUP
+  // IS NOT PART OF IT: the buyer's money waits in the platform balance until the
+  // seller sets payouts up, except for a cross-border sale, which Stripe charges on
+  // behalf of the seller's own account (`readSellerPayReadiness`). Once ready, the
+  // buyer confirms the verified name on the Pay step. Null for a sale whose seller
+  // was confirmed at Buy.
   const payReadiness = editable ? sellerPayReadiness : null;
   const payBlocked = payReadiness != null && payReadiness.state !== 'ready';
   const pendingSellerIdentity = payReadiness?.state === 'ready' ? payReadiness.identity : null;
   const payoutSetupOnly = payReadiness?.state === 'payout-setup-needed';
+  const disclosureOnly = payReadiness?.state === 'disclosure-needed';
+  const [allowingName, startAllowName] = useTransition();
   const verificationNote = !payBlocked
     ? undefined
     : iAmBuyer
       ? payoutSetupOnly
         ? `${seller.name} hasn't finished payout setup yet.`
-        : `${seller.name} hasn't verified with Stripe Identity yet.`
+        : disclosureOnly
+          ? `${seller.name} is verified, and still has to confirm their name for you.`
+          : `${seller.name} hasn't verified with Stripe Identity yet.`
       : payoutSetupOnly
-        ? `Finish payout setup so ${buyer.name} can pay.`
-        : `Verify with Stripe Identity and finish payout setup so ${buyer.name} can pay.`;
+        ? `Finish payout setup so ${buyer.name} can pay. Stripe needs it for this currency.`
+        : disclosureOnly
+          ? `Before ${buyer.name} pays, they see the name on your ID. Show it so they can pay.`
+          : `Verify with Stripe Identity so ${buyer.name} can pay. Payouts can be set up later.`;
   // A LARGE PURCHASE NEEDS A VERIFIED BUYER (`domain/identity/buyerIdentityLimit.ts`).
   // Read from the live price, so a price the seller raises over the limit asks for ID
   // here too. The server applies the same rule at Pay whatever this says.
@@ -1196,11 +1207,31 @@ function CashSaleRoom({
                       {/* The seller's half of a blocked Pay step: the one thing that
                           unblocks it, beside whatever the terms still need. */}
                       {payBlocked && iAmSeller ? (
-                        <Button asChild variant={termsSet ? 'action' : 'outline'} size="sm">
-                          <Link href="/profile?tab=verification">
-                            {payoutSetupOnly ? 'Finish payout setup' : 'Verify with Stripe'}
-                          </Link>
-                        </Button>
+                        disclosureOnly ? (
+                          // Pressing this IS the disclosure consent (Req 4.8-4.12),
+                          // stated in the note beside it.
+                          <Button
+                            type="button"
+                            variant={termsSet ? 'action' : 'outline'}
+                            size="sm"
+                            disabled={allowingName}
+                            onClick={() =>
+                              startAllowName(async () => {
+                                const result = await allowSellerNameDisclosure();
+                                if (!result.ok) toast.error(result.message);
+                                else router.refresh();
+                              })
+                            }
+                          >
+                            <PendingLabel pending={allowingName}>Show my verified name</PendingLabel>
+                          </Button>
+                        ) : (
+                          <Button asChild variant={termsSet ? 'action' : 'outline'} size="sm">
+                            <Link href="/profile?tab=verification">
+                              {payoutSetupOnly ? 'Finish payout setup' : 'Verify with Stripe'}
+                            </Link>
+                          </Button>
+                        )
                       ) : null}
                     </>
                   ) : null}

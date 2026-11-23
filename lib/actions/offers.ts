@@ -365,6 +365,8 @@ export type RespondToOfferError =
   | 'invalid-status'
   | 'not-permitted'
   | 'sale-failed'
+  /** The buyer has no saved card, so the contract cannot be opened yet. */
+  | 'buyer-needs-card'
   | 'persistence-error';
 
 /**
@@ -483,6 +485,33 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
     buyerConfirmedSellerIdentity: Boolean(offer.buyer_seller_identity_confirmed_at),
   });
   if (!saleResult.ok) {
+    // The BUYER needs a card to open the contract (`initiateCashSale`), but either
+    // party may be the one pressing Accept: the seller on a buyer's offer, the buyer on
+    // a seller's counter. Tell each what is actually needed, and when it is the seller
+    // who is blocked, tell the buyer so the offer can go through. The offer stays
+    // PENDING either way.
+    if (saleResult.error === 'BUYER_NO_PAYMENT_METHOD') {
+      if (me === offer.buyer_id) {
+        return {
+          ok: false,
+          error: 'buyer-needs-card',
+          detail: 'Add a card before you accept. You can still choose how to pay when you pay.',
+        };
+      }
+      await createNotification({
+        userId: offer.buyer_id,
+        type: 'OFFER',
+        title: 'Add a card to continue',
+        body: 'The seller wants to accept your offer. Add a card so they can.',
+        link: '/profile',
+        context: listingContext({ itemId: offer.item_id, actorId: me, amountCents: offer.amount_cents }),
+      });
+      return {
+        ok: false,
+        error: 'buyer-needs-card',
+        detail: "The buyer needs to add a card before you can accept. We've let them know.",
+      };
+    }
     return { ok: false, error: 'sale-failed', detail: saleResult.error };
   }
   const saleId = saleResult.sale.id;

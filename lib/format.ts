@@ -86,6 +86,34 @@ export function formatMoney(
 }
 
 /**
+ * {@link formatMoney} rounded to the nearest WHOLE unit ("$258 AUD" for 25810), for the
+ * browse surfaces that show a listing's price: the catalog tile, the listing page and
+ * search suggestions (2026-11-23, product decision: the buyer just needs the price).
+ *
+ * DISPLAY ONLY. The contract room, the Pay dialog and every charge keep the exact
+ * figure; this must never feed arithmetic or a price comparison.
+ */
+export function formatMoneyWhole(minorUnits: number, currency: string, locale?: string): string {
+  const code = (currency ?? '').trim().toUpperCase();
+  if (!/^[A-Z]{3}$/.test(code)) {
+    return formatMoneyWhole(minorUnits, CURRENCY_CODE, CURRENCY_LOCALE);
+  }
+  try {
+    const figure = new Intl.NumberFormat(locale ?? localeForCurrency(code), {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'symbol',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.round(minorToMajor(minorUnits, code)));
+    return figure.includes(code) ? figure : `${figure} ${code}`;
+  } catch {
+    const major = Number.isFinite(minorUnits) ? Math.round(minorUnits / 100) : 0;
+    return `${major} ${code}`;
+  }
+}
+
+/**
  * {@link formatMoney} without the trailing ISO code, for space-constrained places
  * where the currency is stated right beside the figure (a money table whose header
  * names it, a chart axis). Never use it for a lone price.

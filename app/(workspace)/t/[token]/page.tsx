@@ -15,6 +15,7 @@ import { MarketplaceShell } from '@/components/layout/MarketplaceShell';
 import { PageShell } from '@/components/layout/PageShell';
 import { getDealInvitePreview } from '@/lib/actions/dealInvites';
 import { listSelectableRegions } from '@/lib/actions/regionOptions';
+import { dealHostPath } from '@/lib/deals/paths';
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
 
 export const metadata = {
@@ -35,6 +36,14 @@ export default async function DealInvitePage({
 
   if (preview.status === 'claimed' && preview.contractPath) {
     redirect(preview.contractPath);
+  }
+
+  // THE HOST'S OWN DEAL OPENS IN THE COMPOSER, filled in, with this link above its
+  // preview: one page to send it from and to change it on. The same rule the composer
+  // applies the other way round (an open deal it can edit), so the two cannot bounce a
+  // host between them. A legacy deal with nothing to edit keeps the share view below.
+  if (preview.isHost && preview.status === 'open' && preview.editable) {
+    redirect(dealHostPath(token));
   }
 
   if (!user) {
@@ -67,9 +76,16 @@ export default async function DealInvitePage({
   const hostRegionSelectable =
     preview.hostRegion != null && regions.some((region) => region.code === preview.hostRegion);
 
+  // NO `loading.tsx` FOR THIS ROUTE, on purpose. One URL draws three different pages:
+  // a guest's preview, a member's join form, and the host's "link ready" screen, and a
+  // placeholder cannot know which. The one it drew was the join card, so the host,
+  // who lands here straight from Get link, saw that card and then watched it swap for
+  // a different shape. With no loader a client navigation holds the page it came from
+  // (the composer, reading "Creating link…") until this one is ready, and a hard load
+  // paints the finished page once (the structure steering doc's own rule).
   return (
-    // The host's share view is a short ticket that is the whole page, so it sits
-    // centred; the joiner's form is long and reads from the top.
+    // The host's share view is short and is the whole page, so it sits centred; the
+    // joiner's form is long and reads from the top.
     <MarketplaceShell title="Private deal" center={preview.isHost && preview.status === 'open'}>
       <DealJoinForm
         preview={preview}

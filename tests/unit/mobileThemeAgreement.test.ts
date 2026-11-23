@@ -172,10 +172,16 @@ describe('the mobile theme parsers are not lying', () => {
     // reached only some of the five surfaces would still pass it — and the surface
     // it silently dropped would be the one a retired word came back on. Each term
     // here is a word the tree DOES use on exactly one surface, so the assertion is
-    // that all five are read: `binder` as an identifier and as copy,
-    // `/listings/mine` as a route, `.gitkeep` as a bundled asset, `shell_guest` as a
-    // golden case name.
-    const canary = dartRetiredVocabularySurfaces(['binder', 'listings mine', 'gitkeep', 'shell guest']);
+    // that all five are read: `binder` as an identifier (`isBinder`), `multiple items`
+    // as copy (the member-facing name for that listing kind), `/listings/mine` as a
+    // route, `.gitkeep` as a bundled asset, `shell_guest` as a golden case name.
+    const canary = dartRetiredVocabularySurfaces([
+      'binder',
+      'multiple items',
+      'listings mine',
+      'gitkeep',
+      'shell guest',
+    ]);
     expect(
       [...new Set(canary.map((hit) => hit.surface))].sort(),
       'the vocabulary scan did not reach every surface Req 14.4 names',
@@ -815,7 +821,7 @@ describe('the scope boundary holds', () => {
       hits.map((hit) => `${hit.surface} "${hit.text}" matches ${hit.term} at ${hit.file}:${hit.line}`),
       'Deal went with migration 0055, KYC_Status never had a gate behind it, and the ' +
         'Police Evidence Pack was withdrawn deliberately. Member copy says "trade ' +
-        'collateral" and "binder or bulk listing" — never DittoBond, never shopfront.',
+        'collateral" and "multiple items" — never DittoBond, never shopfront.',
     ).toEqual([]);
   });
 

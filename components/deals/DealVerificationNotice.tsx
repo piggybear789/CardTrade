@@ -1,21 +1,28 @@
+'use client';
+
 // components/deals/DealVerificationNotice.tsx
 //
-// What Stripe Identity (and, for a seller, payout setup) still has to happen before
+// What Stripe Identity (and, for a seller, showing their verified name) still has to happen before
 // a deal can go through, said plainly. Rendered for the host on the link screen and,
 // in the third person, for the other person on the invite.
 //
 // THE REQUIREMENT IS NEVER WORDED AS OPTIONAL. Only the timing is the reader's
-// choice: a seller must be verified and set up before the buyer can pay, and both
+// choice: a seller must be verified (and agree to their name being shown) before the buyer can pay, and both
 // traders must verify before a swap can start (`acceptCashSaleTerms`,
 // `acceptTradeTerms`). Doing it now just means nobody waits later.
 
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { useTransition, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { AlertCircleIcon, CheckmarkCircle02Icon, Clock01Icon } from '@hugeicons/core-free-icons';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { PendingLabel } from '@/components/ui/pending-label';
 import type { HostReadiness } from '@/lib/actions/dealInvites';
+import { allowSellerNameDisclosure } from '@/lib/actions/identity';
+import { cn } from '@/lib/utils';
 
 const VERIFY_HREF = '/profile?tab=verification';
 
@@ -29,8 +36,16 @@ type DealKind = 'CASH_SALE' | 'TRADE';
 export function hostReadyLine(kind: DealKind): string {
   return kind === 'TRADE'
     ? "You're verified with Stripe Identity."
-    : "You're verified and set up to be paid.";
+    : "You're verified. They can pay as soon as they join.";
 }
+
+/**
+ * What a seller is told about payouts while there is nothing left to do before the
+ * buyer pays. The money waits in NoDitto until they accept the card and the seller
+ * has set up payouts; it is never a reason the buyer cannot pay.
+ */
+export const PAYOUT_LATER_NOTE =
+  "Set up payouts any time before you're paid. Their money waits with NoDitto until then.";
 
 /**
  * The host's own to-do, on the link screen, with the way to do it. Only for a host
@@ -39,10 +54,19 @@ export function hostReadyLine(kind: DealKind): string {
 export function HostVerificationNotice({
   kind,
   readiness,
+  className,
 }: {
   kind: DealKind;
   readiness: Exclude<HostReadiness, 'ready'>;
+  className?: string;
 }) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+
+  // PAYOUT SETUP IS NOT ASKED FOR BEFORE PAY, except where Stripe needs it: a sale in
+  // a currency the platform does not settle in is charged on behalf of the seller's
+  // own account (`readSellerPayReadiness`). Everywhere else the buyer's money waits in
+  // the platform balance until the seller sets payouts up.
   const copy =
     kind === 'TRADE'
       ? {
@@ -50,21 +74,38 @@ export function HostVerificationNotice({
           body: 'Both of you verify before the holds go on. It takes a few minutes with a photo ID.',
           action: 'Verify now',
         }
-      : readiness === 'payout-setup-needed'
+      : readiness === 'disclosure-needed'
         ? {
-            title: 'Finish payout setup',
-            body: 'Required before they can pay.',
-            action: 'Finish setup',
+            title: 'Show your verified name',
+            body: 'Before they pay, they see the name on your ID, and nothing else about it.',
+            action: 'Allow',
           }
-        : {
-            title: 'Verify with Stripe',
-            body: 'Stripe Identity and payout setup are required before they can pay. It takes a few minutes with a photo ID.',
-            action: 'Verify now',
-          };
+        : readiness === 'payout-setup-needed'
+          ? {
+              title: 'Finish payout setup',
+              body: 'Stripe needs your payout account live before it can take a payment in this currency.',
+              action: 'Finish setup',
+            }
+          : {
+              title: 'Verify with Stripe Identity',
+              body: 'Required before they can pay. It takes a few minutes with a photo ID. Payouts can be set up later.',
+              action: 'Verify now',
+            };
+
+  function allow() {
+    startTransition(async () => {
+      const result = await allowSellerNameDisclosure();
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+      router.refresh();
+    });
+  }
 
   // Amber for the mark: this is the host's own move, which is what `--action` means.
   return (
-    <div className="grid gap-group rounded-lg border p-group">
+    <div className={cn('grid gap-group rounded-lg border p-group', className)}>
       <div className="flex items-center gap-cozy">
         <HugeiconsIcon icon={AlertCircleIcon} className="size-5 shrink-0 text-action-edge" aria-hidden />
         <div className="grid gap-tight">
@@ -72,9 +113,18 @@ export function HostVerificationNotice({
           <p className="text-pretty text-body text-muted-foreground">{copy.body}</p>
         </div>
       </div>
-      <Button asChild variant="outline" size="lg">
-        <Link href={VERIFY_HREF}>{copy.action}</Link>
-      </Button>
+      {kind !== 'TRADE' && readiness === 'disclosure-needed' ? (
+        // Pressing this IS the disclosure consent (Req 4.8-4.12), stated above it.
+        <Button type="button" variant="outline" size="lg" onClick={allow} disabled={isPending} aria-busy={isPending}>
+          <PendingLabel pending={isPending} pendingLabel="Saving…">
+            {copy.action}
+          </PendingLabel>
+        </Button>
+      ) : (
+        <Button asChild variant="outline" size="lg">
+          <Link href={VERIFY_HREF}>{copy.action}</Link>
+        </Button>
+      )}
     </div>
   );
 }
@@ -124,7 +174,9 @@ export function InviteeVerificationStatus({ kind, readiness, hostName }: Invitee
     <StatusLine tone="waiting">
       {readiness === 'payout-setup-needed'
         ? `${hostName} hasn't finished payout setup yet.`
-        : `${hostName} hasn't verified with Stripe Identity yet.`}
+        : readiness === 'disclosure-needed'
+          ? `${hostName} is verified, and still has to confirm their name for you.`
+          : `${hostName} hasn't verified with Stripe Identity yet.`}
     </StatusLine>
   );
 }

@@ -15,6 +15,7 @@ import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
 
 import type { Database } from '@/lib/supabase/database.types';
+import { DB_SCHEMA } from '@/lib/supabase/schema';
 
 export interface MobileSession {
   /** The authenticated user's id. */
@@ -56,7 +57,7 @@ export async function authenticateMobileRequest(
   // Try cookie-based session first (the website path).
   const cookieStore = await cookies();
   const cookieClient = createServerClient<Database>(url, anonKey, {
-    db: { schema: 'cardtrade' },
+    db: { schema: DB_SCHEMA },
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -96,7 +97,7 @@ export async function authenticateMobileRequest(
 
   // A client acting as the token's user; `getClaims` below verifies the token.
   const bearerClient = createServerClient<Database>(url, anonKey, {
-    db: { schema: 'cardtrade' },
+    db: { schema: DB_SCHEMA },
     global: {
       headers: { Authorization: `Bearer ${token}` },
     },

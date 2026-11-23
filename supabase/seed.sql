@@ -244,9 +244,9 @@ values
    'Pokémon', 'PSA 8', 25000, 'AVAILABLE', array['items/aaaaaaa1/front.jpg','items/aaaaaaa1/back.jpg']),
 
   ('aaaaaaa2-0000-0000-0000-000000000002', '22222222-2222-2222-2222-222222222222',
-   '1986 Fleer Michael Jordan Rookie #57 BGS 7',
-   'Iconic Michael Jordan rookie card, Fleer #57, BGS 7 Near Mint. Centering 60/40, strong color. A cornerstone basketball rookie.',
-   'Sports Cards', 'BGS 7', 25000, 'AVAILABLE', array['items/aaaaaaa2/front.jpg','items/aaaaaaa2/back.jpg']),
+   '1993 Magic Unlimited Shivan Dragon PSA 7',
+   'Unlimited Edition Shivan Dragon, graded PSA 7 NM. Clean borders, light edge wear. One of the classic early Magic dragons.',
+   'Magic: The Gathering', 'Graded', 25000, 'AVAILABLE', array['items/aaaaaaa2/front.jpg']),
 
   -- Equal-FMV pair B (AVAILABLE, $1,200.00) ------------------------------------
   ('bbbbbbb1-0000-0000-0000-000000000001', '33333333-3333-3333-3333-333333333333',
@@ -255,9 +255,9 @@ values
    'Sports Cards', 'SGC 3', 120000, 'AVAILABLE', array['items/bbbbbbb1/front.jpg']),
 
   ('bbbbbbb2-0000-0000-0000-000000000002', '44444444-4444-4444-4444-444444444444',
-   '1963 Fantastic Four #1 CGC 4.0',
-   'Silver Age key: first appearance of the Fantastic Four. CGC 4.0 VG, off-white pages, cover gloss retained. Marvel foundation book.',
-   'Comics', 'CGC 4.0', 120000, 'AVAILABLE', array['items/bbbbbbb2/cover.jpg','items/bbbbbbb2/spine.jpg']),
+   '2000 Pokémon Neo Genesis Lugia #9 Holo PSA 8',
+   'Holo Lugia from Neo Genesis, graded PSA 8 NM-MT. Strong centering, bright holo. A key card of the Neo era.',
+   'Pokémon', 'Graded', 120000, 'AVAILABLE', array['items/bbbbbbb2/front.jpg']),
 
   -- Extra AVAILABLE items ------------------------------------------------------
   ('cccccccc-0000-0000-0000-000000000001', '55555555-5555-5555-5555-555555555555',
@@ -272,9 +272,9 @@ values
 
   -- RESERVED items (should NOT appear in the AVAILABLE catalog) -----------------
   ('dddddddd-0000-0000-0000-000000000001', '22222222-2222-2222-2222-222222222222',
-   '2003 LeBron James Topps Chrome Rookie #111 PSA 9',
-   'LeBron James Topps Chrome rookie, PSA 9 Mint. Currently reserved for an in-progress transaction.',
-   'Trading Cards', 'PSA 9', 30000, 'RESERVED', array['items/dddddddd1/front.jpg']),
+   '2002 Yu-Gi-Oh! Blue-Eyes White Dragon LOB-001 PSA 9',
+   'Legend of Blue Eyes White Dragon print, graded PSA 9 Mint. Currently reserved for an in-progress transaction.',
+   'Yu-Gi-Oh!', 'Graded', 30000, 'RESERVED', array['items/dddddddd1/front.jpg']),
 
   ('dddddddd-0000-0000-0000-000000000002', '33333333-3333-3333-3333-333333333333',
    '1928 Babe Ruth Signed Baseball (JSA)',
@@ -283,14 +283,14 @@ values
 
   -- SOLD items (should NOT appear in the AVAILABLE catalog) ---------------------
   ('eeeeeeee-0000-0000-0000-000000000001', '44444444-4444-4444-4444-444444444444',
-   '1952 Topps Mickey Mantle #311 (Authentic)',
-   'Post-war Topps Mickey Mantle, authentic/ungraded with honest wear. Already sold via a completed cash sale.',
-   'Trading Cards', 'Authentic', 75000, 'SOLD', array['items/eeeeeeee1/front.jpg','items/eeeeeeee1/back.jpg']),
+   '1999 Pokémon Base Set Blastoise #2 PSA 8',
+   'Holo Blastoise from the 1999 Base Set, graded PSA 8 NM-MT. Already sold via a completed cash sale.',
+   'Pokémon', 'Graded', 75000, 'SOLD', array['items/eeeeeeee1/front.jpg']),
 
   ('eeeeeeee-0000-0000-0000-000000000002', '55555555-5555-5555-5555-555555555555',
-   '1954 Superman #100 CGC 3.5',
-   'Golden/Silver Age Superman #100, CGC 3.5. Sold in a prior transaction; retained here to exercise catalog filtering.',
-   'Comics', 'CGC 3.5', 60000, 'SOLD', array['items/eeeeeeee2/cover.jpg'])
+   '2002 Yu-Gi-Oh! Dark Magician SDY-006 PSA 8',
+   'Starter Deck Yugi Dark Magician, graded PSA 8 NM-MT. Sold in a prior transaction; retained here to exercise catalog filtering.',
+   'Yu-Gi-Oh!', 'Graded', 60000, 'SOLD', array['items/eeeeeeee2/front.jpg'])
 on conflict (id) do nothing;
 
 -- ---------------------------------------------------------------------------
@@ -425,7 +425,7 @@ insert into cardtrade.member_references
    occurred_month, voucher_person_key, target_person_key, deal_count, proof_status)
 select p.voucher_id,
        p.target_id,
-       (array['instagram', 'facebook', 'discord', 'ebay', 'whatnot', 'in-person'])[1 + (p.vn + p.tn) % 6],
+       (array['instagram', 'facebook', 'discord', 'ebay', 'whatnot', 'other'])[1 + (p.vn + p.tn) % 6],
        'POSITIVE',
        null,
        c.comment,
@@ -466,7 +466,7 @@ refs(voucher_id, sentiment, category, platform, role, months_ago, comment) as (v
    'Photos showed a clean slab, the one that arrived had a cracked case.'),
   ('bbbbbbb2-0000-0000-0000-000000000002'::uuid, 'NEGATIVE', 'PAYMENT', 'discord', 'SOLD', 3,
    'Agreed a trade plus cash, sent my side, the cash never came.'),
-  ('11111111-1111-1111-1111-111111111111'::uuid, 'POSITIVE', null, 'in-person', 'TRADED', 5,
+  ('11111111-1111-1111-1111-111111111111'::uuid, 'POSITIVE', null, 'other', 'TRADED', 5,
    'Quick swap at the card show, no issues.'),
   ('33333333-3333-3333-3333-333333333333'::uuid, 'POSITIVE', null, 'ebay', 'BOUGHT', 6,
    'Shipped fast, well packed.'),

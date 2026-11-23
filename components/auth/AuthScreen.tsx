@@ -19,7 +19,12 @@ import type { ReactNode } from 'react';
  */
 export function AuthScreen({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <main className="auth-backdrop flex min-h-[calc(100dvh-var(--chrome-top))] items-center justify-center overflow-x-clip px-group py-section sm:px-6">
+    // FULL-BLEED ON A PHONE (2026-11-23). Below `sm` the card loses its surface and the
+    // page's own inset, so the form's padding is the only inset (16px, as on every
+    // other phone page) and it starts at the top instead of floating mid-screen.
+    // A card inside 16px margins on a 390px screen cost 32px of field width and read
+    // as a dialog over the page. Native sign-in screens draw the form on the page.
+    <main className="auth-backdrop flex min-h-[calc(100dvh-var(--chrome-top))] items-start justify-center overflow-x-clip px-0 py-snug sm:items-center sm:px-6 sm:py-section max-sm:[&_.surface]:rounded-none max-sm:[&_.surface]:bg-transparent max-sm:[&_.surface]:shadow-none">
       {aside ? (
         // STRETCHED, not centred, from `lg`: the aside is a tinted panel now and has to
         // stand as tall as the form card beside it, so the two read as one composition

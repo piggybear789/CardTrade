@@ -38,11 +38,8 @@ export default async function MarketingLayout({ children }: { children: ReactNod
   return (
     <>
       <div className="flex min-h-0 flex-1 flex-col max-md:pb-[calc(3.5rem+1px+env(safe-area-inset-bottom))]">
-        {/* AT LEAST ONE SCREEN TALL, so the footer always starts below the fold. Each
-            page's loading skeleton is shorter than the page, and with the footer
-            directly under it the footer jumped down the screen when the page arrived
-            (measured on References: 0.14 of the viewport). Below the fold, the page
-            growing moves nothing the reader can see. */}
+        {/* AT LEAST ONE SCREEN TALL, so the footer always starts below the fold. Below
+            the fold, the page growing moves nothing the reader can see. */}
         <div className="flex min-h-[calc(100dvh-var(--chrome-top))] flex-1 flex-col">{children}</div>
         {/* Client, for its one path check: hidden on phones on the references pages. */}
         <MarketingFooter />

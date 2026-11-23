@@ -17,7 +17,7 @@ import {
   accountTabHref,
   type AccountTabId,
 } from '@/components/account/account-tabs-config';
-import { TabbedPanels, TabbedPanelsSkeleton } from '@/components/ui/tabbed-panels';
+import { TabbedPanels } from '@/components/ui/tabbed-panels';
 
 // Hrefs are resolved here, on the server, because `TabbedPanels` takes strings rather
 // than an `hrefFor` callback — a Server Component cannot hand a client component a
@@ -43,16 +43,6 @@ export function AccountTabs({ initialTab, panels }: AccountTabsProps) {
       panels={panels}
       label="Account sections"
       layoutId="account-tabs"
-    />
-  );
-}
-
-/** The strip's loading placeholder, in the shape the real strip occupies. */
-export function AccountTabsSkeleton({ active = 'profile' }: { active?: AccountTabId } = {}) {
-  return (
-    <TabbedPanelsSkeleton
-      labels={ACCOUNT_TABS.map((tab) => tab.label)}
-      activeIndex={Math.max(0, ACCOUNT_TABS.findIndex((tab) => tab.id === active))}
     />
   );
 }

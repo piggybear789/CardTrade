@@ -13,13 +13,11 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import { CreditCardIcon } from '@hugeicons/core-free-icons';
 
 import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
-import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 const AddPaymentMethodForm = dynamic(
   () => import('./AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => <PaymentFormSkeleton />,
   },
 );
 

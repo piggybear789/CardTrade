@@ -30,7 +30,6 @@
 
 import type { ReactNode } from 'react';
 
-import { ChatThreadSkeleton } from '@/components/layout/WorkspaceSkeletons';
 import { ChatThread } from '@/components/messages/ChatThread';
 import { useInbox } from '@/components/messages/InboxProvider';
 import { cn } from '@/lib/utils';
@@ -54,7 +53,7 @@ export function ThreadPane({ children }: { children: ReactNode }) {
 }
 
 /**
- * One thread drawn from client state alone, or the generic thread skeleton when the
+ * One thread drawn from client state alone, or nothing when the
  * client knows nothing about it — a thread missing from the list, or no inbox at all.
  */
 export function ThreadPreview({ conversationId }: { conversationId: string | null }) {
@@ -62,7 +61,7 @@ export function ThreadPreview({ conversationId }: { conversationId: string | nul
   const entry = conversationId
     ? inbox?.conversations.find((candidate) => candidate.id === conversationId)
     : undefined;
-  if (!inbox || !entry) return <ChatThreadSkeleton />;
+  if (!inbox || !entry) return null;
 
   const cached = inbox.cachedThread(entry.id);
   return (

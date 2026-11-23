@@ -26,7 +26,6 @@ import { ChevronLeftIcon, InformationCircleIcon } from '@hugeicons/core-free-ico
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useInboxActions } from '@/components/messages/InboxProvider';
 import {
   isOptimisticMessage,
@@ -472,17 +471,7 @@ export function ChatThread({
               showReadReceipt
               signAttachments={!preview}
             />
-          ) : (
-            // The same four bubbles `ChatThreadSkeleton` draws. `Skeleton` holds them
-            // invisible for its first 250ms, so a fast answer replaces an empty log
-            // rather than flashing bars at the member.
-            <div className="space-y-cozy" aria-hidden>
-              <Skeleton className="h-12 w-2/3 rounded-xl" />
-              <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
-              <Skeleton className="h-12 w-2/3 rounded-xl" />
-              <Skeleton className="ml-auto h-12 w-1/2 rounded-xl" />
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
 

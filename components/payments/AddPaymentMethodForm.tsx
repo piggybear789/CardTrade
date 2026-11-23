@@ -28,7 +28,6 @@ import { LoaderCircleIcon, LockIcon, ShieldCheckIcon } from '@hugeicons/core-fre
 
 import { beginCardSetup, completeCardSetup } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
-import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 
 /**
  * Sentinel publishable key returned by the MockService. Stripe.js would reject
@@ -105,13 +104,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
     );
   }
 
-  if (!session) {
-    // The same box the dynamic-import placeholder just drew. These were two
-    // different sizes — a 160px spinner, then 88px of bars — so the sheet
-    // resized between the two waits and again when Stripe's iframe mounted,
-    // moving the Save button under the reader's thumb twice before it settled.
-    return <PaymentFormSkeleton />;
-  }
+  if (!session) return null;
 
   // Mock provider: no real Stripe.js, so offer a simulated save so local UI
   // demos keep working without credentials.
@@ -180,21 +173,9 @@ function CardSetupFields({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-group">
-      {/* THE THIRD WAIT, which the skeleton could not cover on its own.
-          
-          `PaymentFormSkeleton` reserves a 240px box for the two waits it owns — the
-          chunk download and the SetupIntent — and then unmounts the moment `session`
-          arrives. But Stripe's iframe mounts at roughly zero height and grows, so the
-          dialog went tall (skeleton) -> short (empty element) -> tall (real form),
-          collapsing and re-expanding in between. That is the flicker.
-          
-          `min-h-60` matches the skeleton's `h-60` exactly, so the box the placeholder
-          reserved is the box the element mounts into and nothing moves. Released on
-          `onReady` so the element can then settle to whatever height its enabled
-          payment methods actually need — one movement instead of three.
-          
-          It cannot simply be hidden until ready: Stripe needs the node laid out to
-          initialise, so `display:none` would mean `onReady` never fires. */}
+      {/* Stripe needs the node laid out to initialise, so it cannot be hidden with
+          `display:none` until ready (`onReady` would never fire). The min height
+          stops the dialog collapsing while the iframe grows. */}
       <div className={ready ? undefined : 'min-h-60'}>
         <PaymentElement
           onReady={() => setReady(true)}

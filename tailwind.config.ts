@@ -167,10 +167,7 @@ const config: Config = {
       // which read tight on a phone, so it has been raised one step to be looked
       // at on a device. Two things move with it and are easy to miss:
       //
-      //   - Its line box is now 22.4px, not 20.8px. `Skeleton` reserves height
-      //     from the type scale, so any hand-computed placeholder height derived
-      //     from a `text-body` line has to be recomputed — see the description
-      //     field in `ItemFormSkeleton`.
+      //   - Its line box is now 22.4px, not 20.8px.
       //   - `nav` was 15px, justified as a step above `body` for the sidebar
       //     rail. At 14px that step was one pixel, which is not a register, so
       //     it has been retired — see the note where it used to sit.

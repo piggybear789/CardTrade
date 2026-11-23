@@ -27,10 +27,7 @@ import { displayLegalName, formatMoney, itemImageUrl } from '@/lib/format';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
-import { useSettledLoading } from '@/lib/hooks/useSettledLoading';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
-import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
-import { CheckoutSummarySkeleton } from '@/components/payments/CheckoutSummarySkeleton';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { CurrencyNotice } from '@/components/payments/CurrencyNotice';
 import { PROCESSING_FEE_NAME, cardTierClause, processingFeeRateLabel } from '@/lib/fees/feeLabels';
@@ -39,7 +36,7 @@ const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
   {
     ssr: false,
-    loading: () => <PaymentFormSkeleton />,
+    loading: () => null,
   },
 );
 
@@ -328,9 +325,7 @@ function PurchaseDialog({
     });
   }
 
-  // Held for a minimum once the placeholder is visible, so a card read that lands just
-  // after the bars appear does not flash them for a few frames (`useSettledLoading`).
-  const loading = useSettledLoading(loadingStatus || card === undefined);
+  const loading = loadingStatus || card === undefined;
   const showCardForm = !loading && addingCard;
 
   return (
@@ -387,9 +382,7 @@ function PurchaseDialog({
             {/* ONE TREE WHILE THE CARD IS READ AND AFTER. The header, order summary,
                 binder fields, seller line and footer do not depend on the card, so they
                 render for real throughout and only the card row has a placeholder. The
-                loading state used to be a second copy of this markup, and the two
-                drifted: its skeleton kept a bordered seller box after the real seller
-                line became one short row, so the dialog shrank on every open. */}
+                loading state used to be a second copy of this markup. */}
             <DialogHeader>
               <DialogTitle>Start a purchase contract</DialogTitle>
               {description ? <DialogDescription>{description}</DialogDescription> : null}
@@ -409,9 +402,7 @@ function PurchaseDialog({
 
               {/* ONE GEOMETRY WITH OR WITHOUT A CARD: two lines and a button, so the
                   footer does not move when the card read comes back. */}
-              {loading ? (
-                <CheckoutSummarySkeleton />
-              ) : (
+              {loading ? null : (
                 <div className="flex items-center gap-cozy rounded-lg border p-cozy">
                   <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                   <div className="min-w-0 flex-1">

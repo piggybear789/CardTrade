@@ -43,7 +43,6 @@ import { HugeiconsIcon } from '@hugeicons/react';
 import type { IconSvgElement } from '@hugeicons/react';
 import { ChevronRightIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
 
-import { Skeleton, TextLines } from '@/components/ui/skeleton';
 import { StatusGlyph } from '@/components/ui/status-glyph';
 import { cn } from '@/lib/utils';
 
@@ -365,55 +364,6 @@ export function TrustLine({
         {payoutsActive ? 'Payouts active' : 'Payouts not set up'}
       </span>
     </p>
-  );
-}
-
-/**
- * A loading placeholder occupying exactly one {@link SettingsListRow}.
- *
- * Built from `ROW_SHAPE`, so it inherits the row's height, padding and divider
- * rather than approximating them. The trailing spacer is deliberate: it reserves the
- * chevron's footprint, without which every label and value shifts sideways by 16px
- * the instant real content arrives.
- */
-export function SettingsRowSkeleton({
-  /**
-   * Reserve the leading {@link IconMedallion}. Same argument as the chevron
-   * spacer, at three times the cost: the medallion is `size-9` beside a
-   * `gap-cozy`, so a row that arrives with one and was drawn without it pushes
-   * its label and value 48px to the right.
-   */
-  icon = false,
-  /** Reserve the second line. It also lifts the row off its `min-h-12` floor. */
-  description = false,
-  labelClassName = 'w-1/3',
-  valueClassName = 'w-1/3',
-}: {
-  icon?: boolean;
-  description?: boolean;
-  labelClassName?: string;
-  valueClassName?: string;
-}) {
-  // The label and value bars are texture inside the row's `min-h-12` box (the icon
-  // medallion and the row floor carry the height), so they draw from the canonical set.
-  // The value sits on the label's line, as it does in `SettingsListRow`.
-  return (
-    <div className={ROW_SHAPE} aria-hidden>
-      {icon ? <Skeleton className="size-9 shrink-0 rounded-full" /> : null}
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center justify-between gap-cozy">
-          <TextLines className="min-w-0 flex-1 text-body" widths={[labelClassName]} />
-          <Skeleton className={cn('h-4 shrink-0', valueClassName)} />
-        </span>
-        {description ? (
-          <TextLines
-            className="mt-0.5 text-body leading-snug"
-            widths={['w-2/3']}
-          />
-        ) : null}
-      </span>
-      <span className="size-4 shrink-0" />
-    </div>
   );
 }
 

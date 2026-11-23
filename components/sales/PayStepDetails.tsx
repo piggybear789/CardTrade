@@ -19,14 +19,13 @@ import { useEffect, useState } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
 import { CreditCardIcon } from '@hugeicons/core-free-icons';
 
-import { PaymentFormSkeleton } from '@/components/payments/PaymentFormSkeleton';
 import { Button } from '@/components/ui/button';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import type { SellerPayReadiness } from '@/lib/sellerIdentity';
 
 const AddPaymentMethodForm = dynamic(
   () => import('@/components/payments/AddPaymentMethodForm').then((m) => m.AddPaymentMethodForm),
-  { ssr: false, loading: () => <PaymentFormSkeleton /> },
+  { ssr: false, loading: () => null },
 );
 
 export type PayCard =
@@ -118,11 +117,7 @@ export function PayCardSection({
   onReplace: () => void;
 }) {
   if (card.state === 'loading') {
-    return (
-      <div role="status" aria-label="Checking your payment card">
-        <PaymentFormSkeleton />
-      </div>
-    );
+    return null;
   }
 
   if (card.state === 'none') {

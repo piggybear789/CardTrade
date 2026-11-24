@@ -1797,3 +1797,335 @@ succeed when it runs. Closing it properly means one of: repairing per test rathe
 file (and paying for the sign-ins), holding one context per member for the length of a
 file instead of one per test, or giving each spec file its own jar per member so contexts
 stop sharing a rotating credential. That is a harness design decision, not a spec fix.
+
+# Round 9 — the lifecycle Pathways run for real (e2e-ux-audit-suite task 10)
+
+The cash-sale and trade lifecycle journeys now run end to end on Stripe TEST mode (list,
+buy, pay, ship, Ship24 delivery, accept, holdback rewind, payout `SETTLED`; propose,
+agree, holds placed by the job, handover, accept, both holds voided in Stripe). What is
+left failing on them is the audit's blocking UX checks, and every one below is an app
+defect, not a harness artefact. Harness artefacts found on the way were fixed in the
+suite instead (Vercel Analytics scripts that only the platform serves, Stripe iframes'
+own CSP reports, a blank `aria-busy` chat log read as a skeleton, a stale two-step
+listing helper, the calendar popover that hides the terms dialog).
+
+## F73 — Controls whose accessible name does not contain their visible text (severity 2, PARTLY FIXED)
+Fixed 2026-11-24 for the header account button and the numbered rail (see the status
+block at the end of this file). Still open: the external carrier-tracking link and the
+phone details sheet's "Done" button, and the rest of this list. The fix that worked:
+the name starts with the visible word, separated by a space. axe compares whole words, so
+"(EC)," does not match "EC".
+Symptom: axe `label-content-name-mismatch` (WCAG 2.5.3 Label in Name, level A) on every
+signed-in page and in both contract rooms. A voice-control user who says what they see
+("click AN", "click 2", "click Track parcel") does not reach the control.
+Cause and where:
+- the header's account button (`components/layout/SiteMenu.tsx`, `.ml-tight`): visible
+  text is the avatar initials ("AN"), the name is "Alice Nguyen, account menu";
+- the numbered steps of the contract progress rail
+  (`components/contract/ContractProgressRail.tsx`): visible text "1"…"5", the name is the
+  step label ("Pay to lock in the deal — current step");
+- an external link styled as a button in the sale room (`target="_blank"`, the carrier
+  tracking link), whose `aria-label` replaces its visible words;
+- on a phone, the details sheet's "Done" button (`components/contract/ContractLiveRow.tsx`)
+  is named "Close details".
+Fix direction: put the visible text first in the name ("AN, Alice Nguyen, account menu"
+or drop the `aria-label` and use `sr-only` text after the initials), and the same for the
+rail ("2, Pay to lock in the deal, current step").
+Pathways: `journeys.cash-sale-lifecycle`, `journeys.trade-lifecycle` (and every Pathway
+that renders the header).
+
+## F74 — The contract chat and details panes scroll but cannot be reached by keyboard (severity 2, FIXED 2026-11-24)
+
+**Fix (2026-11-24).** `components/messages/ContractChat.tsx`: the chat log (`role="log"`, already labelled) gets `tabIndex={0}`. `components/contract/ContractDetailList.tsx`: the details panel scroller gets `role="region"`, `tabIndex={0}` and `aria-label` set to the active tab's label. Neither changes layout. The split room's wrapper around the details (`ContractLiveRow.tsx`) is not changed: it contains the tab buttons, which are focusable.
+Symptom: axe `scrollable-region-focusable` (WCAG 2.1.1) once a room's history or details
+outgrow their pane. A keyboard user cannot scroll the transcript or the details to read
+earlier activity.
+Cause: the scroll containers have `overflow-y: auto` and no focusable descendant and no
+`tabindex`: the chat log in `components/messages/ContractChat.tsx`
+(`role="log"`, `.overscroll-contain`) and the room's details column
+(`.lg:overscroll-contain`).
+Fix direction: `tabIndex={0}` on the scroll container (it already has a role and a
+label), or ensure it always contains a focusable element.
+Pathways: `journeys.cash-sale-lifecycle`, `journeys.trade-lifecycle`.
+
+## F75 — The cash-sale terms event states postage with no currency (severity 2, FIXED 2026-11-24)
+Symptom: the contract room's activity reads "… proposed fulfilment terms — shipping for
+$0.00." Every displayed amount must carry its ISO code (`formatMoney`), and for a GBP or
+EUR sale the "$" is simply wrong.
+Cause: `domain/orchestrator/cashSaleOrchestrator.ts` writes the event detail with a local
+`formatCents` (`$` + cents/100, two decimals), which ignores the sale's currency and its
+minor-unit digits (a JPY amount would read a hundredfold low). The string is stored in
+the event, so the room shows it verbatim.
+Fix direction: format with the sale's currency (the domain cannot import `lib/format`, so
+pass the currency and use the minor-unit helpers in `domain/region`), or store the figure
+and let the room format it.
+Pathways: `journeys.cash-sale-lifecycle` (copy-currency check, steps 6–18).
+
+## F76 — Face-to-face-only trades are still worded and laid out as delivery (severity 1, OPEN)
+Symptom: trades are `IN_PERSON` only (`TRADE_HANDOVER_METHODS`), but the trade room's
+terms editor is titled "Delivery terms", its trigger reads "Set delivery terms", it still
+shows a disabled "Postage — Posted with tracking" tile (whose 60%-opacity text also fails
+axe `color-contrast`), and a refused edit says "Terms are locked once either trader has
+shipped."
+Where: `components/trade/TradeHandoverTermsEditor.tsx` (title, `invalid-state` copy),
+`components/trade/TradeContract.tsx` (trigger label), `FulfilmentMethodChoice` as used
+there.
+Fix direction: "Meeting terms" / "Set meeting", drop the postage tile for trades, and say
+what actually locks the meeting (ESC-04: collateral, or the placement cutoff).
+Pathways: `journeys.trade-lifecycle` (step "Carol sets where and when they meet").
+
+## F77 — On a phone the seller's "Add tracking" in the action dock does nothing (severity 3, OPEN)
+Symptom: in a paid DELIVERY sale on a phone, the seller's move reads "Post it and add the
+tracking number" with an "Add tracking" button in the dock. Tapping it opens nothing.
+The only way to record the parcel is to open "Contract details" and tap the second
+"Add tracking" inside the Status panel.
+Cause: `components/sales/CashSaleView.tsx` renders `RecordShipmentDialog` INSIDE the
+Status panel's children (next to the panel's own "Add tracking"). Below the split that
+panel lives in the details sheet, which is unmounted while closed, so the dock's
+`setShipOpen(true)` sets state for a dialog that is not in the tree. Observed on iPhone
+WebKit: nothing for 10 s after the tap, then the dialog appears the moment "Contract
+details" is opened, because mounting the panel mounts the dialog with `open` already
+true. Desktop is fine: the panel is always mounted beside the chat.
+Fix direction: render `RecordShipmentDialog` at the room's top level, outside the panel,
+so both buttons open the same mounted dialog.
+Pathways: `journeys.cash-sale-lifecycle` on phone (asserted softly in
+`recordCashSaleShipment`, which then takes the workaround so the rest of the journey
+still runs).
+
+## F78 — A refused Buy Now resizes the Buy dialog and tells a permanent refusal to "try again" (severity 2, PARTLY FIXED 2026-11-24)
+The resize is fixed: a refused Buy Now is a toast, and only field validation stays inline.
+Still open: `RELATED_ACCOUNTS` has no copy in `lib/cashSaleErrors.ts`, so the toast falls back
+to the generic transfer text.
+Symptom: when Buy Now is refused (seen with `RELATED_ACCOUNTS`, two accounts sharing a
+card), the Buy dialog grows by 39 px (576×408 → 576×447) to show "The contract could not
+be opened. Please try again." as a paragraph inside it.
+Two problems:
+- structure.md: request failures are reported as toasts (`lib/hooks/useErrorToast.ts`),
+  never as paragraphs that resize a dialog; field validation is the only inline error.
+- `lib/cashSaleErrors.ts` has no copy for `RELATED_ACCOUNTS`, so it falls back to the
+  generic `TRANSFER_FAILED` text. The refusal is permanent, so "Please try again" sends
+  the member round the same refusal. The private-deal flow already has the right copy
+  (`components/deals/inviteErrors.ts`: "This deal can't go ahead. Contact support if you
+  think this is a mistake."), which also keeps the reason undisclosed.
+Where: the Buy dialog's error rendering (`components/listings/BuyButton.tsx` and the
+checkout dialog it opens), `lib/cashSaleErrors.ts`.
+Pathways: `cash-sale.payments.related-accounts` (toast check). The "never says why"
+assertion passes: the copy names no reason.
+
+## F79 — The decline toast showed the raw sale id (severity 3, FIXED 2026-11-24)
+**Symptom.** A card decline at Pay showed a UUID as the error message.
+**Cause.** `failCollectedPayment` and the FAILED branch of the payment claim returned
+`TRANSFER_FAILED` with `detail: sale.id`. `actionResult` in `lib/actions/cashSale.ts` uses
+`detail` as the message.
+**Fix.** Both returns now carry no detail, so the toast uses `transfer-failed` copy ("The
+payment could not be collected.").
+**Where.** `domain/orchestrator/cashSaleOrchestrator.ts` (`failCollectedPayment`, the
+payment-claim FAILED branch). Unit tests use `toMatchObject`, so they still pass.
+
+## F80 — A payment that went through could be reported as "This contract has moved on" (severity 2, FIXED 2026-11-24)
+**Symptom.** When the webhook settled a sale before the buyer's read-back ran, the buyer's
+`confirmCashSalePayment` returned `invalid-state` ("This contract has moved on."). The
+payment had succeeded. The webhook logged the same race as `INVALID_STATE: ESCROW_HELD`.
+**Cause.** `settleCashSale` returns `INVALID_STATE` when the sale is already held. The
+read-back passed that through as an error.
+**Fix.** The read-back reloads the sale when settlement reports `INVALID_STATE` and the
+sale is no longer `PAYMENT_PENDING`, and returns it as ok. It does not set `settledNow`,
+so no purchase is announced twice.
+**Where.** `domain/orchestrator/cashSaleOrchestrator.ts`, `confirmCashSalePayment`.
+
+## F81 — Buy Now showed a refusal as a paragraph that resized the dialog (severity 2, FIXED 2026-11-24)
+**Symptom.** A refused Buy Now (for example REGION_MISMATCH) grew the dialog from 501 to
+583 px with the message inside it.
+**Cause.** `components/listings/BuyButton.tsx` set the inline field error and a toast for
+every action failure.
+**Fix.** Request failures are toast-only. Field validation (`prepareSale`) stays inline,
+as the steering rule says.
+**Where.** `components/listings/BuyButton.tsx`, `handleBuy`.
+
+## F82 — Contract step labels named a different thing from the number they showed (severity 2, FIXED 2026-11-24)
+**Symptom.** axe `label-content-name-mismatch` on every cash-sale room: the numbered step
+button shows "4" but its name is "Pay to lock in the deal — current step". Blocking in the
+UX audit, so every sale-room Pathway failed at its first Buy Now step.
+**Fix.** A numbered step's name starts with "Step N: ".
+**Where.** `components/contract/ContractProgressRail.tsx`.
+
+## F83 — The header account button's name did not contain its initials (severity 2, FIXED 2026-11-24)
+**Symptom.** axe `label-content-name-mismatch` on the account button (`.ml-tight`) on every
+signed-in page. The avatar shows initials that the label "Alice Nguyen, account menu" lacks.
+**Fix.** The name starts with the initials as a separate word: "AN Alice Nguyen, account
+menu".
+**Where.** `components/layout/SiteMenu.tsx`. Wrapping the avatar in `aria-hidden` did not
+satisfy axe, because the rule reads visible text, not the accessibility tree.
+
+## F84 — Every card payment logs an unexpected `INVALID_STATE` for the webhook (severity 1, OPEN)
+**Symptom.** Each successful card payment writes a `webhook.payments` row to `error_logs`
+with `transfer.settled` and `INVALID_STATE: ESCROW_HELD`. The buyer's read-back usually
+settles the sale first, so the webhook's duplicate settle is a normal no-op that is logged
+as unexpected.
+**Where.** `lib/webhook/webhookPipeline.ts` (around line 416). An already-held sale
+should be an expected outcome, or the duplicate should be dropped before it reaches
+`settleCashSale`.
+**Not fixed in this pass.** It only adds noise to the error log.
+
+## Status block — 2026-11-24 (audit task 10 pass)
+Pathways checked on desktop with `--no-build` after the app changes above:
+- passing: `cash-sale.payments.card-no-auth`, `card-3ds`, `card-repriced`,
+  `region-mismatch`, `seller-exposure-limit`, `seller-not-payable`
+- failing, with the reason in the audit record:
+  `card-declined` (no refusal reaches a Server Action; product decision, see the report),
+  `card-3ds-failed` (same product decision), `related-accounts` (blocking axe
+  `label-content-name-mismatch` on a `.group` element on `/profile`, not yet located),
+  `buyer-identity-required` (the in-room ID check selector is not found),
+  `bank-payto` (the Payment-tab read takes about 250 s, and the page closes)
+- not yet run: `bank-ideal`, `bank-bancontact`, `bank-eps`, `bank-p24` (bank redirects)
+
+---
+
+# Round 10 — task 10 lifecycle checkpoint (F85–F89)
+
+## F85 — A card decline could leave the buyer with no message (severity 3, FIXED in working tree, decline toast still unverified)
+
+**Symptom.** A card declined at Pay, or a failed 3-D Secure check, ends the sale in FAILED with the item relisted. The Pathway then found no refusal from the Server Action and no toast.
+
+**Cause.** The webhook (`payment_intent.payment_failed`) can fail the collection before the buyer's read-back runs. `confirmCashSalePayment` returned `{ ok: true, sale }` for any sale that was no longer PAYMENT_PENDING, so the FAILED sale read back as success and the buyer heard nothing.
+
+**Fix.** `domain/orchestrator/cashSaleOrchestrator.ts`: a FAILED sale returns `TRANSFER_FAILED`. Unit test in `tests/unit/cashSalePayRequiresAction.test.ts` (second read-back after a webhook failure). The action code is now captured; the visible toast ("The payment could not be collected.") still did not appear in the latest run, so `card-declined` is not yet passing.
+
+## F86 — `acceptTradeTerms` had no server-side saved-card check (severity 3, FIXED)
+
+**Cause.** Only the trade room's disabled Accept button stopped a trader with no card, so the mobile route (`app/api/mobile/trades/accept-terms`) and any stale page reached the collateral placement without one.
+
+**Fix.** `lib/actions/tradeNegotiation.ts`: after the identity gate, a caller with no `profiles.payment_source_id` gets `no-payment-method` with the existing copy "Add a card before you pay." `trades.agree.refused-no-card` now also asserts that refusal through the mobile route.
+
+## F87 — The avatar button's name did not begin with its visible initials (severity 2, FIXED)
+
+**Symptom.** axe `label-content-name-mismatch` on `/profile` (`.group` button in `AvatarUploadField`).
+
+**Fix.** The aria-label moved to an `sr-only` span after the initials, so the accessible name starts with the visible text (same fix shape as F83).
+
+## F88 — After a PayTo payment the room is unclickable: `body` keeps `pointer-events: none` (severity 4, FIXED)
+
+**Status (2026-11-24): FIXED in app code.** Checked on desktop: PayTo passed three runs in a row, and the four bank redirect Pathways passed once each (results below). Phone was not run.
+
+**Cause.** The writer is Stripe.js, not Radix. Stripe's modal backdrop (`lockScrolling`, background `rgba(40,40,40,0.75)`, in `js.stripe.com/dahlia/stripe.js`) runs when PayTo's in-place confirmation opens inside the bank dialog. It saves the whole `body.style.cssText` when it shows and writes that string back when it hides (`runOnHide`). While the bank dialog is open, Radix's DismissableLayer has set `body.style.pointerEvents = 'none'`, so the saved string contains it. Radix releases its lock when the dialog closes and restores `''`. If the Stripe backdrop is still up at that point, its later hide writes the saved string back, and nothing clears `pointer-events` again. Whether the backdrop hides before or after the dialog closes is what decides pass or fail, which fits the intermittency. The Radix upgrade is not the cause: `react-dismissable-layer` 1.2.1 does what it is written to do when it is the only owner of the body style. The upgrade stays.
+
+**Evidence** (`audit-artifacts/f88-pe-trace.json`, run 2 of the reproduction). A Proxy on `document.body.style` recorded each write with its stack. Radix lock `none` at 12,345 ms; Stripe's backdrop sets `overflow: hidden` at 18,998 ms, while the lock is held, and saves the `pointer-events: none` string; Radix restore `''` at 68,851 ms; then `cssText = 'pointer-events: none;'` at 68,996 ms from `stripe.js` `runOnHide`, after the dialog had released the lock. The earlier MutationObserver timeline showed the same sequence without a writer.
+
+**Fix.** `components/layout/BodyPointerGuard.tsx` (new), mounted once in `app/layout.tsx`. It enforces the invariant Radix relies on: `pointer-events: none` on the body belongs only to an open modal layer (`[role=dialog|alertdialog|menu|listbox][data-state=open]`). It re-checks on every change to the body's style and direct children, and clears the value when no such layer is open. An open dialog keeps its lock, so the overlay, focus trap and outside-click dismissal are unchanged. This is a compensating fix. Stripe.js still writes the stale value; the guard undoes it in the same task. The alternative, `modal={false}` on the bank dialog, would remove the overlay and focus trap, so it was not used. Other Stripe modals opened inside a Radix dialog (for example card setup 3-D Secure inside `AddPaymentMethodDialog`) take the same path; the guard covers them, but they were not run.
+
+**Files changed.**
+- `components/layout/BodyPointerGuard.tsx` (new)
+- `app/layout.tsx` (import and mount)
+- `tests/component/bodyPointerGuard.test.tsx` (new, 7 tests, passing)
+- `tests/e2e/FINDINGS.md` (this entry)
+
+The temporary trace in `tests/e2e/specs/cash-sale-payments.spec.ts` was removed, so that file has no change from its original state.
+
+**Runs.**
+- Reproduction, existing build, `--no-build`: the trace run failed at the Payment tab with `{"bodyPointerEvents":"none","openDialogs":0,"hitTestAtTab":"html"}`, and so did the second run with the trace (2 of 2).
+- Verification, PayTo, desktop: the first run rebuilt the app (`npm run audit`, without `--no-build`) and passed in about 62 s (`2026-11-24T07-00-24Z-uypaciu`). Two more `--no-build` runs passed in about 57 s (`07-04-28Z-8dmjsq9`) and 59 s (`07-07-10Z-v2vbtkz`). Three of three.
+- Redirect rails, desktop, one at a time, `--no-build`, no step failed in any of them (`bank-p24` ran eight steps): `bank-ideal` 16.4 s (`07-10-01Z-pty8rgx`), `bank-bancontact` 17.1 s (`07-11-57Z-3d1np2h`), `bank-eps` 14.2 s (`07-13-53Z-ib82qge`), `bank-p24` 15.6 s (`07-15-49Z-7qct4x1`).
+
+**Checks.** `npx vitest --run tests/component/bodyPointerGuard.test.tsx`: 7 passed. `npx tsc --noEmit` on the whole project: 0 errors.
+
+**Limit.** Three passes do not prove the guard fixes a bug that failed in two of two runs here and in two of three earlier. Before closing F88 for good, run PayTo several more times in an audit and check that no run leaves `bodyPointerEvents` at `none`.
+
+**Original notes (before the cause was found).**
+
+**Symptom.** After the bank dialog closes, every click on the sale room is refused. Playwright reports `<html>` intercepting the Payment tab. Reloading clears it.
+
+**Evidence.** A passive MutationObserver timeline in the PayTo Pathway: the Pay confirm and the bank dialog both restore `body` correctly on close, then `body` is set to `none` again while the closed bank dialog is still mounted, and stays `none` after it unmounts. Nothing else on the page changes the value.
+
+**Not known at this point.** The writer was found later (see the status above). Dependency facts: `react-dismissable-layer` is installed three times (1.1.17 under `react-dialog`, 1.1.19 under popover and tooltip, 1.1.20 under menu). Upstream changelog 1.1.12 says it fixed "pointer-events: none left on the body after closing when multiple overlapping modal layers", and 1.1.17 includes that. `react-dialog` latest is 1.3.1, which pins dismissable-layer 1.2.1. Neither upgrade is tested.
+
+**Pathway.** `cash-sale.payments.bank-payto` fails at the Payment-tab step with the body state in the message. The wait is not the problem; the click cannot land.
+
+**Radix upgrade attempt (2026-11-24, NOT FIXED).** `@radix-ui/react-dialog` moved to 1.3.1 with popover 1.3.1, tooltip 1.4.1, select 2.4.1 and dropdown-menu 2.2.1, so `npm ls @radix-ui/react-dismissable-layer` shows one copy (1.2.1). Component tests and `tsc` are unchanged apart from a pre-existing `referenceGraph` failure. On the rebuilt app the PayTo Pathway still locks: `{"bodyPointerEvents":"none","openDialogs":0,"hitTestAtTab":"html"}`. The same Pathway passed once before that run, so the lock is intermittent. Dependency version is not the cause, or not the only cause.
+
+## F89 — Face-to-face trades were worded and laid out as delivery (severity 1, FIXED)
+
+Trade room title is "Meeting terms", trigger is "Set meeting", and the postage tile is hidden on in-person trades (`FulfilmentMethodSummary` `only` prop). The refused-edit copy names the placement cutoff through `meetingLockMessage` (`lib/handover/terms.ts`), built from `placementCutoff`. Pathway helpers and `trade.spec.ts` updated to match.
+
+## F90 — A declined card left the room with no message, and the decline toast was not on screen (severity 3, FIXED IN SOURCE, NOT YET BUILT)
+
+**Symptom.** A card declined at Pay ends the sale in FAILED and relists the item, as it should. But the room shows only the status: the badge "Stripe failed", the progress label "Step 2 of 5 · Failed", and an action card titled "This contract is finished" with nothing under it. No sentence says the payment was declined or that the item went back to the catalog. The toast "The payment could not be collected." was not on screen when the server's refusal arrived, and the Pathway did not see it within 15 s.
+
+**Cause.** `components/sales/CashSaleView.tsx` passed `step={currentStep(steps)}` to `ContractActionCard`. For a closed sale `currentStep` returns null, so the card had no title or detail. The halted step (`haltOutcome` in `domain/contract/cashSaleSteps.ts`, "Payment failed here") carries the explanation, but the card never received it. The progress rail shows it only when its tick is clicked.
+
+**Fix.** `CashSaleView` passes the halted step's label and detail as the card's `title` and `detail`. The card already has a detail slot, so the layout does not change. The sentence shows from `md` up in the dock; on a phone the heading carries the outcome.
+
+**Race (same pass).** `failCollectedPayment` in `domain/orchestrator/cashSaleOrchestrator.ts` returned `INVALID_STATE`, whose copy is "This contract has moved on.", when the webhook (`payment_intent.payment_failed`) had already failed the sale. The guarded `failPayment` then changed nothing. The read-back now reloads the sale and returns `TRANSFER_FAILED` when it is FAILED. It does not relist the item from this branch: the webhook path owns that, and relisting here could free an item another buyer has since reserved. One of four runs returned `INVALID_STATE`.
+
+**Where.** `components/sales/CashSaleView.tsx` (`haltedStep`, the `ContractActionCard` title and detail), `domain/orchestrator/cashSaleOrchestrator.ts` (`failCollectedPayment`), `tests/e2e/specs/cash-sale-payments.spec.ts` (`cash-sale.payments.card-declined`).
+
+**Status.** Not verified in the browser. `audit --no-build` serves the last `.next-e2e` build, which predates these edits, so the Pathway fails on the heading check against the old UI. It needs one run without `--no-build`. No unit test was added for the `failCollectedPayment` change.
+
+**Verified (2026-11-24).** `node scripts/e2e/audit.mjs --pathway cash-sale.payments.card-declined --viewport desktop` (build included) passed on the first run with 0 retries, run `2026-11-24T07-58-47Z-2y01iae`. The room's desktop sentence "The payment could not be collected, so the item returned to the catalog." and the heading "Payment failed here" were both visible, the sale is FAILED, nothing was charged, and the item is AVAILABLE and in the catalog for another member. The unit tests in `tests/unit/cashSale*.test.ts` (18 files, 185 tests) pass. The Pathway run took 126 s; the whole command took about 177 s including the build.
+
+# Round 11 — cash-sale area on desktop, task 10 (F91–F94)
+
+Run `2026-11-24T08-36-14Z-4e1x034` (`audit --area cash-sale --viewport desktop --no-build`): 27 Pathways, 21 passed, 6 failed. Every failure is a blocking UX observation raised by the policy, not an assertion. Each failing step is listed below.
+
+## F91 — A listing with multiple items did not say that nothing is held (severity 2, FIXED 2026-11-24)
+
+**Symptom.** The buyer's listing page reads "Multiple items" beside the price and the Request button, and nothing on the page says that nothing is held. The steering rule is explicit: a listing with multiple items must always say nothing is held. `ListingDesktopPane.tsx` and `ListingDetailStack.tsx` both carry comments that the buy bar says it, but `ShopfrontBuyButton` renders only the "Request" trigger, and its dialog has no description, so the statement is in no place a buyer sees before opening the dialog.
+
+**Fix.** `components/listings/ListingTrust.tsx`: for a shopfront, the protection line opens with "Nothing in this listing is held for you." That line is the one component both the phone and the desktop listing render, and it shows whenever `showTrust` is true.
+
+**Verified.** Run `2026-11-24T08-54-05Z-iz7q4bf` (built) passed `cash-sale.multiple-items.line-items` on desktop with no blocking observations. Step 3 had failed in run `2026-11-24T08-49-16Z-dshhbq0`.
+
+**Owner review.** The sentence "Nothing in this listing is held for you." is new member-facing copy. It is kept as written. The product owner should confirm the wording.
+
+## F92 — The copy checker rejected the sentence the contract chat uses (testing note, FIXED IN TEST RULE)
+
+**Cause.** Migration `0175_multiple_items_chat_copy.sql` writes "Nothing in the listing is held" into the AGREEMENT_CREATED event. `NOTHING_HELD_STATEMENT` in `tests/e2e/audit/core/copyRules.ts` accepted only "Nothing is held" and "Nothing in this listing is held", so the contract room failed the check though its copy meets the product rule.
+
+**Fix.** The rule now accepts "the listing" as well as "this listing". `tests/unit/auditCopyRules.test.ts` gained the migration's sentence as a passing case. The app copy is unchanged, because the event text is in SQL and a migration to reword it is not warranted for a matching problem.
+
+**Verified.** In run `2026-11-24T08-49-16Z-dshhbq0`, steps 4, 6 and 9 of `cash-sale.multiple-items.line-items` (the contract room) passed. Only step 3 failed, as F91 predicts.
+
+## F73 (update) — The carrier tracking link still fails label-in-name, in three delivery Pathways
+
+Run `2026-11-24T08-36-14Z-4e1x034` reports axe `label-content-name-mismatch` on the outline button that wraps "Track parcel" (`components/fulfilment/ShipmentSummary.tsx`, around line 90). Its `aria-label` is "Track this parcel with … (opens in a new tab)", so the visible words are not at the start of the name. Blocking in `cash-sale.delivery.lifecycle` (step 8, "Seller records the shipment with a tracking number"), `cash-sale.delivery.flagged-delivered-before-shipment` (step 8, "Seller records a tracking number") and `cash-sale.inspection.auto-complete` (step 8, "Seller records the shipment").
+
+**Status: FIXED 2026-11-24, verified.** `components/fulfilment/ShipmentSummary.tsx` no longer sets an `aria-label` on the link. The accessible name is now "Track parcel with <carrier> (opens in a new tab)": the visible words come first, and the carrier and new-tab notice are `sr-only` text, so the visible text is unchanged. Run `2026-11-24T08-54-05Z-iz7q4bf` (built) passed the three Pathways above on desktop with no blocking observations. Still open: the phone details sheet's "Done" button (`ContractLiveRow.tsx`, `aria-label="Close details"`).
+
+## F74 (update) — The seller's room scroll regions still cannot be reached by keyboard, in two in-person Pathways
+
+Run `2026-11-24T08-36-14Z-4e1x034` reports axe `scrollable-region-focusable` on `.overscroll-contain` in the seller's contract room. Blocking in `cash-sale.in-person.handover-24h` (step 9, "Seller confirms the handover") and `cash-sale.in-person.handover-too-early` (step 8, "Seller opens the room three days before the meeting").
+
+**Status: FIXED 2026-11-24, verified.** Run `2026-11-24T08-54-05Z-iz7q4bf` (built) passed `cash-sale.in-person.handover-24h` and `cash-sale.in-person.handover-too-early` on desktop with no blocking observations.
+
+## F93 — The Buy dialog grew when the saved card loaded (severity 2, FIXED 2026-11-24)
+
+**Symptom.** `cash-sale.payments.region-mismatch` (desktop) failed in run `2026-11-24T08-54-05Z-iz7q4bf` with a blocking observation: "the dialog resized from 576×391 to 576×501 px" during the refused Buy Now. The toast itself was correct and visible.
+
+**Cause.** `components/listings/BuyButton.tsx` drew the saved-card row only once the card read returned (`loading ? null : …`). The row arrived after the dialog opened and added about 110 px, which breaks the rule that arriving data must not move the dialog. The comment above the row already said the geometry should be the same with or without a card.
+
+**Fix.** The row is always drawn. While the read runs it shows "Checking your card…" with the same two lines, and the description reserves two lines (`min-h-[2lh]`) so the card's fee line cannot change the height.
+
+**Verified.** Build-included rebuild (36.6 s), then `node scripts/e2e/audit.mjs --pathway cash-sale.payments.region-mismatch --viewport desktop --no-build`, run `2026-11-24T09-04-17Z-884bobi`: passed, 0 retries, 0 blocking observations (wall 101.6 s). The other Buy dialog Pathways (`cash-sale.buy-now.*`, `cash-sale.cancel.in-agreement`) were not re-run after this change.
+
+---
+
+## F94 — Every trade for a Multiple items listing failed with "The offer could not be opened" (severity 4, FIXED — migration 0177)
+
+**Symptom.** A member proposes a trade for cards out of a Multiple items listing. The Propose dialog shows the alert "The offer could not be opened. Please try again." and no trade is created. The same offer against a single-card listing works.
+
+**Cause.** Migration 0081 made a shopfront a legal COUNTERPART side ("a binder can be traded for, never offered"). `open_trade_negotiation` already refuses a shopfront as the offering side. But migration 0074's `trade_items_must_be_owned` trigger, `cardtrade.enforce_trade_item_ownership`, still refused every `trade_items` row whose item is a shopfront, including the counterpart's. The RPC's insert failed, the action had no named code for it, and it returned the generic `rejected` copy. The offering-side guard in the RPC stayed correct, so the one shopfront rule that mattered was never reached.
+
+**Fix.** `supabase/migrations/0177_shopfront_counterpart_trade_items.sql` replaces the trigger function. A shopfront row is refused only when it belongs to the trade's initiator. Ownership and closed-item checks still apply to both sides. Applied to the `cardtrade_dev` sandbox with `npm run dev:db:apply`. It is not on production yet: ship it through the normal migration path.
+
+**Guarded by.** `tests/e2e/specs/trade.spec.ts` → `trades.shopfront.side-valued-at-offer`, which opens, negotiates and values a Multiple items trade end to end. `trades.shopfront.refused-as-offering-side` still refuses the shopfront offering side from the RPC.
+
+**Why the generic copy hid it.** `openTradeNegotiation` maps only the named refusals. Any other RPC error reads as "could not be opened", so a database rule the action does not name looks like a transient failure. Worth naming the trigger's shopfront code if it ever fires for a member.
+
+## F95 — The trade Pathways built persona sellers and accept steps the app could not reach (testing note, FIXED IN SUITE)
+
+Three arrange gaps in `tests/e2e/specs/trade.spec.ts`. None was an app defect, but each looked like one.
+
+1. **Persona sellers had no disclosure consent.** A seller is disclosed to a buyer only after the one-tap consent (`merchant_identity_disclosure_consented_at`). Real sellers give it on the listing form, and `personaProfileRow` does not set it. So a verified persona's listing showed "Payout setup needed" and no Propose button. Fixed by calling `arrangeSellerPersona` (the helper the cash-sale Pathways already use) in the arrange of the four Pathways whose seller is a persona: abandon, declined hold, collateral lock and the EUR cash leg. The two `trades.agree.refused-*` Pathways keep Bob as the seller, who is a seed member and already consents.
+2. **The initiator's Accept only appears after the counterpart edits the terms.** Opening an offer records the opener's acceptance (`initiator_terms_accepted_version = 1` in `open_trade_negotiation`), and a counterpart edit clears it (ESC-04). So an opener has no "Accept terms" button until Bob sets a meeting. `trades.agree.refused-no-card` and `trades.agree.refused-unverified` now have Bob set the meeting first, as `agreeSwap` does.
+3. **A refusal that is written in the dialog cannot be a precondition.** `refusal(..., { toastIn })` asserts the dialog is open before the request. The meeting-cutoff Pathway opens that dialog inside the request, so the check failed before the app was exercised. It now uses `messageIn`, which looks for the refusal inside the dialog after the save. The no-card refusal reads its copy from `SavedCardRow`, which renders the sentence beside Accept and not in an alert.
+
+**Guarded by.** Each of the seven Pathways above, all now passing desktop.

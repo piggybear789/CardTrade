@@ -1,0 +1,418 @@
+{
+  "runId": "2026-11-24T09-38-02Z-lhl6sgd",
+  "startedAt": "2026-11-24T09:38:06.773Z",
+  "durationMs": 103664,
+  "commit": "9fb54b1e87fff1408d71fa42e3141a3fae9081b6",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "trades.agree.refused-no-card",
+        "title": "A trader with no saved card cannot accept the terms",
+        "area": "trades",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "trader": "persona:trade-no-card",
+          "bob": "seed:bob"
+        },
+        "viewports": "both",
+        "requiresSeed": [
+          "alice",
+          "bob",
+          "trade-pair-a-alice"
+        ]
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-24T09-38-02Z-lhl6sgd",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed records present: alice, bob, trade-pair-a-alice",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T09:39:14.543Z",
+          "status": "passed",
+          "durationMs": 200,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "The trader and Bob each list a card of equal value",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T09:39:14.744Z",
+          "status": "passed",
+          "durationMs": 101,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "The trader: opens the offer",
+          "kind": "action",
+          "members": [
+            "trader"
+          ],
+          "startedAt": "2026-11-24T09:39:14.846Z",
+          "status": "passed",
+          "durationMs": 1636,
+          "screenshots": [
+            {
+              "member": "trader",
+              "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/step-03.trader.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/listings/69b3acfb-e4a1-46be-afcf-25c2d57d513c",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/listings/69b3acfb-e4a1-46be-afcf-25c2d57d513c",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "trader",
+              "url": "http://localhost:3100/listings/69b3acfb-e4a1-46be-afcf-25c2d57d513c",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "The trader: sends the offer",
+          "kind": "action",
+          "members": [
+            "trader"
+          ],
+          "startedAt": "2026-11-24T09:39:16.483Z",
+          "status": "passed",
+          "durationMs": 2083,
+          "screenshots": [
+            {
+              "member": "trader",
+              "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/step-04.trader.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Bob sets the meeting place and time",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-24T09:39:18.569Z",
+          "status": "passed",
+          "durationMs": 4563,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/step-05.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "The room says a card is needed and will not let the trader accept",
+          "kind": "assert",
+          "members": [
+            "trader"
+          ],
+          "startedAt": "2026-11-24T09:39:23.134Z",
+          "status": "passed",
+          "durationMs": 990,
+          "screenshots": [
+            {
+              "member": "trader",
+              "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/step-06.trader.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "The mobile route refuses the same acceptance with the same card message",
+          "kind": "assert",
+          "members": [
+            "trader"
+          ],
+          "startedAt": "2026-11-24T09:39:24.125Z",
+          "status": "passed",
+          "durationMs": 566,
+          "screenshots": [
+            {
+              "member": "trader",
+              "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/step-06.trader.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "trader",
+              "url": "http://localhost:3100/trades/bcac62b6-6dcd-450a-9ce4-c68fec334714",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "Nothing was accepted",
+          "kind": "assert",
+          "members": [
+            "trader"
+          ],
+          "startedAt": "2026-11-24T09:39:24.692Z",
+          "status": "passed",
+          "durationMs": 88,
+          "screenshots": [
+            {
+              "member": "trader",
+              "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/step-06.trader.png"
+            }
+          ],
+          "observations": [],
+          "index": 8
+        }
+      ],
+      "videos": [
+        {
+          "member": "trader",
+          "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/video.trader.0.webm",
+          "masked": true
+        },
+        {
+          "member": "bob",
+          "path": "audit-artifacts/trades.agree.refused-no-card/desktop/2026-11-24T09-38-02Z-lhl6sgd/video.bob.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    }
+  ],
+  "leftInStripe": []
+}

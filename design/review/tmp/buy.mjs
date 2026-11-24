@@ -1,0 +1,10 @@
+﻿import { chromium, devices } from 'playwright';
+const b = await chromium.launch();
+const c = await b.newContext({ ...devices['iPhone 13'], storageState: 'playwright/.auth/design-Bob Carter.json' });
+const p = await c.newPage();
+await p.goto('http://localhost:3000/listings/aaaaaaa1-0000-0000-0000-000000000001', { waitUntil: 'networkidle' });
+await p.getByRole('button', { name: /^Buy/ }).first().click();
+await p.waitForTimeout(1500);
+await p.screenshot({ path: 'design/review/tmp/buy-dialog.jpg', type: 'jpeg', quality: 70 });
+console.log((await p.locator('[role=dialog]').allInnerTexts()).join('\n---\n').slice(0, 800));
+await b.close();

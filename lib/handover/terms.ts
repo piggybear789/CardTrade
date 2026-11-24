@@ -12,7 +12,8 @@
 //
 // The module header used to say "used by deals and 2-way trades". Deals are gone.
 
-import { formatMoney } from '@/lib/format';
+import { formatContractDateTime, formatMoney } from '@/lib/format';
+import { placementCutoff } from '@/domain/fulfilment/handoverEdits';
 import { TRADE_NO_FEE_NOTE } from '@/lib/fees/feeLabels';
 import { FX_FEE_BPS, currencyConversionFeeFor } from '@/domain/fees/fxFee';
 
@@ -130,6 +131,21 @@ export function describeDelivery(
 }
 
 /** Strip the generated price line so an edit form can re-show only free notes. */
+/**
+ * The refusal when a face-to-face meeting can no longer change. It names the instant the
+ * lock takes effect: the placement cutoff of this meeting (ESC-04), when the trade
+ * collateral is placed. Before that instant the copy says it is coming; after it, it
+ * says when it happened.
+ */
+export function meetingLockMessage(meetingAt: string | null, now: Date = new Date()): string {
+  const cutoff = placementCutoff(meetingAt);
+  if (cutoff === null) return 'The meeting is locked once the trade collateral is placed.';
+  const when = formatContractDateTime(new Date(cutoff).toISOString()) ?? 'the placement time';
+  return now.getTime() >= cutoff
+    ? `The meeting was locked at ${when}, when the trade collateral was placed.`
+    : `The meeting locks at ${when}, when the trade collateral is placed.`;
+}
+
 export function deliveryNotesFromDetails(details: string | null | undefined): string {
   if (!details) return '';
   const lines = details.split('\n');

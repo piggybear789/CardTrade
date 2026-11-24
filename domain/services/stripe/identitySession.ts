@@ -4,6 +4,7 @@
 // and idempotency can be unit-tested without a Stripe client.
 
 import type Stripe from 'stripe';
+import { withRunStamp } from './metadata';
 
 /**
  * Idempotency key for a verification session.
@@ -41,6 +42,8 @@ export function identitySessionCreateParams(params: {
   profileId: string;
   returnUrl: string;
   verificationFlow?: string;
+  /** `StripeConfig.e2eRunId`: set on the dev sandbox only (Req 2.7). */
+  e2eRunId?: string;
 }): Stripe.Identity.VerificationSessionCreateParams {
   return {
     ...(params.verificationFlow
@@ -58,14 +61,17 @@ export function identitySessionCreateParams(params: {
           },
         }),
     return_url: params.returnUrl,
-    metadata: {
-      cardtrade_profile_id: params.profileId,
-      // Stripe fixes `return_url` at creation, does not return it on the session, and
-      // will not update it. Stamping it here is the only way a later resume can tell
-      // whether the session would send the member back to THIS deployment. See
-      // `sessionReturnsTo`.
-      [IDENTITY_RETURN_URL_METADATA_KEY]: params.returnUrl,
-    },
+    metadata: withRunStamp(
+      {
+        cardtrade_profile_id: params.profileId,
+        // Stripe fixes `return_url` at creation, does not return it on the session, and
+        // will not update it. Stamping it here is the only way a later resume can tell
+        // whether the session would send the member back to THIS deployment. See
+        // `sessionReturnsTo`.
+        [IDENTITY_RETURN_URL_METADATA_KEY]: params.returnUrl,
+      },
+      params.e2eRunId,
+    ),
   };
 }
 

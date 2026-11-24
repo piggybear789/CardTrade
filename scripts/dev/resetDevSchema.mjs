@@ -5,6 +5,7 @@
 //
 //   npm run dev:db:reset            drop, clone, seed
 //   npm run dev:db:reset -- --no-seed
+//   npm run dev:db:reset -- --seed-only   re-apply seed.sql, no drop
 //
 // WHY A CATALOG CLONE AND NOT A MIGRATION REPLAY. Several migrations were applied with
 // `execute_sql` and have no history row, a handful of tables were created directly
@@ -43,10 +44,19 @@ import { seedImages } from './seedImages.mjs';
 
 const env = loadEnv();
 const withSeed = !process.argv.includes('--no-seed');
+const seedOnly = process.argv.includes('--seed-only');
 const REFERENCE_TABLES = ['regions', 'categories'];
 
 if (DEV_SCHEMA === SOURCE_SCHEMA || !DEV_SCHEMA.endsWith('_dev')) {
   throw new Error(`Refusing to drop "${DEV_SCHEMA}".`);
+}
+
+// `--seed-only` re-applies seed.sql to the existing sandbox without dropping it. The
+// seed is idempotent (`on conflict do nothing` plus explicit UPDATEs), so this adds
+// accounts or rows added to seed.sql since the last reset and keeps everything else.
+if (seedOnly) {
+  await seed();
+  process.exit(0);
 }
 
 const Q = (sql) => query(env, `set search_path = '';\n${sql}`);

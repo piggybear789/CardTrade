@@ -106,7 +106,7 @@ npm run dev:stripe                   :: stripe listen for both test accounts, fo
 - The clone (`scripts/dev/resetDevSchema.mjs`) copies tables, constraints, indexes, views, functions, triggers, RLS, grants, replica identity and Realtime membership, plus the `regions` and `categories` rows. It does NOT copy production rows or pg_cron jobs: run a job by hand (`select cardtrade_dev.auto_complete_due_cash_sales()`). Re-run it after a migration ships to production.
 - **Shared with production**: `auth.users` (sandbox accounts carry `app_metadata.sandbox = true` and the private `E2E_SEED_PASSWORD`, never seed.sql's public one), Storage buckets, and the Stripe test accounts' dashboards.
 - `readStripeConfig` throws if a live key is configured while the schema is `cardtrade_dev`.
-- The e2e `globalSetup` refuses to run unless the schema is `cardtrade_dev` (`E2E_ALLOW_PRODUCTION_SCHEMA=1` overrides). Its helpers read the schema through `e2eSchema()` in `tests/e2e/support/db.ts`.
+- The e2e `globalSetup`, its DB helpers (`e2eSchema()` in `tests/e2e/support/db.ts`) and `scripts/e2e/cleanup-test-data.ts` refuse to run unless the schema is exactly `cardtrade_dev`. There is no override. Cleanup deletes an auth user only when it is an `e2e-…@example.com` account with `app_metadata.sandbox = true` (`isDeletableSandboxUser`).
 - Delete the `NEXT_PUBLIC_SUPABASE_SCHEMA` line in `.env.local` to point localhost back at production data.
 
 ## Error logging (0123)

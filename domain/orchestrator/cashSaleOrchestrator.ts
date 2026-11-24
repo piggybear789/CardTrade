@@ -16,6 +16,7 @@ import { returnInspectionOpen, returnRefundDue } from '../fulfilment/inspection'
 import { isPostageOutlier, postageCapMinor } from '../fees/postagePolicy';
 import {
   checkRegionCompatibility,
+  minorUnitDigits,
   regionCurrency,
   regionMismatchMessage,
   tradingRegions,
@@ -1138,11 +1139,15 @@ export interface OpenPrivateDealCashSaleParams {
 }
 
 /**
- * Format integer cents as AUD for an audit/chat detail string. The domain stays
- * free of UI helpers, so this local formatter keeps `lib/format` out of it.
+ * Format integer minor units with their ISO code for an audit/chat detail string, e.g.
+ * "12.50 EUR" or "0.00 AUD". The code is always written: a bare "$" read a EUR or GBP
+ * contract as dollars. The divisor comes from `minorUnitDigits`. The domain stays free of
+ * UI helpers, so this local formatter keeps `lib/format` out of it.
  */
-function formatCents(cents: Cents): string {
-  return `$${(Math.trunc(cents) / 100).toFixed(2)}`;
+function formatCents(cents: Cents, currency: string): string {
+  const digits = minorUnitDigits(currency);
+  const major = Math.trunc(cents) / 10 ** digits;
+  return `${major.toFixed(digits)} ${currency.trim().toUpperCase()}`;
 }
 
 function currentIso(deps: CashSaleOrchestratorDeps): string {
@@ -1732,7 +1737,7 @@ export async function updateCashSaleTerms(
     toStatus: updated.sale.status,
     detail:
       terms.fulfillmentMethod === 'DELIVERY'
-        ? `shipping for ${formatCents(terms.shippingCostCents)}`
+        ? `shipping for ${formatCents(terms.shippingCostCents, sale.currency)}`
         : `meeting in person at ${terms.meetingLocation}`,
   });
   // ESC-28: a postage figure out of proportion to the item is recorded for staff.
@@ -1747,7 +1752,7 @@ export async function updateCashSaleTerms(
       event: 'POSTAGE_OUTLIER',
       fromStatus: updated.sale.status,
       toStatus: updated.sale.status,
-      detail: `postage ${formatCents(terms.shippingCostCents)} on an item of ${formatCents(sale.agreedPriceCents)}`,
+      detail: `postage ${formatCents(terms.shippingCostCents, sale.currency)} on an item of ${formatCents(sale.agreedPriceCents, sale.currency)}`,
     });
   }
   return { ok: true, sale: updated.sale };
@@ -1834,7 +1839,7 @@ export async function proposeCashSalePrice(
     event: 'PRICE_PROPOSED',
     fromStatus: sale.status,
     toStatus: updated.status,
-    detail: `item price set to ${formatCents(price)}`,
+    detail: `item price set to ${formatCents(price, sale.currency)}`,
   });
   return { ok: true, sale: updated };
 }
@@ -2007,7 +2012,7 @@ async function submitClaimedPayment(
   }
 
   if (transfer.status === 'FAILED') {
-    const failed = await deps.repository.failPayment({
+    await deps.repository.failPayment({
       cashSaleId: sale.id,
       transferId: transfer.transferId || undefined,
     });
@@ -2019,11 +2024,8 @@ async function submitClaimedPayment(
       fromStatus: 'PAYMENT_PENDING',
       toStatus: 'FAILED',
     });
-    return {
-      ok: false,
-      error: 'TRANSFER_FAILED',
-      detail: failed?.id ?? sale.id,
-    };
+    // No detail: the action layer shows `detail` as the message, and it must not be the id.
+    return { ok: false, error: 'TRANSFER_FAILED' };
   }
   const submitted = await deps.repository.recordPaymentSubmission({
     cashSaleId: sale.id,
@@ -2400,7 +2402,15 @@ async function failCollectedPayment(
   sale: CashSaleRecord,
 ): Promise<CashSaleResult> {
   const failed = await deps.repository.failPayment({ cashSaleId: sale.id });
-  if (!failed) return { ok: false, error: 'INVALID_STATE' };
+  if (!failed) {
+    // The webhook (`payment_intent.payment_failed`) can fail the collection before this
+    // read-back does (FINDINGS F85), so the guarded UPDATE finds nothing to change. A
+    // sale that is FAILED now is the buyer's decline, not a contract that moved on.
+    const current = await deps.repository.loadCashSale(sale.id);
+    return current?.status === 'FAILED'
+      ? { ok: false, error: 'TRANSFER_FAILED' }
+      : { ok: false, error: 'INVALID_STATE' };
+  }
   await syncListingStatus(deps, sale, 'AVAILABLE');
   await deps.repository.logEvent({
     cashSaleId: sale.id,
@@ -2409,7 +2419,8 @@ async function failCollectedPayment(
     fromStatus: 'PAYMENT_PENDING',
     toStatus: 'FAILED',
   });
-  return { ok: false, error: 'TRANSFER_FAILED', detail: sale.id };
+  // No detail: the action layer shows `detail` as the message, and it must not be the sale id.
+  return { ok: false, error: 'TRANSFER_FAILED' };
 }
 
 /**
@@ -2424,16 +2435,29 @@ export async function confirmCashSalePayment(
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
   if (!sale) return { ok: false, error: 'CASH_SALE_NOT_FOUND' };
   if (participantRole(sale, params.actorId) !== 'BUYER') return { ok: false, error: 'NOT_PARTICIPANT' };
+  // The webhook can fail the collection before the buyer's read-back runs (its
+  // payment_intent.payment_failed races this call). The buyer still has to hear that
+  // nothing was taken, so a FAILED sale is a refusal here, not a success (owner
+  // decision, cash-sale payments task 10).
+  if (sale.status === 'FAILED') return { ok: false, error: 'TRANSFER_FAILED' };
   if (sale.status !== 'PAYMENT_PENDING' || !sale.transferId) return { ok: true, sale };
   if (!deps.payments.readCollection) return { ok: true, sale };
 
   const collection = await deps.payments.readCollection(sale.transferId);
   if (collection.status === 'SETTLED') {
-    return settleCashSale(deps, {
+    const settled = await settleCashSale(deps, {
       cashSaleId: sale.id,
       paymentRef: sale.transferId,
       amountReceived: collection.amountReceived,
     });
+    // The webhook can settle the sale first. The buyer's payment went through, so the
+    // read-back reports the sale as it now stands rather than "the contract has moved on".
+    // No `settledNow`, so this call does not announce a purchase it did not settle.
+    if (!settled.ok && settled.error === 'INVALID_STATE') {
+      const current = await deps.repository.loadCashSale(sale.id);
+      if (current && current.status !== 'PAYMENT_PENDING') return { ok: true, sale: current };
+    }
+    return settled;
   }
   if (collection.status === 'FAILED') return failCollectedPayment(deps, sale);
   return { ok: true, sale };

@@ -1,0 +1,646 @@
+{
+  "runId": "2026-11-24T09-33-16Z-1qmekrn",
+  "startedAt": "2026-11-24T09:33:20.597Z",
+  "durationMs": 116743,
+  "commit": "9fb54b1e87fff1408d71fa42e3141a3fae9081b6",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "trades.abandon.meeting-passed-unlocked",
+        "title": "A meeting that passes without collateral locking cancels the trade and restores the cards",
+        "area": "trades",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "alice": "seed:alice",
+          "owner": "persona:trade-abandon-card"
+        },
+        "viewports": "both",
+        "requiresSeed": [
+          "alice",
+          "bob",
+          "trade-pair-a-alice"
+        ]
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-24T09-33-16Z-1qmekrn",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed records present: alice, bob, trade-pair-a-alice",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T09:34:31.576Z",
+          "status": "passed",
+          "durationMs": 183,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Alice and the owner each list a card of equal value",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T09:34:31.761Z",
+          "status": "passed",
+          "durationMs": 132,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Alice: opens the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:34:31.894Z",
+          "status": "passed",
+          "durationMs": 1705,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-03.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/3e9ca0ce-768f-4b08-8d75-7bdfdd49007d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/3e9ca0ce-768f-4b08-8d75-7bdfdd49007d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/3e9ca0ce-768f-4b08-8d75-7bdfdd49007d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Alice: sends the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:34:33.600Z",
+          "status": "passed",
+          "durationMs": 2408,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-04.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "The owner sets the meeting place and time",
+          "kind": "action",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:34:36.010Z",
+          "status": "passed",
+          "durationMs": 4104,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-05.owner.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Alice: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:34:40.115Z",
+          "status": "passed",
+          "durationMs": 886,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-06.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Alice: accepts the terms",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:34:41.002Z",
+          "status": "passed",
+          "durationMs": 1083,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-07.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "The owner: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:34:42.088Z",
+          "status": "passed",
+          "durationMs": 981,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-08.owner.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "The owner: accepts the terms",
+          "kind": "action",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:34:43.071Z",
+          "status": "passed",
+          "durationMs": 1266,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-09.owner.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 9
+        },
+        {
+          "name": "Rewinding the meeting clock to an hour ago, then the hourly trade-inspections job runs",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T09:34:44.339Z",
+          "status": "passed",
+          "durationMs": 5390,
+          "screenshots": [],
+          "observations": [],
+          "index": 10,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "The meeting is days away; the abandon fires once it has passed."
+          }
+        },
+        {
+          "name": "The trade is cancelled",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:34:49.730Z",
+          "status": "passed",
+          "durationMs": 919,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-11.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 11
+        },
+        {
+          "name": "No hold is left live in Stripe and both cards are back on the market",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:34:50.651Z",
+          "status": "passed",
+          "durationMs": 1103,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/step-12.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/fb5c0414-e87d-41a7-b867-c8c43ba8da82",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 12
+        }
+      ],
+      "videos": [
+        {
+          "member": "alice",
+          "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/video.alice.0.webm",
+          "masked": true
+        },
+        {
+          "member": "owner",
+          "path": "audit-artifacts/trades.abandon.meeting-passed-unlocked/desktop/2026-11-24T09-33-16Z-1qmekrn/video.owner.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    }
+  ],
+  "leftInStripe": []
+}

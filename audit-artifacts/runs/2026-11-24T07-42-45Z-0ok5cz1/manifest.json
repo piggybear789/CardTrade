@@ -1,0 +1,296 @@
+{
+  "runId": "2026-11-24T07-42-45Z-0ok5cz1",
+  "startedAt": "2026-11-24T07:42:49.332Z",
+  "durationMs": 120462,
+  "commit": "9fb54b1e87fff1408d71fa42e3141a3fae9081b6",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-declined",
+        "title": "Buyer is declined at Pay and nothing is charged",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:declined-buyer",
+          "seller": "seed:alice",
+          "viewer": "persona:declined-viewer"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-24T07-42-45Z-0ok5cz1",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Alice lists a card at A$150.00",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T07:43:57.346Z",
+          "status": "passed",
+          "durationMs": 85,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer adds a card at Buy Now and reserves",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T07:43:57.434Z",
+          "status": "passed",
+          "durationMs": 12239,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.card-declined/desktop/2026-11-24T07-42-45Z-0ok5cz1/step-02.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b723be74-46db-4eb1-8e60-4513d026b750",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b723be74-46db-4eb1-8e60-4513d026b750",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b723be74-46db-4eb1-8e60-4513d026b750",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b723be74-46db-4eb1-8e60-4513d026b750",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b723be74-46db-4eb1-8e60-4513d026b750",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b723be74-46db-4eb1-8e60-4513d026b750",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/adbf0578-b846-44a8-86cd-85efc08943b6",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer sets a delivery address",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T07:44:09.674Z",
+          "status": "passed",
+          "durationMs": 2166,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.card-declined/desktop/2026-11-24T07-42-45Z-0ok5cz1/step-03.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/adbf0578-b846-44a8-86cd-85efc08943b6?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/adbf0578-b846-44a8-86cd-85efc08943b6?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/adbf0578-b846-44a8-86cd-85efc08943b6?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/adbf0578-b846-44a8-86cd-85efc08943b6?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer opens Pay",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T07:44:11.841Z",
+          "status": "passed",
+          "durationMs": 580,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.card-declined/desktop/2026-11-24T07-42-45Z-0ok5cz1/step-04.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/adbf0578-b846-44a8-86cd-85efc08943b6?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Buyer pays and the card is declined",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T07:44:12.422Z",
+          "status": "failed",
+          "durationMs": 12249,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.card-declined/desktop/2026-11-24T07-42-45Z-0ok5cz1/step-05.buyer.png"
+            }
+          ],
+          "observations": [],
+          "error": "Buyer pays and the card is declined: refusal code\n\nexpect(received).toBe(expected) // Object.is equality\n\nExpected: \"TRANSFER_FAILED\"\nReceived: \"INVALID_STATE\"",
+          "index": 5
+        }
+      ],
+      "videos": [
+        {
+          "member": "buyer",
+          "path": "audit-artifacts/cash-sale.payments.card-declined/desktop/2026-11-24T07-42-45Z-0ok5cz1/video.buyer.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    }
+  ],
+  "leftInStripe": []
+}

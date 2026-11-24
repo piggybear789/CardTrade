@@ -226,6 +226,46 @@ where id in (
   'bbbbbbb2-0000-0000-0000-000000000002'
 );
 
+-- ---------------------------------------------------------------------------
+-- HEIDI_SIGNOUT (tests/e2e/support/users.ts): the sign-out account.
+--
+-- A SEPARATE ACCOUNT ON PURPOSE. Signing out revokes the session, so the sign-out spec
+-- signs Heidi in itself instead of loading a shared jar; doing it as Alice would revoke
+-- the session every other spec uses. The e2e preflight checks she exists and carries
+-- the sandbox flag, which `scripts/dev/resetDevSchema.mjs` adds to every account here.
+--
+-- An ordinary AU member who has finished onboarding, so signing in lands on the
+-- catalog rather than the wizard. No payout columns: nothing she does moves money.
+-- ---------------------------------------------------------------------------
+
+insert into auth.users (
+  instance_id, id, aud, role, email, encrypted_password,
+  email_confirmed_at, created_at, updated_at,
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token,
+  email_change_token_new, email_change_token_current, email_change,
+  phone_change, phone_change_token, reauthentication_token
+)
+values
+  ('00000000-0000-0000-0000-000000000000', '88888888-8888-8888-8888-888888888888', 'authenticated', 'authenticated', 'heidi@example.com', crypt('password123', gen_salt('bf')), now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Heidi Signout"}', '', '', '', '', '', '', '', '')
+on conflict (id) do nothing;
+
+insert into auth.identities (
+  id, user_id, provider_id, identity_data, provider, last_sign_in_at, created_at, updated_at
+)
+values
+  (gen_random_uuid(), '88888888-8888-8888-8888-888888888888', '88888888-8888-8888-8888-888888888888', '{"sub":"88888888-8888-8888-8888-888888888888","email":"heidi@example.com","email_verified":true}', 'email', now(), now(), now())
+on conflict (provider, provider_id) do nothing;
+
+insert into profiles (id, display_name, contact_email)
+values ('88888888-8888-8888-8888-888888888888', 'Heidi Signout', 'heidi@example.com')
+on conflict (id) do nothing;
+
+update profiles
+set region_code = coalesce(region_code, 'AU'),
+    onboarding_completed_at = coalesce(onboarding_completed_at, now())
+where id = '88888888-8888-8888-8888-888888888888';
+
 -- =============================================================================
 -- Items
 -- =============================================================================

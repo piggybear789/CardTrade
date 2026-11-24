@@ -113,7 +113,9 @@ export function ContractProgressRail({
                 <button
                   type="button"
                   onClick={() => setOpenId(selected ? null : step.id)}
-                  aria-label={`${step.label}${
+                  // A numbered step shows its number, so the accessible name carries it too
+                  // (WCAG 2.5.3, axe label-content-name-mismatch).
+                  aria-label={`${numbered ? `Step ${index + 1}: ` : ''}${step.label}${
                     done
                       ? ' — complete'
                       : live

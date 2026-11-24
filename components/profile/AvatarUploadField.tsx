@@ -132,10 +132,12 @@ export function AvatarUploadField({
         type="button"
         disabled={controlsDisabled}
         aria-busy={isBusy}
-        aria-label={path ? 'Picture options' : 'Add a picture'}
         className="group relative cursor-pointer rounded-full border-0 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:border-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-65"
       >
         <Avatar avatarPath={path} displayName={displayName} size="md" />
+        {/* The name starts with the visible initials (WCAG 2.5.3, F73/F83): an
+            aria-label would replace them, and axe reads the visible text. */}
+        <span className="sr-only">{path ? 'Picture options' : 'Add a picture'}</span>
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 rounded-full bg-transparent transition-colors group-hover:bg-foreground/10 group-disabled:bg-transparent"

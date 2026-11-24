@@ -400,6 +400,7 @@ export function ContractChat({
             'max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]',
           )}
           role="log"
+          tabIndex={0}
           aria-label={`Chat with ${counterpartyName}`}
           aria-live={historyReady ? 'polite' : 'off'}
           aria-busy={!historyReady}

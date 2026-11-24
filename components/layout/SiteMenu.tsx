@@ -33,6 +33,7 @@ import {
   staffNavLinksFor,
   type MarketplaceNavLink,
 } from '@/components/layout/marketplace-nav-config';
+import { initialsFor } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 export interface SiteMenuProps {
@@ -158,18 +159,25 @@ export function SiteMenu({
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           aria-controls="site-menu-panel"
-          aria-label={`${displayName ?? 'Your account'}, account menu`}
+          // The avatar's initials are visible text, so the name starts with them as their own
+          // word. axe compares whole words, so "(EC)," would not match "EC"
+          // (label-content-name-mismatch, WCAG 2.5.3).
+          aria-label={`${initialsFor(displayName)} ${displayName ?? 'Your account'}, account menu`}
           title={displayName ?? undefined}
           className={cn(
             'ml-tight flex h-10 shrink-0 touch-manipulation items-center gap-0.5 rounded-full border border-transparent pl-1 pr-1.5 text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:border-ring',
             open && 'bg-accent',
           )}
         >
-          <Avatar
-            avatarPath={avatarPath}
-            displayName={displayName}
-            size="sm"
-          />
+          {/* The button's aria-label already names the account. The avatar's initials are
+              visible text that the label does not contain (axe label-content-name-mismatch). */}
+          <span aria-hidden className="inline-flex">
+            <Avatar
+              avatarPath={avatarPath}
+              displayName={displayName}
+              size="sm"
+            />
+          </span>
           <HugeiconsIcon
             icon={ArrowDown01Icon}
             className={cn(

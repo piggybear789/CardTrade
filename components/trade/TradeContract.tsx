@@ -617,7 +617,7 @@ function TradeTermsRow({
         editable ? (
           <TradeHandoverTermsEditor
             trade={trade}
-            triggerLabel={trade.handover_method ? 'Edit terms' : 'Set delivery terms'}
+            triggerLabel={trade.handover_method ? 'Edit terms' : 'Set meeting'}
           />
         ) : null
       }
@@ -628,7 +628,12 @@ function TradeTermsRow({
           without once saying that posting is what was agreed — and the only way
           to see the alternative was to open the editor. The unchosen option
           stays on screen, quiet, so the decision reads as a decision. */}
-      <FulfilmentMethodSummary method={trade.handover_method} />
+      {/* A face-to-face trade has no postage to show (TRADE_HANDOVER_METHODS): the tile
+          would promise a posted parcel the trade can never send. */}
+      <FulfilmentMethodSummary
+        method={trade.handover_method}
+        only={trade.handover_method === 'IN_PERSON' ? ['IN_PERSON'] : undefined}
+      />
 
       {trade.handover_method === null ? (
         <p className="text-muted-foreground">

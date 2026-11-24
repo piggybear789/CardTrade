@@ -392,6 +392,20 @@ export const acceptTradeTerms = withActionLog('tradeNegotiation.acceptTradeTerms
     }
   }
 
+  // The collateral hold is placed against the caller's saved card, so accepting without
+  // one would commit both traders to a placement that cannot happen. The trade room
+  // disables Accept until a card is saved; this is the same refusal for a caller that
+  // skips the button (the mobile route, a stale page), and the copy it returns is the
+  // one the room already shows for it.
+  const { data: payer } = await createAdminClient()
+    .from('profiles')
+    .select('payment_source_id')
+    .eq('id', userId)
+    .maybeSingle();
+  if (!payer?.payment_source_id) {
+    return { ok: false, error: 'no-payment-method', message: 'Add a card before you pay.' };
+  }
+
   // ESC-04: collateral is placed a day before the MEETING, so terms with no meeting
   // instant (or a non-face-to-face method) would leave a trade with no placement
   // time, no inspection clock and no stale-sweep trigger. The SQL guard joins this

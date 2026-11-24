@@ -125,6 +125,37 @@ export interface StripeConfig {
    * Stripe's default is 300s (5 minutes), matching the Pinch pipeline.
    */
   webhookToleranceSeconds: number;
+  /**
+   * The e2e audit run that created this server's Stripe objects (Req 2.7).
+   *
+   * Set ONLY on the dev sandbox (`NEXT_PUBLIC_SUPABASE_SCHEMA=cardtrade_dev`) and only
+   * when `E2E_RUN_ID` is present, so the audit's cleanup can find exactly the test
+   * objects one run made. On the production schema it is always undefined and no
+   * stamp is ever written. See {@link readE2eRunId} and `withRunStamp` in
+   * `metadata.ts`.
+   */
+  e2eRunId?: string;
+}
+
+/**
+ * Shape of an accepted run id. Kept narrow so nothing odd lands in Stripe metadata
+ * (values are capped at 500 characters there) and so a stray value is ignored rather
+ * than stamped.
+ */
+const E2E_RUN_ID_PATTERN = /^[A-Za-z0-9._:-]{1,100}$/;
+
+/**
+ * The audit run id to stamp on Stripe objects, or undefined.
+ *
+ * Returns a value only when the app runs on the dev sandbox schema. Read from `env`
+ * directly, like the live-key refusal in {@link readStripeConfig}, because `domain/`
+ * may not import `lib/supabase/schema.ts`. Production behaviour is therefore
+ * unchanged whatever `E2E_RUN_ID` holds.
+ */
+export function readE2eRunId(env: EnvLike = process.env): string | undefined {
+  if (env.NEXT_PUBLIC_SUPABASE_SCHEMA?.trim() !== 'cardtrade_dev') return undefined;
+  const runId = env.E2E_RUN_ID?.trim();
+  return runId && E2E_RUN_ID_PATTERN.test(runId) ? runId : undefined;
 }
 
 /** Minimal env shape so tests can pass a plain object. */
@@ -362,6 +393,7 @@ export function readStripeConfig(
     );
   }
 
+  const e2eRunId = readE2eRunId(env);
   const tolerance = Number.parseInt(env.STRIPE_WEBHOOK_TOLERANCE_SECONDS?.trim() ?? '', 10);
   const definition = findRegion(code);
 
@@ -409,6 +441,9 @@ export function readStripeConfig(
     webhookToleranceSeconds: Number.isFinite(tolerance) && tolerance > 0
       ? tolerance
       : DEFAULT_TOLERANCE_SECONDS,
+    // Sandbox only (Req 2.7): undefined on the production schema. Spread so a
+    // production config has no `e2eRunId` key at all.
+    ...(e2eRunId ? { e2eRunId } : {}),
   };
 }
 

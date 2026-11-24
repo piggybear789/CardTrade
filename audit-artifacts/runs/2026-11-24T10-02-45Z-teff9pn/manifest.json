@@ -1,0 +1,853 @@
+{
+  "runId": "2026-11-24T10-02-45Z-teff9pn",
+  "startedAt": "2026-11-24T10:02:49.399Z",
+  "durationMs": 120302,
+  "commit": "9fb54b1e87fff1408d71fa42e3141a3fae9081b6",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "journeys.trade-lifecycle",
+        "title": "Trade start to finish: propose, agree, collateral, handover, accept, holds voided",
+        "area": "journeys",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "proposer": "seed:carol",
+          "counterpart": "seed:dave"
+        },
+        "viewports": "both",
+        "knownFindings": [
+          "F73",
+          "F74",
+          "F76"
+        ]
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-24T10-02-45Z-teff9pn",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Dave lists a card worth A$120.00",
+          "kind": "action",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:03:56.042Z",
+          "status": "passed",
+          "durationMs": 4793,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-01.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Carol lists a card of equal value to offer",
+          "kind": "action",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:00.836Z",
+          "status": "passed",
+          "durationMs": 4568,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-02.proposer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "proposer",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "proposer",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Carol proposes a swap from Dave's listing",
+          "kind": "action",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:05.405Z",
+          "status": "passed",
+          "durationMs": 2568,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-03.proposer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "proposer",
+              "url": "http://localhost:3100/listings/edbcdce7-85d6-4171-9b21-eebd252f7f62",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "proposer",
+              "url": "http://localhost:3100/listings/edbcdce7-85d6-4171-9b21-eebd252f7f62",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Carol sets where and when they meet",
+          "kind": "action",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:07.975Z",
+          "status": "passed",
+          "durationMs": 3180,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-04.proposer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Dave opens the offer",
+          "kind": "action",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:11.156Z",
+          "status": "passed",
+          "durationMs": 1448,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-05.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Both are negotiating the same terms",
+          "kind": "assert",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:12.605Z",
+          "status": "passed",
+          "durationMs": 137,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-05.counterpart.png"
+            }
+          ],
+          "observations": [],
+          "index": 6
+        },
+        {
+          "name": "Dave reads what accepting costs: no fee, trade collateral as a temporary card hold",
+          "kind": "action",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:12.743Z",
+          "status": "passed",
+          "durationMs": 277,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-07.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "Dave accepts the terms",
+          "kind": "action",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:13.021Z",
+          "status": "passed",
+          "durationMs": 1185,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-08.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "The terms are agreed and both cards wait for their hold",
+          "kind": "assert",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:14.207Z",
+          "status": "passed",
+          "durationMs": 198,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-09.proposer.png"
+            }
+          ],
+          "observations": [],
+          "index": 9
+        },
+        {
+          "name": "The hourly trade job places the holds a day before the meeting (called on demand, as Vercel Cron would)",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T10:04:14.406Z",
+          "status": "passed",
+          "durationMs": 3646,
+          "screenshots": [],
+          "observations": [],
+          "index": 10
+        },
+        {
+          "name": "Collateral locks, and Dave sees it live",
+          "kind": "assert",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:18.053Z",
+          "status": "passed",
+          "durationMs": 268,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-11.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 11
+        },
+        {
+          "name": "Each card carries a live temporary hold in Stripe",
+          "kind": "assert",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:18.323Z",
+          "status": "passed",
+          "durationMs": 833,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-12.proposer.png"
+            }
+          ],
+          "observations": [],
+          "index": 12
+        },
+        {
+          "name": "They meet; Carol confirms the handover",
+          "kind": "action",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:19.158Z",
+          "status": "passed",
+          "durationMs": 557,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-12.proposer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 13
+        },
+        {
+          "name": "Dave confirms the handover",
+          "kind": "action",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:19.716Z",
+          "status": "passed",
+          "durationMs": 1455,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-14.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 14
+        },
+        {
+          "name": "The 72-hour inspection window opens",
+          "kind": "assert",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:21.172Z",
+          "status": "passed",
+          "durationMs": 109,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-14.counterpart.png"
+            }
+          ],
+          "observations": [],
+          "index": 15
+        },
+        {
+          "name": "Carol accepts the card she received",
+          "kind": "action",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:21.282Z",
+          "status": "passed",
+          "durationMs": 1080,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-16.proposer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 16
+        },
+        {
+          "name": "Dave accepts the card he received",
+          "kind": "action",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:22.363Z",
+          "status": "passed",
+          "durationMs": 1225,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-17.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 17
+        },
+        {
+          "name": "The trade completes for both",
+          "kind": "assert",
+          "members": [
+            "proposer"
+          ],
+          "startedAt": "2026-11-24T10:04:23.590Z",
+          "status": "passed",
+          "durationMs": 273,
+          "screenshots": [
+            {
+              "member": "proposer",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-18.proposer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "shift-outside-region",
+              "message": "Data arriving in span.absolute.inset-x-0.-bottom-px.h-0.5.rounded-t-full.bg-iris, div.relative.z-10.shrink-0.border-t.bg-card, div, input.sr-only, span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border, li.h-1.flex-1.rounded-full.bg-foreground/70, p.shrink-0.truncate.text-meta.text-muted-foreground, span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border, li.h-1.flex-1.rounded-full.bg-foreground/70, p.shrink-0.truncate.text-meta.text-muted-foreground moved li.h-1.flex-1.rounded-full.bg-foreground/70, li.h-1.flex-1.rounded-full.bg-foreground/70, outside its own region.",
+              "detail": {
+                "value": 0.0002,
+                "moved": "li.h-1.flex-1.rounded-full.bg-foreground/70 | li.h-1.flex-1.rounded-full.bg-foreground/70",
+                "regions": "span.absolute.inset-x-0.-bottom-px.h-0.5.rounded-t-full.bg-iris | div.relative.z-10.shrink-0.border-t.bg-card | div | input.sr-only | span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border | li.h-1.flex-1.rounded-full.bg-foreground/70 | p.shrink-0.truncate.text-meta.text-muted-foreground | span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border | li.h-1.flex-1.rounded-full.bg-foreground/70 | p.shrink-0.truncate.text-meta.text-muted-foreground"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "proposer",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 18
+        },
+        {
+          "name": "Both holds are released: voided in Stripe, nothing charged",
+          "kind": "assert",
+          "members": [
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T10:04:23.864Z",
+          "status": "passed",
+          "durationMs": 1094,
+          "screenshots": [
+            {
+              "member": "counterpart",
+              "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/step-19.counterpart.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/2a2033d7-7abf-4421-bfe7-b2c5207d8a47",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 19
+        }
+      ],
+      "videos": [
+        {
+          "member": "proposer",
+          "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/video.proposer.0.webm",
+          "masked": true
+        },
+        {
+          "member": "counterpart",
+          "path": "audit-artifacts/journeys.trade-lifecycle/desktop/2026-11-24T10-02-45Z-teff9pn/video.counterpart.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    }
+  ],
+  "leftInStripe": []
+}

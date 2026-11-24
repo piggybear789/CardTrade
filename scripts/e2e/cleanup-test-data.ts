@@ -19,9 +19,9 @@
 // locally) does not have one. `scripts/dump-demo-seed.ts` and
 // `scripts/purge-orphaned-uploads.ts` hit exactly this and worked around it
 // by talking to PostgREST directly over `fetch`; this script follows the same
-// pattern. CardTrade's tables live in the `cardtrade` Postgres schema (not
+// pattern. The suite's tables live in the `cardtrade_dev` sandbox schema (not
 // `public`), so every request carries `Accept-Profile` / `Content-Profile:
-// cardtrade`.
+// cardtrade_dev`. The script refuses to start on any other schema.
 //
 // THE FK GRAPH (child before parent; migration each edge came from). Built by
 // reading every `references cardtrade.*` in `supabase/migrations/` plus
@@ -123,15 +123,78 @@
 // individually and warns (rather than crashing the whole run) if one is
 // blocked this way, so the rest of cleanup still completes.
 
-// An empty export makes this file an ES module rather than a global script,
-// so its top-level names (`main` in particular) don't collide with the same
-// name declared by other import-free scripts under `scripts/` — e.g.
-// `purge-orphaned-uploads.ts` — when the whole project is type-checked in one
-// program.
-export {};
+// The import also makes this file an ES module rather than a global script, so its
+// top-level names (`main` in particular) don't collide with the same name declared
+// by import-free scripts under `scripts/` when the project is type-checked as one.
+//
+// SHARED_RESOURCES (Req 2.4–2.8). After the rows, the same pass cleans what the sandbox
+// shares with production, each by exact identity and never by a broader filter:
+//
+//   * auth.users — a marked `e2e-…@example.com` account missing `app_metadata.sandbox`
+//     is flagged first (a sign-up the suite drove through the real form), logged, and
+//     then deleted only through `isDeletableSandboxUser`.
+//   * Storage — the exact paths in every `audit-artifacts/.uploads/<runId>.jsonl`, the
+//     paths named by marked rows, and the `<profile id>/` folders of deletable sandbox
+//     personas in the per-member buckets. Never a bucket-wide listing. A path a
+//     surviving row still names is kept (see `tests/e2e/audit/core/sharedCleanup.ts`).
+//   * Stripe — test keys only (`testStripe`). Each test platform is searched with
+//     `runSearchQuery(runId)` for the current run and recent runs recorded on disk.
+//     PaymentIntents and unfinished Identity sessions are cancelled, Customers and
+//     connected accounts deleted, `cardtrade_e2e_fixture` objects kept, and anything
+//     Stripe will not remove is written to the run manifest's `leftInStripe`.
+//
+// Every item cleanup cannot delete is logged. Nothing is retried with a wider filter.
+//
+//   --dry-run   resolve and log everything, write nothing (no row, auth, Storage,
+//               Stripe, manifest or ledger change)
 
-/** The schema the app under test uses (lib/supabase/schema.ts); production unless .env.local says otherwise. */
-const SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA?.trim() || 'cardtrade';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
+
+import { assertSandboxSchema, isDeletableSandboxUser, maskEmail } from '../../tests/e2e/audit/core/preflight';
+import {
+  ARTIFACT_ROOT,
+  RUNS_DIR,
+  UPLOADS_DIR,
+  artifactPath,
+  isRunId,
+  type StorageObjectRef,
+} from '../../tests/e2e/audit/core/artifactPaths';
+import {
+  decideStripeObject,
+  mergeLeftInStripe,
+  objectKey,
+  ownerOfPath,
+  parseUploadLedger,
+  planStorageDeletion,
+  runStartedAt,
+  runsToHeal,
+  type LeftInStripe,
+  type StorageCandidate,
+  type StripeObjectType,
+} from '../../tests/e2e/audit/core/sharedCleanup';
+import type { RunManifest } from '../../tests/e2e/audit/core/aggregate';
+import {
+  E2E_RUN_METADATA_KEY,
+  runSearchQuery,
+  StripeKeyRefusedError,
+  TEST_PLATFORMS,
+  testStripe,
+  type TestPlatform,
+} from '../../tests/e2e/audit/backend/stripe';
+
+// THE SANDBOX ONLY (Req 2.8). Checked at module load, before any request is built:
+// every read and delete below carries this schema in its profile headers, and the
+// only value it can hold is `cardtrade_dev`. There is no default and no override.
+const RAW_SCHEMA = process.env.NEXT_PUBLIC_SUPABASE_SCHEMA?.trim();
+assertSandboxSchema(RAW_SCHEMA);
+const SCHEMA = RAW_SCHEMA;
+
+/** `--dry-run`: read and report only. Every write below checks this first. */
+const DRY_RUN = process.argv.includes('--dry-run');
+
+/** The repository root, where `audit-artifacts/` lives. */
+const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -207,6 +270,7 @@ async function fetchIds(
 
 /** DELETE matching rows and return how many were removed. */
 async function deleteWhere(table: string, params: URLSearchParams): Promise<number> {
+  if (DRY_RUN) return countWhere(table, params);
   const res = await fetch(`${restUrl(table)}?${params.toString()}`, {
     method: 'DELETE',
     headers: { ...restHeaders(), Prefer: 'return=representation' },
@@ -216,6 +280,17 @@ async function deleteWhere(table: string, params: URLSearchParams): Promise<numb
   }
   const rows = (await res.json()) as unknown[];
   return Array.isArray(rows) ? rows.length : 0;
+}
+
+/** `--dry-run`'s stand-in for a DELETE: how many rows the same filter matches. */
+async function countWhere(table: string, params: URLSearchParams): Promise<number> {
+  const res = await fetch(`${restUrl(table)}?${params.toString()}`, {
+    method: 'HEAD',
+    headers: { ...restHeaders(), Prefer: 'count=exact' },
+  });
+  if (!res.ok) throw new Error(`${table} count: ${res.status}`);
+  const total = /\/(\d+)$/.exec(res.headers.get('content-range') ?? '')?.[1];
+  return total ? Number(total) : 0;
 }
 
 async function deleteByIdsIn(table: string, column: string, ids: readonly string[]): Promise<number> {
@@ -236,7 +311,8 @@ async function deleteByOr(table: string, conditions: (string | null)[]): Promise
 /** Log a per-table result and return the count, so callers can sum a total. */
 async function step(label: string, run: () => Promise<number>): Promise<number> {
   const count = await run();
-  console.log(count > 0 ? `  ${label}: removed ${count}` : `  ${label}: already clean`);
+  const verb = DRY_RUN ? 'would remove' : 'removed';
+  console.log(count > 0 ? `  ${label}: ${verb} ${count}` : `  ${label}: already clean`);
   return count;
 }
 
@@ -364,7 +440,7 @@ async function fetchConversationIds(
  * `trades.conversation_id` is ON DELETE SET NULL and so needs nothing.
  */
 async function nullifyConversationLinks(cashSaleIds: readonly string[]): Promise<void> {
-  if (cashSaleIds.length === 0) return;
+  if (cashSaleIds.length === 0 || DRY_RUN) return;
 
   const params = new URLSearchParams();
   params.set('id', `in.(${cashSaleIds.join(',')})`);
@@ -463,7 +539,7 @@ async function fetchEmptyConversationIds(
 // ---------------------------------------------------------------------------
 
 async function nullifyStaffReferences(profileIds: readonly string[]): Promise<void> {
-  if (profileIds.length === 0) return;
+  if (profileIds.length === 0 || DRY_RUN) return;
 
   const targets: readonly [table: string, column: string][] = [
     ['cash_sales', 'cancelled_by'],
@@ -516,14 +592,122 @@ async function deleteProfiles(profileIds: readonly string[]): Promise<number> {
   return removed;
 }
 
+/** The fields of an Admin API user this script reads. */
+interface AuthUser {
+  email?: string | null;
+  app_metadata?: Record<string, unknown> | null;
+}
+
+/** Auth users read so far, by id; `null` is a 404. Reads only, so safe to cache. */
+const authUsers = new Map<string, AuthUser | null>();
+
+/** Ids a `--dry-run` would have flagged, so the rest of the dry run reads them flagged. */
+const wouldFlag = new Set<string>();
+
+function authHeaders(): Record<string, string> {
+  const key = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
+  return { apikey: key, Authorization: `Bearer ${key}` };
+}
+
+/** Reads one auth user through the Admin API, or null when there is none. Throws on error. */
+async function readAuthUser(id: string): Promise<AuthUser | null> {
+  if (authUsers.has(id)) return authUsers.get(id) ?? null;
+  const res = await fetch(authUrl(id), { headers: authHeaders() });
+  if (res.status === 404) {
+    authUsers.set(id, null);
+    return null;
+  }
+  if (!res.ok) throw new Error(`auth lookup ${res.status}`);
+  const user = (await res.json()) as AuthUser;
+  authUsers.set(id, user);
+  return user;
+}
+
+/** True when the user is flagged `app_metadata.sandbox = true` (seeds and personas). */
+function isSandboxFlagged(id: string, user: AuthUser | null): boolean {
+  return user?.app_metadata?.sandbox === true || wouldFlag.has(id);
+}
+
+/**
+ * Flags every marked account that is a reserved test address (`e2e-…@example.com`)
+ * but lacks `app_metadata.sandbox = true`, e.g. one the suite signed up through the
+ * real form (design, Cleanup). Logged with the email masked. Only an address
+ * `isDeletableSandboxUser` would accept once flagged is ever flagged, so a real member
+ * who happens to carry a marked display name is never touched.
+ *
+ * Returns the ids that are deletable sandbox personas after this pass.
+ */
+async function flagUnflaggedSandboxAccounts(profileIds: readonly string[]): Promise<Set<string>> {
+  const deletable = new Set<string>();
+  for (const id of profileIds) {
+    try {
+      const user = await readAuthUser(id);
+      if (user === null) continue;
+      if (isDeletableSandboxUser(user)) {
+        deletable.add(id);
+        continue;
+      }
+      const flagged = { ...user, app_metadata: { ...(user.app_metadata ?? {}), sandbox: true } };
+      if (!isDeletableSandboxUser(flagged)) continue; // not a reserved test address
+      const masked = maskEmail(user.email ?? '');
+      if (DRY_RUN) {
+        console.warn(`  auth.users: ${id} (${masked}) lacks the sandbox flag — would flag it`);
+        wouldFlag.add(id);
+        deletable.add(id);
+        continue;
+      }
+      console.warn(`  auth.users: ${id} (${masked}) lacked the sandbox flag — flagging it`);
+      const res = await fetch(authUrl(id), {
+        method: 'PUT',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ app_metadata: flagged.app_metadata }),
+      });
+      if (!res.ok) throw new Error(`flag ${res.status}`);
+      authUsers.set(id, flagged);
+      deletable.add(id);
+    } catch (error) {
+      console.warn(
+        `  auth.users: could not check or flag ${id} — ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  return deletable;
+}
+
+/**
+ * Deletes the auth account behind each matched profile, but ONLY when
+ * `isDeletableSandboxUser` says so: an `e2e-…@example.com` email AND
+ * `app_metadata.sandbox === true` (Req 2.1, 2.8). `auth.users` is shared with
+ * production (it is one Supabase project), so a profile marked only by display
+ * name is never enough to delete the account behind it. The user is read back
+ * first and a non-matching one is skipped with a warning naming its id only.
+ */
 async function deleteAuthUsers(profileIds: readonly string[]): Promise<number> {
   let removed = 0;
   for (const id of profileIds) {
     try {
       const key = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
+      const headers = { apikey: key, Authorization: `Bearer ${key}` };
+      const lookup = await fetch(authUrl(id), { headers });
+      // 404 means a prior run already removed this account — fine, not an error.
+      if (lookup.status === 404) continue;
+      if (!lookup.ok) throw new Error(`lookup ${lookup.status} ${await lookup.text()}`);
+      const user = (await lookup.json()) as AuthUser;
+      // In a dry run the flag `flagUnflaggedSandboxAccounts` would have set is absent.
+      const effective = DRY_RUN && wouldFlag.has(id)
+        ? { ...user, app_metadata: { ...(user.app_metadata ?? {}), sandbox: true } }
+        : user;
+      if (!isDeletableSandboxUser(effective)) {
+        console.warn(`  auth.users: skipped ${id} — not a marked sandbox account`);
+        continue;
+      }
+      if (DRY_RUN) {
+        removed += 1;
+        continue;
+      }
       const res = await fetch(authUrl(id), {
         method: 'DELETE',
-        headers: { apikey: key, Authorization: `Bearer ${key}` },
+        headers,
       });
       // 404 means a prior run already removed this account — fine, not an error.
       if (res.ok) {
@@ -539,6 +723,565 @@ async function deleteAuthUsers(profileIds: readonly string[]): Promise<number> {
     }
   }
   return removed;
+}
+
+// ---------------------------------------------------------------------------
+// Storage (Req 2.4, 2.5, 2.6). Shared with production: exact paths only.
+// ---------------------------------------------------------------------------
+
+/** Buckets whose objects live under `<profile id>/` (`lib/storage/*`). */
+const PER_MEMBER_BUCKETS = [
+  'item-images',
+  'profile-images',
+  'message-attachments',
+  'dispute-evidence',
+  'trusted-seller-photos',
+  'scam-report-evidence',
+  'reference-proof',
+  'handle-claim-evidence',
+] as const;
+
+/** Every sandbox column that names an object, per bucket. A match keeps the object. */
+const REFERENCING_COLUMNS: Record<string, readonly { table: string; column: string; array: boolean }[]> = {
+  'item-images': [
+    { table: 'items', column: 'image_paths', array: true },
+    { table: 'cash_sales', column: 'item_image_paths', array: true },
+    { table: 'cash_sale_items', column: 'image_path', array: false },
+    { table: 'notifications', column: 'image_path', array: false },
+  ],
+  'profile-images': [{ table: 'profiles', column: 'avatar_path', array: false }],
+  'message-attachments': [{ table: 'messages', column: 'attachment_path', array: false }],
+  'dispute-evidence': [{ table: 'dispute_evidence', column: 'media_paths', array: true }],
+  'trusted-seller-photos': [{ table: 'trusted_seller_reviews', column: 'photo_paths', array: true }],
+  'scam-report-evidence': [
+    { table: 'scam_reports', column: 'evidence_paths', array: true },
+    { table: 'scam_report_matches', column: 'member_response_paths', array: true },
+  ],
+  'reference-proof': [{ table: 'member_references', column: 'proof_paths', array: true }],
+  'handle-claim-evidence': [{ table: 'handle_claim_requests', column: 'screenshot_paths', array: true }],
+  'proof-of-card': [{ table: 'proof_of_card_challenges', column: 'proof_photo_path', array: false }],
+};
+
+/** Characters that would need escaping inside a PostgREST list; such a path is kept. */
+const UNSAFE_IN_FILTER = /["',\\(){}]/;
+
+function storageBase(): string {
+  return `${requireEnv('NEXT_PUBLIC_SUPABASE_URL').replace(/\/$/, '')}/storage/v1`;
+}
+
+function chunk<T>(values: readonly T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < values.length; i += size) out.push(values.slice(i, i + size));
+  return out;
+}
+
+/** Every non-empty value of `column` (text or text[]) on rows matching `conditions`. */
+async function fetchColumnValues(
+  table: string,
+  column: string,
+  conditions: (string | null)[],
+): Promise<string[]> {
+  const present = conditions.filter(isPresent);
+  if (present.length === 0) return [];
+  const params = new URLSearchParams();
+  params.set('select', column);
+  params.set('or', `(${present.join(',')})`);
+  const res = await fetch(`${restUrl(table)}?${params.toString()}`, { headers: restHeaders() });
+  if (!res.ok) throw new Error(`${table}.${column} select: ${res.status}`);
+  const rows = (await res.json()) as Record<string, unknown>[];
+  return rows.flatMap((row) => {
+    const value = row[column];
+    if (typeof value === 'string' && value !== '') return [value];
+    if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string' && v !== '');
+    return [];
+  });
+}
+
+/**
+ * Paths named by the marked rows this run is about to delete. Read BEFORE the rows go.
+ * A failed read is logged and skipped: the per-persona folder sweep and the ledger still
+ * cover most of it, and guessing instead would widen the filter.
+ */
+async function collectRowPaths(ids: {
+  profileIds: readonly string[];
+  itemIds: readonly string[];
+  conversationIds: readonly string[];
+}): Promise<StorageCandidate[]> {
+  const sources: { bucket: string; table: string; column: string; conditions: (string | null)[] }[] = [
+    { bucket: 'item-images', table: 'items', column: 'image_paths', conditions: [inCond('id', ids.itemIds)] },
+    {
+      bucket: 'message-attachments',
+      table: 'messages',
+      column: 'attachment_path',
+      conditions: [
+        inCond('conversation_id', ids.conversationIds),
+        inCond('sender_id', ids.profileIds),
+        'body.ilike.[E2E]*',
+      ],
+    },
+    { bucket: 'profile-images', table: 'profiles', column: 'avatar_path', conditions: [inCond('id', ids.profileIds)] },
+    {
+      bucket: 'dispute-evidence',
+      table: 'dispute_evidence',
+      column: 'media_paths',
+      conditions: [inCond('author_id', ids.profileIds)],
+    },
+    {
+      bucket: 'trusted-seller-photos',
+      table: 'trusted_seller_reviews',
+      column: 'photo_paths',
+      conditions: [inCond('profile_id', ids.profileIds)],
+    },
+    {
+      bucket: 'scam-report-evidence',
+      table: 'scam_reports',
+      column: 'evidence_paths',
+      conditions: [inCond('reporter_id', ids.profileIds)],
+    },
+    {
+      bucket: 'reference-proof',
+      table: 'member_references',
+      column: 'proof_paths',
+      conditions: [inCond('voucher_id', ids.profileIds)],
+    },
+    {
+      bucket: 'handle-claim-evidence',
+      table: 'handle_claim_requests',
+      column: 'screenshot_paths',
+      conditions: [inCond('claimant_id', ids.profileIds)],
+    },
+  ];
+
+  const candidates: StorageCandidate[] = [];
+  for (const source of sources) {
+    try {
+      for (const value of await fetchColumnValues(source.table, source.column, source.conditions)) {
+        candidates.push({ bucket: source.bucket, path: value, source: 'row' });
+      }
+    } catch (error) {
+      console.warn(
+        `  storage: could not read ${source.table}.${source.column} — ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  return candidates;
+}
+
+/** Owners (first path segment) of row-named paths that are sandbox-flagged auth users. */
+async function sandboxOwnersOf(candidates: readonly StorageCandidate[], known: ReadonlySet<string>): Promise<Set<string>> {
+  const owners = new Set<string>(known);
+  const toCheck = new Set<string>();
+  for (const candidate of candidates) {
+    const owner = ownerOfPath(candidate.path);
+    if (owner && !owners.has(owner)) toCheck.add(owner);
+  }
+  for (const id of toCheck) {
+    try {
+      if (isSandboxFlagged(id, await readAuthUser(id))) owners.add(id);
+    } catch (error) {
+      // Unknown means not sandbox: the object is kept and logged by the planner.
+      console.warn(`  storage: could not check owner ${id} — ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  return owners;
+}
+
+/** One level of a bucket folder: object names and sub-folder names. */
+async function listFolder(bucket: string, prefix: string): Promise<{ files: string[]; folders: string[] }> {
+  const files: string[] = [];
+  const folders: string[] = [];
+  const limit = 1000;
+  for (let offset = 0; offset < 20_000; offset += limit) {
+    const res = await fetch(`${storageBase()}/object/list/${bucket}`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix, limit, offset, sortBy: { column: 'name', order: 'asc' } }),
+    });
+    if (!res.ok) throw new Error(`list ${bucket}/${prefix}: ${res.status}`);
+    const entries = (await res.json()) as { name?: string; id?: string | null }[];
+    for (const entry of entries) {
+      if (typeof entry.name !== 'string' || entry.name === '' || entry.name.includes('/')) continue;
+      if (entry.id === null || entry.id === undefined) folders.push(entry.name);
+      else files.push(entry.name);
+    }
+    if (entries.length < limit) break;
+  }
+  return { files, folders };
+}
+
+/**
+ * Every object under `<profileId>/` in the per-member buckets, for a deletable sandbox
+ * persona only. Lists inside that folder (and its sub-folders, a few levels deep), never
+ * the bucket.
+ */
+async function sweepPersonaFolders(personaIds: ReadonlySet<string>): Promise<StorageCandidate[]> {
+  const candidates: StorageCandidate[] = [];
+  for (const id of personaIds) {
+    if (ownerOfPath(`${id}/x`) !== id.toLowerCase()) continue; // not a uuid: no folder
+    for (const bucket of PER_MEMBER_BUCKETS) {
+      const queue: { prefix: string; depth: number }[] = [{ prefix: `${id}/`, depth: 0 }];
+      try {
+        while (queue.length > 0) {
+          const { prefix, depth } = queue.shift()!;
+          const { files, folders } = await listFolder(bucket, prefix);
+          for (const file of files) candidates.push({ bucket, path: `${prefix}${file}`, source: 'prefix' });
+          if (depth < 3) for (const folder of folders) queue.push({ prefix: `${prefix}${folder}/`, depth: depth + 1 });
+        }
+      } catch (error) {
+        console.warn(`  storage: could not list ${bucket}/${id}/ — ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+  return candidates;
+}
+
+/**
+ * `bucket/path` keys a SURVIVING sandbox row still names. Run after the rows are
+ * deleted. A failed query keeps every path it covered (fails closed).
+ */
+async function stillReferencedKeys(candidates: readonly StorageCandidate[]): Promise<Set<string>> {
+  const referenced = new Set<string>();
+  const byBucket = new Map<string, Set<string>>();
+  for (const candidate of candidates) {
+    if (UNSAFE_IN_FILTER.test(candidate.path)) {
+      referenced.add(objectKey(candidate));
+      continue;
+    }
+    const set = byBucket.get(candidate.bucket) ?? new Set<string>();
+    set.add(candidate.path);
+    byBucket.set(candidate.bucket, set);
+  }
+
+  for (const [bucket, paths] of byBucket) {
+    for (const { table, column, array } of REFERENCING_COLUMNS[bucket] ?? []) {
+      for (const batch of chunk([...paths], 40)) {
+        const quoted = batch.map((p) => `"${p}"`).join(',');
+        const params = new URLSearchParams();
+        params.set('select', column);
+        params.set(column, array ? `ov.{${quoted}}` : `in.(${quoted})`);
+        try {
+          const res = await fetch(`${restUrl(table)}?${params.toString()}`, { headers: restHeaders() });
+          if (!res.ok) throw new Error(`${res.status}`);
+          const rows = (await res.json()) as Record<string, unknown>[];
+          const named = new Set(
+            rows.flatMap((row) => {
+              const value = row[column];
+              return Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
+            }),
+          );
+          for (const p of batch) if (named.has(p)) referenced.add(`${bucket}/${p}`);
+        } catch (error) {
+          console.warn(
+            `  storage: could not check ${table}.${column} for ${batch.length} path(s) — keeping them (${error instanceof Error ? error.message : String(error)})`,
+          );
+          for (const p of batch) referenced.add(`${bucket}/${p}`);
+        }
+      }
+    }
+  }
+  return referenced;
+}
+
+/** Deletes exact object names. Returns how many Storage reported removed, and the keys that failed. */
+async function deleteObjects(bucket: string, paths: readonly string[]): Promise<{ removed: number; failed: string[] }> {
+  let removed = 0;
+  const failed: string[] = [];
+  for (const batch of chunk(paths, 100)) {
+    if (DRY_RUN) {
+      removed += batch.length;
+      continue;
+    }
+    try {
+      // `prefixes` is Storage's name for the list of exact object names to remove.
+      const res = await fetch(`${storageBase()}/object/${bucket}`, {
+        method: 'DELETE',
+        headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefixes: batch }),
+      });
+      if (!res.ok) throw new Error(`${res.status}`);
+      const rows = (await res.json()) as unknown[];
+      removed += Array.isArray(rows) ? rows.length : 0;
+    } catch (error) {
+      for (const p of batch) {
+        failed.push(`${bucket}/${p}`);
+        console.warn(`  storage: could not delete ${bucket}/${p} — ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
+  return { removed, failed };
+}
+
+/** The upload ledgers on disk, parsed. Invalid lines are logged and never acted on. */
+async function readUploadLedgers(): Promise<{ file: string; runId: string; entries: StorageObjectRef[] }[]> {
+  const dir = path.join(REPO_ROOT, ARTIFACT_ROOT, UPLOADS_DIR);
+  let names: string[];
+  try {
+    names = await fs.readdir(dir);
+  } catch {
+    return [];
+  }
+  const ledgers: { file: string; runId: string; entries: StorageObjectRef[] }[] = [];
+  for (const name of names.sort()) {
+    const runId = name.endsWith('.jsonl') ? name.slice(0, -'.jsonl'.length) : '';
+    if (!isRunId(runId)) continue;
+    const file = path.join(REPO_ROOT, ...artifactPath({ kind: 'uploads', runId }).split('/'));
+    const parsed = parseUploadLedger(await fs.readFile(file, 'utf8'), runId);
+    if (parsed.invalidLines.length > 0) {
+      console.warn(`  storage: ${name} has ${parsed.invalidLines.length} unreadable line(s) (${parsed.invalidLines.join(', ')}) — ignored`);
+    }
+    ledgers.push({ file, runId, entries: parsed.entries });
+  }
+  return ledgers;
+}
+
+async function cleanStorage(input: {
+  ledgers: { file: string; runId: string; entries: StorageObjectRef[] }[];
+  rowCandidates: StorageCandidate[];
+  personaIds: ReadonlySet<string>;
+  sandboxOwners: ReadonlySet<string>;
+}): Promise<number> {
+  const candidates: StorageCandidate[] = [
+    ...input.ledgers.flatMap((ledger) => ledger.entries.map((e) => ({ ...e, source: 'ledger' as const }))),
+    ...(await sweepPersonaFolders(input.personaIds)),
+    ...input.rowCandidates,
+  ];
+  if (candidates.length === 0) {
+    console.log('  storage: nothing recorded');
+    return 0;
+  }
+
+  const plan = planStorageDeletion({
+    candidates,
+    sandboxOwners: input.sandboxOwners,
+    stillReferenced: await stillReferencedKeys(candidates),
+  });
+  for (const kept of plan.kept) {
+    console.warn(`  storage: kept ${kept.bucket}/${kept.path} — ${kept.reason}`);
+  }
+
+  let removed = 0;
+  const failed = new Set<string>();
+  for (const [bucket, paths] of plan.delete) {
+    const result = await deleteObjects(bucket, paths);
+    removed += result.removed;
+    for (const key of result.failed) failed.add(key);
+    const verb = DRY_RUN ? 'would delete' : 'deleted';
+    console.log(`  storage ${bucket}: ${verb} ${result.removed} of ${paths.length}`);
+  }
+
+  // A ledger is retired once every entry was decided without a failed delete; a kept
+  // (still referenced) object stays in the sandbox and is not retried.
+  for (const ledger of input.ledgers) {
+    if (DRY_RUN) continue;
+    if (ledger.entries.some((e) => failed.has(objectKey(e)))) {
+      console.warn(`  storage: keeping ledger ${ledger.runId} — some objects could not be deleted`);
+      continue;
+    }
+    await fs.rm(ledger.file, { force: true });
+  }
+  return removed;
+}
+
+// ---------------------------------------------------------------------------
+// Stripe test objects (Req 2.7). Test keys only; this run's stamp only.
+// ---------------------------------------------------------------------------
+
+type StripeClient = ReturnType<typeof testStripe>;
+
+/** Per run: what Stripe will not remove, and whether every search for the run worked. */
+type StripeOutcome = Map<string, { left: LeftInStripe[]; complete: boolean }>;
+
+/** Run ids recorded on disk: run manifests and upload ledgers. */
+async function runIdsOnDisk(): Promise<string[]> {
+  const ids = new Set<string>();
+  for (const [dir, strip] of [[RUNS_DIR, ''], [UPLOADS_DIR, '.jsonl']] as const) {
+    try {
+      for (const name of await fs.readdir(path.join(REPO_ROOT, ARTIFACT_ROOT, dir))) {
+        const id = strip && name.endsWith(strip) ? name.slice(0, -strip.length) : name;
+        if (isRunId(id)) ids.add(id);
+      }
+    } catch {
+      // No directory: nothing recorded.
+    }
+  }
+  return [...ids];
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** Applies one decision. Returns a `leftInStripe` entry when the object stays. */
+async function actOn(
+  type: StripeObjectType,
+  id: string,
+  decision: ReturnType<typeof decideStripeObject>,
+  apply: { cancel?: () => Promise<unknown>; del?: () => Promise<unknown> },
+  platform: TestPlatform,
+): Promise<LeftInStripe | null> {
+  if (decision.action === 'skip' || decision.action === 'done') return null;
+  if (decision.action === 'leave') {
+    console.warn(`  stripe ${platform}: left ${type} ${id} — ${decision.reason}`);
+    return { type, id, reason: decision.reason };
+  }
+  const run = decision.action === 'cancel' ? apply.cancel : apply.del;
+  if (!run) {
+    const reason = `cleanup cannot ${decision.action} a ${type}`;
+    console.warn(`  stripe ${platform}: left ${type} ${id} — ${reason}`);
+    return { type, id, reason };
+  }
+  if (DRY_RUN) {
+    console.log(`  stripe ${platform}: would ${decision.action} ${type} ${id}`);
+    return null;
+  }
+  try {
+    await run();
+    console.log(`  stripe ${platform}: ${decision.action === 'cancel' ? 'cancelled' : 'deleted'} ${type} ${id}`);
+    return null;
+  } catch (error) {
+    const reason = `could not ${decision.action}: ${errorText(error)}`;
+    console.warn(`  stripe ${platform}: ${type} ${id} — ${reason}`);
+    return { type, id, reason };
+  }
+}
+
+async function cleanStripePlatform(
+  platform: TestPlatform,
+  stripe: StripeClient,
+  runIds: readonly string[],
+  outcome: StripeOutcome,
+): Promise<void> {
+  const record = (runId: string, left: LeftInStripe | null) => {
+    if (left) outcome.get(runId)?.left.push(left);
+  };
+  const fail = (runId: string, what: string, error: unknown) => {
+    console.warn(`  stripe ${platform}: ${what} failed for run ${runId} — ${errorText(error)}`);
+    const entry = outcome.get(runId);
+    if (entry) entry.complete = false;
+  };
+
+  // Searchable objects: one exact `runSearchQuery` per run. PaymentIntents first, so a
+  // Customer is only deleted after its intents were cancelled.
+  for (const runId of runIds) {
+    const query = runSearchQuery(runId);
+    try {
+      for (const intent of await stripe.paymentIntents.search({ query, limit: 100 }).autoPagingToArray({ limit: 1000 })) {
+        const decision = decideStripeObject({ type: 'payment_intent', runId, metadata: intent.metadata, status: intent.status });
+        record(runId, await actOn('payment_intent', intent.id, decision, { cancel: () => stripe.paymentIntents.cancel(intent.id) }, platform));
+      }
+    } catch (error) {
+      fail(runId, 'PaymentIntent search', error);
+    }
+    try {
+      for (const customer of await stripe.customers.search({ query, limit: 100 }).autoPagingToArray({ limit: 1000 })) {
+        const decision = decideStripeObject({ type: 'customer', runId, metadata: customer.metadata });
+        record(runId, await actOn('customer', customer.id, decision, { del: () => stripe.customers.del(customer.id) }, platform));
+      }
+    } catch (error) {
+      fail(runId, 'Customer search', error);
+    }
+  }
+
+  // Not searchable: connected accounts and Identity sessions are listed from the oldest
+  // run's start onward, and each is acted on only when its OWN run stamp is one of
+  // `runIds` (re-checked by `decideStripeObject`).
+  const starts = runIds.map((id) => runStartedAt(id)?.getTime()).filter((t): t is number => t !== undefined);
+  if (starts.length === 0) return;
+  const created = { gte: Math.floor(Math.min(...starts) / 1000) - 300 };
+  const wanted = new Set(runIds);
+  const runOf = (metadata: Record<string, string> | null | undefined) => metadata?.[E2E_RUN_METADATA_KEY];
+
+  try {
+    for (const account of await stripe.accounts.list({ created, limit: 100 }).autoPagingToArray({ limit: 1000 })) {
+      const runId = runOf(account.metadata);
+      if (!runId || !wanted.has(runId)) continue;
+      const decision = decideStripeObject({ type: 'account', runId, metadata: account.metadata });
+      record(runId, await actOn('account', account.id, decision, { del: () => stripe.accounts.del(account.id) }, platform));
+    }
+  } catch (error) {
+    for (const runId of runIds) fail(runId, 'connected account list', error);
+  }
+
+  try {
+    const sessions = await stripe.identity.verificationSessions.list({ created, limit: 100 }).autoPagingToArray({ limit: 1000 });
+    for (const session of sessions) {
+      const runId = runOf(session.metadata);
+      if (!runId || !wanted.has(runId)) continue;
+      const decision = decideStripeObject({
+        type: 'identity.verification_session',
+        runId,
+        metadata: session.metadata,
+        status: session.status,
+      });
+      record(
+        runId,
+        await actOn('identity.verification_session', session.id, decision, {
+          cancel: () => stripe.identity.verificationSessions.cancel(session.id),
+        }, platform),
+      );
+    }
+  } catch (error) {
+    for (const runId of runIds) fail(runId, 'Identity session list', error);
+  }
+}
+
+async function cleanStripe(runIds: readonly string[]): Promise<StripeOutcome> {
+  const outcome: StripeOutcome = new Map(runIds.map((id) => [id, { left: [], complete: true }]));
+  for (const platform of TEST_PLATFORMS) {
+    let stripe: StripeClient;
+    try {
+      stripe = testStripe(platform);
+    } catch (error) {
+      if (error instanceof StripeKeyRefusedError && error.reason === 'missing') {
+        // No key, so the run could not have created anything on this platform.
+        console.log(`  stripe ${platform}: no test key configured — skipped`);
+        continue;
+      }
+      // A live or non-test key: refuse the platform outright, and say the run is unchecked.
+      console.warn(`  stripe ${platform}: ${errorText(error)} — skipped`);
+      for (const entry of outcome.values()) entry.complete = false;
+      continue;
+    }
+    await cleanStripePlatform(platform, stripe, runIds, outcome);
+    console.log(`  stripe ${platform}: checked ${runIds.length} run(s)`);
+  }
+  return outcome;
+}
+
+/** A manifest for a run the reporter has not written yet. The reporter keeps `leftInStripe`. */
+function stubManifest(runId: string): RunManifest {
+  return {
+    runId,
+    startedAt: runStartedAt(runId)?.toISOString() ?? new Date(0).toISOString(),
+    commit: 'unknown',
+    schema: SCHEMA,
+    durationMs: 0,
+    servers: [],
+    results: [],
+    leftInStripe: [],
+  };
+}
+
+/** Writes each run's `leftInStripe` into its manifest, atomically. */
+async function recordLeftInStripe(outcome: StripeOutcome): Promise<void> {
+  for (const [runId, { left, complete }] of outcome) {
+    const file = path.join(REPO_ROOT, ...artifactPath({ kind: 'manifest', runId }).split('/'));
+    let manifest: RunManifest | null = null;
+    try {
+      manifest = JSON.parse(await fs.readFile(file, 'utf8')) as RunManifest;
+    } catch {
+      manifest = null;
+    }
+    if (manifest === null && left.length === 0) continue;
+    const base = manifest ?? stubManifest(runId);
+    const next = mergeLeftInStripe(Array.isArray(base.leftInStripe) ? base.leftInStripe : [], left, complete);
+    if (left.length > 0) console.warn(`  stripe: ${left.length} object(s) left in Stripe test mode for run ${runId}`);
+    if (DRY_RUN) continue;
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    const temp = `${file}.${process.pid}.tmp`;
+    await fs.writeFile(temp, `${JSON.stringify({ ...base, leftInStripe: next }, null, 2)}\n`, 'utf8');
+    await fs.rename(temp, file);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -564,6 +1307,13 @@ async function main(): Promise<void> {
     `Found ${profileIds.length} profile(s), ${itemIds.length} item(s), ${tradeIds.length} trade(s), ` +
       `${cashSaleIds.length} cash sale(s), ${offerIds.length} offer(s), ${conversationIds.length} conversation(s).`,
   );
+  if (DRY_RUN) console.log('DRY RUN: nothing will be changed.');
+
+  // Shared_Resources facts that must be read while the rows and accounts still exist.
+  console.log('\nChecking marked auth accounts for the sandbox flag:');
+  const personaIds = await flagUnflaggedSandboxAccounts(profileIds);
+  const rowCandidates = await collectRowPaths({ profileIds, itemIds, conversationIds });
+  const sandboxOwners = await sandboxOwnersOf(rowCandidates, personaIds);
 
   let total = 0;
 
@@ -694,7 +1444,28 @@ async function main(): Promise<void> {
     deleteByIdsIn('offers', 'id', await fetchMarkedOfferIds()),
   );
 
-  console.log(`\nDone. ${total} row(s) removed.`);
+  // -------------------------------------------------------------------------
+  // Shared_Resources. After every row, so the "still referenced" check sees
+  // only the rows that survive.
+  // -------------------------------------------------------------------------
+  console.log('\nRemoving Storage objects (ledger, marked rows, persona folders):');
+  const objectsRemoved = await cleanStorage({
+    ledgers: await readUploadLedgers(),
+    rowCandidates,
+    personaIds,
+    sandboxOwners,
+  });
+
+  console.log('\nRemoving Stripe test objects stamped for this run and recent runs:');
+  const runIds = runsToHeal({ current: process.env.E2E_RUN_ID?.trim(), onDisk: await runIdsOnDisk(), now: new Date() });
+  if (runIds.length === 0) {
+    console.log('  stripe: no run id (E2E_RUN_ID unset and none recorded) — skipped');
+  } else {
+    await recordLeftInStripe(await cleanStripe(runIds));
+  }
+
+  const verb = DRY_RUN ? 'would be removed' : 'removed';
+  console.log(`\nDone. ${total} row(s) and ${objectsRemoved} Storage object(s) ${verb}.`);
 }
 
 main().catch((error: unknown) => {

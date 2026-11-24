@@ -69,10 +69,10 @@ async function openTrade(
   await row.click();
   await picker.getByRole('button', { name: 'Done' }).click();
 
-  const setTerms = dialog.getByRole('button', { name: /Set delivery terms|Edit terms/i });
+  const setTerms = dialog.getByRole('button', { name: /Set meeting|Edit terms/i });
   if (await setTerms.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await setTerms.click();
-    const terms = alicePage.getByRole('dialog', { name: /Delivery terms/i });
+    const terms = alicePage.getByRole('dialog', { name: /Meeting terms/i });
     if (await terms.isVisible({ timeout: 3_000 }).catch(() => false)) {
       await terms.getByText('Delivery', { exact: true }).click();
       await terms.getByLabel(/Postage each way/i).fill('0.00');

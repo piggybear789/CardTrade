@@ -7,9 +7,15 @@
 // proxy.ts refreshes+rewrites those cookies on every protected
 // navigation, so a stored session behaves exactly like a real browser's
 // cookie jar for as long as this suite runs.
-import { test as setup, expect } from '@playwright/test';
+import { test as setup, expect, type Page } from '@playwright/test';
 import { isSignedInDestination } from './support/auth';
-import { SEED_USERS, storageStatePath } from './support/users';
+import {
+  AUX_PERSONAS,
+  SEED_USERS,
+  appServerUrl,
+  storageStatePath,
+  type SeedUser,
+} from './support/users';
 
 // THE SIGN-IN RATE LIMITER APPLIES TO THIS SUITE TOO, and it is not incidental.
 //
@@ -38,67 +44,94 @@ for (const user of SEED_USERS) {
     // A cooldown can consume a whole minute on top of the sign-in itself.
     setup.setTimeout(180_000);
 
-    await page.goto('/sign-in');
-
-    // WAIT FOR SCRIPTS, not just for the markup. `AuthForm` is a Client Component
-    // whose submit is handled in JS; the <form> carries no `action`, so a submit
-    // that lands BEFORE hydration degrades to a native GET against the current URL.
-    // Observed once as a setup failure landing on
-    // `/sign-in?email=alice%40example.com&password=password123` — the credentials
-    // serialised into the query string. `domcontentloaded` is not enough for this
-    // and `toBeEditable()` is not either: an input is editable before React has
-    // attached anything to the form.
-    await page.waitForLoadState('load');
-
-    const emailInput = page.getByLabel('Email');
-    await expect(emailInput).toBeEditable({ timeout: 15_000 });
-
-    await emailInput.fill(user.email);
-    await page.getByLabel('Password', { exact: true }).fill(user.password);
-
-    // Two attempts is enough: a cooldown outlasts the limiter's whole window, so a
-    // second refusal means something other than throttling.
-    for (let attempt = 1; attempt <= 2; attempt += 1) {
-      await page.getByRole('button', { name: 'Sign in' }).click();
-
-      // Fail with the real reason if the handler still did not run, rather than
-      // reporting a generic redirect timeout thirty seconds later.
-      await expect(
-        page,
-        'the form submitted natively as GET — hydration had not completed (see F15)',
-      ).not.toHaveURL(/[?&]password=/);
-
-      // Race the success redirect against the limiter's own error, so a refusal is
-      // recognised in a second instead of after the 20s URL budget expires.
-      //
-      // Both branches go through `isSignedInDestination`, the same predicate the final
-      // assertion below uses. A regex on `/\/(listings|onboarding)/` used to stand here
-      // and is now wrong: the catalog moved to `/` and `next.config.ts` permanently
-      // redirects `/listings`, so it never matches a successful sign-in and the poll
-      // would report one as 'pending' until it timed out.
-      const rateLimited = page.getByRole('alert').filter({ hasText: RATE_LIMIT_MESSAGE });
-      const signedIn = () => isSignedInDestination(new URL(page.url()));
-
-      await expect
-        .poll(
-          async () =>
-            signedIn()
-              ? 'signed-in'
-              : (await rateLimited.count()) > 0
-                ? 'rate-limited'
-                : 'pending',
-          { timeout: 20_000 },
-        )
-        .not.toBe('pending');
-
-      if (signedIn()) break;
-
-      expect(attempt, 'sign-in was rate limited twice — the cooldown did not help').toBe(1);
-      await page.waitForTimeout(RATE_LIMIT_COOLDOWN_MS);
-    }
-
-    await expect(page).toHaveURL(isSignedInDestination, { timeout: 20_000 });
-
+    await signIn(page, user);
     await page.context().storageState({ path: storageStatePath(user) });
   });
+}
+
+// AUX-SERVER PERSONAS (design, "Servers"). The `provider: 'mock'` Pathways run on the
+// aux server at :3101, which keeps the production sign-in limit of 5 a minute. Each
+// persona signs in there in its own context, from its own TEST-NET-3 address, so the
+// IP-keyed limiter never sees setup as one caller, and saves a separate jar so the two
+// servers never replay one rotating refresh token (F14; see `AuxPersona`).
+for (const { user, signInAddress } of AUX_PERSONAS) {
+  setup(`authenticate as ${user.email} on the aux server`, async ({ browser }) => {
+    setup.setTimeout(180_000);
+
+    const context = await browser.newContext({
+      baseURL: appServerUrl('aux'),
+      extraHTTPHeaders: { 'x-forwarded-for': signInAddress },
+    });
+    try {
+      const page = await context.newPage();
+      await signIn(page, user);
+      await context.storageState({ path: storageStatePath(user, 'aux') });
+    } finally {
+      await context.close();
+    }
+  });
+}
+
+/** Sign `user` in through the real AuthForm on the page's server. */
+async function signIn(page: Page, user: SeedUser): Promise<void> {
+  await page.goto('/sign-in');
+
+  // WAIT FOR SCRIPTS, not just for the markup. `AuthForm` is a Client Component
+  // whose submit is handled in JS; the <form> carries no `action`, so a submit
+  // that lands BEFORE hydration degrades to a native GET against the current URL.
+  // Observed once as a setup failure landing on
+  // `/sign-in?email=alice%40example.com&password=password123` — the credentials
+  // serialised into the query string. `domcontentloaded` is not enough for this
+  // and `toBeEditable()` is not either: an input is editable before React has
+  // attached anything to the form.
+  await page.waitForLoadState('load');
+
+  const emailInput = page.getByLabel('Email');
+  await expect(emailInput).toBeEditable({ timeout: 15_000 });
+
+  await emailInput.fill(user.email);
+  await page.getByLabel('Password', { exact: true }).fill(user.password);
+
+  // Two attempts is enough: a cooldown outlasts the limiter's whole window, so a
+  // second refusal means something other than throttling.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    // Fail with the real reason if the handler still did not run, rather than
+    // reporting a generic redirect timeout thirty seconds later.
+    await expect(
+      page,
+      'the form submitted natively as GET — hydration had not completed (see F15)',
+    ).not.toHaveURL(/[?&]password=/);
+
+    // Race the success redirect against the limiter's own error, so a refusal is
+    // recognised in a second instead of after the 20s URL budget expires.
+    //
+    // Both branches go through `isSignedInDestination`, the same predicate the final
+    // assertion below uses. A regex on `/\/(listings|onboarding)/` used to stand here
+    // and is now wrong: the catalog moved to `/` and `next.config.ts` permanently
+    // redirects `/listings`, so it never matches a successful sign-in and the poll
+    // would report one as 'pending' until it timed out.
+    const rateLimited = page.getByRole('alert').filter({ hasText: RATE_LIMIT_MESSAGE });
+    const signedIn = () => isSignedInDestination(new URL(page.url()));
+
+    await expect
+      .poll(
+        async () =>
+          signedIn()
+            ? 'signed-in'
+            : (await rateLimited.count()) > 0
+              ? 'rate-limited'
+              : 'pending',
+        { timeout: 20_000 },
+      )
+      .not.toBe('pending');
+
+    if (signedIn()) break;
+
+    expect(attempt, 'sign-in was rate limited twice — the cooldown did not help').toBe(1);
+    await page.waitForTimeout(RATE_LIMIT_COOLDOWN_MS);
+  }
+
+  await expect(page).toHaveURL(isSignedInDestination, { timeout: 20_000 });
 }

@@ -90,13 +90,12 @@ export function ShipmentSummary({
             {/* `noopener` and a stated new tab: this leaves the contract room for a
                 third-party site, and a link that does that without saying so is the
                 thing screen-reader users are entitled to be told about. */}
-            <a
-              href={trackingUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label={`Track this parcel with ${carrier ?? 'the carrier'} (opens in a new tab)`}
-            >
+            <a href={trackingUrl} target="_blank" rel="noopener noreferrer">
+              {/* The accessible name starts with the visible words (WCAG 2.5.3), so a
+                  voice-control user who says "Track parcel" reaches this link. The
+                  carrier and the new-tab notice follow as screen-reader-only text. */}
               Track parcel
+              <span className="sr-only"> with {carrier ?? 'the carrier'} (opens in a new tab)</span>
               <HugeiconsIcon icon={ArrowUpRightIcon} aria-hidden />
             </a>
           </Button>

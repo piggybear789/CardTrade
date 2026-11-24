@@ -1,178 +1,271 @@
 // playwright.config.ts
 //
-// Functional + visual regression suite for the whole app (see
-// tests/e2e/README.md... actually: see the plan this suite was built from,
-// ux-audit-findings.md for the severity-scale convention it feeds).
+// THE AUDIT SUITE'S ONE CONFIG (.kiro/specs/e2e-ux-audit-suite, design "Servers",
+// "Webhook_Source", "Projects"). Functional pathways plus the UX audit, against the dev
+// sandbox (`cardtrade_dev`) and Stripe TEST mode.
 //
-// Runs its own Next dev server on a port distinct from a developer's normal
-// `npm run dev` (3100, not 3000) so this suite never collides with, or is
-// mistaken for, a regular dev session. PAYMENTS_PROVIDER is forced to `mock`
-// for that server only — never for a developer's own `npm run dev` — because
-// the checked-in .env.local sets PAYMENTS_PROVIDER=stripe, under which
-// IdentityDemoControls/CashSaleDemoControls/DemoPanel render nothing
-// (isPaymentDemoEnabled() in domain/services/providerMode.ts).
+// Three web servers, all started before any test:
+//
+//   main      `next start` on 3100, real Stripe test keys from `.env.local`. Every
+//             Pathway that collects, holds, refunds or transfers money (Req 4.3), and
+//             every other Pathway by default.
+//   aux       `next start` on 3101, the mock provider, the default auth limit. Only
+//             Pathways declared `provider: 'mock'` and the auth rate-limit Pathway
+//             (Req 4.4). The only server with ALLOW_MOCK_PAYMENTS_IN_PRODUCTION.
+//   webhooks  `stripeListen.mjs` forwarding both test platforms to 3100, ready when
+//             GET :3199/ready answers 200 (Req 4.5).
+//
+// Both app servers serve the same production build in `.next-e2e`, made by
+// `node scripts/e2e/build-for-e2e.mjs` (Req 4.1). There is no `next dev` mode any
+// more: F5, F17 and F70 in tests/e2e/FINDINGS.md recorded what it cost. Every server's
+// output passes through `scripts/e2e/scrubbed-server.mjs`, which masks secret values,
+// client secrets and emails before Playwright prints a line (Req 32.1).
+//
+// Ports 3000 (a developer's `next dev`) and 3123 are never used here.
+//
+// Requirements: 1.1, 1.2, 1.3, 1.6, 3.1, 4.1, 4.3, 4.4, 4.6, 29.1, 35.2
 import { defineConfig, devices } from '@playwright/test';
+import { decidePreflight } from './tests/e2e/audit/core/preflight';
+import { auxWebhookSecret, harnessEnvironment, readClientEnv, ship24WebhookSecret } from './tests/e2e/audit/harnessEnv';
+import { describePreflightProblem } from './tests/e2e/audit/preflightMessages';
+import { runId } from './tests/e2e/support/marker';
+import { APP_SERVER_PORTS, SEED_CHECK_USERS, appServerUrl } from './tests/e2e/support/users';
 
-const PORT = 3100;
-const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? `http://localhost:${PORT}`;
+/** The build-time overrides `build-for-e2e.mjs` bakes into the bundle (`E2E_CLIENT_ENV`). */
+const CLIENT_ENV = readClientEnv(__dirname);
+
+/** Port of the webhook forwarder's readiness endpoint. */
+const WEBHOOK_READY_PORT = 3199;
+
+const MAIN_PORT = APP_SERVER_PORTS.main;
+const AUX_PORT = APP_SERVER_PORTS.aux;
+const MAIN_URL = appServerUrl('main');
+const AUX_URL = appServerUrl('aux');
+
+// STATIC PREFLIGHT, at module load (Req 1.1, 1.2, 1.3, 1.6).
+//
+// Playwright starts every `webServer` before `globalSetup`, so a check that must
+// stop a run before any server boots has to run here. It covers a bare
+// `npx playwright test` as well as `npm run audit`.
+//
+// The environment checked is what the servers will see (`harnessEnvironment` in
+// tests/e2e/audit/harnessEnv.ts, shared with the `preflight` project so both compose
+// it in the same order and the client env fingerprint matches the build stamp).
+//
+// There is deliberately no flag, variable or CLI option that skips this. A live
+// Stripe key anywhere aborts the run, and the message names the variable, never
+// its value.
+const HARNESS_ENV = harnessEnvironment(__dirname, CLIENT_ENV);
+{
+  const verdict = decidePreflight({
+    harnessSchema: HARNESS_ENV.NEXT_PUBLIC_SUPABASE_SCHEMA?.trim() || undefined,
+    env: HARNESS_ENV,
+  });
+  if (!verdict.ok) {
+    throw new Error(
+      'E2E preflight refused to start the run:\n' +
+        verdict.problems.map((problem) => `  - ${describePreflightProblem(problem)}`).join('\n'),
+    );
+  }
+}
 
 /**
- * Serve a PRODUCTION build instead of `next dev`.
- *
- * `E2E_PRODUCTION_SERVER=1 npm run test:e2e` (and always in CI). Requires
- * `npm run build` first — the command below only starts what is already built, so a
- * stale or missing `.next` fails loudly instead of silently testing old code.
- *
- * WHY IT MATTERS, and it is not only speed. `next dev` compiles each route on its
- * first request and holds the compiler in-process, which caused two distinct
- * problems the suite had to work around:
- *
- *   * A first visit to `/messages/[id]` or `/sales/[id]` took 15–25s, so specs carry
- *     20–30s navigation budgets. Those exist purely to out-wait a compile, and one
- *     early spec drew the wrong conclusion from a shorter wait — it recorded that
- *     sending a message "does not navigate" when the push was simply queued behind a
- *     cold route.
- *   * Across a long serial run the server degraded until unrelated specs failed
- *     together: `locator.check()` timing out after 90s on a radio, `ECONNRESET`, pages
- *     rendering nothing. The same files passed per-file against a fresh server.
- *
- * A production server has neither: routes are prebuilt, nothing recompiles, and the
- * Next dev-tools overlay — which injects a control whose accessible name matches
- * "Next" and has already stolen one click from a wizard — is not present.
- *
- * Kept OPT-IN rather than made the default because every spec here was verified
- * against `next dev`, and swapping the server under a green suite without re-verifying
- * would trade a known problem for an unknown one.
+ * The run id. `runId()` reads `E2E_RUN_ID` or generates one and writes it back to
+ * `process.env`, so the workers, the reporter and both app servers (which stamp it on
+ * every Stripe object they create, design "Stripe metadata") agree on one value.
  */
-const useProductionServer = process.env.E2E_PRODUCTION_SERVER === '1' || !!process.env.CI;
+const RUN_ID = runId();
 
-/** Safari/WebKit project. CI always runs it; locally it doubles wall-clock time
- *  against one `next dev` server (and is what made `npm run test:e2e` feel stuck).
- *  Opt in with `E2E_MOBILE=1`. */
-const includeMobile = !!process.env.CI || process.env.E2E_MOBILE === '1';
+/**
+ * The main server's Ship24 bearer secret (`ship24WebhookSecret`): the configured one,
+ * else the suite's fallback. Written back to `process.env` so the workers, which
+ * inherit it, sign fixture deliveries (`backend/ship24.ts` reads it with `envValue`)
+ * with the value the server verifies against.
+ */
+const SHIP24_SECRET = ship24WebhookSecret(HARNESS_ENV);
+process.env.SHIP24_WEBHOOK_SECRET = SHIP24_SECRET;
 
-/** Identical env for both server modes — see the note on the debug config. */
-const SERVER_ENV = {
-  PAYMENTS_PROVIDER: 'mock',
-  ENABLE_PAYMENT_DEMO: 'true',
-  // ESC-16: `next start` runs with NODE_ENV=production, where the mock is refused
-  // unless explicitly allowed, and mock webhooks need a secret (there is no default).
-  ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: 'true',
-  WEBHOOK_SECRET: process.env.WEBHOOK_SECRET ?? 'e2e-mock-webhook-secret',
-  // THE SIMULATED WEBHOOK MUST COME BACK TO *THIS* SERVER.
+/** Wraps a server command so its output is scrubbed before Playwright prints it. */
+function scrubbed(command: string): string {
+  return `node scripts/e2e/scrubbed-server.mjs ${command}`;
+}
+
+/** Environment both app servers share. */
+const APP_SERVER_ENV = {
+  // The same client overrides the build baked in, so the server's runtime view of
+  // `NEXT_PUBLIC_*` matches the bundle, and `NEXT_BUILD_DIR` points `next start` at
+  // `.next-e2e`, never the `.next` a developer's `next dev` uses.
   //
-  // `.env.local` sets `WEBHOOK_URL=http://localhost:3000/...` for a developer's normal
-  // `npm run dev`, and this suite deliberately runs on 3100 so it never collides with
-  // one. Without overriding it here, every demo webhook was POSTed to port 3000 —
-  // nothing listening — so delivery failed silently and no trade could ever leave
-  // COLLATERAL_PENDING.
-  //
-  // It was silent because `fireTradeWebhook`'s caller does not guard the delivery
-  // failure: the panel showed no toast at all, so the room simply sat there. The
-  // database told the real story — `pre_auth_holds` had both rows and `webhook_logs`
-  // had none.
-  //
-  // Worth stating plainly: with this wrong, the whole webhook pipeline — the
-  // translate -> map -> dispatch -> log path the demo controls exist to exercise — was
-  // never being tested at all.
-  WEBHOOK_URL: `http://localhost:${PORT}/api/webhooks/stripe`,
-  // A DUMMY MAPS KEY PLUS AN INTERCEPTED PLACES API.
-  //
-  // Not a credential and never leaves the browser: tests/e2e/support/places.ts routes
-  // every places.googleapis.com call to a deterministic stub. The key must merely be
-  // PRESENT, because searchPlaces returns [] without one.
-  //
-  // This replaced blanking the key. Blanking gave PlacePicker its free-text fallback,
-  // which made listing creation deterministic and made agreeing ANY contract
-  // impossible - domain/fulfilment/terms.ts refuses a 	ext: place for a delivery
-  // address or meeting point, so escrow settlement, shipping, receipt, acceptance,
-  // release, disputes, fraud and the whole trade lifecycle sat behind one field.
-  // Intercepting keeps the app's real autocomplete -> details -> PlaceValue path and
-  // produces a resolved place the domain accepts.
-  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
-  // SEVEN SEEDED MEMBERS SIGN IN FROM ONE ADDRESS DURING SETUP.
-  //
-  // `authLimiter` allows 5 per minute per IP (lib/rateLimiters.ts), so frank and
-  // grace — the two staff accounts, and the last two in SEED_USERS — were
-  // refused with "Too many attempts" and all 210 specs were skipped. The limit
-  // is right; it is the suite that is unusual in logging seven people in from
-  // one machine in ten seconds.
-  //
-  // Raised for THIS server only. The default stays 5 wherever the variable is
-  // unset, which is everywhere else.
-  AUTH_RATE_LIMIT_PER_MINUTE: '100',
-  // ITS OWN BUILD DIRECTORY, so the suite never shares `.next` with a developer's
-  // `next dev`. Sharing it put a production build under a running dev server and
-  // surfaced as Tailwind stat-ing a file that a rename had moved
-  // (`ENOENT ... app/offers/loading.tsx` while compiling `globals.css`) — a cache
-  // collision wearing a stylesheet error's clothes.
-  //
-  // Must match `E2E_BUILD_DIR` in scripts/e2e/build-for-e2e.mjs: that script
-  // builds there and this tells `next start` where to look. `next.config.ts`
-  // reads the variable for `distDir`; `.next-*` is gitignored.
-  NEXT_BUILD_DIR: '.next-e2e',
+  // The Maps key is a dummy: tests/e2e/support/places.ts intercepts every
+  // places.googleapis.com call with a deterministic stub, and the key need only be
+  // PRESENT because searchPlaces returns [] without one.
+  ...CLIENT_ENV,
+  E2E_RUN_ID: RUN_ID,
 };
 
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 1 : 0,
-  // PER-TEST BUDGET, raised from Playwright's 30s default on purpose.
-  //
-  // This suite drives `next dev`, which compiles a route on its first request. A
-  // first visit to `/messages/[id]` or `/sales/[id]` can take 15–25s on its own,
-  // and specs allow for that with generous navigation waits (`COLD_ROUTE`). At the
-  // default those waits were the same length as the whole test, so a test could be
-  // killed mid-wait and report "Test ended" — which reads as the app hanging
-  // rather than as the budget being too small. A multi-step flow that visits two
-  // cold routes needs more than either number alone.
-  //
-  // Not a licence to let real hangs pass: an assertion that genuinely never
-  // resolves still fails, just later.
+  // Four workers: Pathways run in parallel, each on its own personas and listings. A
+  // developer can override it with E2E_WORKERS.
+  workers: Number(process.env.E2E_WORKERS) || 4,
+  // No retries in the dev loop. The full run (`npm run audit` with no filters sets
+  // E2E_FULL_RUN=1) keeps one retry, so a Pathway that passes only on its retry is
+  // reported as `flaky` by the audit reporter rather than hidden (Req 34.3).
+  retries: process.env.E2E_FULL_RUN === '1' ? 1 : 0,
+  // A multi-step Pathway that drives two members through a contract needs more than
+  // Playwright's 30s default. An assertion that never resolves still fails.
   timeout: 90_000,
-  reporter: [['html', { outputFolder: 'playwright-report', open: 'never' }], ['list']],
+  reporter: [
+    ['html', { outputFolder: 'playwright-report', open: 'never' }],
+    ['list'],
+    [
+      './tests/e2e/audit/reporter.ts',
+      {
+        runId: RUN_ID,
+        servers: [
+          { name: 'main', port: MAIN_PORT, paymentsMode: 'stripe-test' },
+          { name: 'aux', port: AUX_PORT, paymentsMode: 'mock' },
+        ],
+        // The seed sets each member's `identity_check_name` to their display name.
+        legalNames: SEED_CHECK_USERS.map((user) => user.displayName),
+      },
+    ],
+  ],
   outputDir: './test-results',
   use: {
-    baseURL: BASE_URL,
-    trace: 'retain-on-failure',
+    baseURL: MAIN_URL,
+    // Playwright traces cost about 100 MB and a long write per failure. Off unless
+    // `E2E_TRACE=1` asks for them; the step screenshots, console logs and videos
+    // already show each failure.
+    trace: process.env.E2E_TRACE === '1' ? 'retain-on-failure' : 'off',
     screenshot: 'only-on-failure',
-    video: 'off',
+    // Every context records, at the project's viewport, one video per member
+    // (Req 29.1). Contexts a spec opens itself get `recordVideo` from the
+    // `browser.newContext` patch in support/fixtures.ts.
+    video: 'on',
   },
   globalSetup: './tests/e2e/support/globalSetup.ts',
   globalTeardown: './tests/e2e/support/globalTeardown.ts',
-  webServer: {
-    command: useProductionServer
-      ? `npm run start -- -p ${PORT}`
-      : `npm run dev -- -p ${PORT}`,
-    url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    env: SERVER_ENV,
-  },
+  webServer: [
+    {
+      name: 'main',
+      command: scrubbed(`npx next start -p ${MAIN_PORT}`),
+      url: MAIN_URL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: {
+        ...APP_SERVER_ENV,
+        // Real Stripe TEST keys come from `.env.local`; the static preflight above has
+        // already refused any live key. Named explicitly so an inherited
+        // `PAYMENTS_PROVIDER=mock` cannot turn the main server into a mock.
+        PAYMENTS_PROVIDER: 'stripe',
+        // `auth.setup.ts` signs every seeded member in from one address, which the
+        // production limit of 5 a minute refuses. Raised on THIS server only; the aux
+        // server keeps the default for the rate-limit Pathway.
+        AUTH_RATE_LIMIT_PER_MINUTE: '100',
+        // Webhooks come back to THIS server (F20, Req 4.6). `.env.local` points
+        // WEBHOOK_URL at 3000 for a developer's `npm run dev`.
+        WEBHOOK_URL: `${MAIN_URL}/api/webhooks/stripe`,
+        // The Ship24 fixture helper is its only sender (see `ship24WebhookSecret`).
+        SHIP24_WEBHOOK_SECRET: SHIP24_SECRET,
+      },
+    },
+    {
+      name: 'aux',
+      command: scrubbed(`npx next start -p ${AUX_PORT}`),
+      url: AUX_URL,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      env: {
+        ...APP_SERVER_ENV,
+        PAYMENTS_PROVIDER: 'mock',
+        // ESC-16: `next start` refuses the mock without this. Set on the aux server
+        // only (Req 4.4).
+        ALLOW_MOCK_PAYMENTS_IN_PRODUCTION: 'true',
+        ENABLE_PAYMENT_DEMO: 'true',
+        // Mock webhooks are refused without a secret (there is no default).
+        WEBHOOK_SECRET: auxWebhookSecret(HARNESS_ENV),
+        // The default limit of 5 a minute. Blank rather than absent so a value
+        // inherited from the shell cannot raise it (lib/rateLimiters.ts reads a
+        // non-positive number as the default).
+        AUTH_RATE_LIMIT_PER_MINUTE: '',
+        WEBHOOK_URL: `${AUX_URL}/api/webhooks/stripe`,
+      },
+    },
+    {
+      name: 'webhooks',
+      command: scrubbed(`node scripts/dev/stripeListen.mjs ${MAIN_PORT} --ready-port ${WEBHOOK_READY_PORT}`),
+      url: `http://localhost:${WEBHOOK_READY_PORT}/ready`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      stdout: 'pipe',
+      stderr: 'pipe',
+    },
+  ],
   projects: [
     {
-      name: 'setup',
-      testMatch: /.*\.setup\.ts/,
+      // Server probes, the Coverage_Map check, seed rows and account flags
+      // (design "Safety preflight"). Every other project depends on it.
+      name: 'preflight',
+      testMatch: /audit[\\/]preflight\.setup\.ts$/,
       fullyParallel: false,
     },
     {
+      // Sign-in on both servers, then Stripe test bindings for the seed members.
+      name: 'setup',
+      testMatch: [/[\\/]auth\.setup\.ts$/, /audit[\\/]stripe-bindings\.setup\.ts$/],
+      fullyParallel: false,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['preflight'],
+    },
+    {
       name: 'desktop',
-      testMatch: /specs\/.*\.spec\.ts/,
+      testMatch: /specs[\\/].*\.spec\.ts$/,
+      grepInvert: /@aux|@isolated/,
       use: { ...devices['Desktop Chrome'] },
       dependencies: ['setup'],
     },
-    ...(includeMobile
-      ? [
-          {
-            // Real WebKit, not Chromium mobile-viewport emulation. Several
-            // findings in ux-audit-findings.md are Safari-engine-specific.
-            name: 'mobile',
-            testMatch: /specs\/.*\.spec\.ts/,
-            use: { ...devices['iPhone 14'] },
-            dependencies: ['setup'],
-          },
-        ]
-      : []),
+    {
+      // Real WebKit, not Chromium viewport emulation: several findings in
+      // ux-audit-findings.md are Safari-engine-specific. Always runs.
+      name: 'phone',
+      testMatch: /specs[\\/].*\.spec\.ts$/,
+      grepInvert: /@aux|@isolated/,
+      use: { ...devices['iPhone 14'] },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'desktop-aux',
+      testMatch: /specs[\\/].*\.spec\.ts$/,
+      grep: /@aux/,
+      grepInvert: /@isolated/,
+      use: { ...devices['Desktop Chrome'], baseURL: AUX_URL },
+      dependencies: ['setup'],
+    },
+    {
+      name: 'phone-aux',
+      testMatch: /specs[\\/].*\.spec\.ts$/,
+      grep: /@aux/,
+      grepInvert: /@isolated/,
+      use: { ...devices['iPhone 14'], baseURL: AUX_URL },
+      dependencies: ['setup'],
+    },
+    {
+      // Pathways that change state other Pathways read (a fraud ban, an exhausted
+      // shared limit). They run after everything else instead of serialising the
+      // whole suite. A Pathway here that needs the aux server addresses it through
+      // `appServerUrl('aux')`.
+      name: 'isolated',
+      testMatch: /specs[\\/].*\.spec\.ts$/,
+      grep: /@isolated/,
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['desktop', 'phone', 'desktop-aux', 'phone-aux'],
+    },
   ],
 });

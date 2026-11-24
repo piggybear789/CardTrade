@@ -1,0 +1,205 @@
+{
+  "runId": "2026-11-24T03-06-55Z-4bnsb0v",
+  "startedAt": "2026-11-24T03:06:59.140Z",
+  "durationMs": 104999,
+  "commit": "9fb54b1e87fff1408d71fa42e3141a3fae9081b6",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "cash-sale.payments.region-mismatch",
+        "title": "An Australian buyer cannot open a contract on a US seller’s listing (REGION_MISMATCH)",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:au-buyer",
+          "seller": "seed:uma"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-24T03-06-55Z-4bnsb0v",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Uma lists a card at US$150.00",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T03:08:12.593Z",
+          "status": "passed",
+          "durationMs": 89,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer opens the listing and Buy Now",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T03:08:12.684Z",
+          "status": "passed",
+          "durationMs": 1765,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.region-mismatch/desktop/2026-11-24T03-06-55Z-4bnsb0v/step-02.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/92081048-7aef-41e8-b83e-6b790e65367a",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/92081048-7aef-41e8-b83e-6b790e65367a",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/92081048-7aef-41e8-b83e-6b790e65367a",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer reserves and is refused, told which regions are involved",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T03:08:14.451Z",
+          "status": "passed",
+          "durationMs": 795,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.region-mismatch/desktop/2026-11-24T03-06-55Z-4bnsb0v/step-03.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "toast",
+              "message": "Request failure: the dialog resized from 576×501 to 576×583 px.",
+              "detail": {
+                "beforeWidth": 576,
+                "beforeHeight": 500.515625,
+                "afterWidth": 576,
+                "afterHeight": 583.078125,
+                "toast": "shown"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/92081048-7aef-41e8-b83e-6b790e65367a",
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer closes the dialog",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T03:08:15.251Z",
+          "status": "passed",
+          "durationMs": 503,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.region-mismatch/desktop/2026-11-24T03-06-55Z-4bnsb0v/step-04.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/92081048-7aef-41e8-b83e-6b790e65367a",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "No contract was opened and the listing is still for sale",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T03:08:15.756Z",
+          "status": "passed",
+          "durationMs": 83,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.region-mismatch/desktop/2026-11-24T03-06-55Z-4bnsb0v/step-04.buyer.png"
+            }
+          ],
+          "observations": [],
+          "index": 5
+        }
+      ],
+      "videos": [
+        {
+          "member": "buyer",
+          "path": "audit-artifacts/cash-sale.payments.region-mismatch/desktop/2026-11-24T03-06-55Z-4bnsb0v/video.buyer.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    }
+  ],
+  "leftInStripe": []
+}

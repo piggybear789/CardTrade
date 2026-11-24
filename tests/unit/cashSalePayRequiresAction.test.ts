@@ -59,6 +59,22 @@ describe('buyer-present payment with a 3-D Secure check (ESC-03)', () => {
     expect((await deps.repository.loadCashSale(id))?.status).toBe('FAILED');
   });
 
+  it('still reports a failed collection on a later read-back, when the webhook failed the sale first', async () => {
+    const payments = new InMemoryService();
+    payments.forceRequiresAction = true;
+    const { deps, id, termsVersion } = await agreedSale(payments);
+    const paid = await acceptCashSaleTerms(deps, { cashSaleId: id, actorId: BUYER.profileId, termsVersion });
+    if (!paid.ok) throw new Error('setup');
+
+    payments.completeChallenge(paid.sale.transferId!, 'FAILED');
+    // The buyer's read-back and the payment-failed webhook race; whichever runs first
+    // fails the sale. The buyer must still hear the refusal from the other one, not a
+    // silent success on a FAILED contract.
+    await confirmCashSalePayment(deps, { actorId: BUYER.profileId, cashSaleId: id });
+    const second = await confirmCashSalePayment(deps, { actorId: BUYER.profileId, cashSaleId: id });
+    expect(second).toMatchObject({ ok: false, error: 'TRANSFER_FAILED' });
+  });
+
   it('returns the secret only while the check is outstanding, and only to the buyer', async () => {
     const payments = new InMemoryService();
     payments.forceRequiresAction = true;

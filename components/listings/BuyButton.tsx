@@ -317,13 +317,11 @@ function PurchaseDialog({
           navigateWithType(router, `/sales/${result.sale.id}`, 'nav-forward');
           return;
         }
-        const errorMsg = result.message ?? cashSaleRefusalMessage(result.error);
-        setError(errorMsg);
-        toast.error(errorMsg);
+        // A request failure is a toast, not a paragraph that grows the dialog
+        // (lib/hooks/useErrorToast.ts). Only field-level validation above stays inline.
+        toast.error(result.message ?? cashSaleRefusalMessage(result.error));
       } catch {
-        const fallback = 'Failed to initiate purchase contract. Please try again.';
-        setError(fallback);
-        toast.error(fallback);
+        toast.error('Failed to initiate purchase contract. Please try again.');
       }
     });
   }
@@ -403,31 +401,33 @@ function PurchaseDialog({
                 </span>
               </p>
 
-              {/* ONE GEOMETRY WITH OR WITHOUT A CARD: two lines, so the footer does
-                  not move when the card read comes back. With no card the way forward
-                  is the footer's own button, so this row only explains. */}
-              {loading ? null : (
-                <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-                  <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-body font-medium">
-                      {card ? (card.label ?? 'Card on file') : 'Add a card to reserve'}
-                    </p>
-                    <p className="text-body text-muted-foreground max-sm:min-h-[2lh]">
-                      {card
+              {/* ONE GEOMETRY WHILE THE CARD IS READ AND AFTER: the row is always drawn,
+                  with the same two lines, so the dialog does not grow when the read comes
+                  back (the saved card's fee line used to wrap onto a second line and push
+                  the footer down). With no card the way forward is the footer's own
+                  button, so this row only explains. */}
+              <div className="flex items-center gap-cozy rounded-lg border p-cozy">
+                <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-body font-medium">
+                    {loading ? 'Checking your card…' : card ? (card.label ?? 'Card on file') : 'Add a card to reserve'}
+                  </p>
+                  <p className="min-h-[2lh] text-body text-muted-foreground">
+                    {loading
+                      ? 'Stripe keeps it on file. Nothing is charged until you pay.'
+                      : card
                         ? tierClause && currency
                           ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
                           : 'Stripe method'
                         : 'Stripe keeps it on file. Nothing is charged until you pay.'}
-                    </p>
-                  </div>
-                  {card ? (
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setAddingCard(true)}>
-                      Change
-                    </Button>
-                  ) : null}
+                  </p>
                 </div>
-              )}
+                {card ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setAddingCard(true)}>
+                    Change
+                  </Button>
+                ) : null}
+              </div>
 
               <FieldError message={error ?? undefined} />
             </div>

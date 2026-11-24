@@ -133,6 +133,30 @@ export function decodeMetadata(metadata: unknown): CardTradeMetadata | null {
   };
 }
 
+/** Metadata key marking an object made by the dev sandbox (Req 2.7). */
+export const SANDBOX_METADATA_KEY = `${PREFIX}sandbox`;
+
+/** Metadata key carrying the e2e audit run that made an object (Req 2.7). */
+export const E2E_RUN_METADATA_KEY = `${PREFIX}e2e_run`;
+
+/**
+ * Add the audit-run stamp to a metadata map (Req 2.7).
+ *
+ * `runId` is `StripeConfig.e2eRunId`, which `readE2eRunId` sets only on the dev
+ * sandbox schema. Without it the map is returned unchanged, so production objects
+ * never carry either key. With it, `cardtrade_sandbox: 'true'` and
+ * `cardtrade_e2e_run: <id>` are added, letting the audit's cleanup find exactly the
+ * test objects one run made. The stamp never overwrites a routing key: it uses its
+ * own two names, which `decodeMetadata` does not read.
+ */
+export function withRunStamp<M extends Record<string, unknown>>(
+  metadata: M,
+  runId: string | undefined,
+): M {
+  if (!runId) return metadata;
+  return { ...metadata, [SANDBOX_METADATA_KEY]: 'true', [E2E_RUN_METADATA_KEY]: runId };
+}
+
 /** Build metadata for an operation, deriving the owning entity from `ref`. */
 export function metadataFor(
   kind: StripePaymentKind,

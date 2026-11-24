@@ -884,6 +884,10 @@ function CashSaleRoom({
     haltedAt: haltedAtFrom(events, sale.status),
   });
   const step = currentStep(steps);
+  // A closed sale has no live step, so the action card would read "This contract is
+  // finished" with nothing under it. The halted step says where and why it stopped
+  // (the declined payment, the cancellation), so the card shows that instead.
+  const haltedStep = steps.find((candidate) => candidate.status === 'halted');
 
   const itemImages = (sale.item_image_paths ?? [])
     .map((path) => itemImageUrl(path))
@@ -1057,11 +1061,11 @@ function CashSaleRoom({
                   appearance="dock"
                   step={step}
                   tone={isLegacy ? 'warning' : actionTone(sale.status, step)}
-                  title={isLegacy ? 'This contract cannot be continued' : undefined}
+                  title={isLegacy ? 'This contract cannot be continued' : haltedStep?.label}
                   detail={
                     isLegacy
                       ? 'It was created by the earlier pay-immediately flow, so it has no agreed terms. Start a new purchase from the listing.'
-                      : undefined
+                      : haltedStep?.detail
                   }
                   // Read, not clicked — so it is a note beside the title rather than a
                   // child in the button column.
@@ -1475,19 +1479,6 @@ function CashSaleRoom({
                   Add tracking
                 </Button>
               ) : null}
-              <RecordShipmentDialog
-                open={shipOpen}
-                onOpenChange={setShipOpen}
-                pending={busy('ship')}
-                recipientName={them.name}
-                onSubmit={({ carrier, trackingNumber }) =>
-                  run(
-                    'ship',
-                    () => recordCashSaleShipment(sale.id, carrier, trackingNumber),
-                    () => setShipOpen(false),
-                  )
-                }
-              />
             </ContractStatusPanel>
           </ContractDetailRow>
 
@@ -1904,6 +1895,24 @@ function CashSaleRoom({
           ) : null}
         </ContractDetailList>
       </ContractLiveRow>
+
+      {/* Record shipment. Mounted at room level rather than inside the Status panel:
+          on a phone the contract details sheet, which holds that panel, is unmounted
+          until opened, and the action card's "Add tracking" must open this dialog
+          without it. */}
+      <RecordShipmentDialog
+        open={shipOpen}
+        onOpenChange={setShipOpen}
+        pending={busy('ship')}
+        recipientName={them.name}
+        onSubmit={({ carrier, trackingNumber }) =>
+          run(
+            'ship',
+            () => recordCashSaleShipment(sale.id, carrier, trackingNumber),
+            () => setShipOpen(false),
+          )
+        }
+      />
 
       {/* Fulfillment details prompt, opened by the method selector. */}
       <CashSaleTermsDialog

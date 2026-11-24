@@ -50,6 +50,10 @@ export function ListingProtectionLine({
           aria-hidden
         />
         <span>
+          {/* Copy must always say nothing is held on a listing with multiple items (product
+              rule). It sits here because this line is on both the phone and the desktop
+              listing, and the buy control alone does not say it before a buyer opens it. */}
+          {isShopfront ? 'Nothing in this listing is held for you. ' : null}
           <Link
             href="/safety"
             className="font-medium text-foreground underline underline-offset-4 hover:text-iris-ink"

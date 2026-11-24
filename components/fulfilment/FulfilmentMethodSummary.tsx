@@ -40,17 +40,24 @@ const OPTIONS: {
 export interface FulfilmentMethodSummaryProps {
   /** The agreed method, or `null` while the parties are still deciding. */
   method: FulfilmentMethod | null;
+  /**
+   * The options to show. Default: both. A face-to-face trade passes `['IN_PERSON']`, so
+   * it shows no postage tile for a method its trade can never use.
+   */
+  only?: readonly FulfilmentMethod[];
   className?: string;
 }
 
 /** The agreed fulfilment method, shown against the option it was chosen over. */
 export function FulfilmentMethodSummary({
   method,
+  only,
   className,
 }: FulfilmentMethodSummaryProps) {
+  const shown = only ? OPTIONS.filter((option) => only.includes(option.value)) : OPTIONS;
   return (
     <div className={cn('grid gap-snug sm:grid-cols-2', className)}>
-      {OPTIONS.map((option) => {
+      {shown.map((option) => {
         const chosen = option.value === method;
         const Icon = option.icon;
         return (

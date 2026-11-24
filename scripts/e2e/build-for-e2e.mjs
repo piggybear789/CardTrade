@@ -22,8 +22,26 @@
 //   node scripts/e2e/build-for-e2e.mjs
 //
 // Prefer `npm run test:e2e:prod`, which chains this with the run.
+//
+// THE BUILD STAMP (Req 4.1, 4.2, F18). After a successful build this writes
+// `.next-e2e/e2e-client-env.json`:
+//
+//   { "fingerprint": "<sha-256 hex>" }
+//
+// The fingerprint is `clientEnvFingerprint` (tests/e2e/audit/core/preflight.ts) of
+// the environment `next build` saw: `.env*` files loaded the way Next loads them
+// for a production build, with real environment variables and `E2E_CLIENT_ENV`
+// taking precedence. Preflight recomputes it from the run's environment and aborts
+// with STALE_BUILD on a difference. Only the one-way hash is written, never a
+// `NEXT_PUBLIC_*` value. It is written AFTER the build because `next build` empties
+// its distDir first, and only on success, so a failed build leaves no stamp.
 
 import { spawn } from 'node:child_process';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import nextEnv from '@next/env';
+import { tsImport } from 'tsx/esm/api';
 
 /**
  * Build into a directory of the suite's own, NOT `.next`.
@@ -42,10 +60,16 @@ import { spawn } from 'node:child_process';
  * Keep the two values in step: a build here that `next start` cannot find fails
  * as "webServer was not able to start", which says nothing about the cause.
  */
-const E2E_BUILD_DIR = '.next-e2e';
+export const E2E_BUILD_DIR = '.next-e2e';
 
-/** Client-visible values the suite needs baked into the bundle. */
-const E2E_CLIENT_ENV = {
+/** Where the build stamp lives, relative to the repo root. */
+export const E2E_CLIENT_ENV_STAMP = path.join(E2E_BUILD_DIR, 'e2e-client-env.json');
+
+/**
+ * Client-visible values the suite needs baked into the bundle. Exported so the
+ * runner can apply the same overrides to the environment preflight fingerprints.
+ */
+export const E2E_CLIENT_ENV = {
   // Forces PlacePicker's free-text fallback. See the note above and F13 in
   // tests/e2e/FINDINGS.md for the coverage this trades away.
   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: 'e2e-intercepted-not-a-real-key',
@@ -56,10 +80,49 @@ const E2E_CLIENT_ENV = {
 // Duplicating them would imply they are build-time, which is the confusion this
 // script exists to remove.
 
-const child = spawn('npx', ['next', 'build'], {
-  stdio: 'inherit',
-  shell: true,
-  env: { ...process.env, ...E2E_CLIENT_ENV },
-});
+const ROOT = process.cwd();
 
-child.on('exit', (code) => process.exit(code ?? 1));
+/**
+ * The environment `next build` will see. `loadEnvConfig` (production mode) fills
+ * `process.env` from `.env.production.local`, `.env.local`, `.env.production` and
+ * `.env` without overriding variables already set, exactly as the child build
+ * does, and `E2E_CLIENT_ENV` wins over both.
+ */
+export function buildEnvironment() {
+  nextEnv.loadEnvConfig(ROOT, false, { info() {}, error: console.error });
+  return { ...process.env, ...E2E_CLIENT_ENV };
+}
+
+/** Writes the stamp holding only the fingerprint of `env`'s public values. */
+export async function writeClientEnvStamp(env) {
+  const { clientEnvFingerprint } = await tsImport(
+    '../../tests/e2e/audit/core/preflight.ts',
+    import.meta.url,
+  );
+  const file = path.join(ROOT, E2E_CLIENT_ENV_STAMP);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, `${JSON.stringify({ fingerprint: clientEnvFingerprint(env) })}\n`);
+  return file;
+}
+
+function main() {
+  const env = buildEnvironment();
+  const child = spawn('npx', ['next', 'build'], { stdio: 'inherit', shell: true, env });
+
+  child.on('exit', async (code) => {
+    if (code !== 0) process.exit(code ?? 1);
+    try {
+      const file = await writeClientEnvStamp(env);
+      console.log(`Wrote the client env fingerprint to ${path.relative(ROOT, file)}`);
+      process.exit(0);
+    } catch (error) {
+      console.error('Build succeeded but the client env stamp could not be written:', error);
+      process.exit(1);
+    }
+  });
+}
+
+// Run only when executed directly, so the runner can import the constants above.
+if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
+  main();
+}

@@ -21,7 +21,6 @@ import { toast } from 'sonner';
 
 import { TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
 
-
 import { Button } from '@/components/ui/button';
 import { useErrorToast } from '@/lib/hooks/useErrorToast';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -40,7 +39,7 @@ import {
   FulfilmentTermsFields,
 } from '@/components/fulfilment';
 import { updateTradeHandoverTerms } from '@/lib/actions/trades';
-import { deliveryNotesFromDetails } from '@/lib/handover/terms';
+import { deliveryNotesFromDetails, meetingLockMessage } from '@/lib/handover/terms';
 import { isResolvedPlace, type FulfilmentMethod } from '@/domain/fulfilment';
 import { DEAL_DELIVERY_COST_MAX, DEAL_TEXT_MAX } from '@/lib/marketplace-constants';
 import { FALLBACK_MAP_CENTER, type PlaceValue } from '@/lib/location/types';
@@ -50,7 +49,6 @@ import type { TradeRow } from '@/lib/realtime/useTradeRealtime';
 const ERROR_MESSAGES: Record<string, string> = {
   unauthenticated: 'Please sign in to continue.',
   'not-participant': 'You are not a participant in this trade.',
-  'invalid-state': 'Terms are locked once either trader has shipped.',
   'invalid-handover': 'Choose how the goods change hands.',
   'invalid-delivery-cost': 'Enter a valid postage amount.',
   'missing-meeting-location': FULFILMENT_FIELD_ERRORS.meeting,
@@ -198,7 +196,9 @@ export function TradeHandoverTermsEditor({
         return;
       }
       const copy =
-        ERROR_MESSAGES[result.error] ?? result.detail ?? 'Could not save the terms.';
+        result.error === 'invalid-state'
+          ? meetingLockMessage(trade.meeting_at)
+          : (ERROR_MESSAGES[result.error] ?? result.detail ?? 'Could not save the terms.');
       setError(copy);
       toast.error(copy);
     });
@@ -219,7 +219,7 @@ export function TradeHandoverTermsEditor({
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Delivery terms</DialogTitle>
+          <DialogTitle>Meeting terms</DialogTitle>
           <DialogDescription>
             Either trader can update these. A save does not ask anyone to confirm
             again, and it does not change the cash.

@@ -1,0 +1,16 @@
+{
+  "runId": "2026-11-24T01-41-30Z-rktw6f2",
+  "startedAt": "2026-11-24T01:41:30.000Z",
+  "commit": "unknown",
+  "schema": "cardtrade_dev",
+  "durationMs": 0,
+  "servers": [],
+  "results": [],
+  "leftInStripe": [
+    {
+      "type": "payment_intent",
+      "id": "pi_3Uf8lvKEPlyX260L077GV2v3",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    }
+  ]
+}

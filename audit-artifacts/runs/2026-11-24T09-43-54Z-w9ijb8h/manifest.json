@@ -1,0 +1,651 @@
+{
+  "runId": "2026-11-24T09-43-54Z-w9ijb8h",
+  "startedAt": "2026-11-24T09:43:59.194Z",
+  "durationMs": 116136,
+  "commit": "9fb54b1e87fff1408d71fa42e3141a3fae9081b6",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "trades.collateral.declined-hold-voids-other",
+        "title": "A declined card voids the other trader's hold and charges nothing",
+        "area": "trades",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "alice": "seed:alice",
+          "owner": "persona:trade-declining-card"
+        },
+        "viewports": "both",
+        "requiresSeed": [
+          "alice",
+          "bob",
+          "trade-pair-a-alice"
+        ]
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-24T09-43-54Z-w9ijb8h",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed records present: alice, bob, trade-pair-a-alice",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T09:45:09.984Z",
+          "status": "passed",
+          "durationMs": 228,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Alice and the owner each list a card of equal value",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T09:45:10.214Z",
+          "status": "passed",
+          "durationMs": 161,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Alice: opens the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:45:10.376Z",
+          "status": "passed",
+          "durationMs": 1629,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-03.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/1b01ea69-18b3-4426-9430-79b792e6fa88",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/1b01ea69-18b3-4426-9430-79b792e6fa88",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/1b01ea69-18b3-4426-9430-79b792e6fa88",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Alice: sends the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:45:12.007Z",
+          "status": "passed",
+          "durationMs": 2327,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-04.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "The owner sets the meeting place and time",
+          "kind": "action",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:45:14.335Z",
+          "status": "passed",
+          "durationMs": 4045,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-05.owner.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Alice: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:45:18.382Z",
+          "status": "passed",
+          "durationMs": 956,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-06.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Alice: accepts the terms",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-24T09:45:19.340Z",
+          "status": "passed",
+          "durationMs": 1100,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-07.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "The owner: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:45:20.442Z",
+          "status": "passed",
+          "durationMs": 902,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-08.owner.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "The owner: accepts the terms",
+          "kind": "action",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:45:21.345Z",
+          "status": "passed",
+          "durationMs": 1324,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-09.owner.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 9
+        },
+        {
+          "name": "Rewinding the meeting clock into the 24-hour placement window, then the hourly trade-inspections job runs",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T09:45:22.671Z",
+          "status": "passed",
+          "durationMs": 4539,
+          "screenshots": [],
+          "observations": [],
+          "index": 10,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "Collateral is placed a day before the meeting; nobody waits days for it."
+          }
+        },
+        {
+          "name": "The trade is paused waiting for collateral",
+          "kind": "assert",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:45:27.212Z",
+          "status": "passed",
+          "durationMs": 791,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-11.owner.png"
+            }
+          ],
+          "observations": [],
+          "index": 11
+        },
+        {
+          "name": "Alice's authorised hold is voided in Stripe, the declined one failed, and no fee was charged",
+          "kind": "assert",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:45:28.005Z",
+          "status": "passed",
+          "durationMs": 1158,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-12.owner.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "owner",
+              "url": "http://localhost:3100/trades/ba4c2c10-9857-4f2f-aaf1-6ca722f91b7f",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 12
+        },
+        {
+          "name": "The room offers the trader a retry",
+          "kind": "assert",
+          "members": [
+            "owner"
+          ],
+          "startedAt": "2026-11-24T09:45:29.165Z",
+          "status": "passed",
+          "durationMs": 237,
+          "screenshots": [
+            {
+              "member": "owner",
+              "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/step-13.owner.png"
+            }
+          ],
+          "observations": [],
+          "index": 13
+        }
+      ],
+      "videos": [
+        {
+          "member": "alice",
+          "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/video.alice.0.webm",
+          "masked": true
+        },
+        {
+          "member": "owner",
+          "path": "audit-artifacts/trades.collateral.declined-hold-voids-other/desktop/2026-11-24T09-43-54Z-w9ijb8h/video.owner.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    }
+  ],
+  "leftInStripe": []
+}

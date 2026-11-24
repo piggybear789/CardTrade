@@ -1,0 +1,10 @@
+﻿import { chromium } from 'playwright';
+const b = await chromium.launch();
+const c = await b.newContext({ storageState: 'playwright/.auth/design-piggybear.json', viewport: { width: 390, height: 844 } });
+const p = await c.newPage();
+p.on('pageerror', (e) => console.log('STACK', String(e.stack).slice(0, 1500)));
+await p.goto('http://localhost:3000/saved', { waitUntil: 'networkidle' });
+const html = await p.content();
+const m = html.match(/HEADER_ICON_BUTTON[^<]{0,600}/);
+console.log('HTML', m ? m[0].slice(0, 800) : 'none');
+await b.close();

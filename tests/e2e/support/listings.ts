@@ -152,15 +152,36 @@ export async function createListing(
   await page.goto('/listings/new');
   await page.waitForLoadState('domcontentloaded');
 
+  // THE FORM IS TWO STEPS (lib/listings/itemFormSteps.ts): 1 "Your item" (kind,
+  // photos, title, description), 2 "Price & details" (price, game, condition,
+  // place), which publishes. Hidden steps stay mounted, so `#game` exists in the DOM
+  // on step 1 but is not visible until Next.
   await page.getByRole('radio', { name: /^One item/ }).check();
+
+  await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
+  // A picked photo shows as a tile with a named remove control. The desktop live
+  // preview carries a second "Remove photo 1" on its gallery frame, so the visible
+  // first one is enough.
+  await expect(
+    page.getByRole('button', { name: 'Remove photo 1' }).filter({ visible: true }).first(),
+  ).toBeVisible({ timeout: 20_000 });
+
+  // Matched EXACTLY, because a substring match would also accept a future second
+  // field whose label merely CONTAINS the word.
+  await page.getByLabel('Title', { exact: true }).fill(title);
+  await page.getByLabel('Description', { exact: true }).fill(description);
+
+  // "Next" is unique per viewport: the footer button is `max-md:hidden` and the
+  // phone header button exists only below `md`.
+  await page.getByRole('button', { name: 'Next' }).filter({ visible: true }).first().click();
 
   // SELECTS BEFORE TEXT FIELDS — order matters on WebKit (F61).
   //
   // Radix Select's hidden native <select> triggers a form-level side-effect on
   // WebKit that clears preceding controlled inputs. Selecting an option from any
-  // of the dropdowns wipes the Title (and any other text field filled before
-  // it). Filling text fields AFTER the selects avoids the issue entirely and keeps
-  // the helper working on both Chromium (desktop) and WebKit (mobile).
+  // of the dropdowns wipes a text field filled before it on the same step, so the
+  // Price is typed after the selects.
+  await expect(page.locator('#game')).toBeVisible({ timeout: 10_000 });
   await page.locator('#game').click();
   await page.getByRole('option', { name: 'Pokémon' }).click();
   await page.locator('#condition').click();
@@ -181,30 +202,7 @@ export async function createListing(
   // rather than a change to the component.
   await expect(page.locator('#condition')).toBeFocused({ timeout: 10_000 });
 
-  // Title first, then the body — matching the form's own order. The title is stored
-  // verbatim in `items.title`; the derivation only survives as the fallback when it
-  // is blank.
-  //
-  // Matched EXACTLY, because a substring match would also accept a future second
-  // field whose label merely CONTAINS the word, and filling the wrong box here
-  // would fail much later, on the detail page's heading.
-  await page.getByLabel('Title', { exact: true }).fill(title);
-  await page.getByLabel('Description', { exact: true }).fill(description);
-
-  // THE FORM IS THREE STEPS: Details, Photos, Price & location. "Next" is unique per
-  // viewport — the footer button is `max-md:hidden` and the phone header button
-  // exists only below `md`.
-  await page.getByRole('button', { name: 'Next' }).click();
-
-  await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
-  // The current picker represents selection with a thumbnail + named remove
-  // control rather than the retired "1 selected" counter.
-  await expect(
-    page.getByRole('button', { name: `Remove ${path.basename(TEST_IMAGE)}` }),
-  ).toBeVisible({ timeout: 20_000 });
-  await page.getByRole('button', { name: 'Next' }).click();
-
-  await page.getByLabel('Price').fill(priceDollars);
+  await page.getByLabel('Price', { exact: true }).fill(priceDollars);
 
   // PLACE AFTER THE PHOTO HAS SETTLED, and the order matters.
   //
@@ -215,19 +213,17 @@ export async function createListing(
   // intermittently and with no error: the field held the typed query, no options
   // appeared, and the failure surfaced as "option not found" as though the intercept
   // were broken. It was not; the request had been cancelled. The photo is picked on
-  // step 2 and the remove control waited on above, so the place field only renders
-  // here, on step 3, after that has settled.
+  // step 1 and the remove control waited on above, so the place field is only used
+  // here, on step 2, after that has settled.
   //
   // Filled through the real autocomplete rather than free text, so the value is a
   // RESOLVED place — which is what lets this listing later carry a contract (see
   // support/places.ts).
   await fillPlace(page, /Based near/, place);
 
-  await expect(page.getByRole('button', { name: 'Create listing' })).toBeEnabled({
-    timeout: 20_000,
-  });
-
-  await page.getByRole('button', { name: 'Create listing' }).click();
+  const create = page.getByRole('button', { name: 'Create listing' }).filter({ visible: true }).first();
+  await expect(create).toBeEnabled({ timeout: 20_000 });
+  await create.click();
 
   // 45s, not 30s. Publishing uploads to Storage, writes the row and then navigates to
   // the new listing, and the mobile project emulates a phone — the same sequence that

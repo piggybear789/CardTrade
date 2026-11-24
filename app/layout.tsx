@@ -5,6 +5,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
 import { StartDealProvider } from '@/components/deals/StartDealProvider';
+import { BodyPointerGuard } from '@/components/layout/BodyPointerGuard';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
 import { PageViewTracker } from '@/components/analytics/PageViewTracker';
 import { SiteHeader } from '@/components/layout/SiteHeader';
@@ -128,6 +129,9 @@ export default function RootLayout({
         </StartDealProvider>
         <Toaster />
         <KeyboardInset />
+        {/* F88: undoes a `pointer-events: none` that Stripe.js's modal backdrop restores
+            after a Radix dialog has released its lock. Renders nothing. */}
+        <BodyPointerGuard />
         {/* Behavioural instrumentation (0121). Renders nothing, records a PAGE_VIEW per
             navigation for signed-in members only — `recordUxEvent` drops guests, and
             0121's header records why an `anon` write path is not wanted. Mounted here

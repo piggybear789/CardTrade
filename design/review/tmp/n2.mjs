@@ -1,0 +1,11 @@
+﻿import { chromium } from 'playwright';
+const b = await chromium.launch();
+const c = await b.newContext({ storageState: 'playwright/.auth/design-Alice Nguyen.json' });
+const r = await c.request.get('http://localhost:3000/notifications');
+const html = await r.text();
+console.log(r.status(), html.includes('New offer on your listing'), html.includes('No notifications yet'), html.length);
+const p = await c.newPage();
+await p.goto('http://localhost:3000/notifications', { waitUntil: 'networkidle' });
+await p.waitForTimeout(2000);
+console.log((await p.textContent('main'))?.slice(0, 300));
+await b.close();

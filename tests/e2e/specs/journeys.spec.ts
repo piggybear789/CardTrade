@@ -1,6 +1,28 @@
 // tests/e2e/specs/journeys.spec.ts
 //
-// FREQUENT USER PATHWAYS, driven as journeys rather than page loads. These run in
+// CROSS-AREA JOURNEYS (area `journeys`, Req 29.3, 36.5). Two parts:
+//
+// 1. THE TWO LIFECYCLE PATHWAYS, on the Pathway DSL (`audit/pathway.ts`), which open
+//    the highlight reel (`audit/highlights.ts`, Req 36.5):
+//
+//      journeys.cash-sale-lifecycle  list, buy, pay by card, ship, deliver, accept, payout
+//      journeys.trade-lifecycle      propose, agree, collateral, handover, accept, holds voided
+//
+//    Both run against the main server on real Stripe TEST mode. Each member has their
+//    own recorded context, so every journey leaves one video per member (Req 29.2,
+//    29.3), and every step is named for what the member does. Each action ends on a
+//    short beat (`support/journeySteps.ts`) so the recording reads at a human pace.
+//    What is not a member action is labelled: the carrier's delivery report is a
+//    signed Ship24 fixture, the new-seller holdback is a moved timestamp, and the two
+//    scheduled jobs are called on demand as `arrange` steps, exactly as Vercel Cron
+//    would call them.
+//
+// 2. THE EVERYDAY PATHWAYS below them (guest discovery, save and enquire, publish,
+//    phone navigation, account tabs), still on plain Playwright tests. They belong to
+//    other areas (catalog, watchlist-sellers, listings, auth, profile-payouts) and move
+//    to those areas' specs when those are migrated; until then they keep running here.
+//
+// Everyday pathways, driven as journeys rather than page loads. These run in
 // both Playwright projects (desktop Chrome, iPhone 14 WebKit), so each pathway is
 // exercised at the two viewports where the layout and navigation differ most.
 //
@@ -17,14 +39,326 @@
 // fixture as a product defect, which is the failure mode this whole audit exists to
 // avoid. Everything below is marker-prefixed, so global teardown reclaims it.
 
-import type { Page } from '@playwright/test';
+import type { Browser, Page } from '@playwright/test';
 import { test, expect } from '../support/fixtures';
-import { ALICE, BOB, storageStatePath } from '../support/users';
+import { ALICE, BOB, CAROL, DAVE, storageStatePath } from '../support/users';
 import { ensureFreshSessions } from '../support/auth';
 import { createListing, itemIdFromUrl } from '../support/listings';
 import { marked } from '../support/marker';
 import { messageSellerFromListing } from '../support/messageSeller';
 import { clickForWrite, clickThrough, COLD_ROUTE, RENDERED } from '../support/waiting';
+import { pathway } from '../audit/pathway';
+import { runJobOk } from '../audit/backend/jobs';
+import { ship24Delivered } from '../audit/backend/ship24';
+import { DAY_MS, rewind } from '../audit/backend/timeTravel';
+import {
+  acceptTradeItem,
+  beat,
+  completePurchase,
+  confirmTradeAcceptance,
+  confirmTradeHandover,
+  holdStatusesInStripe,
+  journeyNonce,
+  openPayDialog,
+  payByCardInRoom,
+  proposeDeliveryTerms,
+  proposeSwap,
+  recordCashSaleShipment,
+  reserveWithBuyNow,
+  reviewTradeAcceptance,
+  saleRow,
+  setMeetingTerms,
+  shownHoldStatuses,
+  shownSaleStatus,
+  shownSellerPayout,
+  shownTradeState,
+  tradeIdFor,
+  tradeRow,
+} from '../support/journeySteps';
+
+// ─── Lifecycle journeys (Pathway DSL) ────────────────────────────────────────
+
+/** Both lifecycles list, negotiate and complete for real; ten minutes is the budget. */
+const LIFECYCLE_TIMEOUT_MS = 10 * 60_000;
+
+/** How long a state reached through Stripe, a webhook or Realtime may take to show. */
+const SETTLE_MS = 60_000;
+
+pathway(
+  {
+    id: 'journeys.cash-sale-lifecycle',
+    title: 'Cash sale start to finish: list, buy, pay by card, ship, deliver, accept, payout',
+    area: 'journeys',
+    kind: 'happy',
+    provider: 'stripe',
+    members: { seller: ALICE, buyer: BOB },
+    viewports: 'both',
+    timeout: LIFECYCLE_TIMEOUT_MS,
+    knownFindings: ['F73', 'F74', 'F75', 'F77'],
+  },
+  async ({ step, simulated, arrange, assertState }) => {
+    const title = marked(`Journey cash sale ${journeyNonce()}`);
+    const trackingNumber = `E2E${journeyNonce().toUpperCase()}AU`;
+    let itemId = '';
+    let saleId = '';
+    const status = () => saleRow<{ status: string }>(saleId, 'status').then((row) => row.status);
+
+    await step('Alice lists a card for A$150.00', 'seller', async (page) => {
+      itemId = itemIdFromUrl(await createListing(page, { title, priceDollars: '150.00', description: 'Listed by the cash-sale journey.' }));
+      await beat(page);
+    });
+
+    await step('Bob opens the listing and reserves it with Buy now', 'buyer', async (page) => {
+      await page.goto(`/listings/${itemId}`);
+      await page.waitForLoadState('domcontentloaded');
+      await beat(page);
+      saleId = await reserveWithBuyNow(page);
+      await beat(page);
+    });
+
+    await step('Alice opens the new sale', 'seller', async (page) => {
+      await page.goto(`/sales/${saleId}`);
+      await page.waitForLoadState('domcontentloaded');
+      await beat(page);
+    });
+
+    await assertState('The card is reserved and the sale is agreeing terms', {
+      member: 'seller',
+      db: status,
+      ui: (page) => shownSaleStatus(page),
+      expect: 'AGREEMENT',
+    });
+
+    await step('Bob chooses delivery and gives his address', 'buyer', (page) => proposeDeliveryTerms(page));
+
+    await step(
+      'Bob reviews the total: price, postage and the card service fee',
+      'buyer',
+      async (page) => {
+        await openPayDialog(page);
+      },
+      { copy: { fee: { currency: 'AUD', method: 'CARD' } } },
+    );
+
+    await step('Bob pays by card (3-D Secure when asked)', 'buyer', (page) => payByCardInRoom(page));
+
+    await assertState('NoDitto holds the payment, and Alice sees it live', {
+      member: 'seller',
+      db: status,
+      ui: (page) => shownSaleStatus(page),
+      expect: 'ESCROW_HELD',
+      timeout: SETTLE_MS,
+    });
+
+    await step('Alice posts the card and records the tracking number', 'seller', (page) =>
+      recordCashSaleShipment(page, trackingNumber),
+    );
+
+    await assertState('Bob sees the parcel in transit', {
+      member: 'buyer',
+      db: status,
+      ui: (page) => shownSaleStatus(page),
+      expect: 'IN_TRANSIT',
+      timeout: SETTLE_MS,
+    });
+
+    await simulated(
+      'Australia Post reports the parcel delivered',
+      { mechanism: 'signed-fixture', reason: 'A Ship24-shaped delivery event for the number Alice entered, posted with the webhook secret; no parcel moves in a test run.' },
+      () => ship24Delivered(trackingNumber),
+    );
+
+    await assertState("Bob's 7-day inspection window opens", {
+      member: 'buyer',
+      db: status,
+      ui: (page) => shownSaleStatus(page),
+      expect: 'INSPECTION',
+      timeout: SETTLE_MS,
+    });
+
+    await step('Bob checks the card and completes the purchase', 'buyer', (page) => completePurchase(page));
+
+    await assertState('The sale is complete for Alice', {
+      member: 'seller',
+      db: status,
+      ui: (page) => shownSaleStatus(page),
+      expect: 'COMPLETED',
+      timeout: SETTLE_MS,
+    });
+
+    await simulated(
+      "The new-seller holdback passes (7 days from payment)",
+      {
+        mechanism: 'moved-timestamp',
+        reason: 'A new seller is paid 7 days after collection (ESC-03); payment_settled_at and any recorded release time move back 8 days instead of waiting.',
+      },
+      async () => {
+        const row = await saleRow<{ seller_payout_release_at: string | null }>(saleId, 'seller_payout_release_at');
+        const columns = ['payment_settled_at', ...(row.seller_payout_release_at ? ['seller_payout_release_at'] : [])];
+        await rewind('cash_sales', saleId, columns, 8 * DAY_MS);
+      },
+    );
+
+    await arrange('The hourly payout job runs (called on demand, as Vercel Cron would)', () =>
+      runJobOk('cash-sale-payouts'),
+    );
+
+    await assertState('Alice is paid: the transfer is sent to her payout account', {
+      member: 'seller',
+      db: () => saleRow<{ seller_payout_status: string }>(saleId, 'seller_payout_status').then((row) => row.seller_payout_status),
+      ui: (page) => shownSellerPayout(page),
+      expect: 'SETTLED',
+      timeout: SETTLE_MS,
+    });
+
+    await step('Bob sees his finished purchase', 'buyer', async (page) => {
+      await page.reload();
+      await page.waitForLoadState('domcontentloaded');
+      await expect.poll(() => shownSaleStatus(page), { timeout: RENDERED }).toBe('COMPLETED');
+      await beat(page);
+    });
+  },
+);
+
+pathway(
+  {
+    id: 'journeys.trade-lifecycle',
+    title: 'Trade start to finish: propose, agree, collateral, handover, accept, holds voided',
+    area: 'journeys',
+    kind: 'happy',
+    provider: 'stripe',
+    members: { proposer: CAROL, counterpart: DAVE },
+    viewports: 'both',
+    timeout: LIFECYCLE_TIMEOUT_MS,
+    knownFindings: ['F73', 'F74', 'F76'],
+  },
+  async ({ step, arrange, assertState }) => {
+    const carolTitle = marked(`Journey trade offer ${journeyNonce()}`);
+    const daveTitle = marked(`Journey trade wanted ${journeyNonce()}`);
+    let daveItemId = '';
+    let tradeId = '';
+    const state = () => tradeRow<{ state: string }>(tradeId, 'state').then((row) => row.state);
+
+    await step('Dave lists a card worth A$120.00', 'counterpart', async (page) => {
+      daveItemId = itemIdFromUrl(await createListing(page, { title: daveTitle, priceDollars: '120.00', description: 'Listed by the trade journey.' }));
+      await beat(page);
+    });
+
+    await step('Carol lists a card of equal value to offer', 'proposer', async (page) => {
+      await createListing(page, { title: carolTitle, priceDollars: '120.00', description: 'Offered by the trade journey.' });
+      await beat(page);
+    });
+
+    await step("Carol proposes a swap from Dave's listing", 'proposer', async (page) => {
+      await page.goto(`/listings/${daveItemId}`);
+      await page.waitForLoadState('domcontentloaded');
+      await beat(page);
+      await proposeSwap(page, carolTitle);
+      await expect
+        .poll(() => tradeIdFor(CAROL.id, daveItemId), { message: 'the trade row exists', timeout: RENDERED })
+        .not.toBeNull();
+      tradeId = (await tradeIdFor(CAROL.id, daveItemId)) as string;
+      // Sending lands in the new room; when a list redirect wins the race, go to it.
+      if (!page.url().endsWith(`/trades/${tradeId}`)) {
+        await page.goto(`/trades/${tradeId}`);
+        await page.waitForLoadState('domcontentloaded');
+      }
+      await beat(page);
+    });
+
+    await step('Carol sets where and when they meet', 'proposer', (page) => setMeetingTerms(page));
+
+    await step('Dave opens the offer', 'counterpart', async (page) => {
+      await page.goto(`/trades/${tradeId}`);
+      await page.waitForLoadState('domcontentloaded');
+      await beat(page);
+    });
+
+    await assertState('Both are negotiating the same terms', {
+      member: 'counterpart',
+      db: state,
+      ui: (page) => shownTradeState(page),
+      expect: 'NEGOTIATING',
+    });
+
+    await step(
+      'Dave reads what accepting costs: no fee, trade collateral as a temporary card hold',
+      'counterpart',
+      async (page) => {
+        await reviewTradeAcceptance(page);
+      },
+      { copy: { collateral: true } },
+    );
+
+    await step('Dave accepts the terms', 'counterpart', (page) => confirmTradeAcceptance(page));
+
+    // No second accept: saving terms IS the saver's acceptance (an edit clears only the
+    // OTHER trader's, ESC-04), so Carol accepted the version she saved and Dave's accept
+    // agrees it. The room then says "Both traders agreed the same terms".
+    await assertState('The terms are agreed and both cards wait for their hold', {
+      member: 'proposer',
+      db: state,
+      ui: (page) => shownTradeState(page),
+      expect: 'COLLATERAL_PENDING',
+      timeout: SETTLE_MS,
+    });
+
+    await arrange(
+      'The hourly trade job places the holds a day before the meeting (called on demand, as Vercel Cron would)',
+      () => runJobOk('trade-inspections'),
+    );
+
+    await assertState('Collateral locks, and Dave sees it live', {
+      member: 'counterpart',
+      db: state,
+      ui: (page) => shownTradeState(page),
+      expect: 'COLLATERAL_LOCKED',
+      timeout: SETTLE_MS,
+    });
+
+    await assertState('Each card carries a live temporary hold in Stripe', {
+      member: 'proposer',
+      db: () => holdStatusesInStripe(tradeId),
+      ui: (page) => shownHoldStatuses(page),
+      expect: ['ACTIVE', 'ACTIVE'],
+      timeout: SETTLE_MS,
+    });
+
+    await step('They meet; Carol confirms the handover', 'proposer', (page) => confirmTradeHandover(page));
+
+    await step('Dave confirms the handover', 'counterpart', (page) => confirmTradeHandover(page));
+
+    await assertState('The 72-hour inspection window opens', {
+      member: 'counterpart',
+      db: state,
+      ui: (page) => shownTradeState(page),
+      expect: 'INSPECTION',
+      timeout: SETTLE_MS,
+    });
+
+    await step('Carol accepts the card she received', 'proposer', (page) => acceptTradeItem(page));
+
+    await step('Dave accepts the card he received', 'counterpart', (page) => acceptTradeItem(page));
+
+    await assertState('The trade completes for both', {
+      member: 'proposer',
+      db: state,
+      ui: (page) => shownTradeState(page),
+      expect: 'COMPLETED',
+      timeout: SETTLE_MS,
+    });
+
+    await assertState('Both holds are released: voided in Stripe, nothing charged', {
+      member: 'counterpart',
+      db: () => holdStatusesInStripe(tradeId),
+      ui: (page) => shownHoldStatuses(page),
+      expect: ['VOIDED', 'VOIDED'],
+      timeout: SETTLE_MS,
+    });
+  },
+);
+
+// ─── Everyday pathways (unmigrated) ──────────────────────────────────────────
 
 /**
  * One AVAILABLE listing of Alice's, plus a second that must NOT match a search for
@@ -45,7 +379,13 @@ function nonce(): string {
   return `jrny${Math.random().toString(36).slice(2, 8)}${Date.now().toString(36).slice(-4)}`;
 }
 
-test.beforeAll(async ({ browser }) => {
+/**
+ * Creates the everyday pathways' two listings once per worker, from the `beforeAll`
+ * of the groups that read them. Not a file-level hook: that would also run before
+ * the lifecycle Pathways above, which create their own listings.
+ */
+async function ensureLegacyListings(browser: Browser): Promise<void> {
+  if (subject && control) return;
   await ensureFreshSessions(browser, [ALICE, BOB]);
   // Re-raised AFTER session repair, which sets its own budget (90s + 100s per user)
   // and would otherwise cap this hook well short of two listing publishes on mobile
@@ -71,7 +411,7 @@ test.beforeAll(async ({ browser }) => {
   } finally {
     await context.close();
   }
-});
+}
 
 /** True when the run is the phone project, where chrome and nav differ. */
 function isPhone(page: Page): boolean {
@@ -126,6 +466,10 @@ async function expectNothingUnderMobileNav(page: Page, where: string): Promise<v
 
 test.describe('guest discovery pathway', () => {
   test.use({ storageState: { cookies: [], origins: [] } });
+
+  test.beforeAll(async ({ browser }) => {
+    await ensureLegacyListings(browser);
+  });
 
   test('a guest can browse, open a listing, and is offered sign-in to buy', async ({
     page,
@@ -192,6 +536,7 @@ test.describe('buyer save and enquire pathway', () => {
   test.use({ storageState: storageStatePath(BOB) });
 
   test.beforeAll(async ({ browser }) => {
+    await ensureLegacyListings(browser);
     await ensureFreshSessions(browser, [BOB]);
   });
 

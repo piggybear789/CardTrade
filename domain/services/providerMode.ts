@@ -106,6 +106,25 @@ export function isRealMoneyProvider(env: EnvLike = process.env): boolean {
 }
 
 /**
+ * Whether the active binding is the mock, a Stripe TEST configuration, a Stripe LIVE
+ * configuration, or nothing usable. Reported by `/api/health` on the dev sandbox only
+ * so the e2e audit preflight can confirm a server is on test keys (Req 1.4, 1.5).
+ *
+ * `live` when ANY configured region's key is live (`isLiveSecretKey`), the same
+ * every-region rule as {@link isRealMoneyProvider}. Explicit `stripe` with no key in
+ * any region is `unconfigured`, because every Stripe call would fail closed. Returns a
+ * label only, never a key or any part of one.
+ */
+export type PaymentsMode = 'mock' | 'unconfigured' | 'test' | 'live';
+
+export function resolvePaymentsMode(env: EnvLike = process.env): PaymentsMode {
+  const provider = resolvePaymentProvider(env);
+  if (provider !== 'stripe') return provider;
+  if (allConfiguredRegionCodes(env).length === 0) return 'unconfigured';
+  return liveConfiguredRegionCodes(env).length > 0 ? 'live' : 'test';
+}
+
+/**
  * True when the fake webhook demo panels / fire* actions may run. Never when a
  * real provider is active — those buttons inject mock-signed events that skip
  * the real charge path entirely.

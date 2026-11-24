@@ -258,6 +258,9 @@ export function ContractDetailList({
         >
           <div
             ref={panelRef}
+            role="region"
+            tabIndex={0}
+            aria-label={activeRow.props.label}
             className={cn(
               // Contained wherever this panel is the bounded scroller: the
               // desktop split, and the phone sheet. It stays uncontained in

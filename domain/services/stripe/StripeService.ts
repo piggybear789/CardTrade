@@ -69,7 +69,7 @@ import type {
   VaultedInstrument,
 } from '../types';
 import type { StripeConfig } from './config';
-import { metadataFor } from './metadata';
+import { metadataFor, withRunStamp } from './metadata';
 import {
   isBankMethod,
   paymentMethodDefinition,
@@ -191,6 +191,30 @@ export class StripeService implements PaymentService, PayerService {
     return this.opts.client;
   }
 
+  /**
+   * Every metadata map this binding writes goes through here (Req 2.7). On the dev
+   * sandbox with `E2E_RUN_ID` set it adds the audit-run stamp; otherwise
+   * (`config.e2eRunId` undefined, always the case on the production schema) it
+   * returns the map unchanged.
+   */
+  private stamp<M extends Record<string, unknown>>(metadata: M): M {
+    return withRunStamp(metadata, this.opts.config.e2eRunId);
+  }
+
+  /**
+   * Scope a PROFILE-keyed idempotency key to the audit run, sandbox only (Req 2.7).
+   *
+   * Stripe binds a key to the first body it saw for 24 hours. The stamp puts the run
+   * id in the body, so a second audit run reusing `payer:<profileId>` for the same
+   * seeded member would be refused as a parameter mismatch. Per-operation keys (holds,
+   * transfers, refunds) name rows a run creates and need no scoping. Unchanged when
+   * `config.e2eRunId` is undefined, i.e. always on the production schema.
+   */
+  private runKey(key: string): string {
+    const runId = this.opts.config.e2eRunId;
+    return runId ? `${key}:e2e:${runId}` : key;
+  }
+
   // --- Payers (Stripe Customers) -------------------------------------------
 
   /**
@@ -213,11 +237,11 @@ export class StripeService implements PaymentService, PayerService {
         name: details?.displayName,
         email: details?.email,
         phone: details?.mobile,
-        metadata: { cardtrade_profile_id: profileId },
+        metadata: this.stamp({ cardtrade_profile_id: profileId }),
       },
       // Idempotent per Profile: a retry after a timeout returns the same
       // Customer instead of creating a duplicate payer.
-      { idempotencyKey: `payer:${profileId}` },
+      { idempotencyKey: this.runKey(`payer:${profileId}`) },
     );
 
     return { payerId: customer.id, profileId };
@@ -284,12 +308,15 @@ export class StripeService implements PaymentService, PayerService {
       profileId: params.profileId,
       returnUrl: params.returnUrl,
       verificationFlow: flow,
+      e2eRunId: this.opts.config.e2eRunId,
     });
-    const idempotencyKey = identitySessionIdempotencyKey({
-      profileId: params.profileId,
-      returnUrl: params.returnUrl,
-      supersedes,
-    });
+    const idempotencyKey = this.runKey(
+      identitySessionIdempotencyKey({
+        profileId: params.profileId,
+        returnUrl: params.returnUrl,
+        supersedes,
+      }),
+    );
 
     const session = await this.stripe.identity.verificationSessions.create(body, {
       idempotencyKey,
@@ -531,7 +558,7 @@ export class StripeService implements PaymentService, PayerService {
       customer: params.payerId,
       payment_method_types: CARD_ONLY,
       usage: 'off_session',
-      metadata: { cardtrade_payer_id: params.payerId },
+      metadata: this.stamp({ cardtrade_payer_id: params.payerId }),
     });
 
     if (!intent.client_secret) {
@@ -686,7 +713,7 @@ export class StripeService implements PaymentService, PayerService {
           confirm: true,
           off_session: true,
           description: 'NoDitto collateral hold',
-          metadata: metadataFor('HOLD', params.ref),
+          metadata: this.stamp(metadataFor('HOLD', params.ref)),
           expand: ['latest_charge'],
         },
         // `ref` is `hold:<tradeId>:<traderId>` — stable for this trade and
@@ -898,7 +925,7 @@ export class StripeService implements PaymentService, PayerService {
           // Still a platform charge: the money lands here and nothing is forwarded.
           ...(params.onBehalfOf ? { on_behalf_of: params.onBehalfOf } : {}),
           description: 'NoDitto payment',
-          metadata: metadataFor('TRANSFER', params.ref),
+          metadata: this.stamp(metadataFor('TRANSFER', params.ref)),
           expand: ['latest_charge'],
         },
         // The persisted nonce, reused verbatim on retry (never regenerated).
@@ -991,7 +1018,7 @@ export class StripeService implements PaymentService, PayerService {
           payment_method_types: [rail.stripeType],
           ...(params.onBehalfOf ? { on_behalf_of: params.onBehalfOf } : {}),
           description: 'NoDitto payment',
-          metadata: metadataFor('TRANSFER', params.ref),
+          metadata: this.stamp(metadataFor('TRANSFER', params.ref)),
         },
         { idempotencyKey: params.nonce },
       );
@@ -1117,7 +1144,7 @@ export class StripeService implements PaymentService, PayerService {
           // Ties the transfer to the charge, so it succeeds even before the funds
           // have settled into the platform's available balance.
           ...(params.sourceTransaction ? { source_transaction: params.sourceTransaction } : {}),
-          metadata: metadataFor('TRANSFER', params.ref),
+          metadata: this.stamp(metadataFor('TRANSFER', params.ref)),
         },
         { idempotencyKey: params.idempotencyKey },
       );
@@ -1138,11 +1165,11 @@ export class StripeService implements PaymentService, PayerService {
         currency: settles,
         destination: params.merchantRef,
         ...(params.sourceTransaction ? { source_transaction: params.sourceTransaction } : {}),
-        metadata: {
+        metadata: this.stamp({
           ...metadataFor('TRANSFER', params.ref),
           cardtrade_owed_amount: String(params.amount),
           cardtrade_owed_currency: params.currency,
-        },
+        }),
         // `fx_quote` is a preview parameter the typed params do not declare yet.
         ...({ fx_quote: quote.id } as Record<string, string>),
       } as Stripe.TransferCreateParams,
@@ -1407,7 +1434,7 @@ export class StripeService implements PaymentService, PayerService {
         {
           payment_intent: params.paymentRef,
           ...(params.amount != null ? { amount: params.amount } : {}),
-          metadata: metadataFor('REFUND', params.ref ?? params.paymentRef),
+          metadata: this.stamp(metadataFor('REFUND', params.ref ?? params.paymentRef)),
         },
         { idempotencyKey: params.nonce },
       );
@@ -1567,14 +1594,14 @@ export class StripeService implements PaymentService, PayerService {
         ...(crossBorder ? (['configuration.merchant'] as const) : []),
         'requirements',
       ],
-      metadata: {
+      metadata: this.stamp({
         // Stamped so an account whose reference we failed to persist can still be
         // traced back to the Profile that opened it. Without it an orphaned
         // account is only identifiable by an email address.
         cardtrade_profile_id: details.profileId,
         ...(details.legalEntityName ? { cardtrade_stated_name: details.legalEntityName } : {}),
         ...(details.tradingName ? { cardtrade_trading_name: details.tradingName } : {}),
-      },
+      }),
     };
 
     // Keyed on the Profile AND a fingerprint of the request, because Stripe binds

@@ -53,16 +53,24 @@ export interface BondPlacementSweepResult {
   remaining: number;
 }
 
+let placementTail: Promise<unknown> = Promise.resolve();
+
 /**
  * Authorise collateral for every trade whose meeting is within the lead time.
  *
- * Runs on the hourly job. The window is deliberately open-ended on the near side —
- * anything from "a day away" down to "already overdue" is picked up — because a pass
- * that skipped late trades would leave a trade that missed its slot permanently
- * unauthorised. A trade whose meeting has already passed without collateral is
- * surfaced by `flagStaleCollateralTrades` instead.
+ * Runs on the hourly job. Serialized in-process so overlapping job invocations
+ * cannot pick up the same `COLLATERAL_PENDING` trade and double-place holds.
  */
-export async function placeDueTradeCollateral(): Promise<BondPlacementSweepResult> {
+export function placeDueTradeCollateral(): Promise<BondPlacementSweepResult> {
+  const run = placementTail.then(
+    () => placeDueTradeCollateralOnce(),
+    () => placeDueTradeCollateralOnce(),
+  );
+  placementTail = run.catch(() => undefined);
+  return run;
+}
+
+async function placeDueTradeCollateralOnce(): Promise<BondPlacementSweepResult> {
   const admin = createAdminClient();
   const dueBefore = new Date(Date.now() + BOND_PLACEMENT_LEAD_HOURS * HOUR_MS).toISOString();
 

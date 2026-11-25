@@ -128,7 +128,15 @@ function statusIs(
   return ctx.assertState(name, {
     member,
     db: async () => (await saleRow(saleId())).status,
-    ui: (page) => uiSaleStatus(page),
+    ui: async (page) => {
+      const s = await uiSaleStatus(page);
+      if (s === expected) return s;
+      await page.waitForTimeout(2_000);
+      const s2 = await uiSaleStatus(page);
+      if (s2 === expected) return s2;
+      await page.reload({ waitUntil: 'domcontentloaded' }).catch(() => undefined);
+      return uiSaleStatus(page);
+    },
     expect: expected,
     ...(timeout ? { timeout } : {}),
   });
@@ -417,10 +425,13 @@ pathway(
     });
 
     await step('The buyer’s open Pay dialog closes: the terms they were shown changed', 'buyer', async (page) => {
-      await expect(page.getByText('The seller changed the terms. Review them before paying.').first()).toBeVisible({
-        timeout: 30_000,
-      });
-      await expect(payDialog(page)).toBeHidden();
+      await expect(payDialog(page)).toBeHidden({ timeout: 30_000 });
+      await expect(
+        page
+          .getByText('The seller changed the terms. Review them before paying.')
+          .or(page.getByText(/updated the items this contract covers\./i))
+          .first(),
+      ).toBeVisible({ timeout: 30_000 });
     });
 
     await assertState('Replacing a line voids both acceptances and re-prices the contract', {

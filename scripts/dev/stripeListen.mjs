@@ -107,7 +107,7 @@ const allReady = () => ready.size === accounts.length;
 for (const { name, key } of accounts) {
   const child = spawn(
     'stripe',
-    ['listen', '--api-key', key, '--forward-to', target, '--forward-connect-to', target],
+    ['listen', '--all-snapshot', '--api-key', key, '--forward-to', target, '--forward-connect-to', target],
     { shell: true },
   );
   children.push(child);

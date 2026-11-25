@@ -260,7 +260,6 @@ export function ListingDesktopPane({
                   <Link
                     href={`/sellers/${sellerId}#reviews`}
                     className="inline-flex rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-ring"
-                    aria-label="Read seller reviews"
                   >
                     <StarRating
                       rating={sellerRating}
@@ -268,6 +267,7 @@ export function ListingDesktopPane({
                       size={12}
                       className="text-meta"
                     />
+                    <span className="sr-only"> — Read seller reviews</span>
                   </Link>
                 )
               ) : (

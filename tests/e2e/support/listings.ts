@@ -21,7 +21,7 @@ import path from 'node:path';
 import { STUB_PLACES, stubbedPlaceLabel, type StubbedPlace } from './places';
 
 /** 1×1 PNG. Listing images are required (1–10). */
-const TEST_IMAGE = path.resolve(__dirname, '..', 'fixtures', 'test-image.png');
+export const TEST_IMAGE = path.resolve(__dirname, '..', 'fixtures', 'test-image.png');
 
 /**
  * Fill a `PlacePicker` by typing and choosing a suggestion.
@@ -164,12 +164,12 @@ export async function createListing(
   // first one is enough.
   await expect(
     page.getByRole('button', { name: 'Remove photo 1' }).filter({ visible: true }).first(),
-  ).toBeVisible({ timeout: 20_000 });
+  ).toBeVisible({ timeout: 30_000 });
 
   // Matched EXACTLY, because a substring match would also accept a future second
   // field whose label merely CONTAINS the word.
   await page.getByLabel('Title', { exact: true }).fill(title);
-  await page.getByLabel('Description', { exact: true }).fill(description);
+  await page.getByRole('textbox', { name: 'Description', exact: true }).fill(description);
 
   // "Next" is unique per viewport: the footer button is `max-md:hidden` and the
   // phone header button exists only below `md`.

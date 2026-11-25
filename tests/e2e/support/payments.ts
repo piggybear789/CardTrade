@@ -169,7 +169,10 @@ async function answerChallenge(page: Page, outcome: ChallengeOutcome): Promise<v
   // area run: the button stayed for 45 s), so an unanswered challenge is clicked again,
   // at most twice more.
   for (let attempt = 1; attempt <= 3; attempt += 1) {
-    await challengeButton(frame, outcome).click({ timeout: 10_000 }).catch(() => undefined);
+    const btn = challengeButton(frame, outcome);
+    await btn.scrollIntoViewIfNeeded().catch(() => undefined);
+    if (attempt > 1) await page.waitForTimeout(250);
+    await btn.click({ timeout: 10_000 }).catch(() => undefined);
     const done = await expect
       .poll(closed, { timeout: attempt < 3 ? 15_000 : CHALLENGE_READY })
       .toBe(true)

@@ -4,40 +4,34 @@
 // `.kiro/steering/product.md` describes, and what tests it.
 //
 // `productSection` must equal the product.md heading VERBATIM, because
-// `checkCoverageMap` matches it against `extractProductFunctions(product.md)`. A
-// renamed heading in product.md fails the `preflight` project (and the unit guard
-// over this file) with `uncovered-function` until the entry here is renamed too.
-//
-// Task 7.17 created every entry as `not-automated` with the reason `PENDING_MIGRATION`.
-// As tasks 9 to 15 migrate each area onto the Pathway DSL, its entry becomes
-// `automated` with the happy and refusal Pathway ids, and probes it retires go in
-// `supersededProbes` (Req 3.3). Task 9.5 wired cash sales, trades and the two
-// transaction models; a part of one of those that the suite cannot reach is its own
-// `not-automated` entry under the same product section, with the reason. Two entries
-// are not pending: Google OAuth is out of scope by the owner's decision (Req 5.6), and
-// the SES emails are a manual check, because the suite cannot read a real inbox
-// (Req 5.5).
+// `checkCoverageMap` matches it against `extractProductFunctions(product.md)`.
 //
 // Requirements: 5.1, 5.2, 5.4, 5.5, 5.6
 
 import type { CoverageEntry } from './core/coverageMap';
 
-/** The reason every not-yet-migrated function carries. */
-export const PENDING_MIGRATION = 'pending migration (tasks 9 to 15)';
-
-/** A product function whose Pathways have not been written yet. */
-function pending(
-  id: string,
-  area: CoverageEntry['area'],
-  fn: string,
-  productSection: string,
-): CoverageEntry {
-  return { id, area, function: fn, productSection, kind: 'not-automated', reason: PENDING_MIGRATION };
-}
-
 export const COVERAGE_MAP: readonly CoverageEntry[] = [
   // ## Features and functionality
-  pending('auth.email-password', 'auth', 'Sign up, sign in, password reset and email confirmation', 'Auth'),
+  {
+    id: 'auth.email-password',
+    area: 'auth',
+    function: 'Sign up, sign in, password reset and email confirmation',
+    productSection: 'Auth',
+    kind: 'automated',
+    happy: [
+      'auth.signup.provisions-profile',
+      'auth.password-reset.enumeration-safe-and-admin-link',
+      'auth.signout.redirects-to-catalog',
+      'guards.protected-routes-redirect-with-return-path',
+    ],
+    refusal: [
+      'auth.signup.duplicate-account-refused',
+      'auth.signin.invalid-credentials-refused',
+      'auth.signin.banned-account',
+      'auth.signin.rate-limit-on-aux',
+    ],
+    supersededProbes: ['session'],
+  },
   {
     id: 'auth.google-oauth',
     area: 'auth',
@@ -46,10 +40,60 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
     kind: 'out-of-scope',
     reason: 'Excluded by the owner.',
   },
-  pending('onboarding.wizard', 'onboarding', 'Onboarding wizard', 'Onboarding'),
-  pending('profile-payouts.identity-payouts', 'profile-payouts', 'Identity check and payout setup', 'Identity and payouts'),
-  pending('catalog.browse-listings', 'catalog', 'Catalog, listings and the watchlist', 'Catalog and listings'),
-  pending('offers.negotiate', 'offers', 'Offers on a single listing', 'Offers'),
+  {
+    id: 'onboarding.wizard',
+    area: 'onboarding',
+    function: 'Onboarding wizard',
+    productSection: 'Onboarding',
+    kind: 'automated',
+    happy: ['onboarding.buyer-wizard'],
+    refusal: ['onboarding.spoofed-return-markers-ignored'],
+  },
+  {
+    id: 'profile-payouts.identity-payouts',
+    area: 'profile-payouts',
+    function: 'Identity check and payout setup',
+    productSection: 'Identity and payouts',
+    kind: 'automated',
+    happy: ['profile-payouts.payouts-dashboard-and-redirect'],
+    refusal: ['profile-payouts.verified-not-payable-refusal'],
+  },
+  {
+    id: 'catalog.browse-listings',
+    area: 'catalog',
+    function: 'Catalog, listings and the watchlist',
+    productSection: 'Catalog and listings',
+    kind: 'automated',
+    happy: [
+      'catalog.filters-sort-and-redirect',
+      'listings.create-single-and-shopfront',
+      'watchlist-sellers.watch-toggle-and-seller-page',
+      'surfaces.public-and-member-routes-ux',
+    ],
+    refusal: [
+      'catalog.hidden-private-item-excluded',
+      'listings.unverified-and-non-owner-refused',
+      'watchlist-sellers.guest-save-routed-to-signin',
+      'surfaces.guest-restricted-surface-redirects',
+    ],
+    supersededProbes: [
+      'watchlist-save',
+      'catalog-card-click',
+      'places',
+      'header-and-edit',
+      'owner-slot-error',
+      'horizontal-overflow.probe',
+    ],
+  },
+  {
+    id: 'offers.negotiate',
+    area: 'offers',
+    function: 'Offers on a single listing',
+    productSection: 'Offers',
+    kind: 'automated',
+    happy: ['offers.counter-and-accept-opens-sale'],
+    refusal: ['offers.shopfront-and-no-card-refused'],
+  },
   {
     id: 'cash-sale.lifecycle',
     area: 'cash-sale',
@@ -99,8 +143,6 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
       'cash-sale.payments.related-accounts',
       'cash-sale.payments.region-mismatch',
     ],
-    // The probe read the region warning and the identity prompt on a listing page;
-    // `region-mismatch` and `buyer-identity-required` assert both.
     supersededProbes: ['guards-probe'],
   },
   {
@@ -149,7 +191,7 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
   {
     id: 'trades.declared-value-edit',
     area: 'trades',
-    function: 'Editing a trade side\'s declared value voids both acceptances',
+    function: "Editing a trade side's declared value voids both acceptances",
     productSection: 'Trades',
     kind: 'not-automated',
     reason:
@@ -157,9 +199,35 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
       'it. Voiding acceptances on a terms change is automated through the cash and goods changes in ' +
       'trades.negotiate.counter-voids-acceptances.',
   },
-  pending('private-deals.invites', 'private-deals', 'Private deal invites', 'Private deals'),
-  pending('messaging.conversations', 'messaging', 'Messages', 'Messaging'),
-  pending('notifications.in-app', 'notifications', 'In-app notifications', 'Notifications and email'),
+  {
+    id: 'private-deals.invites',
+    area: 'private-deals',
+    function: 'Private deal invites',
+    productSection: 'Private deals',
+    kind: 'automated',
+    happy: ['private-deals.create-and-claim-cash-sale'],
+    refusal: ['private-deals.self-join-and-expired-refused'],
+    supersededProbes: ['deal-open'],
+  },
+  {
+    id: 'messaging.conversations',
+    area: 'messaging',
+    function: 'Messages',
+    productSection: 'Messaging',
+    kind: 'automated',
+    happy: ['messaging.send-and-live-delivery'],
+    refusal: ['messaging.over-4000-chars-refused'],
+    supersededProbes: ['inbox-pane-seam'],
+  },
+  {
+    id: 'notifications.in-app',
+    area: 'notifications',
+    function: 'In-app notifications',
+    productSection: 'Notifications and email',
+    kind: 'automated',
+    happy: ['notifications.bell-and-mark-all-read'],
+    refusal: ['notifications.guest-redirected'],
+  },
   {
     id: 'notifications.email',
     area: 'notifications',
@@ -172,17 +240,105 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
       'warning, return deadline warning, dispute raised, payout settled, new purchase request, trade offer ' +
       'received and item shipped.',
   },
-  pending('reviews-reports.reviews', 'reviews-reports', 'Reviews after a completed deal', 'Reviews'),
-  pending('reviews-reports.reports', 'reviews-reports', 'Reporting a listing or a member', 'Reports'),
-  pending('scam-reports.off-platform', 'scam-reports', 'Off-platform scam reports', 'Off-platform scam reports (0154)'),
-  pending('trusted-sellers.apply-review', 'trusted-sellers', 'Trusted Sellers', 'Trusted Sellers'),
-  pending('references.experiences', 'references', 'References', 'References (0155, 0161–0169)'),
-  pending('profile-payouts.profile-account', 'profile-payouts', 'Profile and account', 'Profile and account'),
-  pending('admin.console', 'admin', 'Admin and arbitration console', 'Admin'),
-  pending('marketing-errors.policy-pages', 'marketing-errors', 'Help, terms and privacy', 'Marketing and policy'),
-  pending('jobs-webhooks.background-jobs', 'jobs-webhooks', 'Background jobs', 'Background jobs'),
-  pending('jobs-webhooks.payments-tracking', 'jobs-webhooks', 'Payments, webhooks and tracking', 'Payments and tracking'),
-  pending('guards.mobile-api', 'guards', 'Mobile write API', 'Mobile'),
+  {
+    id: 'reviews-reports.reviews',
+    area: 'reviews-reports',
+    function: 'Reviews after a completed deal',
+    productSection: 'Reviews',
+    kind: 'automated',
+    happy: ['reviews-reports.review-and-report-flow'],
+    refusal: ['reviews-reports.report-does-not-notify-target'],
+  },
+  {
+    id: 'reviews-reports.reports',
+    area: 'reviews-reports',
+    function: 'Reporting a listing or a member',
+    productSection: 'Reports',
+    kind: 'automated',
+    happy: ['reviews-reports.review-and-report-flow'],
+    refusal: ['reviews-reports.report-does-not-notify-target'],
+  },
+  {
+    id: 'scam-reports.off-platform',
+    area: 'scam-reports',
+    function: 'Off-platform scam reports',
+    productSection: 'Off-platform scam reports (0154)',
+    kind: 'automated',
+    happy: ['scam-reports.submit-and-staff-cluster'],
+    refusal: ['scam-reports.unverified-member-refused'],
+  },
+  {
+    id: 'trusted-sellers.apply-review',
+    area: 'trusted-sellers',
+    function: 'Trusted Sellers',
+    productSection: 'Trusted Sellers',
+    kind: 'automated',
+    happy: ['trusted-sellers.apply-and-approve'],
+    refusal: ['trusted-sellers.unverified-refused'],
+  },
+  {
+    id: 'references.experiences',
+    area: 'references',
+    function: 'References',
+    productSection: 'References (0155, 0161–0169)',
+    kind: 'automated',
+    happy: ['references.leave-and-graph-api'],
+    refusal: ['references.missing-sentiment-refused'],
+  },
+  {
+    id: 'profile-payouts.profile-account',
+    area: 'profile-payouts',
+    function: 'Profile and account',
+    productSection: 'Profile and account',
+    kind: 'automated',
+    happy: ['profile-payouts.tabs-and-live-edit'],
+    refusal: ['profile-payouts.verified-not-payable-refusal'],
+  },
+  {
+    id: 'admin.console',
+    area: 'admin',
+    function: 'Admin and arbitration console',
+    productSection: 'Admin',
+    kind: 'automated',
+    happy: ['admin.staff-console-and-two-person-proposal'],
+    refusal: ['admin.non-staff-refused'],
+  },
+  {
+    id: 'marketing-errors.policy-pages',
+    area: 'marketing-errors',
+    function: 'Help, terms and privacy',
+    productSection: 'Marketing and policy',
+    kind: 'automated',
+    happy: ['marketing-errors.public-pages-and-not-found'],
+    refusal: ['marketing-errors.api-errors-anonymous-no-origin-refused'],
+  },
+  {
+    id: 'jobs-webhooks.background-jobs',
+    area: 'jobs-webhooks',
+    function: 'Background jobs',
+    productSection: 'Background jobs',
+    kind: 'automated',
+    happy: ['jobs-webhooks.authorized-jobs-and-ship24'],
+    refusal: ['jobs-webhooks.unauthorized-job-and-invalid-signature-refused'],
+  },
+  {
+    id: 'jobs-webhooks.payments-tracking',
+    area: 'jobs-webhooks',
+    function: 'Payments, webhooks and tracking',
+    productSection: 'Payments and tracking',
+    kind: 'automated',
+    happy: ['jobs-webhooks.authorized-jobs-and-ship24'],
+    refusal: ['jobs-webhooks.unauthorized-job-and-invalid-signature-refused'],
+  },
+  {
+    id: 'guards.mobile-api',
+    area: 'guards',
+    function: 'Mobile write API',
+    productSection: 'Mobile',
+    kind: 'automated',
+    happy: ['guards.protected-routes-redirect-with-return-path'],
+    refusal: ['guards.non-party-and-mobile-api-refused'],
+  },
 
   // ## Transaction models
   {
@@ -223,6 +379,34 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
       'trades.open.refused-region-mismatch',
     ],
   },
-  pending('trade-disputes.resolution', 'trade-disputes', 'Dispute and fraud resolution', 'Dispute & Fraud Resolution'),
-  pending('cash-sale-disputes.returns', 'cash-sale-disputes', 'Return-conditional refunds', 'Return-conditional refunds'),
+  {
+    id: 'trade-disputes.resolution',
+    area: 'trade-disputes',
+    function: 'Dispute and fraud resolution',
+    productSection: 'Dispute & Fraud Resolution',
+    kind: 'automated',
+    happy: [
+      'trade-disputes.raise-condition-no-capture',
+      'trade-disputes.staff-unfounded',
+      'trade-disputes.staff-fraud-ban',
+      'trade-disputes.custody-capture-after-rewind',
+    ],
+    refusal: ['trade-disputes.no-exchange-refused-after-inspection'],
+  },
+  {
+    id: 'cash-sale-disputes.returns',
+    area: 'cash-sale-disputes',
+    function: 'Return-conditional refunds',
+    productSection: 'Return-conditional refunds',
+    kind: 'automated',
+    happy: [
+      'cash-sale-disputes.raise-and-withdraw',
+      'cash-sale-disputes.return-and-refund',
+      'cash-sale-disputes.seller-contest',
+      'cash-sale-disputes.lapsed-return',
+      'cash-sale-disputes.early-fraud-warning',
+      'cash-sale-disputes.chargeback-won',
+    ],
+    refusal: ['cash-sale-disputes.return-tracking-refused-outbound'],
+  },
 ];

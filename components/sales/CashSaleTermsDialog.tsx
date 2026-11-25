@@ -292,6 +292,7 @@ export function CashSaleTermsDialog({
               }
               deliveryCostOptional
               deliveryCostReadOnlyNote="only the seller sets postage"
+              currency={sale.currency}
               // The seller receives nothing by post, so only the buyer supplies an
               // address. This is the one place the two flows legitimately differ:
               // a trade posts both ways and asks both traders.

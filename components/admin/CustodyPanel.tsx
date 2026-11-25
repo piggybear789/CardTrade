@@ -104,72 +104,78 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
           <dt className="text-meta uppercase tracking-wide text-muted-foreground">
             Owed to members
           </dt>
-          <dd className="mt-0.5 text-subhead font-semibold tabular-nums">
-            {money(heldForMembersCents)}
-          </dd>
-          <p className="mt-0.5 text-body text-muted-foreground">
-            Money collected and not yet paid out or refunded.
-          </p>
-          {/* A foreign-currency sale whose converted amount is not on file is missing
-              from the figure above, so the position is incomplete rather than clean. */}
-          {position.unconvertedSales ? (
-            <p className="mt-0.5 text-body text-destructive">
-              Plus {position.unconvertedSales} foreign-currency{' '}
-              {position.unconvertedSales === 1 ? 'obligation' : 'obligations'} with no recorded{' '}
-              {currency.toUpperCase()} amount, not included.
+          <dd className="mt-0.5">
+            <div className="text-subhead font-semibold tabular-nums">
+              {money(heldForMembersCents)}
+            </div>
+            <p className="mt-0.5 text-body text-muted-foreground">
+              Money collected and not yet paid out or refunded.
             </p>
-          ) : null}
-          {/* Three sources since disputes stopped capturing at raise (ESC-01): a
-              captured hold is member money until staff pay or refund it. Open
-              temporary card holds are never counted: they are not in this balance. */}
-          <ul className="mt-tight space-y-0.5 text-body text-muted-foreground" aria-label="Owed to members by source">
-            <li>
-              Cash sales: {money(position.heldForSalesCents ?? heldForMembersCents)} across {saleCount}{' '}
-              {saleCount === 1 ? 'sale' : 'sales'}
-            </li>
-            <li>
-              Captured trade collateral: {money(position.heldForCollateralCents ?? 0)} across{' '}
-              {position.collateralCount ?? 0} {(position.collateralCount ?? 0) === 1 ? 'hold' : 'holds'}
-            </li>
-            <li>
-              Trade cash: {money(position.heldForTradeCashCents ?? 0)} across {position.tradeCashCount ?? 0}{' '}
-              {(position.tradeCashCount ?? 0) === 1 ? 'trade' : 'trades'}
-            </li>
-          </ul>
+            {/* A foreign-currency sale whose converted amount is not on file is missing
+                from the figure above, so the position is incomplete rather than clean. */}
+            {position.unconvertedSales ? (
+              <p className="mt-0.5 text-body text-destructive">
+                Plus {position.unconvertedSales} foreign-currency{' '}
+                {position.unconvertedSales === 1 ? 'obligation' : 'obligations'} with no recorded{' '}
+                {currency.toUpperCase()} amount, not included.
+              </p>
+            ) : null}
+            {/* Three sources since disputes stopped capturing at raise (ESC-01): a
+                captured hold is member money until staff pay or refund it. Open
+                temporary card holds are never counted: they are not in this balance. */}
+            <ul className="mt-tight space-y-0.5 text-body text-muted-foreground" aria-label="Owed to members by source">
+              <li>
+                Cash sales: {money(position.heldForSalesCents ?? heldForMembersCents)} across {saleCount}{' '}
+                {saleCount === 1 ? 'sale' : 'sales'}
+              </li>
+              <li>
+                Captured trade collateral: {money(position.heldForCollateralCents ?? 0)} across{' '}
+                {position.collateralCount ?? 0} {(position.collateralCount ?? 0) === 1 ? 'hold' : 'holds'}
+              </li>
+              <li>
+                Trade cash: {money(position.heldForTradeCashCents ?? 0)} across {position.tradeCashCount ?? 0}{' '}
+                {(position.tradeCashCount ?? 0) === 1 ? 'trade' : 'trades'}
+              </li>
+            </ul>
+          </dd>
         </div>
         <div>
           <dt className="text-meta uppercase tracking-wide text-muted-foreground">
             Held at Stripe
           </dt>
-          <dd className="mt-0.5 text-subhead font-semibold tabular-nums">
-            {state === 'UNKNOWN' ? '—' : money(providerBalanceCents)}
+          <dd className="mt-0.5">
+            <div className="text-subhead font-semibold tabular-nums">
+              {state === 'UNKNOWN' ? '—' : money(providerBalanceCents)}
+            </div>
+            <p className="mt-0.5 text-body text-muted-foreground">
+              Available plus pending. Card funds clear over days, so pending money is still
+              money you hold.
+            </p>
           </dd>
-          <p className="mt-0.5 text-body text-muted-foreground">
-            Available plus pending. Card funds clear over days, so pending money is still
-            money you hold.
-          </p>
         </div>
         <div>
           <dt className="text-meta uppercase tracking-wide text-muted-foreground">
             {state === 'SHORTFALL' ? 'Short by' : 'Headroom'}
           </dt>
-          <dd
-            className={cn(
-              'mt-0.5 text-subhead font-semibold tabular-nums',
-              state === 'SHORTFALL' && 'text-destructive',
-            )}
-          >
-            {state === 'UNKNOWN'
-              ? '—'
-              : money(state === 'SHORTFALL' ? shortfallCents : surplusCents)}
+          <dd className="mt-0.5">
+            <div
+              className={cn(
+                'text-subhead font-semibold tabular-nums',
+                state === 'SHORTFALL' && 'text-destructive',
+              )}
+            >
+              {state === 'UNKNOWN'
+                ? '—'
+                : money(state === 'SHORTFALL' ? shortfallCents : surplusCents)}
+            </div>
+            <p className="mt-0.5 text-body text-muted-foreground">
+              {state === 'SHORTFALL'
+                ? 'You cannot currently pay everyone you owe.'
+                : state === 'SOLVENT'
+                  ? 'Your own funds, above what is owed to members.'
+                  : 'Cannot be calculated without a balance reading.'}
+            </p>
           </dd>
-          <p className="mt-0.5 text-body text-muted-foreground">
-            {state === 'SHORTFALL'
-              ? 'You cannot currently pay everyone you owe.'
-              : state === 'SOLVENT'
-                ? 'Your own funds, above what is owed to members.'
-                : 'Cannot be calculated without a balance reading.'}
-          </p>
         </div>
       </dl>
 

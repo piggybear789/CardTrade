@@ -30,17 +30,26 @@ export interface HandoverFailedDialogProps {
   /** Contextual label for the trigger button. */
   triggerLabel?: string;
   triggerVariant?: ButtonProps['variant'];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  hideTrigger?: boolean;
 }
 
 export function HandoverFailedDialog({
   cashSaleId,
   triggerLabel = 'Report handover failed',
   triggerVariant,
+  open,
+  onOpenChange,
+  hideTrigger,
 }: HandoverFailedDialogProps) {
   return (
     <SharedHandoverFailedDialog
       triggerLabel={triggerLabel}
       triggerVariant={triggerVariant}
+      open={open}
+      onOpenChange={onOpenChange}
+      hideTrigger={hideTrigger}
       title="Report handover failed"
       evidenceContext={{ caseKind: 'CASH_SALE', caseRef: cashSaleId }}
       // States what actually happens, not what we hope happens. This previously

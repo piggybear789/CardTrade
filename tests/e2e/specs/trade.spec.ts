@@ -950,6 +950,7 @@ pathway(
       aliceCard,
       { cash: { dollars: '10.00', direction: 'add' } },
     );
+    await expectTradeState(ctx, 'alice', tradeId, 'COLLATERAL_PENDING', 'Both traders agree the terms');
 
     await simulated(
       'Rewinding the meeting into the placement window and the cash deadline (pay_by) into the past, then the hourly job runs',
@@ -1135,8 +1136,8 @@ pathway(
         const holds = await tradeHolds(tradeId);
         const stripe = await stripeHoldStatuses(tradeId);
         return {
-          alice: holds.filter((h) => h.trader_id === ALICE.id).map((h) => `${h.status}:${stripe[ALICE.id] ?? 'none'}`),
-          owner: holds.filter((h) => h.trader_id === ownerId).map((h) => h.status),
+          alice: [...new Set(holds.filter((h) => h.trader_id === ALICE.id).map((h) => `${h.status}:${stripe[ALICE.id] ?? 'none'}`))],
+          owner: [...new Set(holds.filter((h) => h.trader_id === ownerId).map((h) => h.status))],
           chargedFees: (await tradeFees(tradeId)).filter((f) => f.status === 'SETTLED').length,
         };
       },

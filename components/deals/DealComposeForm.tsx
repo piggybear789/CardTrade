@@ -618,7 +618,7 @@ export function DealComposeForm({
   );
 
   return (
-    <div className="flex flex-1 flex-col">
+    <main id="main-content" className="flex flex-1 flex-col">
       {/* THE EDITOR BAR, from `md`, ON AN OPEN DEAL ONLY: close, the page's name, the
           Live badge, View as them and the More menu. A new deal has none of those
           actions, so the bar held only a close beside a name, and it cost the
@@ -986,7 +986,7 @@ export function DealComposeForm({
         pending={isPending}
         onConfirm={cancelLink}
       />
-    </div>
+    </main>
   );
 }
 

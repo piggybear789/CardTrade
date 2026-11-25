@@ -1,0 +1,21 @@
+{
+  "runId": "2026-11-24T11-36-45Z-rcw6tj7",
+  "startedAt": "2026-11-24T11:36:48.285Z",
+  "durationMs": 45077,
+  "commit": "2bdecee0a88bd2fef2fc0f7e8ebe5225225165ae",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [],
+  "leftInStripe": []
+}

@@ -648,6 +648,16 @@ export default async function ItemDetailPage({
               right edges at `lg`. The padding gives the edge room; the matching
               negative margin keeps the content where it was. */}
           <div className="flex min-w-0 flex-col pt-cozy lg:-mx-tight lg:flex-1 lg:overflow-y-auto lg:overscroll-contain lg:px-tight lg:pb-0 lg:pt-0 lg:[-ms-overflow-style:none] lg:[scrollbar-width:none] lg:[&::-webkit-scrollbar]:hidden">
+            {isAvailable ? null : (
+              <div className="mb-tight lg:hidden">
+                <Badge
+                  variant={statusBadge.variant}
+                  aria-label={`Availability: ${statusBadge.label}`}
+                >
+                  {statusBadge.label}
+                </Badge>
+              </div>
+            )}
             <div className="lg:hidden">
               <ListingDetailStack
                 showTrust={showTrust}

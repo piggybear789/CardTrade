@@ -1,0 +1,6185 @@
+{
+  "config": {
+    "argv": [
+      "C:\\Program Files\\nodejs\\node.exe",
+      "C:\\CardTrade\\node_modules\\@playwright\\test\\cli.js",
+      "test",
+      "--list",
+      "--reporter=json"
+    ],
+    "configFile": "C:\\CardTrade\\playwright.config.ts",
+    "rootDir": "C:/CardTrade/tests/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": "C:\\CardTrade\\tests\\e2e\\support\\globalSetup.ts",
+    "globalTeardown": "C:\\CardTrade\\tests\\e2e\\support\\globalTeardown.ts",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/CardTrade/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "preflight",
+        "name": "preflight",
+        "testDir": "C:/CardTrade/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/audit[\\\\/]preflight\\.setup\\.ts$/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/CardTrade/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "setup",
+        "name": "setup",
+        "testDir": "C:/CardTrade/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/[\\\\/]auth\\.setup\\.ts$/",
+          "/audit[\\\\/]stripe-bindings\\.setup\\.ts$/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/CardTrade/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "desktop",
+        "name": "desktop",
+        "testDir": "C:/CardTrade/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/specs[\\\\/].*\\.spec\\.ts$/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/CardTrade/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "phone",
+        "name": "phone",
+        "testDir": "C:/CardTrade/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/specs[\\\\/].*\\.spec\\.ts$/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/CardTrade/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "desktop-aux",
+        "name": "desktop-aux",
+        "testDir": "C:/CardTrade/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/specs[\\\\/].*\\.spec\\.ts$/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/CardTrade/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "phone-aux",
+        "name": "phone-aux",
+        "testDir": "C:/CardTrade/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/specs[\\\\/].*\\.spec\\.ts$/"
+        ],
+        "timeout": 90000
+      },
+      {
+        "outputDir": "C:/CardTrade/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {},
+        "id": "isolated",
+        "name": "isolated",
+        "testDir": "C:/CardTrade/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "/specs[\\\\/].*\\.spec\\.ts$/"
+        ],
+        "timeout": 90000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.62.1",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "audit\\preflight.setup.ts",
+      "file": "audit/preflight.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "servers report the sandbox and the expected payments mode, the build is current and secrets are set",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preflight",
+              "projectName": "preflight",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d6ffc5f00ed947573a57-8c4c0bf1d8f9640e4f1d",
+          "file": "audit/preflight.setup.ts",
+          "line": 101,
+          "column": 6
+        },
+        {
+          "title": "the seed rows the Pathways rely on exist",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preflight",
+              "projectName": "preflight",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d6ffc5f00ed947573a57-4b3fd265fe82e363c466",
+          "file": "audit/preflight.setup.ts",
+          "line": 123,
+          "column": 6
+        },
+        {
+          "title": "every seeded account the run signs in as is a Sandbox_Account",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preflight",
+              "projectName": "preflight",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d6ffc5f00ed947573a57-6883c2f8c1295819f168",
+          "file": "audit/preflight.setup.ts",
+          "line": 129,
+          "column": 6
+        },
+        {
+          "title": "the Coverage_Map covers every product function and maps only defined Pathways",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "preflight",
+              "projectName": "preflight",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d6ffc5f00ed947573a57-426f24bd385346e2b9b0",
+          "file": "audit/preflight.setup.ts",
+          "line": 152,
+          "column": 6
+        }
+      ]
+    },
+    {
+      "title": "audit\\stripe-bindings.setup.ts",
+      "file": "audit/stripe-bindings.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "bind alice@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-971d064f94b73228624d",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind bob@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-25d096cd79c8c4a38da3",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind carol@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-0ad0f982ead768fec8ec",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind dave@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-96f6394e304da755824c",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind erin@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-be68ee37431a0ae5f0ae",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind frank@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-538d07bf48dd6d7f0ec0",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind grace@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-6e556850bb0a42070793",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind uma@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-0f90e96c5b72d86e84a8",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        },
+        {
+          "title": "bind victor@example.com to Stripe test mode",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b9d205a5fce3e079b379-3bbe7282df830477860c",
+          "file": "audit/stripe-bindings.setup.ts",
+          "line": 171,
+          "column": 8
+        }
+      ]
+    },
+    {
+      "title": "auth.setup.ts",
+      "file": "auth.setup.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "authenticate as alice@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-41355037c4c77a5702f5",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as bob@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-6f50ef7efc8b777a8d06",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as carol@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-0a26d6b93cb69e78b4a3",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as dave@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-2206a1f52e8e7b7c7e17",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as erin@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-d06879125ac89ff16f26",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as frank@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-bd8c8be0fd06b78ccb33",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as grace@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-3e4a90acc76b9996fb45",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as uma@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-1d502a24ae9a61c8d098",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as victor@example.com",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-ee6fc06d7119ced4c84c",
+          "file": "auth.setup.ts",
+          "line": 43,
+          "column": 8
+        },
+        {
+          "title": "authenticate as alice@example.com on the aux server",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-4458b5e0a27418e21881",
+          "file": "auth.setup.ts",
+          "line": 58,
+          "column": 8
+        },
+        {
+          "title": "authenticate as bob@example.com on the aux server",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-0014a7f3b2be7928f6d7",
+          "file": "auth.setup.ts",
+          "line": 58,
+          "column": 8
+        },
+        {
+          "title": "authenticate as carol@example.com on the aux server",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-fe490e23ee101620177a",
+          "file": "auth.setup.ts",
+          "line": 58,
+          "column": 8
+        },
+        {
+          "title": "authenticate as dave@example.com on the aux server",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-411c288a9941b8e64bdd",
+          "file": "auth.setup.ts",
+          "line": 58,
+          "column": 8
+        },
+        {
+          "title": "authenticate as frank@example.com on the aux server",
+          "ok": true,
+          "tags": [
+            "example.com"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "setup",
+              "projectName": "setup",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "17e3fe6f4d9d8bd79c6b-b135af122a090fa108fa",
+          "file": "auth.setup.ts",
+          "line": 58,
+          "column": 8
+        }
+      ]
+    },
+    {
+      "title": "specs\\admin.spec.ts",
+      "file": "specs/admin.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Staff opens /admin tabs and creates a two-person proposal that second admin approves",
+          "ok": true,
+          "tags": [
+            "id:admin.staff-console-and-two-person-proposal",
+            "area:admin",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3056374cd0aca0ab26f6-fdde0327784b33509112",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Non-staff member is refused access to /admin",
+          "ok": true,
+          "tags": [
+            "id:admin.non-staff-refused",
+            "area:admin",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3056374cd0aca0ab26f6-111c3c59cb820268a3f8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff opens /admin tabs and creates a two-person proposal that second admin approves",
+          "ok": true,
+          "tags": [
+            "id:admin.staff-console-and-two-person-proposal",
+            "area:admin",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3056374cd0aca0ab26f6-3fdca2e1edfd4b499e00",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Non-staff member is refused access to /admin",
+          "ok": true,
+          "tags": [
+            "id:admin.non-staff-refused",
+            "area:admin",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3056374cd0aca0ab26f6-fb95d91f022afcd80e04",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\auth-and-navigation.spec.ts",
+      "file": "specs/auth-and-navigation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Signing up with email and password provisions a profile and lands on onboarding",
+          "ok": true,
+          "tags": [
+            "id:auth.signup.provisions-profile",
+            "area:auth",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-36a1ba9ef8d829bf83f7",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Signing up with an existing email refuses with DUPLICATE_ACCOUNT",
+          "ok": true,
+          "tags": [
+            "id:auth.signup.duplicate-account-refused",
+            "area:auth",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-2019a129d03edab86b6f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Signing in with a wrong password refuses with INVALID_CREDENTIALS",
+          "ok": true,
+          "tags": [
+            "id:auth.signin.invalid-credentials-refused",
+            "area:auth",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-c59ab2d13c4310c60e81",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Forgot-password is enumeration-safe and Admin reset link updates password",
+          "ok": true,
+          "tags": [
+            "id:auth.password-reset.enumeration-safe-and-admin-link",
+            "area:auth",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-b18d7a4e0449b60ef9e3",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Signing out clears session and redirects away from protected routes",
+          "ok": true,
+          "tags": [
+            "id:auth.signout.redirects-to-catalog",
+            "area:auth",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-0fff17c55ef889b4c732",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Signing up with email and password provisions a profile and lands on onboarding",
+          "ok": true,
+          "tags": [
+            "id:auth.signup.provisions-profile",
+            "area:auth",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-77288e5f9a4c2bc6b426",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Signing up with an existing email refuses with DUPLICATE_ACCOUNT",
+          "ok": true,
+          "tags": [
+            "id:auth.signup.duplicate-account-refused",
+            "area:auth",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-bb6861edb5f5af847138",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Signing in with a wrong password refuses with INVALID_CREDENTIALS",
+          "ok": true,
+          "tags": [
+            "id:auth.signin.invalid-credentials-refused",
+            "area:auth",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-f31c05a48ee38f2394a5",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Forgot-password is enumeration-safe and Admin reset link updates password",
+          "ok": true,
+          "tags": [
+            "id:auth.password-reset.enumeration-safe-and-admin-link",
+            "area:auth",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-7e2adf0bb5088daa51ee",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Signing out clears session and redirects away from protected routes",
+          "ok": true,
+          "tags": [
+            "id:auth.signout.redirects-to-catalog",
+            "area:auth",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-a580fdf1199152e208c1",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Aux server enforces 5/min sign-in rate limit",
+          "ok": true,
+          "tags": [
+            "id:auth.signin.rate-limit-on-aux",
+            "area:auth",
+            "kind:refusal",
+            "aux"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop-aux",
+              "projectName": "desktop-aux",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-7aa2b87b3f82c12dc16c",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Aux server enforces 5/min sign-in rate limit",
+          "ok": true,
+          "tags": [
+            "id:auth.signin.rate-limit-on-aux",
+            "area:auth",
+            "kind:refusal",
+            "aux"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone-aux",
+              "projectName": "phone-aux",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-1c085087899060e6e821",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Fraud-banned member is redirected to /account-suspended",
+          "ok": true,
+          "tags": [
+            "id:auth.signin.banned-account",
+            "area:auth",
+            "kind:refusal",
+            "isolated"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated",
+              "projectName": "isolated",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "05dff227349ce767eb51-969cc81fe8be97d66760",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\cash-sale-disputes.spec.ts",
+      "file": "specs/cash-sale-disputes.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Buyer raises a cash sale dispute with notification and withdraws it",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.raise-and-withdraw",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-921af09281611739d644",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff orders return-conditional refund, buyer ships return, job refunds buyer in Stripe",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.return-and-refund",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-91d29c6901c6feb6139d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Seller contests return delivery and holds the automatic refund",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.seller-contest",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-9c87549a12bb9a5d651a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Return shipment refuses reusing the outbound tracking number",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.return-tracking-refused-outbound",
+            "area:cash-sale-disputes",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-9967155442341b13c4cf",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Lapsed return deadline flags the return for staff without auto-releasing seller",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.lapsed-return",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-f75e8aa5471f1b1ef01a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Early fraud warning before shipment refunds the cash sale",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.early-fraud-warning",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-0a981bba9b9b3571f0de",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Chargeback holds payout with CHARGE_DISPUTE and clears when won",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.chargeback-won",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-fd9defc9601c2e94bf95",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer raises a cash sale dispute with notification and withdraws it",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.raise-and-withdraw",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-3d958d19fb4dfccb0e73",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff orders return-conditional refund, buyer ships return, job refunds buyer in Stripe",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.return-and-refund",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-b06dfdedc414421c5255",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Seller contests return delivery and holds the automatic refund",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.seller-contest",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-1821ee7c6f3f8d96a791",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Return shipment refuses reusing the outbound tracking number",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.return-tracking-refused-outbound",
+            "area:cash-sale-disputes",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-403482b4aa88a6bfc3e8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Lapsed return deadline flags the return for staff without auto-releasing seller",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.lapsed-return",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-37386a574e5813f2ca7b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Early fraud warning before shipment refunds the cash sale",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.early-fraud-warning",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-99bdfc693f7449405919",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Chargeback holds payout with CHARGE_DISPUTE and clears when won",
+          "ok": true,
+          "tags": [
+            "id:cash-sale-disputes.chargeback-won",
+            "area:cash-sale-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "25a71c04dc7a0404ced2-0f00f50a0814b3a619f0",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\cash-sale-payments.spec.ts",
+      "file": "specs/cash-sale-payments.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Buyer pays a cash sale by card with no authentication, charged exactly the total shown",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-no-auth",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-36a1c7c173b33254072f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer pays a cash sale by card and passes the 3-D Secure challenge",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-3ds",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-863f58476e899072459a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer fails the 3-D Secure challenge at Pay and nothing is charged",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-3ds-failed",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-d8bb05d88d24006c781a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer is declined at Pay and nothing is charged",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-declined",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-1ab855de459b0e807350",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer pays a cash sale with PayTo, approved in place",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-payto",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-32f019551ae6183a938d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Dutch buyer pays a German seller with iDEAL through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-ideal",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-cc58271d49d70875658d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Belgian buyer pays a German seller with Bancontact through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-bancontact",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-8383ae921fb16b72ffc5",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Austrian buyer pays a German seller with EPS through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-eps",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-1df0cef5af35c62115cf",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Polish buyer pays a German seller with Przelewy24 through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-p24",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-f49a6a0be24ea9ca16e2",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer whose saved card changes tier after the total was shown is refused with CARD_REPRICED",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-repriced",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-1a4837c32c26e55a06b8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified buyer of a sale over the unverified-buyer limit is asked to verify their ID instead of paying",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.buyer-identity-required",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-c999edc87cbd2e165a93",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer of a cross-border sale whose seller cannot receive funds is refused with SELLER_NOT_PAYABLE",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.seller-not-payable",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-29edb50edaf6ad2899f8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer is refused with SELLER_EXPOSURE_LIMIT when a new seller would exceed their open-sales limit",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.seller-exposure-limit",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-75e8d62dd7129527631f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Two accounts sharing a card cannot deal, and the refusal does not say why",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.related-accounts",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-cffabe99ec4cf7faff73",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "An Australian buyer cannot open a contract on a US seller’s listing (REGION_MISMATCH)",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.region-mismatch",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-729f5abdbf7dffc58f13",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer pays a cash sale by card with no authentication, charged exactly the total shown",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-no-auth",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-6e28c188ea25d193ec48",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer pays a cash sale by card and passes the 3-D Secure challenge",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-3ds",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-b0ff6fe9f187d3b59e0b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer fails the 3-D Secure challenge at Pay and nothing is charged",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-3ds-failed",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-5bbac042e35efe0027f5",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer is declined at Pay and nothing is charged",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-declined",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-a92ccff50e5d9be68de8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer pays a cash sale with PayTo, approved in place",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-payto",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-6ab35e46f561962fec46",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Dutch buyer pays a German seller with iDEAL through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-ideal",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-357f3201738717d16084",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Belgian buyer pays a German seller with Bancontact through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-bancontact",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-ab4cb21ed5375ed64dbb",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Austrian buyer pays a German seller with EPS through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-eps",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-3e8b9930019bcd862b77",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Polish buyer pays a German seller with Przelewy24 through the bank redirect",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.bank-p24",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-bdc8263a1df59adf94c6",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer whose saved card changes tier after the total was shown is refused with CARD_REPRICED",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.card-repriced",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-22b34a9007b1016ae0e3",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified buyer of a sale over the unverified-buyer limit is asked to verify their ID instead of paying",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.buyer-identity-required",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-ec149202574c3371a20c",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer of a cross-border sale whose seller cannot receive funds is refused with SELLER_NOT_PAYABLE",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.seller-not-payable",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-3141050f294c56910a37",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer is refused with SELLER_EXPOSURE_LIMIT when a new seller would exceed their open-sales limit",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.seller-exposure-limit",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-bfb34bad7c87c532f271",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Two accounts sharing a card cannot deal, and the refusal does not say why",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.related-accounts",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-529f434545809fe6e8c6",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "An Australian buyer cannot open a contract on a US seller’s listing (REGION_MISMATCH)",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payments.region-mismatch",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "df85b83ce2d279a00443-7912ad3c2766228e4db0",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\cash-sale.spec.ts",
+      "file": "specs/cash-sale.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Buy Now without a saved card is refused (BUYER_NO_PAYMENT_METHOD)",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.buy-now.no-card",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-e319c6a5ceb75222de72",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buy Now on a single card opens a contract and takes the listing off the catalog",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.buy-now.reserves-single",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-46287ce005f7f761bdc1",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A request on a Multiple items listing is priced by its lines, and replacing a line voids the terms",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.multiple-items.line-items",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-5b410a75c7b4b5e5ada9",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A fulfilment-only change keeps the buyer able to pay without re-confirming",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.terms.fulfilment-only-change",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-a4b0f18b570eac79f318",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A posted cash sale runs from payment to delivery, acceptance and the seller payout",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.delivery.lifecycle",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-5a1373c4958c820731fe",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Tracking delivered before the shipment is flagged and starts no inspection clock",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.delivery.flagged-delivered-before-shipment",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-e18d3f0f737af7dca0ac",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "An inspection window that lapses completes the sale through the pg_cron body",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.inspection.auto-complete",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-7f67bf90c81f9fe05b4b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Both confirming an in-person handover opens a 24-hour inspection window",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.in-person.handover-24h",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-76c2eb306206211c1991",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Confirming a handover more than an hour before the meeting is refused (HANDOVER_TOO_EARLY)",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.in-person.handover-too-early",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-8d9a6bfee950d4dcba1b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Cancelling in AGREEMENT ends the contract and puts the card back in the catalog",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.cancel.in-agreement",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-87c596b53e5190f7575b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A paid sale cannot be cancelled",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.cancel.refused-after-payment",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-252154f885caea353982",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A payment check left unfinished for 30 minutes is cancelled and the sale is payable again",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payment.unfinished-abandoned",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-1bc16b1cd5d08939b0d2",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buy Now without a saved card is refused (BUYER_NO_PAYMENT_METHOD)",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.buy-now.no-card",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-d1aac5d80756db99fd96",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buy Now on a single card opens a contract and takes the listing off the catalog",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.buy-now.reserves-single",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-2609c2c3673fc48b06e8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A request on a Multiple items listing is priced by its lines, and replacing a line voids the terms",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.multiple-items.line-items",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-532553f317243f2259bc",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A fulfilment-only change keeps the buyer able to pay without re-confirming",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.terms.fulfilment-only-change",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-e8a66ca8ac99e8ae8730",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A posted cash sale runs from payment to delivery, acceptance and the seller payout",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.delivery.lifecycle",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-a3f79a6e59cdd36ca98e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Tracking delivered before the shipment is flagged and starts no inspection clock",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.delivery.flagged-delivered-before-shipment",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-3f3915cd8b0f743e851b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "An inspection window that lapses completes the sale through the pg_cron body",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.inspection.auto-complete",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-c901cd90e996402f4f26",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Both confirming an in-person handover opens a 24-hour inspection window",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.in-person.handover-24h",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-46a309f81800ad01ab53",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Confirming a handover more than an hour before the meeting is refused (HANDOVER_TOO_EARLY)",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.in-person.handover-too-early",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-5460a508aac463565269",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Cancelling in AGREEMENT ends the contract and puts the card back in the catalog",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.cancel.in-agreement",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-a4efde06d68306d12dc8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A paid sale cannot be cancelled",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.cancel.refused-after-payment",
+            "area:cash-sale",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-600f6c19ac2f9886585c",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A payment check left unfinished for 30 minutes is cancelled and the sale is payable again",
+          "ok": true,
+          "tags": [
+            "id:cash-sale.payment.unfinished-abandoned",
+            "area:cash-sale",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "318c6f3b467fe213413e-8d02e7ccf3f682fa59f8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\catalog.spec.ts",
+      "file": "specs/catalog.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Catalog filters, sort, card-game-only pickers, and /listings redirect work for guests",
+          "ok": true,
+          "tags": [
+            "id:catalog.filters-sort-and-redirect",
+            "area:catalog",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "64f7f8b097cfe872703d-c1fa8b7fd12a8cfa4795",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Hidden private-deal listings never appear in the public catalog",
+          "ok": true,
+          "tags": [
+            "id:catalog.hidden-private-item-excluded",
+            "area:catalog",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "64f7f8b097cfe872703d-f726fe984d63267c2131",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Catalog filters, sort, card-game-only pickers, and /listings redirect work for guests",
+          "ok": true,
+          "tags": [
+            "id:catalog.filters-sort-and-redirect",
+            "area:catalog",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "64f7f8b097cfe872703d-6bf54872b7f460ac8649",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Hidden private-deal listings never appear in the public catalog",
+          "ok": true,
+          "tags": [
+            "id:catalog.hidden-private-item-excluded",
+            "area:catalog",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "64f7f8b097cfe872703d-9534db593abe2a2e3b5e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\guards.spec.ts",
+      "file": "specs/guards.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Unauthenticated visitors on protected prefixes redirect to /sign-in with redirectTo",
+          "ok": true,
+          "tags": [
+            "id:guards.protected-routes-redirect-with-return-path",
+            "area:guards",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ce3d5b7c4e2073108069-428a2cc7d15f5893a568",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Non-party cannot view a contract room and mobile API refuses unauthenticated requests",
+          "ok": true,
+          "tags": [
+            "id:guards.non-party-and-mobile-api-refused",
+            "area:guards",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ce3d5b7c4e2073108069-52af36a853936f408ba8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unauthenticated visitors on protected prefixes redirect to /sign-in with redirectTo",
+          "ok": true,
+          "tags": [
+            "id:guards.protected-routes-redirect-with-return-path",
+            "area:guards",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ce3d5b7c4e2073108069-891879cf37a503171913",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Non-party cannot view a contract room and mobile API refuses unauthenticated requests",
+          "ok": true,
+          "tags": [
+            "id:guards.non-party-and-mobile-api-refused",
+            "area:guards",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ce3d5b7c4e2073108069-b9ecda5d792a87ed4bad",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\jobs-webhooks.spec.ts",
+      "file": "specs/jobs-webhooks.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Authorized job endpoints return 200 and Ship24 webhook accepts valid bearer",
+          "ok": true,
+          "tags": [
+            "id:jobs-webhooks.authorized-jobs-and-ship24",
+            "area:jobs-webhooks",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "6716dfe06602599de022-9a355a2df59640ff3d9f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Missing/wrong job bearer and invalid Stripe webhook signature are refused",
+          "ok": true,
+          "tags": [
+            "id:jobs-webhooks.unauthorized-job-and-invalid-signature-refused",
+            "area:jobs-webhooks",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "6716dfe06602599de022-bd7dde3137f4fa9af2e7",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Authorized job endpoints return 200 and Ship24 webhook accepts valid bearer",
+          "ok": true,
+          "tags": [
+            "id:jobs-webhooks.authorized-jobs-and-ship24",
+            "area:jobs-webhooks",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "6716dfe06602599de022-aafa1805e00b97dbcc72",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Missing/wrong job bearer and invalid Stripe webhook signature are refused",
+          "ok": true,
+          "tags": [
+            "id:jobs-webhooks.unauthorized-job-and-invalid-signature-refused",
+            "area:jobs-webhooks",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "6716dfe06602599de022-2cb63bcc4d4cf725313f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\journeys.spec.ts",
+      "file": "specs/journeys.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Cash sale start to finish: list, buy, pay by card, ship, deliver, accept, payout",
+          "ok": true,
+          "tags": [
+            "id:journeys.cash-sale-lifecycle",
+            "area:journeys",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d0e91a627f907f57ce69-0844ae06b06427e91b9c",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Trade start to finish: propose, agree, collateral, handover, accept, holds voided",
+          "ok": true,
+          "tags": [
+            "id:journeys.trade-lifecycle",
+            "area:journeys",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d0e91a627f907f57ce69-ea69c58bf3e38898afa9",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Cash sale start to finish: list, buy, pay by card, ship, deliver, accept, payout",
+          "ok": true,
+          "tags": [
+            "id:journeys.cash-sale-lifecycle",
+            "area:journeys",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d0e91a627f907f57ce69-10b73df28b314868840f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Trade start to finish: propose, agree, collateral, handover, accept, holds voided",
+          "ok": true,
+          "tags": [
+            "id:journeys.trade-lifecycle",
+            "area:journeys",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d0e91a627f907f57ce69-b384bf8c51b2c56a305f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ],
+      "suites": [
+        {
+          "title": "guest discovery pathway",
+          "file": "specs/journeys.spec.ts",
+          "line": 471,
+          "column": 6,
+          "specs": [
+            {
+              "title": "a guest can browse, open a listing, and is offered sign-in to buy",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-8317e845812326c892c4",
+              "file": "specs/journeys.spec.ts",
+              "line": 478,
+              "column": 7
+            },
+            {
+              "title": "catalog search narrows results and survives a reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-aa6904a0288f34e9993f",
+              "file": "specs/journeys.spec.ts",
+              "line": 516,
+              "column": 7
+            },
+            {
+              "title": "a guest can browse, open a listing, and is offered sign-in to buy",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phone",
+                  "projectName": "phone",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-ccc01d984749ee5cc0df",
+              "file": "specs/journeys.spec.ts",
+              "line": 478,
+              "column": 7
+            },
+            {
+              "title": "catalog search narrows results and survives a reload",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phone",
+                  "projectName": "phone",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-cccc18db713307bb774a",
+              "file": "specs/journeys.spec.ts",
+              "line": 516,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "buyer save and enquire pathway",
+          "file": "specs/journeys.spec.ts",
+          "line": 539,
+          "column": 6,
+          "specs": [
+            {
+              "title": "saving a listing puts it on /saved, and unsaving removes it",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-1814ea54fb8ad029e1da",
+              "file": "specs/journeys.spec.ts",
+              "line": 551,
+              "column": 7
+            },
+            {
+              "title": "messaging the seller opens a thread that keeps the message",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-2331f63cb5b34b15dc31",
+              "file": "specs/journeys.spec.ts",
+              "line": 607,
+              "column": 7
+            },
+            {
+              "title": "saving a listing puts it on /saved, and unsaving removes it",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phone",
+                  "projectName": "phone",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-7f434e2c3f7e8a762ef9",
+              "file": "specs/journeys.spec.ts",
+              "line": 551,
+              "column": 7
+            },
+            {
+              "title": "messaging the seller opens a thread that keeps the message",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phone",
+                  "projectName": "phone",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-f8c972e42e43a03445ff",
+              "file": "specs/journeys.spec.ts",
+              "line": 607,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "seller publish pathway",
+          "file": "specs/journeys.spec.ts",
+          "line": 640,
+          "column": 6,
+          "specs": [
+            {
+              "title": "publishing a listing lands on it and lists it under My Listings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-988b4a7c4f0c14918bbf",
+              "file": "specs/journeys.spec.ts",
+              "line": 651,
+              "column": 7
+            },
+            {
+              "title": "publishing a listing lands on it and lists it under My Listings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phone",
+                  "projectName": "phone",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-574c2b8fe2a7401ef757",
+              "file": "specs/journeys.spec.ts",
+              "line": 651,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "phone navigation pathway",
+          "file": "specs/journeys.spec.ts",
+          "line": 684,
+          "column": 6,
+          "specs": [
+            {
+              "title": "the bottom hub bar reaches references, selling, account and contracts",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-44cd62b4cb02378d88e0",
+              "file": "specs/journeys.spec.ts",
+              "line": 691,
+              "column": 7
+            },
+            {
+              "title": "the bottom hub bar reaches references, selling, account and contracts",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phone",
+                  "projectName": "phone",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-2d79e97d62a288d16682",
+              "file": "specs/journeys.spec.ts",
+              "line": 691,
+              "column": 7
+            }
+          ]
+        },
+        {
+          "title": "account tabs pathway",
+          "file": "specs/journeys.spec.ts",
+          "line": 736,
+          "column": 6,
+          "specs": [
+            {
+              "title": "profile, verification and payouts each render their own content",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "desktop",
+                  "projectName": "desktop",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-f5da2e3505c5cefd75ab",
+              "file": "specs/journeys.spec.ts",
+              "line": 743,
+              "column": 7
+            },
+            {
+              "title": "profile, verification and payouts each render their own content",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 90000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "phone",
+                  "projectName": "phone",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d0e91a627f907f57ce69-6ec8fd0d404084c1a399",
+              "file": "specs/journeys.spec.ts",
+              "line": 743,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "specs\\listings.spec.ts",
+      "file": "specs/listings.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Verified seller creates SINGLE and Multiple items listings and edits them",
+          "ok": true,
+          "tags": [
+            "id:listings.create-single-and-shopfront",
+            "area:listings",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "50f141e6057eddde683a-5009e247956e55f0289c",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified member cannot list and non-owner cannot edit another seller listing",
+          "ok": true,
+          "tags": [
+            "id:listings.unverified-and-non-owner-refused",
+            "area:listings",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "50f141e6057eddde683a-3bad40392abd29dbc489",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Verified seller creates SINGLE and Multiple items listings and edits them",
+          "ok": true,
+          "tags": [
+            "id:listings.create-single-and-shopfront",
+            "area:listings",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "50f141e6057eddde683a-c842e6a292423105925e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified member cannot list and non-owner cannot edit another seller listing",
+          "ok": true,
+          "tags": [
+            "id:listings.unverified-and-non-owner-refused",
+            "area:listings",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "50f141e6057eddde683a-c19c05a99ba2c1692d0d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\marketing-errors.spec.ts",
+      "file": "specs/marketing-errors.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Help, terms, privacy, and safety pages render with headings and not-found handles unknown routes",
+          "ok": true,
+          "tags": [
+            "id:marketing-errors.public-pages-and-not-found",
+            "area:marketing-errors",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b05f45d8d4bea49d1ab1-acffe60d5b8b8cd54717",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "POST /api/errors from an anonymous caller without Origin is refused",
+          "ok": true,
+          "tags": [
+            "id:marketing-errors.api-errors-anonymous-no-origin-refused",
+            "area:marketing-errors",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b05f45d8d4bea49d1ab1-cf1121db147a106fe508",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Help, terms, privacy, and safety pages render with headings and not-found handles unknown routes",
+          "ok": true,
+          "tags": [
+            "id:marketing-errors.public-pages-and-not-found",
+            "area:marketing-errors",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b05f45d8d4bea49d1ab1-d5df6fb3f902b97ef660",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "POST /api/errors from an anonymous caller without Origin is refused",
+          "ok": true,
+          "tags": [
+            "id:marketing-errors.api-errors-anonymous-no-origin-refused",
+            "area:marketing-errors",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "b05f45d8d4bea49d1ab1-2c34d7b42c383f2b0441",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\messages.spec.ts",
+      "file": "specs/messages.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Buyer messages seller from listing, delivers live, updates unread without bell notification",
+          "ok": true,
+          "tags": [
+            "id:messaging.send-and-live-delivery",
+            "area:messaging",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ff485394a57dbd76ce74-26c3016fbc78321cf594",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Messages longer than 4000 characters are refused",
+          "ok": true,
+          "tags": [
+            "id:messaging.over-4000-chars-refused",
+            "area:messaging",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ff485394a57dbd76ce74-d7424c8a184fbdcce602",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer messages seller from listing, delivers live, updates unread without bell notification",
+          "ok": true,
+          "tags": [
+            "id:messaging.send-and-live-delivery",
+            "area:messaging",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ff485394a57dbd76ce74-8325dab259c88daf023e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Messages longer than 4000 characters are refused",
+          "ok": true,
+          "tags": [
+            "id:messaging.over-4000-chars-refused",
+            "area:messaging",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "ff485394a57dbd76ce74-df18fd80031cd94fdd25",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\notifications.spec.ts",
+      "file": "specs/notifications.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Bell count reflects unread notifications and Mark all read persists across reload",
+          "ok": true,
+          "tags": [
+            "id:notifications.bell-and-mark-all-read",
+            "area:notifications",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3eb5411c2f4d61bfb3fc-3fdff3264c7e617e1ebc",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Guest navigating to /notifications is refused and redirected to sign-in",
+          "ok": true,
+          "tags": [
+            "id:notifications.guest-redirected",
+            "area:notifications",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3eb5411c2f4d61bfb3fc-9ebde089e937e1a2ec7a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Bell count reflects unread notifications and Mark all read persists across reload",
+          "ok": true,
+          "tags": [
+            "id:notifications.bell-and-mark-all-read",
+            "area:notifications",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3eb5411c2f4d61bfb3fc-31ceccc38c87da1925e7",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Guest navigating to /notifications is refused and redirected to sign-in",
+          "ok": true,
+          "tags": [
+            "id:notifications.guest-redirected",
+            "area:notifications",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "3eb5411c2f4d61bfb3fc-4af89fe3236cb92f85af",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\offers.spec.ts",
+      "file": "specs/offers.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Buyer offers, seller counters, buyer accepts and opens a Cash_Sale",
+          "ok": true,
+          "tags": [
+            "id:offers.counter-and-accept-opens-sale",
+            "area:offers",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "098d1d63b4a8622cf42e-3dada30d57476ecd759d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Shopfront offers are refused and accepting an offer from a cardless buyer notifies buyer-needs-card",
+          "ok": true,
+          "tags": [
+            "id:offers.shopfront-and-no-card-refused",
+            "area:offers",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "098d1d63b4a8622cf42e-22492bef9c0616d8fe4b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer offers, seller counters, buyer accepts and opens a Cash_Sale",
+          "ok": true,
+          "tags": [
+            "id:offers.counter-and-accept-opens-sale",
+            "area:offers",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "098d1d63b4a8622cf42e-b143bfac2db86377ca43",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Shopfront offers are refused and accepting an offer from a cardless buyer notifies buyer-needs-card",
+          "ok": true,
+          "tags": [
+            "id:offers.shopfront-and-no-card-refused",
+            "area:offers",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "098d1d63b4a8622cf42e-c59b7b962c0779709e38",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\onboarding.spec.ts",
+      "file": "specs/onboarding.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "New member completes onboarding as a buyer, persists region_code, and reaches catalog",
+          "ok": true,
+          "tags": [
+            "id:onboarding.buyer-wizard",
+            "area:onboarding",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "4a7607afd8eb5f0b75d9-ca0a3959e8723cb55ee2",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Spoofed ?identity=complete and ?payouts=complete markers do not bypass verification",
+          "ok": true,
+          "tags": [
+            "id:onboarding.spoofed-return-markers-ignored",
+            "area:onboarding",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "4a7607afd8eb5f0b75d9-d94c02f89ec5c270d10e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "New member completes onboarding as a buyer, persists region_code, and reaches catalog",
+          "ok": true,
+          "tags": [
+            "id:onboarding.buyer-wizard",
+            "area:onboarding",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "4a7607afd8eb5f0b75d9-2f54108083acb0d7c2d8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Spoofed ?identity=complete and ?payouts=complete markers do not bypass verification",
+          "ok": true,
+          "tags": [
+            "id:onboarding.spoofed-return-markers-ignored",
+            "area:onboarding",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "4a7607afd8eb5f0b75d9-a5379dac1d2bb0eee68e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\private-deal.spec.ts",
+      "file": "specs/private-deal.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Host creates a CASH_SALE private deal invite and joiner claims it into a Cash_Sale room",
+          "ok": true,
+          "tags": [
+            "id:private-deals.create-and-claim-cash-sale",
+            "area:private-deals",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d3ca9789164b37b2dbf8-7dddcfe2e6e88a31a47b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Host cannot join own invite and expired invites are refused",
+          "ok": true,
+          "tags": [
+            "id:private-deals.self-join-and-expired-refused",
+            "area:private-deals",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d3ca9789164b37b2dbf8-3728724eb86ea165ffa7",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Host creates a CASH_SALE private deal invite and joiner claims it into a Cash_Sale room",
+          "ok": true,
+          "tags": [
+            "id:private-deals.create-and-claim-cash-sale",
+            "area:private-deals",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d3ca9789164b37b2dbf8-fdf6009d3ffd90055f61",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Host cannot join own invite and expired invites are refused",
+          "ok": true,
+          "tags": [
+            "id:private-deals.self-join-and-expired-refused",
+            "area:private-deals",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "d3ca9789164b37b2dbf8-d7749d88180abe15054e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\profile-and-payouts.spec.ts",
+      "file": "specs/profile-and-payouts.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Profile shows all three tabs and persists live display name edits",
+          "ok": true,
+          "tags": [
+            "id:profile-payouts.tabs-and-live-edit",
+            "area:profile-payouts",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "508ee02dbe5f45d7df3f-8ad95c52009a4828a892",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "/profile/payouts redirects to ?tab=payouts and shows payout summary",
+          "ok": true,
+          "tags": [
+            "id:profile-payouts.payouts-dashboard-and-redirect",
+            "area:profile-payouts",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "508ee02dbe5f45d7df3f-07bdd8b831c54204f20e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Verified member without payout account sees payout setup prompt rather than active payouts",
+          "ok": true,
+          "tags": [
+            "id:profile-payouts.verified-not-payable-refusal",
+            "area:profile-payouts",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "508ee02dbe5f45d7df3f-f7fdba96e7e6a82f59e2",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Profile shows all three tabs and persists live display name edits",
+          "ok": true,
+          "tags": [
+            "id:profile-payouts.tabs-and-live-edit",
+            "area:profile-payouts",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "508ee02dbe5f45d7df3f-af3bcef26c51039f88f9",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "/profile/payouts redirects to ?tab=payouts and shows payout summary",
+          "ok": true,
+          "tags": [
+            "id:profile-payouts.payouts-dashboard-and-redirect",
+            "area:profile-payouts",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "508ee02dbe5f45d7df3f-ae3459b8cee106d7aff5",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Verified member without payout account sees payout setup prompt rather than active payouts",
+          "ok": true,
+          "tags": [
+            "id:profile-payouts.verified-not-payable-refusal",
+            "area:profile-payouts",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "508ee02dbe5f45d7df3f-bdb1bc179c039e58712b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\public\\home.spec.ts",
+      "file": "specs/public/home.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "catalog homepage loads",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "7ded9813ff1acf0f48c0-4881df6f63b7dc104ae7",
+          "file": "specs/public/home.spec.ts",
+          "line": 8,
+          "column": 5
+        },
+        {
+          "title": "catalog homepage loads",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "7ded9813ff1acf0f48c0-12fd868099f46747928f",
+          "file": "specs/public/home.spec.ts",
+          "line": 8,
+          "column": 5
+        }
+      ]
+    },
+    {
+      "title": "specs\\references.spec.ts",
+      "file": "specs/references.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Member leaves a live reference, /references/people renders, and GET /api/references/graph responds",
+          "ok": true,
+          "tags": [
+            "id:references.leave-and-graph-api",
+            "area:references",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "39f438276506e34cc6ae-365f2dede3728688e345",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Submitting a reference without selecting a sentiment is refused",
+          "ok": true,
+          "tags": [
+            "id:references.missing-sentiment-refused",
+            "area:references",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "39f438276506e34cc6ae-bd57ea88484f274ed4e1",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Member leaves a live reference, /references/people renders, and GET /api/references/graph responds",
+          "ok": true,
+          "tags": [
+            "id:references.leave-and-graph-api",
+            "area:references",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "39f438276506e34cc6ae-343e54d23c3ac9ba4505",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Submitting a reference without selecting a sentiment is refused",
+          "ok": true,
+          "tags": [
+            "id:references.missing-sentiment-refused",
+            "area:references",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "39f438276506e34cc6ae-1cfd035d088de8f8f603",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\reviews-reports.spec.ts",
+      "file": "specs/reviews-reports.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Buyer leaves a review on completed sale and reports a listing to admin queue",
+          "ok": true,
+          "tags": [
+            "id:reviews-reports.review-and-report-flow",
+            "area:reviews-reports",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "091aabe1764ad7baff29-330d325a3baa24ad981b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Reporting a listing queues it for staff without notifying the seller",
+          "ok": true,
+          "tags": [
+            "id:reviews-reports.report-does-not-notify-target",
+            "area:reviews-reports",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "091aabe1764ad7baff29-3870d455765d121e0248",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Buyer leaves a review on completed sale and reports a listing to admin queue",
+          "ok": true,
+          "tags": [
+            "id:reviews-reports.review-and-report-flow",
+            "area:reviews-reports",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "091aabe1764ad7baff29-08e1050f92dfe10a83e1",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Reporting a listing queues it for staff without notifying the seller",
+          "ok": true,
+          "tags": [
+            "id:reviews-reports.report-does-not-notify-target",
+            "area:reviews-reports",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "091aabe1764ad7baff29-c894d63213c66dca3d9f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\scam-reports.spec.ts",
+      "file": "specs/scam-reports.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Verified member submits off-platform scam report and staff views cluster",
+          "ok": true,
+          "tags": [
+            "id:scam-reports.submit-and-staff-cluster",
+            "area:scam-reports",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "cf9ce65df9112d6a3652-7922bbf38a5731ed2a1c",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified member cannot submit an off-platform scam report",
+          "ok": true,
+          "tags": [
+            "id:scam-reports.unverified-member-refused",
+            "area:scam-reports",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "cf9ce65df9112d6a3652-ad27ad350b62a498d7dd",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Verified member submits off-platform scam report and staff views cluster",
+          "ok": true,
+          "tags": [
+            "id:scam-reports.submit-and-staff-cluster",
+            "area:scam-reports",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "cf9ce65df9112d6a3652-edf0e9d58317adcdb5ef",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified member cannot submit an off-platform scam report",
+          "ok": true,
+          "tags": [
+            "id:scam-reports.unverified-member-refused",
+            "area:scam-reports",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "cf9ce65df9112d6a3652-145ee4dfea1fdfbffb15",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\surfaces.spec.ts",
+      "file": "specs/surfaces.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Core public and member surfaces pass CLS, overflow, skeleton, motion, axe, and copy checks",
+          "ok": true,
+          "tags": [
+            "id:surfaces.public-and-member-routes-ux",
+            "area:surfaces",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "e408b3c6553cc7905618-b901beb8124c18cb95a4",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Restricted surface /listings/mine redirects guest cleanly without layout shift or errors",
+          "ok": true,
+          "tags": [
+            "id:surfaces.guest-restricted-surface-redirects",
+            "area:surfaces",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "e408b3c6553cc7905618-fa4db563c74443bbc9d8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Core public and member surfaces pass CLS, overflow, skeleton, motion, axe, and copy checks",
+          "ok": true,
+          "tags": [
+            "id:surfaces.public-and-member-routes-ux",
+            "area:surfaces",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "e408b3c6553cc7905618-007b72a118ddf33da136",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Restricted surface /listings/mine redirects guest cleanly without layout shift or errors",
+          "ok": true,
+          "tags": [
+            "id:surfaces.guest-restricted-surface-redirects",
+            "area:surfaces",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "e408b3c6553cc7905618-ac8d9038df6a09e6f9c9",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\trade-disputes.spec.ts",
+      "file": "specs/trade-disputes.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Trader raises CONDITION_DISPUTE during inspection with holds kept uncaptured",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.raise-condition-no-capture",
+            "area:trade-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-d797c57b2d3c41cad270",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff resolves trade dispute as UNFOUNDED and voids both holds in Stripe",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.staff-unfounded",
+            "area:trade-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-dc419e7c58ae4596c789",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff cannot resolve a trade as NO_EXCHANGE once it has entered INSPECTION",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.no-exchange-refused-after-inspection",
+            "area:trade-disputes",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-e68b0c449ca9518158d0",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Trade inspections job captures holds into custody when disputed trade nears hold expiry",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.custody-capture-after-rewind",
+            "area:trade-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-4e4010e06c0536562213",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Trader raises CONDITION_DISPUTE during inspection with holds kept uncaptured",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.raise-condition-no-capture",
+            "area:trade-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-b470a2a3b70c9a86d1a0",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff resolves trade dispute as UNFOUNDED and voids both holds in Stripe",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.staff-unfounded",
+            "area:trade-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-72c4ef3e5fe493cc3ca2",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff cannot resolve a trade as NO_EXCHANGE once it has entered INSPECTION",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.no-exchange-refused-after-inspection",
+            "area:trade-disputes",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-644bd5a8e6fa201fe79e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Trade inspections job captures holds into custody when disputed trade nears hold expiry",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.custody-capture-after-rewind",
+            "area:trade-disputes",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-86d75aadf3cb4c7b404d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Staff resolves trade dispute as FRAUD, banning the offender and capturing collateral",
+          "ok": true,
+          "tags": [
+            "id:trade-disputes.staff-fraud-ban",
+            "area:trade-disputes",
+            "kind:happy",
+            "isolated"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "isolated",
+              "projectName": "isolated",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "03e56e5c945c3ea17212-5129ddd8c52324d6022b",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\trade.spec.ts",
+      "file": "specs/trade.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "The listing owner counters with cash, which voids the other trader's acceptance",
+          "ok": true,
+          "tags": [
+            "id:trades.negotiate.counter-voids-acceptances",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-0a0a5c9923b5498f4462",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Editing the meeting while negotiating clears the other trader's acceptance",
+          "ok": true,
+          "tags": [
+            "id:trades.negotiate.meeting-edit-clears-other",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-f31bc1a23654a6ccc4ec",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Both traders accept the same terms and the side values are frozen",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.side-values-frozen",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-3a2fc29cf1a194f01100",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A trader with no saved card cannot accept the terms",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.refused-no-card",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-2ee1f0bc8b29d515ab7c",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Accepting is refused until both traders have verified with Stripe Identity",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.refused-unverified",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-b00c843ff21fdbe55c5e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A card another contract already holds cannot go into a second trade",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.refused-short-reservation",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-3e67b81e0ec18bc32a96",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A trade with cash: the cash is paid before the holds, then handover, inspection and acceptance",
+          "ok": true,
+          "tags": [
+            "id:trades.lifecycle.cash-leg-accepted",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-0f67e49394961aa7c85a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A cash leg in a converted currency discloses the conversion fee before Pay",
+          "ok": true,
+          "tags": [
+            "id:trades.cash-leg.fx-disclosure",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-4848503f554ee17a091d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Cash left unpaid at its deadline cancels the trade and releases the cards",
+          "ok": true,
+          "tags": [
+            "id:trades.cash-leg.unpaid-pay-by-abandons",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-8e9ef9838a9d4f7d6008",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Collateral locks with one notice and a live room, and the job completes an untouched inspection",
+          "ok": true,
+          "tags": [
+            "id:trades.collateral.locks-live-and-job-completes",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-551eeac29037f1eca597",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A declined card voids the other trader's hold and charges nothing",
+          "ok": true,
+          "tags": [
+            "id:trades.collateral.declined-hold-voids-other",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-1bfb71d886496443a8f9",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Before the placement cutoff a meeting change is a proposal the other trader accepts",
+          "ok": true,
+          "tags": [
+            "id:trades.meeting.change-proposal-accepted",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-bf3cac2c1d79aaa0e4dd",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Inside the placement window the meeting can no longer change",
+          "ok": true,
+          "tags": [
+            "id:trades.meeting.change-refused-after-cutoff",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-0b68171ed7c5d0f1fc3e",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Trading for cards out of a Multiple items listing values that side at the offer",
+          "ok": true,
+          "tags": [
+            "id:trades.shopfront.side-valued-at-offer",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-d1c14fdef666d3416400",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A Multiple items listing cannot be put up as the offering side",
+          "ok": true,
+          "tags": [
+            "id:trades.shopfront.refused-as-offering-side",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-4c8958b0289b167ca5ba",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A meeting that passes without collateral locking cancels the trade and restores the cards",
+          "ok": true,
+          "tags": [
+            "id:trades.abandon.meeting-passed-unlocked",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-967c0146bb290030c3e4",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A trader cannot open a trade with a member on another platform",
+          "ok": true,
+          "tags": [
+            "id:trades.open.refused-region-mismatch",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-75354e9cbe90f6c9efa3",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "The listing owner counters with cash, which voids the other trader's acceptance",
+          "ok": true,
+          "tags": [
+            "id:trades.negotiate.counter-voids-acceptances",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-a92c0d6b40560de2da3a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Editing the meeting while negotiating clears the other trader's acceptance",
+          "ok": true,
+          "tags": [
+            "id:trades.negotiate.meeting-edit-clears-other",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-78fa8a88540f261ae755",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Both traders accept the same terms and the side values are frozen",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.side-values-frozen",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-36d742b63e7426626ca7",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A trader with no saved card cannot accept the terms",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.refused-no-card",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-2fa466e7b06cf65097af",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Accepting is refused until both traders have verified with Stripe Identity",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.refused-unverified",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-52dfbb15589445ba8263",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A card another contract already holds cannot go into a second trade",
+          "ok": true,
+          "tags": [
+            "id:trades.agree.refused-short-reservation",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-3e038cb501579f5c1e39",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A trade with cash: the cash is paid before the holds, then handover, inspection and acceptance",
+          "ok": true,
+          "tags": [
+            "id:trades.lifecycle.cash-leg-accepted",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-d5788fd085acd59c1b1a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A cash leg in a converted currency discloses the conversion fee before Pay",
+          "ok": true,
+          "tags": [
+            "id:trades.cash-leg.fx-disclosure",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-f38e8085861230fcb413",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Cash left unpaid at its deadline cancels the trade and releases the cards",
+          "ok": true,
+          "tags": [
+            "id:trades.cash-leg.unpaid-pay-by-abandons",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-487ed3aec9e5df946a59",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Collateral locks with one notice and a live room, and the job completes an untouched inspection",
+          "ok": true,
+          "tags": [
+            "id:trades.collateral.locks-live-and-job-completes",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-ba9793bb6f15bf0e937f",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A declined card voids the other trader's hold and charges nothing",
+          "ok": true,
+          "tags": [
+            "id:trades.collateral.declined-hold-voids-other",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-418bd34d49288da29cf3",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Before the placement cutoff a meeting change is a proposal the other trader accepts",
+          "ok": true,
+          "tags": [
+            "id:trades.meeting.change-proposal-accepted",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-fc1e92e260403c773645",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Inside the placement window the meeting can no longer change",
+          "ok": true,
+          "tags": [
+            "id:trades.meeting.change-refused-after-cutoff",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-f5e58350ede2aee16576",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Trading for cards out of a Multiple items listing values that side at the offer",
+          "ok": true,
+          "tags": [
+            "id:trades.shopfront.side-valued-at-offer",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-4921561e03c3821d64ab",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A Multiple items listing cannot be put up as the offering side",
+          "ok": true,
+          "tags": [
+            "id:trades.shopfront.refused-as-offering-side",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-f4ba72d65a03656035f8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A meeting that passes without collateral locking cancels the trade and restores the cards",
+          "ok": true,
+          "tags": [
+            "id:trades.abandon.meeting-passed-unlocked",
+            "area:trades",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-c0cb9e733e51faa0e4bc",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "A trader cannot open a trade with a member on another platform",
+          "ok": true,
+          "tags": [
+            "id:trades.open.refused-region-mismatch",
+            "area:trades",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "26c1b562367c1eebf1ca-e69f5d8266d320ff6bf1",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\trusted-sellers.spec.ts",
+      "file": "specs/trusted-sellers.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Verified seller applies for Trusted Seller, staff approves, and directory shows badge without surname",
+          "ok": true,
+          "tags": [
+            "id:trusted-sellers.apply-and-approve",
+            "area:trusted-sellers",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "169d1bd425ca469a3f71-4b13a65a9e2e6e9ea2b8",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified member cannot apply to Trusted Sellers",
+          "ok": true,
+          "tags": [
+            "id:trusted-sellers.unverified-refused",
+            "area:trusted-sellers",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "169d1bd425ca469a3f71-ddd270f71ab285b7d23a",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Verified seller applies for Trusted Seller, staff approves, and directory shows badge without surname",
+          "ok": true,
+          "tags": [
+            "id:trusted-sellers.apply-and-approve",
+            "area:trusted-sellers",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "169d1bd425ca469a3f71-72d4119e8f940eee44ff",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Unverified member cannot apply to Trusted Sellers",
+          "ok": true,
+          "tags": [
+            "id:trusted-sellers.unverified-refused",
+            "area:trusted-sellers",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "169d1bd425ca469a3f71-4e0ec6824c5f66727bdf",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    },
+    {
+      "title": "specs\\watchlist-sellers.spec.ts",
+      "file": "specs/watchlist-sellers.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "Member toggles watchlist on a listing and views the public seller profile",
+          "ok": true,
+          "tags": [
+            "id:watchlist-sellers.watch-toggle-and-seller-page",
+            "area:watchlist-sellers",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "bae8371247ec7da1cb62-9c8969955928c6ba8c94",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Guest attempting to watch or open /saved is routed to sign-in",
+          "ok": true,
+          "tags": [
+            "id:watchlist-sellers.guest-save-routed-to-signin",
+            "area:watchlist-sellers",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "desktop",
+              "projectName": "desktop",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "bae8371247ec7da1cb62-c24c18d12b2d973bd4b6",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Member toggles watchlist on a listing and views the public seller profile",
+          "ok": true,
+          "tags": [
+            "id:watchlist-sellers.watch-toggle-and-seller-page",
+            "area:watchlist-sellers",
+            "kind:happy"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "bae8371247ec7da1cb62-43342d775fc18d983707",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        },
+        {
+          "title": "Guest attempting to watch or open /saved is routed to sign-in",
+          "ok": true,
+          "tags": [
+            "id:watchlist-sellers.guest-save-routed-to-signin",
+            "area:watchlist-sellers",
+            "kind:refusal"
+          ],
+          "tests": [
+            {
+              "timeout": 90000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "phone",
+              "projectName": "phone",
+              "results": [],
+              "status": "skipped"
+            }
+          ],
+          "id": "bae8371247ec7da1cb62-ef28fd7d81786ecf267d",
+          "file": "audit/pathway.ts",
+          "line": 305,
+          "column": 7
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-11-25T03:33:02.228Z",
+    "duration": 14622.351999999999,
+    "expected": 0,
+    "skipped": 245,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

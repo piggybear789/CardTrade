@@ -216,10 +216,6 @@ export function ListingsSection({
                   className={cn(
                     ROW_GRID,
                     'px-group py-cozy',
-                    // ONE SIGNAL FOR A HIDDEN ROW: its badge. It also carried a pink
-                    // tint and red helper text, so three hidden rows turned the table
-                    // into an alarm; the reason now reads as plain muted text.
-                    !item.hidden && item.status === 'SOLD' && 'opacity-75',
                   )}
                 >
                   <RowThumb item={item} />

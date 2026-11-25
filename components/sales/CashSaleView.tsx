@@ -533,7 +533,7 @@ function CashSaleRoom({
   const [disputeReason, setDisputeReason] = useState('');
   // Which irreversible action (if any) is awaiting explicit confirmation.
   const [confirming, setConfirming] = useState<
-    'cancel' | 'dispute' | 'pay' | 'receive' | 'handover' | null
+    'cancel' | 'dispute' | 'pay' | 'receive' | 'handover' | 'handover-failed' | null
   >(null);
   // ESC-31: the terms version and total the Pay dialog showed when it opened. A
   // Realtime change underneath it closes the dialog rather than charging a figure the
@@ -1123,16 +1123,30 @@ function CashSaleRoom({
                         </Button>
                       ) : null}
                       {sale.status === 'IN_TRANSIT' && iAmBuyer ? (
-                        <HandoverFailedDialog
-                          cashSaleId={sale.id}
-                          triggerLabel="Not received"
-                        />
+                        <Button
+                          type="button"
+                          variant="destructive-quiet"
+                          size="sm"
+                          aria-haspopup="dialog"
+                          onClick={() => setConfirming('handover-failed')}
+                          disabled={isPending}
+                        >
+                          <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5" aria-hidden />
+                          Not received
+                        </Button>
                       ) : null}
                       {sale.status === 'HANDOVER' ? (
-                        <HandoverFailedDialog
-                          cashSaleId={sale.id}
-                          triggerLabel="Handover failed"
-                        />
+                        <Button
+                          type="button"
+                          variant="destructive-quiet"
+                          size="sm"
+                          aria-haspopup="dialog"
+                          onClick={() => setConfirming('handover-failed')}
+                          disabled={isPending}
+                        >
+                          <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5" aria-hidden />
+                          Handover failed
+                        </Button>
                       ) : null}
                       {/* Opens the dialog rather than scrolling to the Protection tab.
                     It used to hand the reader off to a tab and leave them to find
@@ -1312,7 +1326,7 @@ function CashSaleRoom({
                       type="button"
                       variant={myHandoverConfirmed ? 'success' : 'action'}
                       size="sm"
-                      disabled={isPending || myHandoverConfirmed}
+                      disabled={(isPending && action !== null) || myHandoverConfirmed}
                       aria-busy={busy('handover')}
                       onClick={() => {
                         if (myHandoverConfirmed) return;
@@ -1362,7 +1376,7 @@ function CashSaleRoom({
                       type="button"
                       variant="action"
                       size="sm"
-                      onClick={() => focusSection(CASH_SALE_SECTIONS.actions)}
+                      onClick={() => focusSection(CASH_SALE_SECTIONS.return)}
                     >
                       View return
                     </Button>
@@ -1805,7 +1819,7 @@ function CashSaleRoom({
           {sale.status === 'RETURN_PENDING' ||
           sale.status === 'RETURN_IN_TRANSIT' ? (
             <ContractDetailRow
-              id={CASH_SALE_SECTIONS.actions}
+              id={CASH_SALE_SECTIONS.return}
               label="Return"
               summary="Return in progress"
             >
@@ -2171,6 +2185,13 @@ function CashSaleRoom({
           </p>
         </div>
       </ConfirmDialog>
+
+      <HandoverFailedDialog
+        cashSaleId={sale.id}
+        open={confirming === 'handover-failed'}
+        onOpenChange={(next) => setConfirming(next ? 'handover-failed' : null)}
+        hideTrigger
+      />
     </div>
   );
 }

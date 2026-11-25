@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UX audit 2026-11-25T02-58-51Z-hvdl0yz</title>
+<style>:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0 auto; max-width: 1200px; padding: 1.5rem; line-height: 1.45; }
+table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }
+th, td { border-bottom: 1px solid #8884; padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+.status { display: inline-block; padding: 0 0.4rem; border-radius: 0.25rem; font-size: 0.85em; background: #8882; }
+.status-passed, .status-passing { background: #1a7f3733; }
+.status-failed, .status-failing { background: #cf222e33; }
+.status-flaky, .status-partly-run { background: #bf870033; }
+.status-not-run, .status-skipped { background: #8883; }
+.tag { font-size: 0.8em; padding: 0 0.35rem; border: 1px solid #8886; border-radius: 0.25rem; }
+.blocking { color: #cf222e; font-weight: 600; }
+.grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.grid figure { margin: 0; max-width: 360px; }
+.grid img, .grid video { max-width: 100%; border: 1px solid #8884; }
+#filters { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.5rem 0 1rem; }
+pre { white-space: pre-wrap; background: #8881; padding: 0.5rem; }</style>
+</head>
+<body>
+<header>
+<h1>NoDitto UX audit</h1>
+<dl>
+<dt>Run</dt><dd>2026-11-25T02-58-51Z-hvdl0yz</dd>
+<dt>Started</dt><dd>2026-11-25T03:09:13.070Z</dd>
+<dt>Commit</dt><dd><code>e3345732fc8e629b7171277c563df188cd4ca7cb</code></dd>
+<dt>Schema</dt><dd>cardtrade_dev</dd>
+<dt>Duration</dt><dd>53m 58s</dd>
+<dt>Servers</dt><dd><ul><li>main (port 3100): payments stripe-test</li><li>aux (port 3101): payments mock</li></ul></dd>
+</dl>
+<h2>Totals</h2><ul class="totals"><li><span class="status status-passed">passed</span> 0</li><li><span class="status status-failed">failed</span> 40</li><li><span class="status status-flaky">flaky</span> 0</li><li><span class="status status-skipped">skipped</span> 2</li><li><span class="status status-not-run">not-run</span> 162</li></ul>
+
+</header>
+<main>
+<section id="coverage">
+<h2>Coverage map</h2>
+<table><thead><tr><th>Entry</th><th>Function</th><th>Area</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Mapping</th></tr></thead><tbody>
+<tr data-coverage="auth.email-password" data-kind="automated"><td><code>auth.email-password</code></td><td>Sign up, sign in, password reset and email confirmation</td><td>auth</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>auth.signup.provisions-profile</code>, <code>auth.password-reset.enumeration-safe-and-admin-link</code>, <code>auth.signout.redirects-to-catalog</code>, <code>guards.protected-routes-redirect-with-return-path</code><br>refusal: <code>auth.signup.duplicate-account-refused</code>, <code>auth.signin.invalid-credentials-refused</code>, <code>auth.signin.banned-account</code>, <code>auth.signin.rate-limit-on-aux</code></td></tr>
+<tr data-coverage="auth.google-oauth" data-kind="out-of-scope"><td><code>auth.google-oauth</code></td><td>Sign in with Google</td><td>auth</td><td>out-of-scope</td><td><span class="status status-out-of-scope">out-of-scope</span></td><td><span class="status status-out-of-scope">out-of-scope</span></td><td>Excluded by the owner.</td></tr>
+<tr data-coverage="onboarding.wizard" data-kind="automated"><td><code>onboarding.wizard</code></td><td>Onboarding wizard</td><td>onboarding</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>onboarding.buyer-wizard</code><br>refusal: <code>onboarding.spoofed-return-markers-ignored</code></td></tr>
+<tr data-coverage="profile-payouts.identity-payouts" data-kind="automated"><td><code>profile-payouts.identity-payouts</code></td><td>Identity check and payout setup</td><td>profile-payouts</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>profile-payouts.payouts-dashboard-and-redirect</code><br>refusal: <code>profile-payouts.verified-not-payable-refusal</code></td></tr>
+<tr data-coverage="catalog.browse-listings" data-kind="automated"><td><code>catalog.browse-listings</code></td><td>Catalog, listings and the watchlist</td><td>catalog</td><td>automated</td><td><span class="status status-failing">failing</span></td><td><span class="status status-failing">failing</span></td><td>happy: <code>catalog.filters-sort-and-redirect</code>, <code>listings.create-single-and-shopfront</code>, <code>watchlist-sellers.watch-toggle-and-seller-page</code>, <code>surfaces.public-and-member-routes-ux</code><br>refusal: <code>catalog.hidden-private-item-excluded</code>, <code>listings.unverified-and-non-owner-refused</code>, <code>watchlist-sellers.guest-save-routed-to-signin</code>, <code>surfaces.guest-restricted-surface-redirects</code></td></tr>
+<tr data-coverage="offers.negotiate" data-kind="automated"><td><code>offers.negotiate</code></td><td>Offers on a single listing</td><td>offers</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>offers.counter-and-accept-opens-sale</code><br>refusal: <code>offers.shopfront-and-no-card-refused</code></td></tr>
+<tr data-coverage="cash-sale.lifecycle" data-kind="automated"><td><code>cash-sale.lifecycle</code></td><td>Cash sales: reserve, terms, delivery or in-person handover, inspection, payout, cancel</td><td>cash-sale</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>cash-sale.buy-now.reserves-single</code>, <code>cash-sale.multiple-items.line-items</code>, <code>cash-sale.terms.fulfilment-only-change</code>, <code>cash-sale.delivery.lifecycle</code>, <code>cash-sale.inspection.auto-complete</code>, <code>cash-sale.in-person.handover-24h</code>, <code>cash-sale.cancel.in-agreement</code>, <code>journeys.cash-sale-lifecycle</code><br>refusal: <code>cash-sale.buy-now.no-card</code>, <code>cash-sale.delivery.flagged-delivered-before-shipment</code>, <code>cash-sale.in-person.handover-too-early</code>, <code>cash-sale.cancel.refused-after-payment</code>, <code>cash-sale.payment.unfinished-abandoned</code></td></tr>
+<tr data-coverage="cash-sale.payments" data-kind="automated"><td><code>cash-sale.payments</code></td><td>Paying for a cash sale by card or bank, and the fraud controls on the buy path</td><td>cash-sale</td><td>automated</td><td><span class="status status-failing">failing</span></td><td><span class="status status-failing">failing</span></td><td>happy: <code>cash-sale.payments.card-no-auth</code>, <code>cash-sale.payments.card-3ds</code>, <code>cash-sale.payments.bank-payto</code>, <code>cash-sale.payments.bank-ideal</code>, <code>cash-sale.payments.bank-bancontact</code>, <code>cash-sale.payments.bank-eps</code>, <code>cash-sale.payments.bank-p24</code><br>refusal: <code>cash-sale.payments.card-3ds-failed</code>, <code>cash-sale.payments.card-declined</code>, <code>cash-sale.payments.card-repriced</code>, <code>cash-sale.payments.buyer-identity-required</code>, <code>cash-sale.payments.seller-not-payable</code>, <code>cash-sale.payments.seller-exposure-limit</code>, <code>cash-sale.payments.related-accounts</code>, <code>cash-sale.payments.region-mismatch</code></td></tr>
+<tr data-coverage="cash-sale.tracking-registration" data-kind="not-automated"><td><code>cash-sale.tracking-registration</code></td><td>Tracking refused when it predates payment, or flagged when already delivered on entry</td><td>cash-sale</td><td>not-automated</td><td><span class="status status-not-automated">not-automated</span></td><td><span class="status status-not-automated">not-automated</span></td><td>TRACKING_PREDATES_PAYMENT and the &quot;already delivered when entered&quot; flag (DELIVERED_AT_REGISTRATION) are decided inside recordCashSaleShipment from the server&#39;s own live Ship24 registration (Ship24TrackingService.registerShipment), which no webhook fixture reaches. Automating them needs a sandbox tracking binding. The webhook-decided &quot;delivered before it shipped&quot; flag is automated in cash-sale.delivery.flagged-delivered-before-shipment.</td></tr>
+<tr data-coverage="trades.lifecycle" data-kind="automated"><td><code>trades.lifecycle</code></td><td>Trades: negotiate, agree, cash leg, collateral, meeting changes, handover, inspection, completion</td><td>trades</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>trades.negotiate.counter-voids-acceptances</code>, <code>trades.negotiate.meeting-edit-clears-other</code>, <code>trades.agree.side-values-frozen</code>, <code>trades.lifecycle.cash-leg-accepted</code>, <code>trades.cash-leg.fx-disclosure</code>, <code>trades.collateral.locks-live-and-job-completes</code>, <code>trades.meeting.change-proposal-accepted</code>, <code>trades.shopfront.side-valued-at-offer</code>, <code>journeys.trade-lifecycle</code><br>refusal: <code>trades.agree.refused-no-card</code>, <code>trades.agree.refused-unverified</code>, <code>trades.agree.refused-short-reservation</code>, <code>trades.cash-leg.unpaid-pay-by-abandons</code>, <code>trades.collateral.declined-hold-voids-other</code>, <code>trades.meeting.change-refused-after-cutoff</code>, <code>trades.shopfront.refused-as-offering-side</code>, <code>trades.abandon.meeting-passed-unlocked</code>, <code>trades.open.refused-region-mismatch</code></td></tr>
+<tr data-coverage="trades.declared-value-edit" data-kind="not-automated"><td><code>trades.declared-value-edit</code></td><td>Editing a trade side&#39;s declared value voids both acceptances</td><td>trades</td><td>not-automated</td><td><span class="status status-not-automated">not-automated</span></td><td><span class="status status-not-automated">not-automated</span></td><td>The website has no control for editing a declared value during negotiation, so no member can reach it. Voiding acceptances on a terms change is automated through the cash and goods changes in trades.negotiate.counter-voids-acceptances.</td></tr>
+<tr data-coverage="private-deals.invites" data-kind="automated"><td><code>private-deals.invites</code></td><td>Private deal invites</td><td>private-deals</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>private-deals.create-and-claim-cash-sale</code><br>refusal: <code>private-deals.self-join-and-expired-refused</code></td></tr>
+<tr data-coverage="messaging.conversations" data-kind="automated"><td><code>messaging.conversations</code></td><td>Messages</td><td>messaging</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>messaging.send-and-live-delivery</code><br>refusal: <code>messaging.over-4000-chars-refused</code></td></tr>
+<tr data-coverage="notifications.in-app" data-kind="automated"><td><code>notifications.in-app</code></td><td>In-app notifications</td><td>notifications</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>notifications.bell-and-mark-all-read</code><br>refusal: <code>notifications.guest-redirected</code></td></tr>
+<tr data-coverage="notifications.email" data-kind="manual"><td><code>notifications.email</code></td><td>Notification emails sent through AWS SES</td><td>notifications</td><td>manual</td><td><span class="status status-manual">manual</span></td><td><span class="status status-manual">manual</span></td><td>The suite cannot read a real inbox, and SES delivery is not observable from the browser.<br>Manual check: Open the sandbox inbox and check the message arrived and links to the contract: inspection deadline warning, return deadline warning, dispute raised, payout settled, new purchase request, trade offer received and item shipped.</td></tr>
+<tr data-coverage="reviews-reports.reviews" data-kind="automated"><td><code>reviews-reports.reviews</code></td><td>Reviews after a completed deal</td><td>reviews-reports</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>reviews-reports.review-and-report-flow</code><br>refusal: <code>reviews-reports.report-does-not-notify-target</code></td></tr>
+<tr data-coverage="reviews-reports.reports" data-kind="automated"><td><code>reviews-reports.reports</code></td><td>Reporting a listing or a member</td><td>reviews-reports</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>reviews-reports.review-and-report-flow</code><br>refusal: <code>reviews-reports.report-does-not-notify-target</code></td></tr>
+<tr data-coverage="scam-reports.off-platform" data-kind="automated"><td><code>scam-reports.off-platform</code></td><td>Off-platform scam reports</td><td>scam-reports</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>scam-reports.submit-and-staff-cluster</code><br>refusal: <code>scam-reports.unverified-member-refused</code></td></tr>
+<tr data-coverage="trusted-sellers.apply-review" data-kind="automated"><td><code>trusted-sellers.apply-review</code></td><td>Trusted Sellers</td><td>trusted-sellers</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>trusted-sellers.apply-and-approve</code><br>refusal: <code>trusted-sellers.unverified-refused</code></td></tr>
+<tr data-coverage="references.experiences" data-kind="automated"><td><code>references.experiences</code></td><td>References</td><td>references</td><td>automated</td><td><span class="status status-failing">failing</span></td><td><span class="status status-failing">failing</span></td><td>happy: <code>references.leave-and-graph-api</code><br>refusal: <code>references.missing-sentiment-refused</code></td></tr>
+<tr data-coverage="profile-payouts.profile-account" data-kind="automated"><td><code>profile-payouts.profile-account</code></td><td>Profile and account</td><td>profile-payouts</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>profile-payouts.tabs-and-live-edit</code><br>refusal: <code>profile-payouts.verified-not-payable-refusal</code></td></tr>
+<tr data-coverage="admin.console" data-kind="automated"><td><code>admin.console</code></td><td>Admin and arbitration console</td><td>admin</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>admin.staff-console-and-two-person-proposal</code><br>refusal: <code>admin.non-staff-refused</code></td></tr>
+<tr data-coverage="marketing-errors.policy-pages" data-kind="automated"><td><code>marketing-errors.policy-pages</code></td><td>Help, terms and privacy</td><td>marketing-errors</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>marketing-errors.public-pages-and-not-found</code><br>refusal: <code>marketing-errors.api-errors-anonymous-no-origin-refused</code></td></tr>
+<tr data-coverage="jobs-webhooks.background-jobs" data-kind="automated"><td><code>jobs-webhooks.background-jobs</code></td><td>Background jobs</td><td>jobs-webhooks</td><td>automated</td><td><span class="status status-failing">failing</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>jobs-webhooks.authorized-jobs-and-ship24</code><br>refusal: <code>jobs-webhooks.unauthorized-job-and-invalid-signature-refused</code></td></tr>
+<tr data-coverage="jobs-webhooks.payments-tracking" data-kind="automated"><td><code>jobs-webhooks.payments-tracking</code></td><td>Payments, webhooks and tracking</td><td>jobs-webhooks</td><td>automated</td><td><span class="status status-failing">failing</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>jobs-webhooks.authorized-jobs-and-ship24</code><br>refusal: <code>jobs-webhooks.unauthorized-job-and-invalid-signature-refused</code></td></tr>
+<tr data-coverage="guards.mobile-api" data-kind="automated"><td><code>guards.mobile-api</code></td><td>Mobile write API</td><td>guards</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>guards.protected-routes-redirect-with-return-path</code><br>refusal: <code>guards.non-party-and-mobile-api-refused</code></td></tr>
+<tr data-coverage="cash-sale.model" data-kind="automated"><td><code>cash-sale.model</code></td><td>Cash Sale model: the platform holds the money, the service fee, Multiple items line items</td><td>cash-sale</td><td>automated</td><td><span class="status status-failing">failing</span></td><td><span class="status status-failing">failing</span></td><td>happy: <code>journeys.cash-sale-lifecycle</code>, <code>cash-sale.payments.card-no-auth</code>, <code>cash-sale.multiple-items.line-items</code>, <code>cash-sale.delivery.lifecycle</code><br>refusal: <code>cash-sale.payments.card-repriced</code>, <code>cash-sale.payments.region-mismatch</code>, <code>cash-sale.cancel.refused-after-payment</code></td></tr>
+<tr data-coverage="trades.model" data-kind="automated"><td><code>trades.model</code></td><td>2-Way Trade Escrow model: collateral holds, frozen side values, Multiple items sides, regions</td><td>trades</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>journeys.trade-lifecycle</code>, <code>trades.agree.side-values-frozen</code>, <code>trades.collateral.locks-live-and-job-completes</code>, <code>trades.shopfront.side-valued-at-offer</code><br>refusal: <code>trades.shopfront.refused-as-offering-side</code>, <code>trades.agree.refused-short-reservation</code>, <code>trades.agree.refused-no-card</code>, <code>trades.agree.refused-unverified</code>, <code>trades.open.refused-region-mismatch</code></td></tr>
+<tr data-coverage="trade-disputes.resolution" data-kind="automated"><td><code>trade-disputes.resolution</code></td><td>Dispute and fraud resolution</td><td>trade-disputes</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>trade-disputes.raise-condition-no-capture</code>, <code>trade-disputes.staff-unfounded</code>, <code>trade-disputes.staff-fraud-ban</code>, <code>trade-disputes.custody-capture-after-rewind</code><br>refusal: <code>trade-disputes.no-exchange-refused-after-inspection</code></td></tr>
+<tr data-coverage="cash-sale-disputes.returns" data-kind="automated"><td><code>cash-sale-disputes.returns</code></td><td>Return-conditional refunds</td><td>cash-sale-disputes</td><td>automated</td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td>happy: <code>cash-sale-disputes.raise-and-withdraw</code>, <code>cash-sale-disputes.return-and-refund</code>, <code>cash-sale-disputes.seller-contest</code>, <code>cash-sale-disputes.lapsed-return</code>, <code>cash-sale-disputes.early-fraud-warning</code>, <code>cash-sale-disputes.chargeback-won</code><br>refusal: <code>cash-sale-disputes.return-tracking-refused-outbound</code></td></tr>
+</tbody></table>
+<h3>Manual checks</h3>
+<ul><li><strong>Notification emails sent through AWS SES</strong> (<code>notifications.email</code>): Open the sandbox inbox and check the message arrived and links to the contract: inspection deadline warning, return deadline warning, dispute raised, payout settled, new purchase request, trade offer received and item shipped.</li></ul>
+<h3>Out of scope</h3>
+<ul><li><strong>Sign in with Google</strong> (<code>auth.google-oauth</code>): Excluded by the owner.</li></ul>
+</section>
+<section id="pathways">
+<h2>Pathways</h2>
+<form id="filters" onsubmit="return false">
+<label>Status <select name="status"><option value="">Any</option><option value="passed">passed</option><option value="failed">failed</option><option value="flaky">flaky</option><option value="skipped">skipped</option><option value="not-run">not-run</option></select></label>
+<label>Area <select name="area"><option value="">Any</option><option value="admin">admin</option><option value="auth">auth</option><option value="cash-sale-disputes">cash-sale-disputes</option><option value="cash-sale">cash-sale</option><option value="catalog">catalog</option><option value="guards">guards</option><option value="jobs-webhooks">jobs-webhooks</option><option value="journeys">journeys</option><option value="listings">listings</option><option value="marketing-errors">marketing-errors</option><option value="messaging">messaging</option><option value="notifications">notifications</option><option value="offers">offers</option><option value="onboarding">onboarding</option><option value="private-deals">private-deals</option><option value="profile-payouts">profile-payouts</option><option value="references">references</option><option value="reviews-reports">reviews-reports</option><option value="scam-reports">scam-reports</option><option value="surfaces">surfaces</option><option value="trade-disputes">trade-disputes</option><option value="trades">trades</option><option value="trusted-sellers">trusted-sellers</option><option value="watchlist-sellers">watchlist-sellers</option></select></label>
+<label>Viewport <select name="viewport"><option value="">Any</option><option value="desktop">Desktop</option><option value="phone">Phone</option></select></label>
+<label>Observations <select name="observations"><option value="">Any</option><option value="yes">Has observations</option><option value="no">None</option></select></label>
+<button type="reset">Clear</button>
+</form>
+<section data-area-group="admin">
+<h3>admin</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="admin.non-staff-refused" data-area="admin" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>admin.non-staff-refused<br><code>admin.non-staff-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="admin.staff-console-and-two-person-proposal" data-area="admin" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>admin.staff-console-and-two-person-proposal<br><code>admin.staff-console-and-two-person-proposal</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="auth">
+<h3>auth</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="auth.password-reset.enumeration-safe-and-admin-link" data-area="auth" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>auth.password-reset.enumeration-safe-and-admin-link<br><code>auth.password-reset.enumeration-safe-and-admin-link</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="auth.signin.banned-account" data-area="auth" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>auth.signin.banned-account<br><code>auth.signin.banned-account</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="auth.signin.invalid-credentials-refused" data-area="auth" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>auth.signin.invalid-credentials-refused<br><code>auth.signin.invalid-credentials-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="auth.signin.rate-limit-on-aux" data-area="auth" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>auth.signin.rate-limit-on-aux<br><code>auth.signin.rate-limit-on-aux</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="auth.signout.redirects-to-catalog" data-area="auth" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>auth.signout.redirects-to-catalog<br><code>auth.signout.redirects-to-catalog</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="auth.signup.duplicate-account-refused" data-area="auth" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>auth.signup.duplicate-account-refused<br><code>auth.signup.duplicate-account-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="auth.signup.provisions-profile" data-area="auth" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>auth.signup.provisions-profile<br><code>auth.signup.provisions-profile</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="cash-sale-disputes">
+<h3>cash-sale-disputes</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="cash-sale-disputes.chargeback-won" data-area="cash-sale-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale-disputes.chargeback-won<br><code>cash-sale-disputes.chargeback-won</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale-disputes.early-fraud-warning" data-area="cash-sale-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale-disputes.early-fraud-warning<br><code>cash-sale-disputes.early-fraud-warning</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale-disputes.lapsed-return" data-area="cash-sale-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale-disputes.lapsed-return<br><code>cash-sale-disputes.lapsed-return</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale-disputes.raise-and-withdraw" data-area="cash-sale-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale-disputes.raise-and-withdraw<br><code>cash-sale-disputes.raise-and-withdraw</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale-disputes.return-and-refund" data-area="cash-sale-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale-disputes.return-and-refund<br><code>cash-sale-disputes.return-and-refund</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale-disputes.return-tracking-refused-outbound" data-area="cash-sale-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale-disputes.return-tracking-refused-outbound<br><code>cash-sale-disputes.return-tracking-refused-outbound</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale-disputes.seller-contest" data-area="cash-sale-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale-disputes.seller-contest<br><code>cash-sale-disputes.seller-contest</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="cash-sale">
+<h3>cash-sale</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="cash-sale.buy-now.no-card" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.buy-now.no-card<br><code>cash-sale.buy-now.no-card</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.buy-now.reserves-single" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.buy-now.reserves-single<br><code>cash-sale.buy-now.reserves-single</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.cancel.in-agreement" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.cancel.in-agreement<br><code>cash-sale.cancel.in-agreement</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.cancel.refused-after-payment" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.cancel.refused-after-payment<br><code>cash-sale.cancel.refused-after-payment</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.delivery.flagged-delivered-before-shipment" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.delivery.flagged-delivered-before-shipment<br><code>cash-sale.delivery.flagged-delivered-before-shipment</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.delivery.lifecycle" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.delivery.lifecycle<br><code>cash-sale.delivery.lifecycle</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.in-person.handover-24h" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.in-person.handover-24h<br><code>cash-sale.in-person.handover-24h</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.in-person.handover-too-early" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.in-person.handover-too-early<br><code>cash-sale.in-person.handover-too-early</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.inspection.auto-complete" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.inspection.auto-complete<br><code>cash-sale.inspection.auto-complete</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.multiple-items.line-items" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.multiple-items.line-items<br><code>cash-sale.multiple-items.line-items</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payment.unfinished-abandoned" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.payment.unfinished-abandoned<br><code>cash-sale.payment.unfinished-abandoned</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.bank-bancontact" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.bank-bancontact.html">cash-sale.payments.bank-bancontact</a><br><code>cash-sale.payments.bank-bancontact</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.bank-eps" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.bank-eps.html">cash-sale.payments.bank-eps</a><br><code>cash-sale.payments.bank-eps</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.bank-ideal" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.bank-ideal.html">cash-sale.payments.bank-ideal</a><br><code>cash-sale.payments.bank-ideal</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.bank-p24" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.bank-p24.html">cash-sale.payments.bank-p24</a><br><code>cash-sale.payments.bank-p24</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.bank-payto" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="yes" data-simulated="no"><td><a href="pathways/cash-sale.payments.bank-payto.html">cash-sale.payments.bank-payto</a><br><code>cash-sale.payments.bank-payto</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>9</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.buyer-identity-required" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.buyer-identity-required.html">cash-sale.payments.buyer-identity-required</a><br><code>cash-sale.payments.buyer-identity-required</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.card-3ds" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.card-3ds.html">cash-sale.payments.card-3ds</a><br><code>cash-sale.payments.card-3ds</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.card-3ds-failed" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="yes" data-simulated="no"><td><a href="pathways/cash-sale.payments.card-3ds-failed.html">cash-sale.payments.card-3ds-failed</a><br><code>cash-sale.payments.card-3ds-failed</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>2</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.card-declined" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.card-declined.html">cash-sale.payments.card-declined</a><br><code>cash-sale.payments.card-declined</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.card-no-auth" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.card-no-auth.html">cash-sale.payments.card-no-auth</a><br><code>cash-sale.payments.card-no-auth</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.card-repriced" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.card-repriced.html">cash-sale.payments.card-repriced</a><br><code>cash-sale.payments.card-repriced</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.region-mismatch" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.region-mismatch.html">cash-sale.payments.region-mismatch</a><br><code>cash-sale.payments.region-mismatch</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.related-accounts" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.related-accounts.html">cash-sale.payments.related-accounts</a><br><code>cash-sale.payments.related-accounts</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.seller-exposure-limit" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.seller-exposure-limit.html">cash-sale.payments.seller-exposure-limit</a><br><code>cash-sale.payments.seller-exposure-limit</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.payments.seller-not-payable" data-area="cash-sale" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/cash-sale.payments.seller-not-payable.html">cash-sale.payments.seller-not-payable</a><br><code>cash-sale.payments.seller-not-payable</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="cash-sale.terms.fulfilment-only-change" data-area="cash-sale" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>cash-sale.terms.fulfilment-only-change<br><code>cash-sale.terms.fulfilment-only-change</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="catalog">
+<h3>catalog</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="catalog.filters-sort-and-redirect" data-area="catalog" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>catalog.filters-sort-and-redirect<br><code>catalog.filters-sort-and-redirect</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="catalog.hidden-private-item-excluded" data-area="catalog" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>catalog.hidden-private-item-excluded<br><code>catalog.hidden-private-item-excluded</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="guards">
+<h3>guards</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="guards.non-party-and-mobile-api-refused" data-area="guards" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>guards.non-party-and-mobile-api-refused<br><code>guards.non-party-and-mobile-api-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="guards.protected-routes-redirect-with-return-path" data-area="guards" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>guards.protected-routes-redirect-with-return-path<br><code>guards.protected-routes-redirect-with-return-path</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="jobs-webhooks">
+<h3>jobs-webhooks</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="jobs-webhooks.authorized-jobs-and-ship24" data-area="jobs-webhooks" data-status-desktop="failed" data-status-phone="skipped" data-observations="no" data-simulated="no"><td><a href="pathways/jobs-webhooks.authorized-jobs-and-ship24.html">jobs-webhooks.authorized-jobs-and-ship24</a><br><code>jobs-webhooks.authorized-jobs-and-ship24</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-skipped">skipped</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="jobs-webhooks.unauthorized-job-and-invalid-signature-refused" data-area="jobs-webhooks" data-status-desktop="failed" data-status-phone="skipped" data-observations="no" data-simulated="no"><td><a href="pathways/jobs-webhooks.unauthorized-job-and-invalid-signature-refused.html">jobs-webhooks.unauthorized-job-and-invalid-signature-refused</a><br><code>jobs-webhooks.unauthorized-job-and-invalid-signature-refused</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-skipped">skipped</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="journeys">
+<h3>journeys</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="journeys.cash-sale-lifecycle" data-area="journeys" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>journeys.cash-sale-lifecycle<br><code>journeys.cash-sale-lifecycle</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="journeys.trade-lifecycle" data-area="journeys" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>journeys.trade-lifecycle<br><code>journeys.trade-lifecycle</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="listings">
+<h3>listings</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="listings.create-single-and-shopfront" data-area="listings" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>listings.create-single-and-shopfront<br><code>listings.create-single-and-shopfront</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="listings.unverified-and-non-owner-refused" data-area="listings" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>listings.unverified-and-non-owner-refused<br><code>listings.unverified-and-non-owner-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="marketing-errors">
+<h3>marketing-errors</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="marketing-errors.api-errors-anonymous-no-origin-refused" data-area="marketing-errors" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>marketing-errors.api-errors-anonymous-no-origin-refused<br><code>marketing-errors.api-errors-anonymous-no-origin-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="marketing-errors.public-pages-and-not-found" data-area="marketing-errors" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>marketing-errors.public-pages-and-not-found<br><code>marketing-errors.public-pages-and-not-found</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="messaging">
+<h3>messaging</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="messaging.over-4000-chars-refused" data-area="messaging" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>messaging.over-4000-chars-refused<br><code>messaging.over-4000-chars-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="messaging.send-and-live-delivery" data-area="messaging" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>messaging.send-and-live-delivery<br><code>messaging.send-and-live-delivery</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="notifications">
+<h3>notifications</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="notifications.bell-and-mark-all-read" data-area="notifications" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>notifications.bell-and-mark-all-read<br><code>notifications.bell-and-mark-all-read</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="notifications.guest-redirected" data-area="notifications" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>notifications.guest-redirected<br><code>notifications.guest-redirected</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="offers">
+<h3>offers</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="offers.counter-and-accept-opens-sale" data-area="offers" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>offers.counter-and-accept-opens-sale<br><code>offers.counter-and-accept-opens-sale</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="offers.shopfront-and-no-card-refused" data-area="offers" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>offers.shopfront-and-no-card-refused<br><code>offers.shopfront-and-no-card-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="onboarding">
+<h3>onboarding</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="onboarding.buyer-wizard" data-area="onboarding" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>onboarding.buyer-wizard<br><code>onboarding.buyer-wizard</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="onboarding.spoofed-return-markers-ignored" data-area="onboarding" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>onboarding.spoofed-return-markers-ignored<br><code>onboarding.spoofed-return-markers-ignored</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="private-deals">
+<h3>private-deals</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="private-deals.create-and-claim-cash-sale" data-area="private-deals" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>private-deals.create-and-claim-cash-sale<br><code>private-deals.create-and-claim-cash-sale</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="private-deals.self-join-and-expired-refused" data-area="private-deals" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>private-deals.self-join-and-expired-refused<br><code>private-deals.self-join-and-expired-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="profile-payouts">
+<h3>profile-payouts</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="profile-payouts.payouts-dashboard-and-redirect" data-area="profile-payouts" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>profile-payouts.payouts-dashboard-and-redirect<br><code>profile-payouts.payouts-dashboard-and-redirect</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="profile-payouts.tabs-and-live-edit" data-area="profile-payouts" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>profile-payouts.tabs-and-live-edit<br><code>profile-payouts.tabs-and-live-edit</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="profile-payouts.verified-not-payable-refusal" data-area="profile-payouts" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>profile-payouts.verified-not-payable-refusal<br><code>profile-payouts.verified-not-payable-refusal</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="references">
+<h3>references</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="references.leave-and-graph-api" data-area="references" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/references.leave-and-graph-api.html">references.leave-and-graph-api</a><br><code>references.leave-and-graph-api</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="references.missing-sentiment-refused" data-area="references" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/references.missing-sentiment-refused.html">references.missing-sentiment-refused</a><br><code>references.missing-sentiment-refused</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="reviews-reports">
+<h3>reviews-reports</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="reviews-reports.report-does-not-notify-target" data-area="reviews-reports" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>reviews-reports.report-does-not-notify-target<br><code>reviews-reports.report-does-not-notify-target</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="reviews-reports.review-and-report-flow" data-area="reviews-reports" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>reviews-reports.review-and-report-flow<br><code>reviews-reports.review-and-report-flow</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="scam-reports">
+<h3>scam-reports</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="scam-reports.submit-and-staff-cluster" data-area="scam-reports" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>scam-reports.submit-and-staff-cluster<br><code>scam-reports.submit-and-staff-cluster</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="scam-reports.unverified-member-refused" data-area="scam-reports" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>scam-reports.unverified-member-refused<br><code>scam-reports.unverified-member-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="surfaces">
+<h3>surfaces</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="surfaces.guest-restricted-surface-redirects" data-area="surfaces" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>surfaces.guest-restricted-surface-redirects<br><code>surfaces.guest-restricted-surface-redirects</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="surfaces.public-and-member-routes-ux" data-area="surfaces" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>surfaces.public-and-member-routes-ux<br><code>surfaces.public-and-member-routes-ux</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="trade-disputes">
+<h3>trade-disputes</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="trade-disputes.custody-capture-after-rewind" data-area="trade-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trade-disputes.custody-capture-after-rewind<br><code>trade-disputes.custody-capture-after-rewind</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trade-disputes.no-exchange-refused-after-inspection" data-area="trade-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trade-disputes.no-exchange-refused-after-inspection<br><code>trade-disputes.no-exchange-refused-after-inspection</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trade-disputes.raise-condition-no-capture" data-area="trade-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trade-disputes.raise-condition-no-capture<br><code>trade-disputes.raise-condition-no-capture</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trade-disputes.staff-fraud-ban" data-area="trade-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trade-disputes.staff-fraud-ban<br><code>trade-disputes.staff-fraud-ban</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trade-disputes.staff-unfounded" data-area="trade-disputes" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trade-disputes.staff-unfounded<br><code>trade-disputes.staff-unfounded</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="trades">
+<h3>trades</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="trades.abandon.meeting-passed-unlocked" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.abandon.meeting-passed-unlocked<br><code>trades.abandon.meeting-passed-unlocked</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.agree.refused-no-card" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.agree.refused-no-card<br><code>trades.agree.refused-no-card</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.agree.refused-short-reservation" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.agree.refused-short-reservation<br><code>trades.agree.refused-short-reservation</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.agree.refused-unverified" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.agree.refused-unverified<br><code>trades.agree.refused-unverified</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.agree.side-values-frozen" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.agree.side-values-frozen<br><code>trades.agree.side-values-frozen</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.cash-leg.fx-disclosure" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.cash-leg.fx-disclosure<br><code>trades.cash-leg.fx-disclosure</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.cash-leg.unpaid-pay-by-abandons" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.cash-leg.unpaid-pay-by-abandons<br><code>trades.cash-leg.unpaid-pay-by-abandons</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.collateral.declined-hold-voids-other" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.collateral.declined-hold-voids-other<br><code>trades.collateral.declined-hold-voids-other</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.collateral.locks-live-and-job-completes" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.collateral.locks-live-and-job-completes<br><code>trades.collateral.locks-live-and-job-completes</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.lifecycle.cash-leg-accepted" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.lifecycle.cash-leg-accepted<br><code>trades.lifecycle.cash-leg-accepted</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.meeting.change-proposal-accepted" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.meeting.change-proposal-accepted<br><code>trades.meeting.change-proposal-accepted</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.meeting.change-refused-after-cutoff" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.meeting.change-refused-after-cutoff<br><code>trades.meeting.change-refused-after-cutoff</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.negotiate.counter-voids-acceptances" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.negotiate.counter-voids-acceptances<br><code>trades.negotiate.counter-voids-acceptances</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.negotiate.meeting-edit-clears-other" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.negotiate.meeting-edit-clears-other<br><code>trades.negotiate.meeting-edit-clears-other</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.open.refused-region-mismatch" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.open.refused-region-mismatch<br><code>trades.open.refused-region-mismatch</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.shopfront.refused-as-offering-side" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.shopfront.refused-as-offering-side<br><code>trades.shopfront.refused-as-offering-side</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trades.shopfront.side-valued-at-offer" data-area="trades" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trades.shopfront.side-valued-at-offer<br><code>trades.shopfront.side-valued-at-offer</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="trusted-sellers">
+<h3>trusted-sellers</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="trusted-sellers.apply-and-approve" data-area="trusted-sellers" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trusted-sellers.apply-and-approve<br><code>trusted-sellers.apply-and-approve</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="trusted-sellers.unverified-refused" data-area="trusted-sellers" data-status-desktop="not-run" data-status-phone="not-run" data-observations="no" data-simulated="no"><td>trusted-sellers.unverified-refused<br><code>trusted-sellers.unverified-refused</code></td><td></td><td><span class="status status-not-run">not-run</span></td><td><span class="status status-not-run">not-run</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+<section data-area-group="watchlist-sellers">
+<h3>watchlist-sellers</h3>
+<table><thead><tr><th>Pathway</th><th>Kind</th>
+<th>Desktop</th>
+<th>Phone</th>
+<th>Simulated</th><th>Observations</th><th>Payments</th></tr></thead><tbody>
+<tr data-pathway="watchlist-sellers.guest-save-routed-to-signin" data-area="watchlist-sellers" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/watchlist-sellers.guest-save-routed-to-signin.html">watchlist-sellers.guest-save-routed-to-signin</a><br><code>watchlist-sellers.guest-save-routed-to-signin</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+<tr data-pathway="watchlist-sellers.watch-toggle-and-seller-page" data-area="watchlist-sellers" data-status-desktop="failed" data-status-phone="failed" data-observations="no" data-simulated="no"><td><a href="pathways/watchlist-sellers.watch-toggle-and-seller-page.html">watchlist-sellers.watch-toggle-and-seller-page</a><br><code>watchlist-sellers.watch-toggle-and-seller-page</code></td><td></td><td><span class="status status-failed">failed</span></td><td><span class="status status-failed">failed</span></td><td></td><td>0</td><td></td></tr>
+</tbody></table>
+</section>
+</section>
+</main>
+<script src="data.js"></script>
+<script>
+(function () {
+  var form = document.getElementById('filters');
+  if (!form) return;
+  function apply() {
+    var status = form.elements.status.value;
+    var area = form.elements.area.value;
+    var viewport = form.elements.viewport.value;
+    var observations = form.elements.observations.value;
+    var viewports = viewport ? [viewport] : ['desktop', 'phone'];
+    document.querySelectorAll('tr[data-pathway]').forEach(function (row) {
+      var statusOk = viewports.some(function (v) {
+        var s = row.getAttribute('data-status-' + v);
+        return status ? s === status : (!viewport || s !== 'not-run');
+      });
+      var areaOk = !area || row.getAttribute('data-area') === area;
+      var obsOk = !observations || row.getAttribute('data-observations') === observations;
+      row.hidden = !(statusOk && areaOk && obsOk);
+    });
+    document.querySelectorAll('section[data-area-group]').forEach(function (group) {
+      group.hidden = !group.querySelector('tr[data-pathway]:not([hidden])');
+    });
+  }
+  form.addEventListener('change', apply);
+  form.addEventListener('reset', function () { setTimeout(apply, 0); });
+  apply();
+})();
+</script>
+</body>
+</html>

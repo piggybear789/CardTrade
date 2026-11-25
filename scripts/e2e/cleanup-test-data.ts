@@ -295,17 +295,31 @@ async function countWhere(table: string, params: URLSearchParams): Promise<numbe
 
 async function deleteByIdsIn(table: string, column: string, ids: readonly string[]): Promise<number> {
   if (ids.length === 0) return 0;
-  const params = new URLSearchParams();
-  params.set(column, `in.(${ids.join(',')})`);
-  return deleteWhere(table, params);
+  let total = 0;
+  for (const part of chunk(ids, 40)) {
+    const params = new URLSearchParams();
+    params.set(column, `in.(${part.join(',')})`);
+    total += await deleteWhere(table, params);
+  }
+  return total;
 }
 
 async function deleteByOr(table: string, conditions: (string | null)[]): Promise<number> {
   const present = conditions.filter(isPresent);
   if (present.length === 0) return 0;
-  const params = new URLSearchParams();
-  params.set('or', `(${present.join(',')})`);
-  return deleteWhere(table, params);
+  const joined = present.join(',');
+  if (joined.length <= 2000) {
+    const params = new URLSearchParams();
+    params.set('or', `(${joined})`);
+    return deleteWhere(table, params);
+  }
+  let total = 0;
+  for (const cond of present) {
+    const params = new URLSearchParams();
+    params.set('or', `(${cond})`);
+    total += await deleteWhere(table, params);
+  }
+  return total;
 }
 
 /** Log a per-table result and return the count, so callers can sum a total. */
@@ -340,16 +354,18 @@ async function fetchTradeIdsByColumns(
   itemIds: readonly string[],
   profileIds: readonly string[],
 ): Promise<string[]> {
-  const conditions = [
-    inCond('initiator_item_id', itemIds),
-    inCond('counterpart_item_id', itemIds),
-    inCond('initiator_id', profileIds),
-    inCond('counterpart_id', profileIds),
-  ].filter(isPresent);
-  if (conditions.length === 0) return [];
-  const params = new URLSearchParams();
-  params.set('or', `(${conditions.join(',')})`);
-  return fetchIds('trades', params);
+  const ids = new Set<string>();
+  for (const itemChunk of chunk(itemIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('or', `(${[inCond('initiator_item_id', itemChunk), inCond('counterpart_item_id', itemChunk)].filter(isPresent).join(',')})`);
+    for (const id of await fetchIds('trades', params)) ids.add(id);
+  }
+  for (const profileChunk of chunk(profileIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('or', `(${[inCond('initiator_id', profileChunk), inCond('counterpart_id', profileChunk)].filter(isPresent).join(',')})`);
+    for (const id of await fetchIds('trades', params)) ids.add(id);
+  }
+  return [...ids];
 }
 
 /**
@@ -360,41 +376,49 @@ async function fetchTradeIdsByColumns(
  */
 async function fetchTradeIdsFromBundleItems(itemIds: readonly string[]): Promise<string[]> {
   if (itemIds.length === 0) return [];
-  const params = new URLSearchParams();
-  params.set('item_id', `in.(${itemIds.join(',')})`);
-  const tradeIds = await fetchIds('trade_items', params, 'trade_id');
-  return Array.from(new Set(tradeIds));
+  const ids = new Set<string>();
+  for (const part of chunk(itemIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('item_id', `in.(${part.join(',')})`);
+    for (const id of await fetchIds('trade_items', params, 'trade_id')) ids.add(id);
+  }
+  return Array.from(ids);
 }
 
 async function fetchCashSaleIds(
   itemIds: readonly string[],
   profileIds: readonly string[],
 ): Promise<string[]> {
-  const conditions = [
-    inCond('item_id', itemIds),
-    inCond('buyer_id', profileIds),
-    inCond('seller_id', profileIds),
-  ].filter(isPresent);
-  if (conditions.length === 0) return [];
-  const params = new URLSearchParams();
-  params.set('or', `(${conditions.join(',')})`);
-  return fetchIds('cash_sales', params);
+  const ids = new Set<string>();
+  for (const part of chunk(itemIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('item_id', `in.(${part.join(',')})`);
+    for (const id of await fetchIds('cash_sales', params)) ids.add(id);
+  }
+  for (const part of chunk(profileIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('or', `(${[inCond('buyer_id', part), inCond('seller_id', part)].filter(isPresent).join(',')})`);
+    for (const id of await fetchIds('cash_sales', params)) ids.add(id);
+  }
+  return Array.from(ids);
 }
 
 async function fetchOfferIds(
   itemIds: readonly string[],
   profileIds: readonly string[],
 ): Promise<string[]> {
-  const conditions = [
-    inCond('item_id', itemIds),
-    inCond('buyer_id', profileIds),
-    inCond('seller_id', profileIds),
-    inCond('offered_by', profileIds),
-  ].filter(isPresent);
-  if (conditions.length === 0) return [];
-  const params = new URLSearchParams();
-  params.set('or', `(${conditions.join(',')})`);
-  return fetchIds('offers', params);
+  const ids = new Set<string>();
+  for (const part of chunk(itemIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('item_id', `in.(${part.join(',')})`);
+    for (const id of await fetchIds('offers', params)) ids.add(id);
+  }
+  for (const part of chunk(profileIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('or', `(${[inCond('buyer_id', part), inCond('seller_id', part), inCond('offered_by', part)].filter(isPresent).join(',')})`);
+    for (const id of await fetchIds('offers', params)) ids.add(id);
+  }
+  return Array.from(ids);
 }
 
 async function fetchConversationIds(
@@ -403,29 +427,23 @@ async function fetchConversationIds(
   _cashSaleIds: readonly string[],
   profileIds: readonly string[],
 ): Promise<string[]> {
-  // NO `cash_sale_id` FILTER. The column was dropped in 0115 — as the schema notes at
-  // the top of this file already record — but the condition stayed, so PostgREST
-  // answered `42703 column conversations.cash_sale_id does not exist` and cleanup
-  // aborted.
-  //
-  // IT FAILED ONLY SOMETIMES, which is why it survived. `inCond` returns undefined for
-  // an empty id list and the conditions are filtered, so the bad column reached the
-  // query ONLY on a run that had cash sales to clean — i.e. after a contract spec, not
-  // after a catalog one. And because `globalSetup` runs this script, the whole suite
-  // then failed to start with an error naming a table no spec had touched.
-  //
-  // A cash sale's conversation is still reached: it is found through `item_id` (the
-  // listing the contract is against) and through both participants.
-  const conditions = [
-    inCond('item_id', itemIds),
-    inCond('trade_id', tradeIds),
-    inCond('participant_a', profileIds),
-    inCond('participant_b', profileIds),
-  ].filter(isPresent);
-  if (conditions.length === 0) return [];
-  const params = new URLSearchParams();
-  params.set('or', `(${conditions.join(',')})`);
-  return fetchIds('conversations', params);
+  const ids = new Set<string>();
+  for (const part of chunk(itemIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('item_id', `in.(${part.join(',')})`);
+    for (const id of await fetchIds('conversations', params)) ids.add(id);
+  }
+  for (const part of chunk(tradeIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('trade_id', `in.(${part.join(',')})`);
+    for (const id of await fetchIds('conversations', params)) ids.add(id);
+  }
+  for (const part of chunk(profileIds, 40)) {
+    const params = new URLSearchParams();
+    params.set('or', `(${[inCond('participant_a', part), inCond('participant_b', part)].filter(isPresent).join(',')})`);
+    for (const id of await fetchIds('conversations', params)) ids.add(id);
+  }
+  return Array.from(ids);
 }
 
 /**
@@ -1470,5 +1488,8 @@ async function main(): Promise<void> {
 
 main().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
+  if (error instanceof Error && 'cause' in error && error.cause) {
+    console.error('Cause:', error.cause);
+  }
   process.exit(1);
 });

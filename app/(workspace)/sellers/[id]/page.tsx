@@ -374,9 +374,9 @@ export default async function SellerProfilePage({
                 // inherited font rather than by the stars — a different height
                 // and offset from the row the loading skeleton reserves.
                 className="flex w-fit rounded-sm border border-transparent transition-colors hover:opacity-80 focus:outline-none focus-visible:border-ring"
-                aria-label={`Read ${seller.ratingCount} reviews`}
               >
                 <StarRating rating={seller.rating} count={seller.ratingCount} size={16} />
+                <span className="sr-only"> — Read {seller.ratingCount} reviews</span>
               </Link>
             ) : (
               // Block-level for the same reason as the link above.

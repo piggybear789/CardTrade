@@ -92,7 +92,10 @@ export async function openDetailTab(page: Page, label: string): Promise<Locator>
 
 /** Closes the phone details sheet when it is open, so the action dock is reachable again. */
 export async function closeDetailsSheet(page: Page): Promise<void> {
-  const done = page.getByRole('button', { name: 'Close details' });
+  const done = page
+    .getByRole('dialog')
+    .filter({ has: page.getByRole('tablist', { name: 'Contract details' }) })
+    .getByRole('button', { name: 'Done', exact: true });
   if (await done.isVisible().catch(() => false)) {
     await done.click();
     await expect(done).toBeHidden({ timeout: RENDERED });

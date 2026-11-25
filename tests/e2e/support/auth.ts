@@ -25,8 +25,49 @@
 // it is not, and it covers every cause — rotation, expiry, an accidental sign-out, a
 // member deleted and reseeded.
 
+import { existsSync, mkdirSync, renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { AUX_PERSONAS, appServerUrl, storageStatePath, type AppServer, type SeedUser } from './users';
+
+const SESSION_FRESH_TTL_MS = 15_000;
+const inflightSessionChecks = new Map<string, Promise<void>>();
+
+async function writeStorageStateAtomic(
+  context: { storageState: (opts?: { path?: string }) => Promise<unknown> },
+  statePath: string,
+): Promise<void> {
+  const state = await context.storageState();
+  mkdirSync(path.dirname(statePath), { recursive: true });
+  const payload = JSON.stringify(state, null, 2);
+  const tmpPath = `${statePath}.${process.pid}.${Math.random().toString(36).slice(2, 8)}.tmp`;
+  writeFileSync(tmpPath, payload, 'utf8');
+  try {
+    for (let attempt = 0; attempt < 6; attempt++) {
+      try {
+        renameSync(tmpPath, statePath);
+        return;
+      } catch (err) {
+        const code = (err as NodeJS.ErrnoException)?.code;
+        if ((code === 'EPERM' || code === 'EBUSY' || code === 'EACCES') && attempt < 5) {
+          await new Promise((r) => setTimeout(r, 40 * (attempt + 1)));
+          continue;
+        }
+        if (code === 'EPERM' || code === 'EBUSY' || code === 'EACCES') {
+          writeFileSync(statePath, payload, 'utf8');
+          return;
+        }
+        throw err;
+      }
+    }
+  } finally {
+    try {
+      if (existsSync(tmpPath)) unlinkSync(tmpPath);
+    } catch {
+      // ignore temp cleanup failure
+    }
+  }
+}
 
 /**
  * Where a successful sign-in lands.
@@ -63,34 +104,54 @@ export async function ensureFreshSession(
 ): Promise<void> {
   const server = options.server ?? 'main';
   const statePath = storageStatePath(user, server);
+  const key = `${server}:${user.id}`;
 
-  // The main server's jar keeps its old behaviour exactly: the project's baseURL and
-  // no extra headers. The aux server is addressed explicitly, because a desktop or
-  // phone project's baseURL is the main server, and signs in from an address of its
-  // own so a repair never spends another caller's limiter budget.
-  const forwardedFor = options.forwardedFor ?? (server === 'aux' ? auxSignInAddress(user) : undefined);
-  const context = await browser.newContext({
-    storageState: statePath,
-    ...(server === 'aux' ? { baseURL: appServerUrl('aux') } : {}),
-    ...(forwardedFor ? { extraHTTPHeaders: { 'x-forwarded-for': forwardedFor } } : {}),
-  });
-  const page = await context.newPage();
-  try {
-    await page.goto('/profile');
-    if (!/\/sign-in/.test(page.url())) {
-      // Still good. Re-save so this context's freshly rotated token replaces the
-      // retired one on disk, which is what stops the next context replaying it.
-      await context.storageState({ path: statePath });
-      return;
+  const existing = inflightSessionChecks.get(key);
+  if (existing) return existing;
+
+  if (process.env.E2E_FORCE_SESSION_PROBE !== '1') {
+    try {
+      const mtime = statSync(statePath).mtimeMs;
+      if (Date.now() - mtime < SESSION_FRESH_TTL_MS) return;
+    } catch {
+      // File missing or unreadable: fall through to probe/sign-in.
     }
-
-    // Stale — sign in again and overwrite the jar.
-    await signInThroughForm(page, user);
-
-    await context.storageState({ path: statePath });
-  } finally {
-    await context.close();
   }
+
+  const run = (async () => {
+    // The main server's jar keeps its old behaviour exactly: the project's baseURL and
+    // no extra headers. The aux server is addressed explicitly, because a desktop or
+    // phone project's baseURL is the main server, and signs in from an address of its
+    // own so a repair never spends another caller's limiter budget.
+    const forwardedFor = options.forwardedFor ?? (server === 'aux' ? auxSignInAddress(user) : undefined);
+    const context = await browser.newContext({
+      storageState: statePath,
+      ...(server === 'aux' ? { baseURL: appServerUrl('aux') } : {}),
+      ...(forwardedFor ? { extraHTTPHeaders: { 'x-forwarded-for': forwardedFor } } : {}),
+    });
+    const page = await context.newPage();
+    try {
+      await page.goto('/profile');
+      if (!/\/sign-in/.test(page.url())) {
+        // Still good. Re-save atomically so this context's freshly rotated token replaces
+        // the retired one on disk, which is what stops the next context replaying it.
+        await writeStorageStateAtomic(context, statePath);
+        return;
+      }
+
+      // Stale — sign in again and overwrite the jar atomically.
+      await signInThroughForm(page, user);
+
+      await writeStorageStateAtomic(context, statePath);
+    } finally {
+      await context.close();
+    }
+  })().finally(() => {
+    inflightSessionChecks.delete(key);
+  });
+
+  inflightSessionChecks.set(key, run);
+  return run;
 }
 
 /** Options for {@link ensureFreshSession}. */
@@ -193,7 +254,5 @@ export async function ensureFreshSessions(
 ): Promise<void> {
   test.setTimeout(90_000 + users.length * 100_000);
 
-  for (const user of users) {
-    await ensureFreshSession(browser, user);
-  }
+  await Promise.all(users.map((user) => ensureFreshSession(browser, user)));
 }

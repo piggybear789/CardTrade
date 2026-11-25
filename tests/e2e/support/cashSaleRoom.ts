@@ -132,6 +132,7 @@ export async function seedListing(
     priceMinor: number;
     kind?: 'SINGLE' | 'SHOPFRONT';
     place?: StubbedPlace;
+    hidden?: boolean;
   },
 ): Promise<string> {
   const place = options.place ?? STUB_PLACES.sydney;
@@ -152,6 +153,7 @@ export async function seedListing(
     fmv_cents: options.priceMinor,
     image_paths: imagePaths,
     listing_kind: options.kind ?? 'SINGLE',
+    hidden: options.hidden ?? false,
     location_label: `${place.mainText}, ${place.secondaryText}`,
     location_place_id: place.placeId,
     location_country_code: place.countryCode,
@@ -295,7 +297,14 @@ export async function openListing(page: Page, itemId: string): Promise<void> {
 
 /** Open a contract room and wait for its status badge. */
 export async function openSale(page: Page, saleId: string): Promise<void> {
-  await page.goto(`/sales/${saleId}`);
+  const targetPath = `/sales/${saleId}`;
+  try {
+    await page.goto(targetPath);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!msg.includes('interrupted by another navigation')) throw error;
+    await page.waitForURL((url) => url.pathname === targetPath, { timeout: COLD_ROUTE });
+  }
   await page.waitForLoadState('domcontentloaded');
   await expect(page.locator('[aria-label^="Sale status: "]').filter({ visible: true }).first()).toBeVisible({
     timeout: COLD_ROUTE,
@@ -316,8 +325,22 @@ export async function openSection(page: Page, name: string): Promise<void> {
   await tab.click();
 }
 
+/** Close the phone "Contract details" sheet if it is open over the dock. */
+export async function closeDetailsSheetIfOpen(page: Page): Promise<void> {
+  const done = page
+    .getByRole('dialog')
+    .getByRole('button', { name: 'Done', exact: true })
+    .filter({ visible: true })
+    .first();
+  if (await done.isVisible().catch(() => false)) {
+    await done.click();
+    await expect(done).toBeHidden({ timeout: RENDERED });
+  }
+}
+
 /** The dock's ⋯ menu ("More actions"), opened. Returns the popover. */
 export async function openMoreActions(page: Page): Promise<Locator> {
+  await closeDetailsSheetIfOpen(page);
   await page.getByRole('button', { name: 'More actions' }).filter({ visible: true }).first().click();
   const menu = page.locator('[data-radix-popper-content-wrapper]').last();
   await expect(menu).toBeVisible({ timeout: RENDERED });
@@ -400,6 +423,7 @@ export async function requestFromShopfront(
 
 /** Reveal the Terms panel's method tiles (the dock's "Set delivery details", else the tab). */
 async function showMethodTiles(page: Page): Promise<void> {
+  await closeDetailsSheetIfOpen(page);
   const setDetails = page.getByRole('button', { name: 'Set delivery details' }).filter({ visible: true }).first();
   if (await setDetails.isVisible({ timeout: 10_000 }).catch(() => false)) {
     await setDetails.click();
@@ -414,14 +438,15 @@ export async function proposeDelivery(page: Page, place: StubbedPlace = STUB_PLA
   const ship = page.getByRole('button', { name: /Ship the item/i }).filter({ visible: true }).first();
   await expect(ship).toBeVisible({ timeout: RENDERED });
   await ship.click();
-  // Scoped to the terms dialog by its heading. On a phone the "Contract details" sheet
-  // is also a dialog and stays open after the terms are saved, so an unscoped
-  // `getByRole('dialog')` would wait on the sheet rather than the terms dialog.
-  const dialog = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: /handover terms/i }) });
+  // Scoped to the terms dialog by its accessible name. On a phone the "Contract details"
+  // sheet is also a dialog and stays open after the terms are saved (and contains a
+  // "Handover terms" section heading), so `.filter({ has: heading })` matched both.
+  const dialog = page.getByRole('dialog', { name: /handover terms/i });
   await expect(dialog).toBeVisible({ timeout: RENDERED });
   await fillPlace(page, /Your delivery address/i, place, dialog);
   await dialog.getByRole('button', { name: 'Propose terms' }).click();
   await expect(dialog).toBeHidden({ timeout: 25_000 });
+  await closeDetailsSheetIfOpen(page);
 }
 
 /** `YYYY-MM-DD` in the browser's local calendar, `days` from today. */
@@ -452,7 +477,7 @@ export async function proposeInPerson(
   const meet = page.getByRole('button', { name: /Meet face to face/i }).filter({ visible: true }).first();
   await expect(meet).toBeVisible({ timeout: RENDERED });
   await meet.click();
-  const dialog = page.getByRole('dialog').filter({ has: page.getByRole('heading', { name: /handover terms/i }) });
+  const dialog = page.getByRole('dialog', { name: /handover terms/i });
   await expect(dialog).toBeVisible({ timeout: RENDERED });
   await fillPlace(page, /Meeting place/i, place, dialog);
 
@@ -473,6 +498,7 @@ export async function proposeInPerson(
 
   await dialog.getByRole('button', { name: 'Propose terms' }).click();
   await expect(dialog).toBeHidden({ timeout: 25_000 });
+  await closeDetailsSheetIfOpen(page);
 }
 
 // ---------------------------------------------------------------------------
@@ -486,6 +512,7 @@ export function payDialog(page: Page): Locator {
 
 /** Open the Pay dialog from the dock and wait until its card is read. Returns the dialog. */
 export async function openPayDialog(page: Page): Promise<Locator> {
+  await closeDetailsSheetIfOpen(page);
   const pay = page.getByRole('button', { name: /^Accept terms and pay$/ }).filter({ visible: true }).first();
   await expect(pay).toBeEnabled({ timeout: COLD_ROUTE });
   await pay.click();
@@ -565,8 +592,12 @@ export async function recordShipment(page: Page, tracking: string): Promise<void
   await dialog.locator('#ship-carrier').click();
   await page.getByRole('option', { name: 'Australia Post' }).click();
   const field = dialog.locator('#ship-tracking');
-  await field.fill(tracking);
-  await expect(field).toHaveValue(tracking);
+  await expect(field).toBeVisible({ timeout: RENDERED });
+  await expect(async () => {
+    await field.fill('');
+    await field.fill(tracking);
+    await expect(field).toHaveValue(tracking, { timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
   const record = dialog.getByRole('button', { name: 'Record shipment' });
   await expect(record).toBeEnabled({ timeout: RENDERED });
   await record.click();

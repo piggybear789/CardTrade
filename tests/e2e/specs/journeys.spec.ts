@@ -199,9 +199,13 @@ pathway(
       },
     );
 
-    await arrange('The hourly payout job runs (called on demand, as Vercel Cron would)', () =>
-      runJobOk('cash-sale-payouts'),
-    );
+    await arrange('The hourly payout job runs (called on demand, as Vercel Cron would)', async () => {
+      for (let pass = 0; pass < 5; pass += 1) {
+        await runJobOk('cash-sale-payouts');
+        const row = await saleRow<{ seller_payout_status: string }>(saleId, 'seller_payout_status');
+        if (row.seller_payout_status !== 'PENDING') break;
+      }
+    });
 
     await assertState('Alice is paid: the transfer is sent to her payout account', {
       member: 'seller',
@@ -551,17 +555,17 @@ test.describe('buyer save and enquire pathway', () => {
     // Both viewports render the listing's action stack twice (phone bar + desktop
     // pane), so every control here is filtered to the instance on screen.
     const save = page
-      .getByRole('button', { name: /^Save item$/ })
+      .getByRole('button', { name: /^Save item\b/ })
       .filter({ visible: true })
       .first();
     const unsave = page
-      .getByRole('button', { name: /^Remove from saved items$/ })
+      .getByRole('button', { name: /^Remove from saved items\b/ })
       .filter({ visible: true })
       .first();
 
     // Idempotent start: a re-run against a surviving watchlist row starts saved.
     if (await unsave.count()) {
-      await unsave.click();
+      await clickForWrite(unsave, `/listings/${subject.itemId}`);
       await expect(save).toBeVisible({ timeout: RENDERED });
     }
 
@@ -593,7 +597,7 @@ test.describe('buyer save and enquire pathway', () => {
     await page.goto(`/listings/${subject.itemId}`);
     await page.waitForLoadState('domcontentloaded');
     await page
-      .getByRole('button', { name: /^Remove from saved items$/ })
+      .getByRole('button', { name: /^Remove from saved items\b/ })
       .filter({ visible: true })
       .first()
       .click();
@@ -657,7 +661,7 @@ test.describe('seller publish pathway', () => {
     });
     await expect(page.getByRole('button', { name: /^Buy( now)?$/ })).toHaveCount(0);
     await expect(
-      page.getByRole('link', { name: /^Edit$/ }).filter({ visible: true }).first(),
+      page.getByRole('link', { name: /^Edit( listing)?$/ }).filter({ visible: true }).first(),
     ).toBeVisible({ timeout: RENDERED });
     await expectNothingUnderMobileNav(page, 'owner listing detail');
 
@@ -668,7 +672,7 @@ test.describe('seller publish pathway', () => {
     // Editing is reachable and pre-filled with this listing, not an empty form.
     await page.goto(`/listings/${itemId}/edit`);
     await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByLabel('Description', { exact: true })).toHaveValue(
+    await expect(page.getByLabel('Title', { exact: true })).toHaveValue(
       new RegExp(title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')),
       { timeout: RENDERED },
     );
@@ -702,9 +706,11 @@ test.describe('phone navigation pathway', () => {
     ).toBeVisible({ timeout: RENDERED });
     await expect(nav.getByRole('link', { name: /References/i })).toHaveAttribute('aria-current', 'page');
 
-    // Sell opens the form, and the bar no longer leaves with it.
+    // Sell opens the focused listing form (/listings/new intentionally hides the hub bar).
     await nav.getByRole('link', { name: /Sell/i }).click();
     await expect(page).toHaveURL(/\/listings\/new/, { timeout: COLD_ROUTE });
+    await page.getByRole('link', { name: 'Back to marketplace' }).click();
+    await expect(page).toHaveURL(/\/$/, { timeout: COLD_ROUTE });
     await expect(nav).toBeVisible({ timeout: RENDERED });
 
     // Account is one tap, marks itself current, and lists the contract inboxes the

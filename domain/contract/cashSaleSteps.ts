@@ -22,6 +22,8 @@ import {
 export const CASH_SALE_SECTIONS = {
   /** The live controls: ship, confirm receipt, confirm handover, accept, dispute. */
   actions: 'contract-actions',
+  /** Return address, return tracking, and return contestation (0088). */
+  return: 'contract-return',
   exchange: 'contract-exchange',
   terms: 'contract-terms',
   payment: 'contract-payment',
@@ -450,7 +452,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       done: facts.hasReturnTracking || status === 'RETURN_IN_TRANSIT',
       action:
         !returnDisputedNow && viewerRole === 'BUYER' && status === 'RETURN_PENDING'
-          ? { label: 'Add return tracking', kind: 'focus', target: CASH_SALE_SECTIONS.actions }
+          ? { label: 'Add return tracking', kind: 'focus', target: CASH_SALE_SECTIONS.return }
           : undefined,
     });
 

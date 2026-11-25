@@ -1,0 +1,1352 @@
+{
+  "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+  "startedAt": "2026-11-25T03:09:13.070Z",
+  "durationMs": 3238000,
+  "commit": "e3345732fc8e629b7171277c563df188cd4ca7cb",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-bancontact",
+        "title": "Belgian buyer pays a German seller with Bancontact through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:bancontact-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-bancontact",
+        "title": "Belgian buyer pays a German seller with Bancontact through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:bancontact-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-eps",
+        "title": "Austrian buyer pays a German seller with EPS through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:eps-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-eps",
+        "title": "Austrian buyer pays a German seller with EPS through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:eps-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-ideal",
+        "title": "Dutch buyer pays a German seller with iDEAL through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:ideal-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-ideal",
+        "title": "Dutch buyer pays a German seller with iDEAL through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:ideal-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-p24",
+        "title": "Polish buyer pays a German seller with Przelewy24 through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:p24-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-p24",
+        "title": "Polish buyer pays a German seller with Przelewy24 through the bank redirect",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:p24-buyer",
+          "seller": "persona:de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-payto",
+        "title": "Buyer pays a cash sale with PayTo, approved in place",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:payto-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [
+        {
+          "name": "Alice lists a card at A$150.00",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T03:37:28.016Z",
+          "status": "passed",
+          "durationMs": 453,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer reserves it with Buy Now",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T03:37:28.489Z",
+          "status": "passed",
+          "durationMs": 32006,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/ac1c8fe4-f3dd-4ccb-9941-d87c1ad09836",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/ac1c8fe4-f3dd-4ccb-9941-d87c1ad09836",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer sets a delivery address",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T03:38:00.504Z",
+          "status": "passed",
+          "durationMs": 34294,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1",
+              "message": "Console error: Error: An unexpected response was received from the server.\n    at I (http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js:2:743)",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/270elm3runt4_.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1",
+              "message": "Console error: Error: An unexpected response was received from the server.\n    at I (http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js:2:743)",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/0_gu1srs5n2aj.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "shift-outside-region",
+              "message": "Data arriving in div.space-y-cozy moved div.space-y-snug, div.space-y-snug, div.flex.flex-row.gap-snug.[&>a]:min-w-0.[&>a]:flex-1.[&>button]:min-w-0, outside its own region.",
+              "detail": {
+                "value": 0.0059,
+                "moved": "div.space-y-snug | div.space-y-snug | div.flex.flex-row.gap-snug.[&>a]:min-w-0.[&>a]:flex-1.[&>button]:min-w-0",
+                "regions": "div.space-y-cozy"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer sees card and PayTo each priced, and chooses PayTo",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T03:38:34.966Z",
+          "status": "failed",
+          "durationMs": 3156,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.bank-payto/desktop/2026-11-25T02-58-51Z-hvdl0yz/step-04.buyer.png"
+            }
+          ],
+          "observations": [],
+          "error": "no cash sale 58fb877d-6bc2-42d1-bf74-ffdcd814248e",
+          "index": 4
+        }
+      ],
+      "videos": [
+        {
+          "member": "buyer",
+          "path": "audit-artifacts/cash-sale.payments.bank-payto/desktop/2026-11-25T02-58-51Z-hvdl0yz/video.buyer.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.bank-payto",
+        "title": "Buyer pays a cash sale with PayTo, approved in place",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:payto-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.buyer-identity-required",
+        "title": "Unverified buyer of a sale over the unverified-buyer limit is asked to verify their ID instead of paying",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:large-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.buyer-identity-required",
+        "title": "Unverified buyer of a sale over the unverified-buyer limit is asked to verify their ID instead of paying",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:large-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-3ds",
+        "title": "Buyer pays a cash sale by card and passes the 3-D Secure challenge",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:threeds-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-3ds",
+        "title": "Buyer pays a cash sale by card and passes the 3-D Secure challenge",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:threeds-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-3ds-failed",
+        "title": "Buyer fails the 3-D Secure challenge at Pay and nothing is charged",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:threeds-fail-buyer",
+          "seller": "seed:alice",
+          "viewer": "persona:threeds-fail-viewer"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [
+        {
+          "name": "Alice lists a card at A$150.00",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T03:38:15.506Z",
+          "status": "passed",
+          "durationMs": 3708,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer adds a 3-D Secure card at Buy Now and reserves",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T03:38:19.336Z",
+          "status": "failed",
+          "durationMs": 218235,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/onboarding?redirectTo=%2Flistings%2F7038cf48-700b-4de3-b54a-732e3a6c1ab6",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/onboarding?redirectTo=%2Flistings%2F7038cf48-700b-4de3-b54a-732e3a6c1ab6",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "error": "locator.click: Target page, context or browser has been closed\nCall log:\n  - waiting for getByRole('button', { name: /^Buy( now)?$/ }).filter({ visible: true }).first()\n",
+          "index": 2
+        }
+      ],
+      "videos": [
+        {
+          "member": "buyer",
+          "path": "audit-artifacts/cash-sale.payments.card-3ds-failed/desktop/2026-11-25T02-58-51Z-hvdl0yz/video.buyer.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-3ds-failed",
+        "title": "Buyer fails the 3-D Secure challenge at Pay and nothing is charged",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:threeds-fail-buyer",
+          "seller": "seed:alice",
+          "viewer": "persona:threeds-fail-viewer"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-declined",
+        "title": "Buyer is declined at Pay and nothing is charged",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:declined-buyer",
+          "seller": "seed:alice",
+          "viewer": "persona:declined-viewer"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-declined",
+        "title": "Buyer is declined at Pay and nothing is charged",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:declined-buyer",
+          "seller": "seed:alice",
+          "viewer": "persona:declined-viewer"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-no-auth",
+        "title": "Buyer pays a cash sale by card with no authentication, charged exactly the total shown",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:card-buyer",
+          "seller": "seed:uma"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [
+        {
+          "name": "Uma lists a card at US$150.00",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T03:31:42.191Z",
+          "status": "passed",
+          "durationMs": 901,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer reserves it with Buy Now",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T03:31:43.095Z",
+          "status": "failed",
+          "durationMs": 24359,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale.payments.card-no-auth/desktop/2026-11-25T02-58-51Z-hvdl0yz/step-02.buyer.png"
+            }
+          ],
+          "observations": [],
+          "error": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3100/listings/a09f76d9-085e-4071-b5e5-b29b7382d58d\nCall log:\n  - navigating to \"http://localhost:3100/listings/a09f76d9-085e-4071-b5e5-b29b7382d58d\", waiting until \"load\"\n",
+          "index": 2
+        }
+      ],
+      "videos": [
+        {
+          "member": "buyer",
+          "path": "audit-artifacts/cash-sale.payments.card-no-auth/desktop/2026-11-25T02-58-51Z-hvdl0yz/video.buyer.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-no-auth",
+        "title": "Buyer pays a cash sale by card with no authentication, charged exactly the total shown",
+        "area": "cash-sale",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:card-buyer",
+          "seller": "seed:uma"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-repriced",
+        "title": "Buyer whose saved card changes tier after the total was shown is refused with CARD_REPRICED",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:repriced-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.card-repriced",
+        "title": "Buyer whose saved card changes tier after the total was shown is refused with CARD_REPRICED",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:repriced-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.region-mismatch",
+        "title": "An Australian buyer cannot open a contract on a US seller’s listing (REGION_MISMATCH)",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:au-buyer",
+          "seller": "seed:uma"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.region-mismatch",
+        "title": "An Australian buyer cannot open a contract on a US seller’s listing (REGION_MISMATCH)",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:au-buyer",
+          "seller": "seed:uma"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.related-accounts",
+        "title": "Two accounts sharing a card cannot deal, and the refusal does not say why",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:twin-buyer",
+          "seller": "persona:twin-seller"
+        },
+        "viewports": "both",
+        "knownFindings": [
+          "F78"
+        ]
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.related-accounts",
+        "title": "Two accounts sharing a card cannot deal, and the refusal does not say why",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:twin-buyer",
+          "seller": "persona:twin-seller"
+        },
+        "viewports": "both",
+        "knownFindings": [
+          "F78"
+        ]
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.seller-exposure-limit",
+        "title": "Buyer is refused with SELLER_EXPOSURE_LIMIT when a new seller would exceed their open-sales limit",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:exposure-buyer",
+          "seller": "persona:new-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.seller-exposure-limit",
+        "title": "Buyer is refused with SELLER_EXPOSURE_LIMIT when a new seller would exceed their open-sales limit",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:exposure-buyer",
+          "seller": "persona:new-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.seller-not-payable",
+        "title": "Buyer of a cross-border sale whose seller cannot receive funds is refused with SELLER_NOT_PAYABLE",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:notpayable-buyer",
+          "seller": "persona:unpaid-de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale.payments.seller-not-payable",
+        "title": "Buyer of a cross-border sale whose seller cannot receive funds is refused with SELLER_NOT_PAYABLE",
+        "area": "cash-sale",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:notpayable-buyer",
+          "seller": "persona:unpaid-de-seller"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "jobs-webhooks.authorized-jobs-and-ship24",
+        "title": "Authorized job endpoints return 200 and Ship24 webhook accepts valid bearer",
+        "area": "jobs-webhooks",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": {
+          "only": "desktop",
+          "reason": "Server-to-server job and webhook endpoints are viewport-independent"
+        }
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "jobs-webhooks.authorized-jobs-and-ship24",
+        "title": "Authorized job endpoints return 200 and Ship24 webhook accepts valid bearer",
+        "area": "jobs-webhooks",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": {
+          "only": "desktop",
+          "reason": "Server-to-server job and webhook endpoints are viewport-independent"
+        }
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "skipped",
+      "retries": 0,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "jobs-webhooks.unauthorized-job-and-invalid-signature-refused",
+        "title": "Missing/wrong job bearer and invalid Stripe webhook signature are refused",
+        "area": "jobs-webhooks",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": {
+          "only": "desktop",
+          "reason": "Server-to-server endpoint auth check is viewport-independent"
+        }
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [
+        {
+          "name": "Job endpoint refuses missing and wrong bearer tokens",
+          "kind": "assert",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-25T03:53:57.088Z",
+          "status": "failed",
+          "durationMs": 1728,
+          "screenshots": [
+            {
+              "member": "visitor",
+              "path": "audit-artifacts/jobs-webhooks.unauthorized-job-and-invalid-signature-refused/desktop/2026-11-25T02-58-51Z-hvdl0yz/step-01.visitor.png"
+            }
+          ],
+          "observations": [],
+          "error": "fetch failed",
+          "index": 1
+        }
+      ],
+      "videos": [
+        {
+          "member": "visitor",
+          "path": "audit-artifacts/jobs-webhooks.unauthorized-job-and-invalid-signature-refused/desktop/2026-11-25T02-58-51Z-hvdl0yz/video.visitor.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "jobs-webhooks.unauthorized-job-and-invalid-signature-refused",
+        "title": "Missing/wrong job bearer and invalid Stripe webhook signature are refused",
+        "area": "jobs-webhooks",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": {
+          "only": "desktop",
+          "reason": "Server-to-server endpoint auth check is viewport-independent"
+        }
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "skipped",
+      "retries": 0,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "references.leave-and-graph-api",
+        "title": "Member leaves a live reference, /references/people renders, and GET /api/references/graph responds",
+        "area": "references",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "references.leave-and-graph-api",
+        "title": "Member leaves a live reference, /references/people renders, and GET /api/references/graph responds",
+        "area": "references",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "references.missing-sentiment-refused",
+        "title": "Submitting a reference without selecting a sentiment is refused",
+        "area": "references",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "references.missing-sentiment-refused",
+        "title": "Submitting a reference without selecting a sentiment is refused",
+        "area": "references",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "watchlist-sellers.guest-save-routed-to-signin",
+        "title": "Guest attempting to watch or open /saved is routed to sign-in",
+        "area": "watchlist-sellers",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [
+        {
+          "name": "Guest visiting /saved is redirected to /sign-in",
+          "kind": "assert",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-25T03:56:54.473Z",
+          "status": "failed",
+          "durationMs": 3883,
+          "screenshots": [
+            {
+              "member": "visitor",
+              "path": "audit-artifacts/watchlist-sellers.guest-save-routed-to-signin/desktop/2026-11-25T02-58-51Z-hvdl0yz/step-01.visitor.png"
+            }
+          ],
+          "observations": [],
+          "error": "page.goto: net::ERR_CONNECTION_REFUSED at http://localhost:3100/saved\nCall log:\n  - navigating to \"http://localhost:3100/saved\", waiting until \"load\"\n",
+          "index": 1
+        }
+      ],
+      "videos": [
+        {
+          "member": "visitor",
+          "path": "audit-artifacts/watchlist-sellers.guest-save-routed-to-signin/desktop/2026-11-25T02-58-51Z-hvdl0yz/video.visitor.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "watchlist-sellers.guest-save-routed-to-signin",
+        "title": "Guest attempting to watch or open /saved is routed to sign-in",
+        "area": "watchlist-sellers",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [
+        {
+          "name": "Guest visiting /saved is redirected to /sign-in",
+          "kind": "assert",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-25T03:59:52.074Z",
+          "status": "failed",
+          "durationMs": 10367,
+          "screenshots": [
+            {
+              "member": "visitor",
+              "path": "audit-artifacts/watchlist-sellers.guest-save-routed-to-signin/phone/2026-11-25T02-58-51Z-hvdl0yz/step-01.visitor.png"
+            }
+          ],
+          "observations": [],
+          "error": "page.goto: Could not connect to server\nCall log:\n  - navigating to \"http://localhost:3100/saved\", waiting until \"load\"\n",
+          "index": 1
+        }
+      ],
+      "videos": [
+        {
+          "member": "visitor",
+          "path": "audit-artifacts/watchlist-sellers.guest-save-routed-to-signin/phone/2026-11-25T02-58-51Z-hvdl0yz/video.visitor.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "watchlist-sellers.watch-toggle-and-seller-page",
+        "title": "Member toggles watchlist on a listing and views the public seller profile",
+        "area": "watchlist-sellers",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "watchlist-sellers.watch-toggle-and-seller-page",
+        "title": "Member toggles watchlist on a listing and views the public seller profile",
+        "area": "watchlist-sellers",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T02-58-51Z-hvdl0yz",
+      "status": "failed",
+      "retries": 1,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    }
+  ],
+  "leftInStripe": []
+}

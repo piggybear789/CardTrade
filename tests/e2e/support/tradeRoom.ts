@@ -279,7 +279,14 @@ export async function textShown(page: Page, text: string | RegExp): Promise<bool
 
 /** Open a trade room and wait for its state badge. */
 export async function openRoom(page: Page, tradeId: string): Promise<void> {
-  await page.goto(`/trades/${tradeId}`);
+  const targetPath = `/trades/${tradeId}`;
+  try {
+    await page.goto(targetPath);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (!msg.includes('interrupted by another navigation')) throw error;
+    await page.waitForURL((url) => url.pathname === targetPath, { timeout: ROOM_ACTION });
+  }
   await page.waitForLoadState('domcontentloaded');
   await expect(page.locator('[aria-label^="Trade state: "]').filter({ visible: true }).first()).toBeVisible({
     timeout: ROOM_ACTION,
@@ -367,22 +374,31 @@ export async function sendOffer(page: Page, dialog: Locator, requestedItemId: st
       timeout: 30_000,
     })
     .not.toBeNull();
+  // Let the dialog's own `router.push('/trades')` settle before `openRoom` navigates
+  // to `/trades/${tradeId}`, so WebKit does not abort an in-flight chunk fetch.
+  await page.waitForURL((url) => url.pathname === '/trades' || url.pathname.startsWith('/trades/'), { timeout: 10_000 }).catch(() => undefined);
+  await page.waitForLoadState('load').catch(() => undefined);
   await openRoom(page, tradeId!);
   return tradeId!;
 }
 
 /** Open the details (a sheet below the split) and select one of its tabs. */
 export async function openDetailsTab(page: Page, tab: RegExp): Promise<void> {
-  const details = page.getByRole('button', { name: 'Contract details' });
-  if (await details.isVisible().catch(() => false)) await details.click();
   const target = page.getByRole('tab', { name: tab }).filter({ visible: true }).first();
+  if (!(await target.isVisible().catch(() => false))) {
+    const details = page.getByRole('button', { name: 'Contract details' }).filter({ visible: true }).first();
+    if (await details.isVisible().catch(() => false)) await details.click();
+  }
   await expect(target).toBeVisible({ timeout: 15_000 });
   await target.click();
 }
 
 /** Close the details sheet when there is one. */
 export async function closeDetails(page: Page): Promise<void> {
-  const done = page.getByRole('button', { name: 'Close details' });
+  const done = page
+    .getByRole('dialog')
+    .filter({ has: page.getByRole('tablist', { name: 'Contract details' }) })
+    .getByRole('button', { name: 'Done', exact: true });
   if (await done.isVisible().catch(() => false)) {
     await done.click();
     await expect(done).toBeHidden({ timeout: 10_000 });
@@ -439,7 +455,11 @@ export async function setMeeting(page: Page, meeting: { place: StubbedPlace; day
 
 /** Open "Accept these terms?" from the negotiation panel. Returns the dialog. */
 export async function openAcceptDialog(page: Page): Promise<Locator> {
-  await page.getByRole('button', { name: 'Accept terms' }).filter({ visible: true }).first().click();
+  const acceptBtn = page.getByRole('button', { name: 'Accept terms' }).filter({ visible: true }).first();
+  if (!(await acceptBtn.isVisible().catch(() => false))) {
+    await openDetailsTab(page, /^Terms/);
+  }
+  await acceptBtn.click();
   const dialog = page.getByRole('dialog', { name: 'Accept these terms?' });
   await expect(dialog).toBeVisible({ timeout: 15_000 });
   return dialog;
@@ -461,6 +481,7 @@ export async function confirmAccept(dialog: Locator): Promise<void> {
 /** Accept the terms on the table, start to finish. */
 export async function acceptTerms(page: Page): Promise<void> {
   await confirmAccept(await openAcceptDialog(page));
+  await closeDetails(page);
 }
 
 /**

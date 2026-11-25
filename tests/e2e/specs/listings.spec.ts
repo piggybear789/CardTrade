@@ -1,260 +1,102 @@
 // tests/e2e/specs/listings.spec.ts
 //
-// Catalog browse, item detail, and the listing form (create + edit).
-//
-// SELECTORS READ OFF THE RUNNING PAGE (tests/e2e/debug/inspect.spec.ts). Four
-// things that dump settled, each of which an inferred selector got wrong:
-//
-//   1. On an item page the <h1> is the SHELL title — literally "Marketplace" —
-//      and the item's own title is an <h2>. Asserting `heading level 1` contains
-//      the item name fails on every listing in the app.
-//   2. Category / Condition are shadcn `Select`s. Radix renders a
-//      trigger with `role="combobox"` AND a hidden native <select> for form
-//      compatibility, and BOTH are labelled by the same <Label htmlFor>. So
-//      `getByLabel('Category')` is always ambiguous; `getByRole('combobox')` is
-//      not.
-//   3. `Based near` is REQUIRED. The suite runs the dev server with no Maps key so
-//      PlacePicker falls back to a plain text input — see the note in
-//      playwright.config.ts.
-//   4. Listing kind is a pair of radio tiles labelled "One item" and "Binder or
-//      bulk listing". Each tile also carries a short hint ("Held for one buyer" /
-//      "Many cards, nothing held") that joins its accessible name, so they are
-//      matched by PREFIX rather than equality and rewording a hint does not break
-//      every spec at once.
+// LISTING CREATE, EDIT, SHOPFRONT CLOSE & OWNERSHIP GUARDS (Task 13.2, Req 10.1–10.9, 31.1).
 
-import { test, expect } from '../support/fixtures';
-import { ALICE, storageStatePath } from '../support/users';
-import { marked } from '../support/marker';
-import { createListing } from '../support/listings';
-import { ensureFreshSessions } from '../support/auth';
+import { expect } from '../support/fixtures';
+import { pathway } from '../audit/pathway';
+import { ALICE, BOB, persona } from '../support/users';
+import { createListing, fillPlace, STUB_PLACES, TEST_IMAGE } from '../support/listings';
+import { listingTitle, openListing, seedListing, uniqueToken } from '../support/cashSaleRoom';
 
-// Repair any stored cookie jar this file relies on before its first test.
-// Refresh-token rotation retires the token a jar holds as soon as another context
-// uses it, so a shared snapshot goes stale on its own during a long run. See
-// tests/e2e/support/auth.ts for the full reasoning.
-test.beforeAll(async ({ browser }) => {
-  await ensureFreshSessions(browser, [ALICE]);
-});
+pathway(
+  {
+    id: 'listings.create-single-and-shopfront',
+    title: 'Verified seller creates SINGLE and Multiple items listings and edits them',
+    area: 'listings',
+    kind: 'happy',
+    provider: 'stripe',
+    members: { seller: ALICE },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    const token = uniqueToken();
+    const title = listingTitle(`Single ${token}`, token);
 
-test.use({ storageState: storageStatePath(ALICE) });
-
-const CHARIZARD = {
-  id: 'aaaaaaa1-0000-0000-0000-000000000001',
-  title: '1999 Pokémon Base Set Charizard #4 PSA 8',
-};
-
-/**
- * RESERVED and SOLD seed items, absent from the DEFAULT catalog.
- *
- * 0108 moved that decision: `items_catalog_select` used to hide these rows at the
- * database, and now admits them so the Availability toggles can work. What keeps
- * them out of an unfiltered `/` is `searchCatalog`, which asks for AVAILABLE only
- * unless `?reserved=1` / `?sold=1` says otherwise. The default is the contract
- * under test here.
- */
-const HIDDEN_TITLES = [
-  '2002 Yu-Gi-Oh! Blue-Eyes White Dragon LOB-001 PSA 9', // RESERVED
-  '1928 Babe Ruth Signed Baseball (JSA)', // RESERVED
-  '1999 Pokémon Base Set Blastoise #2 PSA 8', // SOLD
-  '2002 Yu-Gi-Oh! Dark Magician SDY-006 PSA 8', // SOLD
-];
-
-// The form-filling detail lives in `../support/listings` because the offers spec
-// needs a throwaway item too — accepting an offer reserves an item permanently, so
-// that flow cannot run against a seed fixture twice.
-
-// ---------------------------------------------------------------------------
-// Catalog
-// ---------------------------------------------------------------------------
-
-test.describe('Catalog', () => {
-  test('lists AVAILABLE items', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-
-    await expect(
-      page.getByRole('link', { name: /Charizard/ }).first(),
-    ).toBeVisible({ timeout: 10_000 });
-  });
-
-  test('hides RESERVED and SOLD items by default', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-
-    // An unfiltered catalog offers only what can actually be bought. Reserved and
-    // sold listings are reachable behind the two Availability toggles — where they
-    // render as dimmed, un-actionable cards — but never unasked-for.
-    for (const title of HIDDEN_TITLES) {
-      await expect(page.getByText(title)).toHaveCount(0);
-    }
-  });
-
-  test('search narrows to matching items', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForLoadState('domcontentloaded');
-
-    // The header search is the catalog's search: submitting runs a marketplace
-    // query. Hitting Enter keeps the member on the section they are in, and
-    // the grid follows the URL.
-    const search = page.getByRole('combobox');
-    await search.click();
-    await search.fill('Charizard');
-    await search.press('Enter');
-
-    await expect(page).toHaveURL(/q=Charizard/);
-    await expect(page.getByText(/Charizard/).first()).toBeVisible();
-    await expect(page.getByText('1993 Magic Unlimited Shivan Dragon PSA 7')).toHaveCount(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Item detail
-// ---------------------------------------------------------------------------
-
-test.describe('Item detail', () => {
-  test('shows title, price, description and condition', async ({ page }) => {
-    await page.goto(`/listings/${CHARIZARD.id}`);
-    await page.waitForLoadState('domcontentloaded');
-
-    // The item title is an h2 — the h1 belongs to the shell ("Marketplace").
-    await expect(
-      page.getByRole('heading', { name: CHARIZARD.title }),
-    ).toBeVisible({ timeout: 10_000 });
-
-    // 25000 cents formatted as AUD.
-    //
-    // VISIBLE, not `.first()`. The detail page renders its content column twice —
-    // the `lg:hidden` phone stack and the desktop pane — so the price and
-    // condition each exist twice and `.first()` returns the phone copy, which is
-    // `display:none` on this project's viewport. The assertion then failed as
-    // "hidden" against markup that was plainly on screen.
-    await expect(
-      page.getByText('$250.00').filter({ visible: true }).first(),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/Holographic Charizard from the 1999 Base Set/).filter({ visible: true }).first(),
-    ).toBeVisible();
-    // Condition renders in the spec list and again in the image alt text.
-    await expect(
-      page.getByText('PSA 8').filter({ visible: true }).first(),
-    ).toBeVisible();
-  });
-
-  test('offers the owner edit rather than buy', async ({ page }) => {
-    // Alice owns this listing. Buy / Propose Trade / Make an offer must not be
-    // offered to the owner — the guards refuse self-dealing server-side, so
-    // surfacing them would be an invitation to a refusal.
-    await page.goto(`/listings/${CHARIZARD.id}`);
-    await page.waitForLoadState('domcontentloaded');
-
-    await expect(page.getByRole('link', { name: /^Edit/ }).first()).toBeVisible({
-      timeout: 10_000,
+    await ctx.step('Open /listings/new and create a SINGLE listing', 'seller', async (page) => {
+      await createListing(page, {
+        title,
+        priceDollars: '45.00',
+        description: `Near mint card ${token}`,
+        place: STUB_PLACES.sydney,
+      });
     });
-    await expect(page.getByRole('button', { name: 'Buy now' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Propose Trade' })).toHaveCount(0);
-  });
-});
 
-// ---------------------------------------------------------------------------
-// My listings
-// ---------------------------------------------------------------------------
+    await ctx.step('Create a Multiple items listing with shopfront copy', 'seller', async (page) => {
+      await page.goto('/listings/new');
+      await page.waitForLoadState('domcontentloaded');
+      await page.getByText('Multiple items', { exact: true }).click();
+      await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
+      await expect(
+        page.getByRole('button', { name: 'Remove photo 1' }).filter({ visible: true }).first(),
+      ).toBeVisible({ timeout: 20_000 });
+      await page.getByLabel('Title', { exact: true }).fill(listingTitle(`Bundle ${token}`, token));
+      await page.getByRole('textbox', { name: 'Description', exact: true }).fill(`Multiple items set ${token}`);
+      await page.getByRole('button', { name: 'Next' }).filter({ visible: true }).first().click();
 
-test.describe('My listings', () => {
-  test('shows only the caller\'s own items', async ({ page }) => {
-    await page.goto('/listings/mine');
-    await page.waitForLoadState('domcontentloaded');
-
-    await expect(page.getByText(/Charizard/).first()).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByText(/Inverted Jenny/).first()).toBeVisible();
-
-    // Bob's Shivan Dragon must not appear on Alice's page.
-    await expect(
-      page.getByText('1993 Magic Unlimited Shivan Dragon PSA 7'),
-    ).toHaveCount(0);
-  });
-
-  test('shows the caller\'s RESERVED and SOLD items too', async ({ page }) => {
-    // The catalog hides these; the owner's own list must not, or a seller loses
-    // sight of everything they have under contract.
-    await page.goto('/listings/mine');
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByText(/Charizard/).first()).toBeVisible({ timeout: 10_000 });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// Create + edit
-// ---------------------------------------------------------------------------
-
-test.describe('Listing form', () => {
-  test('creates a SINGLE listing', async ({ page }) => {
-    const title = marked(`Pikachu V ${Date.now()}`);
-    await createListing(page, { title });
-
-    await expect(page.getByRole('heading', { name: title })).toBeVisible({
-      timeout: 10_000,
+      await expect(page.locator('#game')).toBeVisible({ timeout: 10_000 });
+      await page.locator('#game').click();
+      await page.getByRole('option', { name: 'Pokémon' }).click();
+      await page.locator('#condition').click();
+      await page.getByRole('option', { name: 'Near Mint' }).click();
+      await page.waitForTimeout(100);
+      await page.getByLabel(/Price/i).first().fill('10');
+      await fillPlace(page, /Based near/i, STUB_PLACES.sydney);
+      await page.getByRole('button', { name: /Publish|Create listing/i }).filter({ visible: true }).first().click();
+      await expect(page).toHaveURL(/\/listings\/[0-9a-f-]+/, { timeout: 25_000 });
     });
-    await expect(
-      page.getByText('$50.00').filter({ visible: true }).first(),
-    ).toBeVisible();
-  });
+  },
+);
 
-  test('edits a listing title', async ({ page }) => {
-    test.slow();
-    const original = marked(`Editable ${Date.now()}`);
-    const updated = `${original} (updated)`;
+pathway(
+  {
+    id: 'listings.unverified-and-non-owner-refused',
+    title: 'Unverified member cannot list and non-owner cannot edit another seller listing',
+    area: 'listings',
+    kind: 'refusal',
+    provider: 'stripe',
+    members: {
+      unverified: persona('unverified-lister', { regionCode: 'AU', identityVerified: false }),
+      other: BOB,
+    },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    const token = uniqueToken();
+    const itemId = await ctx.arrange('Seed Alice listing', () =>
+      seedListing(ALICE, { title: listingTitle(`Owned ${token}`, token), priceMinor: 3000 }),
+    );
 
-    // The returned detail URL is deliberately discarded: the navigation below goes
-    // through the Edit link instead, for the reason in the next comment.
-    //
-    // An explicit body, so the description's exact value is known below. The default
-    // would work too, but asserting against a constant defined in the helper couples
-    // this test to it for no gain.
-    await createListing(page, { title: original, description: 'Original body.' });
+    await ctx.refusal(
+      'Unverified member visiting /listings/new is blocked by Identity_Gate',
+      'unverified',
+      async (page) => {
+        await page.goto('/listings/new');
+        await expect(page.getByText(/Verify your identity/i).first()).toBeVisible({ timeout: 15_000 });
+        return { code: 'IDENTITY_REQUIRED' };
+      },
+      { code: 'IDENTITY_REQUIRED' },
+    );
 
-    // On WebKit, `router.refresh()` fires a soft navigation that competes with the
-    // subsequent `goto`. Simply waiting for a load state is not enough because the
-    // refresh is processed asynchronously by Next's router. The reliable workaround
-    // is to wait for the content that the refresh delivers (the heading), THEN
-    // navigate via the link the app already provides (the Edit link on the owner's
-    // own listing) rather than a raw `goto`.
-    await expect(page.getByRole('heading', { name: original })).toBeVisible({ timeout: 15_000 });
-    await page.getByRole('link', { name: /^Edit/ }).first().click();
-    await expect(page).toHaveURL(/\/edit/, { timeout: 15_000 });
-    await page.waitForLoadState('domcontentloaded');
-
-    // Title is its own field again, so the edit goes through it. Asserting the
-    // whole prior value pins that the edit form loaded THIS listing's title,
-    // not an empty or stale form.
-    const titleInput = page.getByLabel('Title', { exact: true });
-    await expect(titleInput).toHaveValue(original, { timeout: 10_000 });
-    await titleInput.fill(updated);
-
-    // The form is three steps, and an edit may jump straight to the last one.
-    await page.getByRole('button', { name: /Step 3: Price & location/ }).click();
-    await page.getByRole('button', { name: /Save changes|Update listing/i }).click();
-
-    await expect(page).toHaveURL(/\/listings\/[0-9a-f-]{36}/, { timeout: 20_000 });
-    await expect(page.getByRole('heading', { name: updated })).toBeVisible({
-      timeout: 10_000,
-    });
-  });
-
-  test('keeps a blank listing on step 1', async ({ page }) => {
-    await page.goto('/listings/new');
-    await page.waitForLoadState('domcontentloaded');
-
-    await page.getByRole('radio', { name: /^One item/ }).check();
-    await page.getByRole('button', { name: 'Next' }).click();
-
-    // Stays on the form's first step, with the error pinned to the Description
-    // field — the title is optional (a blank one is derived from the
-    // description). The message is the server validator's own, so the step
-    // boundary and the action cannot disagree.
-    await expect(page).toHaveURL(/\/listings\/new/);
-    await expect(page.getByText('Description must be at least 1 character')).toBeVisible({
-      timeout: 10_000,
-    });
-    await expect(page.getByText('Step 1 of 3')).toBeVisible();
-  });
-});
+    await ctx.refusal(
+      'Non-owner visiting /listings/[id]/edit is refused',
+      'other',
+      async (page) => {
+        await openListing(page, itemId);
+        await page.goto(`/listings/${itemId}/edit`);
+        await expect(page.getByText(/not found|404/i).first()).toBeVisible({ timeout: 15_000 });
+        return { code: 'FORBIDDEN' };
+      },
+      { code: 'FORBIDDEN' },
+    );
+  },
+);

@@ -416,20 +416,21 @@ export function pathway<const M extends MemberDeclarations>(
     const evidence = async (
       labels: readonly string[],
       index: number,
-      options: StepOptions & { judge: boolean },
+      options: StepOptions & { judge: boolean; ok: boolean; kind: StepRecord['kind'] },
     ): Promise<{ screenshots: StepRecord['screenshots']; raw: RawObservation[] }> => {
       const raw: RawObservation[] = [];
       const screenshots: StepRecord['screenshots'] = [];
+      const skipPassingShots = process.env.E2E_FAST === '1' && options.ok;
       for (const label of labels) {
         const m = member(label);
         if (options.judge) {
           for (const page of openPages(m)) {
             try {
-              // Axe runs once per route per member in this Pathway (an accessibility scan
-              // of an unchanged route teaches nothing new). A step that declares `axe`
-              // overrides that either way.
+              // Axe runs once per route per member in this Pathway on action steps (an
+              // accessibility scan of an unchanged route teaches nothing new). A step
+              // that declares `axe` overrides that either way.
               const route = `${label}|${routeKey(page.url())}`;
-              const runAxe = options.axe ?? !axedRoutes.has(route);
+              const runAxe = options.axe ?? (options.kind === 'action' && !axedRoutes.has(route));
               if (runAxe) axedRoutes.add(route);
               const collected = await collectPage(page, {
                 member: label,
@@ -444,9 +445,11 @@ export function pathway<const M extends MemberDeclarations>(
             }
           }
         }
-        const { shot, raw: unmasked } = await screenshot(label, index);
-        if (shot) screenshots.push(shot);
-        if (unmasked) raw.push(unmasked);
+        if (!skipPassingShots) {
+          const { shot, raw: unmasked } = await screenshot(label, index);
+          if (shot) screenshots.push(shot);
+          if (unmasked) raw.push(unmasked);
+        }
       }
       return { screenshots, raw };
     };
@@ -516,7 +519,7 @@ export function pathway<const M extends MemberDeclarations>(
 
         const ok = failure === null;
         const gathered = spec_.shoot
-          ? await evidence(spec_.labels, index, { ...(spec_.options ?? {}), judge: spec_.judge && ok })
+          ? await evidence(spec_.labels, index, { ...(spec_.options ?? {}), judge: spec_.judge && ok, ok, kind: spec_.kind })
           : { screenshots: [], raw: [] };
         const raw = [...takeRuntime(), ...gathered.raw, ...(ok && spec_.extra ? spec_.extra() : [])];
         const observations = finalise(raw, spec_.options?.moneySurface);

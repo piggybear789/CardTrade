@@ -11,8 +11,12 @@ const repoRoot = path.resolve(__dirname, '..', '..', '..');
 
 export default async function globalTeardown() {
   execFileSync(
-    'npx',
-    ['tsx', '--env-file=.env.local', 'scripts/e2e/cleanup-test-data.ts'],
-    { cwd: repoRoot, stdio: 'inherit', shell: true },
+    process.execPath,
+    [
+      path.join(repoRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs'),
+      '--env-file=.env.local',
+      path.join(repoRoot, 'scripts', 'e2e', 'cleanup-test-data.ts'),
+    ],
+    { cwd: repoRoot, stdio: 'inherit' },
   );
 }

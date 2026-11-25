@@ -83,6 +83,11 @@ export interface HandoverFailedDialogProps {
    * the reason text as a fallback record.
    */
   evidenceContext?: { caseKind: DisputeCaseKind; caseRef: string };
+  /** Optional controlled open state (used when triggered from an overflow menu). */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  /** Hide the inline trigger button when rendered in controlled mode. */
+  hideTrigger?: boolean;
 }
 
 export function HandoverFailedDialog({
@@ -93,8 +98,16 @@ export function HandoverFailedDialog({
   reasonPlaceholder = 'e.g. they did not show up, the item was not what was agreed, the parcel never arrived…',
   triggerVariant = 'destructive-quiet',
   evidenceContext,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  hideTrigger = false,
 }: HandoverFailedDialogProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const open = controlledOpen ?? internalOpen;
+  const setOpen = (next: boolean) => {
+    controlledOnOpenChange?.(next);
+    if (controlledOpen === undefined) setInternalOpen(next);
+  };
   const [reason, setReason] = useState('');
   // Each picked photo with the ONE preview URL it owns. This was a `File[]` with
   // `URL.createObjectURL` called in render per thumbnail, so every keystroke in the
@@ -181,12 +194,14 @@ export function HandoverFailedDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button type="button" variant={triggerVariant} size="sm">
-          <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5" aria-hidden />
-          {triggerLabel}
-        </Button>
-      </DialogTrigger>
+      {!hideTrigger && (
+        <DialogTrigger asChild>
+          <Button type="button" variant={triggerVariant} size="sm">
+            <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5" aria-hidden />
+            {triggerLabel}
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="md:max-w-lg">
         {/* The form is DialogContent's only child, so its flex gap cannot reach
             header, body and footer. Repeating it here spaces them the same way

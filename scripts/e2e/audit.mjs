@@ -77,13 +77,15 @@ export class AuditUsageError extends Error {}
 
 export const USAGE = `Usage: npm run audit -- [options] [-- <playwright args>]
 
-  --area <area>        run one functional area (repeatable)
-  --pathway <id>       run one Pathway by id (repeatable)
-  --viewport <v>       desktop | phone
-  --no-build           reuse the last .next-e2e build (the stamp is still checked)
-  --dry-run            print the steps and the Playwright arguments, run nothing
-  --help               this text
-  -- <args>            passed to playwright test unchanged`;
+  --area <area>               run one functional area (repeatable)
+  --pathway <id>              run one Pathway by id (repeatable)
+  --viewport <v>              desktop | phone
+  --no-build                  reuse the last .next-e2e build (the stamp is still checked)
+  --fast                      skip screenshots on passing steps (failures still capture)
+  --compare-isolated <area>   run an area with workers=1 and compare to newest full run
+  --dry-run                   print the steps and the Playwright arguments, run nothing
+  --help                      this text
+  -- <args>                   passed to playwright test unchanged`;
 
 function escapeRegExp(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -103,6 +105,8 @@ export function parseAuditArgs(argv, known = {}) {
   const options = {
     build: true,
     dryRun: false,
+    fast: false,
+    compareIsolated: null,
     help: false,
     areas: [],
     pathways: [],
@@ -164,6 +168,9 @@ export function parseAuditArgs(argv, known = {}) {
       case '--no-build':
         options.build = false;
         break;
+      case '--fast':
+        options.fast = true;
+        break;
       case '--dry-run':
         options.dryRun = true;
         break;
@@ -171,8 +178,16 @@ export function parseAuditArgs(argv, known = {}) {
       case '-h':
         options.help = true;
         break;
-      case '--compare-isolated':
-        throw new AuditUsageError('--compare-isolated is not implemented yet (task 17.3).');
+      case '--compare-isolated': {
+        const { value, next } = valueOf(flag, i, inline);
+        if (known.areas && !known.areas.includes(value)) {
+          throw new AuditUsageError(`Unknown area "${value}". Areas: ${known.areas.join(', ')}.`);
+        }
+        options.compareIsolated = value;
+        if (!options.areas.includes(value)) options.areas.push(value);
+        i = next;
+        break;
+      }
       default:
         throw new AuditUsageError(
           `Unknown option "${arg}". Put Playwright arguments after a second "--".`,
@@ -205,6 +220,7 @@ export function playwrightTestArgs(options) {
   if (options.viewport !== null) {
     for (const project of VIEWPORT_PROJECTS[options.viewport]) args.push(`--project=${project}`);
   }
+  if (options.compareIsolated) args.push('--workers=1');
   args.push(...options.passthrough);
   return args;
 }
@@ -329,6 +345,7 @@ async function main(argv) {
   // is the dev loop and does not retry.
   const full = options.areas.length === 0 && options.pathways.length === 0 && options.viewport === null;
   process.env.E2E_FULL_RUN = full ? '1' : '0';
+  if (options.fast) process.env.E2E_FAST = '1';
 
   // One run id for every process from here on (support/marker.ts).
   const { runId, RUN_ID_ENV } = await loadTs('tests/e2e/support/marker.ts');

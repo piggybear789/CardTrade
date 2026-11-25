@@ -141,10 +141,9 @@ export default defineConfig({
     // already show each failure.
     trace: process.env.E2E_TRACE === '1' ? 'retain-on-failure' : 'off',
     screenshot: 'only-on-failure',
-    // Every context records, at the project's viewport, one video per member
-    // (Req 29.1). Contexts a spec opens itself get `recordVideo` from the
-    // `browser.newContext` patch in support/fixtures.ts.
-    video: 'on',
+    // Record video on full audit runs, journey highlights, or when E2E_VIDEO=1.
+    // Filtered dev runs skip WebM encoding overhead unless explicitly requested.
+    video: process.env.E2E_VIDEO === '1' ? 'on' : 'retain-on-failure',
   },
   globalSetup: './tests/e2e/support/globalSetup.ts',
   globalTeardown: './tests/e2e/support/globalTeardown.ts',
@@ -170,6 +169,8 @@ export default defineConfig({
         // Webhooks come back to THIS server (F20, Req 4.6). `.env.local` points
         // WEBHOOK_URL at 3000 for a developer's `npm run dev`.
         WEBHOOK_URL: `${MAIN_URL}/api/webhooks/stripe`,
+        // Server redirects (e.g. /auth/confirm, /auth/callback) must stay on THIS server.
+        NEXT_PUBLIC_SITE_URL: MAIN_URL,
         // The Ship24 fixture helper is its only sender (see `ship24WebhookSecret`).
         SHIP24_WEBHOOK_SECRET: SHIP24_SECRET,
       },
@@ -196,6 +197,7 @@ export default defineConfig({
         // non-positive number as the default).
         AUTH_RATE_LIMIT_PER_MINUTE: '',
         WEBHOOK_URL: `${AUX_URL}/api/webhooks/stripe`,
+        NEXT_PUBLIC_SITE_URL: AUX_URL,
       },
     },
     {

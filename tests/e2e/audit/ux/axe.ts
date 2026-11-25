@@ -88,6 +88,13 @@ export async function runAxe(page: Page, appOrigin: string): Promise<AxeReading>
   if (expected === null) throw new Error(`runAxe: appOrigin is not an absolute URL: ${appOrigin}`);
   if (originOf(page.url()) !== expected) return { analysed: false, violations: [] };
 
+  // Next.js App Router streams `<title>` metadata asynchronously on client-side
+  // navigation / refresh; wait briefly so a transient mid-stream check does not
+  // false-positive `document-title`. Pages genuinely missing a `<title>` still time out and fail.
+  await page
+    .waitForFunction(() => Boolean(document.querySelector('title')?.textContent?.trim()), null, { timeout: 2_000 })
+    .catch(() => undefined);
+
   const attribute = JSON.stringify(AXE_SKIP_ATTRIBUTE);
   const foreign = (await page.evaluate(`${MARK_FOREIGN_FRAMES}(${attribute})`)) as number;
   try {

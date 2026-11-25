@@ -415,27 +415,22 @@ export async function openMembers(
   const raw = unpatchedBrowser(browser);
   const newContext = unpatchedNewContext(browser);
 
-  // 1. Sessions and addresses, before any recorded context exists.
-  const prepared: Array<{
-    label: string;
-    kind: MemberContext['kind'];
-    user: SeedUser | null;
-    persona: Persona | null;
-    forwardedFor: string | null;
-  }> = [];
-  for (const [label, member] of Object.entries(declared)) {
-    const forwardedFor = server === 'aux' ? auxMemberAddress(testInfo.parallelIndex, takeAuxSlot()) : null;
-    if (member === 'guest') {
-      prepared.push({ label, kind: 'guest', user: null, persona: null, forwardedFor });
-    } else if (isPersonaSpec(member)) {
-      const persona = await createPersona(member, options.personaOptions?.[label]);
-      prepared.push({ label, kind: 'persona', user: persona, persona, forwardedFor });
-    } else {
+  // 1. Sessions and addresses in parallel, before any recorded context exists.
+  const prepared = await Promise.all(
+    Object.entries(declared).map(async ([label, member]) => {
+      const forwardedFor = server === 'aux' ? auxMemberAddress(testInfo.parallelIndex, takeAuxSlot()) : null;
+      if (member === 'guest') {
+        return { label, kind: 'guest' as const, user: null, persona: null, forwardedFor };
+      }
+      if (isPersonaSpec(member)) {
+        const persona = await createPersona(member, options.personaOptions?.[label]);
+        return { label, kind: 'persona' as const, user: persona, persona, forwardedFor };
+      }
       if (server === 'aux') requireAuxSession(member, label);
       await ensureFreshSession(raw, member, { server });
-      prepared.push({ label, kind: 'seed', user: member, persona: null, forwardedFor });
-    }
-  }
+      return { label, kind: 'seed' as const, user: member, persona: null, forwardedFor };
+    }),
+  );
 
   const legalNames = [
     ...new Set([
@@ -476,35 +471,46 @@ export async function openMembers(
     return saved;
   };
 
+  const recordMemberVideo =
+    process.env.E2E_FULL_RUN === '1' ||
+    process.env.E2E_VIDEO === '1' ||
+    options.pathwayId.startsWith('journeys.');
+
   try {
-    for (const member of prepared) {
-      const rawDir = absolute(`${runDir}/.video-raw/${member.label}`);
-      mkdirSync(rawDir, { recursive: true });
+    const builtMembers = await Promise.all(
+      prepared.map(async (member) => {
+        const rawDir = absolute(`${runDir}/.video-raw/${member.label}`);
+        if (recordMemberVideo) mkdirSync(rawDir, { recursive: true });
 
-      let storageState: BrowserContextOptions['storageState'];
-      if (member.kind === 'guest') storageState = { cookies: [], origins: [] };
-      else if (member.persona) storageState = await personaSession(browser, member.persona, server, member.forwardedFor, device);
-      else storageState = storageStatePath(member.user as SeedUser, server);
+        let storageState: BrowserContextOptions['storageState'];
+        if (member.kind === 'guest') storageState = { cookies: [], origins: [] };
+        else if (member.persona) storageState = await personaSession(browser, member.persona, server, member.forwardedFor, device);
+        else storageState = storageStatePath(member.user as SeedUser, server);
 
-      const extraHTTPHeaders = {
-        ...(device.extraHTTPHeaders ?? {}),
-        ...(member.forwardedFor ? { 'x-forwarded-for': member.forwardedFor } : {}),
-      };
-      const context = await newContext({
-        ...device,
-        baseURL: appOrigin,
-        storageState,
-        extraHTTPHeaders,
-        recordVideo: { dir: rawDir, size: videoSize(device.viewport) },
-      });
-      const pages: Page[] = [];
-      context.on('page', (page) => pages.push(page));
-      const { masker, runtime } = await instrumentContext(context, {
-        member: member.label,
-        appOrigin,
-        legalNames,
-        ledger: { runId: run, pathwayId: options.pathwayId },
-      });
+        const extraHTTPHeaders = {
+          ...(device.extraHTTPHeaders ?? {}),
+          ...(member.forwardedFor ? { 'x-forwarded-for': member.forwardedFor } : {}),
+        };
+        const context = await newContext({
+          ...device,
+          baseURL: appOrigin,
+          storageState,
+          extraHTTPHeaders,
+          ...(recordMemberVideo ? { recordVideo: { dir: rawDir, size: videoSize(device.viewport) } } : {}),
+        });
+        const pages: Page[] = [];
+        context.on('page', (page) => pages.push(page));
+        const { masker, runtime } = await instrumentContext(context, {
+          member: member.label,
+          appOrigin,
+          legalNames,
+          ledger: { runId: run, pathwayId: options.pathwayId },
+        });
+        return { member, context, pages, masker, runtime, rawDir };
+      }),
+    );
+
+    for (const { member, context, pages, masker, runtime, rawDir } of builtMembers) {
       opened.push({ label: member.label, context, pages, runtime, rawDir });
 
       members[member.label] = {

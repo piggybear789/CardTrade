@@ -1,0 +1,4405 @@
+{
+  "runId": "2026-11-24T19-36-16Z-w7hieso",
+  "startedAt": "2026-11-24T19:36:21.281Z",
+  "durationMs": 325076,
+  "commit": "2bdecee0a88bd2fef2fc0f7e8ebe5225225165ae",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "cash-sale-disputes.chargeback-won",
+        "title": "Chargeback holds payout with CHARGE_DISPUTE and clears when won",
+        "area": "cash-sale-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:cb-buyer",
+          "seller": "seed:dave"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Create listing for dispute",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:39:27.098Z",
+          "status": "passed",
+          "durationMs": 198,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Reserve listing",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:27.299Z",
+          "status": "passed",
+          "durationMs": 14016,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/e2b272d0-b0e5-44c3-aacb-c1eaf5a358f7",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/e2b272d0-b0e5-44c3-aacb-c1eaf5a358f7",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "a11y",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "message": "Accessibility (document-title): Documents must have <title> element to aid in navigation. 1 node, e.g. html.",
+              "detail": {
+                "rule": "document-title",
+                "impact": "serious",
+                "nodes": 1,
+                "targets": "html",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/document-title?application=playwright"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer proposes delivery",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:41.322Z",
+          "status": "passed",
+          "durationMs": 11789,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer pays by card",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:53.113Z",
+          "status": "passed",
+          "durationMs": 17457,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "message": "Console error: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/270elm3runt4_.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "message": "Console error: Global error boundary caught: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/2rglwrm1-lg0d.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Seller records shipment",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:40:10.572Z",
+          "status": "passed",
+          "durationMs": 11576,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8153a09e-c555-45f0-990f-e4dfe18eabc2",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Deliver charge.dispute.created fixture",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T19:40:22.149Z",
+          "status": "passed",
+          "durationMs": 1180,
+          "screenshots": [],
+          "observations": [],
+          "index": 6,
+          "simulated": {
+            "mechanism": "signed-fixture",
+            "reason": "Simulates cardholder dispute opening on test charge"
+          }
+        },
+        {
+          "name": "Payout hold reason is CHARGE_DISPUTE",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:40:23.331Z",
+          "status": "passed",
+          "durationMs": 1171,
+          "screenshots": [],
+          "observations": [],
+          "index": 7
+        },
+        {
+          "name": "Deliver charge.dispute.closed (won) fixture",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T19:40:24.504Z",
+          "status": "passed",
+          "durationMs": 601,
+          "screenshots": [],
+          "observations": [],
+          "index": 8,
+          "simulated": {
+            "mechanism": "signed-fixture",
+            "reason": "Simulates winning the cardholder dispute"
+          }
+        },
+        {
+          "name": "Payout hold reason clears after dispute won",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:40:25.106Z",
+          "status": "passed",
+          "durationMs": 1537,
+          "screenshots": [],
+          "observations": [],
+          "index": 9
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "cash-sale-disputes.early-fraud-warning",
+        "title": "Early fraud warning before shipment refunds the cash sale",
+        "area": "cash-sale-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:efw-buyer",
+          "seller": "seed:carol"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Create listing",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:38:41.867Z",
+          "status": "passed",
+          "durationMs": 290,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer reserves and pays",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:42.160Z",
+          "status": "passed",
+          "durationMs": 16610,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/49b5a33f-cb5c-4156-a24d-2bf96ccc60d8",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/49b5a33f-cb5c-4156-a24d-2bf96ccc60d8",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "a11y",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc",
+              "message": "Accessibility (document-title): Documents must have <title> element to aid in navigation. 1 node, e.g. html.",
+              "detail": {
+                "rule": "document-title",
+                "impact": "serious",
+                "nodes": 1,
+                "targets": "html",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/document-title?application=playwright"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer proposes delivery",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:58.776Z",
+          "status": "passed",
+          "durationMs": 10837,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer pays by card",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:09.617Z",
+          "status": "failed",
+          "durationMs": 2094,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale-disputes.early-fraud-warning/phone/2026-11-24T19-36-16Z-w7hieso/step-04.buyer.png"
+            }
+          ],
+          "observations": [],
+          "error": "page.goto: Navigation to \"http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc\" is interrupted by another navigation to \"http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc\"\nCall log:\n  - navigating to \"http://localhost:3100/sales/cd42bef2-81ee-4a8e-b9b7-cbd5a57359dc\", waiting until \"load\"\n",
+          "index": 4
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale-disputes.lapsed-return",
+        "title": "Lapsed return deadline flags the return for staff without auto-releasing seller",
+        "area": "cash-sale-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:lapsed-buyer",
+          "seller": "seed:alice",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Create listing for dispute",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:38:40.209Z",
+          "status": "passed",
+          "durationMs": 185,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Reserve listing",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:40.397Z",
+          "status": "passed",
+          "durationMs": 16417,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/7276addb-1f0d-4ed5-8399-5fd6d74efcfb",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/7276addb-1f0d-4ed5-8399-5fd6d74efcfb",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer proposes delivery",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:56.816Z",
+          "status": "passed",
+          "durationMs": 11665,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer pays by card",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:08.482Z",
+          "status": "failed",
+          "durationMs": 2648,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale-disputes.lapsed-return/phone/2026-11-24T19-36-16Z-w7hieso/step-04.buyer.png"
+            }
+          ],
+          "observations": [],
+          "error": "page.goto: Navigation to \"http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e\" is interrupted by another navigation to \"http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e\"\nCall log:\n  - navigating to \"http://localhost:3100/sales/ba4374c2-5b78-44ea-9545-11f69dc33a0e\", waiting until \"load\"\n",
+          "index": 4
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale-disputes.raise-and-withdraw",
+        "title": "Buyer raises a cash sale dispute with notification and withdraws it",
+        "area": "cash-sale-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:dispute-buyer",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Create listing for dispute",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:37:56.050Z",
+          "status": "passed",
+          "durationMs": 271,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Reserve listing",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:37:56.323Z",
+          "status": "passed",
+          "durationMs": 14670,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/aaa3d3b2-ad73-4347-8d4a-1724bf2876ee",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/aaa3d3b2-ad73-4347-8d4a-1724bf2876ee",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer proposes delivery",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:10.995Z",
+          "status": "passed",
+          "durationMs": 11524,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer pays by card",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:22.520Z",
+          "status": "passed",
+          "durationMs": 15683,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "Console error: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/270elm3runt4_.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "Console error: Global error boundary caught: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/2rglwrm1-lg0d.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Seller records shipment",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:38:38.207Z",
+          "status": "passed",
+          "durationMs": 13199,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Buyer raises dispute from IN_TRANSIT",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:51.408Z",
+          "status": "passed",
+          "durationMs": 9054,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Sale is DISPUTED in DB and UI",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:39:00.464Z",
+          "status": "passed",
+          "durationMs": 1715,
+          "screenshots": [],
+          "observations": [],
+          "index": 7
+        },
+        {
+          "name": "Buyer withdraws dispute",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:02.181Z",
+          "status": "passed",
+          "durationMs": 5679,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "Sale returns to IN_TRANSIT after withdrawal",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:07.861Z",
+          "status": "passed",
+          "durationMs": 2046,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "message": "Console error: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/270elm3runt4_.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/24f457b2-0e2c-4646-a3b4-8742ef05dd68?details=1",
+              "message": "Console error: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/0_gu1srs5n2aj.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "index": 9
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale-disputes.return-and-refund",
+        "title": "Staff orders return-conditional refund, buyer ships return, job refunds buyer in Stripe",
+        "area": "cash-sale-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:return-buyer",
+          "seller": "seed:carol",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Create listing for dispute",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:37:57.146Z",
+          "status": "passed",
+          "durationMs": 184,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Reserve listing",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:37:57.333Z",
+          "status": "passed",
+          "durationMs": 14136,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/30d783c3-5b8f-4bab-8621-5df57fcbd5aa",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/30d783c3-5b8f-4bab-8621-5df57fcbd5aa",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer proposes delivery",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:11.470Z",
+          "status": "passed",
+          "durationMs": 10510,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer pays by card",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:21.982Z",
+          "status": "passed",
+          "durationMs": 15189,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "Console error: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/270elm3runt4_.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "Console error: Global error boundary caught: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/2rglwrm1-lg0d.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Seller records shipment",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:38:37.175Z",
+          "status": "passed",
+          "durationMs": 13584,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Ship24 delivers outbound parcel",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T19:38:50.760Z",
+          "status": "passed",
+          "durationMs": 327,
+          "screenshots": [],
+          "observations": [],
+          "index": 6,
+          "simulated": {
+            "mechanism": "signed-fixture",
+            "reason": "Simulates carrier delivery of outbound parcel"
+          }
+        },
+        {
+          "name": "Buyer raises dispute",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:51.088Z",
+          "status": "passed",
+          "durationMs": 6744,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "Staff resolves dispute with return-conditional refund",
+          "kind": "action",
+          "members": [
+            "staff"
+          ],
+          "startedAt": "2026-11-24T19:38:57.834Z",
+          "status": "passed",
+          "durationMs": 9137,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "staff",
+              "url": "http://localhost:3100/admin/arbitration/CASH_SALE/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "staff",
+              "url": "http://localhost:3100/admin/arbitration/CASH_SALE/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "staff",
+              "url": "http://localhost:3100/admin/arbitration/CASH_SALE/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "Sale is RETURN_PENDING and item remains RESERVED",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:39:06.973Z",
+          "status": "passed",
+          "durationMs": 1588,
+          "screenshots": [],
+          "observations": [],
+          "index": 9
+        },
+        {
+          "name": "Seller enters return address",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T19:39:08.562Z",
+          "status": "passed",
+          "durationMs": 8689,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 10
+        },
+        {
+          "name": "Buyer ships return parcel",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:39:17.253Z",
+          "status": "failed",
+          "durationMs": 32648,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale-disputes.return-and-refund/phone/2026-11-24T19-36-16Z-w7hieso/step-11.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f4f8fbd1-13e7-4f53-9c42-8f25b7e40283?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "error": "expect(locator).toBeHidden() failed\n\nLocator:  getByRole('dialog')\nExpected: hidden\nReceived: visible\nTimeout:  20000ms\n\nCall log:\n  - Expect \"toBeHidden\" with timeout 20000ms\n  - waiting for getByRole('dialog')\n    5 × locator resolved to <div role=\"dialog\" tabindex=\"-1\" id=\"radix-_r_a_\" data-state=\"open\" aria-labelledby=\"radix-_r_b_\" aria-describedby=\"radix-_r_c_\" class=\"fixed z-50 flex w-full flex-col border bg-card text-card-foreground shadow-lg outline-none duration-200 focus-visible:border-ring max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))] inset-x-0 bottom-[var(--keyboard-inset,0px)] top-auto max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] tra…>…</div>\n      - unexpected value \"visible\"\n    36 × locator resolved to <div role=\"dialog\" tabindex=\"-1\" data-state=\"open\" id=\"radix-_R_iaklubsnliv4lb_\" aria-labelledby=\"radix-_R_iaklubsnliv4lbH1_\" class=\"fixed z-50 data-[state=open]:animate-in data-[state=open]:duration-move data-[state=open]:ease-enter data-[state=closed]:animate-out data-[state=closed]:duration-exit data-[state=closed]:ease-exit inset-x-0 max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top)-var(--keyboard-inset,0px)))] overflow-y-auto overscroll-contain border-t shadow-[0_-10px_30px_hsl(var(--foreg…>…</div>\n       - unexpected value \"visible\"\n",
+          "index": 11
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "cash-sale-disputes.return-tracking-refused-outbound",
+        "title": "Return shipment refuses reusing the outbound tracking number",
+        "area": "cash-sale-disputes",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:reused-track-buyer",
+          "seller": "seed:erin",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Create listing for dispute",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:37:56.565Z",
+          "status": "passed",
+          "durationMs": 228,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Reserve listing",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:37:56.796Z",
+          "status": "passed",
+          "durationMs": 15285,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/ff0ef2da-3249-4cbf-9483-467645df6303",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/ff0ef2da-3249-4cbf-9483-467645df6303",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer proposes delivery",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:12.083Z",
+          "status": "passed",
+          "durationMs": 10698,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer pays by card",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:22.783Z",
+          "status": "failed",
+          "durationMs": 1984,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale-disputes.return-tracking-refused-outbound/phone/2026-11-24T19-36-16Z-w7hieso/step-04.buyer.png"
+            }
+          ],
+          "observations": [],
+          "error": "page.goto: Navigation to \"http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a\" is interrupted by another navigation to \"http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a\"\nCall log:\n  - navigating to \"http://localhost:3100/sales/f3a0e268-eee2-461c-abb4-fe0f131eeb2a\", waiting until \"load\"\n",
+          "index": 4
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "cash-sale-disputes.seller-contest",
+        "title": "Seller contests return delivery and holds the automatic refund",
+        "area": "cash-sale-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:contest-buyer",
+          "seller": "seed:dave",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Create listing for dispute",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:37:56.730Z",
+          "status": "passed",
+          "durationMs": 250,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Reserve listing",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:37:56.984Z",
+          "status": "passed",
+          "durationMs": 15267,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/6a94c644-c8aa-4503-8733-96565c3689f6",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/6a94c644-c8aa-4503-8733-96565c3689f6",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Buyer proposes delivery",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:12.252Z",
+          "status": "passed",
+          "durationMs": 11156,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Buyer pays by card",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T19:38:23.409Z",
+          "status": "failed",
+          "durationMs": 2554,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/cash-sale-disputes.seller-contest/phone/2026-11-24T19-36-16Z-w7hieso/step-04.buyer.png"
+            }
+          ],
+          "observations": [],
+          "error": "page.goto: Navigation to \"http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4\" is interrupted by another navigation to \"http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4\"\nCall log:\n  - navigating to \"http://localhost:3100/sales/9c35d26c-4c2a-4dd9-905e-2615a83960a4\", waiting until \"load\"\n",
+          "index": 4
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "trade-disputes.custody-capture-after-rewind",
+        "title": "Trade inspections job captures holds into custody when disputed trade nears hold expiry",
+        "area": "trade-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "initiator": "seed:carol",
+          "counterpart": "seed:dave"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed counterpart item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:40:03.758Z",
+          "status": "passed",
+          "durationMs": 431,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Seed initiator item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:40:04.203Z",
+          "status": "passed",
+          "durationMs": 146,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Initiator proposes trade",
+          "kind": "action",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:40:04.351Z",
+          "status": "passed",
+          "durationMs": 10850,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/1fe7880c-5696-4e2d-b136-a97585628cf9",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/1fe7880c-5696-4e2d-b136-a97585628cf9",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "Console error: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/270elm3runt4_.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "Console error: Global error boundary caught: TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/2rglwrm1-lg0d.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Set meeting and accept terms",
+          "kind": "action",
+          "members": [
+            "initiator",
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T19:40:15.211Z",
+          "status": "passed",
+          "durationMs": 30425,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Rewind meeting into 24h placement window and run trade-inspections to lock collateral",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T19:40:45.638Z",
+          "status": "passed",
+          "durationMs": 6575,
+          "screenshots": [],
+          "observations": [],
+          "index": 5,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "Collateral is placed a day before the meeting; nobody waits days for it."
+          }
+        },
+        {
+          "name": "Both confirm handover and raise dispute",
+          "kind": "action",
+          "members": [
+            "initiator",
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T19:40:52.215Z",
+          "status": "passed",
+          "durationMs": 9743,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/02bd87d7-e32f-4a11-ac24-96ff0e45f751",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Rewind hold expires_at into custody capture margin",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T19:41:01.959Z",
+          "status": "passed",
+          "durationMs": 366,
+          "screenshots": [],
+          "observations": [],
+          "index": 7,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "Advances pre_auth_holds.expires_at within custody margin"
+          }
+        },
+        {
+          "name": "Run trade-inspections job",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:41:02.327Z",
+          "status": "passed",
+          "durationMs": 5231,
+          "screenshots": [],
+          "observations": [],
+          "index": 8
+        },
+        {
+          "name": "Both holds are captured into custody",
+          "kind": "assert",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:41:07.559Z",
+          "status": "passed",
+          "durationMs": 1021,
+          "screenshots": [],
+          "observations": [],
+          "index": 9
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "trade-disputes.no-exchange-refused-after-inspection",
+        "title": "Staff cannot resolve a trade as NO_EXCHANGE once it has entered INSPECTION",
+        "area": "trade-disputes",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "initiator": "seed:alice",
+          "counterpart": "seed:bob",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed counterpart item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:39:44.476Z",
+          "status": "passed",
+          "durationMs": 318,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Seed initiator item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:39:44.802Z",
+          "status": "passed",
+          "durationMs": 121,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Initiator proposes trade",
+          "kind": "action",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:39:44.924Z",
+          "status": "passed",
+          "durationMs": 14292,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/4c181417-a747-4553-a66b-4c54d783aa3b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/4c181417-a747-4553-a66b-4c54d783aa3b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Set meeting and accept terms",
+          "kind": "action",
+          "members": [
+            "initiator",
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T19:39:59.222Z",
+          "status": "passed",
+          "durationMs": 34493,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Rewind meeting into 24h placement window and run trade-inspections to lock collateral",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T19:40:33.716Z",
+          "status": "passed",
+          "durationMs": 7196,
+          "screenshots": [],
+          "observations": [],
+          "index": 5,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "Collateral is placed a day before the meeting; nobody waits days for it."
+          }
+        },
+        {
+          "name": "Both confirm handover to enter INSPECTION",
+          "kind": "action",
+          "members": [
+            "initiator",
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T19:40:40.913Z",
+          "status": "passed",
+          "durationMs": 7488,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Initiator raises CONDITION_DISPUTE",
+          "kind": "action",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:40:48.402Z",
+          "status": "passed",
+          "durationMs": 3916,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/961d7054-fbc3-4ff7-bb9e-c9b161626831",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "Staff attempts NO_EXCHANGE outcome in arbitration",
+          "kind": "assert",
+          "members": [
+            "staff"
+          ],
+          "startedAt": "2026-11-24T19:40:52.319Z",
+          "status": "passed",
+          "durationMs": 3308,
+          "screenshots": [],
+          "observations": [],
+          "index": 8
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "trade-disputes.raise-condition-no-capture",
+        "title": "Trader raises CONDITION_DISPUTE during inspection with holds kept uncaptured",
+        "area": "trade-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "initiator": "seed:alice",
+          "counterpart": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed counterpart item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:39:22.335Z",
+          "status": "passed",
+          "durationMs": 344,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Seed initiator item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:39:22.687Z",
+          "status": "passed",
+          "durationMs": 120,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Initiator proposes trade",
+          "kind": "action",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:39:22.809Z",
+          "status": "failed",
+          "durationMs": 11442,
+          "screenshots": [
+            {
+              "member": "initiator",
+              "path": "audit-artifacts/trade-disputes.raise-condition-no-capture/phone/2026-11-24T19-36-16Z-w7hieso/step-03.initiator.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/819d76b3-e83d-46ad-8761-77beb0259d6d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/819d76b3-e83d-46ad-8761-77beb0259d6d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "error": "page.goto: Navigation to \"http://localhost:3100/trades/ae5c35d9-a37b-4ec1-bf1f-f8c0f6d92818\" is interrupted by another navigation to \"http://localhost:3100/trades/ae5c35d9-a37b-4ec1-bf1f-f8c0f6d92818\"\nCall log:\n  - navigating to \"http://localhost:3100/trades/ae5c35d9-a37b-4ec1-bf1f-f8c0f6d92818\", waiting until \"load\"\n",
+          "index": 3
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "trade-disputes.staff-unfounded",
+        "title": "Staff resolves trade dispute as UNFOUNDED and voids both holds in Stripe",
+        "area": "trade-disputes",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "initiator": "seed:carol",
+          "counterpart": "seed:dave",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T19-36-16Z-w7hieso",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed counterpart item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:39:23.395Z",
+          "status": "passed",
+          "durationMs": 334,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Seed initiator item",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T19:39:23.735Z",
+          "status": "passed",
+          "durationMs": 125,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Initiator proposes trade",
+          "kind": "action",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:39:23.862Z",
+          "status": "passed",
+          "durationMs": 13315,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/d154017a-1f31-4305-9aed-5c4a0f5ce32e",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/listings/d154017a-1f31-4305-9aed-5c4a0f5ce32e",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Set meeting and accept terms",
+          "kind": "action",
+          "members": [
+            "initiator",
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T19:39:37.179Z",
+          "status": "passed",
+          "durationMs": 36051,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Rewind meeting into 24h placement window and run trade-inspections to lock collateral",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T19:40:13.231Z",
+          "status": "passed",
+          "durationMs": 10622,
+          "screenshots": [],
+          "observations": [],
+          "index": 5,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "Collateral is placed a day before the meeting; nobody waits days for it."
+          }
+        },
+        {
+          "name": "Both confirm handover",
+          "kind": "action",
+          "members": [
+            "initiator",
+            "counterpart"
+          ],
+          "startedAt": "2026-11-24T19:40:23.854Z",
+          "status": "passed",
+          "durationMs": 9029,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "counterpart",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Initiator raises CONDITION_DISPUTE",
+          "kind": "action",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:40:32.885Z",
+          "status": "passed",
+          "durationMs": 3758,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "initiator",
+              "url": "http://localhost:3100/trades/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "Staff resolves as UNFOUNDED",
+          "kind": "action",
+          "members": [
+            "staff"
+          ],
+          "startedAt": "2026-11-24T19:40:36.645Z",
+          "status": "passed",
+          "durationMs": 8475,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "staff",
+              "url": "http://localhost:3100/admin/arbitration",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "staff",
+              "url": "http://localhost:3100/admin/arbitration",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "staff",
+              "url": "http://localhost:3100/admin/arbitration/TRADE/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "copy-currency",
+              "message": "Money figure \"$60.00\" has no ISO currency code.",
+              "detail": {
+                "figure": "$60.00",
+                "excerpt": "…ition dispute Opened just now $60.00 AUDat stake The dispute “Mino…"
+              },
+              "member": "staff",
+              "url": "http://localhost:3100/admin/arbitration/TRADE/dd905885-b771-40b4-a880-9a555ba9f478",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "Trade is COMPLETED and holds are canceled in Stripe",
+          "kind": "assert",
+          "members": [
+            "initiator"
+          ],
+          "startedAt": "2026-11-24T19:40:45.122Z",
+          "status": "passed",
+          "durationMs": 2692,
+          "screenshots": [],
+          "observations": [],
+          "index": 9
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    }
+  ],
+  "leftInStripe": [
+    {
+      "type": "payment_intent",
+      "id": "pi_3UfPXsKEPlyX260L1N19Y6jk",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    },
+    {
+      "type": "payment_intent",
+      "id": "pi_3UfPXtKEPlyX260L1wQUDykm",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    },
+    {
+      "type": "payment_intent",
+      "id": "pi_3UfPZPKEPlyX260L1vsYFnAQ",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    },
+    {
+      "type": "payment_intent",
+      "id": "pi_3UfPa9KEPlyX260L1zRHMN4S",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    },
+    {
+      "type": "payment_intent",
+      "id": "pi_3UfPaAKEPlyX260L1S8I7EKq",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    }
+  ]
+}

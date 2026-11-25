@@ -27,6 +27,7 @@ import { insertRow, selectRows, updateRows } from './db';
 import { fillPlace, STUB_PLACES, stubbedPlaceLabel } from './listings';
 import type { StubbedPlace } from './places';
 import { COLD_ROUTE, RENDERED } from './waiting';
+import { closeDetailsSheetIfOpen } from './cashSaleRoom';
 import { openBuyCheckout, saveCardInPaymentElement, PAYMENT_ELEMENT_FRAME } from './payments';
 import { DE_FIXTURE_ACCOUNT, ENTRY_CARDS, type EntryCard } from '../audit/stripeFixtures';
 import { testStripe, type TestPlatform } from '../audit/backend/stripe';
@@ -465,6 +466,7 @@ export async function proposeDelivery(page: Page, place: StubbedPlace = STUB_PLA
   await fillPlace(page, /Your delivery address/i, place, dialog);
   await dialog.getByRole('button', { name: 'Propose terms' }).click();
   await expect(dialog).toBeHidden({ timeout: 25_000 });
+  await closeDetailsSheetIfOpen(page);
 }
 
 /** The dock's Pay button ("Accept terms and pay", or "Verify ID to pay" over the limit). */
@@ -479,6 +481,7 @@ export function payDialog(page: Page): Locator {
 
 /** Opens the Pay dialog from the dock and waits for the buyer's card to be read. */
 export async function openPayDialog(page: Page): Promise<Locator> {
+  await closeDetailsSheetIfOpen(page);
   const pay = payButton(page);
   await expect(pay).toBeEnabled({ timeout: COLD_ROUTE });
   await pay.click();

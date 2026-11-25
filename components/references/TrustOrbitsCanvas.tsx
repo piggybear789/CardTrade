@@ -183,10 +183,12 @@ function PlanetDisc({
   item,
   initials,
   selected,
+  showInitials = true,
 }: {
   item: OrbitItem;
   initials: string;
   selected: boolean;
+  showInitials?: boolean;
 }) {
   const palette = planetPalette(itemSentiment(item));
   return (
@@ -210,8 +212,9 @@ function PlanetDisc({
         stroke={selected ? palette.selectedRing : palette.stroke}
         strokeWidth={item.issue || selected ? 1.8 : 1.4}
       />
-      {item.r >= 10 ? (
+      {showInitials && item.r >= 10 ? (
         <text
+          aria-hidden="true"
           x={item.x}
           y={item.y + 0.5}
           textAnchor="middle"
@@ -535,28 +538,42 @@ export function TrustOrbitsCanvas({
     const sentiment = itemSentiment(item);
     const ariaSummary =
       sentiment === 'NEGATIVE'
-        ? `${person.handle}, issue`
+        ? `${person.handle} (${person.initials}), issue`
         : sentiment === 'NEUTRAL'
-          ? `${person.handle}, mixed experience, ${person.standing}`
-          : `${person.handle}, ${person.standing}`;
+          ? `${person.handle} (${person.initials}), mixed experience, ${person.standing}`
+          : `${person.handle} (${person.initials}), ${person.standing}`;
 
+    const palette = planetPalette(itemSentiment(item));
     return (
-      <g
-        key={key}
-        opacity={opacity}
-        {...interactive(key, ariaSummary)}
-      >
-        <circle cx={item.x} cy={item.y} r={Math.max(item.r + 4, 14)} fill="transparent" />
-        <circle
-          className="opacity-0 group-focus-visible:opacity-100"
-          cx={item.x}
-          cy={item.y}
-          r={item.r + 7}
-          fill="none"
-          stroke={FOCUS_RING}
-          strokeWidth={2}
-        />
-        <PlanetDisc item={item} initials={person.initials} selected={selected} />
+      <g key={key} opacity={opacity}>
+        <g {...interactive(key, ariaSummary)}>
+          <circle cx={item.x} cy={item.y} r={Math.max(item.r + 4, 14)} fill="transparent" />
+          <circle
+            className="opacity-0 group-focus-visible:opacity-100"
+            cx={item.x}
+            cy={item.y}
+            r={item.r + 7}
+            fill="none"
+            stroke={FOCUS_RING}
+            strokeWidth={2}
+          />
+          <PlanetDisc item={item} initials={person.initials} selected={selected} showInitials={false} />
+        </g>
+        {item.r >= 10 ? (
+          <text
+            aria-hidden="true"
+            pointerEvents="none"
+            x={item.x}
+            y={item.y + 0.5}
+            textAnchor="middle"
+            dominantBaseline="central"
+            fontSize={Math.min(12, item.r * 0.6)}
+            fontWeight={700}
+            fill={palette.text}
+          >
+            {person.initials}
+          </text>
+        ) : null}
       </g>
     );
   };

@@ -500,25 +500,12 @@ const ExperienceCards = memo(function ExperienceCards({
           return (
             <li key={node.id}>
               <div
-                {...(selectable
-                  ? {
-                      role: 'button',
-                      tabIndex: 0,
-                      'aria-pressed': isSelected,
-                      onClick: () => select(key),
-                      onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          select(key);
-                        }
-                      },
-                    }
-                  : {})}
+                onClick={selectable ? () => select(key) : undefined}
                 className={cn(
                   '-mx-snug rounded-md px-snug py-5 transition-colors duration-300',
                   selectable
                     ? cn(
-                        'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        'cursor-pointer',
                         isSelected ? 'bg-muted/60' : 'hover:bg-muted/30',
                       )
                     : null,

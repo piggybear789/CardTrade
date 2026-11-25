@@ -1,0 +1,1971 @@
+{
+  "runId": "2026-11-24T18-09-21Z-0e79mm9",
+  "startedAt": "2026-11-24T18:10:08.114Z",
+  "durationMs": 260925,
+  "commit": "2bdecee0a88bd2fef2fc0f7e8ebe5225225165ae",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "auth.password-reset.enumeration-safe-and-admin-link",
+        "title": "Forgot-password is enumeration-safe and Admin reset link updates password",
+        "area": "auth",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "persona:reset-member",
+          "visitor": "guest"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Visitor requests reset for unknown email without enumeration",
+          "kind": "action",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-24T18:11:48.739Z",
+          "status": "passed",
+          "durationMs": 6881,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/forgot-password",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/forgot-password",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Generate Admin password reset link",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T18:11:55.623Z",
+          "status": "passed",
+          "durationMs": 323,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Member follows reset link and sets new password",
+          "kind": "action",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-24T18:11:55.947Z",
+          "status": "failed",
+          "durationMs": 23451,
+          "screenshots": [
+            {
+              "member": "visitor",
+              "path": "audit-artifacts/auth.password-reset.enumeration-safe-and-admin-link/phone/2026-11-24T18-09-21Z-0e79mm9/step-03.visitor.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/auth/update-password",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/auth/update-password",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "error": "expect(page).toHaveURL(expected) failed\n\nExpected pattern: /\\/($|sign-in|profile)/\nReceived string:  \"http://localhost:3100/auth/update-password\"\nTimeout: 20000ms\n\nCall log:\n  - Expect \"toHaveURL\" with timeout 20000ms\n    41 × locator resolved to <html lang=\"en\" class=\"inter_9be98b96-module__4To0Aa__variable\">…</html>\n       - unexpected value \"http://localhost:3100/auth/update-password\"\n",
+          "index": 3
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "auth.signin.invalid-credentials-refused",
+        "title": "Signing in with a wrong password refuses with INVALID_CREDENTIALS",
+        "area": "auth",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Visitor submits wrong password for Alice",
+          "kind": "assert",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-24T18:11:38.914Z",
+          "status": "passed",
+          "durationMs": 3685,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/sign-in",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/sign-in",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "auth.signin.rate-limit-on-aux",
+        "title": "Aux server enforces 5/min sign-in rate limit",
+        "area": "auth",
+        "kind": "refusal",
+        "provider": "mock",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": {
+          "only": "desktop",
+          "reason": "Server-side IP rate limiter is viewport-independent"
+        },
+        "mockReason": "Main server raises AUTH_RATE_LIMIT_PER_MINUTE=100; aux keeps the 5/min limit"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "skipped",
+      "retries": 0,
+      "steps": [],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "mock",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "auth.signout.redirects-to-catalog",
+        "title": "Signing out clears session and redirects away from protected routes",
+        "area": "auth",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:erin"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Member signs out from account menu",
+          "kind": "action",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:11:51.014Z",
+          "status": "passed",
+          "durationMs": 10526,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "member",
+              "url": "http://localhost:3100/profile",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "member",
+              "url": "http://localhost:3100/profile",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "member",
+              "url": "http://localhost:3100/sign-in",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Protected route bounces signed-out visitor to /sign-in",
+          "kind": "assert",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:12:01.543Z",
+          "status": "passed",
+          "durationMs": 413,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "auth.signup.duplicate-account-refused",
+        "title": "Signing up with an existing email refuses with DUPLICATE_ACCOUNT",
+        "area": "auth",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Visitor signs up using Alice email",
+          "kind": "assert",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-24T18:11:38.863Z",
+          "status": "passed",
+          "durationMs": 5226,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/sign-up",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/sign-up",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "auth.signup.provisions-profile",
+        "title": "Signing up with email and password provisions a profile and lands on onboarding",
+        "area": "auth",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "visitor": "guest"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Visitor creates an account",
+          "kind": "action",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-24T18:11:38.862Z",
+          "status": "passed",
+          "durationMs": 8193,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/sign-up",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "visitor",
+              "url": "http://localhost:3100/sign-up",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "visitor",
+              "url": "http://localhost:3100/onboarding",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Profile is provisioned in DB and onboarding wizard is visible",
+          "kind": "assert",
+          "members": [
+            "visitor"
+          ],
+          "startedAt": "2026-11-24T18:11:47.059Z",
+          "status": "passed",
+          "durationMs": 460,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "listings.create-single-and-shopfront",
+        "title": "Verified seller creates SINGLE and Multiple items listings and edits them",
+        "area": "listings",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Open /listings/new and create a SINGLE listing",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:11:52.492Z",
+          "status": "passed",
+          "durationMs": 17377,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Create a Multiple items listing with shopfront copy",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:12:09.872Z",
+          "status": "failed",
+          "durationMs": 65475,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "error": "locator.click: Target page, context or browser has been closed\nCall log:\n  - waiting for getByText(/Multiple items/i).first()\n    - locator resolved to <p class=\"text-pretty text-body text-muted-foreground\">List one card, or multiple items buyers can pick …</p>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <button type=\"button\" aria-current=\"step\" class=\"-mb-px flex w-full min-w-0 items-center gap-snug border-b-2 pb-cozy pt-tight text-left text-body font-medium transition-colors focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed border-foreground text-foreground\">…</button> from <nav aria-label=\"Steps\">…</nav> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is not stable\n  - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n  - element was detached from the DOM, retrying\n    - locator resolved to <p class=\"text-pretty text-body text-muted-foreground\">List one card, or multiple items buyers can pick …</p>\n  - attempting click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <button type=\"button\" aria-current=\"step\" class=\"-mb-px flex w-full min-w-0 items-center gap-snug border-b-2 pb-cozy pt-tight text-left text-body font-medium transition-colors focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed border-foreground text-foreground\">…</button> from <nav aria-label=\"Steps\">…</nav> subtree intercepts pointer events\n  - retrying click action\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <a href=\"/\" aria-label=\"Back to marketplace\" class=\"inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring\">…</a> from <div class=\"sticky top-0 z-40\">…</div> subtree intercepts pointer events\n  - retrying click action\n    - waiting 20ms\n    - waiting for element to be visible, enabled and stable\n    - element is visible, enabled and stable\n    - scrolling into view if needed\n    - done scrolling\n    - <button type=\"button\" aria-current=\"step\" class=\"-mb-px flex w-full min-w-0 items-center gap-snug border-b-2 pb-cozy pt-tight text-left text-body font-medium transition-colors focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed border-foreground text-foreground\">…</button> from <nav aria-label=\"Steps\">…</nav> subtree intercepts pointer events\n  2 × retrying click action\n      - waiting 100ms\n      - waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <p class=\"text-pretty text-body text-muted-foreground\">Photos first, then what it is.</p> from <header class=\"space-y-tight\">…</header> subtree intercepts pointer events\n  20 × retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <a href=\"/\" aria-label=\"Back to marketplace\" class=\"inline-flex size-10 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring\">…</a> from <div class=\"sticky top-0 z-40\">…</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n       - waiting for element to be visible, enabled…",
+          "index": 2
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "listings.unverified-and-non-owner-refused",
+        "title": "Unverified member cannot list and non-owner cannot edit another seller listing",
+        "area": "listings",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "unverified": "persona:unverified-lister",
+          "other": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed Alice listing",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T18:12:02.364Z",
+          "status": "passed",
+          "durationMs": 292,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Unverified member visiting /listings/new is blocked by Identity_Gate",
+          "kind": "assert",
+          "members": [
+            "unverified"
+          ],
+          "startedAt": "2026-11-24T18:12:02.657Z",
+          "status": "passed",
+          "durationMs": 2722,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Non-owner visiting /listings/[id]/edit is refused",
+          "kind": "assert",
+          "members": [
+            "other"
+          ],
+          "startedAt": "2026-11-24T18:12:05.380Z",
+          "status": "passed",
+          "durationMs": 5535,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "unverified",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "unverified",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "other",
+              "url": "http://localhost:3100/listings/4dcc4b36-24ab-4a90-8bb9-98eb596db37a",
+              "message": "HTTP 404: http://localhost:3100/listings/4dcc4b36-24ab-4a90-8bb9-98eb596db37a/edit",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/listings/4dcc4b36-24ab-4a90-8bb9-98eb596db37a/edit"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "messaging.over-4000-chars-refused",
+        "title": "Messages longer than 4000 characters are refused",
+        "area": "messaging",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "buyer": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed listing",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T18:12:14.969Z",
+          "status": "passed",
+          "durationMs": 222,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer attempts to send a 4001-character message",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T18:12:15.193Z",
+          "status": "passed",
+          "durationMs": 6177,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b888d069-1233-475c-84d8-af444a86924b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/b888d069-1233-475c-84d8-af444a86924b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "messaging.send-and-live-delivery",
+        "title": "Buyer messages seller from listing, delivers live, updates unread without bell notification",
+        "area": "messaging",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "seed:bob",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed listing",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T18:12:03.141Z",
+          "status": "passed",
+          "durationMs": 465,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Buyer opens conversation from listing and sends message",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T18:12:03.607Z",
+          "status": "passed",
+          "durationMs": 9981,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/8aa89869-2bbd-4196-89c5-3c89916e8931",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/8aa89869-2bbd-4196-89c5-3c89916e8931",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Seller receives message in /messages without creating a bell notification",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:12:13.590Z",
+          "status": "passed",
+          "durationMs": 2273,
+          "screenshots": [],
+          "observations": [],
+          "index": 3
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "profile-payouts.payouts-dashboard-and-redirect",
+        "title": "/profile/payouts redirects to ?tab=payouts and shows payout summary",
+        "area": "profile-payouts",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Visit /profile/payouts and verify redirect",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:12:27.968Z",
+          "status": "passed",
+          "durationMs": 6240,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Visit Verification tab",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:12:34.212Z",
+          "status": "passed",
+          "durationMs": 1557,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "profile-payouts.tabs-and-live-edit",
+        "title": "Profile shows all three tabs and persists live display name edits",
+        "area": "profile-payouts",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:dave"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Open Profile tab and verify tabs",
+          "kind": "action",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:12:20.024Z",
+          "status": "passed",
+          "durationMs": 4883,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Edit display name and save",
+          "kind": "action",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:12:24.908Z",
+          "status": "passed",
+          "durationMs": 2858,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "member",
+              "url": "http://localhost:3100/profile",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "member",
+              "url": "http://localhost:3100/profile",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Updated display name appears in DB and UI",
+          "kind": "assert",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:12:27.768Z",
+          "status": "passed",
+          "durationMs": 1407,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "console",
+              "member": "member",
+              "url": "http://localhost:3100/profile",
+              "message": "Console error: Failed to fetch RSC payload for http://localhost:3100/profile. Falling back to browser navigation. TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Restore Dave display name",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T18:12:29.182Z",
+          "status": "passed",
+          "durationMs": 3988,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "member",
+              "url": "http://localhost:3100/profile",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "member",
+              "url": "http://localhost:3100/profile",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "profile-payouts.verified-not-payable-refusal",
+        "title": "Verified member without payout account sees payout setup prompt rather than active payouts",
+        "area": "profile-payouts",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "seller": "persona:verified-no-payout"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Verified member without Connect account checks Verification tab",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:12:28.310Z",
+          "status": "passed",
+          "durationMs": 3053,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "references.leave-and-graph-api",
+        "title": "Member leaves a live reference, /references/people renders, and GET /api/references/graph responds",
+        "area": "references",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Visit /references and /api/references/graph",
+          "kind": "action",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:12:36.354Z",
+          "status": "passed",
+          "durationMs": 5491,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Visit subject reference page for Alice",
+          "kind": "action",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:12:41.846Z",
+          "status": "passed",
+          "durationMs": 5426,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "references.missing-sentiment-refused",
+        "title": "Submitting a reference without selecting a sentiment is refused",
+        "area": "references",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "member": "seed:bob"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Member opens /references/new and submits without sentiment",
+          "kind": "assert",
+          "members": [
+            "member"
+          ],
+          "startedAt": "2026-11-24T18:12:38.477Z",
+          "status": "passed",
+          "durationMs": 3182,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "reviews-reports.report-does-not-notify-target",
+        "title": "Reporting a listing queues it for staff without notifying the seller",
+        "area": "reviews-reports",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "reporter": "seed:bob",
+          "seller": "seed:alice"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed listing",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T18:12:43.045Z",
+          "status": "passed",
+          "durationMs": 323,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Reporter submits listing report",
+          "kind": "action",
+          "members": [
+            "reporter"
+          ],
+          "startedAt": "2026-11-24T18:12:43.369Z",
+          "status": "passed",
+          "durationMs": 18986,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "reporter",
+              "url": "http://localhost:3100/listings/20bb638b-bd63-4c3a-9c56-dbe59f0d2f51",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "reporter",
+              "url": "http://localhost:3100/listings/20bb638b-bd63-4c3a-9c56-dbe59f0d2f51",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "reporter",
+              "url": "http://localhost:3100/listings/20bb638b-bd63-4c3a-9c56-dbe59f0d2f51",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Seller receives zero notifications for the report",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:13:02.358Z",
+          "status": "passed",
+          "durationMs": 880,
+          "screenshots": [],
+          "observations": [],
+          "index": 3
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "reviews-reports.review-and-report-flow",
+        "title": "Buyer leaves a review on completed sale and reports a listing to admin queue",
+        "area": "reviews-reports",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "buyer": "persona:review-buyer",
+          "seller": "seed:alice",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed listing",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-24T18:12:47.565Z",
+          "status": "passed",
+          "durationMs": 208,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Propose in-person meeting",
+          "kind": "action",
+          "members": [
+            "buyer",
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:12:47.775Z",
+          "status": "passed",
+          "durationMs": 30415,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/2ea3b7da-acca-4890-ab55-c3164ba685d0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/2ea3b7da-acca-4890-ab55-c3164ba685d0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "a11y",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "message": "Accessibility (label-content-name-mismatch): Elements must have their visible text as part of their accessible name. 1 node, e.g. button[aria-label=\"Close details\"].",
+              "detail": {
+                "rule": "label-content-name-mismatch",
+                "impact": "serious",
+                "nodes": 1,
+                "targets": "button[aria-label=\"Close details\"]",
+                "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Bring meeting time within the handover confirmation window",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-24T18:13:18.196Z",
+          "status": "passed",
+          "durationMs": 270,
+          "screenshots": [],
+          "observations": [],
+          "index": 3,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "A handover can be confirmed only from an hour before the meeting."
+          }
+        },
+        {
+          "name": "Complete in-person cash sale",
+          "kind": "action",
+          "members": [
+            "buyer",
+            "seller"
+          ],
+          "startedAt": "2026-11-24T18:13:18.467Z",
+          "status": "passed",
+          "durationMs": 26038,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "Uncaught exception: Unhandled Promise Rejection: TypeError: Load failed\n    at I (http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js:1:35885)",
+              "detail": {
+                "kind": "pageerror"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "console",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b?details=1",
+              "message": "Uncaught exception: Unhandled Promise Rejection: TypeError: Load failed\n    at I (http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js:1:35885)",
+              "detail": {
+                "kind": "pageerror"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Buyer leaves 5-star review",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T18:13:44.509Z",
+          "status": "passed",
+          "durationMs": 4576,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Review appears on sale room and in DB",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-24T18:13:49.088Z",
+          "status": "failed",
+          "durationMs": 1976,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/reviews-reports.review-and-report-flow/phone/2026-11-24T18-09-21Z-0e79mm9/step-06.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "console",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b",
+              "message": "Console error: Failed to fetch RSC payload for http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b. Falling back to browser navigation. TypeError: Load failed",
+              "detail": {
+                "kind": "console",
+                "sourceUrl": "http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js"
+              },
+              "severity": "blocking",
+              "source": "automated"
+            }
+          ],
+          "error": "page.goto: Navigation to \"http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b\" is interrupted by another navigation to \"http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b\"\nCall log:\n  - navigating to \"http://localhost:3100/sales/8a89e014-f20e-4029-9626-d84afed0252b\", waiting until \"load\"\n",
+          "index": 6
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "scam-reports.submit-and-staff-cluster",
+        "title": "Verified member submits off-platform scam report and staff views cluster",
+        "area": "scam-reports",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "reporter": "seed:alice",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Verified member submits /report-scam",
+          "kind": "action",
+          "members": [
+            "reporter"
+          ],
+          "startedAt": "2026-11-24T18:12:52.328Z",
+          "status": "passed",
+          "durationMs": 8318,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "reporter",
+              "url": "http://localhost:3100/report-scam",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "reporter",
+              "url": "http://localhost:3100/report-scam",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Report stored with hashed fingerprint and visible on /admin?tab=scams",
+          "kind": "assert",
+          "members": [
+            "staff"
+          ],
+          "startedAt": "2026-11-24T18:13:00.648Z",
+          "status": "failed",
+          "durationMs": 31716,
+          "screenshots": [
+            {
+              "member": "staff",
+              "path": "audit-artifacts/scam-reports.submit-and-staff-cluster/phone/2026-11-24T18-09-21Z-0e79mm9/step-02.staff.png"
+            }
+          ],
+          "observations": [],
+          "error": "Report stored with hashed fingerprint and visible on /admin?tab=scams: database state\n\nReport stored with hashed fingerprint and visible on /admin?tab=scams: database state\n\nexpect(received).toEqual(expected) // deep equality\n\nExpected: true\nReceived: false\n\nCall Log:\n- Timeout 30000ms exceeded while waiting on the predicate",
+          "index": 2
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "scam-reports.unverified-member-refused",
+        "title": "Unverified member cannot submit an off-platform scam report",
+        "area": "scam-reports",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "unverified": "persona:scam-unverified"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Unverified member opening /report-scam is blocked by Identity_Gate",
+          "kind": "assert",
+          "members": [
+            "unverified"
+          ],
+          "startedAt": "2026-11-24T18:13:09.786Z",
+          "status": "passed",
+          "durationMs": 1264,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "trusted-sellers.apply-and-approve",
+        "title": "Verified seller applies for Trusted Seller, staff approves, and directory shows badge without surname",
+        "area": "trusted-sellers",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "applicant": "persona:trusted-applicant",
+          "staff": "seed:frank"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "failed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Applicant submits /trusted-sellers/apply",
+          "kind": "action",
+          "members": [
+            "applicant"
+          ],
+          "startedAt": "2026-11-24T18:13:23.048Z",
+          "status": "failed",
+          "durationMs": 24817,
+          "screenshots": [
+            {
+              "member": "applicant",
+              "path": "audit-artifacts/trusted-sellers.apply-and-approve/phone/2026-11-24T18-09-21Z-0e79mm9/step-01.applicant.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "applicant",
+              "url": "http://localhost:3100/trusted-sellers/apply",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "applicant",
+              "url": "http://localhost:3100/trusted-sellers/apply",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "error": "expect(locator).toBeVisible() failed\n\nLocator: getByText(/we’ve got your application|submitted|under review/i).first()\nExpected: visible\nTimeout: 20000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"toBeVisible\" with timeout 20000ms\n  - waiting for getByText(/we’ve got your application|submitted|under review/i).first()\n",
+          "index": 1
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    },
+    {
+      "declaration": {
+        "id": "trusted-sellers.unverified-refused",
+        "title": "Unverified member cannot apply to Trusted Sellers",
+        "area": "trusted-sellers",
+        "kind": "refusal",
+        "provider": "stripe",
+        "members": {
+          "unverified": "persona:trusted-unverified"
+        },
+        "viewports": "both"
+      },
+      "viewport": "phone",
+      "runId": "2026-11-24T18-09-21Z-0e79mm9",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Unverified member visits /trusted-sellers/apply",
+          "kind": "assert",
+          "members": [
+            "unverified"
+          ],
+          "startedAt": "2026-11-24T18:13:28.053Z",
+          "status": "passed",
+          "durationMs": 2572,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": false
+    }
+  ],
+  "leftInStripe": [
+    {
+      "type": "payment_intent",
+      "id": "pi_3UfODZKEPlyX260L0oNsbsJW",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    }
+  ]
+}

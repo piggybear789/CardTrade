@@ -43,6 +43,7 @@ import { completeThreeDSecure, failThreeDSecure, openBuyCheckout, saveCardInPaym
 import { STUB_PLACES, type StubbedPlace } from '../support/places';
 import { ALICE, UMA_US_SELLER, persona } from '../support/users';
 import { RENDERED } from '../support/waiting';
+import { closeDetailsSheetIfOpen, openSection } from '../support/cashSaleRoom';
 import {
   amountReceived,
   arrangeSellerPersona,
@@ -88,7 +89,14 @@ const HELD_TIMEOUT = 90_000;
 /** The figure in the room header's "<total> total", e.g. "$154.35 AUD". */
 async function visibleHeaderTotal(page: Page): Promise<string> {
   const node = page.getByText(/^.+ [A-Z]{3} total$/).filter({ visible: true }).first();
+  if (!(await node.isVisible().catch(() => false))) {
+    const details = page.getByRole('button', { name: 'Contract details' }).filter({ visible: true }).first();
+    if (await details.isVisible().catch(() => false)) {
+      await details.click();
+    }
+  }
   const text = await node.textContent({ timeout: 2_000 }).catch(() => null);
+  await closeDetailsSheetIfOpen(page);
   return text ? text.replace(/\s+/g, ' ').trim().replace(/ total$/, '') : 'none';
 }
 
@@ -468,26 +476,7 @@ pathway(
       expect: { total: expected.total, received: expected.total, kind: 'PAYTO', rail: 'payto' },
     });
     await step('Buyer reads how it was paid on the Payment tab', 'buyer', async (page) => {
-      const tab = page.getByRole('tab', { name: 'Payment' });
-      await expect(tab).toBeVisible({ timeout: RENDERED });
-      try {
-        await tab.click({ timeout: 15_000 });
-      } catch (error) {
-        // Report WHAT is over the tab rather than a 250 s wait: the body's pointer
-        // events and any dialog still open tell a stuck modal from a real overlay.
-        const state = await page.evaluate(() => ({
-          bodyPointerEvents: document.body.style.pointerEvents || '(unset)',
-          openDialogs: document.querySelectorAll('[role="dialog"][data-state="open"]').length,
-          hitTestAtTab: (() => {
-            const el = document.querySelector('[role="tab"][aria-controls="contract-payment"]');
-            if (!el) return 'tab-missing';
-            const box = el.getBoundingClientRect();
-            const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
-            return hit ? `${hit.tagName.toLowerCase()}${hit.id ? `#${hit.id}` : ''}` : 'none';
-          })(),
-        }));
-        throw new Error(`the Payment tab could not be clicked: ${JSON.stringify(state)}; ${(error as Error).message.split('\n')[0]}`);
-      }
+      await openSection(page, 'Payment');
       await expect(page.getByText(/Buyer paid by PayTo, in AUD/).first()).toBeVisible({ timeout: RENDERED });
     });
   },

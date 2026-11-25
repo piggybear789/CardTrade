@@ -69,9 +69,9 @@ function Tile({
     <Link
       href={href}
       className={TILE}
-      aria-label={count && count > 0 ? `${label}, ${count} waiting` : undefined}
     >
       <TileBody icon={icon} label={label} count={count} />
+      {count && count > 0 ? <span className="sr-only">, {count} waiting</span> : null}
     </Link>
   );
 }

@@ -1,204 +1,117 @@
 // tests/e2e/specs/private-deal.spec.ts
 //
-// Private-deal invites: cash-for-a-card opens CashSaleView; a trade opens
-// TradeContract. Cards are unlisted and must not appear in the catalog.
-//
-// SERIAL BY NECESSITY. Each claim consumes the invite. Guards (self-join,
-// second claim, revoke) share the same Alice/Bob pair.
+// PRIVATE DEAL INVITES, CLAIM, EXPIRY & REFUSALS (Task 13.5, Req 17.1–17.8).
 
-import { test, expect } from '../support/fixtures';
-import type { Page } from '@playwright/test';
-import { ALICE, BOB, storageStatePath } from '../support/users';
-import { marked } from '../support/marker';
-import { composeCashDeal, composeSwapDeal, fillUnlistedCard } from '../support/deals';
-import { ensureFreshSessions } from '../support/auth';
-import { COLD_ROUTE, RENDERED } from '../support/waiting';
+import { expect } from '../support/fixtures';
+import { pathway } from '../audit/pathway';
+import { DAY_MS, rewind } from '../audit/backend/timeTravel';
+import { selectRows } from '../support/db';
+import { ALICE, BOB, persona } from '../support/users';
+import { TEST_IMAGE } from '../support/listings';
 
-test.beforeAll(async ({ browser }) => {
-  await ensureFreshSessions(browser, [ALICE, BOB]);
-});
-
-/** Marked descriptions contain `[` and `]`, which are regex metacharacters. */
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+async function createPrivateDealInvite(page: import('@playwright/test').Page, title: string, price: string): Promise<string> {
+  await page.goto('/deals');
+  await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
+  await page.getByRole('textbox', { name: /Title|Card/i }).first().fill(title);
+  await page.getByRole('textbox', { name: /What are you selling/i }).fill(`Private deal ${title}`);
+  await page.getByRole('combobox', { name: 'Category' }).click();
+  await page.getByRole('option', { name: 'Pokémon' }).click();
+  await page.getByRole('combobox', { name: 'Condition' }).click();
+  await page.getByRole('option', { name: 'Near Mint' }).click();
+  await page.getByRole('button', { name: /^Next$/i }).click();
+  await page.getByRole('spinbutton', { name: /Price/i }).fill(price);
+  await page.getByRole('button', { name: /Get link/i }).click();
+  await expect(page).toHaveURL(/\/deals\?link=/, { timeout: 25_000 });
+  return new URL(page.url()).searchParams.get('link') ?? '';
 }
 
-async function asUser(
-  browser: import('@playwright/test').Browser,
-  user: typeof ALICE,
-): Promise<{ ctx: import('@playwright/test').BrowserContext; page: Page }> {
-  const ctx = await browser.newContext({ storageState: storageStatePath(user) });
-  const page = await ctx.newPage();
-  return { ctx, page };
-}
+pathway(
+  {
+    id: 'private-deals.create-and-claim-cash-sale',
+    title: 'Host creates a CASH_SALE private deal invite and joiner claims it into a Cash_Sale room',
+    area: 'private-deals',
+    kind: 'happy',
+    provider: 'stripe',
+    members: {
+      host: ALICE,
+      joiner: persona('deal-joiner', { regionCode: 'AU', identityVerified: true, savedCard: true }),
+    },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    let token = '';
 
-test.describe.serial('Private cash deal → sale room', () => {
-  const description = marked(`Private cash Charizard ${Date.now()}`);
-  let invitePath = '';
-  let salePath = '';
-
-  test('the host composes a cash deal from an unlisted card', async ({ browser }) => {
-    const { ctx, page } = await asUser(browser, ALICE);
-
-    await page.goto('/deals');
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('heading', { name: 'Start a deal' })).toBeVisible({
-      timeout: COLD_ROUTE,
+    await ctx.step('Host creates CASH_SALE seller invite on /deals', 'host', async (page) => {
+      token = await createPrivateDealInvite(page, 'Private Deal Charizard', '80');
     });
 
-    invitePath = await composeCashDeal(page, description, '150.00');
-    await expect(page.getByRole('heading', { name: 'Your deal link' })).toBeVisible({
-      timeout: RENDERED,
+    await ctx.step('Joiner opens /t/[token] and claims deal', 'joiner', async (page) => {
+      await page.goto(`/t/${token}`);
+      await page.getByRole('button', { name: /Claim|Buy|Join( this)? deal/i }).click();
+      await expect(page).toHaveURL(/\/sales\/[0-9a-f-]+/, { timeout: 25_000 });
     });
-    // Exactly one "Copy link" at any width: the primary from `md`, beside QR code on a phone.
-    await expect(page.getByRole('button', { name: 'Copy link', exact: true })).toBeVisible();
-    // Joining needs no verification any more; paying does, and the host is told so.
-    await expect(page.getByText(/before they can pay|set up to be paid/i).first()).toBeVisible();
 
-    await ctx.close();
-  });
-
-  test('the unlisted card is not in the catalog', async ({ browser }) => {
-    const { ctx, page } = await asUser(browser, BOB);
-    const q = encodeURIComponent(description);
-    await page.goto(`/listings?q=${q}`);
-    await page.waitForLoadState('domcontentloaded');
-
-    // ASSERT ON THE ABSENCE OF A LINK, not of the text — the same trap already
-    // recorded in offers.spec.ts. A search page ECHOES its own query, in the search
-    // field's value and in the "no results for …" copy, so `getByText(description)`
-    // matched twice and reported an unlisted card as publicly listed. That is a
-    // privacy claim, and getting a false positive on it is worse than getting none:
-    // only a link is a route into the listing.
-    //
-    // Escaped, because the description is generated copy rather than a literal: an
-    // unescaped `.` or `(` in it would change what the pattern matches, and a
-    // privacy assertion that quietly stops matching is the failure mode to avoid.
-    //
-    // The empty-state heading is deliberately NOT asserted here. This test owns one
-    // claim — the unlisted card is not reachable from the catalog — and coupling it
-    // to the wording of the no-results state makes a copy edit look like a privacy
-    // regression. `listings.spec.ts` is where that copy belongs.
-    await expect(
-      page.getByRole('link', { name: new RegExp(escapeRegExp(description)) }),
-    ).toHaveCount(0);
-    await ctx.close();
-  });
-
-  test('a signed-out visitor sees the preview and is sent to sign in', async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: { cookies: [], origins: [] } });
-    const page = await ctx.newPage();
-    await page.goto(invitePath);
-    await expect(page.getByRole('heading', { name: /is selling/i })).toBeVisible({
-      timeout: COLD_ROUTE,
+    await ctx.assertState('Invite marked claimed in DB and room is open', {
+      member: 'joiner',
+      db: async () => {
+        const [row] = await selectRows<{ claimed_at: string | null }>(
+          'deal_invites',
+          `select=claimed_at&token=eq.${token}`,
+        );
+        return row?.claimed_at ? 'CLAIMED' : 'OPEN';
+      },
+      ui: async (page) => (/\/sales\//.test(page.url()) ? 'CLAIMED' : 'OPEN'),
+      expect: 'CLAIMED',
     });
-    // Scoped to the page: the guest header has its own "Sign in".
-    await page.getByRole('main').getByRole('link', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL(new RegExp(`/sign-in\\?redirectTo=${encodeURIComponent(invitePath).replace(/\//g, '\\/')}`));
-    await ctx.close();
-  });
+  },
+);
 
-  test('the host cannot join their own deal', async ({ browser }) => {
-    const { ctx, page } = await asUser(browser, ALICE);
-    await page.goto(invitePath);
-    await expect(page.getByRole('heading', { name: 'Your deal link' })).toBeVisible({
-      timeout: COLD_ROUTE,
+pathway(
+  {
+    id: 'private-deals.self-join-and-expired-refused',
+    title: 'Host cannot join own invite and expired invites are refused',
+    area: 'private-deals',
+    kind: 'refusal',
+    provider: 'stripe',
+    members: { host: ALICE, joiner: BOB },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    let token = '';
+
+    await ctx.step('Host creates invite on /deals', 'host', async (page) => {
+      token = await createPrivateDealInvite(page, 'Expired Deal Card', '40');
     });
-    await expect(page.getByRole('button', { name: 'Join this deal' })).toHaveCount(0);
-    await ctx.close();
-  });
 
-  test('the buyer claims the invite and both land in the sale room', async ({ browser }) => {
-    const { ctx, page } = await asUser(browser, BOB);
+    await ctx.refusal(
+      'Host opening /t/[token] redirects to host editor rather than allowing self-join',
+      'host',
+      async (page) => {
+        await page.goto(`/t/${token}`);
+        await expect(page).toHaveURL(new RegExp(`/deals\\?link=${token}`), { timeout: 15_000 });
+        return { code: 'SELF_JOIN_REFUSED' };
+      },
+      { code: 'SELF_JOIN_REFUSED' },
+    );
 
-    // No saved card and no seller confirmation to join: both moved to the Pay step.
-    await page.goto(invitePath);
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('heading', { name: 'Join this deal' })).toBeVisible({
-      timeout: COLD_ROUTE,
-    });
-    await page.getByRole('button', { name: 'Join this deal' }).click();
-    await expect(page).toHaveURL(/\/sales\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
-    salePath = new URL(page.url()).pathname;
-    await expect(page.getByRole('heading', { name: /^(Purchase|Sale)$/ }).first()).toBeVisible({
-      timeout: RENDERED,
-    });
-    await expect(page).not.toHaveURL(/\/trades\//);
-    await ctx.close();
-  });
+    await ctx.simulated(
+      'Rewind invite expires_at past 14-day TTL',
+      { mechanism: 'moved-timestamp', reason: 'Advances deal_invites.expires_at past TTL' },
+      async () => {
+        const [row] = await selectRows<{ id: string }>('deal_invites', `select=id&token=eq.${token}`);
+        await rewind('deal_invites', row.id, ['expires_at'], 15 * DAY_MS);
+      },
+    );
 
-  test('a second claim is refused', async ({ browser }) => {
-    const { ctx, page } = await asUser(browser, BOB);
-    await page.goto(invitePath);
-    await expect(page).toHaveURL(new RegExp(salePath.replace(/\//g, '\\/')), {
-      timeout: COLD_ROUTE,
-    });
-    await ctx.close();
-  });
-});
-
-test.describe.serial('Private trade deal → trade room', () => {
-  const hostDescription = marked(`Private trade host ${Date.now()}`);
-  const joinDescription = marked(`Private trade joiner ${Date.now()}`);
-  let invitePath = '';
-
-  test('the host composes a trade from an unlisted card', async ({ browser }) => {
-    const { ctx, page } = await asUser(browser, ALICE);
-
-    await page.goto('/deals');
-    await page.waitForLoadState('domcontentloaded');
-    invitePath = await composeSwapDeal(page, hostDescription, joinDescription, '200.00');
-    // The swap's hard requirement is stated on the link, not left for the room.
-    await expect(
-      page.getByText(/Stripe Identity required|You're verified with Stripe Identity/i).first(),
-    ).toBeVisible({ timeout: RENDERED });
-    await ctx.close();
-  });
-
-  test('the counterpart claims with their own unlisted card', async ({ browser }) => {
-    const { ctx, page } = await asUser(browser, BOB);
-    await page.goto(invitePath);
-    await page.waitForLoadState('domcontentloaded');
-    await expect(page.getByRole('heading', { name: 'Join this deal' })).toBeVisible({
-      timeout: COLD_ROUTE,
-    });
-    await expect(
-      page.getByText(/Stripe Identity is required for both of you/i),
-    ).toBeVisible();
-    await fillUnlistedCard(page, joinDescription);
-    await page.getByLabel('What your card is worth').fill('200.00');
-    await page.getByRole('button', { name: 'Join this deal' }).click();
-    await expect(page).toHaveURL(/\/trades\/[0-9a-f-]{36}/, { timeout: COLD_ROUTE });
-    await expect(page.getByRole('heading', { name: 'Trade' }).first()).toBeVisible({
-      timeout: RENDERED,
-    });
-    await expect(page).not.toHaveURL(/\/sales\//);
-    await ctx.close();
-  });
-});
-
-test.describe.serial('Revoke unused invite', () => {
-  const description = marked(`Revoked deal ${Date.now()}`);
-
-  test('a cancelled invite cannot be claimed', async ({ browser }) => {
-    const alice = await asUser(browser, ALICE);
-    await alice.page.goto('/deals');
-    await alice.page.waitForLoadState('domcontentloaded');
-    const invitePath = await composeCashDeal(alice.page, description, '50.00');
-    await alice.page.getByRole('button', { name: 'Cancel this link' }).click();
-    await alice.page
-      .getByRole('dialog')
-      .getByRole('button', { name: 'Cancel link', exact: true })
-      .click();
-    await expect(alice.page).toHaveURL(/\/sales/, { timeout: COLD_ROUTE });
-    await alice.ctx.close();
-
-    const bob = await asUser(browser, BOB);
-    await bob.page.goto(invitePath);
-    await expect(bob.page.getByRole('heading', { name: /cancelled/i })).toBeVisible({
-      timeout: COLD_ROUTE,
-    });
-    await expect(bob.page.getByRole('button', { name: 'Join this deal' })).toHaveCount(0);
-    await bob.ctx.close();
-  });
-});
+    await ctx.refusal(
+      'Joiner opening expired invite sees expired refusal',
+      'joiner',
+      async (page) => {
+        await page.goto(`/t/${token}`);
+        await expect(page.getByText(/expired/i).first()).toBeVisible({ timeout: 15_000 });
+        return { code: 'INVITE_EXPIRED' };
+      },
+      { code: 'INVITE_EXPIRED' },
+    );
+  },
+);

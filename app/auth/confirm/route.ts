@@ -47,6 +47,10 @@ function safeNextPath(target: string | null): string | null {
  * `/auth/callback`.
  */
 function resolveOrigin(request: NextRequest): string {
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  if (host && (host.startsWith('localhost:') || host.startsWith('127.0.0.1:'))) {
+    return `http://${host}`;
+  }
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) return configured.replace(/\/+$/, '');
   const forwardedHost = request.headers.get('x-forwarded-host');

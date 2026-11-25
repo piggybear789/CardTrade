@@ -22,6 +22,7 @@ import { MoneyInput } from '@/components/ui/money-input';
 import { Textarea } from '@/components/ui/textarea';
 import { PlacePicker } from '@/components/location';
 import type { PlaceValue } from '@/lib/location/types';
+import { formatMoney } from '@/lib/format';
 import type { FulfilmentMethod } from '@/domain/fulfilment';
 import { SavedAddressField } from './SavedAddressField';
 
@@ -70,6 +71,8 @@ export interface FulfilmentTermsFieldsProps {
   deliveryCostOptional?: boolean;
   /** Shown instead of the input when the viewer may not price postage. */
   deliveryCostReadOnlyNote?: string;
+  /** ISO currency code used when formatting the read-only postage figure. */
+  currency?: string;
 
   // --- The viewer's own postal address, when they receive goods by post ---
   /**
@@ -119,6 +122,7 @@ export function FulfilmentTermsFields({
   deliveryCostHint = 'Enter 0 for free delivery. Tracking is added when you record a shipment.',
   deliveryCostOptional = false,
   deliveryCostReadOnlyNote,
+  currency = 'AUD',
   showDeliveryAddress = false,
   deliveryAddress = null,
   onDeliveryAddressChange,
@@ -235,7 +239,7 @@ export function FulfilmentTermsFields({
             // would ask them to agree to a total they cannot see broken down.
             <p className="rounded-md border bg-muted px-cozy py-snug text-body">
               <span className="font-medium tabular-nums">
-                ${Number.parseFloat(deliveryCost || '0').toFixed(2)}
+                {formatMoney(Math.round((Number.parseFloat(deliveryCost || '0') || 0) * 100), currency)}
               </span>
               {deliveryCostReadOnlyNote ? (
                 <span className="text-muted-foreground">

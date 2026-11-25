@@ -137,6 +137,16 @@ export const BENIGN_CONSOLE: readonly string[] = [
   'Applying inline style violates the following Content Security Policy directive',
   "Refused to apply a stylesheet because its hash, its nonce, or 'unsafe-inline' does not appear",
   "Loading the image 'data:image/",
+  // WebKit prints this to the console / pageerror whenever an in-flight `fetch()` is
+  // aborted by a page navigation (e.g. Next.js `<Link>` prefetch or Supabase unread
+  // polling mid-flight during `router.push` / `page.goto`), equivalent to Chromium's
+  // `net::ERR_ABORTED`. Next.js also logs the RSC payload fallback when that happens.
+  'due to access control checks.',
+  'Falling back to browser navigation. TypeError: Load failed',
+  'Unhandled Promise Rejection: TypeError: Load failed',
+  'TypeError: Load failed',
+  // WebKit logs this when a page navigates away while Supabase Realtime is still opening its WebSocket.
+  'WebSocket is closed before the connection is established.',
 ];
 
 /** True when a console message is on the `BENIGN_CONSOLE` list. */

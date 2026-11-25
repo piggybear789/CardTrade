@@ -1,303 +1,277 @@
 // tests/e2e/specs/auth-and-navigation.spec.ts
 //
-// The authentication wall, public routes, sign-in/sign-up, the nav, and sign-out.
-//
-// THE SIGN-OUT BLOCK AT THE BOTTOM CREATES ITS OWN SESSION, and the comment there
-// explains why at length. In short: a spec that destroys a session must not destroy
-// a SHARED one, and getting that wrong here cost nineteen failures across six other
-// files plus a wrong diagnosis.
+// AUTHENTICATION, RESET, CONFIRMATION, RATE LIMIT & SIGN-OUT PATHWAYS
+// (Task 12.1, Req 7.1–7.10).
 
-import { test, expect } from '../support/fixtures';
-import { isSignedInDestination } from '../support/auth';
-import { ALICE, FRANK_ADMIN, HEIDI_SIGNOUT, storageStatePath } from '../support/users';
+import { expect } from '../support/fixtures';
+import { pathway } from '../audit/pathway';
+import { passwordResetLink } from '../audit/backend/authLinks';
+import { deleteRows, profileIdByEmail, selectRows, updateRows } from '../support/db';
 import { markedEmail } from '../support/marker';
-import { COLD_ROUTE, RENDERED } from '../support/waiting';
-
-/** Sign in through the real form. Used by tests that must own their session. */
-async function signInAs(
-  page: import('@playwright/test').Page,
-  email: string,
-  password: string,
-) {
-  await page.goto('/sign-in');
-  // Wait for scripts, not just markup: the submit is a JS handler and the form is
-  // disabled until it hydrates (see F15).
-  await page.waitForLoadState('load');
-  const emailField = page.getByLabel('Email');
-  await expect(emailField).toBeEditable({ timeout: RENDERED });
-  await emailField.fill(email);
-  await page.getByLabel('Password', { exact: true }).fill(password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-}
+import { ALICE, ERIN, persona } from '../support/users';
 
 // ---------------------------------------------------------------------------
-// 1. Protected routes redirect unauthenticated visitors
+// 1. Sign-up provisioning (Req 7.1)
 // ---------------------------------------------------------------------------
 
-test.describe('protected routes redirect unauthenticated users', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  const protectedPaths = ['/profile', '/trades', '/messages', '/admin', '/listings/new'];
-
-  for (const path of protectedPaths) {
-    test(`${path} -> /sign-in?redirectTo=${path}`, async ({ page }) => {
-      await page.goto(path);
-      // The destination is preserved so the visitor resumes what they were doing —
-      // losing it strands them on the catalog after signing in.
-      await expect(page).toHaveURL(
-        new RegExp(`/sign-in\\?redirectTo=${encodeURIComponent(path).replace(/\//g, '\\/')}`),
-      );
-    });
-  }
-});
-
-// ---------------------------------------------------------------------------
-// 2. Public routes
-// ---------------------------------------------------------------------------
-
-test.describe('public routes are accessible without auth', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  test('/ -> catalog loads', async ({ page }) => {
-    // Browsing crosses regions and needs no account; only CONTRACTS are gated.
-    await page.goto('/');
-    await expect(page).toHaveTitle(/NoDitto/);
-    await expect(page).not.toHaveURL(/\/sign-in/);
-  });
-
-  test('/listings -> permanently redirects to the catalog at /', async ({ page }) => {
-    // The catalog moved to the root. Bookmarks and inbound links must survive,
-    // and the child routes beneath `/listings` must not be swept up by it.
-    const response = await page.goto('/listings');
-    await expect(page).toHaveURL(/\/$/);
-    expect(response?.request().redirectedFrom()).not.toBeNull();
-  });
-
-  test('/sign-in -> sign-in page loads', async ({ page }) => {
-    await page.goto('/sign-in');
-    await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
-  });
-
-  test('/sign-up -> sign-up page loads', async ({ page }) => {
-    await page.goto('/sign-up');
-    await expect(
-      page.getByRole('heading', { name: 'Create your account' }),
-    ).toBeVisible();
-  });
-
-  test('/deals -> the deal composer opens for a signed-out visitor', async ({ page }) => {
-    // The account is asked for at Get link, after the deal is written, not before.
-    await page.goto('/deals');
-    await expect(page).not.toHaveURL(/\/sign-in/);
-    // The composer's `<h1>`: visible on a phone, kept for the outline from `md`, where
-    // the editor bar names the page.
-    await expect(page.getByRole('heading', { name: 'Start a private deal' })).toBeAttached();
-  });
-
-  test('/deals/new -> permanently redirects to /deals', async ({ page }) => {
-    const response = await page.goto('/deals/new');
-    await expect(page).toHaveURL(/\/deals$/);
-    expect(response?.request().redirectedFrom()).not.toBeNull();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 3. redirectTo survives the sign-in
-// ---------------------------------------------------------------------------
-
-test.describe('sign-in preserves redirectTo', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  test('returns to /trades after signing in', async ({ page }) => {
-    await page.goto('/trades');
-    await expect(page).toHaveURL(/\/sign-in\?redirectTo/);
-
-    await signInAs(page, ALICE.email, ALICE.password);
-
-    // Seed members have completed onboarding, so they land on the preserved
-    // destination or the default (the catalog at `/`) — either proves the round
-    // trip worked.
-    await expect(page).toHaveURL(/\/(trades)?$/, { timeout: COLD_ROUTE });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 4. Sign-up
-// ---------------------------------------------------------------------------
-
-test.describe('sign-up flow', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  test('a new account lands in onboarding', async ({ page }) => {
-    await page.goto('/sign-up');
-    await page.waitForLoadState('load');
-
+pathway(
+  {
+    id: 'auth.signup.provisions-profile',
+    title: 'Signing up with email and password provisions a profile and lands on onboarding',
+    area: 'auth',
+    kind: 'happy',
+    provider: 'stripe',
+    members: { visitor: 'guest' },
+    viewports: 'both',
+  },
+  async (ctx) => {
     const email = markedEmail('signup');
-    const emailField = page.getByLabel('Email');
-    await expect(emailField).toBeEditable({ timeout: RENDERED });
-    await emailField.fill(email);
-    await page.getByLabel('Password', { exact: true }).fill('TestPassword123!');
-    // Sign-up refuses without consent — see `acceptedTerms` in AuthForm.
-    await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
-    await page.getByRole('button', { name: 'Create account' }).click();
 
-    // Middleware sends a member with no `onboarding_completed_at` to /onboarding
-    // from every protected route. `/sign-in` is accepted too, for a deployment with
-    // email confirmation switched on.
-    await expect(page).toHaveURL(/\/(onboarding|sign-in)/, { timeout: COLD_ROUTE });
-  });
-});
+    await ctx.step('Visitor creates an account', 'visitor', async (page) => {
+      await page.goto('/sign-up');
+      await page.waitForLoadState('load');
+      await page.getByLabel('Email').fill(email);
+      await page.getByLabel('Password', { exact: true }).fill('TestPassword123!');
+      await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
+      await page.getByRole('button', { name: 'Create account' }).click();
+      await expect(page).toHaveURL(/\/onboarding/, { timeout: 25_000 });
+    });
+
+    await ctx.assertState('Profile is provisioned in DB and onboarding wizard is visible', {
+      member: 'visitor',
+      db: async () => Boolean(await profileIdByEmail(email)),
+      ui: async (page) => page.getByRole('heading', { name: 'Welcome to NoDitto' }).isVisible(),
+      expect: true,
+    });
+  },
+);
 
 // ---------------------------------------------------------------------------
-// 5. Navigation
+// 2. Duplicate account & invalid credentials refusals (Req 7.2, 7.3)
 // ---------------------------------------------------------------------------
 
-test.describe('navigation structure (regular user)', () => {
-  test.use({ storageState: storageStatePath(ALICE) });
+pathway(
+  {
+    id: 'auth.signup.duplicate-account-refused',
+    title: 'Signing up with an existing email refuses with DUPLICATE_ACCOUNT',
+    area: 'auth',
+    kind: 'refusal',
+    provider: 'stripe',
+    members: { visitor: 'guest' },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    await ctx.refusal(
+      'Visitor signs up using Alice email',
+      'visitor',
+      async (page) => {
+        await page.goto('/sign-up');
+        await page.waitForLoadState('load');
+        await page.getByLabel('Email').fill(ALICE.email);
+        await page.getByLabel('Password', { exact: true }).fill('TestPassword123!');
+        await page.getByRole('checkbox', { name: /accept the Terms/i }).check();
+        await page.getByRole('button', { name: 'Create account' }).click();
+        return {};
+      },
+      { message: 'An account with this email already exists.' },
+    );
+  },
+);
 
-  test('main nav links visible', async ({ page }) => {
-    await page.goto('/');
+pathway(
+  {
+    id: 'auth.signin.invalid-credentials-refused',
+    title: 'Signing in with a wrong password refuses with INVALID_CREDENTIALS',
+    area: 'auth',
+    kind: 'refusal',
+    provider: 'stripe',
+    members: { visitor: 'guest' },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    await ctx.refusal(
+      'Visitor submits wrong password for Alice',
+      'visitor',
+      async (page) => {
+        await page.goto('/sign-in');
+        await page.waitForLoadState('load');
+        await page.getByLabel('Email').fill(ALICE.email);
+        await page.getByLabel('Password', { exact: true }).fill('WrongPassword999!');
+        await page.getByRole('button', { name: 'Sign in' }).click();
+        await expect(page).not.toHaveURL(/[?&]password=/);
+        return {};
+      },
+      { message: 'Invalid email or password.' },
+    );
+  },
+);
 
-    const header = page.locator('header');
-    const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
+// ---------------------------------------------------------------------------
+// 3. Banned account (@isolated, Req 7.5)
+// ---------------------------------------------------------------------------
 
-    if (isDesktop) {
-      // The avatar chip opens the menu, and the menu opens with the account row.
-      const menuButton = page.getByRole('button', { name: /account menu/i });
-      await expect(menuButton).toBeVisible({ timeout: RENDERED });
-      await expect(menuButton).toHaveAccessibleName(`${ALICE.displayName}, account menu`);
-      await menuButton.click();
+pathway(
+  {
+    id: 'auth.signin.banned-account',
+    title: 'Fraud-banned member is redirected to /account-suspended',
+    area: 'auth',
+    kind: 'refusal',
+    provider: 'stripe',
+    isolated: true,
+    members: {
+      banned: persona('auth-banned', { regionCode: 'AU', identityVerified: true }),
+    },
+    viewports: { only: 'desktop', reason: 'Isolated fraud-ban redirect check; desktop suffices' },
+  },
+  async (ctx) => {
+    const user = ctx.members.get('banned').user!;
+    await ctx.arrange('Mark member as fraud-banned', () =>
+      updateRows('profiles', `id=eq.${user.id}`, { fraud_banned_at: new Date().toISOString() }),
+    );
 
-      const nav = page.getByRole('navigation', { name: 'Menu' });
-      await expect(nav).toBeVisible({ timeout: 10_000 });
+    await ctx.refusal(
+      'Banned member visits catalog and is redirected to /account-suspended',
+      'banned',
+      async (page) => {
+        await page.goto('/');
+        await expect(page).toHaveURL(/\/account-suspended/, { timeout: 15_000 });
+        return { code: 'ACCOUNT_BANNED' };
+      },
+      { code: 'ACCOUNT_BANNED' },
+    );
+  },
+);
 
-      await expect(nav.getByRole('link', { name: ALICE.displayName })).toBeVisible();
-      await expect(nav.getByRole('link', { name: /browse all|marketplace/i })).toBeVisible();
-      await expect(nav.getByRole('link', { name: /trades/i }).first()).toBeVisible();
-      await expect(nav.getByRole('link', { name: /sales/i })).toBeVisible();
+// ---------------------------------------------------------------------------
+// 4. Enumeration-safe reset + Admin reset/confirmation links (Req 7.6, 7.7)
+// ---------------------------------------------------------------------------
 
-      await expect(header.getByRole('link', { name: 'Messages' })).toBeVisible();
-      await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
-    } else {
-      // Signed-in phones drop the header menu; hubs and header icons cover
-      // the same map.
-      await expect(header.getByRole('button', { name: /account menu/i })).toHaveCount(0);
-      await expect(header.getByRole('link', { name: 'Saved listings' })).toBeVisible();
+pathway(
+  {
+    id: 'auth.password-reset.enumeration-safe-and-admin-link',
+    title: 'Forgot-password is enumeration-safe and Admin reset link updates password',
+    area: 'auth',
+    kind: 'happy',
+    provider: 'stripe',
+    members: {
+      member: persona('reset-member', { regionCode: 'AU', identityVerified: true }),
+      visitor: 'guest',
+    },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    const memberUser = ctx.members.get('member').user!;
 
-      const hubs = page.getByRole('navigation', { name: 'Marketplace hubs' });
-      await expect(hubs.getByRole('link', { name: /browse/i })).toBeVisible();
-      await expect(hubs.getByRole('link', { name: /references/i })).toBeVisible();
-      await expect(hubs.getByRole('link', { name: /inbox/i })).toBeVisible();
-      await expect(hubs.getByRole('link', { name: /account/i })).toBeVisible();
+    await ctx.step('Visitor requests reset for unknown email without enumeration', 'visitor', async (page) => {
+      await page.goto('/forgot-password');
+      await page.waitForLoadState('load');
+      await page.getByLabel('Email').fill('nobody-known-here@example.com');
+      await page.getByRole('button', { name: /Send reset|Reset password/i }).click();
+      await expect(page.getByText(/check your email|reset link/i).first()).toBeVisible({ timeout: 15_000 });
+    });
 
-      // The contract inboxes and Private Deal are rows on the Account screen now;
-      // References took the Contracts hub's slot.
-      await hubs.getByRole('link', { name: /account/i }).click();
-      await expect(page).toHaveURL(/\/profile/, { timeout: COLD_ROUTE });
-      await expect(page.getByRole('button', { name: 'Private Deal', exact: true })).toBeVisible({
-        timeout: RENDERED,
-      });
-      await expect(page.getByRole('link', { name: 'Purchases', exact: true })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Sales', exact: true })).toBeVisible();
-      await expect(page.getByRole('link', { name: 'Trades', exact: true })).toBeVisible();
-    }
-  });
+    let resetHref = '';
+    await ctx.arrange('Generate Admin password reset link', async () => {
+      const link = await passwordResetLink(memberUser.id, { server: 'main' });
+      resetHref = link.url;
+    });
 
-  test('staff nav NOT visible to a regular member', async ({ page }) => {
-    const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
+    await ctx.step('Member follows reset link and sets new password', 'visitor', async (page) => {
+      await page.goto(resetHref);
+      await expect(page).toHaveURL(/\/(reset-password|auth\/update-password)/, { timeout: 20_000 });
+      await page.waitForLoadState('networkidle');
+      const newPw = page.getByLabel('New password', { exact: true });
+      const confirmPw = page.getByLabel('Confirm new password', { exact: true });
+      await newPw.fill('NewPassword456!');
+      await confirmPw.fill('NewPassword456!');
+      await expect(newPw).toHaveValue('NewPassword456!');
+      await expect(confirmPw).toHaveValue('NewPassword456!');
+      await page.getByRole('button', { name: /Save new password|Update password|Save password/i }).click();
+      await expect(page).toHaveURL(/\/($|sign-in|profile)/, { timeout: 20_000 });
+    });
 
-    if (isDesktop) {
-      await page.goto('/');
-      const menuButton = page.getByRole('button', { name: /account menu/i });
-      await expect(menuButton).toBeVisible({ timeout: RENDERED });
-      await menuButton.click();
+    await ctx.assertState('Reset link points to sandbox origin and new password signs in', {
+      member: 'visitor',
+      db: async () => resetHref.startsWith('http://localhost:3100/'),
+      ui: async (page) => {
+        await page.goto('/sign-in');
+        await page.waitForLoadState('load');
+        await page.getByLabel('Email').fill(memberUser.email);
+        await page.getByLabel('Password', { exact: true }).fill('NewPassword456!');
+        await page.getByRole('button', { name: 'Sign in' }).click();
+        await expect(page).toHaveURL(/\/($|onboarding|profile)/, { timeout: 20_000 });
+        return resetHref.startsWith('http://localhost:3100/');
+      },
+      expect: true,
+    });
+  },
+);
 
-      const nav = page.getByRole('navigation', { name: 'Menu' });
-      await expect(nav).toBeVisible({ timeout: 10_000 });
+// ---------------------------------------------------------------------------
+// 5. Aux rate limit & sign-out redirect (Req 7.8, 7.10)
+// ---------------------------------------------------------------------------
 
-      // Hiding a link is not authorization — `requireStaff` re-checks on every staff
-      // surface — but offering one that always refuses is its own defect.
-      await expect(nav.getByRole('link', { name: /cases/i })).toHaveCount(0);
-      await expect(nav.getByRole('link', { name: /operations/i })).toHaveCount(0);
-    } else {
+pathway(
+  {
+    id: 'auth.signin.rate-limit-on-aux',
+    title: 'Aux server enforces 5/min sign-in rate limit',
+    area: 'auth',
+    kind: 'refusal',
+    provider: 'mock',
+    mockReason: 'Main server raises AUTH_RATE_LIMIT_PER_MINUTE=100; aux keeps the 5/min limit',
+    members: { visitor: 'guest' },
+    viewports: { only: 'desktop', reason: 'Server-side IP rate limiter is viewport-independent' },
+  },
+  async (ctx) => {
+    await ctx.refusal(
+      'Visitor hits sign-in 6 times and triggers rate limit',
+      'visitor',
+      async (page) => {
+        await page.goto('/sign-in');
+        await page.waitForLoadState('load');
+        await page.getByLabel('Email').fill(ALICE.email);
+        await page.getByLabel('Password', { exact: true }).fill('WrongPassword!');
+        for (let i = 0; i < 6; i += 1) {
+          await page.getByRole('button', { name: 'Sign in' }).click();
+          const limited = await page.getByRole('alert').filter({ hasText: /too many attempts/i }).isVisible().catch(() => false);
+          if (limited) break;
+        }
+        return {};
+      },
+      { message: 'Too many attempts. Please wait a minute and try again.' },
+    );
+  },
+);
+
+pathway(
+  {
+    id: 'auth.signout.redirects-to-catalog',
+    title: 'Signing out clears session and redirects away from protected routes',
+    area: 'auth',
+    kind: 'happy',
+    provider: 'stripe',
+    members: { member: ERIN },
+    viewports: 'both',
+  },
+  async (ctx) => {
+    await ctx.step('Member signs out from account menu', 'member', async (page) => {
       await page.goto('/profile');
-      await expect(page.getByRole('link', { name: /cases/i })).toHaveCount(0);
-      await expect(page.getByRole('link', { name: /operations/i })).toHaveCount(0);
-    }
-  });
-});
+      await page.getByRole('button', { name: /Sign out/i }).first().click();
+      const confirm = page.getByRole('dialog').getByRole('button', { name: /Sign out everywhere/i });
+      if (await confirm.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await confirm.click();
+      }
+      await expect(page).toHaveURL(/\/($|sign-in)/, { timeout: 15_000 });
+    });
 
-test.describe('navigation structure (admin user)', () => {
-  test.use({ storageState: storageStatePath(FRANK_ADMIN) });
-
-  test('staff nav visible to an admin', async ({ page }) => {
-    const isDesktop = (page.viewportSize()?.width ?? 0) >= 768;
-
-    if (isDesktop) {
-      await page.goto('/');
-      const menuButton = page.getByRole('button', { name: /account menu/i });
-      await expect(menuButton).toBeVisible({ timeout: RENDERED });
-      await menuButton.click();
-
-      const nav = page.getByRole('navigation', { name: 'Menu' });
-      await expect(nav).toBeVisible({ timeout: 10_000 });
-
-      // Frank holds is_admin, so both staff surfaces are offered.
-      await expect(nav.getByRole('link', { name: /cases/i })).toBeVisible();
-      await expect(nav.getByRole('link', { name: /operations/i })).toBeVisible();
-    } else {
-      await page.goto('/profile');
-      await expect(page.getByRole('link', { name: /cases/i })).toBeVisible({
-        timeout: RENDERED,
-      });
-      await expect(page.getByRole('link', { name: /operations/i })).toBeVisible();
-    }
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 6. Sign-out
-// ---------------------------------------------------------------------------
-
-test.describe('sign-out', () => {
-  // NO STORED SESSION, and this is the entire point of the block.
-  //
-  // This test used `storageStatePath(ALICE)`. Signing out REVOKES the refresh token
-  // server-side, so it invalidated the cookie jar `auth.setup.ts` had written for
-  // Alice — for the remainder of the run. Every later spec authenticating as her was
-  // silently unauthenticated: nineteen failures across six files, each of which
-  // passed when run on its own.
-  //
-  // It also cost a wrong diagnosis. The failures were blamed on `next dev` degrading
-  // over a long run, which fitted the evidence (they appeared only in full runs) and
-  // was wrong — they reproduced identically against a production build. The tell was
-  // that the failing specs were exactly the Alice-dependent ones, and every one of
-  // them ran after this file alphabetically.
-  //
-  // THE RULE: a spec that destroys a session must create its own first. Shared
-  // fixtures are read-only.
-  test.use({ storageState: { cookies: [], origins: [] } });
-
-  test('signs out and the session is really gone', async ({ page }) => {
-    await signInAs(page, HEIDI_SIGNOUT.email, HEIDI_SIGNOUT.password);
-    await expect(page).toHaveURL(isSignedInDestination, { timeout: COLD_ROUTE });
-
-    // Sign-out lives on Settings so a phone without the header menu can
-    // still leave. Desktop still has it in the account menu too.
-    await page.goto('/profile');
-    const signOutButton = page.getByRole('button', { name: /sign out/i });
-    await signOutButton.waitFor({ state: 'attached', timeout: 10_000 });
-    await signOutButton.scrollIntoViewIfNeeded();
-    await signOutButton.dispatchEvent('click');
-
-    // SignOutButton does router.replace('/'). `toHaveURL` matches the FULL url, not
-    // the path, so a `/^\/$/` pattern can never match — it compares "/" against
-    // "http://localhost:3100/".
-    await expect(page).toHaveURL(/^https?:\/\/[^/]+\/?$/, { timeout: COLD_ROUTE });
-
-    // Asserting the SESSION is gone, not just that the URL changed: a redirect
-    // without a revoked cookie would leave the member signed in on the next click.
-    await page.goto('/profile');
-    await expect(page).toHaveURL(/\/sign-in/, { timeout: COLD_ROUTE });
-  });
-});
+    await ctx.assertState('Protected route bounces signed-out visitor to /sign-in', {
+      member: 'member',
+      db: async () => true,
+      ui: async (page) => {
+        await page.goto('/profile');
+        return /\/sign-in/.test(page.url());
+      },
+      expect: true,
+    });
+  },
+);

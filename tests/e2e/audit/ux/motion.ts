@@ -28,7 +28,7 @@ const API = '__nodittoAuditMotion';
 const MAX_RECORDED = 300;
 
 /** How often the page polls `document.getAnimations()`, in ms. */
-const POLL_MS = 150;
+const POLL_MS = 300;
 
 /** What `readAnimations` returns for one page. */
 export interface AnimationReading {

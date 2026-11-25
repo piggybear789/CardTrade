@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buyer fails the 3-D Secure challenge at Pay and nothing is charged</title>
+<style>:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0 auto; max-width: 1200px; padding: 1.5rem; line-height: 1.45; }
+table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }
+th, td { border-bottom: 1px solid #8884; padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+.status { display: inline-block; padding: 0 0.4rem; border-radius: 0.25rem; font-size: 0.85em; background: #8882; }
+.status-passed, .status-passing { background: #1a7f3733; }
+.status-failed, .status-failing { background: #cf222e33; }
+.status-flaky, .status-partly-run { background: #bf870033; }
+.status-not-run, .status-skipped { background: #8883; }
+.tag { font-size: 0.8em; padding: 0 0.35rem; border: 1px solid #8886; border-radius: 0.25rem; }
+.blocking { color: #cf222e; font-weight: 600; }
+.grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.grid figure { margin: 0; max-width: 360px; }
+.grid img, .grid video { max-width: 100%; border: 1px solid #8884; }
+#filters { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.5rem 0 1rem; }
+pre { white-space: pre-wrap; background: #8881; padding: 0.5rem; }</style>
+</head>
+<body>
+<p><a href="../index.html">← All pathways</a></p>
+<header>
+<h1>Buyer fails the 3-D Secure challenge at Pay and nothing is charged</h1>
+<dl>
+<dt>Id</dt><dd><code>cash-sale.payments.card-3ds-failed</code></dd>
+<dt>Kind</dt><dd>refusal</dd>
+<dt>Area</dt><dd>cash-sale</dd>
+<dt>Provider</dt><dd>stripe</dd>
+<dt>Payments mode</dt><dd>Desktop: stripe-test, Phone: stripe-test</dd>
+<dt>Simulated</dt><dd>No</dd>
+
+<dt>Known findings</dt><dd>None</dd>
+<dt>Not run</dt><dd>None</dd>
+</dl>
+<h2>Suppressions</h2>
+<p>None.</p>
+</header>
+<main>
+<section data-viewport="desktop">
+<h2>Desktop <span class="status status-failed">failed</span></h2>
+<p>Run <code>2026-11-25T02-58-51Z-hvdl0yz</code> · payments stripe-test · retries 1</p>
+
+<h3>Steps</h3>
+<ol class="steps"><li data-step="1" data-status="passed"><strong>1. Alice lists a card at A$150.00</strong> <span class="status status-passed">passed</span> <span class="tag">arrange</span> <small> · 4s</small></li><li data-step="2" data-status="failed"><strong>2. Buyer adds a 3-D Secure card at Buy Now and reserves</strong> <span class="status status-failed">failed</span> <span class="tag">action</span> <small>buyer · 3m 38s</small><pre>locator.click: Target page, context or browser has been closed
+Call log:
+  - waiting for getByRole(&#39;button&#39;, { name: /^Buy( now)?$/ }).filter({ visible: true }).first()
+</pre><ul class="observations"><li data-check="network" data-severity="advisory"><span class="">advisory</span> <code>network</code> (buyer, automated): HTTP 404: http://localhost:3100/_vercel/insights/script.js <small>http://localhost:3100/onboarding?redirectTo=%2Flistings%2F7038cf48-700b-4de3-b54a-732e3a6c1ab6</small> <small>kind=response, status=404, requestUrl=http://localhost:3100/_vercel/insights/script.js</small></li><li data-check="network" data-severity="advisory"><span class="">advisory</span> <code>network</code> (buyer, automated): HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js <small>http://localhost:3100/onboarding?redirectTo=%2Flistings%2F7038cf48-700b-4de3-b54a-732e3a6c1ab6</small> <small>kind=response, status=404, requestUrl=http://localhost:3100/_vercel/speed-insights/script.js</small></li></ul></li></ol>
+<h3>Forced interactions</h3>
+<p>No forced interactions.</p>
+</section>
+<section data-viewport="phone">
+<h2>Phone <span class="status status-failed">failed</span></h2>
+<p>Run <code>2026-11-25T02-58-51Z-hvdl0yz</code> · payments stripe-test · retries 1</p>
+
+<h3>Steps</h3>
+<p>No steps recorded.</p>
+<h3>Forced interactions</h3>
+<p>No forced interactions.</p>
+</section>
+<section id="videos">
+<h2>Videos</h2>
+<div class="grid"><figure><video controls preload="metadata" src="../media/media/cash-sale.payments.card-3ds-failed/desktop/2026-11-25T02-58-51Z-hvdl0yz/video.buyer.0.webm"></video><figcaption>buyer · Desktop</figcaption></figure></div>
+</section>
+</main>
+
+</body>
+</html>

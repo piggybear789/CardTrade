@@ -23,7 +23,7 @@ export const PATHWAYS_LIST_FILE = path.join('audit-artifacts', '.pathways.json')
 export const SPECS_DIR = path.join('tests', 'e2e', 'specs');
 
 const ID_TAG = /(?<![\w@])@id:([^\s,'"`]+)/g;
-const PATHWAY_LITERAL = /\bpathway\(\s*\{\s*id:\s*(['"`])([^'"`\n]+)\1/g;
+const PATHWAY_LITERAL = /\bpathway\(\s*\{[^}]*?\bid:\s*(['"`])([^'"`\n]+)\1/gs;
 
 /**
  * Pathway ids from a Playwright JSON list report: every `@id:<id>` found in a spec's

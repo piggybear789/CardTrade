@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buyer pays a cash sale with PayTo, approved in place</title>
+<style>:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+body { margin: 0 auto; max-width: 1200px; padding: 1.5rem; line-height: 1.45; }
+table { border-collapse: collapse; width: 100%; margin: 0.5rem 0 1.5rem; }
+th, td { border-bottom: 1px solid #8884; padding: 0.35rem 0.5rem; text-align: left; vertical-align: top; }
+.status { display: inline-block; padding: 0 0.4rem; border-radius: 0.25rem; font-size: 0.85em; background: #8882; }
+.status-passed, .status-passing { background: #1a7f3733; }
+.status-failed, .status-failing { background: #cf222e33; }
+.status-flaky, .status-partly-run { background: #bf870033; }
+.status-not-run, .status-skipped { background: #8883; }
+.tag { font-size: 0.8em; padding: 0 0.35rem; border: 1px solid #8886; border-radius: 0.25rem; }
+.blocking { color: #cf222e; font-weight: 600; }
+.grid { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.grid figure { margin: 0; max-width: 360px; }
+.grid img, .grid video { max-width: 100%; border: 1px solid #8884; }
+#filters { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 0.5rem 0 1rem; }
+pre { white-space: pre-wrap; background: #8881; padding: 0.5rem; }</style>
+</head>
+<body>
+<p><a href="../index.html">← All pathways</a></p>
+<header>
+<h1>Buyer pays a cash sale with PayTo, approved in place</h1>
+<dl>
+<dt>Id</dt><dd><code>cash-sale.payments.bank-payto</code></dd>
+<dt>Kind</dt><dd>happy</dd>
+<dt>Area</dt><dd>cash-sale</dd>
+<dt>Provider</dt><dd>stripe</dd>
+<dt>Payments mode</dt><dd>Desktop: stripe-test, Phone: stripe-test</dd>
+<dt>Simulated</dt><dd>No</dd>
+
+<dt>Known findings</dt><dd>None</dd>
+<dt>Not run</dt><dd>None</dd>
+</dl>
+<h2>Suppressions</h2>
+<p>None.</p>
+</header>
+<main>
+<section data-viewport="desktop">
+<h2>Desktop <span class="status status-failed">failed</span></h2>
+<p>Run <code>2026-11-25T02-58-51Z-hvdl0yz</code> · payments stripe-test · retries 1</p>
+
+<h3>Steps</h3>
+<ol class="steps"><li data-step="1" data-status="passed"><strong>1. Alice lists a card at A$150.00</strong> <span class="status status-passed">passed</span> <span class="tag">arrange</span> <small> · 453 ms</small></li><li data-step="2" data-status="passed"><strong>2. Buyer reserves it with Buy Now</strong> <span class="status status-passed">passed</span> <span class="tag">action</span> <small>buyer · 32s</small><ul class="observations"><li data-check="network" data-severity="advisory"><span class="">advisory</span> <code>network</code> (buyer, automated): HTTP 404: http://localhost:3100/_vercel/insights/script.js <small>http://localhost:3100/listings/ac1c8fe4-f3dd-4ccb-9941-d87c1ad09836</small> <small>kind=response, status=404, requestUrl=http://localhost:3100/_vercel/insights/script.js</small></li><li data-check="network" data-severity="advisory"><span class="">advisory</span> <code>network</code> (buyer, automated): HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js <small>http://localhost:3100/listings/ac1c8fe4-f3dd-4ccb-9941-d87c1ad09836</small> <small>kind=response, status=404, requestUrl=http://localhost:3100/_vercel/speed-insights/script.js</small></li><li data-check="motion" data-severity="advisory"><span class="">advisory</span> <code>motion</code> (buyer, automated): Decorative motion: &quot;enter&quot; animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner. <small>http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e</small> <small>animation=enter, properties=opacity,transform, target=.fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0</small></li></ul></li><li data-step="3" data-status="passed"><strong>3. Buyer sets a delivery address</strong> <span class="status status-passed">passed</span> <span class="tag">action</span> <small>buyer · 34s</small><ul class="observations"><li data-check="network" data-severity="advisory"><span class="">advisory</span> <code>network</code> (buyer, automated): HTTP 404: http://localhost:3100/_vercel/insights/script.js <small>http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1</small> <small>kind=response, status=404, requestUrl=http://localhost:3100/_vercel/insights/script.js</small></li><li data-check="network" data-severity="advisory"><span class="">advisory</span> <code>network</code> (buyer, automated): HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js <small>http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1</small> <small>kind=response, status=404, requestUrl=http://localhost:3100/_vercel/speed-insights/script.js</small></li><li data-check="console" data-severity="blocking"><span class="blocking">blocking</span> <code>console</code> (buyer, automated): Console error: Error: An unexpected response was received from the server.
+    at I (http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js:2:743) <small>http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1</small> <small>kind=console, sourceUrl=http://localhost:3100/_next/static/chunks/270elm3runt4_.js</small></li><li data-check="console" data-severity="blocking"><span class="blocking">blocking</span> <code>console</code> (buyer, automated): Console error: Error: An unexpected response was received from the server.
+    at I (http://localhost:3100/_next/static/chunks/0id6aevbwms6i.js:2:743) <small>http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1</small> <small>kind=console, sourceUrl=http://localhost:3100/_next/static/chunks/0_gu1srs5n2aj.js</small></li><li data-check="shift-outside-region" data-severity="advisory"><span class="">advisory</span> <code>shift-outside-region</code> (buyer, automated): Data arriving in div.space-y-cozy moved div.space-y-snug, div.space-y-snug, div.flex.flex-row.gap-snug.[&amp;&gt;a]:min-w-0.[&amp;&gt;a]:flex-1.[&amp;&gt;button]:min-w-0, outside its own region. <small>http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1</small> <small>value=0.0059, moved=div.space-y-snug | div.space-y-snug | div.flex.flex-row.gap-snug.[&amp;&gt;a]:min-w-0.[&amp;&gt;a]:flex-1.[&amp;&gt;button]:min-w-0, regions=div.space-y-cozy</small></li><li data-check="motion" data-severity="advisory"><span class="">advisory</span> <code>motion</code> (buyer, automated): Decorative motion: &quot;enter&quot; animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner. <small>http://localhost:3100/sales/58fb877d-6bc2-42d1-bf74-ffdcd814248e?details=1</small> <small>animation=enter, properties=opacity,transform, target=.fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0</small></li></ul></li><li data-step="4" data-status="failed"><strong>4. Buyer sees card and PayTo each priced, and chooses PayTo</strong> <span class="status status-failed">failed</span> <span class="tag">action</span> <small>buyer · 3s</small><pre>no cash sale 58fb877d-6bc2-42d1-bf74-ffdcd814248e</pre><div class="grid"><figure><a href="../media/media/cash-sale.payments.bank-payto/desktop/2026-11-25T02-58-51Z-hvdl0yz/step-04.buyer.png"><img loading="lazy" src="../media/media/cash-sale.payments.bank-payto/desktop/2026-11-25T02-58-51Z-hvdl0yz/step-04.buyer.png" alt="Step 4, buyer"></a><figcaption>buyer</figcaption></figure></div></li></ol>
+<h3>Forced interactions</h3>
+<p>No forced interactions.</p>
+</section>
+<section data-viewport="phone">
+<h2>Phone <span class="status status-failed">failed</span></h2>
+<p>Run <code>2026-11-25T02-58-51Z-hvdl0yz</code> · payments stripe-test · retries 1</p>
+
+<h3>Steps</h3>
+<p>No steps recorded.</p>
+<h3>Forced interactions</h3>
+<p>No forced interactions.</p>
+</section>
+<section id="videos">
+<h2>Videos</h2>
+<div class="grid"><figure><video controls preload="metadata" src="../media/media/cash-sale.payments.bank-payto/desktop/2026-11-25T02-58-51Z-hvdl0yz/video.buyer.0.webm"></video><figcaption>buyer · Desktop</figcaption></figure></div>
+</section>
+</main>
+
+</body>
+</html>

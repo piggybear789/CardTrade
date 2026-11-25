@@ -130,7 +130,6 @@ export function ContractLiveRow({
               size="sm"
               onClick={closeDetails}
               className="text-body font-medium text-muted-foreground hover:text-foreground"
-              aria-label="Close details"
             >
               Done
             </Button>

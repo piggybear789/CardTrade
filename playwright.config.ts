@@ -166,6 +166,9 @@ export default defineConfig({
         // production limit of 5 a minute refuses. Raised on THIS server only; the aux
         // server keeps the default for the rate-limit Pathway.
         AUTH_RATE_LIMIT_PER_MINUTE: '100',
+        // Parallel Pathways publish listings and private-deal cards as the same seeded
+        // members; the production limit of 10 a minute refuses a fast run's overlap.
+        LISTING_RATE_LIMIT_PER_MINUTE: '200',
         // Webhooks come back to THIS server (F20, Req 4.6). `.env.local` points
         // WEBHOOK_URL at 3000 for a developer's `npm run dev`.
         WEBHOOK_URL: `${MAIN_URL}/api/webhooks/stripe`,

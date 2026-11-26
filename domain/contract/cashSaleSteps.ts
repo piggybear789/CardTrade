@@ -242,6 +242,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     id: 'terms',
     short: 'Discuss terms',
     label: 'Set handover terms',
+    compactLabel: 'Handover terms',
     detail: termsSet
       ? isDelivery
         ? 'Shipping with tracking.'
@@ -271,6 +272,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       viewerRole === 'BUYER'
         ? 'Pay to lock in the deal'
         : `Waiting for ${counterpartyName} to pay`,
+    compactLabel: viewerRole === 'BUYER' ? 'Pay to lock it in' : 'Waiting on payment',
     detail: !termsSet
       ? 'Available once handover terms have been proposed.'
       : viewerRole === 'BUYER'
@@ -328,6 +330,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
         viewerRole === 'SELLER'
           ? 'Post it and add the tracking number'
           : `Waiting for ${counterpartyName} to post it`,
+      compactLabel: viewerRole === 'SELLER' ? 'Post and add tracking' : 'Waiting on posting',
       detail: hasTracking
         ? 'Tracking recorded.'
         : viewerRole === 'SELLER'
@@ -374,6 +377,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       // Rail shorts must survive a five-tick rail on a 320px screen.
       short: 'Delivery',
       label: 'Both confirm the handover',
+      compactLabel: 'Confirm handover',
       detail: bothConfirmed
         ? viewerRole === 'SELLER'
           ? 'Handover confirmed. The buyer has a day to raise a problem before you are paid.'
@@ -408,7 +412,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   {
     drafts.push({
       id: 'inspect',
-      short: '',
+      short: 'Inspect',
       label:
         viewerRole === 'BUYER'
           ? 'Accept the item, or report a problem'
@@ -441,6 +445,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
         viewerRole === 'BUYER'
           ? 'Post the item back'
           : `Waiting for ${counterpartyName} to post it back`,
+      compactLabel: viewerRole === 'BUYER' ? 'Post it back' : 'Waiting on the return',
       detail: returnDisputedNow
         ? 'The seller contested this return. The case is back with support.'
         : facts.hasReturnTracking
@@ -469,6 +474,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       short: '',
       label:
         viewerRole === 'SELLER' ? 'Check the return' : `${counterpartyName} checks the return`,
+      compactLabel: viewerRole === 'SELLER' ? 'Check the return' : 'Return being checked',
       detail:
         viewerRole === 'SELLER'
           ? `You have ${RETURN_INSPECTION_LABEL} after delivery to report a problem. After that the buyer is refunded automatically.`

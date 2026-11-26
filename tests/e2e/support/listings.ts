@@ -158,13 +158,21 @@ export async function createListing(
   // on step 1 but is not visible until Next.
   await page.getByRole('radio', { name: /^One item/ }).check();
 
-  await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
   // A picked photo shows as a tile with a named remove control. The desktop live
   // preview carries a second "Remove photo 1" on its gallery frame, so the visible
   // first one is enough.
-  await expect(
-    page.getByRole('button', { name: 'Remove photo 1' }).filter({ visible: true }).first(),
-  ).toBeVisible({ timeout: 30_000 });
+  //
+  // RE-PICKED UNTIL IT LANDS. Under load (12 workers, WebKit) the file can be set
+  // before React has hydrated the input and attached `onChange`, and the pick is then
+  // dropped with no error. It is set again only while no tile shows, so a slow first
+  // pick cannot become two photos.
+  const firstTile = page.getByRole('button', { name: 'Remove photo 1' }).filter({ visible: true }).first();
+  await expect(async () => {
+    if (!(await firstTile.isVisible())) {
+      await page.locator('input[type="file"]').first().setInputFiles(TEST_IMAGE);
+    }
+    await expect(firstTile).toBeVisible({ timeout: 5_000 });
+  }).toPass({ timeout: 45_000 });
 
   // Matched EXACTLY, because a substring match would also accept a future second
   // field whose label merely CONTAINS the word.

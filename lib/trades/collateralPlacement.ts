@@ -347,6 +347,22 @@ export async function placeTradeCollateral(params: {
     },
   );
 
+  // THE TRADE MAY HAVE ENDED WHILE THE CARDS WERE BEING AUTHORISED. The state check
+  // above ran before any provider call, and an overlapping pass (the `:17` abandon, a
+  // second job run, a member's retry) can cancel the trade in between. The abandon
+  // voids only the holds it can SEE, and these rows were written after it looked, so
+  // nothing else would release them: every compensation below goes through a
+  // transition the ended trade refuses. Release them here and stop.
+  const { data: after } = await admin.from('trades').select('state').eq('id', tradeId).maybeSingle();
+  if ((after as { state?: string } | null)?.state !== 'COLLATERAL_PENDING') {
+    await releaseHoldsOnEndedTrade(tradeId, repository, payments);
+    return {
+      ok: false,
+      error: 'not-pending',
+      message: 'Collateral is not waiting to be placed on this trade.',
+    };
+  }
+
   if (!bonds.ok) {
     // HOLDS_FAILED loops back to COLLATERAL_PENDING on purpose, so a member can
     // replace their card and retry without renegotiating.
@@ -415,6 +431,35 @@ export async function placeTradeCollateral(params: {
   }
 
   return { ok: true, alreadyActive: false };
+}
+
+/**
+ * Void every ACTIVE hold on a trade that ended while they were being placed (see the
+ * re-check in {@link placeTradeCollateral}). The void result is honoured (ESC-34): a
+ * hold the provider still holds keeps its row and flags the trade, so the orphan sweep
+ * and staff can still find it.
+ */
+async function releaseHoldsOnEndedTrade(
+  tradeId: string,
+  repository: ReturnType<typeof createSupabaseTradeProposalRepository>,
+  payments: ReturnType<typeof getPaymentService>,
+): Promise<void> {
+  const admin = createAdminClient();
+  for (const hold of await repository.getHolds(tradeId)) {
+    if (hold.status !== 'ACTIVE') continue;
+    const voided = await payments.voidHold(hold.holdRef);
+    if (voided.status === 'VOIDED') {
+      await repository.markHoldStatus(hold.holdRef, 'VOIDED');
+      continue;
+    }
+    await admin.from('trades').update({ manual_reconciliation: true }).eq('id', tradeId);
+    await logBackgroundFailure({
+      name: 'collateral.void',
+      errorCode: 'VOID_FAILED',
+      message: 'A hold placed while the trade ended could not be released.',
+      context: { tradeId },
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------

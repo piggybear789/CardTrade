@@ -8,6 +8,7 @@ import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
 import { StarRating } from '@/components/listings/StarRating';
 import { Avatar } from '@/components/ui/avatar';
 import { displayLegalName, formatRelativeTime } from '@/lib/format';
+import { publicLocationLabel } from '@/lib/location/publicLocation';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
 import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
 import { ListingProtectionLine } from '@/components/listings/ListingTrust';
@@ -95,7 +96,8 @@ export function ListingDetailStack({
     category,
     kindLabel,
     listedAgo ? `Listed ${listedAgo}` : null,
-    locationLabel,
+    // Suburb and state only, never a street (see publicLocationLabel).
+    publicLocationLabel(locationLabel),
   ]
     .filter(Boolean)
     .join(' · ');

@@ -754,11 +754,15 @@ pathway(
       await openRoom(page, tradeId);
       await payCashLeg(page, cash);
     });
-    await assertState('The platform holds the cash, and still no hold is placed', {
+    // The cash only. Whether holds exist yet is not this Pathway's to assert: the
+    // trade-inspections job is global, and in a parallel run another worker's run
+    // places this trade's collateral the moment the cash is collected, which is the
+    // correct behaviour. ESC-05 (no hold while the cash is UNPAID) is the step above.
+    await assertState('The platform holds the cash', {
       member: 'alice',
-      db: async () => ({ cash: (await tradeCashLeg(tradeId))?.status, holds: (await tradeHolds(tradeId)).length }),
-      ui: async (page) => ({ cash: (await textShown(page, `Cash of ${cash} paid`)) ? 'COLLECTED' : 'other', holds: 0 }),
-      expect: { cash: 'COLLECTED', holds: 0 },
+      db: async () => ({ cash: (await tradeCashLeg(tradeId))?.status }),
+      ui: async (page) => ({ cash: (await textShown(page, `Cash of ${cash} paid`)) ? 'COLLECTED' : 'other' }),
+      expect: { cash: 'COLLECTED' },
     });
 
     await arrange('The hourly trade-inspections job runs again and places the collateral', async () => {

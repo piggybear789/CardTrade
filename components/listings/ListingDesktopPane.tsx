@@ -9,6 +9,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
 import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
+import { publicLocationLabel } from '@/lib/location/publicLocation';
 import { ListingProtectionLine } from '@/components/listings/ListingTrust';
 import { displayLegalName, formatRelativeTime } from '@/lib/format';
 
@@ -173,7 +174,8 @@ export function ListingDesktopPane({
               isShopfront ? 'Multiple items' : null,
               condition,
               listedAgo ? `Listed ${listedAgo}` : null,
-              locationLabel,
+              // Suburb and state only, never a street (see publicLocationLabel).
+              publicLocationLabel(locationLabel),
               // The save count rides on the heart when there is one to press.
               !showWatch && watchCount > 0
                 ? watchCount === 1

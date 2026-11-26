@@ -412,7 +412,19 @@ function PurchaseDialog({
                   <p className="truncate text-body font-medium">
                     {loading ? 'Checking your card…' : card ? (card.label ?? 'Card on file') : 'Add a card to reserve'}
                   </p>
-                  <p className="min-h-[2lh] text-body text-muted-foreground">
+                  {/* ONE LINE, reserved and truncated. `min-h-[2lh]` held room for a
+                      fee clause that wraps on an overseas card, so every other state
+                      (loading, a domestic card, no card) showed a blank second line
+                      and the row looked twice as tall as its text. The full clause
+                      stays readable on hover and to screen readers via `title`. */}
+                  <p
+                    className="truncate text-body text-muted-foreground"
+                    title={
+                      !loading && card && tierClause && currency
+                        ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
+                        : undefined
+                    }
+                  >
                     {loading
                       ? 'Stripe keeps it on file. Nothing is charged until you pay.'
                       : card

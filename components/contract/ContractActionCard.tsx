@@ -17,7 +17,7 @@
 
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { HugeiconsIcon } from '@hugeicons/react';
-import { MoreVerticalIcon } from '@hugeicons/core-free-icons';
+import { InformationCircleIcon, MoreVerticalIcon } from '@hugeicons/core-free-icons';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -67,6 +67,31 @@ const STRIP_TONE: Record<ContractActionTone, string> = {
 const YOUR_MOVE_CARD = 'border-iris/50 bg-accent/60';
 const YOUR_MOVE_STRIP = 'bg-accent/60 shadow-[inset_3px_0_0_hsl(var(--iris))]';
 
+/**
+ * The (i) beside a dock title: the step's full explanation, any length, one tap or
+ * click away. A popover rather than a tooltip, so it opens on touch as well.
+ */
+function StepInfo({ children }: { children: ReactNode }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="-my-1.5 size-6 shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          aria-label="About this step"
+        >
+          <HugeiconsIcon icon={InformationCircleIcon} className="size-4" aria-hidden />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-cozy text-body text-muted-foreground">
+        {children}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /** Whether the live step is the viewer's to act on. */
 function isViewersMove(step: ContractStep | null): boolean {
   return step?.status === 'active' && (step.owner === 'you' || step.owner === 'both');
@@ -115,6 +140,36 @@ export interface ContractActionCardProps {
   className?: string;
 }
 
+/** The real children of `node`, with fragments opened and empty slots dropped. */
+function flatChildren(node: ReactNode): ReactNode[] {
+  return Children.toArray(node).flatMap((child) =>
+    isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment
+      ? flatChildren(child.props.children)
+      : [child],
+  );
+}
+
+/**
+ * ONE BUTTON IN THE DOCK. The rooms pass every control for the step, and in a
+ * 22rem chat column two or three of them stacked into a tower beside a sentence
+ * squeezed to one word a line ("Report fraud" over "Review the dispute"). The dock
+ * keeps the LAST control, which is the step's primary by the rooms' convention
+ * (secondary first, primary last, as in a dialog footer), and every other control
+ * moves into the ⋯ menu ahead of the room's own `more` items.
+ */
+function splitPrimary(children: ReactNode): { blocks: ReactNode[]; primary: ReactNode; rest: ReactNode[] } {
+  const all = flatChildren(children);
+  // A BLOCK IS NOT A MENU ROW. A room marks a panel it passes here (the saved-card
+  // row, a meeting-change proposal) with `data-dock="block"`; it keeps its own line
+  // above the control row instead of being folded into the menu.
+  const isBlock = (node: ReactNode) =>
+    isValidElement<Record<string, unknown>>(node) && node.props['data-dock'] === 'block';
+  const blocks = all.filter(isBlock);
+  const controls = all.filter((node) => !isBlock(node));
+  if (controls.length <= 1) return { blocks, primary: controls[0] ?? null, rest: [] };
+  return { blocks, primary: controls[controls.length - 1], rest: controls.slice(0, -1) };
+}
+
 function hasMenuContent(node: ReactNode): boolean {
   if (node == null || typeof node === 'boolean') return false;
   if (Array.isArray(node)) return node.some(hasMenuContent);
@@ -131,7 +186,18 @@ function hasMenuContent(node: ReactNode): boolean {
 }
 
 /** ⋯ menu for secondary contract actions. Sits to the right of the primary header control. */
-export function ContractOverflowMenu({ children }: { children?: ReactNode }) {
+export function ContractOverflowMenu({
+  children,
+  keepMounted = false,
+}: {
+  children?: ReactNode;
+  /**
+   * Keep the menu's content mounted while it is closed (hidden). Needed when a row
+   * owns its own dialog (Report fraud, Raise dispute): choosing it closes the menu,
+   * and an unmounted row would take its just-opened dialog with it.
+   */
+  keepMounted?: boolean;
+}) {
   if (!hasMenuContent(children)) return null;
 
   return (
@@ -148,7 +214,12 @@ export function ContractOverflowMenu({ children }: { children?: ReactNode }) {
           <HugeiconsIcon icon={MoreVerticalIcon} className="size-4" aria-hidden />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-52 p-tight">
+      <PopoverContent
+        side="top"
+        align="end"
+        className="w-52 p-tight data-[state=closed]:hidden"
+        {...(keepMounted ? { forceMount: true as const } : {})}
+      >
         <div
           className={cn(
             'flex flex-col',
@@ -163,7 +234,10 @@ export function ContractOverflowMenu({ children }: { children?: ReactNode }) {
             // rather than a variant prop, because the variant is not visible
             // here: the button is somebody else's element by the time it lands.
             // The ink keeps the warning; the slab goes.
-            '[&_.bg-destructive]:border-transparent [&_.bg-destructive]:bg-transparent [&_.bg-destructive]:text-destructive hover:[&_.bg-destructive]:bg-destructive/10',
+            '[&_.bg-destructive]:border-transparent [&_.bg-destructive]:bg-destructive/10 [&_.bg-destructive]:text-destructive hover:[&_.bg-destructive]:bg-destructive/15',
+            // A destructive row (Cancel) that arrives as an outline button gets the
+            // same soft red fill, without the outline box.
+            '[&_button.text-destructive]:border-transparent [&_button.text-destructive]:bg-destructive/10 hover:[&_button.text-destructive]:bg-destructive/15',
             // `default` and `action` both fill with `bg-primary` (ink) now.
             '[&_.bg-primary]:border-transparent [&_.bg-primary]:bg-transparent [&_.bg-primary]:text-foreground hover:[&_.bg-primary]:bg-muted',
             '[&_svg]:size-3.5',
@@ -257,107 +331,71 @@ export function ContractActionCard({
       </div>
     );
   }
-
   if (appearance === 'dock') {
+    const { blocks, primary, rest } = splitPrimary(children);
+    const menu = rest.length > 0 ? <>{rest}{more}</> : more;
+    // THE SHORT TITLE AT EVERY WIDTH. The dock is a strip beside a button in a
+    // narrow chat column; every step carries a `compactLabel` written for it
+    // ("Handover terms", "Waiting on payment"). The full label ("Waiting for Ada to
+    // pay") is still the rail's, and heads the (i) when it says more.
+    const label = title ?? step?.compactLabel ?? step?.label ?? 'This contract is finished';
+    const fullLabel = !title && step?.compactLabel && step.compactLabel !== step.label ? step.label : null;
+    const explanation = detail ?? step?.detail;
+    const sentence =
+      fullLabel || explanation ? (
+        <>
+          {fullLabel ? <span className="mb-tight block font-semibold text-foreground">{fullLabel}</span> : null}
+          {explanation}
+        </>
+      ) : null;
     return (
       <section
         aria-live="polite"
         className={cn('px-cozy py-snug', yourMove ? YOUR_MOVE_STRIP : STRIP_TONE[tone], className)}
       >
-        {/* ONE ROW, THREE LINES AT MOST. Text left, controls right, ⋯ last.
-            This was a stack — title, detail, tracking string, then a button on
-            its own row — which ran to five lines in a band that is pinned over
-            the conversation for the entire contract. Every line it spends is a
-            line of the conversation it covers.
+        {/* ONE ROW: what to do on the left, the button on the right, ⋯ last.
 
-            `flex-wrap` is what keeps it honest at narrow widths: the text block
-            holds a 14rem basis, so a wide control set drops to its own line
-            rather than squeezing the sentence into a column of single words.
+            No "Your move" pill: the violet edge and wash already say the step is
+            the viewer's, and the button is the instruction itself.
 
-            `-my-2.5` on the menu, phone only. The ⋯ is a 44px touch target
-            against a 20px title line, so it was setting the row height. It is a
-            transparent ghost icon at the far right, so letting it overflow its
-            own row is invisible — the hit area is unchanged and there is
-            nothing beside it to collide with.
+            The title wraps to a second line rather than truncating. The sentence explaining the step
+            is not printed: it ran to two or five lines depending on its length and
+            the column's width, so the band changed height from step to step. It
+            sits behind the (i) beside the title instead, where any length fits.
 
-            THE CONTROLS AND THE ⋯ ARE ONE FLEX ITEM. As three siblings — text,
-            button, menu — the menu was the one that failed to fit in a narrow
-            desktop column, so it alone wrapped to a second line and sat orphaned
-            at the far left under the title. Grouped, the pair wraps together and
-            `ml-auto` keeps it on the right when it does. */}
-        {/* `min-h-10 md:min-h-9`: the controls' height, reserved whether or not this
-            step gives the viewer a control. "Your move" and "their move" were 56px and
-            36px docks on a phone, so the conversation above resized every time the
-            contract's state arrived over Realtime. */}
-        <div className="flex min-h-10 flex-wrap items-center gap-x-cozy gap-y-snug md:min-h-9 md:flex-nowrap">
-          {/* ONE ROW FROM `md`, ALWAYS. The text is `basis-0` so it takes whatever
-              the controls leave and truncates (the title is already `line-clamp-1`
-              there); `md:flex-nowrap` on the row means the controls can never drop
-              beneath it. The dock is a strip in the chat column, and a strip that
-              is sometimes one line and sometimes two shifts the conversation
-              above it every time the step changes. A 14rem text basis used to
-              force the wrap in a narrow desktop column; a truncated title is the
-              better failure, because the full label is one tab away in Status.
-
-              Phones keep `flex-wrap`: the controls are 40px touch targets and a
-              wide set genuinely may not fit beside any title. */}
-          <div className="min-w-0 flex-1 basis-0">
-            {/* Two lines on a phone, one from `md`. The detail is hidden below
-                `md`, so the title can afford the second line there and still
-                keep the band inside its three-line budget; on desktop the
-                detail is showing and the title has to give the line back. */}
-            {/* A step may carry a subject-less `compactLabel` for this width
-                only — "Confirm item" for "Buyer confirms the item". Both spans
-                render and CSS picks one, rather than branching on a media
-                query in JS: the dock is server-rendered and a hook would flash
-                the wrong title on first paint. A `title` override wins outright,
-                since a flow that supplied its own copy has already decided. */}
-            <h3 className="line-clamp-2 text-lead font-semibold leading-tight tracking-tight md:line-clamp-1">
-              {viewersMove ? <YourMovePill /> : null}
-              {title ?? (
-                step?.compactLabel ? (
-                  <>
-                    <span className="md:hidden">{step.compactLabel}</span>
-                    <span className="hidden md:inline">{step.label}</span>
-                  </>
-                ) : (
-                  step?.label ?? 'This contract is finished'
-                )
-              )}
-            </h3>
-            {/* DESKTOP ONLY IN THE DOCK. On a phone this band is pinned over
-                the conversation for the whole trade, and the sentence is
-                consistently the title restated with the button label appended —
-                "Both traders post with tracking" over "Post your item and
-                record the carrier and tracking number", above a button reading
-                "Record shipment". The desktop dock is a strip in its own column
-                and has the room. Clamped to one line either way. */}
-            {/* ALWAYS RENDERED from `md`, a non-breaking space when the step has no
-                detail, so the desktop dock is one height for every step. */}
-            <p className="mt-0.5 hidden line-clamp-1 text-body text-muted-foreground md:block">
-              {detail ?? step?.detail ?? '\u00a0'}
-            </p>
-            {note ? (
-              <p className="mt-0.5 line-clamp-1 text-meta text-muted-foreground">
-                {note}
-              </p>
+            `min-h-10 md:min-h-9` holds the row at the button's height on every
+            step, with or without a button, so the conversation above never moves
+            when the contract's state arrives over Realtime. */}
+        {blocks.length > 0 ? <div className="mb-snug space-y-snug">{blocks}</div> : null}
+        <div className="flex min-h-10 min-w-0 items-center gap-x-cozy md:min-h-9">
+          {/* WRAPS, NEVER CUTS OFF. A truncated title ("Set handover t…") hid
+              the one thing the row is for. It may take two lines, and the (i)
+              rides inline after the last word instead of claiming its own
+              column. Two lines at most (`line-clamp-2`); the short titles are
+              written to fit one. */}
+          <h3 className="line-clamp-2 min-w-0 flex-1 text-pretty text-body font-semibold leading-snug">
+            {label}
+            {sentence ? (
+              <span className="ml-1 inline-flex align-middle">
+                <StepInfo>{sentence}</StepInfo>
+              </span>
             ) : null}
-          </div>
+          </h3>
 
-          <div className="ml-auto flex shrink-0 items-center gap-x-cozy [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
-            {children ? (
-              // 40px on a phone, compacting from `md` — the Button default at
-              // both widths. These are the room's primary actions ("Record
-              // shipment", "Item never arrived") and must not drop to the desktop
-              // size on touch, which is what this override is guarding against.
-              <ActionControls className="[&_a]:h-10 [&_button]:h-10 [&_button]:px-cozy md:[&_a]:h-9 md:[&_button]:h-9">
-                {children}
-              </ActionControls>
-            ) : null}
-
-            <ContractOverflowMenu>{more}</ContractOverflowMenu>
-          </div>
+          {primary || hasMenuContent(menu) ? (
+            <div className="flex shrink-0 items-center gap-x-tight [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
+              {primary ? (
+                // 40px on a phone, compacting from `md`: the room's primary action
+                // must not drop to the desktop size on touch.
+                <ActionControls className="[&_a]:h-10 [&_button]:h-10 [&_button]:px-cozy md:[&_a]:h-9 md:[&_button]:h-9">
+                  {primary}
+                </ActionControls>
+              ) : null}
+              <ContractOverflowMenu keepMounted={rest.length > 0}>{menu}</ContractOverflowMenu>
+            </div>
+          ) : null}
         </div>
+        {note ? <p className="mt-0.5 line-clamp-1 text-meta text-muted-foreground">{note}</p> : null}
       </section>
     );
   }

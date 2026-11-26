@@ -32,8 +32,25 @@ export const authLimiter = createRateLimiter({
   window: '1m',
 });
 
+/**
+ * Listing changes allowed per member per minute. Ten in production.
+ *
+ * Overridable for the same single caller as {@link AUTH_ATTEMPTS_PER_MINUTE}: the e2e
+ * suite runs many Pathways in parallel as the same seeded members, so a fast run
+ * publishes more than ten listings and private-deal cards a minute as Alice and the
+ * limiter correctly refuses the rest. An unset or unparseable value keeps 10.
+ */
+const LISTING_CHANGES_PER_MINUTE = (() => {
+  const raw = Number(process.env.LISTING_RATE_LIMIT_PER_MINUTE);
+  return Number.isInteger(raw) && raw > 0 ? raw : 10;
+})();
+
 /** Listing creation / edit, per member (`lib/actions/listings.ts`). Moderate. */
-export const listingLimiter = createRateLimiter({ prefix: 'listing', limit: 10, window: '1m' });
+export const listingLimiter = createRateLimiter({
+  prefix: 'listing',
+  limit: LISTING_CHANGES_PER_MINUTE,
+  window: '1m',
+});
 
 /**
  * Opening offers and trade negotiations, per member: each one notifies the other party.

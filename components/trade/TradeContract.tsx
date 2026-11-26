@@ -1186,6 +1186,7 @@ function TradeContractRoom({
                       trade.state === 'COLLATERAL_PENDING' &&
                       permittedActionCount === 0 ? (
                         <SavedCardRow
+                          data-dock="block"
                           initialStatus={paymentMethod}
                           className="w-full sm:max-w-sm"
                         />
@@ -1193,6 +1194,7 @@ function TradeContractRoom({
 
                       {handoverChange && trade.state === 'COLLATERAL_PENDING' ? (
                         <HandoverChangeBanner
+                          data-dock="block"
                           change={handoverChange}
                           viewerId={viewerRole === 'INITIATOR' ? initiatorId : counterpartId}
                           otherName={them?.name ?? 'The other trader'}

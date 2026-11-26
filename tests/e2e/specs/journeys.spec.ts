@@ -200,10 +200,15 @@ pathway(
     );
 
     await arrange('The hourly payout job runs (called on demand, as Vercel Cron would)', async () => {
-      for (let pass = 0; pass < 5; pass += 1) {
+      // Driven until it settles, not a fixed number of passes. In a parallel run other
+      // workers' drains claim this row, and Stripe test mode rate-limits, so a pass can
+      // find the row in flight and leave it PENDING; the next pass picks it up.
+      const until = Date.now() + 90_000;
+      while (Date.now() < until) {
         await runJobOk('cash-sale-payouts');
         const row = await saleRow<{ seller_payout_status: string }>(saleId, 'seller_payout_status');
         if (row.seller_payout_status !== 'PENDING') break;
+        await new Promise((resolve) => setTimeout(resolve, 3_000));
       }
     });
 

@@ -73,8 +73,10 @@ export function FulfilmentMethodSummary({
                   'border-border bg-accent text-accent-foreground'
                 : // The option NOT taken stays visible and stays quiet. Dropping
                   // it entirely would leave a lone card that reads as a heading;
-                  // showing it at equal weight would read as a live choice.
-                  'border-border opacity-60',
+                  // showing it at equal weight would read as a live choice. Quiet
+                  // through a dashed edge, NOT opacity: muted text at 60% failed
+                  // the WCAG AA contrast check (e2e audit, color-contrast).
+                  'border-dashed border-border',
             )}
           >
             <HugeiconsIcon icon={Icon}

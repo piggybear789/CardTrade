@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
   if (!result.ok && result.error === 'card-repriced') {
     return NextResponse.json({
       ...result,
-      message: `${result.message ?? 'Your card has a different service fee.'} The sale room on the website shows the total for your card.`,
+      message: `${result.message ?? 'Your card has a different buyer protection fee.'} The sale room on the website shows the total for your card.`,
       handoff: { kind: 'WEB', path: `/sales/${encodeURIComponent(cashSaleId)}` },
     });
   }

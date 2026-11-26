@@ -139,8 +139,12 @@ export default function TermsPage() {
       </p>
       <h3>How payment is collected and held</h3>
       <p>
-        The buyer pays the price, any postage and the service fee (section 8) through Stripe,
-        by card or, where offered, from their bank. <strong>Each seller appoints NoDitto as
+        The buyer pays the price, any postage and the buyer protection fee (section 8) through Stripe,
+        by card or, where offered, from their bank, including by a bank transfer the buyer sends
+        to account details Stripe provides for that sale. A sale paid by bank transfer stays
+        reserved while the transfer is on its way, and is cancelled, with anything received
+        returned to the buyer&rsquo;s bank, if the full amount has not arrived within three
+        days. <strong>Each seller appoints NoDitto as
         its limited agent to collect payment from the buyer.</strong> When we receive the
         buyer’s payment, the buyer’s obligation to pay the seller is satisfied, even if we
         have not yet paid the seller.
@@ -175,7 +179,7 @@ export default function TermsPage() {
         refund is released automatically once the seller has had 72 hours, from the carrier
         confirming delivery, to check the returned parcel and has not raised a problem with
         it. A full refund includes the
-        service fee. Currency conversion fees on a trade’s cash payment are not refunded.
+        buyer protection fee. Currency conversion fees on a trade’s cash payment are not refunded.
       </p>
       <h3>Cancelling</h3>
       <p>
@@ -219,6 +223,11 @@ export default function TermsPage() {
         The fee is shown before you pay, with the total for each way of paying. A contract’s
         fee is fixed when it is paid. We may change our rates for contracts agreed after the
         change.
+      </p>
+      <p>
+        The buyer protection fee is named for what it pays for: the payment being held until
+        you accept the goods, the inspection window and dispute handling. It is not insurance
+        and it does not guarantee any outcome.
       </p>
 
       <h2 id="payouts">9. Getting paid and Stripe’s terms</h2>

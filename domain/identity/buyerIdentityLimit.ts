@@ -12,7 +12,7 @@
 // it does not.
 //
 // PER SALE, ON THE PRICE. The figure compared is the sale's agreed price (the sum of
-// its lines on a binder sale), not the charged total: postage and the service fee move
+// its lines on a binder sale), not the charged total: postage and the buyer protection fee move
 // with the way of paying, and a limit that a buyer crosses by choosing card over bank
 // would read as arbitrary. The check runs at Pay, the commitment point, so every way
 // into a cash sale (Buy Now, an accepted offer, a private deal) meets it once.

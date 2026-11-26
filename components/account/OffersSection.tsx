@@ -339,7 +339,7 @@ function OfferNegotiation({
   const outcome =
     offer.role === 'seller'
       ? `You'd get ${money(offer.amountCents)}`
-      : `You'd pay ${money(buyerPaysCents(offer.amountCents, offer.currency))} incl. service fee`;
+      : `You'd pay ${money(buyerPaysCents(offer.amountCents, offer.currency))} incl. buyer protection fee`;
   const showAsking =
     offer.itemAskingCents != null && offer.itemAskingCents !== offer.amountCents;
 

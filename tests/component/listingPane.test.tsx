@@ -74,7 +74,7 @@ describe('ListingDesktopPane', () => {
     ...sellerProps,
     title: 'Charizard',
     description: 'Clean slab.',
-    // $4,000.00 asking; the buyer pays it plus the service fee.
+    // $4,000.00 asking; the buyer pays it plus the buyer protection fee.
     priceCents: 400_000,
     currency: 'aud',
     isShopfront: false,
@@ -96,7 +96,7 @@ describe('ListingDesktopPane', () => {
     expect(container.textContent).toContain(
       formatMoneyWhole(buyerPaysCents(400_000, 'aud'), 'aud').replace(/\s[A-Z]{3}$/, ''),
     );
-    expect(screen.queryByText(/service fee/)).toBeNull();
+    expect(screen.queryByText(/buyer protection fee/)).toBeNull();
   });
 
   it('puts Save and Report beside the title', () => {
@@ -128,7 +128,7 @@ describe('ListingDesktopPane', () => {
         <span />
       </ListingDesktopPane>,
     );
-    expect(screen.queryByText(/service fee/)).toBeNull();
+    expect(screen.queryByText(/buyer protection fee/)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Buyer protection' })).toBeNull();
     expect(screen.queryByRole('group', { name: 'Listing actions' })).toBeNull();
   });
@@ -141,7 +141,7 @@ describe('ListingDesktopPane', () => {
     );
     expect(screen.getByText(/^Multiple items · /)).toBeInTheDocument();
     expect(screen.queryByText(/Binder/)).toBeNull();
-    expect(screen.queryByText(/service fee/)).toBeNull();
+    expect(screen.queryByText(/buyer protection fee/)).toBeNull();
     expect(screen.getByText(/until you accept the cards\./)).toBeInTheDocument();
   });
 
@@ -174,13 +174,13 @@ describe('ListingDetailStack', () => {
 
   it('shows the protection strip, and no fee note, to a buyer who can buy', () => {
     render(<ListingDetailStack {...props} showTrust />);
-    expect(screen.queryByText(/service fee/)).toBeNull();
+    expect(screen.queryByText(/buyer protection fee/)).toBeNull();
     expect(screen.getByRole('link', { name: 'Buyer protection' })).toBeInTheDocument();
   });
 
   it('shows neither when the viewer cannot buy', () => {
     render(<ListingDetailStack {...props} showTrust={false} />);
-    expect(screen.queryByText(/service fee/)).toBeNull();
+    expect(screen.queryByText(/buyer protection fee/)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Buyer protection' })).toBeNull();
   });
 
@@ -188,7 +188,7 @@ describe('ListingDetailStack', () => {
     render(<ListingDetailStack {...props} isShopfront showTrust />);
     expect(screen.getByText(/(^|· )Multiple items( ·|$)/)).toBeInTheDocument();
     expect(screen.queryByText(/nothing is held/)).toBeNull();
-    expect(screen.queryByText(/service fee/)).toBeNull();
+    expect(screen.queryByText(/buyer protection fee/)).toBeNull();
   });
 });
 

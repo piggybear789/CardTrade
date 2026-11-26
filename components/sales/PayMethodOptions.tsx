@@ -3,7 +3,7 @@
 // components/sales/PayMethodOptions.tsx
 //
 // The "how do you want to pay" choice on a cash sale's Pay step (0158). Each option
-// shows the total it charges; the chosen rail's rate and service fee are stated once,
+// shows the total it charges; the chosen rail's rate and buyer protection fee are stated once,
 // in the breakdown below the options (the per-option line is screen-reader only). Totals are
 // priced by the same function the
 // server re-derives the charge with (`totalForMethod`), so the figure beside an option

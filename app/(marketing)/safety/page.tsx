@@ -34,9 +34,9 @@ const strong = 'font-semibold text-foreground';
 
 export default function SafetyPage() {
   const buyerFee =
-    `The price you see includes the service fee, a fixed rate shown before you pay that covers Stripe's costs plus about ${nodittoFeeRateLabel()} to NoDitto. Postage is passed through at cost.`;
+    `The price you see includes the buyer protection fee, a fixed percentage shown before you pay. Most of it goes to Stripe; NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Postage is passed through at cost.`;
   const sellerFee =
-    "You'll receive your full price and postage. The buyer pays the service fee on top.";
+    "You'll receive your full price and postage. The buyer pays the buyer protection fee on top.";
 
   return (
     <article className="mx-auto max-w-2xl px-group py-section sm:px-6 md:py-12">

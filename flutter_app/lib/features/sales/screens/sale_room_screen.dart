@@ -212,7 +212,7 @@ class _SaleRoomScreenState extends ConsumerState<SaleRoomScreen> {
   /// The viewer's own total: what a buyer is charged, or what a seller receives.
   ///
   /// Both are server-recorded figures. The seller's is `amount_cents` less the
-  /// service fee, exactly as `sellerNetCents` in the web room: shipping is a
+  /// buyer protection fee, exactly as `sellerNetCents` in the web room: shipping is a
   /// pass-through that belongs to the seller, and the buyer pays the fee on top.
   /// Nothing here recomputes a fee (Req 7.5).
   static int _viewerTotalCents(CashSale sale, CashSaleRole role) {

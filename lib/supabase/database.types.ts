@@ -1009,6 +1009,7 @@ export type Database = {
             | 'EPS'
             | 'P24'
             | 'PAYTO'
+            | 'BANK_TRANSFER'
             | null;
           /** Return-conditional refund leg (0088). Separate from the outbound
               columns above so a return event cannot overwrite the original
@@ -1155,6 +1156,7 @@ export type Database = {
             | 'EPS'
             | 'P24'
             | 'PAYTO'
+            | 'BANK_TRANSFER'
             | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;
@@ -1276,6 +1278,7 @@ export type Database = {
             | 'EPS'
             | 'P24'
             | 'PAYTO'
+            | 'BANK_TRANSFER'
             | null;
           return_tracking_carrier?: string | null;
           return_tracking_number?: string | null;

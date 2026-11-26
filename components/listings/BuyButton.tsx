@@ -421,7 +421,7 @@ function PurchaseDialog({
                     className="truncate text-body text-muted-foreground"
                     title={
                       !loading && card && tierClause && currency
-                        ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
+                        ? `Buyer protection fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
                         : undefined
                     }
                   >
@@ -429,7 +429,7 @@ function PurchaseDialog({
                       ? 'Stripe keeps it on file. Nothing is charged until you pay.'
                       : card
                         ? tierClause && currency
-                          ? `Service fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
+                          ? `Buyer protection fee ${processingFeeRateLabel(currency, cardMethod)}, ${tierClause}`
                           : 'Stripe method'
                         : 'Stripe keeps it on file. Nothing is charged until you pay.'}
                   </p>

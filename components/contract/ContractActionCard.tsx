@@ -341,8 +341,13 @@ export function ContractActionCard({
     const label = title ?? step?.compactLabel ?? step?.label ?? 'This contract is finished';
     const fullLabel = !title && step?.compactLabel && step.compactLabel !== step.label ? step.label : null;
     const explanation = detail ?? step?.detail;
+    // AN OUTCOME IS SAID, NOT HIDDEN. On a step the viewer acts on, the sentence only
+    // explains the button, so it waits behind the (i). On an outcome ("The payment could
+    // not be collected, so the item returned to the catalog", a refund, a dispute), the
+    // sentence IS the news, so it is printed under the title, two lines at most.
+    const outcome = tone !== 'default';
     const sentence =
-      fullLabel || explanation ? (
+      (fullLabel || explanation) && !outcome ? (
         <>
           {fullLabel ? <span className="mb-tight block font-semibold text-foreground">{fullLabel}</span> : null}
           {explanation}
@@ -395,6 +400,9 @@ export function ContractActionCard({
             </div>
           ) : null}
         </div>
+        {outcome && explanation ? (
+          <p className="mt-0.5 line-clamp-2 text-body text-muted-foreground">{explanation}</p>
+        ) : null}
         {note ? <p className="mt-0.5 line-clamp-1 text-meta text-muted-foreground">{note}</p> : null}
       </section>
     );

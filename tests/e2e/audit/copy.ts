@@ -40,11 +40,11 @@ export interface StepCopyDeclaration {
   shopfront?: boolean;
   /** The step shows trade collateral. */
   collateral?: boolean;
-  /** The step shows the service fee for this currency and way of paying (card by default). */
+  /** The step shows the buyer protection fee for this currency and way of paying (card by default). */
   fee?: { currency: string; method?: PaymentMethodKind };
 }
 
-/** The service fee label the page must show for `fee` (Req 31.3). */
+/** The buyer protection fee label the page must show for `fee` (Req 31.3). */
 export function expectedFeeLabel(fee: NonNullable<StepCopyDeclaration['fee']>): string {
   return processingFeeRateLabel(fee.currency, fee.method ?? 'CARD');
 }

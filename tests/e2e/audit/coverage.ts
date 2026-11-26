@@ -132,6 +132,7 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
       'cash-sale.payments.bank-bancontact',
       'cash-sale.payments.bank-eps',
       'cash-sale.payments.bank-p24',
+      'cash-sale.payments.bank-transfer',
     ],
     refusal: [
       'cash-sale.payments.card-3ds-failed',
@@ -344,7 +345,7 @@ export const COVERAGE_MAP: readonly CoverageEntry[] = [
   {
     id: 'cash-sale.model',
     area: 'cash-sale',
-    function: 'Cash Sale model: the platform holds the money, the service fee, Multiple items line items',
+    function: 'Cash Sale model: the platform holds the money, the buyer protection fee, Multiple items line items',
     productSection: 'Cash Sale',
     kind: 'automated',
     happy: [

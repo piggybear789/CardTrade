@@ -80,8 +80,9 @@ async function payableSale(options: { buyerAtPay?: typeof BUYER; payments?: InMe
 describe('which rails a buyer is offered', () => {
   it('offers a bank rail only in its currency, to a buyer whose bank runs it', () => {
     expect(paymentMethodsFor({ currency: 'aud', buyerRegion: 'AU' })).toEqual(['CARD', 'PAYTO']);
-    // US bank is defined but not offered: Payment Element will not render Link alone.
-    expect(paymentMethodsFor({ currency: 'usd', buyerRegion: 'US' })).toEqual(['CARD']);
+    // US bank (Link) is defined but not offered: Payment Element will not render Link
+    // alone. A bank transfer (0178) is.
+    expect(paymentMethodsFor({ currency: 'usd', buyerRegion: 'US' })).toEqual(['CARD', 'BANK_TRANSFER']);
     expect(paymentMethodsFor({ currency: 'eur', buyerRegion: 'NL' })).toEqual(['CARD', 'IDEAL']);
     expect(paymentMethodsFor({ currency: 'eur', buyerRegion: 'BE' })).toEqual(['CARD', 'BANCONTACT']);
     expect(paymentMethodsFor({ currency: 'eur', buyerRegion: 'AT' })).toEqual(['CARD', 'EPS']);

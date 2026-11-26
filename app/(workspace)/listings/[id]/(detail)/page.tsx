@@ -1016,7 +1016,7 @@ function ItemActions({
         {/* WHAT THE PRICE MEANS TO EACH SIDE. The headline is the buyer's
             fee-inclusive figure, which is not what the owner gets, and the buyer fee
             note under it is for buyers only; this is the one place both are said.
-            The buyer pays the service fee on top, so the seller receives their
+            The buyer pays the buyer protection fee on top, so the seller receives their
             asking price in full. */}
         <dl className="rounded-md border bg-card p-cozy text-body">
           <div className="flex items-baseline justify-between gap-cozy">
@@ -1029,7 +1029,7 @@ function ItemActions({
           </div>
         </dl>
         <p className="text-meta text-muted-foreground">
-          The difference is the service fee the buyer pays: Stripe&apos;s costs plus {nodittoFeeRateLabel()} to NoDitto.
+          The difference is the buyer protection fee the buyer pays: mostly Stripe&apos;s costs, with NoDitto keeping about {nodittoFeeRateLabel()} on larger sales, less on small ones.
         </p>
         <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
           <Button asChild size="lg" className="min-w-0 w-full px-snug">

@@ -132,7 +132,7 @@ pathway(
     await step('Bob chooses delivery and gives his address', 'buyer', (page) => proposeDeliveryTerms(page));
 
     await step(
-      'Bob reviews the total: price, postage and the card service fee',
+      'Bob reviews the total: price, postage and the card buyer protection fee',
       'buyer',
       async (page) => {
         await openPayDialog(page);

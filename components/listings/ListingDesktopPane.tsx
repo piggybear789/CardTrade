@@ -151,7 +151,7 @@ export function ListingDesktopPane({
             ) : null}
           </p>
           )}
-          {/* No "Includes $X service fee" line under the price (2026-11-23, product
+          {/* No "Includes $X buyer protection fee" line under the price (2026-11-23, product
               decision: the buyer just needs the price). The Pay dialog itemises it. */}
 
           {/* WHAT THE MAP USED TO SAY, IN ONE LINE.

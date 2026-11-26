@@ -160,7 +160,7 @@ async function reserveDeliverAndPay(
   // Two steps, so the fee copy is read while the Pay dialog that states it is open:
   // after paying, the rate lives only on the Payment tab, which is not on screen.
   await ctx.step(
-    'Buyer opens Pay and reads the service fee and the total',
+    'Buyer opens Pay and reads the buyer protection fee and the total',
     'buyer',
     async (page) => {
       // The plain room URL closes the phone's details sheet, which covers the dock.
@@ -516,7 +516,7 @@ pathway(
 
     await step('Seller changes only the shipping notes', 'seller', async (page) => {
       await openSale(page, saleId);
-      await openSection(page, 'Terms');
+      await openSection(page, 'Delivery');
       await page.getByRole('button', { name: 'Edit terms' }).filter({ visible: true }).first().click();
       const dialog = page.getByRole('dialog', { name: 'Edit handover terms' });
       await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -540,7 +540,7 @@ pathway(
     // The fee copy is read with the Pay dialog open; after paying it is only on the
     // Payment tab, which is not on screen.
     await step(
-      'Buyer opens Pay on the changed terms and reads the service fee',
+      'Buyer opens Pay on the changed terms and reads the buyer protection fee',
       'buyer',
       async (page) => {
         await openPayDialog(page);
@@ -849,7 +849,7 @@ async function reserveMeetAndPay(
   }
   // The fee copy is read while the Pay dialog that states it is open.
   await ctx.step(
-    'Buyer opens Pay and reads the service fee and the total',
+    'Buyer opens Pay and reads the buyer protection fee and the total',
     'buyer',
     async (page) => {
       await openSale(page, saleId());

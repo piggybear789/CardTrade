@@ -124,7 +124,7 @@ export function pricingOf(row: SaleRow): MethodPricingFacts {
   };
 }
 
-/** What paying `row` with `method` charges, and its service fee, by the app's own functions. */
+/** What paying `row` with `method` charges, and its buyer protection fee, by the app's own functions. */
 export function expectedCharge(row: SaleRow, method: PaymentMethodKind): { feeMinor: number; totalMinor: number; total: string; fee: string } {
   const pricing = pricingOf(row);
   const feeMinor = serviceFeeForMethod(pricing, method);

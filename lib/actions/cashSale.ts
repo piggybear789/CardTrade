@@ -13,6 +13,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
+import type { BankTransferInstructions } from '@/domain/services/types';
 import { regionForCashSale } from '@/lib/regionBinding';
 
 import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
@@ -104,7 +105,12 @@ export type CashSaleActionResult =
        * the bank approval (`paymentMethod` is a bank rail) with this secret, then
        * `confirmCashSalePayment`.
        */
-      nextAction?: { clientSecret: string; publishableKey?: string; paymentMethod?: PaymentMethodKind };
+      nextAction?: {
+    clientSecret: string;
+    publishableKey?: string;
+    paymentMethod?: PaymentMethodKind;
+    bankTransfer?: BankTransferInstructions;
+  };
     }
   | { ok: false; error: CashSaleActionError; message?: string };
 
@@ -599,7 +605,13 @@ export const confirmCashSalePayment = withActionLog('cashSale.confirmCashSalePay
 export const getCashSalePaymentAction = withActionLog('cashSale.getCashSalePaymentAction', async function getCashSalePaymentAction(
   cashSaleId: string,
 ): Promise<
-  | { ok: true; clientSecret: string | null; publishableKey?: string; paymentMethod: PaymentMethodKind }
+  | {
+      ok: true;
+      clientSecret: string | null;
+      publishableKey?: string;
+      paymentMethod: PaymentMethodKind;
+      bankTransfer?: BankTransferInstructions;
+    }
   | { ok: false; error: CashSaleActionError }
 > {
   const userId = await getUserId();

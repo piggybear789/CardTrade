@@ -193,7 +193,7 @@ export function ContractRequestFields({
         <p id={`${priceId}-hint`} className="text-meta text-muted-foreground">
           The price for the lot
           {offerCents > 0 ? ` — ${formatMoney(offerCents, currency)}` : ''}.{' '}
-          The service fee ({processingFeeRateLabel(currency)} by card) and any postage are
+          The buyer protection fee ({processingFeeRateLabel(currency)} by card) and any postage are
           added on top when you agree terms.
         </p>
       </div>

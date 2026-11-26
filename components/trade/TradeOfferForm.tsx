@@ -374,7 +374,7 @@ export function TradeOfferForm({
         {!isShopfront ? (
           <p className="text-meta text-muted-foreground">
             Valued at the seller&apos;s asking price. The listing&apos;s price includes the
-            service fee a cash buyer pays; trades have no fee.
+            buyer protection fee a cash buyer pays; trades have no fee.
           </p>
         ) : null}
       </section>

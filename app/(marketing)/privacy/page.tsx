@@ -68,7 +68,10 @@ export default function PrivacyPage() {
           <strong>Cards and bank payments:</strong> card details are entered into Stripe’s own
           form and never reach our servers. We keep a reference to your saved card and its
           brand and last four digits. We read its expiry and issuing country from Stripe when
-          needed (the country sets the card’s fee) and do not store them.
+          needed (the country sets the card’s fee) and do not store them. If you pay by bank
+          transfer, Stripe gives you an account number to send it to and tells us when it
+          arrives, with the sender name your bank attached; to refund a transfer, Stripe asks
+          you for your bank details directly.
         </li>
         <li>
           <strong>Identity check:</strong> Stripe Identity collects your photo ID and a selfie,

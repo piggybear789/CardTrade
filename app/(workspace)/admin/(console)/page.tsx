@@ -882,7 +882,7 @@ export default async function AdminPage({
                           </div>
                           <div>
                             <dt className="inline font-medium text-foreground">
-                              Service fee (Stripe costs + NoDitto):{' '}
+                              Buyer protection fee (Stripe costs + NoDitto):{' '}
                             </dt>
                             <dd className="inline">{formatMoney(sale.platform_fee_cents, sale.currency)}</dd>
                           </div>

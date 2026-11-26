@@ -125,6 +125,8 @@ export interface TransferResult {
   clientSecret?: string;
   /** Browser-safe key for the account the intent lives on, with `clientSecret`. */
   publishableKey?: string;
+  /** With `REQUIRES_ACTION` on a bank transfer: where the buyer sends the money. */
+  bankTransfer?: BankTransferInstructions;
   /**
    * What the platform balance actually gained (a collection) or gave up (a payout),
    * in its SETTLEMENT currency, when that differs from the contract currency. Absent
@@ -143,6 +145,24 @@ export interface PaymentPresence {
   threeDS: 'any' | 'automatic';
 }
 
+/**
+ * Where a buyer sends a bank transfer (the `BANK_TRANSFER` rail): a virtual account
+ * the provider issued THIS buyer, and the reference that matches the transfer to this
+ * sale. Shown to the buyer only. Not a secret, but never logged.
+ */
+export interface BankTransferInstructions {
+  /** Still to arrive, in minor units. Below the total after a short payment. */
+  amountRemaining: Cents;
+  currency: string;
+  reference: string | null;
+  accountHolderName: string | null;
+  bankName: string | null;
+  accountNumber: string | null;
+  routingNumber: string | null;
+  /** The provider's own printable instructions page, when it offers one. */
+  hostedInstructionsUrl: string | null;
+}
+
 /** A collection read back from the provider (ESC-03 resume, ESC-37 binding). */
 export interface CollectionStatus {
   status: 'SETTLED' | 'FAILED' | 'PENDING' | 'REQUIRES_ACTION';
@@ -152,6 +172,8 @@ export interface CollectionStatus {
   clientSecret?: string;
   /** Browser-safe key for the account the intent lives on, with `clientSecret`. */
   publishableKey?: string;
+  /** Present only with `REQUIRES_ACTION` on a bank transfer. */
+  bankTransfer?: BankTransferInstructions;
 }
 
 /** Cancelling an uncompleted collection (an abandoned 3-D Secure challenge). */

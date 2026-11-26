@@ -65,6 +65,7 @@ import type {
   PreAuthHold,
   RefundResult,
   TransferResult,
+  BankTransferInstructions,
   SavedInstrumentDetails,
   VaultedInstrument,
 } from '../types';
@@ -72,6 +73,7 @@ import type { StripeConfig } from './config';
 import { metadataFor, withRunStamp } from './metadata';
 import {
   isBankMethod,
+  isPushMethod,
   paymentMethodDefinition,
   type PaymentMethodKind,
 } from '../../payments/paymentMethods';
@@ -889,6 +891,9 @@ export class StripeService implements PaymentService, PayerService {
       return { transferId: '', amount: params.amount, status: 'FAILED' };
     }
     const currency = this.contractCurrency(params.currency);
+    if (params.paymentMethod && isPushMethod(params.paymentMethod)) {
+      return this.startPushCollection({ ...params, currency });
+    }
     if (params.paymentMethod && isBankMethod(params.paymentMethod)) {
       return this.startBankCollection({ ...params, paymentMethod: params.paymentMethod, currency });
     }
@@ -1035,6 +1040,110 @@ export class StripeService implements PaymentService, PayerService {
     } catch (err) {
       this.warn('startBankCollection', params.ref, err);
       return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+  }
+
+  /**
+   * Open a bank transfer (`customer_balance`): the buyer SENDS the money to a virtual
+   * account number Stripe issues their Customer, quoting the reference on this intent.
+   * Confirmed at once, so it lands in `requires_action` carrying the instructions; it
+   * succeeds when the transfer arrives (webhook or read-back). Needs a Customer, which
+   * every buyer who reached Pay has. No `on_behalf_of`: Stripe does not support it here,
+   * which is why the rail is USD-only.
+   */
+  private async startPushCollection(params: {
+    payerId: string;
+    amount: Cents;
+    ref: string;
+    nonce: string;
+    currency: string;
+    presence?: PaymentPresence;
+    onBehalfOf?: string;
+  }): Promise<TransferResult> {
+    if (!params.presence || !params.payerId || params.onBehalfOf) {
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+    try {
+      const intent = await this.stripe.paymentIntents.create(
+        {
+          amount: params.amount,
+          currency: params.currency,
+          customer: params.payerId,
+          payment_method_types: ['customer_balance'],
+          payment_method_data: { type: 'customer_balance' },
+          payment_method_options: {
+            customer_balance: {
+              funding_type: 'bank_transfer',
+              bank_transfer: { type: 'us_bank_transfer' },
+            },
+          },
+          confirm: true,
+          description: 'NoDitto payment',
+          metadata: this.stamp(metadataFor('TRANSFER', params.ref)),
+        },
+        { idempotencyKey: params.nonce },
+      );
+      // Money already on the buyer's cash balance can pay it outright.
+      if (intent.status === 'succeeded') {
+        return { transferId: intent.id, amount: intent.amount_received, status: 'SETTLED' };
+      }
+      const bankTransfer = bankTransferInstructionsOf(intent);
+      if (intent.status !== 'requires_action' || !intent.client_secret || !bankTransfer) {
+        return { transferId: intent.id, amount: params.amount, status: 'FAILED' };
+      }
+      return {
+        transferId: intent.id,
+        amount: params.amount,
+        status: 'REQUIRES_ACTION',
+        clientSecret: intent.client_secret,
+        bankTransfer,
+        ...(this.opts.config.publishableKey ? { publishableKey: this.opts.config.publishableKey } : {}),
+      };
+    } catch (err) {
+      this.warn('startPushCollection', params.ref, err);
+      return { transferId: '', amount: params.amount, status: 'FAILED' };
+    }
+  }
+
+  /**
+   * A bank transfer cancelled after part of it arrived leaves that part on the buyer's
+   * Customer cash balance (probed in test mode, 2026-11-26: US$10.00 of US$30.00 stayed
+   * there after the cancel). Send it back rather than hold it.
+   */
+  private async afterPushCancelled(intent: Stripe.PaymentIntent, ref: string): Promise<void> {
+    if (!intent.payment_method_types.includes('customer_balance')) return;
+    const customer = typeof intent.customer === 'string' ? intent.customer : intent.customer?.id;
+    if (customer) await this.refundLeftoverCashBalance(customer, intent.currency, ref);
+  }
+
+  /**
+   * Send a buyer's unmatched bank-transfer money back to their bank: what is left on
+   * their Customer cash balance after a transfer was cancelled part-paid, or an
+   * overpayment. Skipped while another bank transfer of theirs is still waiting for
+   * funds, because Stripe applies the balance to it. Never throws.
+   */
+  private async refundLeftoverCashBalance(customerId: string, currency: string, ref: string): Promise<void> {
+    try {
+      const open = await this.stripe.paymentIntents.list({ customer: customerId, limit: 20 });
+      const waiting = open.data.some(
+        (pi) => pi.status === 'requires_action' && pi.payment_method_types.includes('customer_balance'),
+      );
+      if (waiting) return;
+      const balance = await this.stripe.customers.retrieveCashBalance(customerId);
+      const available = balance.available?.[currency] ?? 0;
+      if (available <= 0) return;
+      await this.stripe.refunds.create(
+        {
+          amount: available,
+          currency,
+          customer: customerId,
+          origin: 'customer_balance',
+          metadata: this.stamp(metadataFor('REFUND', ref)),
+        },
+        { idempotencyKey: `cash-balance-refund:${customerId}:${currency}:${available}:${ref}` },
+      );
+    } catch (err) {
+      this.warn('refundLeftoverCashBalance', ref, err);
     }
   }
 
@@ -1265,14 +1374,17 @@ export class StripeService implements PaymentService, PayerService {
       const intent = await this.stripe.paymentIntents.cancel(paymentRef, {
         cancellation_reason: 'abandoned',
       });
-      return intent.status === 'canceled'
-        ? { status: 'CANCELLED' }
-        : { status: 'FAILED', reason: intent.status };
+      if (intent.status !== 'canceled') return { status: 'FAILED', reason: intent.status };
+      await this.afterPushCancelled(intent, paymentRef);
+      return { status: 'CANCELLED' };
     } catch (err) {
       try {
         const intent = await this.stripe.paymentIntents.retrieve(paymentRef);
         if (intent.status === 'succeeded') return { status: 'ALREADY_SETTLED' };
-        if (intent.status === 'canceled') return { status: 'CANCELLED' };
+        if (intent.status === 'canceled') {
+          await this.afterPushCancelled(intent, paymentRef);
+          return { status: 'CANCELLED' };
+        }
       } catch {
         // Fall through to FAILED: the caller retries next sweep.
       }
@@ -1441,8 +1553,14 @@ export class StripeService implements PaymentService, PayerService {
 
       // `pending` is a success path: card refunds routinely settle asynchronously,
       // and treating it as a failure would make the caller retry a refund that is
-      // already on its way.
-      const settled = refund.status === 'succeeded' || refund.status === 'pending';
+      // already on its way. So is `requires_action` on a BANK TRANSFER refund: Stripe
+      // emails the buyer for their bank details and pays it once they answer (45 days,
+      // after which the money returns to their cash balance and `refund.failed` fires).
+      // Retrying would only open a second refund for the same money.
+      const settled =
+        refund.status === 'succeeded' ||
+        refund.status === 'pending' ||
+        refund.status === 'requires_action';
       return {
         refundId: refund.id,
         amount: refund.amount,
@@ -1857,6 +1975,29 @@ function offSessionToMemberRefused(params: {
 }
 
 /**
+ * The bank-transfer instructions on a `customer_balance` intent waiting for funds, as
+ * plain values. The US account (`aba`) is preferred; a wire-only (`swift`) address is
+ * used when that is all there is. Null on any other intent.
+ */
+export function bankTransferInstructionsOf(intent: Stripe.PaymentIntent): BankTransferInstructions | null {
+  const shown = intent.next_action?.display_bank_transfer_instructions;
+  if (!shown) return null;
+  const addresses = shown.financial_addresses ?? [];
+  const aba = addresses.find((a) => a.type === 'aba')?.aba;
+  const swift = addresses.find((a) => a.type === 'swift')?.swift;
+  return {
+    amountRemaining: shown.amount_remaining ?? intent.amount,
+    currency: shown.currency ?? intent.currency,
+    reference: shown.reference ?? null,
+    accountHolderName: aba?.account_holder_name ?? swift?.account_holder_name ?? null,
+    bankName: aba?.bank_name ?? swift?.bank_name ?? null,
+    accountNumber: aba?.account_number ?? swift?.account_number ?? null,
+    routingNumber: aba?.routing_number ?? null,
+    hostedInstructionsUrl: shown.hosted_instructions_url ?? null,
+  };
+}
+
+/**
  * The §1.9 mapping from a PaymentIntent to a {@link CollectionStatus}. Exported for
  * tests; never leaks a Stripe type to callers.
  */
@@ -1864,12 +2005,15 @@ export function collectionStatusOf(intent: Stripe.PaymentIntent): CollectionStat
   switch (intent.status) {
     case 'succeeded':
       return { status: 'SETTLED', amountReceived: intent.amount_received };
-    case 'requires_action':
+    case 'requires_action': {
+      const bankTransfer = bankTransferInstructionsOf(intent);
       return {
         status: 'REQUIRES_ACTION',
         amountReceived: 0,
         ...(intent.client_secret ? { clientSecret: intent.client_secret } : {}),
+        ...(bankTransfer ? { bankTransfer } : {}),
       };
+    }
     case 'processing':
     case 'requires_confirmation':
       return { status: 'PENDING', amountReceived: 0 };

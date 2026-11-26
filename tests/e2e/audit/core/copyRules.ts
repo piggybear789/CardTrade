@@ -14,7 +14,7 @@
 //             with multiple items") and that nothing is held            (checkShopfrontCopy)
 //   31.2      trade collateral is called "trade collateral", explained as a "temporary
 //             card hold", and "escrow" never describes it                (checkCollateralCopy)
-//   31.3      the service fee's rate label is exactly the domain rate for the currency and
+//   31.3      the buyer protection fee's rate label is exactly the domain rate for the currency and
 //             payment method, and is never "about" a rate                (checkFeeLabel)
 //   31.4      retired or internal vocabulary and raw driver errors never reach a member
 //                                                                         (checkForbiddenTerms)
@@ -266,19 +266,23 @@ export function checkCollateralCopy(text: string): CopyObservation[] {
 }
 
 // ---------------------------------------------------------------------------------------
-// Service fee label
+// Buyer protection fee label
 // ---------------------------------------------------------------------------------------
 
-/** Any rate label as `processingFeeRateLabel` writes one: "3% + $0.60 AUD", "4.5% + US$0.60 USD". */
+/**
+ * Any rate label as `processingFeeRateLabel` writes one: "3%", "4.5%", and the older
+ * "3% + $0.60 AUD" form a rail with a fixed part would still produce (2026-11-24 dropped
+ * every fixed part, but the field remains).
+ */
 const RATE_LABEL = new RegExp(
-  `(?<![\\d.])\\d+(?:\\.\\d+)?%${SPACE}*\\+${SPACE}*(?:(?:${PREFIX_SYMBOL})${SPACE}?${NUMBER}|${NUMBER}${SPACE}?(?:${SUFFIX_SYMBOL}))(?:${SPACE}+${ISO_CODE})?`,
+  `(?<![\\d.])\\d+(?:\\.\\d+)?%(?:${SPACE}*\\+${SPACE}*(?:(?:${PREFIX_SYMBOL})${SPACE}?${NUMBER}|${NUMBER}${SPACE}?(?:${SUFFIX_SYMBOL}))(?:${SPACE}+${ISO_CODE})?)?`,
   'gu',
 );
 /** A hedge directly before a rate label. The fee is exact; copy never says "about" a rate. */
 const HEDGE_BEFORE = /(?<!\p{L})(?:about|approximately|approx\.?|around|roughly|~)\s*$/iu;
 
 /**
- * The service fee's rate label on the page must be exactly `expectedLabel`, the
+ * The buyer protection fee's rate label on the page must be exactly `expectedLabel`, the
  * `processingFeeRateLabel(currency, method)` for the step's currency and payment method
  * (Req 31.3). Passes when the label appears as a whole label (so "3% + $0.60 AUD" is not
  * satisfied by "13% + $0.60 AUD") and no rate label on the page is hedged with "about".
@@ -302,7 +306,7 @@ export function checkFeeLabel(text: string, expectedLabel: string): CopyObservat
   if (!wholeExpected.test(flat)) {
     observations.push({
       check: 'copy-fee',
-      message: `Service fee rate label "${expected}" is not shown.`,
+      message: `Buyer protection fee rate label "${expected}" is not shown.`,
       detail: {
         expected,
         shown: shown.length > 0 ? shown.map((m) => m[0]).join(' | ') : '(none)',
@@ -312,10 +316,14 @@ export function checkFeeLabel(text: string, expectedLabel: string): CopyObservat
 
   for (const match of shown) {
     const start = match.index ?? 0;
+    // NoDitto's own share IS approximate and the copy says so ("NoDitto keeps about 1%",
+    // "about 1% to NoDitto"). That is not a rate the buyer pays.
+    const around = flat.slice(Math.max(0, start - 24), start + match[0].length + 12);
+    if (/NoDitto keeps about|to NoDitto/i.test(around)) continue;
     if (HEDGE_BEFORE.test(flat.slice(Math.max(0, start - 16), start))) {
       observations.push({
         check: 'copy-fee',
-        message: `Service fee rate "${match[0]}" is hedged; the rate is exact and copy never says "about" a rate.`,
+        message: `Buyer protection fee rate "${match[0]}" is hedged; the rate is exact and copy never says "about" a rate.`,
         detail: { label: match[0], excerpt: excerpt(flat, start, start + match[0].length) },
       });
     }

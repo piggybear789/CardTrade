@@ -5,7 +5,7 @@
 // the buyer starts an idempotent payment. Cleared funds then gate delivery or
 // face-to-face handover.
 
-import type { Cents, PaymentService } from '../services/types';
+import type { BankTransferInstructions, Cents, PaymentService } from '../services/types';
 import type { TrackingService, TrackingState } from '../services/tracking/types';
 import type { CashSaleEventCode } from './cashSaleEvents';
 import { decideRelease, exceedsNewSellerExposure, type ReleaseFacts } from '../payouts/releasePolicy';
@@ -35,6 +35,8 @@ import {
   paymentRailOf,
   serviceFeeForMethod,
   totalForMethod,
+  BANK_TRANSFER_WAIT_HOURS,
+  isPushMethod,
   type PaymentMethodKind,
 } from '../payments/paymentMethods';
 import {
@@ -536,7 +538,13 @@ export type CashSaleResult =
        * `confirmCashSalePayment`. `paymentMethod` says which. Never persisted, never
        * logged.
        */
-      nextAction?: { clientSecret: string; publishableKey?: string; paymentMethod?: PaymentMethodKind };
+      nextAction?: {
+    clientSecret: string;
+    publishableKey?: string;
+    paymentMethod?: PaymentMethodKind;
+    /** A bank transfer: where the buyer sends the money (never logged). */
+    bankTransfer?: BankTransferInstructions;
+  };
     }
   | { ok: false; error: CashSaleError; detail?: string };
 
@@ -2004,6 +2012,7 @@ async function submitClaimedPayment(
             nextAction: {
               clientSecret: transfer.clientSecret,
               ...(transfer.publishableKey ? { publishableKey: transfer.publishableKey } : {}),
+              ...(transfer.bankTransfer ? { bankTransfer: transfer.bankTransfer } : {}),
               paymentMethod: method,
             },
           }
@@ -2213,7 +2222,7 @@ export async function acceptCashSaleTerms(
       return {
         ok: false,
         error: 'CARD_REPRICED',
-        detail: `${cards && method !== 'CARD' ? `Your card was ${cards}, so its service fee is higher.` : "Your card's service fee is different from the one shown."} Nothing was charged. Review the total and pay again.`,
+        detail: `${cards && method !== 'CARD' ? `Your card was ${cards}, so its buyer protection fee is higher.` : "Your card's buyer protection fee is different from the one shown."} Nothing was charged. Review the total and pay again.`,
       };
     }
     return {
@@ -2472,7 +2481,13 @@ export async function getCashSalePaymentAction(
   deps: CashSaleOrchestratorDeps,
   params: { actorId: string; cashSaleId: string },
 ): Promise<
-  | { ok: true; clientSecret: string | null; publishableKey?: string; paymentMethod: PaymentMethodKind }
+  | {
+      ok: true;
+      clientSecret: string | null;
+      publishableKey?: string;
+      paymentMethod: PaymentMethodKind;
+      bankTransfer?: BankTransferInstructions;
+    }
   | { ok: false; error: CashSaleError }
 > {
   const sale = await deps.repository.loadCashSale(params.cashSaleId);
@@ -2490,6 +2505,9 @@ export async function getCashSalePaymentAction(
     clientSecret: collection.status === 'REQUIRES_ACTION' ? (collection.clientSecret ?? null) : null,
     ...(collection.status === 'REQUIRES_ACTION' && collection.publishableKey
       ? { publishableKey: collection.publishableKey }
+      : {}),
+    ...(collection.status === 'REQUIRES_ACTION' && collection.bankTransfer
+      ? { bankTransfer: collection.bankTransfer }
       : {}),
   };
 }
@@ -2520,6 +2538,20 @@ export async function sweepAbandonedPayments(
       continue;
     }
     const collection = await deps.payments.readCollection(sale.transferId);
+    // A BANK TRANSFER IS NOT ABANDONED AT 30 MINUTES. The buyer sends it from their own
+    // bank and ACH takes about a business day, so it gets BANK_TRANSFER_WAIT_HOURS from
+    // Pay. It is still settled here the moment it lands (the read-back above).
+    if (
+      collection.status === 'REQUIRES_ACTION' &&
+      sale.paymentMethod &&
+      isPushMethod(sale.paymentMethod) &&
+      sale.paymentRequestedAt &&
+      new Date(currentIso(deps)).getTime() - new Date(sale.paymentRequestedAt).getTime() <
+        BANK_TRANSFER_WAIT_HOURS * 3_600_000
+    ) {
+      tally.skipped += 1;
+      continue;
+    }
     if (collection.status === 'SETTLED') {
       const result = await settleCashSale(deps, {
         cashSaleId: sale.id,
@@ -4621,7 +4653,13 @@ export interface CashSaleOrchestrator {
     actorId: string;
     cashSaleId: string;
   }): Promise<
-    | { ok: true; clientSecret: string | null; publishableKey?: string; paymentMethod: PaymentMethodKind }
+    | {
+      ok: true;
+      clientSecret: string | null;
+      publishableKey?: string;
+      paymentMethod: PaymentMethodKind;
+      bankTransfer?: BankTransferInstructions;
+    }
     | { ok: false; error: CashSaleError }
   >;
   /** ESC-14: react to an issuer's early fraud warning on this sale's charge. */

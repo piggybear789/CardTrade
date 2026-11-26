@@ -37,6 +37,7 @@ import type { Page } from '@playwright/test';
 
 import { pathway, type PathwayContext } from '../audit/pathway';
 import { ENTRY_CARDS } from '../audit/stripeFixtures';
+import { testStripe } from '../audit/backend/stripe';
 import { expect } from '../support/fixtures';
 import { marked } from '../support/marker';
 import { completeThreeDSecure, failThreeDSecure, openBuyCheckout, saveCardInPaymentElement } from '../support/payments';
@@ -129,7 +130,7 @@ pathway(
 
     let shown = '';
     await step(
-      'Buyer opens Pay and sees the service fee rate and the total',
+      'Buyer opens Pay and sees the buyer protection fee rate and the total',
       'buyer',
       async (page) => {
         const dialog = await openPayDialog(page);
@@ -444,7 +445,7 @@ pathway(
       await continueToRail(payDialog(page));
       const bank = page.getByRole('dialog', { name: 'Pay with PayTo' });
       await expect(bank).toBeVisible({ timeout: 30_000 });
-      await expect(bank.getByText(`Approve ${expected.total} in your bank, including the ${expected.fee} service fee`, { exact: false })).toBeVisible();
+      await expect(bank.getByText(`Approve ${expected.total} in your bank, including the ${expected.fee} buyer protection fee`, { exact: false })).toBeVisible();
       await fillBankDetails(page, { name: 'E2E PayTo Buyer', payto: true });
       await bank.getByRole('button', { name: `Pay ${expected.total} with PayTo` }).click();
     });
@@ -478,6 +479,105 @@ pathway(
     await step('Buyer reads how it was paid on the Payment tab', 'buyer', async (page) => {
       await openSection(page, 'Payment');
       await expect(page.getByText(/Buyer paid by PayTo, in AUD/).first()).toBeVisible({ timeout: RENDERED });
+    });
+  },
+);
+
+pathway(
+  {
+    id: 'cash-sale.payments.bank-transfer',
+    title: 'Buyer pays a US cash sale by bank transfer, and it settles when the money arrives',
+    area: 'cash-sale',
+    kind: 'happy',
+    provider: 'stripe',
+    members: { buyer: persona('transfer-buyer', { regionCode: 'US', savedCard: true }), seller: UMA_US_SELLER },
+    viewports: 'both',
+    timeout: PAY_TIMEOUT,
+  },
+  async ({ step, arrange, assertState }) => {
+    const itemId = await arrange('Uma lists a card at US$150.00', () =>
+      seedListing(UMA_US_SELLER.id, { title: marked(`Pay transfer ${Date.now()}`), priceMinor: 15_000, place: STUB_PLACES.portland }),
+    );
+    const saleId = await step('Buyer reserves it with Buy Now', 'buyer', (page) => buyNow(page, itemId));
+    await step('Buyer sets a delivery address', 'buyer', (page) => proposeDelivery(page, STUB_PLACES.portland));
+
+    let expected = { total: '', fee: '', totalMinor: 0, feeMinor: 0 };
+    await step(
+      'Buyer sees card and bank transfer each priced, and chooses bank transfer',
+      'buyer',
+      async (page) => {
+        expected = expectedCharge(await saleRow(saleId), 'BANK_TRANSFER');
+        const dialog = await openPayDialog(page);
+        await expect(dialog.getByRole('radio', { name: /^Card/ })).toBeChecked();
+        await expect(dialog.getByRole('radio', { name: /^Bank transfer/ })).toBeVisible();
+        await chooseRail(dialog, /^Bank transfer/, { proceed: false });
+      },
+      { copy: { fee: { currency: 'USD', method: 'BANK_TRANSFER' } } },
+    );
+
+    await step('Buyer is shown where to send it, with a reference', 'buyer', async (page) => {
+      await continueToRail(payDialog(page));
+      const transfer = page.getByRole('dialog', { name: 'Send a bank transfer' });
+      await expect(transfer).toBeVisible({ timeout: 30_000 });
+      await expect(transfer.getByText(`Send ${expected.total} from your bank`, { exact: false })).toBeVisible();
+      await expect(transfer.getByText('Routing number')).toBeVisible();
+      await expect(transfer.getByText('Account number')).toBeVisible();
+      await expect(transfer.getByText(/^Reference/)).toBeVisible();
+      await page.keyboard.press('Escape');
+    });
+
+    await assertState('The sale waits for the transfer, and the card stays reserved', {
+      member: 'buyer',
+      db: async () => ({ sale: await saleStatus(saleId), item: await itemStatus(itemId) }),
+      ui: async (page) => ({ sale: await visibleSaleStatus(page), item: 'RESERVED' }),
+      expect: { sale: 'PAYMENT_PENDING', item: 'RESERVED' },
+    });
+
+    await arrange("The buyer's bank transfer arrives (Stripe's test helper sends it)", async () => {
+      const intent = await saleIntent(await saleRow(saleId));
+      const customer = typeof intent.customer === 'string' ? intent.customer : intent.customer?.id;
+      const reference = intent.next_action?.display_bank_transfer_instructions?.reference ?? undefined;
+      if (!customer) throw new Error('the bank transfer has no Customer');
+      await testStripe('US').testHelpers.customers.fundCashBalance(customer, {
+        amount: intent.amount,
+        currency: 'usd',
+        ...(reference ? { reference } : {}),
+      });
+    });
+
+    // Stripe's webhook settles it; the room updates over Realtime. A reload only makes
+    // sure this tab shows the settled sale. (Re-opening the transfer details here left a
+    // phone sheet over the header the next check reads.)
+    await step('Buyer opens the sale again once the money has arrived', 'buyer', async (page) => {
+      await page.reload();
+      await page.waitForLoadState('domcontentloaded');
+      await closeDetailsSheetIfOpen(page);
+    });
+
+    await assertState('The payment is held by the platform', {
+      member: 'buyer',
+      db: () => saleStatus(saleId),
+      ui: visibleSaleStatus,
+      expect: 'ESCROW_HELD',
+      timeout: HELD_TIMEOUT,
+    });
+    await assertState('The sale is priced and charged as a bank transfer', {
+      member: 'buyer',
+      db: async () => {
+        const row = await saleRow(saleId);
+        const intent = await saleIntent(row);
+        return {
+          total: formatMoney(row.amount_cents, row.currency),
+          received: formatMoney(intent.amount_received, row.currency),
+          kind: row.payment_method_kind,
+          rail: intent.payment_method_types[0] ?? null,
+        };
+      },
+      ui: async (page) => {
+        const total = await visibleHeaderTotal(page);
+        return { total, received: total, kind: 'BANK_TRANSFER', rail: 'customer_balance' };
+      },
+      expect: { total: expected.total, received: expected.total, kind: 'BANK_TRANSFER', rail: 'customer_balance' },
     });
   },
 );
@@ -533,7 +633,7 @@ async function euRail(ctx: PathwayContext<'buyer' | 'seller'>, rail: EuRail): Pr
       await continueToRail(payDialog(page));
       const bank = page.getByRole('dialog', { name: `Pay with ${rail.label}` });
       await expect(bank).toBeVisible({ timeout: 30_000 });
-      await expect(bank.getByText(`Approve ${expected.total} in your bank, including the ${expected.fee} service fee`, { exact: false })).toBeVisible();
+      await expect(bank.getByText(`Approve ${expected.total} in your bank, including the ${expected.fee} buyer protection fee`, { exact: false })).toBeVisible();
       await fillBankDetails(page, { name: 'E2E Bank Buyer' });
       await bank.getByRole('button', { name: `Pay ${expected.total} with ${rail.label}` }).click();
       await authoriseAtTestBank(page);

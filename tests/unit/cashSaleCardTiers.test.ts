@@ -1,7 +1,7 @@
 // tests/unit/cashSaleCardTiers.test.ts
 //
 // A cash-sale card payment is priced by where the card was issued (0159): Stripe charges
-// the settlement merchant more for a card from outside its card zone, so the service fee
+// the settlement merchant more for a card from outside its card zone, so the buyer protection fee
 // has a domestic, a UK–EEA and an international card rate (domain/fees/processingFee.ts).
 // These pin which cards land in which tier, that Pay prices and charges the buyer's own
 // saved card at its tier, and that a total shown for another tier is refused untouched.
@@ -103,8 +103,8 @@ describe('which card tier a card is priced at', () => {
     expect(cardTierPhrase('aud', 'CARD_UK_EEA')).toBeNull();
     expect(cardTierPhrase('eur', 'CARD_UK_EEA')).toBe('issued in the UK');
     expect(cardTierPhrase('eur', 'CARD_INTERNATIONAL')).toBe('issued outside the EEA and the UK');
-    expect(otherCardRatesNote('aud')).toBe('Cards issued outside Australia: 5% + $0.60 AUD.');
-    expect(otherCardRatesNote('eur')).toContain('Cards issued in the UK: 4% + ');
+    expect(otherCardRatesNote('aud')).toBe('Cards issued outside Australia: 5%.');
+    expect(otherCardRatesNote('eur')).toContain('Cards issued in the UK: 4%');
     expect(processingFeeExplanation('aud')).toContain('by a card issued in Australia');
     expect(processingFeeExplanation('aud')).toContain('Cards issued outside Australia');
   });

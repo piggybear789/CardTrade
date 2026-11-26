@@ -3,19 +3,25 @@
 // The cash-sale Service_Fee: what a BUYER pays on top of the price, so the seller
 // receives price plus postage in full.
 //
-// CLEAN RATES. The fee is a round percentage of price plus postage, plus a round fixed
-// amount, per currency and per way of paying (`CARD_FEES` and its two tiers, `BANK_FEES`),
-// e.g. "3% + A$0.60" by an Australian card in Australia. What the buyer is shown is
-// exactly what they are charged: there is no gross-up and no "about".
+// CLEAN RATES. The fee is a round percentage of price plus postage, per currency and per
+// way of paying (`CARD_FEES` and its two tiers, `BANK_FEES`), e.g. "3%" by an Australian
+// card in Australia. What the buyer is shown is exactly what they are charged: there is
+// no gross-up and no "about".
+//
+// NO FIXED PART (product decision 2026-11-24). Every `fixedMinor` is 0: NoDitto ABSORBS
+// Stripe's per-sale fixed fee (about A$/US$0.55, EUR 0.50) as buyer acquisition. That is
+// a deliberate loss on small sales: the percentage left after Stripe's percentage covers
+// the fixed fee only from about A$50 / US$41 / EUR 50 (iDEAL about EUR 60). Below that
+// NoDitto pays the difference. The `fixedMinor` field stays so a rail can carry one again.
 //
 // HOW EACH RATE WAS SET. Stripe's own cost for the rail (the `STRIPE_*_COSTS` tables below: payment
 // processing on the whole charge, plus the Connect payout to the seller), plus NoDitto's
 // 1% (`NODITTO_FEE_BPS`), grossed up for Stripe charging on the fee too, then rounded to
 // the nearest half percent; the fixed part is rounded UP to the next 10 minor units. So
-// NoDitto keeps roughly 1% (between about 0.85% and 1.6% of a sale over 20.00, depending
-// on how far the rail's rate was rounded) and every rate covers Stripe's cost on any sale
-// of 1.00 or more. `tests/unit/platformFee.test.ts` pins that property, so a Stripe price
-// change that breaks it fails the build instead of quietly eating the margin.
+// Before 2026-11-24 the fixed parts made every rate cover Stripe's whole cost. Now every
+// rate covers Stripe's PERCENTAGE costs on any sale, with NoDitto's ~1% left to pay the
+// fixed fee. `tests/unit/platformFee.test.ts` pins that, and pins the break-even, so a
+// Stripe price change that widens the loss fails the build instead of quietly eating it.
 //
 // WHERE THE CARD WAS ISSUED (0159). Stripe prices a card by the issuing country against
 // the settlement merchant's own country: an Australian card on the AU platform costs
@@ -63,20 +69,20 @@ export interface ServiceFeeRate {
  * country's card pricing (`domain/payments/onBehalfOf.ts`).
  */
 const CARD_FEES: Record<string, ServiceFeeRate> = {
-  aud: { bps: 300, fixedMinor: 60 },
-  usd: { bps: 450, fixedMinor: 60 },
-  eur: { bps: 300, fixedMinor: 60 },
-  gbp: { bps: 300, fixedMinor: 50 },
-  cad: { bps: 450, fixedMinor: 70 },
-  chf: { bps: 450, fixedMinor: 60 },
-  czk: { bps: 300, fixedMinor: 1320 },
-  dkk: { bps: 300, fixedMinor: 410 },
+  aud: { bps: 300, fixedMinor: 0 },
+  usd: { bps: 450, fixedMinor: 0 },
+  eur: { bps: 300, fixedMinor: 0 },
+  gbp: { bps: 300, fixedMinor: 0 },
+  cad: { bps: 450, fixedMinor: 0 },
+  chf: { bps: 450, fixedMinor: 0 },
+  czk: { bps: 300, fixedMinor: 0 },
+  dkk: { bps: 300, fixedMinor: 0 },
   // Norway is the exception in the EEA: Stripe charges 2.4% there, not 1.5%.
-  nok: { bps: 400, fixedMinor: 620 },
-  sek: { bps: 300, fixedMinor: 610 },
-  pln: { bps: 300, fixedMinor: 240 },
-  ron: { bps: 300, fixedMinor: 270 },
-  bgn: { bps: 300, fixedMinor: 110 },
+  nok: { bps: 400, fixedMinor: 0 },
+  sek: { bps: 300, fixedMinor: 0 },
+  pln: { bps: 300, fixedMinor: 0 },
+  ron: { bps: 300, fixedMinor: 0 },
+  bgn: { bps: 300, fixedMinor: 0 },
 };
 
 /**
@@ -86,46 +92,49 @@ const CARD_FEES: Record<string, ServiceFeeRate> = {
  * non-European currencies have no neighbour zone at all.
  */
 const CARD_UK_EEA_FEES: Record<string, ServiceFeeRate> = {
-  gbp: { bps: 400, fixedMinor: 50 },
-  eur: { bps: 400, fixedMinor: 60 },
-  czk: { bps: 400, fixedMinor: 1340 },
-  dkk: { bps: 400, fixedMinor: 420 },
-  sek: { bps: 400, fixedMinor: 620 },
-  pln: { bps: 400, fixedMinor: 240 },
-  ron: { bps: 400, fixedMinor: 270 },
-  bgn: { bps: 400, fixedMinor: 110 },
+  gbp: { bps: 400, fixedMinor: 0 },
+  eur: { bps: 400, fixedMinor: 0 },
+  czk: { bps: 400, fixedMinor: 0 },
+  dkk: { bps: 400, fixedMinor: 0 },
+  sek: { bps: 400, fixedMinor: 0 },
+  pln: { bps: 400, fixedMinor: 0 },
+  ron: { bps: 400, fixedMinor: 0 },
+  bgn: { bps: 400, fixedMinor: 0 },
 };
 
 /** Card issued anywhere else: Stripe's international card rate for the seller's country. */
 const CARD_INTERNATIONAL_FEES: Record<string, ServiceFeeRate> = {
-  aud: { bps: 500, fixedMinor: 60 },
-  usd: { bps: 600, fixedMinor: 60 },
-  eur: { bps: 500, fixedMinor: 60 },
-  gbp: { bps: 500, fixedMinor: 50 },
-  cad: { bps: 550, fixedMinor: 70 },
-  chf: { bps: 500, fixedMinor: 60 },
-  czk: { bps: 500, fixedMinor: 1350 },
-  dkk: { bps: 500, fixedMinor: 420 },
-  nok: { bps: 500, fixedMinor: 630 },
-  sek: { bps: 500, fixedMinor: 620 },
-  pln: { bps: 500, fixedMinor: 240 },
-  ron: { bps: 500, fixedMinor: 270 },
-  bgn: { bps: 500, fixedMinor: 110 },
+  aud: { bps: 500, fixedMinor: 0 },
+  usd: { bps: 600, fixedMinor: 0 },
+  eur: { bps: 500, fixedMinor: 0 },
+  gbp: { bps: 500, fixedMinor: 0 },
+  cad: { bps: 550, fixedMinor: 0 },
+  chf: { bps: 500, fixedMinor: 0 },
+  czk: { bps: 500, fixedMinor: 0 },
+  dkk: { bps: 500, fixedMinor: 0 },
+  nok: { bps: 500, fixedMinor: 0 },
+  sek: { bps: 500, fixedMinor: 0 },
+  pln: { bps: 500, fixedMinor: 0 },
+  ron: { bps: 500, fixedMinor: 0 },
+  bgn: { bps: 500, fixedMinor: 0 },
 };
 
 /** Bank rails (`domain/payments/paymentMethods.ts`), keyed `<METHOD>:<currency>`. */
 const BANK_FEES: Record<string, ServiceFeeRate> = {
-  'US_BANK:usd': { bps: 400, fixedMinor: 60 },
-  'PAYTO:aud': { bps: 250, fixedMinor: 60 },
-  'IDEAL:eur': { bps: 150, fixedMinor: 60 },
-  'BANCONTACT:eur': { bps: 300, fixedMinor: 70 },
-  'EPS:eur': { bps: 300, fixedMinor: 70 },
-  'P24:eur': { bps: 400, fixedMinor: 70 },
-  'P24:pln': { bps: 400, fixedMinor: 270 },
+  'US_BANK:usd': { bps: 400, fixedMinor: 0 },
+  'PAYTO:aud': { bps: 250, fixedMinor: 0 },
+  'IDEAL:eur': { bps: 150, fixedMinor: 0 },
+  'BANCONTACT:eur': { bps: 300, fixedMinor: 0 },
+  'EPS:eur': { bps: 300, fixedMinor: 0 },
+  'P24:eur': { bps: 400, fixedMinor: 0 },
+  'P24:pln': { bps: 400, fixedMinor: 0 },
+  // A US buyer pushing USD from their own bank (Stripe bank transfers). Under half the
+  // card rate (4.5% + US$0.60): there is no card network to pay and no chargeback.
+  'BANK_TRANSFER:usd': { bps: 200, fixedMinor: 0 },
 };
 
 /** A currency with no row: the most expensive card case, so it is never under-charged. */
-const FALLBACK_FEE: ServiceFeeRate = { bps: 600, fixedMinor: 60 };
+const FALLBACK_FEE: ServiceFeeRate = { bps: 600, fixedMinor: 0 };
 
 /**
  * The clean rate for a contract in `currency` paid with `method` (card by default). No
@@ -359,6 +368,12 @@ const STRIPE_BANK_COSTS: Record<string, ProcessingRate> = {
   'EPS:eur': { cardBps: 160, payoutBps: CROSS_BORDER_PAYOUT_BPS, fixedMinor: 60 },
   'P24:eur': { cardBps: 220, payoutBps: CROSS_BORDER_PAYOUT_BPS, fixedMinor: 60 },
   'P24:pln': { cardBps: 220, payoutBps: CROSS_BORDER_PAYOUT_BPS, fixedMinor: 260 },
+  // UNVERIFIED ESTIMATE (2026-11-26). Stripe's test mode books a US bank transfer at a
+  // zero fee and its published price could not be read, so this is set high on purpose:
+  // 0.8% processing, the usual 0.25% + about US$0.25 payout, and no per-payment fixed
+  // processing fee. Check it against the first LIVE transfer's balance transaction and
+  // tighten it; the 2% + US$0.60 buyer rate above covers it with NoDitto's 1% either way.
+  'BANK_TRANSFER:usd': { cardBps: 80, payoutBps: 25, fixedMinor: 25 },
 };
 
 /** An unknown currency: the US international card rate (2.9% + 1.5%), the worst case. */

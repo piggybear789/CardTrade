@@ -43,7 +43,7 @@ export function SaleTermsBreakdown({
   if (!priceCents && !holdHeight) {
     return (
       <p className="text-meta text-muted-foreground">
-        {`The buyer pays a service fee on top (${processingFeeRateLabel(currency)} by card), so you receive your full price.`}
+        {`The buyer pays a buyer protection fee on top (${processingFeeRateLabel(currency)} by card), so you receive your full price.`}
       </p>
     );
   }

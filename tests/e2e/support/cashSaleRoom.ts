@@ -428,7 +428,7 @@ async function showMethodTiles(page: Page): Promise<void> {
   if (await setDetails.isVisible({ timeout: 10_000 }).catch(() => false)) {
     await setDetails.click();
   } else {
-    await openSection(page, 'Terms');
+    await openSection(page, 'Delivery');
   }
 }
 

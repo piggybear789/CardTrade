@@ -171,7 +171,7 @@ export function MakeOfferDialog({
                   <span className="font-semibold tabular-nums">{money(buyerPaysCents(asking, currency))}</span>
                 </p>
                 <p className="mt-tight text-meta text-muted-foreground">
-                  Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} service fee
+                  Seller&apos;s price {money(asking)} + {money(platformFeeCentsFor(asking, currency))} buyer protection fee
                 </p>
               </div>
             ) : null}
@@ -195,7 +195,7 @@ export function MakeOfferDialog({
                     <span className="font-semibold text-foreground tabular-nums">
                       {money(buyerPaysCents(offerCents, currency))}
                     </span>
-                    <> including the {money(platformFeeCentsFor(offerCents, currency))} service fee.</>
+                    <> including the {money(platformFeeCentsFor(offerCents, currency))} buyer protection fee.</>
                   </>
                 ) : null}
               </p>

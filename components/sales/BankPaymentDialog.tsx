@@ -16,7 +16,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { paymentMethodDefinition, type PaymentMethodKind } from '@/domain/payments/paymentMethods';
+import { isPushMethod, paymentMethodDefinition, type PaymentMethodKind } from '@/domain/payments/paymentMethods';
+import type { BankTransferInstructions as Instructions } from '@/domain/services/types';
+import { BankTransferInstructions } from './BankTransferInstructions';
 import type { CashSaleActionResult } from '@/lib/actions/cashSale';
 
 const BankPaymentForm = dynamic(
@@ -31,6 +33,8 @@ export interface BankPaymentSession {
   /** The total and fee the claim priced, when known before the row re-renders. */
   totalMinor?: number;
   feeMinor?: number;
+  /** A bank transfer (push): where to send it. Shown instead of the approval form. */
+  bankTransfer?: Instructions;
 }
 
 export function BankPaymentDialog({
@@ -46,24 +50,45 @@ export function BankPaymentDialog({
   session: BankPaymentSession | null;
   /** The total being approved, formatted in the contract currency. */
   totalLabel: string;
-  /** The service fee inside that total, formatted. */
+  /** The buyer protection fee inside that total, formatted. */
   feeLabel: string;
   onOpenChange: (open: boolean) => void;
   onFinished: (result: CashSaleActionResult) => void;
 }) {
   const rail = session ? paymentMethodDefinition(session.method) : null;
+  const push = session ? isPushMethod(session.method) : false;
   return (
     <Dialog open={session !== null} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{rail ? `Pay with ${rail.label}` : 'Pay from your bank'}</DialogTitle>
+          <DialogTitle>{push ? 'Send a bank transfer' : rail ? `Pay with ${rail.label}` : 'Pay from your bank'}</DialogTitle>
           <DialogDescription>
-            Approve {totalLabel} in your bank, including the {feeLabel} service fee. Nothing
-            is taken until you approve it, and NoDitto holds the payment until you accept
-            the item.
+            {push ? (
+              <>
+                Send {totalLabel} from your bank, including the {feeLabel} buyer protection fee, to the
+                account below. You can close this and come back: it stays on this sale.
+              </>
+            ) : (
+              <>
+                Approve {totalLabel} in your bank, including the {feeLabel} buyer protection fee. Nothing
+                is taken until you approve it, and NoDitto holds the payment until you accept
+                the item.
+              </>
+            )}
           </DialogDescription>
         </DialogHeader>
-        {session && rail ? (
+        {session && push ? (
+          session.bankTransfer ? (
+            <BankTransferInstructions
+              instructions={session.bankTransfer}
+              totalMinor={session.totalMinor ?? session.bankTransfer.amountRemaining}
+            />
+          ) : (
+            <p className="text-body text-muted-foreground">
+              The transfer details could not be loaded. Close this and choose Complete payment to try again.
+            </p>
+          )
+        ) : session && rail ? (
           <BankPaymentForm
             cashSaleId={cashSaleId}
             clientSecret={session.clientSecret}

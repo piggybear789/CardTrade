@@ -143,7 +143,7 @@ abstract final class Money {
     return formatted;
   }
 
-  /// The service fee per contract currency, as `[bps, fixedMinor]`: a clean rate of
+  /// The buyer protection fee per contract currency, as `[bps, fixedMinor]`: a clean rate of
   /// price plus postage by a domestic card, plus a fixed part ("3% + A$0.60").
   ///
   /// Mirrors the domestic card rows of `CARD_FEES` (`serviceFeeRateFor`) in
@@ -155,23 +155,23 @@ abstract final class Money {
   /// dearer rate there (0159). The server refuses a card total the app did not show,
   /// with a message pointing at the sale room on the website, which prices every tier.
   static const Map<String, List<int>> serviceFeeRates = {
-    'aud': [300, 60],
-    'usd': [450, 60],
-    'eur': [300, 60],
-    'gbp': [300, 50],
-    'cad': [450, 70],
-    'chf': [450, 60],
-    'czk': [300, 1320],
-    'dkk': [300, 410],
-    'nok': [400, 620],
-    'sek': [300, 610],
-    'pln': [300, 240],
-    'ron': [300, 270],
-    'bgn': [300, 110],
+    'aud': [300, 0],
+    'usd': [450, 0],
+    'eur': [300, 0],
+    'gbp': [300, 0],
+    'cad': [450, 0],
+    'chf': [450, 0],
+    'czk': [300, 0],
+    'dkk': [300, 0],
+    'nok': [400, 0],
+    'sek': [300, 0],
+    'pln': [300, 0],
+    'ron': [300, 0],
+    'bgn': [300, 0],
   };
 
   /// The rate for a currency missing from [serviceFeeRates]: the most expensive case.
-  static const List<int> serviceFeeRateFallback = [600, 60];
+  static const List<int> serviceFeeRateFallback = [600, 0];
 
   /// NoDitto's target share of a cash sale, in basis points. The rates above are set so
   /// NoDitto keeps about this much. Mirrors `NODITTO_FEE_BPS` in
@@ -193,7 +193,7 @@ abstract final class Money {
   static List<int> _rateFor(String code) =>
       serviceFeeRates[code] ?? serviceFeeRateFallback;
 
-  /// The service fee on a cash sale paid by card: the clean rate of price plus postage,
+  /// The buyer protection fee on a cash sale paid by card: the clean rate of price plus postage,
   /// rounded to the nearest cent, plus the fixed part. Zero for a zero base.
   ///
   /// Mirrors `platformFeeCentsFor` / `cashSaleFeeMinor` in the web app.
@@ -210,7 +210,7 @@ abstract final class Money {
     return ((valueCents * tradeFeeBps) + 5000) ~/ 10000;
   }
 
-  /// "3% + $0.60": the card service fee as members read it. Exact: the fee is this rate
+  /// "3% + $0.60": the card buyer protection fee as members read it. Exact: the fee is this rate
   /// of price plus postage.
   ///
   /// Mirrors `processingFeeRateLabel` in `lib/fees/feeLabels.ts`.
@@ -221,21 +221,21 @@ abstract final class Money {
     final String percentText = percent == percent.roundToDouble()
         ? percent.toStringAsFixed(0)
         : percent.toStringAsFixed(2).replaceAll(RegExp(r'0$'), '');
-    return '$percentText% + ${format(rate[1], code)}';
+    return rate[1] == 0 ? '$percentText%' : '$percentText% + ${format(rate[1], code)}';
   }
 
   /// The fee row's name. Mirrors `PROCESSING_FEE_NAME` in `lib/fees/feeLabels.ts`.
-  static const String processingFeeName = 'Service fee';
+  static const String processingFeeName = 'Buyer protection fee';
 
   /// Hint beside the fee row. Mirrors `PROCESSING_FEE_HINT` in `lib/fees/feeLabels.ts`.
   static const String processingFeeHint =
-      "Covers Stripe's payment and payout costs, plus about 1% to NoDitto. Returned if the sale is refunded in full.";
+      "Most of it goes to Stripe for the payment and payout. NoDitto keeps about 1% on larger sales, less on small ones. Returned if the sale is refunded in full.";
 
   /// Where a trade would show a fee. Mirrors `TRADE_NO_FEE_NOTE` in `lib/fees/feeLabels.ts`.
   static const String tradeNoFeeNote =
       'Trades have no NoDitto fee. The collateral is a card hold, which costs nothing.';
 
-  /// Returns total cost for a cash sale buyer: price + shipping + service fee.
+  /// Returns total cost for a cash sale buyer: price + shipping + buyer protection fee.
   static int cashSaleTotal({
     required int priceCents,
     required int shippingCents,

@@ -27,7 +27,7 @@ import {
 import { formatMoney } from '@/lib/format';
 
 /** The fee's name in money tables and breakdowns. */
-export const PROCESSING_FEE_NAME = 'Service fee';
+export const PROCESSING_FEE_NAME = 'Buyer protection fee';
 
 /** "1%": NoDitto's own share of the fee, approximately (the rates are rounded). */
 export function nodittoFeeRateLabel(): string {
@@ -44,7 +44,9 @@ export function processingFeeRateLabel(
 ): string {
   const code = currency?.trim().toLowerCase() || 'aud';
   const { percent, fixedMinor } = processingRateParts(code, method);
-  return `${percent} + ${formatMoney(fixedMinor, code)}`;
+  // No fixed part since 2026-11-24 (NoDitto absorbs Stripe's per-sale fixed fee), so the
+  // label is the plain percentage. Kept conditional in case a rail ever needs one again.
+  return fixedMinor === 0 ? percent : `${percent} + ${formatMoney(fixedMinor, code)}`;
 }
 
 /**
@@ -77,7 +79,7 @@ export function cardTierClause(currency: string | null | undefined, method: Paym
 export function processingFeeExplanation(currency?: string | null): string {
   const domestic = cardTierPhrase(currency, 'CARD');
   const others = otherCardRatesNote(currency);
-  return `The service fee is ${processingFeeRateLabel(currency)} of the price and postage by ${domestic ? `a card ${domestic}` : 'card'}.${others ? ` ${others}` : ''} It covers what Stripe charges to take the payment and pay the seller, plus about ${nodittoFeeRateLabel()} to NoDitto. Paying from your bank, where offered, can cost less.`;
+  return `The buyer protection fee is ${processingFeeRateLabel(currency)} of the price and postage by ${domestic ? `a card ${domestic}` : 'card'}.${others ? ` ${others}` : ''} Most of it goes to Stripe for taking the payment and paying the seller. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Paying from your bank, where offered, can cost less.`;
 }
 
 /**
@@ -87,11 +89,11 @@ export function processingFeeExplanation(currency?: string | null): string {
  * Pay dialog prices them. `processingFeeExplanation` keeps the full version for Help.
  */
 export function processingFeeShortNote(currency?: string | null): string {
-  return `Paid by the buyer on top of your price: ${processingFeeRateLabel(currency)} by card. It covers Stripe's costs, plus about ${nodittoFeeRateLabel()} to NoDitto.`;
+  return `Paid by the buyer on top of your price: ${processingFeeRateLabel(currency)} by card. Most of it goes to Stripe. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones.`;
 }
 
 /** Hint beside the fee row in a contract's money table. */
-export const PROCESSING_FEE_HINT = `Covers Stripe's payment and payout costs, plus about ${bpsLabel(NODITTO_FEE_BPS)} to NoDitto. Returned if the sale is refunded in full.`;
+export const PROCESSING_FEE_HINT = `Most of it goes to Stripe for the payment and payout. NoDitto keeps about ${bpsLabel(NODITTO_FEE_BPS)} on larger sales, less on small ones. Returned if the sale is refunded in full.`;
 
 /**
  * What a dispute means on a rail, said to the BUYER, whose protection is NoDitto's
@@ -116,12 +118,12 @@ export const TRADE_NO_FEE_NOTE =
 /** Terms page, Fees section. */
 export function termsFeeSentence(): string {
   return (
-    'On a cash sale the buyer pays a service fee on top of the price: a fixed rate of the ' +
+    'On a cash sale the buyer pays a buyer protection fee on top of the price: a fixed rate of the ' +
     `price and postage for each way of paying (for example ${processingFeeRateLabel('aud')} ` +
     'by an Australian card in Australia). A card issued outside the seller\'s country, or ' +
     'for a European seller outside the EEA or the UK, pays a higher rate, because Stripe ' +
-    'charges more for it. It covers what Stripe charges to take the payment and pay the ' +
-    `seller, plus about ${nodittoFeeRateLabel()} to NoDitto. Every way of paying is shown ` +
+    'charges more for it. Most of it goes to Stripe for taking the payment and paying the ' +
+    `seller. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Every way of paying is shown ` +
     'with its rate and total before the buyer pays. The seller receives their price and ' +
     'postage in full. Trades have no fee. Cash paid as part of a cross-border trade also ' +
     'pays the currency conversion fee, which covers the conversion at cost. If Stripe ' +

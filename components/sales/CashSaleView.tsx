@@ -85,6 +85,7 @@ import { BankPaymentDialog, type BankPaymentSession } from './BankPaymentDialog'
 import {
   cardMethodFor,
   isBankMethod,
+  isPushMethod,
   paymentMethodDefinition,
   paymentMethodsFor,
   serviceFeeForMethod,
@@ -730,7 +731,7 @@ function CashSaleRoom({
   // the fee RECORDED at Pay, so the room never rewrites what the buyer was charged.
   const fxFeeCents = sale.status === 'AGREEMENT' ? 0 : (sale.fx_fee_cents ?? 0);
 
-  // HOW THE BUYER PAYS (0158). Each rail carries its own service fee, priced by the
+  // HOW THE BUYER PAYS (0158). Each rail carries its own buyer protection fee, priced by the
   // same function the server charges with, so every figure below is what that rail
   // charges. Before payment the room quotes card (the default rail); once paid it shows
   // what was stored for the rail actually used.
@@ -1289,6 +1290,7 @@ function CashSaleRoom({
                               clientSecret: action.clientSecret,
                               method: action.paymentMethod,
                               ...(action.publishableKey ? { publishableKey: action.publishableKey } : {}),
+                              ...(action.bankTransfer ? { bankTransfer: action.bankTransfer } : {}),
                             });
                             return confirmCashSalePayment(sale.id);
                           }
@@ -1302,7 +1304,11 @@ function CashSaleRoom({
                         })
                       }
                     >
-                      {busy('complete-payment') ? 'Checking…' : 'Complete payment'}
+                      {busy('complete-payment')
+                        ? 'Checking…'
+                        : isPushMethod(paidWith)
+                          ? 'View transfer details'
+                          : 'Complete payment'}
                     </Button>
                   ) : null}
 
@@ -1999,6 +2005,7 @@ function CashSaleRoom({
                 clientSecret: paid.nextAction.clientSecret,
                 method: paid.nextAction.paymentMethod,
                 ...(paid.nextAction.publishableKey ? { publishableKey: paid.nextAction.publishableKey } : {}),
+                ...(paid.nextAction.bankTransfer ? { bankTransfer: paid.nextAction.bankTransfer } : {}),
                 // The claimed sale is priced for this rail; quote it, not the row
                 // this tab last rendered.
                 totalMinor: paid.sale.amountCents + fxFeeCents,
@@ -2065,7 +2072,9 @@ function CashSaleRoom({
               label:
                 chosenMethod === 'CARD'
                   ? `Charged now, in ${sale.currency.toUpperCase()}`
-                  : `You approve in your bank, in ${sale.currency.toUpperCase()}`,
+                  : isPushMethod(chosenMethod)
+                    ? `You send from your bank, in ${sale.currency.toUpperCase()}`
+                    : `You approve in your bank, in ${sale.currency.toUpperCase()}`,
               value: money(chosenChargeCents),
               total: true,
             },

@@ -529,7 +529,7 @@ function ActiveSalesSummary({ model, currency }: { model: PayoutReadModel; curre
                             ', no fee'
                           ) : (
                             <>
-                              , less {money(sale.feeCents)} service fee
+                              , less {money(sale.feeCents)} buyer protection fee
                             </>
                           )}
                         </p>

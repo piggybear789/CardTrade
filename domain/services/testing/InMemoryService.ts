@@ -46,7 +46,7 @@ import type {
   IdentityCheckProgress,
   SavedInstrumentDetails,
 } from '../types';
-import { isBankMethod, type PaymentMethodKind } from '../../payments/paymentMethods';
+import { isBankMethod, isPushMethod, type PaymentMethodKind } from '../../payments/paymentMethods';
 import { CARD_AUTHORISATION_HOURS } from '../../fulfilment/inspection';
 
 /** A forced outcome for a simulated payment operation. */
@@ -380,11 +380,31 @@ export class InMemoryService
     // Stripe's unconfirmed intent does; `completeChallenge` plays that approval.
     if (params.presence && (this.forceRequiresAction || bank)) {
       const transferId = `transfer_${this.nextId()}`;
+      const push = params.paymentMethod ? isPushMethod(params.paymentMethod) : false;
+      // A bank transfer is refused on behalf of a seller, as Stripe refuses it.
+      if (push && params.onBehalfOf) {
+        return { transferId: '', amount: params.amount, status: 'FAILED' };
+      }
       const challenged: TransferResult = {
         transferId,
         amount: params.amount,
         status: 'REQUIRES_ACTION',
         clientSecret: `${transferId}_secret`,
+        // A bank transfer carries where to send it, as the real binding does.
+        ...(push
+          ? {
+              bankTransfer: {
+                amountRemaining: params.amount,
+                currency: params.currency ?? 'usd',
+                reference: `REF-${transferId}`,
+                accountHolderName: 'NoDitto Company',
+                bankName: 'Test Bank',
+                accountNumber: '000123456789',
+                routingNumber: '110000000',
+                hostedInstructionsUrl: null,
+              },
+            }
+          : {}),
       };
       this.challenges.set(transferId, { amount: params.amount, status: 'REQUIRES_ACTION' });
       this.nonceResults.set(`transfer:${params.nonce}`, challenged);

@@ -84,20 +84,20 @@ describe('checkCollateralCopy', () => {
 describe('checkFeeLabel', () => {
   it('passes the domain label and fails another rate', () => {
     const aud = processingFeeRateLabel('aud', 'CARD');
-    expect(checkFeeLabel(`Service fee ${aud} of the price`, aud)).toEqual([]);
+    expect(checkFeeLabel(`Buyer protection fee ${aud} of the price`, aud)).toEqual([]);
     const usd = processingFeeRateLabel('usd', 'CARD');
-    const wrong = checkFeeLabel(`Service fee ${usd}`, aud);
+    const wrong = checkFeeLabel(`Buyer protection fee ${usd}`, aud);
     expect(wrong).toHaveLength(1);
     expect(wrong[0].detail?.shown).toBe(usd);
   });
 
   it('does not accept the expected label inside a larger rate', () => {
-    expect(checkFeeLabel('Service fee 13% + $0.60 AUD', '3% + $0.60 AUD')).toHaveLength(1);
+    expect(checkFeeLabel('Buyer protection fee 13% + $0.60 AUD', '3% + $0.60 AUD')).toHaveLength(1);
   });
 
   it('flags a hedged rate', () => {
     const aud = processingFeeRateLabel('aud', 'CARD');
-    const found = checkFeeLabel(`Service fee of about ${aud}`, aud);
+    const found = checkFeeLabel(`Buyer protection fee of about ${aud}`, aud);
     expect(found).toHaveLength(1);
     expect(found[0].message).toContain('hedged');
   });

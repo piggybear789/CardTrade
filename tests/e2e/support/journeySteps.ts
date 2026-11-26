@@ -291,7 +291,7 @@ async function challengeShowing(page: Page): Promise<boolean> {
 }
 
 /**
- * Opens the Pay dialog, which itemises the price, postage, the service fee with its
+ * Opens the Pay dialog, which itemises the price, postage, the buyer protection fee with its
  * rate ("3% + A$0.60 …") and the total charged now. Leaves it OPEN, so the step's fee
  * copy check reads the dialog rather than the room behind it.
  */

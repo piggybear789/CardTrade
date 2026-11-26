@@ -20,6 +20,9 @@
 //   PAYTO       Australian real-time payment, approved in the banking app. Disputes
 //               exist and are FINAL against us (Stripe cannot appeal them), so this is
 //               a cost choice, not a risk improvement over card.
+//   BANK_TRANSFER
+//               A US buyer PUSHES the money to a virtual account Stripe issues them
+//               (`customer_balance`). No dispute process; the cheapest rail. USD only.
 //
 // Direct debits (BECS, SEPA, Bacs, ACH) are refused on purpose: the payer can reverse
 // them for weeks to years with no evidence process, after the seller has been paid.
@@ -31,7 +34,7 @@
 // `CARD_INTERNATIONAL` are not choices the buyer makes. They are what CARD is priced
 // and stored as when the saved card was issued outside the contract's domestic card
 // zone (`cardMethodFor`, from `domain/fees/processingFee.ts`): Stripe charges more for
-// those cards, so they carry a higher service fee. The buyer picks "Card"; the card
+// those cards, so they carry a higher buyer protection fee. The buyer picks "Card"; the card
 // decides which of the three card rates applies.
 
 import { cardTierFor, cardZoneOf, cashSaleFeeMinor } from '@/domain/fees/processingFee';
@@ -53,6 +56,7 @@ export const PAYMENT_METHOD_KINDS = [
   'EPS',
   'P24',
   'PAYTO',
+  'BANK_TRANSFER',
 ] as const;
 
 export type PaymentMethodKind = (typeof PAYMENT_METHOD_KINDS)[number];
@@ -69,7 +73,13 @@ export type DisputeProfile =
 export interface PaymentMethodDefinition {
   kind: PaymentMethodKind;
   /** The Stripe `payment_method_types` entry. Read only by the Stripe binding. */
-  stripeType: 'card' | 'link' | 'ideal' | 'bancontact' | 'eps' | 'p24' | 'payto';
+  stripeType: 'card' | 'link' | 'ideal' | 'bancontact' | 'eps' | 'p24' | 'payto' | 'customer_balance';
+  /**
+   * How the buyer completes it. `approve` (every rail but one): they approve in their
+   * bank through Payment Element. `push`: they SEND the money themselves to account
+   * details we show, so there is no form to mount and it can take a business day.
+   */
+  flow?: 'approve' | 'push';
   /** Lower-cased ISO 4217 currencies the rail settles in. */
   currencies: readonly string[];
   /** Buyer trading regions (ISO alpha-2) whose banks run the rail. Absent: any. */
@@ -184,7 +194,36 @@ const DEFINITIONS: Record<PaymentMethodKind, PaymentMethodDefinition> = {
     description: 'Approve the payment in your Australian banking app. Usually confirmed within a minute.',
     disputes: 'FINAL',
   },
+  // A PUSH payment (Stripe "bank transfers", `customer_balance`): the buyer sends the
+  // money from their own bank to a virtual account number Stripe issues them. They
+  // cannot pull it back, which is the whole point, and it is cheap. USD only, because
+  // Stripe does not support `on_behalf_of` for it and every other currency NoDitto
+  // sells in is charged on behalf of the seller (`domain/payments/onBehalfOf.ts`).
+  // Slow: ACH arrives in about a business day, a wire the same day, so the sale waits
+  // in PAYMENT_PENDING for up to BANK_TRANSFER_WAIT_HOURS.
+  BANK_TRANSFER: {
+    kind: 'BANK_TRANSFER',
+    stripeType: 'customer_balance',
+    flow: 'push',
+    currencies: ['usd'],
+    buyerRegions: ['US'],
+    label: 'Bank transfer',
+    description: 'Send it from your US bank. Usually arrives within a business day.',
+    disputes: 'NONE',
+  },
 };
+
+/**
+ * How long a bank transfer may take to arrive before the sale is released back to the
+ * catalog (the abandoned-payment sweep). ACH credit lands in about a business day; 72
+ * hours covers a weekend.
+ */
+export const BANK_TRANSFER_WAIT_HOURS = 72;
+
+/** Whether the buyer SENDS this payment themselves (see `flow`). */
+export function isPushMethod(kind: PaymentMethodKind): boolean {
+  return DEFINITIONS[kind].flow === 'push';
+}
 
 export function isPaymentMethodKind(value: unknown): value is PaymentMethodKind {
   return typeof value === 'string' && (PAYMENT_METHOD_KINDS as readonly string[]).includes(value);
@@ -308,7 +347,7 @@ export interface MethodPricingFacts {
 }
 
 /**
- * The service fee this contract costs when paid with `method`. For card, pass the
+ * The buyer protection fee this contract costs when paid with `method`. For card, pass the
  * buyer's tier (`cardMethodFor`), not the bare CARD, or a card issued abroad is priced
  * as a domestic one.
  *

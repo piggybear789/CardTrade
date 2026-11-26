@@ -1081,7 +1081,7 @@ function ItemFormInner({
                     promise a purchase price. */}
                 {/* THE PRICE IS THE POINT OF THIS STEP, so it is the deal composer's
                     large field (`MoneyInput size="lg"`) with the same breakdown under
-                    it: what buyers pay, the service fee, and what the seller receives.
+                    it: what buyers pay, the buyer protection fee, and what the seller receives.
                     `holdHeight` draws the rows with "—" until a price is typed, so the
                     fields below do not move on the first digit. A listing with
                     multiple items keeps its one-line hint: its price is only a guide,
@@ -1276,7 +1276,7 @@ function ItemFormInner({
             <p className="mx-auto min-h-[2lh] max-w-md text-balance text-center text-meta text-muted-foreground">
               {isShopfront
                 ? "Buyers see your typical price as a guide, and nothing is held when they ask."
-                : "Buyers see the price with the service fee included. You get your full price."}
+                : "Buyers see the price with the buyer protection fee included. You get your full price."}
             </p>
           </div>
         </div>

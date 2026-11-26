@@ -67,7 +67,7 @@ export async function chargeTradeFees(params: {
   const { initiatorFeeCents, counterpartFeeCents } = resolveTradeFees({
     initiatorReceivesCents: params.initiatorReceivesCents,
     counterpartReceivesCents: params.counterpartReceivesCents,
-    currency,
+    currency: currency ?? null,
   });
 
   // A zero fee (a fee too small for Stripe to charge, `domain/trade/tradeFee.ts`)

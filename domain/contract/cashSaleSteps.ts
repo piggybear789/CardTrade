@@ -471,7 +471,9 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     const returnDelivered = Boolean(facts.returnCarrierDeliveredAt);
     drafts.push({
       id: 'return-inspect',
-      short: '',
+      // Rail labels must fit a narrow tick (~8 characters). A blank one rendered nothing:
+      // the rail falls back to the label only when this is ABSENT, not empty.
+      short: 'Check',
       label:
         viewerRole === 'SELLER' ? 'Check the return' : `${counterpartyName} checks the return`,
       compactLabel: viewerRole === 'SELLER' ? 'Check the return' : 'Return being checked',
@@ -485,7 +487,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
 
     drafts.push({
       id: 'return-refund',
-      short: '',
+      short: 'Refund',
       label: 'Refund released',
       detail: `The refund releases automatically ${RETURN_INSPECTION_LABEL} after the carrier confirms the return arrived.`,
       owner: 'platform',

@@ -339,8 +339,9 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     },
     {
       id: 'release',
-      // Terminal tick reads 'Done' in every flow.
-      short: '',
+      // Terminal tick reads 'Done' in every flow. This was '' on the same comment, which
+      // the rail rendered as NO label (it falls back only when `short` is absent).
+      short: 'Done',
       label: 'Both holds released',
       detail: 'Neither card is charged once the swap completes.',
       owner: 'platform',

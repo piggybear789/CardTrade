@@ -178,7 +178,10 @@ export function ShopfrontBuyButton({
       sellerIdentity={sellerIdentity}
       confirmLabel="Open contract and agree terms"
       onReset={() => setRequest(emptyRequest())}
-      trigger={trigger}
+      // "Request", as the phone buyer bar says. "Buy now" on a listing with multiple
+      // items promised a purchase where the buyer is really asking for specific cards
+      // at a price, with nothing held (UX review 2026-11-26).
+      trigger={trigger ?? <ListingActionIcon icon={ShoppingCart01Icon} label="Request" variant="default" />}
       prepareSale={() => {
         if (toRequestLineItems(request).length === 0) {
           return { ok: false, error: 'Describe what you want from this listing.' };

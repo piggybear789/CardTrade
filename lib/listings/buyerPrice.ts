@@ -17,7 +17,7 @@
 // price-plus-fee a total is a promise the flow cannot keep.
 
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
-import { formatMoneyWhole } from '@/lib/format';
+import { formatMoney, formatMoneyWhole } from '@/lib/format';
 
 // The member-facing rate label is `processingFeeRateLabel` in `lib/fees/feeLabels.ts`.
 // The headline is the fee before postage: postage is agreed later and moves the fee.
@@ -62,19 +62,22 @@ export function listedPriceCents(
 }
 
 /**
- * {@link listedPriceCents} as the text a browse surface shows, rounded to the nearest
- * whole unit (`formatMoneyWhole`). The tile, the listing page and search suggestions
- * all read this, so they show one figure. The exact amount appears at Pay.
+ * {@link listedPriceCents} as the text a browse surface shows. The tile, the listing
+ * page and search suggestions all read this, so they show one figure.
+ *
+ * WHOLE ONLY WHEN IT IS WHOLE. This rounded to the nearest unit, so a $46.35 charge
+ * headlined as "$46 AUD", a figure below what the buyer then pays (UX review
+ * 2026-11-26). Since the fee became a plain percentage most totals have cents, so the
+ * cents are shown whenever there are any; a round total still reads "$50 AUD".
  */
 export function listedPriceText(
   priceCents: number,
   currency: string | null,
   isShopfront: boolean,
 ): string {
-  return formatMoneyWhole(
-    listedPriceCents(priceCents, currency, isShopfront),
-    currency ?? 'aud',
-  );
+  const code = currency ?? 'aud';
+  const cents = listedPriceCents(priceCents, currency, isShopfront);
+  return cents % 100 === 0 ? formatMoneyWhole(cents, code) : formatMoney(cents, code);
 }
 
 /**

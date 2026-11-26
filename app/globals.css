@@ -304,6 +304,18 @@
       --chrome-top: calc(4rem + env(safe-area-inset-top));
     }
   }
+  /* PROPORTIONAL TYPE ON A NARROW DESKTOP (e2e UX review, 2026-11-26). The layout is
+     sized in rem, so the root size scales every type token, gap and column with it.
+     Between 1024px and 1440px it eases from 14.5px to the full 16px, so a 1280x720
+     laptop gets about 15.4px: the rail, the contract room's two panes and the chat
+     dock gain room, and labels stop wrapping or truncating, without a separate layout
+     for the band. Phones and wider screens keep 16px; a phone must, because iOS zooms
+     into any field under 16px (see the field rule further down). */
+  @media (min-width: 1024px) and (max-width: 1439.98px) {
+    html {
+      font-size: calc(14.5px + (100vw - 1024px) * 1.5 / 416);
+    }
+  }
 
   body {
     /* Inherited size MUST match Button (`text-body` / 14px). Without this,

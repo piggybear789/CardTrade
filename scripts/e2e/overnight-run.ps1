@@ -27,7 +27,13 @@ StopServers
 Remove-Item 'audit-artifacts/.pathways.json' -ErrorAction SilentlyContinue
 
 npm run test:e2e:build *> e2e-build.log
-Note "build exit=$LASTEXITCODE"
+$buildExit = $LASTEXITCODE
+Note "build exit=$buildExit"
+# A failed build would run nothing and then re-compress the PREVIOUS videos as if new.
+if ($buildExit -ne 0) {
+  Note 'build failed: stopping (see e2e-build.log)'
+  exit 1
+}
 
 npx vitest --run *> vt-full.log
 $vt = (Select-String -Path vt-full.log -Pattern '^\s+Tests\s' | Select-Object -Last 1).Line

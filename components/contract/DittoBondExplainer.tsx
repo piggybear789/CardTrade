@@ -128,8 +128,12 @@ export function DittoBondExplainer({ currency = 'aud' }: { currency?: string }) 
 
       <p className="flex items-start gap-snug text-muted-foreground">
         <HugeiconsIcon icon={Timer01Icon} className="mt-0.5 size-4 shrink-0" aria-hidden />
-        Authorisations expire about seven days after they are placed, so the trade
-        has to finish before then.
+        {/* "About seven days" was the old estimate; a card hold placed without the
+            cardholder present can lapse after under five (ESC-17a, 114 hours). The
+            trade clock is planned inside that, so the member needs the fact, not a
+            number that was wrong. */}
+        Card holds only last a few days, so the meeting and inspection are planned
+        to finish well before they expire.
       </p>
     </section>
   );

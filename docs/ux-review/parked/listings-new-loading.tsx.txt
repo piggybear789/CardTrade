@@ -1,0 +1,15 @@
+// app/listings/new/loading.tsx
+//
+// The create-listing editor's own frame (`ItemFormSkeleton`): the editor bar, the
+// form on step 1 and the preview canvas. No workspace shell, because the page has
+// none.
+
+import { ItemFormSkeleton } from '@/components/listings/ItemFormSkeleton';
+
+export default function NewListingLoading() {
+  return (
+    <main className="flex flex-1 flex-col">
+      <ItemFormSkeleton mode="create" />
+    </main>
+  );
+}

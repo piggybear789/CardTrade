@@ -52,7 +52,7 @@ import { availableActions } from '@/domain/state-machine/actions';
 import type { TradeViewerContext } from '@/domain/state-machine/types';
 import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
 import { HOLD_DECLINED_MESSAGE, type TradeAcceptCopy } from '@/lib/handover/terms';
-import { TRADE_FEE_NOTE, TRADE_FEE_SENTENCE } from '@/lib/fees/feeLabels';
+import { TRADE_FEE_SHORT_NOTE } from '@/lib/fees/feeLabels';
 import {
   acceptTradeTerms,
   declineTradeOffer,
@@ -345,8 +345,7 @@ export function TradeNegotiationPanel({
             <DialogTitle>Accept these terms?</DialogTitle>
             <DialogDescription>
               {acceptCost?.copy?.description ??
-                `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting we place a temporary card hold. ${TRADE_FEE_SENTENCE}`}{' '}
-              Replace the card here if you do not want this one used.
+                `We place a temporary card hold about ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting, or straight away if it's sooner.`}
             </DialogDescription>
           </DialogHeader>
           {/* The Exchange row already carries the fee, but it is one row of an
@@ -360,14 +359,14 @@ export function TradeNegotiationPanel({
                 {
                   label: acceptCost.feeLabel,
                   value: acceptCost.feeText,
-                  hint: acceptCost.copy?.feeHint ?? TRADE_FEE_NOTE,
+                  hint: acceptCost.copy?.feeHint ?? TRADE_FEE_SHORT_NOTE,
                 },
                 {
                   label: 'Trade collateral',
                   value: acceptCost.collateralText,
                   hint:
                     acceptCost.copy?.collateralHint ??
-                    "A temporary card hold, not a charge. Make sure your card's available limit covers it.",
+                    'A temporary hold, not a charge. Released when the trade completes.',
                 },
               ]}
             />

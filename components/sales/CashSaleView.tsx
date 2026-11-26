@@ -1964,11 +1964,12 @@ function CashSaleRoom({
           if (!next) setConfirmedSeller(false);
         }}
         title="Accept these terms and pay?"
-        description={
-          chosenMethod === 'CARD'
-            ? `This charges ${money(chosenChargeCents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`
-            : 'NoDitto holds your payment until the item is handed over. You can still raise a dispute if something goes wrong.'
-        }
+        // ONE SENTENCE, AND TRUE. "Until the item is handed over" was wrong: NoDitto
+        // holds the payment until the buyer ACCEPTS the item (or the inspection
+        // window closes), which is the buyer's protection. The amount is in the
+        // breakdown and on the button, so it is not repeated here (UX review
+        // 2026-11-26).
+        description="NoDitto holds your payment until you accept the item. If something's wrong, you can raise a problem first."
         confirmLabel={
           chosenMethod === 'CARD'
             ? `Accept terms and pay ${money(chosenChargeCents)}`

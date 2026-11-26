@@ -14,7 +14,7 @@
 
 import { formatContractDateTime, formatMoney } from '@/lib/format';
 import { placementCutoff } from '@/domain/fulfilment/handoverEdits';
-import { TRADE_FEE_NOTE, TRADE_FEE_SENTENCE } from '@/lib/fees/feeLabels';
+import { TRADE_FEE_SHORT_NOTE } from '@/lib/fees/feeLabels';
 import { FX_FEE_BPS, currencyConversionFeeFor } from '@/domain/fees/fxFee';
 
 /** "2%", from the rate the conversion fee is charged at (lib may not import components). */
@@ -61,16 +61,20 @@ export function tradeAcceptCopy(params: {
           : '. ') +
         'NoDitto holds it until the trade completes, and refunds it if the trade is cancelled.'
       : '';
+  // SAY EACH THING ONCE (UX review 2026-11-26). The hold amount was stated three times
+  // and the fee twice, and a rare case (a dispute still open when the hold is about to
+  // lapse) sat in the main flow, pushing "Accept terms" below the fold on a phone. The
+  // amounts live in the rows beside this; the edge case lives behind "How holds and
+  // disputes work".
   return {
     description:
-      `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting ` +
-      `(or straight away if it's sooner) we place ${hold}. ${TRADE_FEE_SENTENCE}` +
+      `We place ${hold} about ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting, or straight away if it's sooner.` +
       cashSentence,
+    // The capture disclosure stays (design §1.12, ESC-01): a hold still open on a
+    // dispute when it is about to lapse IS charged. One clause, not three sentences.
     collateralHint:
-      "A temporary card hold, not a charge. Make sure your card's available limit covers it. " +
-      "It's released when the trade completes. If a problem is still open when the hold is about " +
-      "to expire, it's charged and then refunded or paid out when staff decide.",
-    feeHint: TRADE_FEE_NOTE,
+      'A temporary hold, released when the trade completes. Charged only if a problem is still open when it expires.',
+    feeHint: TRADE_FEE_SHORT_NOTE,
   };
 }
 

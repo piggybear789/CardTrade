@@ -53,11 +53,12 @@ vi.mock('@/components/reports/ReportDialog', () => ({
 
 import { TradeNegotiationPanel } from '@/components/trade/TradeNegotiationPanel';
 import type { TradeFacts, TradeViewerContext } from '@/domain/state-machine/types';
-import { TRADE_FEE_NOTE } from '@/lib/fees/feeLabels';
+import { TRADE_FEE_SHORT_NOTE } from '@/lib/fees/feeLabels';
 
 // What the room passes: the viewer's Trade_Fee (2% of A$700.00) and its note.
 const cost = { feeText: '$14.00', feeLabel: 'NoDitto fee', collateralText: '$700.00' };
-const feeHint = TRADE_FEE_NOTE;
+// The accept dialog's fallback fee hint is the one-line note (UX review 2026-11-26).
+const feeHint = TRADE_FEE_SHORT_NOTE;
 
 function facts(overrides: Partial<TradeFacts> = {}): TradeFacts {
   const noOne = { initiator: false, counterpart: false };
@@ -148,7 +149,7 @@ describe('trade accept dialog — cost disclosure', () => {
     // Design §1.12 / ESC-01: the fee row explains the Trade_Fee.
     expect(within(dialog).getByText(feeHint)).toBeInTheDocument();
     expect(
-      within(dialog).getByText(/^A temporary card hold, not a charge\./),
+      within(dialog).getByText(/^A temporary hold, not a charge\./),
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(/not charged/i)).toBeNull();
   });

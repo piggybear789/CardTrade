@@ -3134,7 +3134,15 @@ async function beginCashSaleReturn(
     event: 'RETURN_REQUIRED',
     fromStatus: 'DISPUTED',
     toStatus: 'RETURN_PENDING',
-    detail: `Refund approved. Buyer must dispatch the return by ${deadline}.`,
+    // A date a person reads, not the ISO instant ("2026-12-03T01:55:13.595Z" was shown
+    // verbatim in the timeline; UX review 2026-11-26). Day precision is what the buyer
+    // needs; the exact deadline is on the Return tab.
+    detail: `Refund approved. The buyer must post the item back by ${new Date(deadline).toLocaleDateString('en-AU', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      timeZone: 'UTC',
+    })}.`,
   });
 
   return { ok: true, sale: updated };

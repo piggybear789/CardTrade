@@ -1,0 +1,14 @@
+// RECONSTRUCTED, not the original. app/listings/[id]/edit/loading.tsx was moved out of
+// the build on 2026-11-26 because it imported '@/components/listings/ItemFormSkeleton',
+// which does not exist, and so broke `next build`. The copy step failed on the `[id]`
+// path, so this is rebuilt from its twin, app/listings/new/loading.tsx. Note that
+// .kiro/steering/structure.md says there are NO loading.tsx files in the web app.
+import { ItemFormSkeleton } from '@/components/listings/ItemFormSkeleton';
+
+export default function EditListingLoading() {
+  return (
+    <main className="flex flex-1 flex-col">
+      <ItemFormSkeleton mode="edit" />
+    </main>
+  );
+}

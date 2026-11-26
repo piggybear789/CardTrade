@@ -15,7 +15,9 @@ import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
 import { cn } from '@/lib/utils';
 
 const LABEL = {
-  payment: { full: 'Payment held by Stripe', short: 'Payment held' },
+  // NoDitto holds it (in its Stripe balance); "held by Stripe" named the wrong party
+  // (UX review 2026-11-26).
+  payment: { full: 'Payment held by NoDitto', short: 'Payment held' },
   holds: { full: 'Holds placed with Stripe', short: 'Holds placed' },
 } as const;
 

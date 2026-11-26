@@ -134,7 +134,7 @@ export async function MarketplaceShell({
           // colour, with a lone hairline telling them apart. Since the bright palette
           // the page is white, so the rail takes the tint. Keep
           // `MarketplaceShellSkeleton` in step.
-          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] md:shrink-0 md:self-stretch md:border-r md:border-sidebar-border md:bg-sidebar md:px-5"
+          className="hidden w-full min-w-0 px-group sm:px-6 md:block md:w-1/5 md:min-w-[13.5rem] md:max-w-[19rem] lg:max-[1439.98px]:max-w-[13.5rem] md:shrink-0 md:self-stretch md:border-r md:border-sidebar-border md:bg-sidebar md:px-5"
         >
           {/* The rail background stretches the full column; its contents stay in
               view. The inset px-1/-mx-1 pair gives focus rings room to draw: setting

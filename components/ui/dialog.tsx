@@ -176,11 +176,16 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      // In flow, not sticky. Pinning Back/Continue to the sheet bottom reserved
-      // a bar (two stacked full-width buttons on phone) and flexed the title
-      // and fields into the leftover sliver — especially once the keyboard
-      // inset shrinks max-height. Actions sit after the content; the sheet
-      // scrolls if needed. Phone: one row so two actions share a line.
+      // STICKY, NOT FIXED. In flow, so a dialog that fits shows its actions right
+      // after the content and reserves nothing. But when the content is taller than
+      // the sheet (the Pay dialog, accepting a trade's terms: e2e UX review
+      // 2026-11-26, both viewports) the actions pin to the bottom of the scrolling
+      // sheet instead of sitting below the fold. `sticky` scrolls the footer away
+      // with nothing when there is nothing to scroll, so short dialogs and the
+      // keyboard inset are unaffected. The background and top rule keep content
+      // from showing through as it scrolls under. Phone: one row so two actions
+      // share a line.
+      "sticky bottom-0 z-10 -mb-1 bg-card pb-1 pt-cozy",
       "flex flex-row gap-snug [&>a]:min-w-0 [&>a]:flex-1 [&>button]:min-w-0 [&>button]:flex-1",
       "md:justify-end md:[&>a]:flex-none md:[&>button]:flex-none",
       className,

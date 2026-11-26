@@ -76,11 +76,19 @@ interface Who {
   subtitle: string | null;
 }
 
-/** The share of different people with a good experience, from the one people tally. */
+/**
+ * The people behind the centre's references, as counts, never a score. A percentage
+ * ("96% good") is a reference score by another name, which product.md rules out, and it
+ * hid how many people had a bad experience (UX review 2026-11-26). Bad is always named
+ * when there is any.
+ */
 function goodShareLine(centre: { peopleCount: number; neutralCount: number; negativeCount: number }): string | null {
   const total = centre.peopleCount + centre.neutralCount + centre.negativeCount;
   if (total === 0) return null;
-  return `${Math.round((centre.peopleCount / total) * 100)}% good`;
+  const parts = [`${centre.peopleCount} good`];
+  if (centre.neutralCount > 0) parts.push(`${centre.neutralCount} so-so`);
+  if (centre.negativeCount > 0) parts.push(`${centre.negativeCount} bad`);
+  return parts.join(' · ');
 }
 
 function describe(entry: OrbitEntry | undefined): Who {

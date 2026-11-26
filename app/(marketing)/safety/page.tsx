@@ -78,8 +78,8 @@ export default function SafetyPage() {
             <p>
               If something&rsquo;s wrong, raising a dispute within that time freezes the money, so
               nothing gets paid out while our case team looks into it. And anyone who lists, sells or
-              trades has had their photo ID and a selfie checked by Stripe first, so you always know
-              there&rsquo;s a real, verified person on the other side.
+              trades has had their photo ID and a selfie checked by Stripe first, so the seller or
+              trader on the other side is a real, verified person.
             </p>
           </Prose>
         </PageSection>

@@ -11,7 +11,7 @@ import { describe, expect, it } from 'vitest';
 
 import { HOLD_DECLINED_MESSAGE, tradeAcceptCopy } from '@/lib/handover/terms';
 import { BOND_PLACEMENT_LEAD_HOURS } from '@/domain/fulfilment';
-import { TRADE_FEE_NOTE, TRADE_FEE_SENTENCE } from '@/lib/fees/feeLabels';
+import { TRADE_FEE_SHORT_NOTE } from '@/lib/fees/feeLabels';
 
 const copy = tradeAcceptCopy({ cashMinor: 0, payerIsViewer: false, bondMinor: 50_000, currency: 'aud' });
 const all = [copy.description, copy.collateralHint, copy.feeHint].join(' ');
@@ -26,15 +26,15 @@ describe('tradeAcceptCopy', () => {
     expect(copy.description).toContain(`${BOND_PLACEMENT_LEAD_HOURS} hours`);
   });
 
-  it('states the trade fee and names the hold amount', () => {
-    expect(copy.description).toContain(TRADE_FEE_SENTENCE);
-    expect(copy.description).toContain('2% of the value they receive');
+  // The fee is stated once, in its own row (UX review 2026-11-26), not in the lead.
+  it('names the hold amount in the lead and the fee rate in its row', () => {
     expect(copy.description).toContain('$500.00');
+    expect(copy.feeHint).toContain('2% of the value you receive');
   });
 
   it('explains the fee and that an expiring hold on an open problem is charged', () => {
-    expect(copy.feeHint).toBe(TRADE_FEE_NOTE);
-    expect(copy.collateralHint).toMatch(/charged and then refunded or paid out/);
+    expect(copy.feeHint).toBe(TRADE_FEE_SHORT_NOTE);
+    expect(copy.collateralHint).toMatch(/Charged only if a problem is still open when it expires/);
   });
 
   // ESC-05: the cash sentence is for the paying viewer only.

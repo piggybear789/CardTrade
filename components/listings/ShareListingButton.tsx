@@ -4,7 +4,7 @@
 // the page body does not need a second share control.
 
 import { HugeiconsIcon } from '@hugeicons/react';
-import { Forward01Icon } from '@hugeicons/core-free-icons';
+import { Share08Icon } from '@hugeicons/core-free-icons';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
@@ -22,7 +22,7 @@ export function ShareListingButton({ className }: { className?: string }) {
     }
     try {
       await navigator.clipboard.writeText(url);
-      
+      toast.success('Link copied');
     } catch {
       toast.error('Could not share this listing');
     }
@@ -38,7 +38,7 @@ export function ShareListingButton({ className }: { className?: string }) {
         className,
       )}
     >
-      <HugeiconsIcon icon={Forward01Icon} className="size-5" strokeWidth={1.75} aria-hidden />
+      <HugeiconsIcon icon={Share08Icon} className="size-5" strokeWidth={1.75} aria-hidden />
     </button>
   );
 }

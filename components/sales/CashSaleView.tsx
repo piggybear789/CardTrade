@@ -116,11 +116,7 @@ import {
 import type { VerificationState } from '@/domain/identity/identityGate';
 
 import {
-  PROCESSING_FEE_HINT,
   PROCESSING_FEE_NAME,
-  cardTierClause,
-  otherCardRatesNote,
-  paymentMethodProtectionNote,
   processingFeeRateLabel,
 } from '@/lib/fees/feeLabels';
 import { CurrencyNotice, fxFeeRateLabel } from '@/components/payments/CurrencyNotice';
@@ -749,15 +745,20 @@ function CashSaleRoom({
   const paidWith = storedPaymentMethod(sale.payment_method_kind);
   // Before payment the Payment section quotes a domestic card and names the dearer card
   // rates beside it; the Pay dialog prices the buyer's own card.
-  const shownFeeCents = editable ? serviceFeeForMethod(pricing, 'CARD') : sale.platform_fee_cents;
-  const buyerChargeCents = (editable ? totalForMethod(pricing, 'CARD') : sale.amount_cents) + fxFeeCents;
-  const otherCards = otherCardRatesNote(sale.currency);
   const offeredMethods: PaymentMethodKind[] =
     iAmBuyer && editable ? paymentMethodsFor({ currency: sale.currency, buyerRegion }) : ['CARD'];
   const payMethods = offeredMethods.filter((method) => {
     const limit = paymentMethodDefinition(method).maxAmountMinor;
     return limit === undefined || totalForMethod(pricing, method) <= limit;
   });
+  // Before payment, quote the cheapest way this buyer can pay; the Pay dialog prices
+  // every option exactly.
+  const cheapestMethod: PaymentMethodKind = payMethods.reduce<PaymentMethodKind>(
+    (best, method) => (serviceFeeForMethod(pricing, method) < serviceFeeForMethod(pricing, best) ? method : best),
+    'CARD',
+  );
+  const shownFeeCents = editable ? serviceFeeForMethod(pricing, cheapestMethod) : sale.platform_fee_cents;
+  const buyerChargeCents = (editable ? totalForMethod(pricing, cheapestMethod) : sale.amount_cents) + fxFeeCents;
   const [payMethod, setPayMethod] = useState<PaymentMethodKind>('CARD');
   const chosenMethod: PaymentMethodKind = payMethods.includes(payMethod) ? payMethod : 'CARD';
   // THE BUYER'S OWN CARD PRICES CARD (0159). Stripe charges more for a card issued
@@ -773,7 +774,6 @@ function CashSaleRoom({
   const chosenFeeCents = serviceFeeForMethod(pricing, priceAs(chosenMethod));
   const chosenChargeCents = totalForMethod(pricing, priceAs(chosenMethod)) + fxFeeCents;
   const chosenRail = paymentMethodDefinition(chosenMethod);
-  const chosenTierClause = cardTierClause(sale.currency, priceAs(chosenMethod));
   // The second Pay step for a bank rail: approving the amount in the buyer's bank.
   const [bankSession, setBankSession] = useState<BankPaymentSession | null>(null);
 
@@ -1532,7 +1532,7 @@ function CashSaleRoom({
 
           <ContractDetailRow
             id={CASH_SALE_SECTIONS.terms}
-            label="Terms"
+            label="Delivery"
             summary={termsSummary}
             action={
               editable && sale.fulfillment_method ? (
@@ -1699,21 +1699,8 @@ function CashSaleRoom({
                     value: money(sale.shipping_cost_cents),
                   },
                   {
-                    label: editable ? `${PROCESSING_FEE_NAME} (by card)` : PROCESSING_FEE_NAME,
+                    label: PROCESSING_FEE_NAME,
                     value: money(shownFeeCents),
-                    // 0159: the figure is a domestic card's; a card from abroad costs
-                    // more, and the Pay step prices the buyer's own card.
-                    ...(editable && (otherCards || payMethods.length > 1)
-                      ? {
-                          hint: [
-                            otherCards,
-                            payMethods.length > 1 ? 'Paying from your bank can cost less.' : '',
-                            iAmBuyer ? 'Every option is priced for you before you pay.' : '',
-                          ]
-                            .filter(Boolean)
-                            .join(' '),
-                        }
-                      : {}),
                   },
                   // The buyer's cost of converting into the platform's settlement
                   // currency. Paid by the buyer so the seller's figure below is exact.
@@ -1974,7 +1961,7 @@ function CashSaleRoom({
         description={
           chosenMethod === 'CARD'
             ? `This charges ${money(chosenChargeCents)} to your card through Stripe and holds it until the item is handed over. You can still raise a dispute if something goes wrong.`
-            : `Next you approve ${money(chosenChargeCents)} with ${chosenRail.label}. Nothing is taken until you approve it in your bank, and NoDitto holds it until the item is handed over. You can still raise a dispute if something goes wrong.`
+            : 'NoDitto holds your payment until the item is handed over. You can still raise a dispute if something goes wrong.'
         }
         confirmLabel={
           chosenMethod === 'CARD'
@@ -2063,7 +2050,7 @@ function CashSaleRoom({
               // The rate this rail (or this card's tier) is priced at, so the figure can
               // be checked rather than taken on trust. Exact: the fee is this rate of
               // price and postage.
-              hint: `${processingFeeRateLabel(sale.currency, priceAs(chosenMethod))} of the price${isDelivery ? ' and postage' : ''}${chosenTierClause ? `, ${chosenTierClause}` : ''}. ${PROCESSING_FEE_HINT}`,
+              hint: processingFeeRateLabel(sale.currency, priceAs(chosenMethod)),
             },
             ...(fxFeeCents > 0
               ? [
@@ -2085,9 +2072,6 @@ function CashSaleRoom({
           ]}
         />
         <CurrencyNotice currency={sale.currency} fxFeeMinor={fxFeeCents} />
-        {payMethods.length > 1 ? (
-          <p className="text-body text-muted-foreground">{paymentMethodProtectionNote(chosenMethod)}</p>
-        ) : null}
         {chosenMethod === 'CARD' ? (
           <PayCardSection
             card={payCard.card}

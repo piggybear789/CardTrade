@@ -1,0 +1,4100 @@
+{
+  "runId": "2026-11-25T12-28-02Z-vrzbsm2",
+  "startedAt": "2026-11-25T12:28:02.987Z",
+  "durationMs": 167997,
+  "commit": "8ce9d0c04b98ddf6d54a99dea4a8aefd08e66160",
+  "schema": "cardtrade_dev",
+  "servers": [
+    {
+      "name": "main",
+      "port": 3100,
+      "paymentsMode": "stripe-test"
+    },
+    {
+      "name": "aux",
+      "port": 3101,
+      "paymentsMode": "mock"
+    }
+  ],
+  "results": [
+    {
+      "declaration": {
+        "id": "journeys.cash-sale-lifecycle",
+        "title": "Cash sale start to finish: list, buy, pay by card, ship, deliver, accept, payout",
+        "area": "journeys",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "seller": "seed:alice",
+          "buyer": "seed:bob"
+        },
+        "viewports": "both",
+        "knownFindings": [
+          "F73",
+          "F74",
+          "F75",
+          "F77"
+        ]
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T12-28-02Z-vrzbsm2",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Alice lists a card for A$150.00",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:05.870Z",
+          "status": "passed",
+          "durationMs": 6474,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-01.seller.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Bob opens the listing and reserves it with Buy now",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:12.347Z",
+          "status": "passed",
+          "durationMs": 4696,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-02.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/53124131-11f3-47f8-9dd3-5699ab6fe665",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/53124131-11f3-47f8-9dd3-5699ab6fe665",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Alice opens the new sale",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:17.045Z",
+          "status": "passed",
+          "durationMs": 1682,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-03.seller.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "The card is reserved and the sale is agreeing terms",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:18.729Z",
+          "status": "passed",
+          "durationMs": 263,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-03.seller.png"
+            }
+          ],
+          "observations": [],
+          "index": 4
+        },
+        {
+          "name": "Bob chooses delivery and gives his address",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:18.994Z",
+          "status": "passed",
+          "durationMs": 2832,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-05.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Bob reviews the total: price, postage and the card service fee",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:21.827Z",
+          "status": "passed",
+          "durationMs": 444,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-06.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Bob pays by card (3-D Secure when asked)",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:22.272Z",
+          "status": "passed",
+          "durationMs": 9044,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-07.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "cls",
+              "message": "Cumulative layout shift 0.183 exceeds 0.1 (9 shifts without recent input).",
+              "detail": {
+                "cls": 0.1827,
+                "threshold": 0.1,
+                "shifts": 9
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "shift-outside-region",
+              "message": "Data arriving in span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border, div.flex.min-h-11.shrink-0.items-stretch.border-b, span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border, input.sr-only, ol.flex.flex-col.gap-cozy moved span.min-w-0.truncate, outside its own region.",
+              "detail": {
+                "value": 0,
+                "moved": "span.min-w-0.truncate",
+                "regions": "span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border | div.flex.min-h-11.shrink-0.items-stretch.border-b | span.inline-flex.min-h-[1.425rem].items-center.gap-1.rounded-md.border | input.sr-only | ol.flex.flex-col.gap-cozy"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "NoDitto holds the payment, and Alice sees it live",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:31.318Z",
+          "status": "passed",
+          "durationMs": 255,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-08.seller.png"
+            }
+          ],
+          "observations": [],
+          "index": 8
+        },
+        {
+          "name": "Alice posts the card and records the tracking number",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:31.575Z",
+          "status": "passed",
+          "durationMs": 2040,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-09.seller.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "cls",
+              "message": "Cumulative layout shift 0.181 exceeds 0.1 (4 shifts without recent input).",
+              "detail": {
+                "cls": 0.1807,
+                "threshold": 0.1,
+                "shifts": 4
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 9
+        },
+        {
+          "name": "Bob sees the parcel in transit",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:33.617Z",
+          "status": "passed",
+          "durationMs": 211,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-10.buyer.png"
+            }
+          ],
+          "observations": [],
+          "index": 10
+        },
+        {
+          "name": "Australia Post reports the parcel delivered",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:33.829Z",
+          "status": "passed",
+          "durationMs": 284,
+          "screenshots": [],
+          "observations": [],
+          "index": 11,
+          "simulated": {
+            "mechanism": "signed-fixture",
+            "reason": "A Ship24-shaped delivery event for the number Alice entered, posted with the webhook secret; no parcel moves in a test run."
+          }
+        },
+        {
+          "name": "Bob's 7-day inspection window opens",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:34.115Z",
+          "status": "passed",
+          "durationMs": 369,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-12.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 12
+        },
+        {
+          "name": "Bob checks the card and completes the purchase",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:34.486Z",
+          "status": "passed",
+          "durationMs": 1288,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-13.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/4347fb4c-37ea-4cf6-a090-177d891b3ea0?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 13
+        },
+        {
+          "name": "The sale is complete for Alice",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:35.776Z",
+          "status": "passed",
+          "durationMs": 196,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-14.seller.png"
+            }
+          ],
+          "observations": [],
+          "index": 14
+        },
+        {
+          "name": "The new-seller holdback passes (7 days from payment)",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:35.974Z",
+          "status": "passed",
+          "durationMs": 112,
+          "screenshots": [],
+          "observations": [],
+          "index": 15,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "A new seller is paid 7 days after collection (ESC-03); payment_settled_at and any recorded release time move back 8 days instead of waiting."
+          }
+        },
+        {
+          "name": "The hourly payout job runs (called on demand, as Vercel Cron would)",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:36.087Z",
+          "status": "passed",
+          "durationMs": 5761,
+          "screenshots": [],
+          "observations": [],
+          "index": 16
+        },
+        {
+          "name": "Alice is paid: the transfer is sent to her payout account",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:41.849Z",
+          "status": "passed",
+          "durationMs": 258,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-17.seller.png"
+            }
+          ],
+          "observations": [],
+          "index": 17
+        },
+        {
+          "name": "Bob sees his finished purchase",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:42.109Z",
+          "status": "passed",
+          "durationMs": 787,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-18.buyer.png"
+            }
+          ],
+          "observations": [],
+          "index": 18
+        }
+      ],
+      "videos": [
+        {
+          "member": "seller",
+          "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/video.seller.0.webm",
+          "masked": true
+        },
+        {
+          "member": "buyer",
+          "path": "audit-artifacts/journeys.cash-sale-lifecycle/desktop/2026-11-25T12-28-02Z-vrzbsm2/video.buyer.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "journeys.cash-sale-lifecycle",
+        "title": "Cash sale start to finish: list, buy, pay by card, ship, deliver, accept, payout",
+        "area": "journeys",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "seller": "seed:alice",
+          "buyer": "seed:bob"
+        },
+        "viewports": "both",
+        "knownFindings": [
+          "F73",
+          "F74",
+          "F75",
+          "F77"
+        ]
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T12-28-02Z-vrzbsm2",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Alice lists a card for A$150.00",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:07.052Z",
+          "status": "passed",
+          "durationMs": 11739,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-01.seller.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/listings/new",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 1
+        },
+        {
+          "name": "Bob opens the listing and reserves it with Buy now",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:18.793Z",
+          "status": "passed",
+          "durationMs": 13323,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-02.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/125a18ca-aa85-4590-a79b-077088cfe531",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "buyer",
+              "url": "http://localhost:3100/listings/125a18ca-aa85-4590-a79b-077088cfe531",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 2
+        },
+        {
+          "name": "Alice opens the new sale",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:32.118Z",
+          "status": "passed",
+          "durationMs": 4911,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-03.seller.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "The card is reserved and the sale is agreeing terms",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:29:37.031Z",
+          "status": "passed",
+          "durationMs": 541,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-03.seller.png"
+            }
+          ],
+          "observations": [],
+          "index": 4
+        },
+        {
+          "name": "Bob chooses delivery and gives his address",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:37.574Z",
+          "status": "passed",
+          "durationMs": 10253,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-05.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679?details=1",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Bob reviews the total: price, postage and the card service fee",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:47.828Z",
+          "status": "passed",
+          "durationMs": 3395,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-06.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Bob pays by card (3-D Secure when asked)",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:29:51.225Z",
+          "status": "passed",
+          "durationMs": 9009,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-07.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "NoDitto holds the payment, and Alice sees it live",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:30:00.236Z",
+          "status": "passed",
+          "durationMs": 812,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-08.seller.png"
+            }
+          ],
+          "observations": [],
+          "index": 8
+        },
+        {
+          "name": "Alice posts the card and records the tracking number",
+          "kind": "action",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:30:01.049Z",
+          "status": "passed",
+          "durationMs": 5887,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-09.seller.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 9
+        },
+        {
+          "name": "Bob sees the parcel in transit",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:30:06.937Z",
+          "status": "passed",
+          "durationMs": 1041,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-10.buyer.png"
+            }
+          ],
+          "observations": [],
+          "index": 10
+        },
+        {
+          "name": "Australia Post reports the parcel delivered",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:30:07.980Z",
+          "status": "passed",
+          "durationMs": 193,
+          "screenshots": [],
+          "observations": [],
+          "index": 11,
+          "simulated": {
+            "mechanism": "signed-fixture",
+            "reason": "A Ship24-shaped delivery event for the number Alice entered, posted with the webhook secret; no parcel moves in a test run."
+          }
+        },
+        {
+          "name": "Bob's 7-day inspection window opens",
+          "kind": "assert",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:30:08.175Z",
+          "status": "passed",
+          "durationMs": 1050,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-12.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 12
+        },
+        {
+          "name": "Bob checks the card and completes the purchase",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:30:09.226Z",
+          "status": "passed",
+          "durationMs": 3745,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-13.buyer.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "buyer",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 13
+        },
+        {
+          "name": "The sale is complete for Alice",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:30:12.973Z",
+          "status": "passed",
+          "durationMs": 644,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-14.seller.png"
+            }
+          ],
+          "observations": [],
+          "index": 14
+        },
+        {
+          "name": "The new-seller holdback passes (7 days from payment)",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:30:13.618Z",
+          "status": "passed",
+          "durationMs": 114,
+          "screenshots": [],
+          "observations": [],
+          "index": 15,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "A new seller is paid 7 days after collection (ESC-03); payment_settled_at and any recorded release time move back 8 days instead of waiting."
+          }
+        },
+        {
+          "name": "The hourly payout job runs (called on demand, as Vercel Cron would)",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:30:13.733Z",
+          "status": "passed",
+          "durationMs": 4842,
+          "screenshots": [],
+          "observations": [],
+          "index": 16
+        },
+        {
+          "name": "Alice is paid: the transfer is sent to her payout account",
+          "kind": "assert",
+          "members": [
+            "seller"
+          ],
+          "startedAt": "2026-11-25T12:30:18.576Z",
+          "status": "passed",
+          "durationMs": 1575,
+          "screenshots": [
+            {
+              "member": "seller",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-14.seller.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "seller",
+              "url": "http://localhost:3100/sales/0427d1ac-3e76-4640-bb3c-9ebf6abdd679",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 17
+        },
+        {
+          "name": "Bob sees his finished purchase",
+          "kind": "action",
+          "members": [
+            "buyer"
+          ],
+          "startedAt": "2026-11-25T12:30:20.152Z",
+          "status": "passed",
+          "durationMs": 1265,
+          "screenshots": [
+            {
+              "member": "buyer",
+              "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/step-18.buyer.png"
+            }
+          ],
+          "observations": [],
+          "index": 18
+        }
+      ],
+      "videos": [
+        {
+          "member": "seller",
+          "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/video.seller.0.webm",
+          "masked": true
+        },
+        {
+          "member": "buyer",
+          "path": "audit-artifacts/journeys.cash-sale-lifecycle/phone/2026-11-25T12-28-02Z-vrzbsm2/video.buyer.0.webm",
+          "masked": true
+        }
+      ],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "trades.lifecycle.cash-leg-accepted",
+        "title": "A trade with cash: the cash is paid before the holds, then handover, inspection and acceptance",
+        "area": "trades",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "alice": "seed:alice",
+          "bob": "seed:bob"
+        },
+        "viewports": "both",
+        "requiresSeed": [
+          "alice",
+          "bob",
+          "trade-pair-a-alice"
+        ]
+      },
+      "viewport": "desktop",
+      "runId": "2026-11-25T12-28-02Z-vrzbsm2",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed records present: alice, bob, trade-pair-a-alice",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:05.942Z",
+          "status": "passed",
+          "durationMs": 430,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Alice and Bob each list a card of equal value",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:06.381Z",
+          "status": "passed",
+          "durationMs": 137,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Alice: opens the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:06.520Z",
+          "status": "passed",
+          "durationMs": 2931,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-03.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/2069d807-224f-42b1-af42-89aecf474af5",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/2069d807-224f-42b1-af42-89aecf474af5",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/2069d807-224f-42b1-af42-89aecf474af5",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/2069d807-224f-42b1-af42-89aecf474af5",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/2069d807-224f-42b1-af42-89aecf474af5",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Alice: sends the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:09.452Z",
+          "status": "passed",
+          "durationMs": 3876,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-04.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Bob sets the meeting place and time",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:13.330Z",
+          "status": "passed",
+          "durationMs": 6438,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-05.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Alice: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:19.770Z",
+          "status": "passed",
+          "durationMs": 1982,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-06.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Alice: accepts the terms",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:21.754Z",
+          "status": "passed",
+          "durationMs": 1826,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-07.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "Bob: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:23.582Z",
+          "status": "passed",
+          "durationMs": 1516,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-08.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "Bob: accepts the terms",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:25.099Z",
+          "status": "passed",
+          "durationMs": 1835,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-09.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 9
+        },
+        {
+          "name": "Alice is asked to pay the cash to lock the trade",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:26.937Z",
+          "status": "passed",
+          "durationMs": 1224,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-10.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 10
+        },
+        {
+          "name": "Rewinding the meeting clock into the placement window, then the hourly job runs with the cash unpaid",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:28.162Z",
+          "status": "passed",
+          "durationMs": 7222,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 11,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "Collateral is placed a day before the meeting; nobody waits days for it."
+          }
+        },
+        {
+          "name": "No card hold is placed while the cash is unpaid",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:35.385Z",
+          "status": "passed",
+          "durationMs": 1289,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-12.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 12
+        },
+        {
+          "name": "Alice pays the $10.00 AUD cash in the room",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:36.676Z",
+          "status": "passed",
+          "durationMs": 5562,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-13.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 13
+        },
+        {
+          "name": "The platform holds the cash",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:42.240Z",
+          "status": "passed",
+          "durationMs": 115,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-13.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 14
+        },
+        {
+          "name": "The hourly trade-inspections job runs again and places the collateral",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:42.357Z",
+          "status": "passed",
+          "durationMs": 8588,
+          "screenshots": [],
+          "observations": [],
+          "index": 15
+        },
+        {
+          "name": "Both temporary card holds are live: collateral locked",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:50.948Z",
+          "status": "passed",
+          "durationMs": 1033,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-16.bob.png"
+            }
+          ],
+          "observations": [],
+          "index": 16
+        },
+        {
+          "name": "Each trader holds A$250.00 of trade collateral, authorised in Stripe test mode",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:51.983Z",
+          "status": "passed",
+          "durationMs": 837,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-17.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 17
+        },
+        {
+          "name": "Moving both holds' expiry earlier so the inspection window has to be clamped to it",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:52.822Z",
+          "status": "passed",
+          "durationMs": 200,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 18,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "A real authorisation only nears its expiry days after placement."
+          }
+        },
+        {
+          "name": "Alice confirms the handover happened",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:53.023Z",
+          "status": "passed",
+          "durationMs": 2032,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-19.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 19
+        },
+        {
+          "name": "Bob confirms the handover happened",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:55.057Z",
+          "status": "passed",
+          "durationMs": 2191,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-20.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "shift-outside-region",
+              "message": "Data arriving in input.sr-only, li.h-1.flex-1.rounded-full.bg-foreground/70, li.h-1.flex-1.rounded-full.bg-iris, p.shrink-0.truncate.text-meta.text-muted-foreground, li.h-1.flex-1.rounded-full.bg-foreground/70, li.h-1.flex-1.rounded-full.bg-iris, p.shrink-0.truncate.text-meta.text-muted-foreground moved li.h-1.flex-1.rounded-full.bg-border, outside its own region.",
+              "detail": {
+                "value": 0.0001,
+                "moved": "li.h-1.flex-1.rounded-full.bg-border",
+                "regions": "input.sr-only | li.h-1.flex-1.rounded-full.bg-foreground/70 | li.h-1.flex-1.rounded-full.bg-iris | p.shrink-0.truncate.text-meta.text-muted-foreground | li.h-1.flex-1.rounded-full.bg-foreground/70 | li.h-1.flex-1.rounded-full.bg-iris | p.shrink-0.truncate.text-meta.text-muted-foreground"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 20
+        },
+        {
+          "name": "Both confirmed: the trade is in inspection",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:57.250Z",
+          "status": "passed",
+          "durationMs": 955,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-21.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 21
+        },
+        {
+          "name": "The inspection deadline is the 72-hour window clamped to the earliest hold expiry",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:58.207Z",
+          "status": "passed",
+          "durationMs": 1412,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-22.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 22
+        },
+        {
+          "name": "Alice accepts what she received",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:59.621Z",
+          "status": "passed",
+          "durationMs": 1806,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-23.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 23
+        },
+        {
+          "name": "Bob accepts what he received",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:01.428Z",
+          "status": "passed",
+          "durationMs": 2538,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-24.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 24
+        },
+        {
+          "name": "Both accepted: the trade is complete",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:03.968Z",
+          "status": "passed",
+          "durationMs": 951,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-25.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 25
+        },
+        {
+          "name": "Both holds are voided in Stripe test mode",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:04.920Z",
+          "status": "passed",
+          "durationMs": 745,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-26.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 26
+        },
+        {
+          "name": "The hourly payout job drains the queued cash release",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:30:05.666Z",
+          "status": "passed",
+          "durationMs": 3720,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/a76a611a-a3fa-4ec8-98e5-3874f071770d",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 27
+        },
+        {
+          "name": "The cash leg is released to Bob, or scheduled for release",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:09.388Z",
+          "status": "passed",
+          "durationMs": 891,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/desktop/2026-11-25T12-28-02Z-vrzbsm2/step-28.bob.png"
+            }
+          ],
+          "observations": [],
+          "index": 28
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    },
+    {
+      "declaration": {
+        "id": "trades.lifecycle.cash-leg-accepted",
+        "title": "A trade with cash: the cash is paid before the holds, then handover, inspection and acceptance",
+        "area": "trades",
+        "kind": "happy",
+        "provider": "stripe",
+        "members": {
+          "alice": "seed:alice",
+          "bob": "seed:bob"
+        },
+        "viewports": "both",
+        "requiresSeed": [
+          "alice",
+          "bob",
+          "trade-pair-a-alice"
+        ]
+      },
+      "viewport": "phone",
+      "runId": "2026-11-25T12-28-02Z-vrzbsm2",
+      "status": "passed",
+      "retries": 0,
+      "steps": [
+        {
+          "name": "Seed records present: alice, bob, trade-pair-a-alice",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:06.907Z",
+          "status": "passed",
+          "durationMs": 465,
+          "screenshots": [],
+          "observations": [],
+          "index": 1
+        },
+        {
+          "name": "Alice and Bob each list a card of equal value",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:07.380Z",
+          "status": "passed",
+          "durationMs": 113,
+          "screenshots": [],
+          "observations": [],
+          "index": 2
+        },
+        {
+          "name": "Alice: opens the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:07.496Z",
+          "status": "passed",
+          "durationMs": 10707,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-03.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/e7ee7d58-dd39-4b05-8cfa-fc7d92b0892b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/listings/e7ee7d58-dd39-4b05-8cfa-fc7d92b0892b",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/e7ee7d58-dd39-4b05-8cfa-fc7d92b0892b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/e7ee7d58-dd39-4b05-8cfa-fc7d92b0892b",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/listings/e7ee7d58-dd39-4b05-8cfa-fc7d92b0892b",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 3
+        },
+        {
+          "name": "Alice: sends the offer",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:18.204Z",
+          "status": "passed",
+          "durationMs": 7711,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-04.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 4
+        },
+        {
+          "name": "Bob sets the meeting place and time",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:25.917Z",
+          "status": "passed",
+          "durationMs": 21585,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-05.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43?details=1",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 5
+        },
+        {
+          "name": "Alice: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:47.504Z",
+          "status": "passed",
+          "durationMs": 1888,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-06.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 6
+        },
+        {
+          "name": "Alice: accepts the terms",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:49.394Z",
+          "status": "passed",
+          "durationMs": 2340,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-07.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 7
+        },
+        {
+          "name": "Bob: reviews what accepting costs",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:51.736Z",
+          "status": "passed",
+          "durationMs": 1735,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-08.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 8
+        },
+        {
+          "name": "Bob: accepts the terms",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:29:53.473Z",
+          "status": "passed",
+          "durationMs": 3267,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-09.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 9
+        },
+        {
+          "name": "Alice is asked to pay the cash to lock the trade",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:29:56.742Z",
+          "status": "passed",
+          "durationMs": 1303,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-10.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 10
+        },
+        {
+          "name": "Rewinding the meeting clock into the placement window, then the hourly job runs with the cash unpaid",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:29:58.047Z",
+          "status": "passed",
+          "durationMs": 7737,
+          "screenshots": [],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 11,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "Collateral is placed a day before the meeting; nobody waits days for it."
+          }
+        },
+        {
+          "name": "No card hold is placed while the cash is unpaid",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:30:05.785Z",
+          "status": "passed",
+          "durationMs": 825,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-10.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 12
+        },
+        {
+          "name": "Alice pays the $10.00 AUD cash in the room",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:30:06.612Z",
+          "status": "passed",
+          "durationMs": 6531,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-13.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 13
+        },
+        {
+          "name": "The platform holds the cash",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:30:13.144Z",
+          "status": "passed",
+          "durationMs": 123,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-13.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 14
+        },
+        {
+          "name": "The hourly trade-inspections job runs again and places the collateral",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:30:13.268Z",
+          "status": "passed",
+          "durationMs": 8223,
+          "screenshots": [],
+          "observations": [],
+          "index": 15
+        },
+        {
+          "name": "Both temporary card holds are live: collateral locked",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:21.492Z",
+          "status": "passed",
+          "durationMs": 1165,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-16.bob.png"
+            }
+          ],
+          "observations": [],
+          "index": 16
+        },
+        {
+          "name": "Each trader holds A$250.00 of trade collateral, authorised in Stripe test mode",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:22.658Z",
+          "status": "passed",
+          "durationMs": 951,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-17.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 17
+        },
+        {
+          "name": "Moving both holds' expiry earlier so the inspection window has to be clamped to it",
+          "kind": "simulated",
+          "members": [],
+          "startedAt": "2026-11-25T12:30:23.611Z",
+          "status": "passed",
+          "durationMs": 176,
+          "screenshots": [],
+          "observations": [],
+          "index": 18,
+          "simulated": {
+            "mechanism": "moved-timestamp",
+            "reason": "A real authorisation only nears its expiry days after placement."
+          }
+        },
+        {
+          "name": "Alice confirms the handover happened",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:30:23.788Z",
+          "status": "passed",
+          "durationMs": 2146,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-19.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 19
+        },
+        {
+          "name": "Bob confirms the handover happened",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:25.936Z",
+          "status": "passed",
+          "durationMs": 2502,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-20.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 20
+        },
+        {
+          "name": "Both confirmed: the trade is in inspection",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:30:28.440Z",
+          "status": "passed",
+          "durationMs": 977,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-21.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 21
+        },
+        {
+          "name": "The inspection deadline is the 72-hour window clamped to the earliest hold expiry",
+          "kind": "assert",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:30:29.420Z",
+          "status": "passed",
+          "durationMs": 703,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-21.alice.png"
+            }
+          ],
+          "observations": [],
+          "index": 22
+        },
+        {
+          "name": "Alice accepts what she received",
+          "kind": "action",
+          "members": [
+            "alice"
+          ],
+          "startedAt": "2026-11-25T12:30:30.124Z",
+          "status": "passed",
+          "durationMs": 2992,
+          "screenshots": [
+            {
+              "member": "alice",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-23.alice.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"exit\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "exit",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "alice",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 23
+        },
+        {
+          "name": "Bob accepts what he received",
+          "kind": "action",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:33.118Z",
+          "status": "passed",
+          "durationMs": 2773,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-24.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"enter\" animates opacity, transform on .fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0, outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "enter",
+                "properties": "opacity,transform",
+                "target": ".fixed.inset-0.z-50.bg-obsidian/80.data-[state=open]:animate-in.data-[state=open]:fade-in-0"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "motion",
+              "message": "Decorative motion: \"(unnamed)\" animates opacity on (element), outside any dialog, sheet, menu, popover, tooltip, toast or spinner.",
+              "detail": {
+                "animation": "(unnamed)",
+                "properties": "opacity",
+                "target": "(element)"
+              },
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 24
+        },
+        {
+          "name": "Both accepted: the trade is complete",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:35.892Z",
+          "status": "passed",
+          "durationMs": 1078,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-25.bob.png"
+            }
+          ],
+          "observations": [],
+          "index": 25
+        },
+        {
+          "name": "Both holds are voided in Stripe test mode",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:36.972Z",
+          "status": "passed",
+          "durationMs": 778,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-26.bob.png"
+            }
+          ],
+          "observations": [
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            },
+            {
+              "check": "network",
+              "member": "bob",
+              "url": "http://localhost:3100/trades/262f3110-1ced-471a-b525-99ac9c111d43",
+              "message": "HTTP 404: http://localhost:3100/_vercel/speed-insights/script.js",
+              "detail": {
+                "kind": "response",
+                "status": 404,
+                "requestUrl": "http://localhost:3100/_vercel/speed-insights/script.js"
+              },
+              "severity": "advisory",
+              "source": "automated"
+            }
+          ],
+          "index": 26
+        },
+        {
+          "name": "The hourly payout job drains the queued cash release",
+          "kind": "arrange",
+          "members": [],
+          "startedAt": "2026-11-25T12:30:37.752Z",
+          "status": "passed",
+          "durationMs": 3308,
+          "screenshots": [],
+          "observations": [],
+          "index": 27
+        },
+        {
+          "name": "The cash leg is released to Bob, or scheduled for release",
+          "kind": "assert",
+          "members": [
+            "bob"
+          ],
+          "startedAt": "2026-11-25T12:30:41.061Z",
+          "status": "passed",
+          "durationMs": 899,
+          "screenshots": [
+            {
+              "member": "bob",
+              "path": "audit-artifacts/trades.lifecycle.cash-leg-accepted/phone/2026-11-25T12-28-02Z-vrzbsm2/step-28.bob.png"
+            }
+          ],
+          "observations": [],
+          "index": 28
+        }
+      ],
+      "videos": [],
+      "forced": [],
+      "paymentsMode": "stripe-test",
+      "simulated": true
+    }
+  ],
+  "leftInStripe": [
+    {
+      "type": "payment_intent",
+      "id": "pi_3UffKCKEPlyX260L0dblh5ta",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    },
+    {
+      "type": "payment_intent",
+      "id": "pi_3UffKQKEPlyX260L0HZNPgeb",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    },
+    {
+      "type": "payment_intent",
+      "id": "pi_3UffKgKEPlyX260L1CAWBhVy",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    },
+    {
+      "type": "payment_intent",
+      "id": "pi_3UffKuKEPlyX260L0gnuDi2R",
+      "reason": "PaymentIntent is succeeded; Stripe keeps it"
+    }
+  ]
+}

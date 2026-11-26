@@ -76,10 +76,6 @@ export function ConfirmDialog({
       }}
     >
       <DialogContent>
-        {/* Header and help link share one block. Left as siblings of the footer
-            they were separated by the dialog's own gap, so the link read as a
-            stray band floating between the question and the answer instead of
-            as a continuation of the explanation. */}
         <div className="space-y-cozy">
           <DialogHeader>
             {destructive ? (
@@ -103,18 +99,20 @@ export function ConfirmDialog({
               </>
             )}
           </DialogHeader>
-          {helpHref ? (
-            <p className="text-body">
-              <Link
-                href={helpHref}
-                className="font-medium underline underline-offset-4 hover:text-foreground"
-              >
-                {helpLabel}
-              </Link>
-            </p>
-          ) : null}
         </div>
         {children}
+        {/* The help link sits after everything the decision needs, just above the
+            buttons, so it reads as a footnote rather than interrupting the terms. */}
+        {helpHref ? (
+          <p className="text-body">
+            <Link
+              href={helpHref}
+              className="font-medium underline underline-offset-4 hover:text-foreground"
+            >
+              {helpLabel}
+            </Link>
+          </p>
+        ) : null}
         <DialogFooter>
           <Button
             type="button"

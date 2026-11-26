@@ -252,7 +252,6 @@ export function ContractDetailList({
           aria-labelledby={`${tabsId}-tab-${activeIndex}`}
           className={cn(
             'flex min-h-0 flex-1 scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))] flex-col transition-colors duration-300',
-            focusedId === activeRow.props.id && 'bg-accent',
             activeRow.props.className,
           )}
         >
@@ -268,7 +267,7 @@ export function ContractDetailList({
               // containment dead-ended the gesture, so a swipe reaching the
               // bottom of the panel stopped instead of carrying on down the
               // page, and the reader had to lift and re-swipe outside it.
-              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-group text-body',
+              'flex min-h-0 flex-1 flex-col overflow-y-auto bg-card p-group text-body focus:outline-none',
               inSheet ? 'overscroll-contain' : 'lg:overscroll-contain',
             )}
           >

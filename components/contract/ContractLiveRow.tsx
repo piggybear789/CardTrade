@@ -61,7 +61,10 @@ export function ContractLiveRow({
             sibling ABOVE this row, so claiming the whole content box would
             overflow the viewport by its height. */}
         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)] gap-group">
-          <div className="min-h-0 min-w-0 overflow-y-auto [&>*]:h-full">
+          {/* `-m-1 p-1`: a scroll box clips at its padding edge, which cut the
+              card's border and shadow down to the rounded corners. The padding
+              gives them room; the negative margin keeps the layout unchanged. */}
+          <div className="-m-1 min-h-0 min-w-0 overflow-y-auto p-1 [&>*]:h-full">
             {children}
           </div>
           <div className="flex min-h-0 min-w-0 flex-col [&>*]:h-full">

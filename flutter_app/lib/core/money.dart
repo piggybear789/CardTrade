@@ -182,8 +182,9 @@ abstract final class Money {
   /// `FX_FEE_BPS` in `domain/fees/fxFee.ts`. Cash sales do not pay it.
   static const int fxFeeBps = 200;
 
-  /// Trades carry no fee. Mirrors `TRADE_FEE_BPS` in `domain/trade/tradeFee.ts`.
-  static const int tradeFeeBps = 0;
+  /// The Trade_Fee: 2% of the value each trader receives. Mirrors `TRADE_FEE_BPS` in
+  /// `domain/trade/tradeFee.ts`.
+  static const int tradeFeeBps = 200;
 
   static String _feeCurrency(String? currency) {
     final String code = (currency ?? '').trim().toLowerCase();
@@ -204,10 +205,31 @@ abstract final class Money {
     return ((base * rate[0]) + 5000) ~/ 10000 + rate[1];
   }
 
-  /// The fee for one side of a trade: 0, because trades carry no fee.
+  /// The smallest card charge Stripe accepts, in minor units. Mirrors
+  /// `STRIPE_MINIMUM_CHARGE_MINOR` in `domain/trade/tradeFee.ts`.
+  static const Map<String, int> stripeMinimumChargeMinor = {
+    'aud': 50,
+    'usd': 50,
+    'cad': 50,
+    'eur': 50,
+    'chf': 50,
+    'gbp': 30,
+    'bgn': 100,
+    'czk': 1500,
+    'dkk': 250,
+    'nok': 300,
+    'pln': 200,
+    'ron': 200,
+    'sek': 300,
+  };
+
+  /// The Trade_Fee for one trader: [tradeFeeBps] of the value they receive, or 0 when
+  /// that is too small for Stripe to charge. Mirrors `tradeFeeCentsFor`.
   static int tradeFee(int valueCents, {required String? currency}) {
     if (valueCents <= 0 || tradeFeeBps <= 0) return 0;
-    return ((valueCents * tradeFeeBps) + 5000) ~/ 10000;
+    final int fee = ((valueCents * tradeFeeBps) + 5000) ~/ 10000;
+    final int minimum = stripeMinimumChargeMinor[_feeCurrency(currency)] ?? 50;
+    return fee < minimum ? 0 : fee;
   }
 
   /// "3% + $0.60": the card buyer protection fee as members read it. Exact: the fee is this rate
@@ -231,9 +253,9 @@ abstract final class Money {
   static const String processingFeeHint =
       "Most of it goes to Stripe for the payment and payout. NoDitto keeps about 2% on larger sales, less on small ones. Returned if the sale is refunded in full.";
 
-  /// Where a trade would show a fee. Mirrors `TRADE_NO_FEE_NOTE` in `lib/fees/feeLabels.ts`.
-  static const String tradeNoFeeNote =
-      'Trades have no NoDitto fee. The collateral is a card hold, which costs nothing.';
+  /// Beside a trade's fee. Mirrors `TRADE_FEE_NOTE` in `lib/fees/feeLabels.ts`.
+  static const String tradeFeeNote =
+      "NoDitto's fee is 2% of the value you receive, charged to your card once both holds are in place and refunded if the swap doesn't go ahead. Very small trades have no fee. The collateral itself is a card hold, not a charge.";
 
   /// Returns total cost for a cash sale buyer: price + shipping + buyer protection fee.
   static int cashSaleTotal({

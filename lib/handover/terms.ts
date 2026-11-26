@@ -14,7 +14,7 @@
 
 import { formatContractDateTime, formatMoney } from '@/lib/format';
 import { placementCutoff } from '@/domain/fulfilment/handoverEdits';
-import { TRADE_NO_FEE_NOTE } from '@/lib/fees/feeLabels';
+import { TRADE_FEE_NOTE, TRADE_FEE_SENTENCE } from '@/lib/fees/feeLabels';
 import { FX_FEE_BPS, currencyConversionFeeFor } from '@/domain/fees/fxFee';
 
 /** "2%", from the rate the conversion fee is charged at (lib may not import components). */
@@ -36,7 +36,7 @@ export interface TradeAcceptCopy {
  * code (design §1.12, ESC-01, ESC-29).
  *
  * Honest about what happens: accepting agrees terms; the temporary card hold lands
- * about a day before the meeting (trades have no fee); and since ESC-01 a hold that is about to
+ * about a day before the meeting (each trader also pays the Trade_Fee); and since ESC-01 a hold that is about to
  * expire on an open problem IS charged, then refunded or paid out. Never "escrow",
  * never "not charged".
  *
@@ -64,13 +64,13 @@ export function tradeAcceptCopy(params: {
   return {
     description:
       `Accepting agrees the terms. About ${BOND_PLACEMENT_LEAD_HOURS} hours before the meeting ` +
-      `(or straight away if it's sooner) we place ${hold}. Trades have no fee.` +
+      `(or straight away if it's sooner) we place ${hold}. ${TRADE_FEE_SENTENCE}` +
       cashSentence,
     collateralHint:
       "A temporary card hold, not a charge. Make sure your card's available limit covers it. " +
       "It's released when the trade completes. If a problem is still open when the hold is about " +
       "to expire, it's charged and then refunded or paid out when staff decide.",
-    feeHint: TRADE_NO_FEE_NOTE,
+    feeHint: TRADE_FEE_NOTE,
   };
 }
 

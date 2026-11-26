@@ -12,9 +12,10 @@ import { InfoPopover } from '@/components/ui/info-popover';
 import { platformFeeCentsFor } from '@/domain/orchestrator/cashSaleOrchestrator';
 import {
   PROCESSING_FEE_NAME,
-  TRADE_NO_FEE_NOTE,
+  TRADE_FEE_NOTE,
   processingFeeShortNote,
   processingFeeRateLabel,
+  tradeFeeRateLabel,
 } from '@/lib/fees/feeLabels';
 import { formatMoney } from '@/lib/format';
 
@@ -73,8 +74,8 @@ export function SaleTermsBreakdown({
 
 /**
  * THE HOLD IS YOUR OWN SIDE'S VALUE. `bondPolicy` authorises 100% of a trader's own
- * side, so this sizes YOUR hold, not theirs. Trades carry no fee (`tradeFee.ts`), and
- * the row says so rather than disappearing, so the absence is stated.
+ * side, so this sizes YOUR hold, not theirs. The fee is the Trade_Fee
+ * (`tradeFee.ts`), a rate of what this trader RECEIVES, which the composer does not know yet.
  */
 export function TradeTermsBreakdown({
   valueCents,
@@ -93,7 +94,7 @@ export function TradeTermsBreakdown({
         value={valueCents ? formatMoney(valueCents, currency) : "Your card's value"}
         info="A temporary hold, not a charge. It's released when the trade completes."
       />
-      <BreakdownRow label="Your fee" value={formatMoney(0, currency)} info={TRADE_NO_FEE_NOTE} />
+      <BreakdownRow label="Your fee" value={`${tradeFeeRateLabel()} of what you receive`} info={TRADE_FEE_NOTE} />
     </Breakdown>
   );
 }

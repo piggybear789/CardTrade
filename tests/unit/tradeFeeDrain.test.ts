@@ -254,10 +254,11 @@ describe('drainFailedTradeFees', () => {
   });
 });
 
-describe('chargeTradeFees while trades carry no fee', () => {
-  it('writes no fee row and makes no provider call', async () => {
+describe('chargeTradeFees at 2% per trader', () => {
+  it('charges each trader 2% of what they receive, in the trade currency', async () => {
     admin = createFakeAdmin({
-      defaults: { profiles: { data: { payer_id: 'payer_1' } } },
+      // No prior fee rows (first attempt), and attempts read back as 0.
+      defaults: { profiles: { data: { payer_id: 'payer_1' } }, trade_fees: { data: null } },
     });
 
     const outcome = await chargeTradeFees({
@@ -266,6 +267,27 @@ describe('chargeTradeFees while trades carry no fee', () => {
       counterpartId: 'trader-b',
       initiatorReceivesCents: 126_000,
       counterpartReceivesCents: 111_000,
+    });
+
+    expect(outcome).toEqual({ collectedCents: 2_520 + 2_220, anyFailed: false });
+    expect(requestTransfer.mock.calls.map(([params]) => params)).toEqual([
+      expect.objectContaining({ amount: 2_520, currency: 'aud' }),
+      expect.objectContaining({ amount: 2_220, currency: 'aud' }),
+    ]);
+  });
+
+  it("writes no fee row and makes no provider call under Stripe's minimum charge", async () => {
+    admin = createFakeAdmin({
+      defaults: { profiles: { data: { payer_id: 'payer_1' } } },
+    });
+
+    // 2% of A$20.00 is A$0.40, under Stripe's A$0.50 minimum.
+    const outcome = await chargeTradeFees({
+      tradeId: 'trade-1',
+      initiatorId: 'trader-a',
+      counterpartId: 'trader-b',
+      initiatorReceivesCents: 2_000,
+      counterpartReceivesCents: 2_000,
     });
 
     expect(outcome).toEqual({ collectedCents: 0, anyFailed: false });

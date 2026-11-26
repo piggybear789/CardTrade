@@ -193,9 +193,10 @@ void main() {
   // ═══════════════════════════════════════════════════════════════════════════
 
   group('Trade Fee', () {
-    test('trades carry no fee', () {
-      expect(tradeFeeBps, 0);
-      expect(tradeFee(10000, currency: 'aud'), 0);
+    test('is 2% of the value received, and 0 below Stripe\'s minimum charge', () {
+      expect(tradeFeeBps, 200);
+      expect(tradeFee(10000, currency: 'aud'), 200);
+      expect(tradeFee(2500, currency: 'usd'), 50);
       expect(tradeFee(1999, currency: 'usd'), 0);
     });
 
@@ -211,7 +212,7 @@ void main() {
         currency: 'aud',
       );
       expect(fees.initiatorFeeCents, fees.counterpartFeeCents);
-      expect(fees.initiatorFeeCents, 0); // trades carry no fee
+      expect(fees.initiatorFeeCents, 100); // 2% of 5000
     });
   });
 

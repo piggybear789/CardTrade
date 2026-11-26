@@ -56,6 +56,7 @@ import { formatMoney, itemImageUrl } from '@/lib/format';
 import { uploadItemImages } from '@/lib/storage/uploadItemImages';
 import { openTradeNegotiation } from '@/lib/actions/tradeNegotiation';
 import { deriveItemTitle } from '@/domain/validation';
+import { tradeFeeRateLabel } from '@/lib/fees/feeLabels';
 
 /** Parse a dollars string into integer AUD cents; 0 when blank or invalid. */
 function dollarsToCents(value: string): number {
@@ -374,7 +375,7 @@ export function TradeOfferForm({
         {!isShopfront ? (
           <p className="text-meta text-muted-foreground">
             Valued at the seller&apos;s asking price. The listing&apos;s price includes the
-            buyer protection fee a cash buyer pays; trades have no fee.
+            buyer protection fee a cash buyer pays; on a trade each of you pays NoDitto {tradeFeeRateLabel()} of what you receive.
           </p>
         ) : null}
       </section>

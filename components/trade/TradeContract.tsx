@@ -887,7 +887,7 @@ function TradeContractRoom({
     cashAmountCents: goods?.cashAmountCents ?? 0,
   });
 
-  // Each trader's fee is `TRADE_FEE_BPS` (0) of what THEY receive, so the viewer's own fee is sized
+  // Each trader's fee is `TRADE_FEE_BPS` (2%) of what THEY receive, so the viewer's own fee is sized
   // from the other side's bundle plus any cash coming to them. Derived here rather
   // than read from `trade_fees`, because the fee has to be disclosed BEFORE it is
   // charged — the row does not exist until both sides have accepted.
@@ -1304,8 +1304,8 @@ function TradeContractRoom({
                         // Disclosed on the side that PAYS it, sized on what that
                         // trader receives — so it appears against your column while
                         // being derived from theirs.
-                        // Trades have no fee, so this is 0 and the panel draws no
-                        // fee line; kept wired so a fee could return in one place.
+                        // The Trade_Fee (2% of what this trader receives; 0 when too
+                        // small for Stripe to charge, and then no fee line is drawn).
                         feeCents: myFeeCents,
                         emptyLabel: 'You are putting up no goods.',
                       },

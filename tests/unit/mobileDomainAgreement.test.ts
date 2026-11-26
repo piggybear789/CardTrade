@@ -31,7 +31,7 @@ import { FX_FEE_BPS } from '@/domain/fees/fxFee';
 import { chargesOnBehalfOfSeller } from '@/domain/payments/onBehalfOf';
 import { minorUnitDigits, REGIONS } from '@/domain/region';
 import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
-import { PROCESSING_FEE_HINT, PROCESSING_FEE_NAME, TRADE_NO_FEE_NOTE } from '@/lib/fees/feeLabels';
+import { PROCESSING_FEE_HINT, PROCESSING_FEE_NAME, TRADE_FEE_NOTE } from '@/lib/fees/feeLabels';
 import { TRANSITIONS } from '@/domain/state-machine/machine';
 import { TERMINAL_STATES } from '@/domain/state-machine/types';
 import {
@@ -269,7 +269,7 @@ describe('the processing fee agrees across the language boundary', () => {
     const { source } = dartFeeSchedule();
     expect(source).toContain(`'${PROCESSING_FEE_NAME}'`);
     expect(source).toContain(`"${PROCESSING_FEE_HINT}"`);
-    expect(source).toContain(`'${TRADE_NO_FEE_NOTE}'`);
+    expect(source).toContain(`"${TRADE_FEE_NOTE}"`);
     expect(source.toLowerCase()).not.toContain('open beta');
     expect(source).not.toContain('betaFeeWaiver');
   });

@@ -487,7 +487,7 @@ class _TradeMoneySection extends ConsumerWidget {
 
     return ContractSection(
       title: 'Money',
-      explainer: 'A trade moves goods, not cash. ${Money.tradeNoFeeNote}',
+      explainer: Money.tradeFeeNote,
       children: <Widget>[
         ContractMoneyTable(
           semanticsLabel: 'Trade money breakdown',

@@ -99,15 +99,26 @@ export async function collateralReconcileDeps(
       if (TRADE_FEE_BPS === 0) return true;
       const { data: trade, error: tradeError } = await client
         .from('trades')
-        .select('initiator_side_minor, counterpart_side_minor')
+        .select('initiator_side_minor, counterpart_side_minor, currency, cash_amount_cents, cash_direction')
         .eq('id', id)
         .maybeSingle();
       if (tradeError) throw new Error(`[collateral lock] load side values: ${tradeError.message}`);
-      const sides = trade as { initiator_side_minor: number | null; counterpart_side_minor: number | null } | null;
+      const sides = trade as {
+        initiator_side_minor: number | null;
+        counterpart_side_minor: number | null;
+        currency: string | null;
+        cash_amount_cents: number | null;
+        cash_direction: string | null;
+      } | null;
       if (sides?.initiator_side_minor == null || sides.counterpart_side_minor == null) return false;
+      // The same fee base placement charges (`chargeFeesForAgreedTrade`): what each
+      // trader receives, cash coming their way included.
+      const cash = Number(sides.cash_amount_cents ?? 0);
+      const initiatorPaysCash = sides.cash_direction === 'PROPOSER_PAYS';
       const owed = resolveTradeFees({
-        initiatorReceivesCents: Number(sides.counterpart_side_minor),
-        counterpartReceivesCents: Number(sides.initiator_side_minor),
+        initiatorReceivesCents: Number(sides.counterpart_side_minor) + (initiatorPaysCash ? 0 : cash),
+        counterpartReceivesCents: Number(sides.initiator_side_minor) + (initiatorPaysCash ? cash : 0),
+        currency: sides.currency,
       });
       return owed.initiatorFeeCents + owed.counterpartFeeCents === 0;
     },

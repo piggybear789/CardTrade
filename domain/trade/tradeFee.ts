@@ -1,44 +1,73 @@
 // domain/trade/tradeFee.ts
 //
-// The Trade_Fee: what each trader pays NoDitto for a 2-way trade. It is ZERO.
+// The Trade_Fee: what each trader pays NoDitto for a 2-way trade. 2% PER TRADER of
+// the value that trader RECEIVES (their counterpart's side plus any cash coming their
+// way), product decision 2026-11-27. Before that it was 0.
 //
-// WHY ZERO. NoDitto passes Stripe's costs through and takes no margin of its own
-// (`domain/fees/processingFee.ts`). A swap's only money movement is the collateral: an
-// uncaptured card authorisation that is voided when the trade completes, which Stripe
-// does not charge for. So there is no provider cost on the swap to pass through, and a
-// fee charged to cover nothing would itself incur a Stripe card fee.
+// WHAT IT PAYS FOR. The collateral itself is an uncaptured card authorisation Stripe does
+// not charge for, but a trade is not free to run: both traders' identity checks, staff
+// arbitration of disputes, the custody backstop, and the card processing on a cash leg
+// (absorbed by the platform; the payer pays only any Currency_Conversion fee, `fxFee.ts`).
 //
-// The machinery stays, at a rate of 0: `chargeTradeFees` skips a zero fee (no row, no
-// provider call), and `resolveTradeFees` and the disclosure still call one function, so
-// a fee can be reintroduced by changing `TRADE_FEE_BPS` alone.
+// NO MINIMUM, AND NO FEE BELOW WHAT STRIPE CAN CHARGE. The fee is its own off-session card
+// charge (it cannot come out of the collateral: a partial capture makes Stripe release the
+// rest of the hold). Stripe refuses a charge under its minimum (US$0.50, £0.30, ...), and
+// since ESC-29 an uncollected fee blocks the trade from locking, so a fee under
+// `STRIPE_MINIMUM_CHARGE_MINOR` is waived to 0 rather than charged. At 2% that is a trader
+// receiving less than about A$/US$25.
 //
-// A trade's CASH LEG is a real card payment and does cost Stripe's card fee. The payer
-// already pays any Currency_Conversion fee on it (`fxFee.ts`); the card processing on it
-// is absorbed by the platform for now.
+// `chargeTradeFees` skips a zero fee (no row, no provider call), and the charge, the lock
+// check and the trade room's disclosure all call `tradeFeeCentsFor`, so they agree.
 //
 // Pure module: no I/O, no provider types. All amounts are integer minor units of the
 // trade's currency.
 
 import { percentageFeeMinor } from '../fees/percentageFee';
 
-/** Trade fee rate per trader, in basis points. 0: trades carry no NoDitto fee. */
-export const TRADE_FEE_BPS: number = 0;
+/** Trade fee rate per trader, in basis points: 2% of the value each trader receives. */
+export const TRADE_FEE_BPS: number = 200;
+
+/**
+ * The smallest card charge Stripe accepts, per currency, in minor units (Stripe's
+ * "minimum charge amount" table). A currency with no row uses US$0.50.
+ */
+export const STRIPE_MINIMUM_CHARGE_MINOR: Readonly<Record<string, number>> = {
+  aud: 50,
+  usd: 50,
+  cad: 50,
+  eur: 50,
+  chf: 50,
+  gbp: 30,
+  bgn: 100,
+  czk: 1500,
+  dkk: 250,
+  nok: 300,
+  pln: 200,
+  ron: 200,
+  sek: 300,
+};
+
+/** Stripe's minimum card charge for `currency`, in its minor units. */
+export function stripeMinimumChargeMinor(currency: string | null | undefined): number {
+  return STRIPE_MINIMUM_CHARGE_MINOR[currency?.trim().toLowerCase() || 'aud'] ?? 50;
+}
 
 /**
  * The fee one Trader owes, in the trade currency's minor units: `rateBps` of the value
- * received, rounded to the nearest minor unit, with no minimum. 0 at the default rate.
+ * received, rounded to the nearest minor unit, with no minimum. A fee too small for
+ * Stripe to charge is 0 (see the header).
  *
  * @param valueReceivedCents total Trade_Side_Value this Trader receives, including any
  *   cash coming their way.
- * @param _currency the trade's ISO 4217 code. It does not affect the result and is
- *   kept so callers keep their signature.
+ * @param currency the trade's ISO 4217 code, which decides Stripe's minimum charge.
  */
 export function tradeFeeCentsFor(
   valueReceivedCents: number,
-  _currency: string | null,
+  currency: string | null,
   rateBps: number = TRADE_FEE_BPS,
 ): number {
-  return percentageFeeMinor(valueReceivedCents, rateBps);
+  const fee = percentageFeeMinor(valueReceivedCents, rateBps);
+  return fee < stripeMinimumChargeMinor(currency) ? 0 : fee;
 }
 
 /** What each side of a trade owes the platform. */
@@ -57,12 +86,14 @@ export interface TradeFeeSplit {
 export function resolveTradeFees(params: {
   initiatorReceivesCents: number;
   counterpartReceivesCents: number;
+  /** The trade's currency, which decides Stripe's minimum charge. */
+  currency: string | null;
   rateBps?: number;
 }): TradeFeeSplit {
   const rate = params.rateBps ?? TRADE_FEE_BPS;
   return {
-    initiatorFeeCents: tradeFeeCentsFor(params.initiatorReceivesCents, null, rate),
-    counterpartFeeCents: tradeFeeCentsFor(params.counterpartReceivesCents, null, rate),
+    initiatorFeeCents: tradeFeeCentsFor(params.initiatorReceivesCents, params.currency, rate),
+    counterpartFeeCents: tradeFeeCentsFor(params.counterpartReceivesCents, params.currency, rate),
   };
 }
 

@@ -8,7 +8,7 @@
 // "4%" by an Australian card in Australia, which covers Stripe's payment and
 // payout costs and leaves NoDitto about 2% (NODITTO_FEE_BPS). A card issued outside the
 // seller's card zone pays a dearer rate (0159), named by `otherCardRatesNote`. The seller receives exactly their price plus
-// postage. Trades carry no fee: their collateral is a card hold that costs nothing. A
+// postage. Each trader pays a Trade_Fee of TRADE_FEE_BPS (2%) of the value they receive. A
 // trade's cash leg in a converted currency also pays the Currency_Conversion fee
 // (`domain/fees/fxFee.ts`); a cash sale does not, because it is charged on behalf of the
 // seller.
@@ -18,6 +18,7 @@
 // price plus postage, rounded to the cent. Copy never says "about" a rate.
 
 import { NODITTO_FEE_BPS, bpsLabel, processingRateParts } from '@/domain/fees/processingFee';
+import { TRADE_FEE_BPS } from '@/domain/trade/tradeFee';
 import {
   cardTierPhrase,
   isCardMethod,
@@ -114,9 +115,17 @@ export function paymentMethodProtectionNote(method: PaymentMethodKind): string {
   }
 }
 
-/** Where a trade would show a fee. */
-export const TRADE_NO_FEE_NOTE =
-  "Trades have no NoDitto fee. The collateral is a card hold, which costs nothing.";
+/** "2%": the Trade_Fee each trader pays, of the value they receive. */
+export function tradeFeeRateLabel(): string {
+  return bpsLabel(TRADE_FEE_BPS);
+}
+
+/** Beside a trade's fee row. */
+export const TRADE_FEE_NOTE =
+  `NoDitto's fee is ${bpsLabel(TRADE_FEE_BPS)} of the value you receive, charged to your card once both holds are in place and refunded if the swap doesn't go ahead. Very small trades have no fee. The collateral itself is a card hold, not a charge.`;
+
+/** The fee in one sentence, for the accept dialog and the trade terms. */
+export const TRADE_FEE_SENTENCE = `Each trader pays NoDitto ${bpsLabel(TRADE_FEE_BPS)} of the value they receive.`;
 
 /** Terms page, Fees section. */
 export function termsFeeSentence(): string {
@@ -128,7 +137,10 @@ export function termsFeeSentence(): string {
     'charges more for it. Most of it goes to Stripe for taking the payment and paying the ' +
     `seller. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Every way of paying is shown ` +
     'with its rate and total before the buyer pays. The seller receives their price and ' +
-    'postage in full. Trades have no fee. Cash paid as part of a cross-border trade also ' +
+    `postage in full. On a trade, each trader pays NoDitto ${bpsLabel(TRADE_FEE_BPS)} of the value ` +
+    'they receive (the other side, plus any cash coming to them), charged once both card ' +
+    'holds are in place and refunded if the exchange does not go ahead; a fee too small for ' +
+    'Stripe to charge is not charged. Cash paid as part of a cross-border trade also ' +
     'pays the currency conversion fee, which covers the conversion at cost. If Stripe ' +
     'changes its pricing, the rates may change for sales agreed after that.'
   );

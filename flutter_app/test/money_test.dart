@@ -107,8 +107,10 @@ void main() {
   });
 
   group('Money.tradeFee()', () {
-    test('trades carry no fee', () {
-      expect(Money.tradeFee(10000, currency: 'aud'), equals(0));
+    test('is 2% of the value received, waived below Stripe\'s minimum charge', () {
+      expect(Money.tradeFee(10000, currency: 'aud'), equals(200));
+      expect(Money.tradeFee(2000, currency: 'aud'), equals(0));
+      expect(Money.tradeFee(2000, currency: 'gbp'), equals(40));
       expect(Money.tradeFee(0, currency: 'aud'), equals(0));
     });
   });

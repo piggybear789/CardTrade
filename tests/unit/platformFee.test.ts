@@ -220,7 +220,7 @@ describe('fee labels', () => {
     const strings = [
       feeLabels.PROCESSING_FEE_NAME,
       feeLabels.PROCESSING_FEE_HINT,
-      feeLabels.TRADE_NO_FEE_NOTE,
+      feeLabels.TRADE_FEE_NOTE,
       feeLabels.processingFeeRateLabel('aud'),
       feeLabels.processingFeeExplanation('aud'),
       feeLabels.termsFeeSentence(),

@@ -1,7 +1,7 @@
 // tests/unit/platformFee.test.ts
 //
 // The cash-sale fee (Req 4.7) is the Service_Fee: a CLEAN rate of price plus postage per
-// currency and way of paying, e.g. 3% by card in Australia, with no fixed part since 2026-11-24
+// currency and way of paying, e.g. 4% by card in Australia, with no fixed part since 2026-11-24
 // (`domain/fees/processingFee.ts`). These pin the figures, that every rate is a clean
 // number, that every rate still covers what Stripe charges (so a Stripe price change
 // that would quietly eat the margin fails here), the member-facing wording, and that the
@@ -44,14 +44,16 @@ const RAILS: ReadonlyArray<readonly [string, PaymentMethodKind]> = [
 describe('platformFeeCentsFor (the Service_Fee)', () => {
   it('pins known figures', () => {
     // Percentage only (2026-11-24): no fixed part on any rail.
-    expect(platformFeeCentsFor(1000, 'aud')).toBe(30);
-    expect(platformFeeCentsFor(5000, 'aud')).toBe(150);
-    expect(platformFeeCentsFor(10_000, 'aud')).toBe(300);
-    expect(platformFeeCentsFor(100_000, 'aud')).toBe(3000);
-    expect(platformFeeCentsFor(10_000, 'usd')).toBe(450);
-    expect(platformFeeCentsFor(10_000, 'eur')).toBe(300);
-    expect(platformFeeCentsFor(10_000, 'gbp')).toBe(300);
-    expect(platformFeeCentsFor(100_000, 'czk')).toBe(3000);
+    expect(platformFeeCentsFor(1000, 'aud')).toBe(40);
+    expect(platformFeeCentsFor(5000, 'aud')).toBe(200);
+    expect(platformFeeCentsFor(10_000, 'aud')).toBe(400);
+    expect(platformFeeCentsFor(100_000, 'aud')).toBe(4000);
+    expect(platformFeeCentsFor(10_000, 'usd')).toBe(500);
+    expect(platformFeeCentsFor(10_000, 'eur')).toBe(400);
+    expect(platformFeeCentsFor(10_000, 'gbp')).toBe(400);
+    expect(platformFeeCentsFor(100_000, 'czk')).toBe(4000);
+    // 2026-11-27: US bank transfer 2 points under the US card rate.
+    expect(cashSaleFeeMinor(10_000, 0, 'usd', 'BANK_TRANSFER')).toBe(300);
   });
 
   it('is the rate of price plus postage, plus the fixed part, exactly', () => {
@@ -79,18 +81,26 @@ describe('platformFeeCentsFor (the Service_Fee)', () => {
     expect(platformFeeCentsFor(9000, 'aud', 1000)).toBeGreaterThan(platformFeeCentsFor(9000, 'aud'));
   });
 
-  it('targets about 1% for NoDitto', () => {
-    expect(NODITTO_FEE_BPS).toBe(100);
+  it('targets about 2% for NoDitto', () => {
+    expect(NODITTO_FEE_BPS).toBe(200);
+  });
+
+  it("sets every rate to Stripe's percentage cost plus NoDitto's share, rounded to the nearest whole percent", () => {
+    for (const [currency, method] of RAILS) {
+      const stripe = processingRateFor(currency, method);
+      const exact = (stripe.cardBps + stripe.payoutBps + NODITTO_FEE_BPS) / (1 - stripe.cardBps / 10_000);
+      expect(serviceFeeRateFor(currency, method).bps, `${method}:${currency}`).toBe(Math.round(exact / 100) * 100);
+    }
   });
 
   it('treats no currency as AUD', () => {
     expect(platformFeeCentsFor(10_000, null)).toBe(platformFeeCentsFor(10_000, 'aud'));
   });
 
-  it('uses clean rates: a half-percent step and a fixed part in tens of minor units', () => {
+  it('uses clean rates: a whole percent and a fixed part in tens of minor units', () => {
     for (const [currency, method] of RAILS) {
       const rate = serviceFeeRateFor(currency, method);
-      expect(rate.bps % 50, `${method}:${currency}`).toBe(0);
+      expect(rate.bps % 100, `${method}:${currency}`).toBe(0);
       expect(rate.fixedMinor % 10, `${method}:${currency}`).toBe(0);
     }
     // An unknown currency stays the most expensive case.
@@ -117,12 +127,12 @@ describe('platformFeeCentsFor (the Service_Fee)', () => {
           const kept = fee - cost;
           // Percentage parts covered (two ceil()s may each round up a minor unit).
           expect(kept + fixed).toBeGreaterThanOrEqual(-2);
-          // Well past break-even (about 1% of the base covers the fixed fee) NoDitto is in
-          // profit on every rail, near its 1%. Scaled by the fixed fee because it is in
-          // local minor units (NOK 6.00, CZK 13.00).
+          // Well past break-even (NoDitto's 1.5–2.5% of the base covers the fixed fee) NoDitto
+          // is in profit on every rail, near its 2%. Scaled by the fixed fee because it is
+          // in local minor units (NOK 6.00, CZK 13.00).
           if (base >= fixed * 150) {
             expect(kept).toBeGreaterThan(0);
-            expect(kept / base).toBeLessThan(0.017);
+            expect(kept / base).toBeLessThan(0.027);
           }
         },
       ),
@@ -130,24 +140,27 @@ describe('platformFeeCentsFor (the Service_Fee)', () => {
   });
 
   it('makes the bank rails that cost Stripe less cheaper than card', () => {
-    expect(cashSaleFeeMinor(10_000, 0, 'usd', 'US_BANK')).toBeLessThan(cashSaleFeeMinor(10_000, 0, 'usd'));
+    // Instant Bank Payments rounds to the card rate (and is not offered).
+    expect(cashSaleFeeMinor(10_000, 0, 'usd', 'US_BANK')).toBeLessThanOrEqual(cashSaleFeeMinor(10_000, 0, 'usd'));
     expect(cashSaleFeeMinor(10_000, 0, 'usd', 'BANK_TRANSFER')).toBeLessThan(cashSaleFeeMinor(10_000, 0, 'usd', 'US_BANK'));
     expect(cashSaleFeeMinor(10_000, 0, 'aud', 'PAYTO')).toBeLessThan(cashSaleFeeMinor(10_000, 0, 'aud'));
     expect(cashSaleFeeMinor(10_000, 0, 'eur', 'IDEAL')).toBeLessThan(cashSaleFeeMinor(10_000, 0, 'eur'));
   });
 
-  it('prices a card from abroad above a domestic one, and the UK–EEA tier between them', () => {
+  it('never prices a card from abroad below a domestic one, and the UK–EEA tier between them', () => {
     for (const currency of CURRENCIES) {
       const domestic = cashSaleFeeMinor(10_000, 0, currency);
       const middle = cashSaleFeeMinor(10_000, 0, currency, 'CARD_UK_EEA');
       const abroad = cashSaleFeeMinor(10_000, 0, currency, 'CARD_INTERNATIONAL');
-      expect(abroad, currency).toBeGreaterThan(domestic);
+      // Equal only where rounding meets (Canada, Switzerland: 6% either way).
+      if (currency === 'cad' || currency === 'chf') expect(abroad, currency).toBe(domestic);
+      else expect(abroad, currency).toBeGreaterThan(domestic);
       expect(middle, currency).toBeGreaterThanOrEqual(domestic);
       expect(middle, currency).toBeLessThanOrEqual(abroad);
     }
-    expect(platformFeeCentsFor(10_000, 'aud')).toBe(300);
-    expect(cashSaleFeeMinor(10_000, 0, 'aud', 'CARD_INTERNATIONAL')).toBe(500);
-    expect(cashSaleFeeMinor(10_000, 0, 'eur', 'CARD_UK_EEA')).toBe(400);
+    expect(platformFeeCentsFor(10_000, 'aud')).toBe(400);
+    expect(cashSaleFeeMinor(10_000, 0, 'aud', 'CARD_INTERNATIONAL')).toBe(600);
+    expect(cashSaleFeeMinor(10_000, 0, 'eur', 'CARD_UK_EEA')).toBe(500);
     // A currency with no neighbour zone prices that tier as international.
     expect(serviceFeeRateFor('aud', 'CARD_UK_EEA')).toEqual(serviceFeeRateFor('aud', 'CARD_INTERNATIONAL'));
   });
@@ -177,21 +190,27 @@ describe('buyerPaysCents', () => {
 describe('fee labels', () => {
   it('state the exact clean rate from the same table the charge uses', () => {
     expect(feeLabels.PROCESSING_FEE_NAME).toBe('Buyer protection fee');
-    expect(feeLabels.processingFeeRateLabel('aud')).toBe('3%');
-    expect(feeLabels.processingFeeRateLabel('usd')).toBe('4.5%');
-    expect(feeLabels.processingFeeRateLabel('eur')).toBe('3%');
-    expect(feeLabels.processingFeeRateLabel('eur', 'IDEAL')).toBe('1.5%');
-    expect(feeLabels.processingFeeRateLabel('aud', 'PAYTO')).toBe('2.5%');
-    expect(feeLabels.processingFeeRateLabel('usd', 'BANK_TRANSFER')).toBe('2%');
-    expect(feeLabels.nodittoFeeRateLabel()).toBe('1%');
-    expect(feeLabels.processingFeeExplanation('aud')).toContain('3% of the price');
-    expect(feeLabels.processingFeeExplanation('aud')).toContain('NoDitto keeps about 1%');
-    expect(feeLabels.PROCESSING_FEE_HINT).toContain('NoDitto keeps about 1%');
-    expect(feeLabels.termsFeeSentence()).toContain('NoDitto keeps about 1%');
+    expect(feeLabels.processingFeeRateLabel('aud')).toBe('4%');
+    expect(feeLabels.processingFeeRateLabel('usd')).toBe('5%');
+    expect(feeLabels.processingFeeRateLabel('eur')).toBe('4%');
+    expect(feeLabels.processingFeeRateLabel('eur', 'IDEAL')).toBe('3%');
+    expect(feeLabels.processingFeeRateLabel('aud', 'PAYTO')).toBe('3%');
+    expect(feeLabels.processingFeeRateLabel('usd', 'BANK_TRANSFER')).toBe('3%');
+    expect(feeLabels.nodittoFeeRateLabel()).toBe('2%');
+    expect(feeLabels.processingFeeExplanation('aud')).toContain('4% of the price');
+    expect(feeLabels.processingFeeExplanation('aud')).toContain('NoDitto keeps about 2%');
+    expect(feeLabels.PROCESSING_FEE_HINT).toContain('NoDitto keeps about 2%');
+    expect(feeLabels.termsFeeSentence()).toContain('NoDitto keeps about 2%');
+  });
+
+  it('names only the card tiers that are actually dearer', () => {
+    expect(feeLabels.otherCardRatesNote('aud')).toContain('6%');
+    // Canada: a card from abroad rounds to the domestic 6%, so there is nothing to name.
+    expect(feeLabels.otherCardRatesNote('cad')).toBe('');
   });
 
   it('never call the rate approximate or the fee "at cost"', () => {
-    // "about 1% to NoDitto" is right (the rates are rounded); "about 3% + ..." is not.
+    // "about 2% to NoDitto" is right (the rates are rounded); "about 4% + ..." is not.
     expect(feeLabels.processingFeeExplanation('aud').toLowerCase()).not.toMatch(/about \d+(\.\d+)?% \+/);
     expect(feeLabels.processingFeeExplanation('aud').toLowerCase()).not.toContain('at cost');
     expect(feeLabels.PROCESSING_FEE_HINT.toLowerCase()).not.toContain('at cost');

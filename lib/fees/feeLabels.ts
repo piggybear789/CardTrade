@@ -5,8 +5,8 @@
 //
 // THE MODEL. A cash-sale buyer pays one Service_Fee on top of the price
 // (`domain/fees/processingFee.ts`): a clean rate per currency and way of paying, e.g.
-// "3% + A$0.60" by an Australian card in Australia, which covers Stripe's payment and
-// payout costs and leaves NoDitto about 1% (NODITTO_FEE_BPS). A card issued outside the
+// "4%" by an Australian card in Australia, which covers Stripe's payment and
+// payout costs and leaves NoDitto about 2% (NODITTO_FEE_BPS). A card issued outside the
 // seller's card zone pays a dearer rate (0159), named by `otherCardRatesNote`. The seller receives exactly their price plus
 // postage. Trades carry no fee: their collateral is a card hold that costs nothing. A
 // trade's cash leg in a converted currency also pays the Currency_Conversion fee
@@ -29,7 +29,7 @@ import { formatMoney } from '@/lib/format';
 /** The fee's name in money tables and breakdowns. */
 export const PROCESSING_FEE_NAME = 'Buyer protection fee';
 
-/** "1%": NoDitto's own share of the fee, approximately (the rates are rounded). */
+/** "2%": NoDitto's own share of the fee, approximately (the rates are rounded). */
 export function nodittoFeeRateLabel(): string {
   return bpsLabel(NODITTO_FEE_BPS);
 }
@@ -55,10 +55,13 @@ export function processingFeeRateLabel(
  * card zone, and so does the fee. Empty for a currency with no card zone.
  */
 export function otherCardRatesNote(currency?: string | null): string {
+  const domestic = processingFeeRateLabel(currency);
   return (['CARD_UK_EEA', 'CARD_INTERNATIONAL'] as const)
     .map((method) => {
       const cards = cardTierPhrase(currency, method);
       if (!cards) return null;
+      // A tier that rounds to the domestic rate (Canada, Switzerland) is not dearer.
+      if (processingFeeRateLabel(currency, method) === domestic) return null;
       return `Cards ${cards}: ${processingFeeRateLabel(currency, method)}.`;
     })
     .filter((line): line is string => Boolean(line))
@@ -121,7 +124,7 @@ export function termsFeeSentence(): string {
     'On a cash sale the buyer pays a buyer protection fee on top of the price: a fixed rate of the ' +
     `price and postage for each way of paying (for example ${processingFeeRateLabel('aud')} ` +
     'by an Australian card in Australia). A card issued outside the seller\'s country, or ' +
-    'for a European seller outside the EEA or the UK, pays a higher rate, because Stripe ' +
+    'for a European seller outside the EEA or the UK, may pay a higher rate, because Stripe ' +
     'charges more for it. Most of it goes to Stripe for taking the payment and paying the ' +
     `seller. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Every way of paying is shown ` +
     'with its rate and total before the buyer pays. The seller receives their price and ' +

@@ -155,28 +155,28 @@ abstract final class Money {
   /// dearer rate there (0159). The server refuses a card total the app did not show,
   /// with a message pointing at the sale room on the website, which prices every tier.
   static const Map<String, List<int>> serviceFeeRates = {
-    'aud': [300, 0],
-    'usd': [450, 0],
-    'eur': [300, 0],
-    'gbp': [300, 0],
-    'cad': [450, 0],
-    'chf': [450, 0],
-    'czk': [300, 0],
-    'dkk': [300, 0],
-    'nok': [400, 0],
-    'sek': [300, 0],
-    'pln': [300, 0],
-    'ron': [300, 0],
-    'bgn': [300, 0],
+    'aud': [400, 0],
+    'usd': [500, 0],
+    'eur': [400, 0],
+    'gbp': [400, 0],
+    'cad': [600, 0],
+    'chf': [600, 0],
+    'czk': [400, 0],
+    'dkk': [400, 0],
+    'nok': [500, 0],
+    'sek': [400, 0],
+    'pln': [400, 0],
+    'ron': [400, 0],
+    'bgn': [400, 0],
   };
 
   /// The rate for a currency missing from [serviceFeeRates]: the most expensive case.
-  static const List<int> serviceFeeRateFallback = [600, 0];
+  static const List<int> serviceFeeRateFallback = [700, 0];
 
   /// NoDitto's target share of a cash sale, in basis points. The rates above are set so
   /// NoDitto keeps about this much. Mirrors `NODITTO_FEE_BPS` in
   /// `domain/fees/processingFee.ts`.
-  static const int nodittoFeeBps = 100;
+  static const int nodittoFeeBps = 200;
 
   /// The currency conversion fee on a trade's cash leg, in basis points. Mirrors
   /// `FX_FEE_BPS` in `domain/fees/fxFee.ts`. Cash sales do not pay it.
@@ -229,7 +229,7 @@ abstract final class Money {
 
   /// Hint beside the fee row. Mirrors `PROCESSING_FEE_HINT` in `lib/fees/feeLabels.ts`.
   static const String processingFeeHint =
-      "Most of it goes to Stripe for the payment and payout. NoDitto keeps about 1% on larger sales, less on small ones. Returned if the sale is refunded in full.";
+      "Most of it goes to Stripe for the payment and payout. NoDitto keeps about 2% on larger sales, less on small ones. Returned if the sale is refunded in full.";
 
   /// Where a trade would show a fee. Mirrors `TRADE_NO_FEE_NOTE` in `lib/fees/feeLabels.ts`.
   static const String tradeNoFeeNote =

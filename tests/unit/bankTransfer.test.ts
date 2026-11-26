@@ -36,9 +36,9 @@ describe('BANK_TRANSFER rail', () => {
       const fee = cashSaleFeeMinor(price, 0, 'usd', 'BANK_TRANSFER');
       expect(fee - stripeCostMinor(price, fee, 'usd', 'BANK_TRANSFER')).toBeGreaterThan(0);
     }
-    // 2%: a US$40 sale is US$0.80, against US$1.80 by card.
-    expect(cashSaleFeeMinor(4000, 0, 'usd', 'BANK_TRANSFER')).toBe(80);
-    expect(cashSaleFeeMinor(4000, 0, 'usd')).toBe(180);
+    // 3%: a US$40 sale is US$1.20, against US$2.00 by card (5%).
+    expect(cashSaleFeeMinor(4000, 0, 'usd', 'BANK_TRANSFER')).toBe(120);
+    expect(cashSaleFeeMinor(4000, 0, 'usd')).toBe(200);
   });
 
   it('waits three days for the money', () => {

@@ -3,7 +3,7 @@
 /// Matches the web app's marketplace-constants.ts values.
 abstract final class AppConstants {
   // Fees live in `core/money.dart` (`Money.serviceFeeRates`, `Money.nodittoFeeBps`):
-  // a clean rate per currency that covers Stripe's costs and about 1% to NoDitto.
+  // a clean rate per currency that covers Stripe's costs and about 2% to NoDitto.
 
   // ─── Inspection Windows ────────────────────────────────────────────────────
   /// Cash sale inspection window in days.

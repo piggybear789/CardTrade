@@ -103,8 +103,8 @@ describe('which card tier a card is priced at', () => {
     expect(cardTierPhrase('aud', 'CARD_UK_EEA')).toBeNull();
     expect(cardTierPhrase('eur', 'CARD_UK_EEA')).toBe('issued in the UK');
     expect(cardTierPhrase('eur', 'CARD_INTERNATIONAL')).toBe('issued outside the EEA and the UK');
-    expect(otherCardRatesNote('aud')).toBe('Cards issued outside Australia: 5%.');
-    expect(otherCardRatesNote('eur')).toContain('Cards issued in the UK: 4%');
+    expect(otherCardRatesNote('aud')).toBe('Cards issued outside Australia: 6%.');
+    expect(otherCardRatesNote('eur')).toContain('Cards issued in the UK: 5%');
     expect(processingFeeExplanation('aud')).toContain('by a card issued in Australia');
     expect(processingFeeExplanation('aud')).toContain('Cards issued outside Australia');
   });

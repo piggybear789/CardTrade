@@ -71,18 +71,18 @@ void main() {
   // The same figures `tests/unit/platformFee.test.ts` pins on the server.
   group('Money.platformFee() — the service fee', () {
     test('is the clean card rate of price plus postage, across currencies', () {
-      expect(Money.platformFee(1000, currency: 'aud'), equals(90));
-      expect(Money.platformFee(5000, currency: 'aud'), equals(210));
-      expect(Money.platformFee(10000, currency: 'aud'), equals(360));
-      expect(Money.platformFee(100000, currency: 'aud'), equals(3060));
-      expect(Money.platformFee(10000, currency: 'usd'), equals(510));
-      expect(Money.platformFee(10000, currency: 'eur'), equals(360));
-      expect(Money.platformFee(10000, currency: 'gbp'), equals(350));
-      expect(Money.platformFee(100000, currency: 'czk'), equals(4320));
+      expect(Money.platformFee(1000, currency: 'aud'), equals(40));
+      expect(Money.platformFee(5000, currency: 'aud'), equals(200));
+      expect(Money.platformFee(10000, currency: 'aud'), equals(400));
+      expect(Money.platformFee(100000, currency: 'aud'), equals(4000));
+      expect(Money.platformFee(10000, currency: 'usd'), equals(500));
+      expect(Money.platformFee(10000, currency: 'eur'), equals(400));
+      expect(Money.platformFee(10000, currency: 'gbp'), equals(400));
+      expect(Money.platformFee(100000, currency: 'czk'), equals(4000));
     });
 
     test('no currency is AUD', () {
-      expect(Money.platformFee(10000, currency: null), equals(360));
+      expect(Money.platformFee(10000, currency: null), equals(400));
     });
 
     test('zero or negative base → zero fee', () {
@@ -91,7 +91,7 @@ void main() {
     });
 
     test('charges the same rate on postage as on the price', () {
-      expect(Money.platformFee(9000, currency: 'aud', shippingCents: 1000), equals(360));
+      expect(Money.platformFee(9000, currency: 'aud', shippingCents: 1000), equals(400));
       expect(
         Money.platformFee(9000, currency: 'aud', shippingCents: 1000),
         equals(Money.platformFee(10000, currency: 'aud')),
@@ -99,11 +99,10 @@ void main() {
     });
 
     test('names the fee and says what is in it', () {
-      expect(Money.processingFeeName, equals('Service fee'));
-      expect(Money.processingFeeHint, contains('1% to NoDitto'));
-      expect(Money.processingRateLabel('aud'), startsWith('3% + '));
-      expect(Money.processingRateLabel('aud'), contains('0.60'));
-      expect(Money.processingRateLabel('usd'), startsWith('4.5% + '));
+      expect(Money.processingFeeName, equals('Buyer protection fee'));
+      expect(Money.processingFeeHint, contains('NoDitto keeps about 2%'));
+      expect(Money.processingRateLabel('aud'), equals('4%'));
+      expect(Money.processingRateLabel('usd'), equals('5%'));
     });
   });
 
@@ -121,7 +120,7 @@ void main() {
         shippingCents: 200,
         currency: 'aud',
       );
-      expect(total, equals(10000 + 349));
+      expect(total, equals(10000 + 400));
     });
   });
 

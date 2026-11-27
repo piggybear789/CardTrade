@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { TRADE_INSPECTION_FLOOR_HOURS, TRADE_INSPECTION_HOURS } from '@/domain/fulfilment/inspection';
-import { nodittoFeeRateLabel } from '@/lib/fees/feeLabels';
 
 import { Guide, PageSection, Prose } from './stage-rail';
 
@@ -34,7 +33,7 @@ const strong = 'font-semibold text-foreground';
 
 export default function SafetyPage() {
   const buyerFee =
-    `The price you see includes the buyer protection fee, a fixed percentage shown before you pay. Most of it goes to Stripe; NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Postage is passed through at cost.`;
+    `The price you see includes the buyer protection fee, a fixed percentage shown before you pay. Postage is passed through at cost.`;
   const sellerFee =
     "You'll receive your full price and postage. The buyer pays the buyer protection fee on top.";
 

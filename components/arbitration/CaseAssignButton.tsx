@@ -15,8 +15,8 @@
 // visible act rather than an accident.
 
 import { useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, UserCheck01Icon, UserPlusIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, UserCheckIcon, UserPlusIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { assignArbitrationCase } from '@/lib/actions/arbitration';
@@ -79,11 +79,11 @@ export function CaseAssignButton({
         onClick={() => apply(mine ? null : viewerId)}
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : mine ? (
-          <HugeiconsIcon icon={UserCheck01Icon} aria-hidden />
+          <Icon icon={UserCheckIcon} aria-hidden />
         ) : (
-          <HugeiconsIcon icon={UserPlusIcon} aria-hidden />
+          <Icon icon={UserPlusIcon} aria-hidden />
         )}
         {mine ? 'Release' : heldByOther ? 'Take over' : 'Take case'}
       </Button>

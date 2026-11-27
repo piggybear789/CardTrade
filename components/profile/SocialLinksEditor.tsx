@@ -12,8 +12,8 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, PlusIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, PlusIcon, XIcon } from '@/components/ui/icons';
 
 import { updateSocialLinks } from '@/lib/actions/socialLinks';
 import {
@@ -193,7 +193,7 @@ export function SocialLinksEditor({
       <PendingLabel pending={isPending} pendingLabel="Save links">
         {justSaved && !dirty ? (
           <>
-            <HugeiconsIcon icon={CheckIcon} aria-hidden />
+            <Icon icon={CheckIcon} aria-hidden />
             Saved
           </>
         ) : (
@@ -285,7 +285,7 @@ export function SocialLinksEditor({
                   aria-label={`Remove ${platform.label}`}
                   className="flex size-11 shrink-0 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-ring disabled:opacity-65 sm:size-8"
                 >
-                  <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+                  <Icon icon={XIcon} className="size-4" aria-hidden />
                 </button>
                 </div>
               </div>
@@ -344,7 +344,7 @@ function AddPlatformControl({
         disabled={disabled}
         onClick={() => onAdd(only.slug)}
       >
-        <HugeiconsIcon icon={PlusIcon} aria-hidden />
+        <Icon icon={PlusIcon} aria-hidden />
         Add {only.label}
       </Button>
     );
@@ -354,7 +354,7 @@ function AddPlatformControl({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" disabled={disabled}>
-          <HugeiconsIcon icon={PlusIcon} aria-hidden />
+          <Icon icon={PlusIcon} aria-hidden />
           Add a link
         </Button>
       </PopoverTrigger>

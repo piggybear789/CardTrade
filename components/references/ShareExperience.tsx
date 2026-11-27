@@ -21,8 +21,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PlusIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { PlusIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -94,7 +94,7 @@ export function ShareExperience({
     return (
       <Button asChild className={cn('shrink-0', className)}>
         <a href={startVerificationHref}>
-          <HugeiconsIcon icon={PlusIcon} className="size-3.5" aria-hidden />
+          <Icon icon={PlusIcon} className="size-3.5" aria-hidden />
           {label}
         </a>
       </Button>
@@ -118,7 +118,7 @@ export function ShareExperience({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button type="button" className={cn('shrink-0', className)}>
-          <HugeiconsIcon icon={PlusIcon} className="size-3.5" aria-hidden />
+          <Icon icon={PlusIcon} className="size-3.5" aria-hidden />
           {label}
         </Button>
       </DialogTrigger>

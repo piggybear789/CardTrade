@@ -18,8 +18,8 @@
 
 import { useRef, useState, useTransition, type ChangeEvent, type FormEvent } from 'react';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ImagePlusIcon, TriangleAlertIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CameraPlusIcon, WarningIcon, XIcon } from '@/components/ui/icons';
 
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button, type ButtonProps } from '@/components/ui/button';
@@ -197,7 +197,7 @@ export function HandoverFailedDialog({
       {!hideTrigger && (
         <DialogTrigger asChild>
           <Button type="button" variant={triggerVariant} size="sm">
-            <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5" aria-hidden />
+            <Icon icon={WarningIcon} className="size-3.5" aria-hidden />
             {triggerLabel}
           </Button>
         </DialogTrigger>
@@ -217,7 +217,7 @@ export function HandoverFailedDialog({
                 directly under the description, which is a lot of chrome for what
                 is one paragraph of warning — the red still carries the weight. */}
             <div className="flex items-center gap-cozy rounded-lg bg-destructive/5 p-cozy">
-              <HugeiconsIcon icon={TriangleAlertIcon}
+              <Icon icon={WarningIcon}
                 className="size-4 shrink-0 text-destructive"
                 aria-hidden
               />
@@ -287,7 +287,7 @@ export function HandoverFailedDialog({
                       className="absolute right-0.5 top-0.5 rounded-md bg-background/80 p-0.5 text-foreground shadow-sm hover:bg-background"
                       aria-label={`Remove ${file.name}`}
                     >
-                      <HugeiconsIcon icon={XIcon} className="size-3" aria-hidden />
+                      <Icon icon={XIcon} className="size-3" aria-hidden />
                     </button>
                   </div>
                 ))}
@@ -299,7 +299,7 @@ export function HandoverFailedDialog({
                     className="flex size-16 items-center justify-center rounded-md border border-input text-muted-foreground transition-colors hover:border-input-hover hover:bg-muted disabled:cursor-not-allowed disabled:text-muted-foreground"
                     aria-label="Add evidence photo"
                   >
-                    <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
+                    <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
                   </button>
                 ) : null}
               </div>

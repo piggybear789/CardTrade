@@ -10,8 +10,8 @@
 // Enter/Space.
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { InformationCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { InfoIcon } from '@/components/ui/icons';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
@@ -31,7 +31,7 @@ export function InfoPopover({
         // 24px target with the 16px icon centred, clear of WCAG 2.5.8's minimum.
         className="inline-flex size-6 shrink-0 items-center justify-center self-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
-        <HugeiconsIcon icon={InformationCircleIcon} className="size-4" aria-hidden />
+        <Icon icon={InfoIcon} className="size-4" aria-hidden />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-64 text-pretty text-body">
         {children}

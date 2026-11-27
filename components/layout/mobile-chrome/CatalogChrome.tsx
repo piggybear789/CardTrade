@@ -5,8 +5,8 @@
 
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { SlidersHorizontalIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { SlidersHorizontalIcon } from '@/components/ui/icons';
 
 import { HeaderSearch } from '@/components/layout/HeaderSearch';
 import { LogoMark } from '@/components/layout/Logo';
@@ -78,7 +78,7 @@ function FiltersButton({ refineCount }: { refineCount: number }) {
       aria-label={refineCount > 0 ? `Filters, ${refineCount} active` : 'Filters'}
       className="size-10"
     >
-      <HugeiconsIcon icon={SlidersHorizontalIcon} className="size-4" strokeWidth={1.75} aria-hidden />
+      <Icon icon={SlidersHorizontalIcon} className="size-4" aria-hidden />
       {refineCount > 0 ? (
         <span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-iris text-meta font-semibold leading-none text-primary-foreground">
           {refineCount}

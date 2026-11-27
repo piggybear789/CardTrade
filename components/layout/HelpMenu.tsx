@@ -8,8 +8,8 @@
 // guest-only.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HelpCircleIcon, LockIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { LockIcon, QuestionIcon, ShieldCheckIcon } from '@/components/ui/icons';
 
 import {
   DropdownMenu,
@@ -21,7 +21,7 @@ import {
 const ROWS = [
   { href: '/help#holds', label: 'Purchase protection', icon: LockIcon },
   { href: '/safety', label: 'Staying safe', icon: ShieldCheckIcon },
-  { href: '/help', label: 'Help centre', icon: HelpCircleIcon },
+  { href: '/help', label: 'Help centre', icon: QuestionIcon },
 ] as const;
 
 export function HelpMenu() {
@@ -31,13 +31,13 @@ export function HelpMenu() {
         aria-label="Help"
         className="inline-flex size-10 touch-manipulation items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:border-ring data-[state=open]:bg-accent data-[state=open]:text-foreground"
       >
-        <HugeiconsIcon icon={HelpCircleIcon} className="size-5" aria-hidden />
+        <Icon icon={QuestionIcon} className="size-5" aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         {ROWS.map((row) => (
           <DropdownMenuItem key={row.href} asChild>
             <Link href={row.href}>
-              <HugeiconsIcon icon={row.icon} aria-hidden />
+              <Icon icon={row.icon} aria-hidden />
               {row.label}
             </Link>
           </DropdownMenuItem>

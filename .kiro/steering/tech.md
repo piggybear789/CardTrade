@@ -6,7 +6,7 @@
 - **TypeScript 5.7**, `strict: true`, `noEmit` (Next/Vitest handle transpilation)
 - **Supabase** — PostgreSQL, Auth, Storage, Realtime (`@supabase/supabase-js`, `@supabase/ssr`)
 - **Tailwind CSS 3** + **shadcn/ui** (Radix primitives, `class-variance-authority`, `tailwind-merge`, CSS variables, slate base color)
-- **Hugeicons** (`@hugeicons/react` `HugeiconsIcon` + icons from `@hugeicons/core-free-icons`), **sonner** toasts, **next-themes**. `lucide-react` is NOT installed; do not import it
+- **Phosphor Icons** (`@phosphor-icons/react`, 2026-11-28, replacing Hugeicons): glyphs are imported ONLY from `@/components/ui/icons` (the registry, one line per glyph from `dist/ssr`) and drawn with `<Icon icon={…} />` from `@/components/ui/icon`, which picks `bold` under 20px and `regular` from 20px. `weight="fill"` marks an active nav item. Never import `@phosphor-icons/react` anywhere else, and `lucide-react` is NOT installed; do not import it. **sonner** toasts, **next-themes**
 - **zod 4** for schema validation, **react-hook-form** + `@hookform/resolvers` for forms
 - **Vitest 3** + **fast-check** (property-based testing), **@testing-library/react** + jsdom for components
 

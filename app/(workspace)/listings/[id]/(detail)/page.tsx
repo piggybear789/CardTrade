@@ -18,8 +18,8 @@ import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, FileTextIcon, LogInIcon, PencilIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretRightIcon, FileTextIcon, PencilSimpleIcon, SignInIcon } from '@/components/ui/icons';
 
 import { getItem } from "@/lib/actions/listings";
 import type { TradeOfferOwnItem } from "@/components/trade/TradeOfferForm";
@@ -45,7 +45,6 @@ import {
   itemImageUrl,
 } from "@/lib/format";
 import { buyerPaysCents } from "@/lib/listings/buyerPrice";
-import { nodittoFeeRateLabel } from "@/lib/fees/feeLabels";
 import { BuyButton, ShopfrontBuyButton } from "@/components/listings/BuyButton";
 import { MakeOfferDialog } from "@/components/offers/MakeOfferDialog";
 import { ProposeTradeDialog } from "@/components/trade/ProposeTradeDialog";
@@ -581,7 +580,7 @@ export default async function ItemDetailPage({
             {item.category ? (
               <>
                 <li aria-hidden>
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-3.5" />
+                  <Icon icon={CaretRightIcon} className="size-3.5" />
                 </li>
                 <li className="min-w-0 truncate">
                   <Link
@@ -988,7 +987,7 @@ function ItemActions({
           <div className="grid grid-cols-2 gap-snug">
             <Button asChild className="min-w-0 w-full px-snug">
               <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
-                <HugeiconsIcon icon={PencilIcon} aria-hidden />
+                <Icon icon={PencilSimpleIcon} aria-hidden />
                 <span className="truncate">Edit</span>
               </Link>
             </Button>
@@ -1013,7 +1012,7 @@ function ItemActions({
         >
           <Button asChild className="w-full sm:w-auto">
             <Link href={contractHref}>
-              <HugeiconsIcon icon={FileTextIcon} aria-hidden />
+              <Icon icon={FileTextIcon} aria-hidden />
               {contractLabel}
             </Link>
           </Button>
@@ -1051,12 +1050,12 @@ function ItemActions({
           </div>
         </dl>
         <p className="text-meta text-muted-foreground">
-          The difference is the buyer protection fee the buyer pays: mostly Stripe&apos;s costs, with NoDitto keeping about {nodittoFeeRateLabel()} on larger sales, less on small ones.
+          The difference is the buyer protection fee the buyer pays.
         </p>
         <div className="grid grid-cols-[1fr_1fr_auto] gap-snug">
           <Button asChild size="lg" className="min-w-0 w-full px-snug">
             <Link href={`/listings/${itemId}/edit`} transitionTypes={['nav-forward']}>
-              <HugeiconsIcon icon={PencilIcon} aria-hidden />
+              <Icon icon={PencilSimpleIcon} aria-hidden />
               <span className="truncate">Edit listing</span>
             </Link>
           </Button>
@@ -1120,7 +1119,7 @@ function ItemActions({
       >
         <Button asChild className="w-full sm:w-auto">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
-            <HugeiconsIcon icon={LogInIcon} aria-hidden />
+            <Icon icon={SignInIcon} aria-hidden />
             Sign in
           </Link>
         </Button>

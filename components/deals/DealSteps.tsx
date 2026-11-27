@@ -11,8 +11,8 @@
 // sections of one form, plus `NextSteps` / `dealNextSteps` and `useDraftThumb`.
 
 import { useEffect, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon } from '@/components/ui/icons';
 
 import { SaleTermsBreakdown, TradeTermsBreakdown } from '@/components/deals/DealTermsBreakdown';
 import {
@@ -105,7 +105,7 @@ export function StepHeader({
               aria-label="Back"
               className="-ml-1.5 grid size-8 shrink-0 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50"
             >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+              <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
             </button>
           ) : null}
           <DialogTitle className="min-w-0 flex-1">{title}</DialogTitle>
@@ -128,7 +128,7 @@ export function StepHeader({
   );
 }
 
-/** Step 1: the card — photos first, then what it is, category and condition. */
+/** Step 1: the card: title, photos, description, category and condition. */
 export function DealCardStep({
   card,
   onCard,
@@ -145,9 +145,9 @@ export function DealCardStep({
   idPrefix: string;
 }) {
   return (
-    <>
+    <>      <UnlistedTitleField draft={card} onChange={onCard} idPrefix={idPrefix} />
+
       <UnlistedPhotoField draft={card} onChange={onCard} idPrefix={idPrefix} layout="grid" />
-      <UnlistedTitleField draft={card} onChange={onCard} idPrefix={idPrefix} />
       <UnlistedDescriptionField
         draft={card}
         onChange={onCard}

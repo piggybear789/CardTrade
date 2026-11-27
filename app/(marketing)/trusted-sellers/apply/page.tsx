@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkBadge01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, SealCheckIcon } from '@/components/ui/icons';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -52,7 +52,7 @@ function Tracker({ stages }: { stages: Stage[] }) {
               )}
               aria-hidden
             >
-              {stage.state === 'done' ? <HugeiconsIcon icon={Tick02Icon} className="size-4" /> : index + 1}
+              {stage.state === 'done' ? <Icon icon={CheckIcon} className="size-4" /> : index + 1}
             </span>
             {index < stages.length - 1 ? (
               <span
@@ -138,7 +138,7 @@ export default async function TrustedSellerApplyPage({
     <article className="mx-auto max-w-2xl px-group py-section sm:px-6 md:py-12">
       <header className="space-y-snug">
         <p className="inline-flex items-center gap-tight text-meta font-semibold uppercase tracking-wide text-iris-ink">
-          <HugeiconsIcon icon={CheckmarkBadge01Icon} className="size-4" aria-hidden />
+          <Icon icon={SealCheckIcon} className="size-4" aria-hidden />
           Trusted Sellers
         </p>
         <h1 className="text-head font-semibold tracking-tight text-foreground">

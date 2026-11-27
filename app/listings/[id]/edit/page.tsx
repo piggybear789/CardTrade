@@ -9,8 +9,8 @@
 //     matching the guard the update action itself applies.
 
 import { notFound, redirect } from "next/navigation";
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LockIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { LockIcon } from '@/components/ui/icons';
 
 import { getCachedAuthUser } from "@/lib/supabase/cachedAuth";
 import { getItem } from "@/lib/actions/listings";
@@ -77,7 +77,7 @@ function NotEditable({ itemId, status }: { itemId: string; status: string }) {
   return (
     <EmptyState
       variant="page"
-      icon={<HugeiconsIcon icon={LockIcon} className="size-6" aria-hidden />}
+      icon={<Icon icon={LockIcon} className="size-6" aria-hidden />}
       title="This listing can't be edited"
       titleAs="h3"
       description={`It's currently ${status.toLowerCase()} and can only be modified while it is available.`}

@@ -13,8 +13,8 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { KeyRoundIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { KeyIcon } from '@/components/ui/icons';
 
 import { updatePassword } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
@@ -132,7 +132,7 @@ export function UpdatePasswordForm() {
 
           <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
             <PendingLabel pending={isPending} pendingLabel="Saving…">
-              <HugeiconsIcon icon={KeyRoundIcon} className="size-3.5" aria-hidden />
+              <Icon icon={KeyIcon} className="size-3.5" aria-hidden />
               Save new password
             </PendingLabel>
           </Button>

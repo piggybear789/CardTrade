@@ -21,8 +21,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PackageCheckIcon, RotateCcwIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowCounterClockwiseIcon, PackageIcon } from '@/components/ui/icons';
 
 import {
   disputeCashSaleReturn,
@@ -136,7 +136,7 @@ export function CashSaleReturnPanel({
     return (
       <section className="space-y-snug border-t pt-6">
         <h3 className="flex items-center gap-snug font-semibold">
-          <HugeiconsIcon icon={RotateCcwIcon} className="size-4 text-destructive" aria-hidden="true" />
+          <Icon icon={ArrowCounterClockwiseIcon} className="size-4 text-destructive" aria-hidden="true" />
           Return under review
         </h3>
         <p className="text-body text-muted-foreground">
@@ -158,7 +158,7 @@ export function CashSaleReturnPanel({
     <section className="space-y-group border-t pt-6">
       <div className="space-y-tight">
         <h3 className="flex items-center gap-snug font-semibold">
-          <HugeiconsIcon icon={RotateCcwIcon} className="size-4 text-iris-ink" aria-hidden="true" />
+          <Icon icon={ArrowCounterClockwiseIcon} className="size-4 text-iris-ink" aria-hidden="true" />
           {delivered ? 'Return delivered' : inTransit ? 'Return on its way' : 'Return needed before the refund'}
         </h3>
         <p className="text-body text-muted-foreground">
@@ -263,7 +263,7 @@ export function CashSaleReturnPanel({
           disabled={pending || !returnAddressLabel}
           className="w-full"
         >
-          <HugeiconsIcon icon={PackageCheckIcon} className="mr-snug size-4" aria-hidden="true" />
+          <Icon icon={PackageIcon} className="mr-snug size-4" aria-hidden="true" />
           {returnAddressLabel ? 'Add return tracking' : 'Waiting on a return address'}
         </Button>
       ) : null}

@@ -14,8 +14,8 @@
 // header's own colour, so the panel reads as part of the chrome rather than a sticker,
 // and the iris accent is used only on non-text marks (it is a non-text colour).
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LockIcon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { LockIcon, ScalesIcon, ShieldCheckIcon } from '@/components/ui/icons';
 
 const POINTS = [
   {
@@ -29,7 +29,7 @@ const POINTS = [
     body: 'Stripe checks a photo ID before anyone can list or trade.',
   },
   {
-    icon: ScaleIcon,
+    icon: ScalesIcon,
     title: 'Disputes reviewed by people',
     body: 'Raise a problem and the money stays put while our case team looks.',
   },
@@ -66,7 +66,7 @@ export function AuthTrustPanel() {
                   it to the title line left it straddling the title and the body's first
                   line, which read as misaligned against both. */}
               <span className="grid size-8 shrink-0 place-items-center rounded-md bg-white/10 ring-1 ring-inset ring-white/10">
-                <HugeiconsIcon icon={point.icon} className="size-4 text-iris" aria-hidden />
+                <Icon icon={point.icon} className="size-4 text-iris" aria-hidden />
               </span>
               <div className="min-w-0">
                 <p className="text-body font-semibold text-white">{point.title}</p>

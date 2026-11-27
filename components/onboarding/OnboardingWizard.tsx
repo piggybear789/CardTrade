@@ -38,8 +38,19 @@
 
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, ArrowLeftRightIcon, ArrowRight01Icon, BanknoteIcon, CheckmarkBadge01Icon, InfoIcon, MapPinIcon, ShieldCheckIcon, ShoppingBag01Icon, Store01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  ArrowsLeftRightIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  InfoIcon,
+  MapPinIcon,
+  MoneyIcon,
+  SealCheckIcon,
+  ShieldCheckIcon,
+  ShoppingBagIcon,
+  StorefrontIcon,
+} from '@/components/ui/icons';
 
 import { completeOnboarding } from '@/lib/actions/profile';
 import { AvatarUploadField } from '@/components/profile/AvatarUploadField';
@@ -120,7 +131,7 @@ function RegionOutcome({ regionCode }: { regionCode: string }) {
   return (
     <div className="space-y-tight rounded-md border bg-muted p-cozy text-body">
       <p className="flex items-start gap-snug font-medium text-foreground">
-        <HugeiconsIcon icon={MapPinIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+        <Icon icon={MapPinIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
         <span>
           You&apos;re paid in {code}, and your listings are priced in {code}.
         </span>
@@ -149,12 +160,12 @@ const WELCOME_POINTS = [
     body: 'A photo ID and a matching selfie, checked by Stripe, before anyone can list or trade.',
   },
   {
-    icon: BanknoteIcon,
+    icon: MoneyIcon,
     title: 'Money is held until delivery',
     body: 'The buyer pays upfront and the seller is paid once the item arrives and passes inspection.',
   },
   {
-    icon: ArrowLeftRightIcon,
+    icon: ArrowsLeftRightIcon,
     title: 'Trades are backed by collateral',
     body: 'Each side puts a temporary hold on their card. No cash moves, and holds release on a confirmed swap.',
   },
@@ -461,13 +472,13 @@ export function OnboardingWizard({
                   committed to anything yet. Each promise now gets one sentence in
                   one voice; the detail lives on the pages that enforce it. */}
               <ul className="space-y-cozy text-left">
-                {WELCOME_POINTS.map(({ icon: Icon, title, body }) => (
+                {WELCOME_POINTS.map(({ icon: Glyph, title, body }) => (
                   <li key={title} className="flex items-center gap-cozy">
                     <span
                       className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground"
                       aria-hidden
                     >
-                      <HugeiconsIcon icon={Icon} className="size-4" />
+                      <Icon icon={Glyph} className="size-4" />
                     </span>
                     <div className="min-w-0 space-y-tight">
                       <p className="text-body font-medium">{title}</p>
@@ -655,7 +666,7 @@ export function OnboardingWizard({
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                    <HugeiconsIcon icon={ShoppingBag01Icon} className="size-5" aria-hidden />
+                    <Icon icon={ShoppingBagIcon} className="size-5" aria-hidden />
                   </span>
                   <span>
                     <span className="block font-medium">I want to buy</span>
@@ -676,7 +687,7 @@ export function OnboardingWizard({
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                    <HugeiconsIcon icon={Store01Icon} className="size-5" aria-hidden />
+                    <Icon icon={StorefrontIcon} className="size-5" aria-hidden />
                   </span>
                   <span>
                     <span className="block font-medium">I want to sell or trade</span>
@@ -697,7 +708,7 @@ export function OnboardingWizard({
                   )}
                 >
                   <span className="grid size-10 shrink-0 place-items-center rounded-full bg-muted">
-                    <HugeiconsIcon icon={CheckmarkBadge01Icon} className="size-5" aria-hidden />
+                    <Icon icon={SealCheckIcon} className="size-5" aria-hidden />
                   </span>
                   <span>
                     <span className="block font-medium">I&apos;m adding a reference</span>
@@ -734,7 +745,7 @@ export function OnboardingWizard({
                         className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring"
                         aria-label="Why we need these details"
                       >
-                        <HugeiconsIcon icon={InfoIcon} className="size-3.5" aria-hidden />
+                        <Icon icon={InfoIcon} className="size-3.5" aria-hidden />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent
@@ -768,7 +779,7 @@ export function OnboardingWizard({
             <WizardFooter>
               <Button type="button" onClick={() => setStep('username')}>
                 Get started
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretRightIcon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -776,7 +787,7 @@ export function OnboardingWizard({
           {step === 'username' ? (
             <WizardFooter>
               <Button type="button" variant="outline" onClick={goBack}>
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
               <Button
@@ -785,7 +796,7 @@ export function OnboardingWizard({
                 disabled={!displayName.trim()}
               >
                 Continue
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretRightIcon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -798,7 +809,7 @@ export function OnboardingWizard({
                 onClick={goBack}
                 disabled={saving}
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
               <Button
@@ -816,7 +827,7 @@ export function OnboardingWizard({
                 >
                   {presetIntent === 'seller' ? 'Verify Identity' : 'Continue'}
                 </PendingLabel>
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretRightIcon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -824,7 +835,7 @@ export function OnboardingWizard({
           {step === 'intent' ? (
             <WizardFooter>
               <Button type="button" variant="outline" onClick={goBack} disabled={saving}>
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
               <Button
@@ -846,7 +857,7 @@ export function OnboardingWizard({
                 >
                   {intent === 'seller' || intent === 'reference' ? 'Verify Identity' : 'Continue'}
                 </PendingLabel>
-                <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretRightIcon} className="size-4" aria-hidden />
               </Button>
             </WizardFooter>
           ) : null}
@@ -875,7 +886,7 @@ export function OnboardingWizard({
                 aria-hidden={sellerSettled === null || undefined}
                 className={sellerSettled === null ? 'invisible' : undefined}
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
               {/* A TRUSTED SELLER APPLICANT CAN LEAVE BEFORE PAYOUTS. The review needs
@@ -893,7 +904,7 @@ export function OnboardingWizard({
                   className={sellerSettled === null ? 'invisible' : undefined}
                 >
                   Continue to application
-                  <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" aria-hidden />
+                  <Icon icon={CaretRightIcon} className="size-4" aria-hidden />
                 </Button>
               ) : null}
             </WizardFooter>

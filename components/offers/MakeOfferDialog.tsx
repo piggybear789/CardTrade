@@ -16,8 +16,8 @@ import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HandCoinsIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, HandCoinsIcon } from '@/components/ui/icons';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
@@ -231,8 +231,8 @@ export function MakeOfferDialog({
                 footer stacks full-width so it also pushed the dialog's height around.
                 `aria-busy` carries the state for assistive tech. */}
             <Button type="submit" disabled={isPending} aria-busy={isPending}>
-              <HugeiconsIcon
-                icon={isPending ? LoaderCircleIcon : HandCoinsIcon}
+              <Icon
+                icon={isPending ? CircleNotchIcon : HandCoinsIcon}
                 className={isPending ? 'animate-spin' : undefined}
                 aria-hidden
               />

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ShieldWarningIcon } from '@/components/ui/icons';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -51,7 +51,7 @@ export default async function ScamReportResponsePage({ params }: { params: Promi
     <article className="mx-auto max-w-2xl px-group py-section sm:px-6 md:py-12">
       <header className="space-y-snug">
         <p className="inline-flex items-center gap-tight text-meta font-semibold uppercase tracking-wide text-iris-ink">
-          <HugeiconsIcon icon={ShieldAlertIcon} className="size-4" aria-hidden />
+          <Icon icon={ShieldWarningIcon} className="size-4" aria-hidden />
           A report to check
         </p>
         <h1 className="text-head font-semibold tracking-tight text-foreground">

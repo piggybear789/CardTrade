@@ -2,11 +2,9 @@
 
 import { useEffect } from 'react';
 import { toast } from 'sonner';
-import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronLeftIcon, ChevronRightIcon, PackageOpenIcon, Search01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { MagnifyingGlassIcon, PackageIcon } from '@/components/ui/icons';
 
-import { useIsDesktop } from '@/components/layout/Breakpoint';
 import { CatalogSortControl } from '@/components/listings/CatalogControls';
 import { CatalogInfiniteGrid } from '@/components/listings/CatalogInfiniteGrid';
 import { GenrePills } from '@/components/listings/GenrePills';
@@ -40,11 +38,9 @@ export function CatalogResults() {
     currentUserId,
     regionCode,
     selectGame,
-    hrefForPage,
     error,
     retry,
   } = useCatalogView();
-  const isDesktop = useIsDesktop();
 
   // A FAILED FILTER IS A TOAST, NOT A BANNER. It used to be a bordered alert inserted
   // between the results header and the grid when the fetch came back, pushing every
@@ -78,7 +74,6 @@ export function CatalogResults() {
       ? settled.categories[0]
       : 'All listings';
 
-  const totalPages = Math.max(1, Math.ceil(result.total / result.pageSize));
   const closerNote = result.matchedQuery
     ? `Showing closer matches for “${result.matchedQuery}”`
     : undefined;
@@ -148,73 +143,24 @@ export function CatalogResults() {
         aria-busy={isPending}
         className={cn(
           // Second link in the chain that carries the column's leftover height down to
-          // an empty-catalog state. A grid child keeps its natural height, so this
-          // cannot push the pager below it: a pager needs `totalPages > 1`, which needs
-          // a full page of results, which means there is no leftover height to take.
+          // an empty-catalog state. A grid child keeps its natural height.
           'flex min-h-0 flex-1 flex-col',
           'motion-safe:transition-opacity motion-safe:duration-150',
           isPending && 'opacity-70 pointer-events-none',
         )}
       >
-        {/* No cross-fade between filter results: the grid swaps instantly. */}
-        {isDesktop ? (
-          <CatalogGridBody
-            key={revision}
-            result={result}
-            revision={revision}
-            current={current}
-            currentUserId={currentUserId}
-            regionCode={regionCode}
-            hasAnyFilter={hasAnyFilter}
-          />
-        ) : (
-          <CatalogGridBody
-            result={result}
-            revision={revision}
-            current={current}
-            currentUserId={currentUserId}
-            regionCode={regionCode}
-            hasAnyFilter={hasAnyFilter}
-          />
-        )}
+        {/* No cross-fade between filter results: the grid swaps instantly.
+            Infinite scroll at every width; a new query resets the list through
+            `revision` rather than a remount. */}
+        <CatalogGridBody
+          result={result}
+          revision={revision}
+          current={current}
+          currentUserId={currentUserId}
+          regionCode={regionCode}
+          hasAnyFilter={hasAnyFilter}
+        />
       </div>
-
-      {result.total > 0 && totalPages > 1 ? (
-        <nav
-          className="mt-10 hidden flex-wrap items-center justify-between gap-cozy border-t border-border pt-6 sm:justify-center sm:gap-group md:flex"
-          aria-label="Marketplace pages"
-        >
-          {result.page > 1 ? (
-            <Button asChild variant="outline">
-              <Link href={hrefForPage(result.page - 1)} prefetch={false}>
-                <HugeiconsIcon icon={ChevronLeftIcon} aria-hidden />
-                Previous
-              </Link>
-            </Button>
-          ) : (
-            <Button variant="outline" disabled>
-              <HugeiconsIcon icon={ChevronLeftIcon} aria-hidden />
-              Previous
-            </Button>
-          )}
-          <span className="text-body font-medium tabular-nums text-muted-foreground">
-            Page {result.page} of {totalPages}
-          </span>
-          {result.hasMore ? (
-            <Button asChild variant="outline">
-              <Link href={hrefForPage(result.page + 1)} prefetch={false}>
-                Next
-                <HugeiconsIcon icon={ChevronRightIcon} aria-hidden />
-              </Link>
-            </Button>
-          ) : (
-            <Button variant="outline" disabled>
-              Next
-              <HugeiconsIcon icon={ChevronRightIcon} aria-hidden />
-            </Button>
-          )}
-        </nav>
-      ) : null}
     </div>
   );
 }
@@ -283,7 +229,7 @@ const ADD_LISTING_ACTION = { label: 'Add a listing', href: '/listings/new' } as 
 function EmptyCatalog() {
   return (
     <EmptyState
-      icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
+      icon={<Icon icon={PackageIcon} className="size-6" aria-hidden />}
       title="Be the first to list"
       action={ADD_LISTING_ACTION}
       compact
@@ -306,7 +252,7 @@ function EmptyRegion({ regionCode }: { regionCode: string }) {
   if (isTradingRegion(regionCode)) {
     return (
       <EmptyState
-        icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
+        icon={<Icon icon={PackageIcon} className="size-6" aria-hidden />}
         title="Be the first to list"
         action={ADD_LISTING_ACTION}
         compact
@@ -317,7 +263,7 @@ function EmptyRegion({ regionCode }: { regionCode: string }) {
 
   return (
     <EmptyState
-      icon={<HugeiconsIcon icon={PackageOpenIcon} className="size-6" aria-hidden />}
+      icon={<Icon icon={PackageIcon} className="size-6" aria-hidden />}
       title={`NoDitto isn't open in ${regionLabel(regionCode)} yet`}
       description="You can browse what other regions have listed, but a deal only completes in a region that is open."
       action={{
@@ -349,7 +295,7 @@ function NoMatches({ regionCode }: { regionCode: string | null }) {
 
   return (
     <EmptyState
-      icon={<HugeiconsIcon icon={Search01Icon} className="size-6" aria-hidden />}
+      icon={<Icon icon={MagnifyingGlassIcon} className="size-6" aria-hidden />}
       title={isSearch ? 'No listings match this search' : 'No collectibles match these filters'}
       description={
         <>

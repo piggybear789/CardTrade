@@ -15,8 +15,8 @@
 import { memo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon, CaretRightIcon } from '@/components/ui/icons';
 
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
@@ -607,7 +607,7 @@ const ExperienceCards = memo(function ExperienceCards({
               disabled={current === 0}
               onClick={() => turnTo(current - 1)}
             >
-              <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+              <Icon icon={CaretLeftIcon} aria-hidden />
               Previous
             </Button>
             <Button
@@ -618,7 +618,7 @@ const ExperienceCards = memo(function ExperienceCards({
               onClick={() => turnTo(current + 1)}
             >
               Next
-              <HugeiconsIcon icon={ArrowRight01Icon} aria-hidden />
+              <Icon icon={CaretRightIcon} aria-hidden />
             </Button>
           </div>
         </nav>

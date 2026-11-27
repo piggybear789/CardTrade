@@ -17,8 +17,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon } from '@/components/ui/icons';
 
 import { updateBio } from '@/lib/actions/profile';
 import { Button } from '@/components/ui/button';
@@ -95,7 +95,7 @@ export function ProfileBioEditor({
           <PendingLabel pending={isPending} pendingLabel="Save bio">
             {justSaved && !dirty ? (
               <>
-                <HugeiconsIcon icon={CheckIcon} aria-hidden />
+                <Icon icon={CheckIcon} aria-hidden />
                 Saved
               </>
             ) : (

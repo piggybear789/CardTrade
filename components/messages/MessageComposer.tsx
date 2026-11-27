@@ -5,6 +5,31 @@
 // Shared composer for the inbox thread and the contract room. The plus control
 // attaches one photo or PDF; Enter sends and Shift+Enter starts a new line; the
 // file can travel with or without a caption.
+//
+// ONE PILL, NOT THREE CONTROLS (2026-11-28, design-system audit). The composer was a
+// ghost "+" button, a bordered textarea and a filled send square, three objects with
+// three edges on one line. Every chat client members already use (Instagram, WhatsApp,
+// iMessage, Messenger; Mobbin, 2026-11-28) draws ONE rounded field that holds its own
+// controls: attach at the start, send at the end, the text between. So does this one:
+//
+//   ( + )  Write a message…                                   ( ➤ )
+//
+//   - THE PILL IS THE FIELD. It carries the control edge (`border-input`, firming on
+//     hover) and the focus edge (`border-ring` plus a faint halo) for everything inside
+//     it; the textarea inside is borderless and transparent.
+//   - A PILL, deliberately, against the "a control is never a pill" rule in
+//     `tailwind.config.ts`. A chat field is the one control every reference draws as
+//     a capsule, and the bubbles above it are near-pills too: the conversation has its
+//     own shape language (see `MESSAGE_BUBBLE_RADIUS` in `MessageLog`).
+//   - SEND IS THE BUBBLE'S COLOUR. Your messages are `--iris-ink` bubbles, so the
+//     button that makes one is the same violet, and only once there is something to
+//     send; empty, it is a quiet glyph that still holds its place, so the field never
+//     changes width as you type.
+//   - AN ATTACHMENT GOES INSIDE THE PILL, above the text line, the way Instagram shows
+//     a photo you are about to send: it is part of the message being written, not a
+//     separate card hovering over the composer.
+//   - CONTROLS SIT ON THE LAST LINE (`items-end`). Once the field grows, attach and send
+//     stay beside the line you are typing on, as every chat client keeps them.
 
 import {
   useEffect,
@@ -14,17 +39,17 @@ import {
   useTransition,
   type FormEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  LoaderCircleIcon,
+  CircleNotchIcon,
+  FileTextIcon,
+  PaperPlaneRightIcon,
   PlusIcon,
-  SendHorizontalIcon,
   XIcon,
-} from '@hugeicons/core-free-icons';
+} from '@/components/ui/icons';
 
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { sendMessage } from '@/lib/actions/messages';
 import { uploadMessageAttachment } from '@/lib/storage/uploadMessageAttachment';
 import {
@@ -36,6 +61,11 @@ import {
 } from '@/lib/storage/messageAttachmentsShared';
 import { MESSAGE_BODY_MAX } from '@/lib/marketplace-constants';
 import { MESSAGE_GUTTER } from '@/components/messages/threadGeometry';
+import {
+  optimisticMessage,
+  type MessageRow,
+} from '@/lib/realtime/useConversationRealtime';
+import { cn } from '@/lib/utils';
 
 /**
  * What each `sendMessage` failure says to the person who typed the message.
@@ -60,11 +90,14 @@ const SEND_ERROR_MESSAGES: Record<string, string> = {
 
 /** For a code this build does not know about — genuinely "try again" territory. */
 const SEND_ERROR_FALLBACK = 'Message could not be sent. Please try again.';
-import {
-  optimisticMessage,
-  type MessageRow,
-} from '@/lib/realtime/useConversationRealtime';
-import { cn } from '@/lib/utils';
+
+/**
+ * The round controls inside the pill: 40px on touch, 36px from `md`, the same two
+ * heights as every other control (`button.tsx`). The field's resting line is padded to
+ * the same box, so one line of text, the plus and the send button share a centre.
+ */
+const PILL_CONTROL =
+  'grid size-10 shrink-0 touch-manipulation place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring md:size-9';
 
 /**
  * Wiring that lets a sent message appear before the server has answered.
@@ -86,13 +119,19 @@ export interface MessageComposerProps {
   /** Tighter field for the contract pane. */
   compact?: boolean;
   /**
-   * Applied to a wrapper INSIDE the form, around the field and its buttons.
+   * Applied to a wrapper INSIDE the form, around the pill.
    *
    * For capping the field to the same reading column as the message log above it — see
-   * `MESSAGE_COLUMN`. Deliberately not on the form: the form draws the rule that
-   * separates the composer from the log, and that has to span the full pane.
+   * `MESSAGE_COLUMN`. Deliberately not on the form: the form spans the pane, and the
+   * pill inside it is what lines up with the bubbles.
    */
   contentClassName?: string;
+  /**
+   * One standing line drawn above the pill, inside the dock: the inbox thread's "No
+   * contract yet" note. Part of the composer so the dock is one band with one inset,
+   * rather than a tinted strip stacked on top of it.
+   */
+  notice?: ReactNode;
   /** Omit to fall back to waiting for the round trip. */
   optimistic?: ComposerOptimistic;
 }
@@ -103,6 +142,7 @@ export function MessageComposer({
   inputId,
   contentClassName,
   compact = false,
+  notice,
   optimistic,
 }: MessageComposerProps) {
   const [draft, setDraft] = useState('');
@@ -122,9 +162,9 @@ export function MessageComposer({
   // jumped inside a scrolling box, then the box jumped — and the thread above, whose
   // height is whatever the composer leaves it, jumped with it.
   //
-  // `scrollHeight` excludes the BORDER, and the field is `border-box`, so assigning
-  // it raw left every grown field 2px short of its content: a sliver of scroll and a
-  // scrollbar that flickered in on each new line. The border is added back.
+  // The border is added back because `scrollHeight` excludes it. The field inside the
+  // pill has none today (the pill draws the edge), so this is 0; it stays so that a
+  // border added later cannot leave the field 2px short of its content again.
   useLayoutEffect(() => {
     const field = fieldRef.current;
     if (!field) return;
@@ -144,10 +184,8 @@ export function MessageComposer({
   }, [file]);
 
   const trimmed = draft.trim();
-  const canSend =
-    (trimmed.length > 0 || file !== null) &&
-    trimmed.length <= MESSAGE_BODY_MAX &&
-    !isPending;
+  const hasContent = trimmed.length > 0 || file !== null;
+  const canSend = hasContent && trimmed.length <= MESSAGE_BODY_MAX && !isPending;
 
   function attach(next: File | null) {
     if (!next) {
@@ -184,7 +222,7 @@ export function MessageComposer({
     // A text-only send is echoed locally straight away. An attachment is not:
     // its bubble needs a signed URL that only exists after the upload, and a
     // placeholder with a broken image is worse than a moment's wait.
-    const placeholder =
+    const placeholderMessage =
       optimistic && !pending
         ? optimisticMessage({
             conversationId,
@@ -192,7 +230,7 @@ export function MessageComposer({
             body,
           })
         : null;
-    if (placeholder && optimistic) optimistic.add(placeholder);
+    if (placeholderMessage && optimistic) optimistic.add(placeholderMessage);
 
     startTransition(async () => {
       let attachment:
@@ -215,14 +253,14 @@ export function MessageComposer({
       }
       const result = await sendMessage(conversationId, body, attachment);
       if (result.ok) {
-        if (placeholder && optimistic) {
-          optimistic.settle(placeholder.id, result.message);
+        if (placeholderMessage && optimistic) {
+          optimistic.settle(placeholderMessage.id, result.message);
         }
         return;
       }
       // Take the placeholder back out and hand the draft to the composer, so a
       // failed send never silently eats what someone typed.
-      if (placeholder && optimistic) optimistic.settle(placeholder.id, null);
+      if (placeholderMessage && optimistic) optimistic.settle(placeholderMessage.id, null);
       setDraft(body);
       setFile(pending);
       setError(SEND_ERROR_MESSAGES[result.error] ?? SEND_ERROR_FALLBACK);
@@ -242,164 +280,184 @@ export function MessageComposer({
       onSubmit={handleSubmit}
       aria-busy={isPending}
       className={cn(
-        // The standalone inbox thread owns its complete dock. Keeping the 1rem
-        // above and below in this one surface prevents the shell's tinted
-        // background from appearing as a separate strip under the controls.
+        // NO RULE ABOVE IT. The pill's own edge is the boundary between the log and
+        // the field, as on Instagram; a `border-t` as well drew a second line a few
+        // pixels above the first. `bg-card` stays so the shell's tinted background
+        // can never show through as a strip under the controls.
         //
         // The horizontal inset comes from `MESSAGE_GUTTER`, shared with the log and the
         // subject bar above it — a composer with its own idea of the inset steps away
         // from the bubbles it belongs to. The contract room's `compact` dock keeps its
-        // own `p-cozy`: that pane is narrow and is not one of the bands this governs.
-        compact ? 'border-t p-cozy' : 'border-t py-group',
-        'max-md:border-border',
+        // own `px-cozy`: that pane is narrow and is not one of the bands this governs.
+        'relative shrink-0 bg-card',
         compact
-          ? // At least the `p-cozy` inset on a phone: with the safe-area inset alone (0 on
-            // most phones) the attach and send buttons sat flush against the screen edges.
-            'max-md:pb-0 max-md:pl-[max(0.75rem,env(safe-area-inset-left))] max-md:pr-[max(0.75rem,env(safe-area-inset-right))]'
-          : MESSAGE_GUTTER,
+          ? // At least the `px-cozy` inset on a phone: with the safe-area inset alone (0 on
+            // most phones) the pill ran flush against the screen edges.
+            'px-cozy pb-cozy pt-snug max-md:pl-[max(0.75rem,env(safe-area-inset-left))] max-md:pr-[max(0.75rem,env(safe-area-inset-right))]'
+          : cn('pb-group pt-snug', MESSAGE_GUTTER),
       )}
     >
-      {/* The RULE spans the pane, its CONTENTS do not. `contentClassName` caps the field
-          to the same column the message log uses, so the two agree; putting that cap on
-          the form itself would pull the border-t in with it and leave the composer
-          looking like a floating card rather than the bottom of the surface. */}
       <div className={cn('relative min-w-0', contentClassName)}>
-      <label htmlFor={inputId} className="sr-only">
-        Write a message
-      </label>
-      {file ? (
-        <div className="mb-snug flex items-center gap-snug rounded-lg border bg-muted px-snug py-1.5">
-          {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt=""
-              width={40}
-              height={40}
-              className="size-10 rounded-md object-cover"
-            />
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-body font-medium">{file.name}</p>
-            <p className="text-meta text-muted-foreground">
-              {formatAttachmentBytes(file.size)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => attach(null)}
-            className="grid size-11 place-items-center rounded-md border border-transparent text-muted-foreground hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring md:size-9"
-            aria-label="Remove attachment"
-          >
-            <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
-          </button>
-        </div>
-      ) : null}
-      {/* `items-center`, not `items-end`. The field is one line at rest now, so
-          bottom-aligning the two round buttons against it left them sitting low
-          against a box that was already too tall. Once the field grows past a
-          couple of lines the buttons stay on its vertical centre, which is what
-          every chat client does. */}
-      <div className="flex items-center gap-snug">
-        <input
-          ref={fileRef}
-          type="file"
-          aria-label="Attach a photo or PDF"
-          accept={MESSAGE_ATTACHMENT_ACCEPT}
-          className="sr-only"
-          onChange={(event) => {
-            attach(event.target.files?.[0] ?? null);
-            event.target.value = '';
-          }}
-        />
-        <Button
-          type="button"
-          size="icon-lg"
-          variant="ghost"
-          // The send button fills its box with ink; a bare glyph in an invisible
-          // ghost box does not. On a phone that reads as ~28px of extra air on
-          // the left and the field looks pushed off centre, so the plus takes
-          // the same muted surface the field already wears there.
-          className="shrink-0 max-md:rounded-md max-md:bg-muted"
-          aria-label="Attach a file"
-          disabled={isPending}
-          onClick={() => fileRef.current?.click()}
-        >
-          <HugeiconsIcon icon={PlusIcon} aria-hidden />
-        </Button>
-        <Textarea
-          id={inputId}
-          name="message"
-          autoComplete="off"
-          enterKeyHint="send"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={handleKeyDown}
-          onPaste={(event) => {
-            const pasted = event.clipboardData.files[0];
-            if (!pasted) return;
-            // Preserve ordinary paste. Mixed clipboard payloads often include a
-            // fallback URL/text representation; attaching the file as well
-            // would silently turn that fallback into an unintended caption.
-            if (event.clipboardData.getData('text/plain').trim()) return;
-            attach(pasted);
-          }}
-          ref={fieldRef}
-          placeholder={placeholder}
-          maxLength={MESSAGE_BODY_MAX}
-          rows={1}
+        <label htmlFor={inputId} className="sr-only">
+          Write a message
+        </label>
+        {notice ? <div className="mb-snug">{notice}</div> : null}
+
+        <div
           className={cn(
-            // THE SAME TYPE AS THE BUBBLES. `text-body` with the token's own
-            // line-height (1.6 → 22.4px), and nothing else. This field used to be
-            // `leading-5` on desktop and `text-base leading-6` on a phone, so what
-            // you typed was set in a different size and rhythm from what it
-            // became once sent — 16/24 in the field, 14/22.4 in the bubble. The
-            // 16px was the iOS focus-zoom floor that `tailwind.config.ts` says was
-            // removed everywhere and must not come back per component.
-            //
-            // ONE LINE AT REST, level with the `icon-lg` buttons beside it: 44px on
-            // touch, 36px from `md`. Textareas do not distribute spare min-height
-            // like flex items, so the padding is what centres the resting line —
-            // 22.4 + 2×10 + 2px border ≈ 44; 22.4 + 2×6 + 2 ≈ 36. The effect above
-            // grows it from there, and `max-h` hands over to scrolling.
-            'max-h-32 min-h-11 resize-none overflow-y-auto py-2.5 text-body md:min-h-9 md:py-1.5',
-            compact && 'max-h-24',
-            'max-md:rounded-xl max-md:bg-muted',
+            // 22px corners: half the resting height, so one line is a true capsule
+            // and a grown field or an attachment turns it into a rounded panel
+            // without the corners changing.
+            'flex min-w-0 flex-col rounded-[1.375rem] border bg-card transition-[border-color,box-shadow] duration-150',
+            error
+              ? 'border-destructive/60'
+              : 'border-input hover:border-input-hover focus-within:border-ring focus-within:hover:border-ring',
+            // The halo is the softness; the 1px `--ring` edge is the indicator, and
+            // it is the same firm slate every field in the app focuses to.
+            'focus-within:shadow-[0_0_0_3px_hsl(var(--ring)/0.08)]',
           )}
-          readOnly={isPending}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? `${inputId}-error` : undefined}
-        />
-        <Button
-          type="submit"
-          size="icon-lg"
-          className="shrink-0 max-md:rounded-md"
-          disabled={!canSend}
-          aria-label={isPending ? 'Sending message…' : 'Send message'}
         >
-          {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
-          ) : (
-            <HugeiconsIcon icon={SendHorizontalIcon} aria-hidden />
-          )}
-        </Button>
-      </div>
-      <span className="sr-only" role="status" aria-live="polite">
-        {isPending ? 'Sending message…' : ''}
-      </span>
-      {/* FLOATS ABOVE THE COMPOSER rather than growing it. Rendered in flow, a send
-          failure added a line under the field, which made the composer taller, which
-          shrank the thread above and lifted the contract room's action dock — the
-          whole conversation moved because a request failed. */}
-      {error ? (
-        <p
-          id={`${inputId}-error`}
-          role="alert"
-          className="absolute inset-x-0 bottom-full z-10 mb-snug rounded-md border border-destructive/40 bg-card px-cozy py-snug text-body text-destructive shadow-sm"
-        >
-          {error}
-        </p>
-      ) : null}
+          {file ? (
+            <div className="flex items-center gap-snug px-snug pt-snug">
+              {previewUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={previewUrl}
+                  alt=""
+                  width={44}
+                  height={44}
+                  className="size-11 shrink-0 rounded-xl object-cover"
+                />
+              ) : (
+                <span
+                  aria-hidden
+                  className="grid size-11 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-foreground/70"
+                >
+                  <Icon icon={FileTextIcon} className="size-5" />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-body font-medium">{file.name}</p>
+                <p className="text-meta text-muted-foreground">
+                  {formatAttachmentBytes(file.size)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => attach(null)}
+                className={cn(PILL_CONTROL, 'text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground')}
+                aria-label="Remove attachment"
+              >
+                <Icon icon={XIcon} className="size-4" />
+              </button>
+            </div>
+          ) : null}
+
+          <div className="flex items-end gap-tight p-1">
+            <input
+              ref={fileRef}
+              type="file"
+              aria-label="Attach a photo or PDF"
+              accept={MESSAGE_ATTACHMENT_ACCEPT}
+              className="sr-only"
+              onChange={(event) => {
+                attach(event.target.files?.[0] ?? null);
+                event.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              className={cn(
+                PILL_CONTROL,
+                'text-foreground/70 hover:bg-foreground/[0.06] hover:text-foreground disabled:pointer-events-none disabled:opacity-50',
+              )}
+              aria-label="Attach a file"
+              disabled={isPending}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Icon icon={PlusIcon} className="size-[1.125rem]" />
+            </button>
+            <textarea
+              ref={fieldRef}
+              id={inputId}
+              name="message"
+              autoComplete="off"
+              enterKeyHint="send"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={handleKeyDown}
+              onPaste={(event) => {
+                const pasted = event.clipboardData.files[0];
+                if (!pasted) return;
+                // Preserve ordinary paste. Mixed clipboard payloads often include a
+                // fallback URL/text representation; attaching the file as well
+                // would silently turn that fallback into an unintended caption.
+                if (event.clipboardData.getData('text/plain').trim()) return;
+                attach(pasted);
+              }}
+              placeholder={placeholder}
+              maxLength={MESSAGE_BODY_MAX}
+              rows={1}
+              className={cn(
+                // THE SAME TYPE AS THE BUBBLES. `text-body` with the token's own
+                // line-height (1.6 → 22.4px), and nothing else, so what you type is set
+                // in the size and rhythm it will have once sent. The iOS focus-zoom
+                // floor in `globals.css` still lifts it to 16px on an iPhone.
+                //
+                // ONE LINE AT REST, level with the round controls beside it: 40px on
+                // touch, 36px from `md`. Textareas do not distribute spare min-height
+                // like flex items, so the padding is what centres the resting line —
+                // 22.4 + 2×9 ≈ 40; 22.4 + 2×7 ≈ 36. The effect above grows it from
+                // there, and `max-h` hands over to scrolling.
+                'min-h-10 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-tight py-[0.5625rem] text-body text-foreground outline-none placeholder:text-muted-foreground md:min-h-9 md:py-[0.4375rem]',
+                // Keeps the caret clear of the phone keyboard when the page scrolls a
+                // focused field into view, as the `Textarea` primitive does.
+                'scroll-mb-[calc(6rem+var(--keyboard-inset,0px))] touch-manipulation',
+                compact ? 'max-h-24' : 'max-h-32',
+              )}
+              readOnly={isPending}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? `${inputId}-error` : undefined}
+            />
+            <button
+              type="submit"
+              className={cn(
+                PILL_CONTROL,
+                hasContent || isPending
+                  ? // White inside the violet, as filled buttons draw their focus frame in
+                    // their own label colour (`button.tsx`).
+                    'bg-iris-ink text-white hover:bg-iris-ink/90 active:bg-iris-ink/80 focus-visible:ring-white'
+                  : 'text-muted-foreground/60',
+                'disabled:cursor-default',
+              )}
+              disabled={!canSend}
+              aria-label={isPending ? 'Sending message…' : 'Send message'}
+            >
+              {isPending ? (
+                <Icon icon={CircleNotchIcon} className="size-[1.125rem] animate-spin" />
+              ) : (
+                <Icon icon={PaperPlaneRightIcon} className="size-[1.125rem]" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <span className="sr-only" role="status" aria-live="polite">
+          {isPending ? 'Sending message…' : ''}
+        </span>
+        {/* FLOATS ABOVE THE COMPOSER rather than growing it. Rendered in flow, a send
+            failure added a line under the field, which made the composer taller, which
+            shrank the thread above and lifted the contract room's action dock — the
+            whole conversation moved because a request failed. */}
+        {error ? (
+          <p
+            id={`${inputId}-error`}
+            role="alert"
+            className="absolute inset-x-0 bottom-full z-10 mb-snug rounded-xl bg-card px-cozy py-snug text-body text-destructive shadow-md ring-1 ring-destructive/30"
+          >
+            {error}
+          </p>
+        ) : null}
       </div>
     </form>
   );

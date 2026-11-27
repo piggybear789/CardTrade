@@ -30,8 +30,8 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ExternalLinkIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowSquareOutIcon, ShieldWarningIcon } from '@/components/ui/icons';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { CustodyNote } from '@/components/onboarding/OnboardingSpine';
@@ -143,7 +143,7 @@ export function IdentityGatePrompt({
 
       {retrying ? (
         <p className="flex gap-snug text-body text-destructive">
-          <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <Icon icon={ShieldWarningIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
           A blurry photo is the usual reason. Take the photos again in good light.
         </p>
       ) : null}
@@ -166,7 +166,7 @@ export function IdentityGatePrompt({
           aria-busy={isPending}
         >
           <PendingLabel pending={isPending} pendingLabel="Opening Stripe…">
-            <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
+            <Icon icon={ArrowSquareOutIcon} className="size-3.5" aria-hidden />
             {actionLabel}
           </PendingLabel>
         </Button>

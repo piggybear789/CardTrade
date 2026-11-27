@@ -19,12 +19,10 @@ import {
   type UIEvent,
 } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, ChevronLeftIcon, InfoIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretDownIcon, CaretLeftIcon, SealCheckIcon } from '@/components/ui/icons';
 import { Avatar } from '@/components/ui/avatar';
-import { StorageImage } from '@/components/ui/storage-image';
 import { ContractOverflowMenu } from '@/components/contract/ContractActionCard';
-import { useContractFocus } from '@/components/contract/ContractFocus';
 import { useContractSplit } from '@/components/contract/useContractSplit';
 import { markConversationRead } from '@/lib/actions/messages';
 import { useConversationRealtime } from '@/lib/realtime/useConversationRealtime';
@@ -48,12 +46,22 @@ export interface ContractChatSubject {
   price?: string | null;
 }
 
+/** Trust facts for the person line of the chat bar. */
+export interface ContractChatCounterparty {
+  verified: boolean;
+  /** Average out of 5, or null when never reviewed. */
+  rating: number | null;
+  ratingCount: number;
+}
+
 export interface ContractChatProps {
   conversationId: string;
   currentUserId: string;
   counterpartyName: string;
   /** Avatar object path, or null. A PATH, not a URL. */
   counterpartyAvatarPath?: string | null;
+  /** ID check and rating, for the person line. */
+  counterparty?: ContractChatCounterparty | null;
   /**
    * @deprecated The counterpart's name is the heading now (Xianyu person bar).
    * Kept so existing call sites do not break.
@@ -102,137 +110,102 @@ export interface ContractChatProps {
 export function ContractChatBar({
   counterpartyName,
   counterpartyAvatarPath,
-  subject,
-  connectionStatus,
+  counterparty,
   backHref,
-  status,
-  assurance,
   progress,
   menu,
 }: {
   counterpartyName: string;
   counterpartyAvatarPath?: string | null;
+  /** Trust facts for the person line: ID check and rating. */
+  counterparty?: ContractChatCounterparty | null;
+  /**
+   * @deprecated The item and its status moved into the step card (`progress`).
+   * Kept so existing call sites compile.
+   */
   subject?: ContractChatSubject | null;
+  /**
+   * @deprecated No longer shown (2026-11-27): "Offline" beside the name read as the
+   * other person being offline.
+   */
   connectionStatus?: 'ok' | 'error' | string;
   backHref?: string;
+  /** @deprecated See `subject`. */
   status?: ReactNode;
-  /** `FundsHeldMark compact` while money is held. */
+  /** @deprecated See `subject`. */
   assurance?: ReactNode;
   /**
-   * `ContractProgressStrip`, under the bar on a phone only — from `md` the
-   * contract header above the split carries it.
+   * `ContractStepCard`: which step, how far along, and any running clock. Drawn
+   * under the person line in the thread layout only; in the split, the contract
+   * header above carries it and the details pane is already on screen.
    */
   progress?: ReactNode;
   /** Secondary actions about the PERSON, e.g. reporting them. */
   menu?: ReactNode;
 }) {
-  const offline = connectionStatus === 'error';
   const split = useContractSplit();
-  const { openDetails } = useContractFocus();
 
-  // In the thread the details are a sheet, so the identity block is the way in.
-  // In the split they are a pane already on screen and this stays inert text.
-  const opensDetails = !split;
-
-  const person = subject ? counterpartyName : null;
-  const showSubline =
-    Boolean(subject?.price) || Boolean(status) || Boolean(assurance) || Boolean(person) || offline;
+  // WHO, THEN WHAT (UX review 2026-11-27). The bar used to be one line carrying
+  // the item title, its price, the status badge, the other person's name and an
+  // (i); the name was the faintest thing on it. Every marketplace chat we looked
+  // at (eBay, Depop, Vinted, Vestiaire) puts the person and the item on separate
+  // lines. The person is line 1, with the two facts that say whether to trust
+  // them; the step card under it is the item and where the contract is.
+  const rating =
+    counterparty?.rating != null && counterparty.ratingCount > 0
+      ? `★ ${counterparty.rating.toFixed(1)} (${counterparty.ratingCount})`
+      : 'No ratings yet';
 
   return (
-    // Identity and subject only. The controls used to ride this row and wrap to
-    // a second line when they were wide ("Accept terms and pay"); they dock
-    // below the log now, so the bar is a fixed single row again.
     <header
       className={cn(
-        'sticky top-0 z-10 flex shrink-0 flex-wrap items-center gap-cozy border-b bg-card px-group py-2.5 md:flex-nowrap',
+        // A TINTED BAND in the thread layout (2026-11-27), so the person line and
+        // the white step card read as the room's header rather than the top of the
+        // conversation. The split keeps the card surface: there the contract header
+        // above already separates it.
+        'sticky top-0 z-10 shrink-0 border-b bg-card px-group py-2 max-lg:bg-muted/70 max-lg:pb-2.5',
         'max-md:pl-[max(1rem,env(safe-area-inset-left))] max-md:pr-[max(1rem,env(safe-area-inset-right))]',
       )}
     >
-      {backHref ? (
-        <Link
-          href={backHref}
-          transitionTypes={['nav-back']}
-          aria-label="Back"
-          // `size-9 -ml-2.5`, matching `ChatThread`'s bar — see the note there. 36px is
-          // the phone control height everywhere else; 44 was a fifth of the row.
-          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
-        >
-          <HugeiconsIcon icon={ChevronLeftIcon} className="size-5" strokeWidth={1.75} aria-hidden />
-        </Link>
-      ) : null}
+      <div className="flex items-center gap-cozy">
+        {backHref ? (
+          <Link
+            href={backHref}
+            transitionTypes={['nav-back']}
+            aria-label="Back"
+            // `size-9 -ml-2.5`, matching `ChatThread`'s bar — see the note there.
+            className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
+          >
+            <Icon icon={CaretLeftIcon} className="size-5" aria-hidden />
+          </Link>
+        ) : null}
 
-      <div className="relative flex min-w-0 flex-1 basis-40 items-center gap-cozy">
-        {subject?.thumb ? (
-          <StorageImage
-            src={subject.thumb}
-            alt=""
-            width={36}
-            height={36}
-            className="size-9 shrink-0 rounded-md border object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <Avatar
-            avatarPath={counterpartyAvatarPath}
-            displayName={counterpartyName}
-            size="md"
-          />
-        )}
+        <Avatar avatarPath={counterpartyAvatarPath} displayName={counterpartyName} size="md" />
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lead font-semibold leading-tight tracking-tight">
-            {subject?.title ?? counterpartyName}
+            {counterpartyName}
           </h2>
-          {showSubline ? (
-            // A ROW, NOT A SENTENCE — mirrors `ChatThread`. Price as a figure, the
-            // status badge, then the person; the badge cannot live inside a
-            // truncating `<p>`, so the text parts truncate on their own.
-            <div className="mt-0.5 flex min-w-0 items-center gap-snug text-body text-muted-foreground">
-              {subject?.price ? (
-                <span className="display-value shrink-0 font-semibold text-foreground">
-                  {subject.price}
-                </span>
-              ) : null}
-              {status ? <span className="flex shrink-0">{status}</span> : null}
-              {assurance}
-              {person ? <span className="min-w-0 truncate">{person}</span> : null}
-              {offline ? <span className="shrink-0 text-destructive">Offline</span> : null}
-            </div>
-          ) : null}
+          {/* Always drawn, so the bar does not grow when the facts arrive. */}
+          {/* Spaced, not dotted (2026-11-27). */}
+          <p className="mt-0.5 flex min-w-0 items-center gap-x-cozy text-meta text-muted-foreground">
+            {counterparty?.verified ? (
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-trust">
+                <Icon icon={SealCheckIcon} className="size-3.5" aria-hidden />
+                ID verified
+              </span>
+            ) : counterparty ? (
+              <span className="shrink-0">Not ID verified</span>
+            ) : null}
+            {counterparty ? <span className="truncate">{rating}</span> : null}
+          </p>
         </div>
-        {opensDetails ? (
-          <>
-            {/* NAMES THE DESTINATION, does not point. This was a `ChevronRight`,
-                which put a right-facing chevron at one end of the bar and the
-                back arrow at the other — the universal prev/next pager shape, on
-                a row that has no next. Nothing here pages between contracts:
-                this opens the details sheet for the one already on screen. */}
-            <HugeiconsIcon icon={InfoIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-            {/* Overlay rather than a wrapper, because the title is an <h2> and a
-                heading is not valid inside a <button>. Covering the block keeps
-                the whole subject tappable and still gives one focus ring. */}
-            <button
-              type="button"
-              onClick={openDetails}
-              aria-haspopup="dialog"
-              className="absolute inset-0 rounded-md border border-transparent focus:outline-none focus-visible:border-ring"
-            >
-              <span className="sr-only">Contract details</span>
-            </button>
-          </>
-        ) : null}
+
+        {/* Reporting is about the person, which is what this line is, so it
+            belongs here rather than in the action dock's menu. */}
+        <ContractOverflowMenu>{menu}</ContractOverflowMenu>
       </div>
 
-      {/* Outside the subject block on purpose: that block is covered by an
-          absolutely positioned button that opens the details sheet, and a menu
-          inside it would be unclickable. Reporting is about the person, which
-          is what this bar is, so it belongs here rather than in the action
-          dock's menu — the dock is the contract's current step. */}
-      <ContractOverflowMenu>{menu}</ContractOverflowMenu>
-      {progress ? (
-        <div className="-mt-tight basis-full md:hidden">
-          {progress}
-        </div>
-      ) : null}
+      {progress && !split ? <div className="mt-2">{progress}</div> : null}
     </header>
   );
 }
@@ -248,6 +221,7 @@ export function ContractChat({
   currentUserId,
   counterpartyName,
   counterpartyAvatarPath,
+  counterparty,
   placeholder = 'Message about the handover…',
   emptyHint = 'Use chat to coordinate. Only the saved terms are binding.',
   subject,
@@ -357,6 +331,7 @@ export function ContractChat({
       <ContractChatBar
         counterpartyName={counterpartyName}
         counterpartyAvatarPath={counterpartyAvatarPath}
+        counterparty={counterparty}
         subject={subject}
         connectionStatus={connectionStatus}
         backHref={backHref}
@@ -445,9 +420,12 @@ export function ContractChat({
           <button
             type="button"
             onClick={scrollToLatest}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 touch-manipulation items-center gap-tight rounded-md border border-transparent bg-primary px-cozy py-snug text-body font-medium text-primary-foreground shadow-md focus:outline-none focus-visible:border-ring"
+            // A floating capsule over the log, Instagram's "new messages" chip: it is
+            // not a control in the page's grid but a marker on the conversation, so it
+            // takes the chat's pill shape rather than the 6px control corner.
+            className="absolute bottom-3 left-1/2 flex h-9 -translate-x-1/2 touch-manipulation items-center gap-tight rounded-full bg-primary pl-cozy pr-group text-body font-medium text-primary-foreground shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-foreground"
           >
-            <HugeiconsIcon icon={ArrowDown01Icon} className="size-3.5" aria-hidden />
+            <Icon icon={CaretDownIcon} className="size-3.5" aria-hidden />
             {unseenCount === 1 ? '1 new message' : `${unseenCount} new messages`}
           </button>
         ) : null}

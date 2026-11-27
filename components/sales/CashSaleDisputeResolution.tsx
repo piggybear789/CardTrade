@@ -39,13 +39,13 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
 import {
-  ArrowRight01Icon,
-  LoaderCircleIcon,
-  RotateCcwIcon,
-  Undo02Icon,
-} from '@hugeicons/core-free-icons';
+  ArrowCounterClockwiseIcon,
+  ArrowUUpLeftIcon,
+  CaretRightIcon,
+  CircleNotchIcon,
+} from '@/components/ui/icons';
 
 import {
   settleCashSaleDispute,
@@ -67,7 +67,7 @@ function ResolutionRow({
   disabled,
   onClick,
 }: {
-  icon: IconSvgElement;
+  icon: IconGlyph;
   label: string;
   consequence: string;
   busy: boolean;
@@ -84,8 +84,8 @@ function ResolutionRow({
         className="flex w-full items-center gap-cozy px-cozy py-cozy text-left transition-colors hover:bg-muted focus:outline-none focus-visible:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
       >
         <span className="grid size-8 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-          <HugeiconsIcon
-            icon={busy ? LoaderCircleIcon : icon}
+          <Icon
+            icon={busy ? CircleNotchIcon : icon}
             className={cn('size-4', busy && 'animate-spin')}
             aria-hidden
           />
@@ -94,8 +94,8 @@ function ResolutionRow({
           <span className="block text-body font-medium">{label}</span>
           <span className="block text-meta text-muted-foreground">{consequence}</span>
         </span>
-        <HugeiconsIcon
-          icon={ArrowRight01Icon}
+        <Icon
+          icon={CaretRightIcon}
           className="size-4 shrink-0 text-muted-foreground"
           aria-hidden
         />
@@ -159,7 +159,7 @@ export function CashSaleDisputeResolution({
       <ul className="mt-cozy divide-y divide-border overflow-hidden surface rounded-xl bg-card">
         {iRaisedIt ? (
           <ResolutionRow
-            icon={Undo02Icon}
+            icon={ArrowUUpLeftIcon}
             label="Withdraw my dispute"
             consequence="No money moves."
             busy={busy('withdraw')}
@@ -168,7 +168,7 @@ export function CashSaleDisputeResolution({
           />
         ) : null}
         <ResolutionRow
-          icon={RotateCcwIcon}
+          icon={ArrowCounterClockwiseIcon}
           label={iAmBuyer ? 'Release the payment anyway' : 'Refund the buyer in full'}
           consequence={
             iAmBuyer

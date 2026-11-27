@@ -9,8 +9,8 @@
 // whichever path the user took through it, without hiding anything: the hint is
 // the summary, so the state is readable from the card.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PencilIcon, PlusIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { PencilSimpleIcon, PlusIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -41,7 +41,7 @@ export function DialogRow({
   invalid = false,
   onClick,
 }: DialogRowProps) {
-  const Icon = filled ? PencilIcon : PlusIcon;
+  const Glyph = filled ? PencilSimpleIcon : PlusIcon;
   return (
     <button
       type="button"
@@ -54,7 +54,7 @@ export function DialogRow({
         invalid && 'border-destructive',
       )}
     >
-      <HugeiconsIcon icon={Icon} aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      <Icon icon={Glyph} aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
       <span className="min-w-0 shrink-0">
         {label}
         {required ? (

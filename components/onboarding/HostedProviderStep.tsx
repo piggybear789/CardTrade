@@ -17,8 +17,8 @@
 // Renders no heading of its own — the surface owns the step title.
 
 import { useState, useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ExternalLinkIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowClockwiseIcon, ArrowSquareOutIcon } from '@/components/ui/icons';
 
 import { beginIdentityCheck, refreshIdentityCheck } from '@/lib/actions/identity';
 import { startIdentityVerification, refreshPayoutStatus } from '@/lib/actions/merchant';
@@ -150,8 +150,8 @@ export function HostedProviderStep({
             Both states share one grid cell now; the spinner replaces the glyph in the
             pending state as it did before. */}
         <PendingLabel pending={isPending} pendingLabel="Opening…">
-          <HugeiconsIcon
-            icon={tone === 'notice' ? RefreshCwIcon : ExternalLinkIcon}
+          <Icon
+            icon={tone === 'notice' ? ArrowClockwiseIcon : ArrowSquareOutIcon}
             className="size-3.5"
             aria-hidden
           />

@@ -5,8 +5,8 @@
 // references in front of someone looking for another.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon, CaretRightIcon } from '@/components/ui/icons';
 
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { PlatformChip } from '@/components/references/referenceLabels';
@@ -34,7 +34,7 @@ export function HandleChooser({
       <div className="flex items-center gap-cozy">
         <Button asChild variant="ghost" size="icon" className="-ml-2 size-10 shrink-0 rounded-md md:size-9 [&_svg]:size-5">
           <Link href="/references" aria-label="Back to references">
-            <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+            <Icon icon={CaretLeftIcon} aria-hidden />
           </Link>
         </Button>
         <div className="min-w-0">
@@ -72,8 +72,8 @@ export function HandleChooser({
                     .join(' · ')}
                 </span>
               </span>
-              <HugeiconsIcon
-                icon={ArrowRight01Icon}
+              <Icon
+                icon={CaretRightIcon}
                 className="size-4 shrink-0 text-muted-foreground transition-[color,transform] duration-300 ease-enter group-hover:translate-x-0.5 group-hover:text-foreground group-focus-visible:translate-x-0.5"
                 aria-hidden
               />

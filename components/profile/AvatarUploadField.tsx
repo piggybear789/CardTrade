@@ -16,8 +16,8 @@
 // member navigates away. Onboarding also has no save button of its own for this.
 
 import * as React from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Camera01Icon, Delete02Icon, LoaderCircleIcon, Upload01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CameraIcon, CircleNotchIcon, TrashIcon, UploadSimpleIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { Avatar } from '@/components/ui/avatar';
@@ -149,9 +149,9 @@ export function AvatarUploadField({
           className="absolute -bottom-1 -right-1.5 grid size-5 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground transition-colors group-hover:bg-primary/85"
         >
           {isBusy ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" />
+            <Icon icon={CircleNotchIcon} className="size-3.5 animate-spin" />
           ) : (
-            <HugeiconsIcon icon={Camera01Icon} className="size-3" />
+            <Icon icon={CameraIcon} className="size-3" />
           )}
         </span>
       </button>
@@ -179,7 +179,7 @@ export function AvatarUploadField({
                   }}
                   className="flex h-9 w-full items-center gap-snug rounded-sm px-2.5 text-left text-body font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:outline-none focus-visible:bg-accent"
                 >
-                  <HugeiconsIcon icon={Camera01Icon} className="size-4 text-muted-foreground" aria-hidden />
+                  <Icon icon={CameraIcon} className="size-4 text-muted-foreground" aria-hidden />
                   Change picture
                 </button>
                 <button
@@ -190,7 +190,7 @@ export function AvatarUploadField({
                   }}
                   className="flex h-9 w-full items-center gap-snug rounded-sm px-2.5 text-left text-body font-medium text-destructive transition-colors hover:bg-destructive/10 focus:outline-none focus-visible:bg-destructive/10"
                 >
-                  <HugeiconsIcon icon={Delete02Icon} className="size-4" aria-hidden />
+                  <Icon icon={TrashIcon} className="size-4" aria-hidden />
                   Remove picture
                 </button>
               </div>
@@ -220,9 +220,9 @@ export function AvatarUploadField({
             aria-busy={busy === 'upload'}
           >
             {busy === 'upload' ? (
-              <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+              <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
             ) : (
-              <HugeiconsIcon icon={Upload01Icon} aria-hidden />
+              <Icon icon={UploadSimpleIcon} aria-hidden />
             )}
             {path ? 'Change picture' : 'Add a picture'}
           </Button>
@@ -237,9 +237,9 @@ export function AvatarUploadField({
               aria-busy={busy === 'clear'}
             >
               {busy === 'clear' ? (
-                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+                <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
               ) : (
-                <HugeiconsIcon icon={Delete02Icon} aria-hidden />
+                <Icon icon={TrashIcon} aria-hidden />
               )}
               Remove
             </Button>

@@ -26,8 +26,8 @@ import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { toast } from 'sonner';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HandCoinsIcon, ImageOffIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { HandCoinsIcon, ImageBrokenIcon } from '@/components/ui/icons';
 
 import { Card } from '@/components/ui/card';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -136,7 +136,7 @@ export function OffersSection({
   if (offers.length === 0) {
     return scope === 'past' ? (
       <SharedEmptyState
-        icon={<HugeiconsIcon icon={HandCoinsIcon} className="size-6" aria-hidden />}
+        icon={<Icon icon={HandCoinsIcon} className="size-6" aria-hidden />}
         title="No past offers"
         description="Decided or withdrawn offers will be kept here."
         compact
@@ -144,7 +144,7 @@ export function OffersSection({
       />
     ) : (
       <EmptyState
-        icon={<HugeiconsIcon icon={HandCoinsIcon} className="size-6" aria-hidden />}
+        icon={<Icon icon={HandCoinsIcon} className="size-6" aria-hidden />}
         title="No offers yet"
         description="Make an offer on a listing, or wait for buyers to send you one."
         ctaLabel="Browse the marketplace"
@@ -218,7 +218,7 @@ function ListingOfferGroup({ group }: { group: OfferGroup }) {
             />
           ) : (
             <span className="flex size-full items-center justify-center text-muted-foreground">
-              <HugeiconsIcon icon={ImageOffIcon} className="size-4" aria-hidden />
+              <Icon icon={ImageBrokenIcon} className="size-4" aria-hidden />
               <span className="sr-only">No image available</span>
             </span>
           )}

@@ -53,12 +53,8 @@ import { useRouter } from "next/navigation";
 import { navigateWithType } from "@/lib/motion/navigate";
 import { FieldError } from "@/components/motion/FieldError";
 import { toast } from "sonner";
-import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowLeft01Icon,
-  LibraryIcon,
-  PackageIcon,
-} from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CardsThreeIcon, CaretLeftIcon, PackageIcon } from '@/components/ui/icons';
 
 import { createItem, updateItem, type CatalogSeller, type ItemRow } from "@/lib/actions/listings";
 import { IMAGES_MAX, TITLE_MAX_LENGTH } from "@/domain/validation/item";
@@ -90,7 +86,6 @@ import { ITEM_CONDITIONS, isItemCondition } from "@/lib/catalog/conditions";
 import { deleteListingDraft, saveListingDraft } from "@/lib/actions/listingDrafts";
 import type { ItemFormDraftFields } from "@/lib/listings/useItemFormDraft";
 import { cn } from "@/lib/utils";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   ActionFooter,
   EDITOR_CANVAS_CLASS,
@@ -98,7 +93,6 @@ import {
   EditorPageHeader,
   EditorSteps,
   OptionCard,
-  ScreenHeading,
 } from "@/components/editor/EditorFrame";
 import { PhotoGrid } from "@/components/trade/UnlistedItemFields";
 import {
@@ -212,9 +206,9 @@ const LISTING_KINDS = [
   },
   {
     value: "SHOPFRONT" as const,
-    icon: LibraryIcon,
+    icon: CardsThreeIcon,
     label: "Multiple items",
-    hint: "Buyers pick cards. Nothing is held",
+    hint: "Pick and choose",
   },
 ];
 
@@ -281,7 +275,6 @@ function ItemFormInner({
 }: ItemFormProps & { restoreDraft: boolean; draftDecided: boolean }) {
   const router = useRouter();
   const currency = item?.currency ?? currencyProp ?? "aud";
-  const [confirmingClose, setConfirmingClose] = React.useState(false);
 
   // CREATE ONLY. An edit form is backed by a row, so a stored draft would raise a
   // "which is newer" conflict with no safe default — see `useItemFormDraft`.
@@ -399,23 +392,6 @@ function ItemFormInner({
     description.trim() !== "" ||
     newFiles.length > 0 ||
     fmvDollars.trim() !== "";
-  // WHETHER CLOSING LOSES ANYTHING, for the editor bar's close. Create: any input at
-  // all. Edit: the row always has a title, so it is a change from what was loaded.
-  const editSnapshot = JSON.stringify({
-    title,
-    description,
-    game,
-    condition,
-    fmvDollars,
-    place: location?.placeId ?? null,
-    kept: keptPaths,
-    added: newFiles.length,
-  });
-  const [loadedSnapshot] = React.useState(editSnapshot);
-  const hasWork =
-    mode === "create"
-      ? isDirty || game !== "" || condition !== "" || keptPaths.length > 0
-      : editSnapshot !== loadedSnapshot;
   React.useEffect(() => {
     if (!isDirty || isSubmitting) return;
 
@@ -828,30 +804,6 @@ function ItemFormInner({
     }
   }
 
-  /** Close: back where they came from. Asks first if there is work to lose. */
-  function requestClose() {
-    if (hasWork) {
-      setConfirmingClose(true);
-      return;
-    }
-    leave();
-  }
-
-  function leave() {
-    // Discarding is deliberate, so the session copy goes too. A saved draft stays
-    // under My listings: it was saved on purpose.
-    if (mode === "create") clearItemFormDraft();
-    if (window.history.length > 1) {
-      router.back();
-      return;
-    }
-    navigateWithType(
-      router,
-      mode === "edit" && item ? `/listings/${item.id}` : "/listings/mine",
-      "nav-back",
-    );
-  }
-
   const preview: ListingPreviewInput = {
     title,
     description,
@@ -923,11 +875,9 @@ function ItemFormInner({
               the viewport is the bound. */}
           <div className="min-w-0 flex-1 px-4 pb-section pt-group sm:px-6 md:px-8 md:pt-section lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:px-10 lg:pb-8 lg:pt-8">
             <div className="mx-auto w-full max-w-xl space-y-5">
-              {/* The page's `<h1>` and line, with the editor's close beside the title,
-                  as `/deals` has it (`EditorPageHeader`). From `md`; below it the phone
-                  header names the page and the site's back strip closes, so it stays
-                  for the outline only. The close asks before discarding work
-                  (`requestClose`). The column's `space-y-5` spaces it from the tabs. */}
+              {/* The page's `<h1>` and line (`EditorPageHeader`), with no close button.
+                  From `md`; below it the phone header names the page, so it stays for
+                  the outline only. The column's `space-y-5` spaces it from the tabs. */}
               <EditorPageHeader
                 title={heading}
                 description={
@@ -935,8 +885,6 @@ function ItemFormInner({
                     ? "List one card, or multiple items buyers can pick from."
                     : "Update the photos, price and details."
                 }
-                onClose={requestClose}
-                closeLabel={mode === "create" ? "Close" : "Close without saving"}
                 className="sr-only md:not-sr-only"
               />
 
@@ -952,18 +900,6 @@ function ItemFormInner({
                 current={step - 1}
                 onSelect={(index) => goToStep((index + 1) as ItemFormStep)}
                 disabled={isSubmitting}
-              />
-
-              <ScreenHeading
-                headingRef={stepHeadingRef}
-                title={ITEM_FORM_STEP_LABELS[step - 1]}
-                description={
-                  step === 1
-                    ? "Photos first, then what it is."
-                    : isShopfront
-                      ? "A typical price, the game, and where you trade from."
-                      : "What you want for it, the game, and where you trade from."
-                }
               />
 
               {/* STEP 1: what it is. Hidden steps stay mounted (`hidden`), so their state,
@@ -1001,25 +937,6 @@ function ItemFormInner({
                   ) : null}
                 </fieldset>
 
-                {/* THE PHOTO GRID THE DEAL COMPOSER USES: Add first, six to a row, drag
-                    to reorder, "Make cover", and the same height with none or ten, so
-                    nothing under it moves when a photo is added. */}
-                <div className="space-y-snug">
-                  <PhotoGrid
-                    labelId="images-label"
-                    inputId="images"
-                    count={totalImages}
-                    atCap={totalImages >= IMAGES_MAX}
-                    max={IMAGES_MAX}
-                    photos={photos}
-                    onAdd={addPhotos}
-                    onMove={movePhoto}
-                    disabled={isSubmitting}
-                    describedBy={imagesError ? "images-error" : undefined}
-                  />
-                  {imagesError ? <FieldError id="images-error" message={imagesError} /> : null}
-                </div>
-
                 {/* Title, its own field: a label for contracts and emails, and the line
                     on the tile. A blank title falls back to the description's first
                     sentence (`deriveItemTitle`). */}
@@ -1041,6 +958,25 @@ function ItemFormInner({
                   {titleError ? <FieldError id="title-error" message={titleError} /> : null}
                 </div>
 
+                {/* THE PHOTO GRID THE DEAL COMPOSER USES: Add first, six to a row, drag
+                    to reorder, "Make cover", and the same height with none or ten, so
+                    nothing under it moves when a photo is added. */}
+                <div className="space-y-snug">
+                  <PhotoGrid
+                    labelId="images-label"
+                    inputId="images"
+                    count={totalImages}
+                    atCap={totalImages >= IMAGES_MAX}
+                    max={IMAGES_MAX}
+                    photos={photos}
+                    onAdd={addPhotos}
+                    onMove={movePhoto}
+                    disabled={isSubmitting}
+                    describedBy={imagesError ? "images-error" : undefined}
+                  />
+                  {imagesError ? <FieldError id="images-error" message={imagesError} /> : null}
+                </div>
+
                 <div className="space-y-snug">
                   <Label htmlFor="description">Description</Label>
                   {/* GROWS WITH WHAT IS TYPED. A fixed four lines (112px) held about 300
@@ -1057,7 +993,7 @@ function ItemFormInner({
                     maxLength={2000}
                     rows={6}
                     placeholder="Set and number, edition, and anything a buyer should know: whitening, scratches, centring."
-                    className="min-h-36 max-h-80 resize-y [field-sizing:content]"
+                    className="min-h-36 max-h-80 resize-none [field-sizing:content]"
                     aria-invalid={descriptionError ? true : undefined}
                     aria-describedby={descriptionError ? "description-error" : undefined}
                     disabled={isSubmitting}
@@ -1226,7 +1162,7 @@ function ItemFormInner({
                 disabled={isSubmitting}
                 className="min-w-0 flex-1 sm:flex-none"
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+                <Icon icon={CaretLeftIcon} aria-hidden />
                 Back
               </Button>
             ) : null}
@@ -1281,26 +1217,6 @@ function ItemFormInner({
           </div>
         </div>
       </div>
-
-      <ConfirmDialog
-        open={confirmingClose}
-        onOpenChange={setConfirmingClose}
-        title={mode === "create" ? "Discard this listing?" : "Discard your changes?"}
-        description={
-          mode === "create"
-            ? draftId
-              ? "Changes since you last saved the draft will be lost."
-              : "Your photos and details will not be saved."
-            : "The listing stays as it was saved."
-        }
-        confirmLabel="Discard"
-        confirmVariant="destructive"
-        cancelLabel="Keep editing"
-        onConfirm={() => {
-          setConfirmingClose(false);
-          leave();
-        }}
-      />
     </div>
   );
 }

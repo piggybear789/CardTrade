@@ -34,9 +34,12 @@ export function ContractStatusBadge<S extends string>({
 }: ContractStatusBadgeProps<S>) {
   const meta = map[status];
   if (!meta) return null;
+  // `dot`: a STATUS is the one kind of badge that wears the mark, so a contract's
+  // state reads the same way in the inbox, the chat bar and the room.
   return (
     <Badge
       variant={meta.tone}
+      dot
       className={className}
       aria-label={`${kind}: ${meta.label}`}
     >

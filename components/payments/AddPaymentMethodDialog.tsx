@@ -9,8 +9,8 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CreditCardIcon } from '@/components/ui/icons';
 
 import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
 
@@ -52,7 +52,7 @@ export function AddPaymentMethodDialog({ trigger, onAttached, platform }: AddPay
         withRowOpenHandler(trigger, () => setOpen(true))
       ) : (
         <Button type="button" variant="outline" onClick={() => setOpen(true)}>
-          <HugeiconsIcon icon={CreditCardIcon} aria-hidden />
+          <Icon icon={CreditCardIcon} aria-hidden />
           Add payment method
         </Button>
       )}

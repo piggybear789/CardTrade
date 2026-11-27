@@ -72,6 +72,9 @@ async function setupLockedTrade<L extends string>(
 
 async function raiseTradeDispute(page: Page, kindLabel: RegExp, reason: string): Promise<void> {
   const triggerName = kindLabel.test('Fraud') ? /Report fraud/i : /Raise dispute|Report a problem/i;
+  // The escalations sit behind one "Problem" button in the trade dock (2026-11-27).
+  const problem = page.getByRole('button', { name: /^Problem$/ }).filter({ visible: true }).first();
+  if (await problem.isVisible().catch(() => false)) await problem.click();
   await page.getByRole('button', { name: triggerName }).filter({ visible: true }).first().click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible({ timeout: 15_000 });

@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { HugeiconsIcon } from '@hugeicons/react';
-import { XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { XIcon } from '@/components/ui/icons';
 
 import { cn } from "@/lib/utils";
 
@@ -147,7 +147,7 @@ const DialogContent = React.forwardRef<
         // because opacity applies to the ring too — at 70% the iris frame would
         // drop under the 3:1 it owes the card.
         <DialogPrimitive.Close className="absolute right-3 top-3 flex size-10 touch-manipulation items-center justify-center rounded-md bg-transparent opacity-80 transition-opacity hover:opacity-100 border border-transparent focus:outline-none focus-visible:border-ring focus-visible:opacity-100 disabled:pointer-events-none md:size-8 md:opacity-70">
-          <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden="true" />
+          <Icon icon={XIcon} className="size-4" aria-hidden="true" />
           <span className="sr-only">Close</span>
         </DialogPrimitive.Close>
       ) : null}

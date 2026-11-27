@@ -20,14 +20,13 @@
 
 import { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { BellIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { BellIcon, ChecksIcon, CircleNotchIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import {
   HEADER_ICON_BUTTON,
   HEADER_ICON_GLYPH,
-  HEADER_ICON_STROKE,
 } from '@/components/layout/HeaderControls';
 import { HeaderTooltip } from '@/components/layout/HeaderTooltip';
 import {
@@ -137,10 +136,9 @@ export function NotificationBell({
           }
           className={HEADER_ICON_BUTTON}
         >
-          <HugeiconsIcon
+          <Icon
             icon={BellIcon}
             className={HEADER_ICON_GLYPH}
-            strokeWidth={HEADER_ICON_STROKE}
             aria-hidden
           />
           {/* On the bell's shoulder, inside the round target, with a page-coloured
@@ -188,9 +186,9 @@ export function NotificationBell({
             className="inline-flex min-h-9 items-center gap-tight rounded-md border border-transparent px-snug text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50"
           >
             {isPending ? (
-              <HugeiconsIcon icon={LoaderCircleIcon} className="size-3.5 animate-spin" aria-hidden />
+              <Icon icon={CircleNotchIcon} className="size-3.5 animate-spin" aria-hidden />
             ) : (
-              <HugeiconsIcon icon={CheckCheckIcon} className="size-3.5" aria-hidden />
+              <Icon icon={ChecksIcon} className="size-3.5" aria-hidden />
             )}
             Mark all read
           </button>

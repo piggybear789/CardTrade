@@ -18,8 +18,8 @@ import { useEffect, useId, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { CheckmarkCircle02Icon, CircleIcon } from "@hugeicons/core-free-icons";
+import { Icon } from "@/components/ui/icon";
+import { CheckCircleIcon, CircleIcon } from "@/components/ui/icons";
 
 import { signIn, signUp } from "@/lib/actions/auth";
 import { finishesOwnOnboarding } from "@/lib/deals/paths";
@@ -330,8 +330,8 @@ export function AuthForm({ mode }: { mode: Mode }) {
                   passwordMeetsRule ? "text-trust" : "text-muted-foreground",
                 )}
               >
-                <HugeiconsIcon
-                  icon={passwordMeetsRule ? CheckmarkCircle02Icon : CircleIcon}
+                <Icon
+                  icon={passwordMeetsRule ? CheckCircleIcon : CircleIcon}
                   className="size-3.5"
                   aria-hidden
                 />

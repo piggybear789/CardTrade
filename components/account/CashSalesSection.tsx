@@ -14,8 +14,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShoppingBag01Icon, Tag01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ShoppingBagIcon, TagIcon } from '@/components/ui/icons';
 
 import { formatMoney, formatRelativeTime } from '@/lib/format';
 import type { CashSaleSummary } from '@/lib/actions/account';
@@ -52,7 +52,7 @@ export function CashSalesSection({
 
     return variant === 'purchases' ? (
       <EmptyState
-        icon={<HugeiconsIcon icon={ShoppingBag01Icon} className="size-6" aria-hidden />}
+        icon={<Icon icon={ShoppingBagIcon} className="size-6" aria-hidden />}
         title="No purchases yet"
         description="Browse the marketplace and buy your first collectible."
         ctaLabel="Browse the marketplace"
@@ -60,7 +60,7 @@ export function CashSalesSection({
       />
     ) : (
       <EmptyState
-        icon={<HugeiconsIcon icon={Tag01Icon} className="size-6" aria-hidden />}
+        icon={<Icon icon={TagIcon} className="size-6" aria-hidden />}
         title="No sales yet"
         description="Put a card up so buyers can purchase it outright."
         ctaLabel="Sell an item"

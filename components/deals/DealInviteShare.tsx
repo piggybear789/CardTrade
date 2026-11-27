@@ -18,8 +18,8 @@
 
 import { useState, useSyncExternalStore, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckCircleIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { DealLinkActions } from '@/components/deals/DealLinkActions';
@@ -100,7 +100,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
           aria-hidden
           className="mx-auto grid size-11 place-items-center rounded-full bg-trust/10 text-trust"
         >
-          <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-6" />
+          <Icon icon={CheckCircleIcon} className="size-6" />
         </span>
         <h2 className="text-head font-bold tracking-[-0.02em]">Your link is ready</h2>
         <p className="text-pretty text-body text-muted-foreground">
@@ -214,7 +214,7 @@ function DealSummary({ preview }: { preview: DealInvitePreview }) {
           ) : null}
           {preview.kind && preview.hostReadiness === 'ready' ? (
             <p className="mt-snug flex items-center gap-1.5 text-meta font-medium text-foreground/85">
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 shrink-0 text-trust" aria-hidden />
+              <Icon icon={CheckCircleIcon} className="size-3.5 shrink-0 text-trust" aria-hidden />
               {hostReadyLine(preview.kind)}
             </p>
           ) : null}

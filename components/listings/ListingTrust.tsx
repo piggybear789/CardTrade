@@ -17,8 +17,8 @@
 // promise and links to the rest.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ShieldCheckIcon } from '@/components/ui/icons';
 
 
 /**
@@ -44,7 +44,7 @@ export function ListingProtectionLine({
         How this purchase is protected
       </h2>
       <p className="flex items-start gap-snug text-meta text-muted-foreground">
-        <HugeiconsIcon
+        <Icon
           icon={ShieldCheckIcon}
           className="mt-px size-3.5 shrink-0 text-muted-foreground"
           aria-hidden

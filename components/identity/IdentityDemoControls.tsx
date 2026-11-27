@@ -19,8 +19,8 @@
 // regardless, because a client-side condition is not a control.
 
 import { useState, useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronDownIcon, ChevronUpIcon, FlaskConicalIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretDownIcon, CaretUpIcon, FlaskIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
@@ -87,7 +87,7 @@ export function IdentityDemoControls() {
         className="flex w-full items-center justify-between gap-cozy px-group py-cozy text-left border border-transparent focus:outline-none focus-visible:border-ring"
       >
         <span className="flex min-w-0 items-center gap-snug">
-          <HugeiconsIcon icon={FlaskConicalIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <Icon icon={FlaskIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
           <span className="min-w-0">
             <span className="cardtrade-demo-label cardtrade-eyebrow block border-0 bg-transparent px-0 py-0">
               Hackathon · Test Mode
@@ -98,9 +98,9 @@ export function IdentityDemoControls() {
           </span>
         </span>
         {open ? (
-          <HugeiconsIcon icon={ChevronUpIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <Icon icon={CaretUpIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={ChevronDownIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
+          <Icon icon={CaretDownIcon} className="cardtrade-demo-label size-4 shrink-0" aria-hidden />
         )}
       </button>
 

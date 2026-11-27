@@ -10,7 +10,7 @@
 // two sets of copy, so the same choice read differently depending on which room you
 // were standing in.
 
-import { MapPinIcon, TruckIcon } from '@hugeicons/core-free-icons';
+import { MapPinIcon, TruckIcon } from '@/components/ui/icons';
 
 import { ChoiceTile } from '@/components/ui/choice-tile';
 import type { FulfilmentMethod } from '@/domain/fulfilment';

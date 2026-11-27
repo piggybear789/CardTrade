@@ -1,7 +1,8 @@
 'use client';
 
-// Mobile infinite catalog: append pages as the sentinel enters the viewport.
-// Desktop paging lives in CatalogResults and refetches through CatalogView.
+// Infinite catalog at every width: append pages as the sentinel nears the
+// viewport. There is no pager; a deep `?page=N` link still renders server-side
+// and scrolling continues from it.
 
 import {
   startTransition,
@@ -10,8 +11,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon } from '@/components/ui/icons';
 
 import {
   fetchCatalogPage,
@@ -24,14 +25,6 @@ import {
   catalogCoverDim,
 } from '@/components/listings/CatalogMosaic';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
-
-// THE SAME 768px SPLIT AS EVERYTHING ELSE. This was `(max-width: 1023px)` with
-// the status block below at `lg:hidden`, left over from when the desktop chrome
-// began at `lg`. It now begins at `md` (`useIsDesktop`, the pager's `md:flex`),
-// so between 768 and 1023px the page drew the desktop pager AND kept appending
-// pages under it from the sentinel: the grid grew beneath a "Page 1 of N" bar,
-// with a "Load more" button stacked above it.
-const MOBILE_MAX = '(max-width: 767px)';
 
 /** Hoisted: these are inputs to the mosaic's column balance, which is memoised. */
 const itemKey = (item: CatalogItem) => item.id;
@@ -120,6 +113,7 @@ export function CatalogInfiniteGrid({
   );
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
   const inFlightRef = useRef(false);
   // Pages already merged into `items` — blocks Strict Mode double-fetch of
   // the same next page before state commits.
@@ -137,7 +131,6 @@ export function CatalogInfiniteGrid({
   loadMoreRef.current = async (opts) => {
     const { page: currentPage, hasMore: canLoad, query: q } = stateRef.current;
     if (inFlightRef.current || !canLoad) return;
-    if (!opts?.force && !window.matchMedia(MOBILE_MAX).matches) return;
 
     const nextPage = currentPage + 1;
     if (!opts?.force && loadedPagesRef.current.has(nextPage)) return;
@@ -197,7 +190,7 @@ export function CatalogInfiniteGrid({
   };
 
   // Only `revision` — a new watchingIds array on an unrelated parent render
-  // must not forget pages already appended on mobile.
+  // must not forget pages already appended.
   useEffect(() => {
     loadedPagesRef.current = new Set([initialPage]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -220,8 +213,24 @@ export function CatalogInfiniteGrid({
     );
 
     observer.observe(node);
-    return () => observer.disconnect();
+    observerRef.current = observer;
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
   }, []);
+
+  // An observer only fires when intersection CHANGES. On a tall desktop
+  // viewport the sentinel can still be in range after a page lands, so nothing
+  // would fire and the grid would stop short. Re-observing delivers a fresh
+  // entry for the current position, which loads the next page if still needed.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    const observer = observerRef.current;
+    if (!node || !observer || !hasMore || loadingMore || error) return;
+    observer.unobserve(node);
+    observer.observe(node);
+  }, [items, hasMore, loadingMore, error]);
 
   return (
     <>
@@ -241,8 +250,9 @@ export function CatalogInfiniteGrid({
         )}
       </CatalogMosaic>
 
-      {/* Sentinel + status — mobile only; desktop uses the page nav below. */}
-      <div className="md:hidden">
+      {/* Sentinel + status. The button is the fallback when the observer has
+          not fired (or to retry after a failure). */}
+      <div>
         <div ref={sentinelRef} className="h-px w-full" aria-hidden="true" />
         {hasMore && !loadingMore && !error ? (
           <button
@@ -257,7 +267,7 @@ export function CatalogInfiniteGrid({
           <div className="flex flex-col items-center gap-snug py-6" aria-live="polite">
             {loadingMore ? (
               <p className="flex items-center gap-snug text-body text-muted-foreground">
-                <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden="true" />
+                <Icon icon={CircleNotchIcon} className="size-4 animate-spin" aria-hidden="true" />
                 Loading more…
               </p>
             ) : null}

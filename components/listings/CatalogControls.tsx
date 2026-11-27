@@ -10,14 +10,14 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
+  CaretRightIcon,
   CheckIcon,
-  ChevronRightIcon,
-  GemIcon,
-  HotPriceIcon,
-  SparklesIcon,
-} from '@hugeicons/core-free-icons';
+  CoinsIcon,
+  DiamondIcon,
+  SparkleIcon,
+} from '@/components/ui/icons';
 
 import { DesktopOnly, MobileOnly } from '@/components/layout/Breakpoint';
 import { subscribeCatalogFilters } from '@/lib/catalog/browseEvents';
@@ -398,7 +398,7 @@ function CatalogPropertyRows({
         active={current.conditions.length > 0}
         open={open === 'condition'}
         onClick={() => toggle('condition')}
-        icon={GemIcon}
+        icon={DiamondIcon}
       >
         <div className="flex flex-col gap-tight">
           {ITEM_CONDITIONS.map((condition) => (
@@ -418,7 +418,7 @@ function CatalogPropertyRows({
         active={priceStopsActive(priceStops, topStop)}
         open={open === 'price'}
         onClick={() => toggle('price')}
-        icon={HotPriceIcon}
+        icon={CoinsIcon}
       >
         <div className="border-t border-border pt-group">
           <div className="mb-cozy text-body font-semibold tabular-nums">{priceRangeLabel}</div>
@@ -440,7 +440,7 @@ function CatalogPropertyRows({
         active={current.includeSold || current.includeReserved}
         open={open === 'showing'}
         onClick={() => toggle('showing')}
-        icon={SparklesIcon}
+        icon={SparkleIcon}
       >
         <div className="flex flex-col gap-tight">
           <FilterCheckRow
@@ -485,10 +485,10 @@ function CatalogPropertyRow({
   active: boolean;
   open: boolean;
   onClick: () => void;
-  icon: typeof GemIcon;
+  icon: typeof DiamondIcon;
   children: ReactNode;
 }) {
-  const Icon = icon;
+  const Glyph = icon;
   return (
     // THE LABEL IS INK, LIKE THE NAV ROWS ABOVE IT. Label, value, icon and chevron
     // were all `muted-foreground`, so the whole filter block read as disabled. The
@@ -510,7 +510,7 @@ function CatalogPropertyRow({
           !open && 'hover:bg-muted/70',
         )}
       >
-        <HugeiconsIcon icon={Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+        <Icon icon={Glyph} className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
         <span className="text-body font-medium text-foreground/85">{label}</span>
         <span
           className={cn(
@@ -520,8 +520,8 @@ function CatalogPropertyRow({
         >
           {value}
         </span>
-        <HugeiconsIcon
-          icon={ChevronRightIcon}
+        <Icon
+          icon={CaretRightIcon}
           className={cn(
             'size-3.5 shrink-0 text-muted-foreground transition-transform',
             open && 'rotate-90',
@@ -761,7 +761,7 @@ function FilterCheckRow({
         )}
         aria-hidden="true"
       >
-        {pressed ? <HugeiconsIcon icon={CheckIcon} className="size-3" strokeWidth={3} /> : null}
+        {pressed ? <Icon icon={CheckIcon} className="size-3" /> : null}
       </span>
       <span className="min-w-0 flex-1 truncate">{label}</span>
     </button>

@@ -1,7 +1,7 @@
 import type { ComponentProps, ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronLeftIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -58,7 +58,7 @@ export function MobileChromeBack({
         className,
       )}
     >
-      <HugeiconsIcon icon={ChevronLeftIcon} className="size-6" strokeWidth={1.75} aria-hidden />
+      <Icon icon={CaretLeftIcon} className="size-6" aria-hidden />
     </Link>
   );
 }

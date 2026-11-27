@@ -15,8 +15,8 @@
 // every option is one full-width row with its numbers aligned on the right where they
 // can be compared at a glance.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { BankIcon, CreditCardIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { BankIcon, CreditCardIcon } from '@/components/ui/icons';
 
 import {
   paymentMethodDefinition,
@@ -89,7 +89,7 @@ export function PayMethodOptions({
             />
             <span className="min-w-0 flex-1 space-y-tight">
               <span className="flex flex-wrap items-center gap-x-snug">
-                <HugeiconsIcon
+                <Icon
                   icon={method === 'CARD' ? CreditCardIcon : BankIcon}
                   className="size-5 shrink-0 text-primary"
                   aria-hidden

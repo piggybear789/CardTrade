@@ -19,15 +19,15 @@ import {
   type ReactNode,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  AlertCircleIcon,
-  Cancel01Icon,
-  CheckmarkCircle02Icon,
-  Copy01Icon,
-  ImageAdd01Icon,
-  MinusSignCircleIcon,
-} from '@hugeicons/core-free-icons';
+  CameraPlusIcon,
+  CheckCircleIcon,
+  CopyIcon,
+  MinusCircleIcon,
+  WarningCircleIcon,
+  XIcon,
+} from '@/components/ui/icons';
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { platformTint } from '@/components/references/referenceLabels';
@@ -577,9 +577,9 @@ function Month() {
 
 /** Each choice's mark, matching `SentimentBadge` and the counts above a graph. */
 const SENTIMENT_ICON = {
-  POSITIVE: { icon: CheckmarkCircle02Icon, tint: 'text-trust' },
-  NEUTRAL: { icon: MinusSignCircleIcon, tint: 'text-action-foreground' },
-  NEGATIVE: { icon: AlertCircleIcon, tint: 'text-destructive' },
+  POSITIVE: { icon: CheckCircleIcon, tint: 'text-trust' },
+  NEUTRAL: { icon: MinusCircleIcon, tint: 'text-action-foreground' },
+  NEGATIVE: { icon: WarningCircleIcon, tint: 'text-destructive' },
 } as const satisfies Record<ReferenceSentiment, unknown>;
 
 /**
@@ -603,7 +603,7 @@ function Outcome() {
               onClick={() => setSentiment(s.slug)}
               className="justify-center"
             >
-              <HugeiconsIcon icon={icon} className={cn('size-4', tint)} aria-hidden />
+              <Icon icon={icon} className={cn('size-4', tint)} aria-hidden />
               <span className="truncate">{s.label}</span>
             </OptionButton>
           );
@@ -689,7 +689,7 @@ function ImageField() {
           disabled={uploadingProof || proofNames.length >= PROOF_LIMIT}
           onClick={() => fileInput.current?.click()}
         >
-          <HugeiconsIcon icon={ImageAdd01Icon} aria-hidden />
+          <Icon icon={CameraPlusIcon} aria-hidden />
           {uploadingProof
             ? 'Uploading…'
             : proofNames.length > 0
@@ -709,7 +709,7 @@ function ImageField() {
               aria-label={`Remove ${name}`}
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
-              <HugeiconsIcon icon={Cancel01Icon} className="size-3" aria-hidden />
+              <Icon icon={XIcon} className="size-3" aria-hidden />
             </button>
           </span>
         ))}
@@ -797,7 +797,7 @@ export function CopyReferenceLink({ returnPath, className }: { returnPath: strin
   };
   return (
     <Button variant="outline" className={cn('shrink-0', className)} onClick={copy}>
-      <HugeiconsIcon icon={Copy01Icon} className="size-3.5" aria-hidden />
+      <Icon icon={CopyIcon} className="size-3.5" aria-hidden />
       {copied ? 'Copied link' : 'Share reference link'}
     </Button>
   );

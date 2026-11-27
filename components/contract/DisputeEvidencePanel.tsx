@@ -60,16 +60,14 @@
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import Image from 'next/image';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
+  CheckIcon,
   EyeIcon,
   LockIcon,
-  PaperclipIcon,
   PlusIcon,
-  SendHorizontalIcon,
-  ShieldAlertIcon,
   XIcon,
-} from '@hugeicons/core-free-icons';
+} from '@/components/ui/icons';
 
 import { PendingLabel } from '@/components/ui/pending-label';
 import {
@@ -118,15 +116,6 @@ export interface DisputeEvidencePanelProps {
    * here would mean this component knowing which flow it is in.
    */
   resolution?: ReactNode;
-}
-
-/** A small tinted label inside the claim card. */
-function ClaimChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex items-center rounded-sm border border-destructive/30 bg-card px-snug py-0.5 text-meta font-medium text-destructive">
-      {children}
-    </span>
-  );
 }
 
 /** One attachment, rendered as a thumbnail or a video frame. */
@@ -239,6 +228,48 @@ function EvidenceEntry({ entry }: { entry: DisputeEvidenceEntry }) {
   );
 }
 
+/** One row of the evidence checklist: a tick, what is needed, and its control. */
+function ChecklistRow({
+  done,
+  title,
+  hint,
+  action,
+  children,
+}: {
+  done: boolean;
+  title: string;
+  hint?: string;
+  action?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <li className="flex gap-cozy p-cozy">
+      <span
+        className={cn(
+          'mt-0.5 grid size-5 shrink-0 place-items-center rounded-full',
+          done ? 'bg-foreground text-background' : 'border border-border bg-card',
+        )}
+        aria-hidden
+      >
+        {done ? <Icon icon={CheckIcon} className="size-3" /> : null}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-cozy">
+          <div className="min-w-0">
+            <p className="font-semibold">
+              {title}
+              <span className="sr-only">{done ? ' (done)' : ' (to do)'}</span>
+            </p>
+            {hint ? <p className="text-meta text-muted-foreground">{hint}</p> : null}
+          </div>
+          {action ? <div className="shrink-0">{action}</div> : null}
+        </div>
+        {children}
+      </div>
+    </li>
+  );
+}
+
 export function DisputeEvidencePanel({
   caseKind,
   caseRef,
@@ -259,6 +290,8 @@ export function DisputeEvidencePanel({
   // Open when there is nothing on file yet — the form is the empty state then. Once the
   // record has entries it folds behind a button; see the header note.
   const [composerOpen, setComposerOpen] = useState(entries.length === 0);
+  // Whether the "What happened" box is open (opened by its Write button).
+  const [writing, setWriting] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [draftReady, setDraftReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -367,32 +400,24 @@ export function DisputeEvidencePanel({
     <div className="space-y-section">
       {/* THE CLAIM. The one surface on the tab, because it is the subject of the tab. */}
       {disputeReason ? (
-        <section
-          aria-labelledby="dispute-claim-heading"
-          className="rounded-lg border border-destructive/30 bg-destructive/[0.06] p-group"
-        >
-          <div className="flex flex-wrap items-center gap-snug">
-            <h3
-              id="dispute-claim-heading"
-              className="inline-flex items-center gap-tight text-meta font-semibold uppercase tracking-wide text-destructive"
-            >
-              <HugeiconsIcon icon={ShieldAlertIcon} className="size-4 shrink-0" aria-hidden />
-              Dispute opened
-            </h3>
-            {raisedByName ? <ClaimChip>Raised by {raisedByName}</ClaimChip> : null}
-            {stamped && disputedAt ? (
-              <time dateTime={disputedAt} className="text-meta tabular-nums text-muted-foreground">
-                {stamped}
-              </time>
-            ) : null}
-          </div>
-          {/* `text-body font-medium`, not a heading size. This is a member's own
-              sentence being quoted; the eyebrow, chip and tint already say it is the
-              claim, and setting free text at 17px semibold made a four-word reason
-              shout. Weight alone lifts it off the chrome around it. */}
-          <blockquote className="mt-snug whitespace-pre-line break-words text-pretty text-body font-medium">
-            {disputeReason}
+        {/* MINIMAL (2026-11-27): no tint, no icon, no chip. The quote is the
+            subject; who and when are one grey line under it. */}
+        <section aria-labelledby="dispute-claim-heading" className="border-b pb-group">
+          <h3 id="dispute-claim-heading" className="sr-only">
+            The claim
+          </h3>
+          <blockquote className="whitespace-pre-line break-words text-pretty text-lead font-medium">
+            “{disputeReason}”
           </blockquote>
+          <p className="mt-tight text-meta text-muted-foreground" suppressHydrationWarning>
+            {raisedByName ? `Raised by ${raisedByName}` : 'Dispute raised'}
+            {stamped && disputedAt ? (
+              <>
+                {', '}
+                <time dateTime={disputedAt} className="tabular-nums">{stamped}</time>
+              </>
+            ) : null}
+          </p>
         </section>
       ) : null}
 
@@ -411,7 +436,7 @@ export function DisputeEvidencePanel({
             ) : null}
           </h3>
           <span className="inline-flex items-center gap-tight text-meta text-muted-foreground">
-            <HugeiconsIcon icon={EyeIcon} className="size-3.5 shrink-0" aria-hidden />
+            <Icon icon={EyeIcon} className="size-3.5 shrink-0" aria-hidden />
             Shared with both &amp; staff
           </span>
         </div>
@@ -430,164 +455,164 @@ export function DisputeEvidencePanel({
         {canSubmit ? (
           composerOpen ? (
             <form
-              className={cn(
-                'space-y-group rounded-lg border border-border bg-card p-cozy',
-                entries.length > 0 ? 'mt-snug' : 'mt-cozy',
-              )}
+              className={cn('space-y-cozy', entries.length > 0 ? 'mt-snug' : 'mt-cozy')}
               aria-labelledby="submit-heading"
               onSubmit={(event) => {
                 event.preventDefault();
-                // A confirmation, not a filing. This is the one irreversible control
-                // in the room, and it used to be the only one that fired on a single
-                // click while the reversible ones asked twice.
+                // A confirmation, not a filing: the one irreversible control here.
                 if (ready) setConfirming(true);
               }}
             >
+              {/* A CHECKLIST (UX review 2026-11-27, Upwork's "action required"): what
+                  support needs, one row each, ticked when done. Worded for any item,
+                  not only cards. Photos are optional; the account is required. */}
               <div className="flex items-center justify-between gap-cozy">
                 <h4 id="submit-heading" className="text-body font-semibold">
-                  Your account
+                  What support needs from you
                 </h4>
                 {entries.length > 0 ? (
                   <button
                     type="button"
                     onClick={() => setComposerOpen(false)}
                     disabled={busy}
-                    className="grid size-8 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:border-ring"
+                    className="grid size-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     aria-label="Close"
                   >
-                    <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+                    <Icon icon={XIcon} className="size-4" aria-hidden />
                   </button>
                 ) : null}
               </div>
 
-              <div>
-                <label htmlFor="evidence-statement" className="sr-only">
-                  What happened, in your words
-                </label>
-                {/* The count lives inside the field's own border rather than floating
-                    under it, so the control reads as one object. */}
-                {/* `bg-card`, matching `Textarea`. `bg-background` is the tinted page
-                    colour and inside a white card it read as a lilac wash. */}
-                <div className="rounded-md border border-input bg-card transition-colors focus-within:border-ring">
-                  <textarea
-                    ref={statementRef}
-                    id="evidence-statement"
-                    value={statement}
-                    maxLength={EVIDENCE_STATEMENT_MAX}
-                    onChange={(event) => setStatement(event.target.value)}
-                    rows={4}
-                    placeholder="What happened, with dates"
-                    disabled={busy}
-                    aria-describedby="evidence-statement-count"
-                    className="block w-full resize-y bg-transparent px-cozy py-cozy text-body placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
-                  />
-                  <div className="flex items-center justify-between gap-cozy border-t px-cozy py-snug">
-                    {/* Attach lives in the field's footer with the count: one compound
-                        control rather than a field, then a heading, then a button. */}
-                    <input
-                      ref={fileInputRef}
-                      id="evidence-files"
-                      type="file"
-                      accept={EVIDENCE_ACCEPT}
-                      multiple
-                      onChange={pickFiles}
-                      disabled={busy || files.length >= EVIDENCE_FILES_MAX}
-                      className="sr-only"
-                    />
-                    <button
+              <input
+                ref={fileInputRef}
+                id="evidence-files"
+                type="file"
+                accept={EVIDENCE_ACCEPT}
+                multiple
+                onChange={pickFiles}
+                disabled={busy || files.length >= EVIDENCE_FILES_MAX}
+                className="sr-only"
+              />
+
+              <ul className="divide-y divide-border/60 rounded-lg border">
+                <ChecklistRow
+                  done={files.length > 0}
+                  title="Photos or video of what you received"
+                  hint={files.length > 0 ? `${files.length} of ${EVIDENCE_FILES_MAX} added` : 'Show the problem clearly. Optional, but it helps'}
+                  action={
+                    <Button
                       type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={busy || files.length >= EVIDENCE_FILES_MAX}
-                      className="inline-flex items-center gap-tight rounded-md border border-transparent text-body font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50"
                     >
-                      <HugeiconsIcon icon={PaperclipIcon} className="size-4" aria-hidden />
-                      Photos or video
-                      <span className="tabular-nums text-muted-foreground">
-                        {files.length}/{EVIDENCE_FILES_MAX}
-                      </span>
-                    </button>
-                    <span
-                      id="evidence-statement-count"
-                      className={cn(
-                        'text-meta tabular-nums',
-                        remaining < 100 ? 'text-destructive' : 'text-muted-foreground',
-                      )}
-                    >
-                      {statement.length.toLocaleString()}/{EVIDENCE_STATEMENT_MAX.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                {files.length > 0 ? (
-                  <ul className="mt-snug flex flex-wrap gap-snug">
-                    {files.map((file, index) => (
-                      <li
-                        key={`${file.name}-${index}`}
-                        className="inline-flex max-w-full items-center gap-tight rounded-md border bg-muted py-tight pl-snug pr-tight text-meta"
-                      >
-                        <span className="truncate">{file.name}</span>
-                        <span className="shrink-0 tabular-nums text-muted-foreground">
-                          {(file.size / (1024 * 1024)).toFixed(1)} MB
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => removeFile(index)}
-                          disabled={busy}
-                          className="flex size-5 shrink-0 items-center justify-center rounded-sm border border-transparent text-muted-foreground transition-colors hover:bg-border hover:text-foreground focus:outline-none focus-visible:border-ring"
-                          aria-label={`Remove ${file.name}`}
+                      Add
+                    </Button>
+                  }
+                >
+                  {files.length > 0 ? (
+                    <ul className="mt-snug flex flex-wrap gap-snug">
+                      {files.map((file, index) => (
+                        <li
+                          key={`${file.name}-${index}`}
+                          className="inline-flex max-w-full items-center gap-tight rounded-md border bg-card py-tight pl-snug pr-tight text-meta"
                         >
-                          <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
+                          <span className="truncate">{file.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(index)}
+                            disabled={busy}
+                            className="flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-border hover:text-foreground"
+                            aria-label={`Remove ${file.name}`}
+                          >
+                            <Icon icon={XIcon} className="size-3.5" aria-hidden />
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </ChecklistRow>
 
+                <ChecklistRow done title="The listing" hint="Its photos and description are already on the contract" />
+
+                <ChecklistRow
+                  done={longEnough}
+                  title="What happened"
+                  hint={`A few sentences, with dates. At least ${EVIDENCE_STATEMENT_MIN} characters`}
+                  action={
+                    writing || statement ? null : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setWriting(true);
+                          requestAnimationFrame(() => statementRef.current?.focus());
+                        }}
+                      >
+                        Write
+                      </Button>
+                    )
+                  }
+                >
+                  {writing || statement ? (
+                    <div className="mt-snug rounded-md border border-input bg-card focus-within:border-ring">
+                      <label htmlFor="evidence-statement" className="sr-only">
+                        What happened, in your words
+                      </label>
+                      <textarea
+                        ref={statementRef}
+                        id="evidence-statement"
+                        value={statement}
+                        maxLength={EVIDENCE_STATEMENT_MAX}
+                        onChange={(event) => setStatement(event.target.value)}
+                        rows={4}
+                        placeholder="What happened, with dates"
+                        disabled={busy}
+                        aria-describedby="evidence-statement-count"
+                        className="block w-full resize-y bg-transparent px-cozy py-snug text-body placeholder:text-muted-foreground focus:outline-none disabled:opacity-60"
+                      />
+                      <p
+                        id="evidence-statement-count"
+                        className={cn(
+                          'px-cozy pb-tight text-right text-meta tabular-nums',
+                          remaining < 100 ? 'text-destructive' : 'text-muted-foreground',
+                        )}
+                      >
+                        {statement.length.toLocaleString()}/{EVIDENCE_STATEMENT_MAX.toLocaleString()}
+                      </p>
+                    </div>
+                  ) : null}
+                </ChecklistRow>
+              </ul>
 
               <div className="flex flex-wrap items-center justify-between gap-cozy">
-                {/* Finality is the surprising part of this form, so it sits beside the
-                    button that makes it final, not in a heading above the field. */}
                 <p className="inline-flex items-center gap-tight text-meta text-muted-foreground">
-                  <HugeiconsIcon icon={LockIcon} className="size-3.5 shrink-0" aria-hidden />
-                  Final once submitted
+                  <Icon icon={LockIcon} className="size-3.5 shrink-0" aria-hidden />
+                  Shared with the other party and support. Final once submitted
                 </p>
-                <div className="flex items-center gap-cozy">
-                  {/* Says WHY the button is disabled. The minimum is a real server-side
-                      rule, so a dead button alone would be misleading once a member has
-                      typed two words. */}
-                  {!busy && !longEnough && trimmed.length > 0 ? (
-                    <span className="text-meta text-muted-foreground">
-                      At least {EVIDENCE_STATEMENT_MIN} characters
-                    </span>
-                  ) : null}
-                  <Button type="submit" size="xs" disabled={!ready} aria-busy={busy}>
-                    <PendingLabel
-                      pending={busy}
-                      pendingLabel={uploading ? 'Uploading…' : 'Submitting…'}
-                    >
-                      <HugeiconsIcon icon={SendHorizontalIcon} aria-hidden />
-                      Submit
-                    </PendingLabel>
-                  </Button>
-                </div>
+                <Button type="submit" size="sm" disabled={!ready} aria-busy={busy}>
+                  <PendingLabel pending={busy} pendingLabel={uploading ? 'Uploading…' : 'Submitting…'}>
+                    Submit evidence
+                  </PendingLabel>
+                </Button>
               </div>
             </form>
           ) : (
             <Button
               type="button"
-              variant="outline"
               size="sm"
               onClick={openComposer}
               className="mt-cozy w-full sm:w-auto"
             >
-              <HugeiconsIcon icon={PlusIcon} aria-hidden />
+              <Icon icon={PlusIcon} aria-hidden />
               Add your account
             </Button>
           )
         ) : (
           <p className="mt-cozy inline-flex items-center gap-tight text-meta text-muted-foreground">
-            <HugeiconsIcon icon={LockIcon} className="size-3.5 shrink-0" aria-hidden />
+            <Icon icon={LockIcon} className="size-3.5 shrink-0" aria-hidden />
             Closed
           </p>
         )}

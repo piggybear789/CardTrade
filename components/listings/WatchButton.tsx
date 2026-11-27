@@ -18,8 +18,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HeartIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { HeartIcon } from '@/components/ui/icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { Button } from '@/components/ui/button';
@@ -139,9 +139,8 @@ export function WatchButton({
             filled the heart with the winner: black on the catalog, grey on the
             listing bar, red only where nobody passed a colour. A class on the svg
             is outside that merge, so a saved heart is red on every surface. */}
-        <HugeiconsIcon icon={HeartIcon}
+        <Icon icon={HeartIcon}
           className={cn('size-3.5', watching && 'fill-destructive text-destructive')}
-          strokeWidth={1.75}
           aria-hidden
         />
         {shown > 0 ? (
@@ -164,7 +163,7 @@ export function WatchButton({
       aria-pressed={watching}
       aria-busy={isPending}
     >
-      <HugeiconsIcon icon={HeartIcon}
+      <Icon icon={HeartIcon}
         className={cn(watching && 'fill-destructive text-destructive')}
         aria-hidden
       />

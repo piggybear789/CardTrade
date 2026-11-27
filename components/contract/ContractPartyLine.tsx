@@ -10,8 +10,8 @@
 // on the Item seller block.
 
 import { useState, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronDownIcon, ShieldCheckIcon, StarIcon, UserPlusIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretDownIcon, ShieldCheckIcon, StarIcon, UserPlusIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 import type { ContractParty } from './types';
@@ -33,7 +33,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
       <span className="truncate text-body font-medium">
         {isMe ? 'You' : party.name}
       </span>
-      <HugeiconsIcon icon={ShieldCheckIcon}
+      <Icon icon={ShieldCheckIcon}
         className={cn(
           'size-3.5 shrink-0',
           party.verified ? 'text-trust' : 'text-iris-ink',
@@ -45,7 +45,7 @@ function PartyChip({ party, isMe }: { party: ContractParty; isMe: boolean }) {
       </span>
       {party.rating === null ? null : (
         <span className="flex shrink-0 items-center gap-0.5 text-meta text-muted-foreground">
-          <HugeiconsIcon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden />
+          <Icon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden />
           {Number(party.rating).toFixed(1)}
         </span>
       )}
@@ -79,14 +79,14 @@ export function ContractPartyStats({
         party.verified ? 'text-trust' : 'text-iris-ink',
       )}
     >
-      <HugeiconsIcon icon={ShieldCheckIcon} className="size-3 shrink-0" aria-hidden />
+      <Icon icon={ShieldCheckIcon} className="size-3 shrink-0" aria-hidden />
       {party.verified ? 'Identity verified' : 'Unverified'}
     </span>,
     party.rating === null ? (
       <span className="text-muted-foreground">New to NoDitto</span>
     ) : (
       <span className="inline-flex items-center gap-tight">
-        <HugeiconsIcon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden />
+        <Icon icon={StarIcon} className="size-3 fill-iris text-iris-ink" aria-hidden />
         <span className="font-medium tabular-nums">
           {Number(party.rating).toFixed(1)}
         </span>
@@ -225,7 +225,7 @@ export function ContractPartyLine({
           <PartyChip party={them} isMe={false} />
         ) : (
           <span className="flex min-w-0 items-center gap-tight text-body text-muted-foreground">
-            <HugeiconsIcon icon={UserPlusIcon} className="size-3.5 shrink-0" aria-hidden />
+            <Icon icon={UserPlusIcon} className="size-3.5 shrink-0" aria-hidden />
             Open seat
           </span>
         )}
@@ -237,7 +237,7 @@ export function ContractPartyLine({
             className="ml-auto flex shrink-0 items-center gap-0.5 rounded-sm px-tight py-0.5 text-body text-muted-foreground hover:text-foreground border border-transparent focus:outline-none focus-visible:border-ring"
           >
             Details
-            <HugeiconsIcon icon={ChevronDownIcon}
+            <Icon icon={CaretDownIcon}
               className={cn('size-3 transition-transform', expanded && 'rotate-180')}
               aria-hidden
             />

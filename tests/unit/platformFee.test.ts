@@ -198,9 +198,15 @@ describe('fee labels', () => {
     expect(feeLabels.processingFeeRateLabel('usd', 'BANK_TRANSFER')).toBe('3%');
     expect(feeLabels.nodittoFeeRateLabel()).toBe('2%');
     expect(feeLabels.processingFeeExplanation('aud')).toContain('4% of the price');
-    expect(feeLabels.processingFeeExplanation('aud')).toContain('NoDitto keeps about 2%');
-    expect(feeLabels.PROCESSING_FEE_HINT).toContain('NoDitto keeps about 2%');
-    expect(feeLabels.termsFeeSentence()).toContain('NoDitto keeps about 2%');
+    // Member copy never discloses NoDitto's margin or Stripe's share (2026-11-28).
+    for (const copy of [
+      feeLabels.processingFeeExplanation('aud'),
+      feeLabels.processingFeeShortNote('aud'),
+      feeLabels.PROCESSING_FEE_HINT,
+      feeLabels.termsFeeSentence(),
+    ]) {
+      expect(copy).not.toMatch(/NoDitto keeps|goes to Stripe/);
+    }
   });
 
   it('names only the card tiers that are actually dearer', () => {

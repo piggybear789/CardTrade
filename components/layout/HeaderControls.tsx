@@ -28,9 +28,11 @@ export const HEADER_ICON_BUTTON = cn(
   'data-[state=open]:bg-accent',
 );
 
-/** The icon glyph inside {@link HEADER_ICON_BUTTON}: 22px, a slightly firmer stroke. */
+/**
+ * The icon glyph inside {@link HEADER_ICON_BUTTON}: 22px, so `<Icon>` draws it in the
+ * regular cut, a 1.4px line (the old `HEADER_ICON_STROKE` 1.75 nudge is not needed).
+ */
 export const HEADER_ICON_GLYPH = 'size-[1.375rem]';
-export const HEADER_ICON_STROKE = 1.75;
 
 /**
  * The Sell button. `lg` and up only: between `md` and `lg` the search is already at

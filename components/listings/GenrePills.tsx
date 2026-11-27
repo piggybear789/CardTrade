@@ -13,8 +13,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretDownIcon, CaretUpIcon } from '@/components/ui/icons';
 
 import { GameIcon } from '@/components/listings/GameIcon';
 import {
@@ -258,9 +258,9 @@ function MobileGenreStrip({
           )}
         >
           {allOpen ? (
-            <HugeiconsIcon icon={ChevronUpIcon} className="size-5" strokeWidth={1.75} aria-hidden />
+            <Icon icon={CaretUpIcon} className="size-5" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={ChevronDownIcon} className="size-5" strokeWidth={1.75} aria-hidden />
+            <Icon icon={CaretDownIcon} className="size-5" aria-hidden />
           )}
         </button>
       </div>
@@ -455,9 +455,9 @@ function DesktopGenrePills({
               className="absolute right-0 top-1 z-10 flex size-9 items-center justify-center rounded-md bg-card text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring aria-expanded:bg-accent aria-expanded:text-foreground"
             >
               {open ? (
-                <HugeiconsIcon icon={ChevronUpIcon} className="size-4" strokeWidth={1.75} aria-hidden />
+                <Icon icon={CaretUpIcon} className="size-4" aria-hidden />
               ) : (
-                <HugeiconsIcon icon={ChevronDownIcon} className="size-4" strokeWidth={1.75} aria-hidden />
+                <Icon icon={CaretDownIcon} className="size-4" aria-hidden />
               )}
             </button>
           </PopoverTrigger>

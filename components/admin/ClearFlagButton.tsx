@@ -10,8 +10,8 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkCircle02Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckCircleIcon, CircleNotchIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { clearTradeReconciliationFlag } from '@/lib/actions/admin';
@@ -52,9 +52,9 @@ export function ClearFlagButton({ tradeId }: ClearFlagButtonProps) {
       aria-busy={isPending}
     >
       {isPending ? (
-        <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+        <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
       ) : (
-        <HugeiconsIcon icon={CheckmarkCircle02Icon} aria-hidden />
+        <Icon icon={CheckCircleIcon} aria-hidden />
       )}
       Clear flag
     </Button>

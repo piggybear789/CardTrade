@@ -604,6 +604,8 @@ export async function acceptTradeItem(page: Page): Promise<void> {
 /** `ContractHoldList` badge labels, read back to `hold_status`. */
 const HOLD_STATUS_BY_LABEL: Readonly<Record<string, string>> = {
   Active: 'ACTIVE',
+  // The trade Collateral tab calls a live hold "Held" (2026-11-27).
+  Held: 'ACTIVE',
   Released: 'VOIDED',
   'Partially captured': 'PARTIALLY_CAPTURED',
   'Fully captured': 'FULLY_CAPTURED',

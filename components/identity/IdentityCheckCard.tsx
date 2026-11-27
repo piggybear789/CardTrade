@@ -17,8 +17,13 @@
 // closed, so its copy can finally say "photo ID" honestly.
 
 import { useState, useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { BadgeCheckIcon, LoaderCircleIcon, ShieldAlertIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  CircleNotchIcon,
+  SealCheckIcon,
+  ShieldCheckIcon,
+  ShieldWarningIcon,
+} from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { beginIdentityCheck } from '@/lib/actions/identity';
@@ -109,7 +114,7 @@ export function IdentityCheckCard({
       <div className="space-y-group">
         {status === 'FAILED' ? (
           <p className="flex gap-snug text-body text-destructive">
-            <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <Icon icon={ShieldWarningIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
             {/* Retryable, and said so. A document check fails for a blurry photo far
                 more often than for anything sinister, and a dead end reads as a ban. */}
             That document could not be verified. You can try again.
@@ -130,9 +135,9 @@ export function IdentityCheckCard({
 
         <Button type="button" onClick={start} disabled={isPending} aria-busy={isPending}>
           {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+            <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={BadgeCheckIcon} className="size-3.5" aria-hidden />
+            <Icon icon={SealCheckIcon} className="size-3.5" aria-hidden />
           )}
           {status === 'NONE' ? 'Verify with Stripe' : 'Try again'}
         </Button>
@@ -162,7 +167,7 @@ export function IdentityCheckCard({
         <div className="flex flex-col items-start gap-snug sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-snug text-lead">
-              <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+              <Icon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
               Identity
             </CardTitle>
             <CardDescription>Required before you can list, sell, or trade.</CardDescription>

@@ -12,8 +12,8 @@
 // the room updates by itself (webhook and Realtime).
 
 import { useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Copy01Icon, Tick02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, CopyIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ function CopyRow({ label, value, emphasise = false }: { label: string; value: st
           }
         }}
       >
-        <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} className="size-4" aria-hidden />
+        <Icon icon={copied ? CheckIcon : CopyIcon} className="size-4" aria-hidden />
       </Button>
     </div>
   );

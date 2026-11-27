@@ -47,6 +47,11 @@ export interface ContractDetailRowProps {
   explainer?: string;
   /** DOM id used by action-card focus links. */
   id?: string;
+  /**
+   * Other focus ids this row answers to. A merged tab (Summary holds what were the
+   * Item, Terms and Status tabs) keeps every old focus link working.
+   */
+  aliases?: string[];
   /** When true, this row is selected by default on mount. */
   defaultOpen?: boolean;
   /** Colour variant for the tab label. `destructive` renders in red. */
@@ -122,7 +127,9 @@ export function ContractDetailList({
   const { focusedId } = useContractFocus();
   const tabsId = useId();
   const focusedIndex = focusedId
-    ? rows.findIndex((row) => row.props.id === focusedId)
+    ? rows.findIndex(
+        (row) => row.props.id === focusedId || (row.props.aliases?.includes(focusedId) ?? false),
+      )
     : -1;
   const storedIndex = rows.findIndex((row, index) => rowKey(row, index) === activeKey);
   const activeIndex = focusedIndex >= 0 ? focusedIndex : Math.max(storedIndex, 0);
@@ -294,7 +301,9 @@ export function ContractDetailList({
                   in the document outline, so heading navigation keeps working.
                   The panel takes its accessible name from the tab button via
                   `aria-labelledby`, so nothing here is load-bearing for that. */}
-              <h3 className="sr-only font-display text-meta font-semibold uppercase tracking-wide text-muted-foreground md:not-sr-only">
+              {/* A real title again (2026-11-27), sentence case and dark, at every
+                  width. The old one was small grey caps that read as a label. */}
+              <h3 className="font-display text-lead font-semibold tracking-tight">
                 {activeRow.props.title ?? activeRow.props.label}
               </h3>
               {/* THE EXPLAINER IS THE FIRST LINE OF THE TAB, not a `?` beside
@@ -308,7 +317,7 @@ export function ContractDetailList({
                   flow, so this is the first thing in the box and has nothing to
                   be spaced from. */}
               {activeRow.props.explainer?.trim() ? (
-                <p className="text-pretty text-body text-muted-foreground md:mt-tight">
+                <p className="text-pretty text-body text-muted-foreground">
                   {activeRow.props.explainer}
                 </p>
               ) : null}
@@ -341,7 +350,8 @@ export function ContractDetailList({
                 on this box being height-constrained. */}
             <div
               className={cn(
-                'mt-cozy flex shrink-0 grow flex-col',
+                'flex shrink-0 grow flex-col',
+                'mt-cozy',
                 activeRow.props.contentClassName,
               )}
             >

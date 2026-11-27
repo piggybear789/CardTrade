@@ -19,8 +19,8 @@
 // which selects all of it on focus.
 
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, Copy01Icon, LockIcon, QrCodeIcon, Share08Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, CopyIcon, ExportIcon, LockIcon, QrCodeIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { DealLinkQr } from '@/components/deals/DealLinkQr';
@@ -103,7 +103,7 @@ export function DealLinkActions({
 
   const copyContent = (
     <>
-      <HugeiconsIcon icon={copied ? CheckIcon : Copy01Icon} aria-hidden />
+      <Icon icon={copied ? CheckIcon : CopyIcon} aria-hidden />
       {copied ? 'Copied' : 'Copy link'}
     </>
   );
@@ -122,7 +122,7 @@ export function DealLinkActions({
           className,
         )}
       >
-        <HugeiconsIcon icon={LockIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <Icon icon={LockIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         <input
           readOnly
           aria-label="Deal link"
@@ -143,7 +143,7 @@ export function DealLinkActions({
             aria-label="Share link"
             onClick={share}
           >
-            <HugeiconsIcon icon={Share08Icon} aria-hidden />
+            <Icon icon={ExportIcon} aria-hidden />
           </Button>
         ) : null}
         <DealLinkQr
@@ -156,7 +156,7 @@ export function DealLinkActions({
               className="size-8 shrink-0 active:translate-y-0 active:bg-transparent md:size-8"
               aria-label="Show QR code"
             >
-              <HugeiconsIcon icon={QrCodeIcon} aria-hidden />
+              <Icon icon={QrCodeIcon} aria-hidden />
             </Button>
           }
         />
@@ -192,7 +192,7 @@ export function DealLinkActions({
             aria-label="Share link"
             onClick={share}
           >
-            <HugeiconsIcon icon={Share08Icon} aria-hidden />
+            <Icon icon={ExportIcon} aria-hidden />
           </Button>
         ) : null}
         <DealLinkQr
@@ -205,7 +205,7 @@ export function DealLinkActions({
               className="size-9 shrink-0 md:size-9"
               aria-label="Show QR code"
             >
-              <HugeiconsIcon icon={QrCodeIcon} aria-hidden />
+              <Icon icon={QrCodeIcon} aria-hidden />
             </Button>
           }
         />
@@ -242,7 +242,7 @@ export function DealLinkActions({
         <div className={cn('grid min-w-0 flex-1 gap-snug', canShare ? 'grid-cols-2' : 'grid-cols-1')}>
         {canShare ? (
           <Button type="button" size="lg" className="md:hidden" onClick={share}>
-            <HugeiconsIcon icon={Share08Icon} aria-hidden />
+            <Icon icon={ExportIcon} aria-hidden />
             Share link
           </Button>
         ) : null}
@@ -260,7 +260,7 @@ export function DealLinkActions({
               {copyContent}
             </Button>
             <Button type="button" variant="outline" size="lg" className="max-md:hidden" onClick={share}>
-              <HugeiconsIcon icon={Share08Icon} aria-hidden />
+              <Icon icon={ExportIcon} aria-hidden />
               Share
             </Button>
           </>
@@ -270,7 +270,7 @@ export function DealLinkActions({
           path={path}
           trigger={
             <Button type="button" variant="outline" size="lg" className="shrink-0 px-cozy" aria-label="Show QR code">
-              <HugeiconsIcon icon={QrCodeIcon} aria-hidden />
+              <Icon icon={QrCodeIcon} aria-hidden />
               <span className="max-sm:sr-only">QR code</span>
             </Button>
           }

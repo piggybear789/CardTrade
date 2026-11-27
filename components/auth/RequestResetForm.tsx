@@ -16,8 +16,8 @@
 import { useState, useTransition } from 'react';
 import { BackLink } from '@/components/ui/back-link';
 import { useSearchParams } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, MailCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, EnvelopeSimpleOpenIcon } from '@/components/ui/icons';
 
 import { requestPasswordReset, resendConfirmation } from '@/lib/actions/auth';
 import { Button } from '@/components/ui/button';
@@ -69,7 +69,7 @@ export function RequestResetForm() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-snug text-subhead">
-            <HugeiconsIcon icon={MailCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+            <Icon icon={EnvelopeSimpleOpenIcon} className="size-4 shrink-0 text-trust" aria-hidden />
             Check your inbox
           </CardTitle>
           <CardDescription className="text-pretty">
@@ -141,7 +141,7 @@ export function RequestResetForm() {
           </div>
 
           <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
-            {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
+            {isPending ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : null}
             {isPending
               ? 'Sending…'
               : intent === 'reset'

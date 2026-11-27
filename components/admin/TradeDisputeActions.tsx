@@ -28,8 +28,8 @@
 // cash released (round-3 review #1).
 
 import { useState, useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ScaleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ScalesIcon, ShieldWarningIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { resolveTradeDispute, setDisputeCustodyScope } from '@/lib/actions/admin';
@@ -213,13 +213,13 @@ export function TradeDisputeActions({
   return (
     <div className="space-y-group rounded-lg border border-border bg-muted p-cozy">
       <p className="flex items-center gap-snug text-body font-medium">
-        <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <Icon icon={ScalesIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
 
       {fraudClaimedById ? (
         <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-body text-destructive">
-          <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <Icon icon={ShieldWarningIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
             {parties.find((p) => p.id === fraudClaimedById)?.name ?? 'A trader'} has
             alleged fraud. That is a claim, not a finding — decide it on the evidence.

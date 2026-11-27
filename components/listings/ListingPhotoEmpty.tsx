@@ -1,5 +1,5 @@
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Layers01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CardsIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -23,7 +23,7 @@ export function ListingPhotoEmpty({
         compact ? 'gap-0' : 'gap-snug px-6 text-center',
       )}
     >
-      <HugeiconsIcon icon={Layers01Icon}
+      <Icon icon={CardsIcon}
         className={compact ? 'size-6 opacity-40' : 'size-8 opacity-40'}
         aria-hidden
       />

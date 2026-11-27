@@ -29,16 +29,16 @@ import {
 } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  ArrowRight01Icon,
-  Cancel01Icon,
-  CheckmarkCircle02Icon,
-  Loading03Icon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  MagnifyingGlassIcon,
   PlusIcon,
-  Search01Icon,
-  UserGroupIcon,
-} from '@hugeicons/core-free-icons';
+  SpinnerGapIcon,
+  UsersThreeIcon,
+  XIcon,
+} from '@/components/ui/icons';
 
 import { PlatformChip } from '@/components/references/referenceLabels';
 import { Avatar } from '@/components/ui/avatar';
@@ -282,8 +282,8 @@ export function ReferenceSearch({
           references page's soft cool bloom under it (`.ref-surface`) and a 12px corner,
           so the page's one control sits on the page like its cards do. */}
       <div className="ref-surface group relative flex items-center rounded-md border border-input bg-card transition-[border-color,box-shadow] duration-300 focus-within:border-ring/50 focus-within:ring-[3px] focus-within:ring-ring/10">
-        <HugeiconsIcon
-          icon={Search01Icon}
+        <Icon
+          icon={MagnifyingGlassIcon}
           className="pointer-events-none ml-4 size-4 shrink-0 text-muted-foreground transition-colors group-focus-within:text-foreground"
           aria-hidden
         />
@@ -330,7 +330,7 @@ export function ReferenceSearch({
             aria-label="Clear search"
             className="mr-1 inline-flex size-11 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring sm:mr-2 sm:size-8"
           >
-            <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden />
+            <Icon icon={XIcon} className="size-3.5" aria-hidden />
           </button>
         ) : null}
       </div>
@@ -377,7 +377,7 @@ export function ReferenceSearch({
                 aria-hidden
                 className="grid size-10 place-items-center rounded-full border bg-muted text-muted-foreground"
               >
-                <HugeiconsIcon icon={loadFailed ? Search01Icon : UserGroupIcon} className="size-5" />
+                <Icon icon={loadFailed ? MagnifyingGlassIcon : UsersThreeIcon} className="size-5" />
               </span>
               <p className="mt-snug text-body font-semibold text-foreground">
                 {loadFailed ? 'Look someone up' : 'No references yet'}
@@ -424,7 +424,7 @@ export function ReferenceSearch({
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background">
-                      <HugeiconsIcon icon={PlusIcon} className="size-4" aria-hidden />
+                      <Icon icon={PlusIcon} className="size-4" aria-hidden />
                     </span>
                     <span className="min-w-0">
                       <span className="block break-all text-body font-semibold text-foreground">
@@ -452,7 +452,7 @@ export function ReferenceSearch({
                 >
                   <span className="flex min-w-0 items-center gap-3">
                     <span className="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground">
-                      <HugeiconsIcon icon={Search01Icon} className="size-4" aria-hidden />
+                      <Icon icon={MagnifyingGlassIcon} className="size-4" aria-hidden />
                     </span>
                     <span className="min-w-0">
                       <span className="block break-all text-body font-semibold text-foreground">
@@ -507,7 +507,7 @@ export function ReferenceSearch({
                     className="inline-flex items-center gap-1 whitespace-nowrap text-meta font-medium tabular-nums text-trust"
                     aria-label={`${s.referenceCount} ${s.referenceCount === 1 ? 'person' : 'people'} vouch`}
                   >
-                    <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5 shrink-0" aria-hidden />
+                    <Icon icon={CheckCircleIcon} className="size-3.5 shrink-0" aria-hidden />
                     {s.referenceCount} positive
                   </span>
                   <RowEnd opening={isOpening} active={isActive} />
@@ -529,15 +529,15 @@ export function ReferenceSearch({
 function RowEnd({ opening, active }: { opening: boolean; active: boolean }) {
   return opening ? (
     <span role="status" aria-label="Opening" className="inline-flex shrink-0">
-      <HugeiconsIcon
-        icon={Loading03Icon}
+      <Icon
+        icon={SpinnerGapIcon}
         className="size-4 animate-spin text-muted-foreground motion-reduce:animate-none"
         aria-hidden
       />
     </span>
   ) : (
-    <HugeiconsIcon
-      icon={ArrowRight01Icon}
+    <Icon
+      icon={CaretRightIcon}
       className={cn(
         'size-4 shrink-0 transition-[color,transform] duration-300 ease-enter',
         active ? 'translate-x-0.5 text-foreground' : 'text-muted-foreground',

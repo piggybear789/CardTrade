@@ -15,8 +15,8 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, LockIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, LockIcon } from '@/components/ui/icons';
 
 import { getStripe, isRealPublishableKey } from '@/components/onboarding/stripeBrowser';
 import { Button } from '@/components/ui/button';
@@ -104,14 +104,14 @@ function BankPaymentFields({ cashSaleId, submitLabel, onFinished }: BankPaymentF
         <PaymentElement onReady={() => setReady(true)} options={{ layout: 'tabs' }} />
       </div>
       <Button type="submit" disabled={busy} aria-busy={busy} className="w-full">
-        {busy ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
+        {busy ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : null}
         {!ready ? (
           'Loading secure checkout…'
         ) : isPending ? (
           'Waiting for your bank…'
         ) : (
           <>
-            <HugeiconsIcon icon={LockIcon} className="size-3.5" aria-hidden />
+            <Icon icon={LockIcon} className="size-3.5" aria-hidden />
             {submitLabel}
           </>
         )}

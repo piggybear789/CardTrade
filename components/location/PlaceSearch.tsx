@@ -25,8 +25,8 @@
 // edit now counts as intent to re-search, and there is an explicit clear button.
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, MapPinIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, MapPinIcon, XIcon } from '@/components/ui/icons';
 
 import { searchPlaces } from '@/lib/location/googleMaps';
 import type { PlacePrecision, PlaceValue } from '@/lib/location/types';
@@ -329,7 +329,7 @@ export function PlaceSearch({
   return (
     <div ref={fieldRef} className={cn('relative', className)}>
       <div className="relative">
-        <HugeiconsIcon icon={MapPinIcon}
+        <Icon icon={MapPinIcon}
           className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
         />
@@ -393,7 +393,7 @@ export function PlaceSearch({
               icon visibly dropped below centre while loading. */}
           {loading ? (
             <span className="grid size-6 place-items-center" aria-hidden>
-              <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin text-muted-foreground" />
+              <Icon icon={CircleNotchIcon} className="size-4 animate-spin text-muted-foreground" />
             </span>
           ) : null}
           {showClear ? (
@@ -405,7 +405,7 @@ export function PlaceSearch({
               aria-label="Clear location"
               className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:text-foreground border border-transparent focus:outline-none focus-visible:border-ring"
             >
-              <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+              <Icon icon={XIcon} className="size-4" aria-hidden />
             </button>
           ) : null}
         </div>
@@ -457,7 +457,7 @@ export function PlaceSearch({
                   setOutcome('none');
                 }}
               >
-                <HugeiconsIcon icon={MapPinIcon} className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <Icon icon={MapPinIcon} className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                 <span>{place.label}</span>
               </button>
             </li>

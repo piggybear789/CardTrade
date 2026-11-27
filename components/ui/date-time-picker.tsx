@@ -6,8 +6,8 @@
 // with a calendar and a short list of meetup times. The value stays the same
 // `YYYY-MM-DDTHH:mm` string every fulfilment form already speaks.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CalendarDaysIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CalendarDotsIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -215,7 +215,7 @@ export function DateTimePicker({
               !parts && 'text-muted-foreground',
             )}
           >
-            <HugeiconsIcon icon={CalendarDaysIcon} data-icon="inline-start" aria-hidden />
+            <Icon icon={CalendarDotsIcon} data-icon="inline-start" aria-hidden />
             {formatTrigger(value)}
           </Button>
         </PopoverTrigger>

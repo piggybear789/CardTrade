@@ -13,8 +13,8 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, EyeOffIcon, LoaderCircleIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, CircleNotchIcon, EyeSlashIcon, XIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -68,9 +68,9 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
           onClick={() => run(() => hideItem(targetId))}
         >
           {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+            <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={EyeOffIcon} aria-hidden />
+            <Icon icon={EyeSlashIcon} aria-hidden />
           )}
           Hide listing
         </Button>
@@ -85,9 +85,9 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
         }
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={CheckIcon} aria-hidden />
+          <Icon icon={CheckIcon} aria-hidden />
         )}
         Mark actioned
       </Button>
@@ -101,9 +101,9 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
         }
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={XIcon} aria-hidden />
+          <Icon icon={XIcon} aria-hidden />
         )}
         Dismiss
       </Button>

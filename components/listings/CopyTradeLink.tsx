@@ -8,8 +8,8 @@
 'use client';
 
 import { useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, LinkIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, LinkIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -55,12 +55,12 @@ export function CopyTradeLink({ itemId, className, size }: CopyTradeLinkProps) {
         spinner={false}
         pendingLabel={
           <>
-            <HugeiconsIcon icon={CheckIcon} aria-hidden />
+            <Icon icon={CheckIcon} aria-hidden />
             Copied
           </>
         }
       >
-        <HugeiconsIcon icon={LinkIcon} aria-hidden />
+        <Icon icon={LinkIcon} aria-hidden />
         Copy trade link
       </PendingLabel>
     </Button>

@@ -11,8 +11,8 @@
 // cheapest check available.
 
 import { useEffect, useRef, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Gps01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, GpsFixIcon } from '@/components/ui/icons';
 
 import { readGoogleMapsKey, reverseGeocodeSuburb } from '@/lib/location/googleMaps';
 import {
@@ -333,8 +333,8 @@ function LocateMeButton({
         aria-busy={locating || undefined}
         className="inline-flex min-h-8 items-center gap-tight rounded-sm border border-transparent text-body font-medium text-iris-ink underline-offset-4 hover:underline focus:outline-none focus-visible:border-ring disabled:cursor-not-allowed disabled:text-muted-foreground disabled:no-underline"
       >
-        <HugeiconsIcon
-          icon={locating ? LoaderCircleIcon : Gps01Icon}
+        <Icon
+          icon={locating ? CircleNotchIcon : GpsFixIcon}
           className={cn('size-4', locating && 'animate-spin')}
           aria-hidden
         />

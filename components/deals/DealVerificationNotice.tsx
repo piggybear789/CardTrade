@@ -14,8 +14,8 @@
 import Link from 'next/link';
 import { useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { AlertCircleIcon, CheckmarkCircle02Icon, Clock01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckCircleIcon, ClockIcon, WarningCircleIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -107,7 +107,7 @@ export function HostVerificationNotice({
   return (
     <div className={cn('grid gap-group rounded-lg border p-group', className)}>
       <div className="flex items-center gap-cozy">
-        <HugeiconsIcon icon={AlertCircleIcon} className="size-5 shrink-0 text-action-edge" aria-hidden />
+        <Icon icon={WarningCircleIcon} className="size-5 shrink-0 text-action-edge" aria-hidden />
         <div className="grid gap-tight">
           <p className="text-body font-medium text-foreground">{copy.title}</p>
           <p className="text-pretty text-body text-muted-foreground">{copy.body}</p>
@@ -239,8 +239,8 @@ export function SwapIdentityRequirement({
 function StatusLine({ tone, children }: { tone: 'done' | 'waiting'; children: string }) {
   return (
     <p className="flex items-center gap-snug text-body text-muted-foreground">
-      <HugeiconsIcon
-        icon={tone === 'done' ? CheckmarkCircle02Icon : Clock01Icon}
+      <Icon
+        icon={tone === 'done' ? CheckCircleIcon : ClockIcon}
         className={tone === 'done' ? 'size-4 shrink-0 text-trust' : 'size-4 shrink-0 text-muted-foreground'}
         aria-hidden
       />

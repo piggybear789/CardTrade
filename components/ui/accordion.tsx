@@ -20,8 +20,8 @@
 
 import * as React from 'react';
 import * as AccordionPrimitive from '@radix-ui/react-accordion';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronDownIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretDownIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -70,7 +70,7 @@ function AccordionTrigger({
           {...props}
         >
           {children}
-          <HugeiconsIcon icon={ChevronDownIcon}
+          <Icon icon={CaretDownIcon}
             className="size-4 shrink-0 text-muted-foreground transition-transform duration-200"
             aria-hidden="true"
           />

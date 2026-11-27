@@ -18,14 +18,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  Add01Icon,
-  Cancel01Icon,
-  ImageAdd01Icon,
-  LoaderCircleIcon,
-  LockIcon,
-} from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CameraPlusIcon, CircleNotchIcon, LockIcon, PlusIcon, XIcon } from '@/components/ui/icons';
 
 import { submitScamReport } from '@/lib/actions/scamReports';
 import { uploadScamReportEvidence } from '@/lib/storage/uploadScamReportEvidence';
@@ -238,7 +232,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
             What happened
           </h2>
           <span className="inline-flex items-center gap-tight text-meta text-muted-foreground">
-            <HugeiconsIcon icon={LockIcon} className="size-3.5" aria-hidden />
+            <Icon icon={LockIcon} className="size-3.5" aria-hidden />
             Only our team sees this
           </span>
         </div>
@@ -418,7 +412,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
                         aria-label={`Remove detail ${index + 1}`}
                         className="shrink-0"
                       >
-                        <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+                        <Icon icon={XIcon} aria-hidden />
                       </Button>
                     ) : null}
                   </div>
@@ -432,7 +426,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
 
         {rows.length < SCAM_REPORT_LIMITS.identifiersMax ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setRows((current) => [...current, newRow()])}>
-            <HugeiconsIcon icon={Add01Icon} aria-hidden />
+            <Icon icon={PlusIcon} aria-hidden />
             Add another detail
           </Button>
         ) : null}
@@ -483,7 +477,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
               <img src={tile.preview} alt={`Screenshot ${index + 1}`} className="size-full object-cover" />
               {tile.state === 'uploading' ? (
                 <span className="absolute inset-0 grid place-items-center bg-background/70" role="status">
-                  <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin" aria-hidden />
+                  <Icon icon={CircleNotchIcon} className="size-5 animate-spin" aria-hidden />
                   <span className="sr-only">Uploading</span>
                 </span>
               ) : (
@@ -493,7 +487,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
                   aria-label={`Remove screenshot ${index + 1}`}
                   className="absolute right-1 top-1 grid size-7 place-items-center rounded-md bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden />
+                  <Icon icon={XIcon} className="size-3.5" aria-hidden />
                 </button>
               )}
             </li>
@@ -509,7 +503,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
                   'hover:border-input-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
-                <HugeiconsIcon icon={ImageAdd01Icon} className="size-5" aria-hidden />
+                <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
                 Add screenshots
               </button>
             </li>

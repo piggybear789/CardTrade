@@ -17,8 +17,8 @@
 // with certainty whether the buyer will see it.
 
 import { useRef, useState, useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, MessageSquarePlusIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, NotePencilIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { addArbitrationNote } from '@/lib/actions/arbitration';
@@ -96,9 +96,9 @@ export function CaseNoteComposer({ caseKind, caseRef }: CaseNoteComposerProps) {
         </p>
         <Button type="submit" size="sm" disabled={!canSubmit}>
           {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+            <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={MessageSquarePlusIcon} aria-hidden />
+            <Icon icon={NotePencilIcon} aria-hidden />
           )}
           Save note
         </Button>

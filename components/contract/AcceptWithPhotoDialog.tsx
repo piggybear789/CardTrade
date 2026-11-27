@@ -14,8 +14,8 @@
 // dialog cannot drift from what Storage will actually take.
 
 import { useRef, useState, useTransition, type ChangeEvent } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Camera01Icon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CameraIcon, XIcon } from '@/components/ui/icons';
 
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
@@ -179,7 +179,7 @@ export function AcceptWithPhotoDialog({
                 className="absolute -right-2 -top-2 rounded-md bg-background p-tight shadow-sm border hover:bg-muted"
                 aria-label={isVideo ? 'Remove video' : 'Remove photo'}
               >
-                <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
+                <Icon icon={XIcon} className="size-3.5" aria-hidden />
               </button>
             </div>
           ) : (
@@ -192,7 +192,7 @@ export function AcceptWithPhotoDialog({
               // dialog — a void the eye has to cross to reach Accept.
               className="flex w-full items-center gap-cozy rounded-lg border border-input p-cozy text-left text-muted-foreground transition-colors hover:border-input-hover hover:bg-muted"
             >
-              <HugeiconsIcon icon={Camera01Icon} className="size-5 shrink-0" aria-hidden />
+              <Icon icon={CameraIcon} className="size-5 shrink-0" aria-hidden />
               <span className="min-w-0 space-y-tight">
                 <span className="block text-body font-medium text-foreground">
                   Add a photo or video

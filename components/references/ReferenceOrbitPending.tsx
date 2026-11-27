@@ -9,8 +9,8 @@
 // waits 100ms so a fast navigation does not flash it.
 
 import { useLinkStatus } from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Loading03Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { SpinnerGapIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -24,8 +24,8 @@ export function ReferenceOrbitPending() {
         pending && 'opacity-100 delay-100',
       )}
     >
-      <HugeiconsIcon
-        icon={Loading03Icon}
+      <Icon
+        icon={SpinnerGapIcon}
         className={cn('size-5 text-foreground', pending && 'animate-spin motion-reduce:animate-none')}
       />
     </span>

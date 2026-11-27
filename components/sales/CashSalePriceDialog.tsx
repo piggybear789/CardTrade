@@ -5,8 +5,8 @@
 // and bumps the terms version, so payment uses the new number.
 
 import { useEffect, useState, useTransition, type FormEvent } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { TicketPercentIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { SealPercentIcon } from '@/components/ui/icons';
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
 import { useErrorToast } from '@/lib/hooks/useErrorToast';
@@ -80,7 +80,7 @@ export function CashSalePriceDialog({
           size="sm"
           className="gap-tight px-cozy text-meta font-medium leading-none [&_svg]:size-3"
         >
-          <HugeiconsIcon icon={TicketPercentIcon} aria-hidden />
+          <Icon icon={SealPercentIcon} aria-hidden />
           Edit
         </Button>
       </DialogTrigger>

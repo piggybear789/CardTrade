@@ -14,8 +14,8 @@
 // Controlled: the caller owns the draft. Nothing here persists anything.
 
 import { useEffect, useState, type DragEvent } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ImagePlusIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CameraPlusIcon, XIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -337,7 +337,7 @@ export function UnlistedPhotoField({
           // anywhere on it opens the picker, and `has-` puts the focus edge on the
           // button rather than the hidden input.
           <label className="inline-flex h-10 cursor-pointer items-center gap-tight rounded-md border border-input bg-card px-group text-body font-medium text-foreground transition-colors hover:border-input-hover hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:border-ring md:h-9">
-            <HugeiconsIcon icon={ImagePlusIcon} aria-hidden="true" className="size-3.5" />
+            <Icon icon={CameraPlusIcon} aria-hidden="true" className="size-3.5" />
             {count === 0 ? 'Add photos' : 'Add more'}
             <input
               type="file"
@@ -375,7 +375,7 @@ export function UnlistedPhotoField({
                 onClick={photo.remove}
                 className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-md border border-transparent bg-obsidian/75 text-mist transition-colors hover:bg-obsidian focus-visible:border-ring focus-visible:outline-none"
               >
-                <HugeiconsIcon icon={XIcon} aria-hidden="true" className="size-3" />
+                <Icon icon={XIcon} aria-hidden="true" className="size-3" />
                 <span className="sr-only">Remove photo {index + 1}</span>
               </button>
             </li>
@@ -515,7 +515,7 @@ export function PhotoGrid({
                   fileOver && 'border-foreground bg-accent text-foreground',
                 )}
               >
-                <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
+                <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
                 <span className="text-meta font-medium">Add</span>
                 {input}
               </label>
@@ -585,14 +585,14 @@ export function PhotoGrid({
                 onClick={photo.remove}
                 className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-md border border-transparent bg-obsidian/75 text-mist transition-colors hover:bg-obsidian focus-visible:border-ring focus-visible:outline-none"
               >
-                <HugeiconsIcon icon={XIcon} aria-hidden="true" className="size-3" />
+                <Icon icon={XIcon} aria-hidden="true" className="size-3" />
                 <span className="sr-only">Remove photo {index + 1}</span>
               </button>
             </li>
           ))}
           {/* The empty slots that keep the grid one size (see above). */}
           {Array.from({ length: emptySlots }, (_, slot) => (
-            <li key={`slot-${slot}`} aria-hidden className="aspect-square rounded-lg bg-muted/50" />
+            <li key={`slot-${slot}`} aria-hidden className={cn('aspect-square rounded-lg', !empty && 'border border-dashed border-input')} />
           ))}
         </ul>
         {empty ? (
@@ -604,7 +604,7 @@ export function PhotoGrid({
             )}
           >
             <span className="grid size-11 place-items-center rounded-full border border-border bg-card text-foreground">
-              <HugeiconsIcon icon={ImagePlusIcon} className="size-5" aria-hidden />
+              <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
             </span>
             <span className="text-body font-medium text-foreground">Add photos</span>
             <span className="max-w-xs text-pretty text-meta text-muted-foreground">

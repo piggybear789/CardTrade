@@ -16,122 +16,66 @@
 // "escrow" for the trade case — the platform holds a claim there, not funds.
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { AlertCircleIcon, CheckIcon, CheckmarkCircle02Icon, CreditCardIcon, ShieldAlertIcon, Timer01Icon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  CheckCircleIcon,
+  CreditCardIcon,
+  ShieldWarningIcon,
+  TimerIcon,
+} from '@/components/ui/icons';
 
-import { frictionTaxCentsFor } from '@/domain/dispute/frictionTax';
-import { formatMoney } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 /**
- * What each ending does to your collateral, as a table rather than a paragraph.
+ * What each ending does to the viewer's hold, as plain sentences (UX review
+ * 2026-11-27).
  *
- * `Up to`, not a flat figure: the Friction_Tax is capped at what was authorised
- * (`frictionTaxChargeableCents`), so a trade on a $5 item cannot be charged $20
- * and the copy must not promise otherwise. The amount is read from the constant
- * so this line cannot drift from the one that is actually captured.
+ * A condition dispute no longer says "Up to $20.00". Since ESC-01 nothing is
+ * captured when a dispute is raised; staff choose any compensation at the decision,
+ * up to what the hold can still pay (`resolveTradeDispute`, CONDITION). The flat
+ * Friction_Tax figure survives only for legacy partial captures.
  */
-function outcomes(currency: string): {
-  icon: typeof CheckIcon;
-  tone: string;
-  event: string;
-  result: string;
-  note?: string;
-}[] {
+function outcomes(other: string): { event: string; result: string; bad?: boolean }[] {
   return [
-  {
-    icon: CheckIcon,
-    tone: 'text-trust',
-    event: 'The trade completes',
-    result: 'Released',
-  },
-  {
-    icon: CheckIcon,
-    tone: 'text-trust',
-    event: 'The handover fails',
-    result: 'Released',
-  },
-  {
-    icon: AlertCircleIcon,
-    tone: 'text-iris-ink',
-    event: 'A condition dispute',
-    result: `Up to ${formatMoney(frictionTaxCentsFor(currency), currency)}`,
-    note: "Covers the other trader's return postage.",
-  },
-  {
-    icon: XIcon,
-    tone: 'text-destructive',
-    event: 'Confirmed fraud',
-    result: 'The full amount',
-    note: 'Paid to the trader who was defrauded.',
-  },
-];
+    { event: 'The trade completes', result: 'Released' },
+    { event: 'The handover fails', result: 'Released' },
+    { event: `${other} proves a condition problem`, result: 'Part, set by support' },
+    { event: 'Support finds fraud by you', result: `All of it, to ${other}`, bad: true },
+  ];
 }
 
 /**
- * The two things a trader needs to know about collateral beyond what the tab's
- * own opening line says: what it does to their card, and what happens if the
- * trade goes wrong.
- *
- * IT USED TO BE A THREE-STEP FLOW, twice. Authorise → Trade with protection →
- * Release, rendered once as a stacked list for small screens and again as a
- * connector rail for large ones — the same three paragraphs present in the DOM
- * simultaneously — under a heading and a lede that restated the tab's own
- * explainer. Seven paragraphs of tutorial stood between opening the Collateral
- * tab and seeing what was actually held.
- *
- * The steps were narrating a process the reader cannot act on and can already
- * see the state of in the hold list. What they carried that the list does not
- * is now one sentence: the balance dips, nothing is charged, the holds void.
- * The consequences below it stay in full, because those are the facts that are
- * genuinely surprising and genuinely matter.
+ * The consequences of a trade's collateral, under the hold summary
+ * (`HoldStatus`) in the Collateral tab.
  */
-export function DittoBondExplainer({ currency = 'aud' }: { currency?: string }) {
+export function DittoBondExplainer({
+  counterpartName = 'the other trader',
+}: {
+  /** The other trader's display name, for "Bob proves a condition problem". */
+  counterpartName?: string;
+  /** @deprecated No figure is shown any more; kept so call sites compile. */
+  currency?: string;
+}) {
+  const other = counterpartName;
   return (
-    <section className="space-y-cozy text-body" aria-labelledby="dittobond-title">
-      {/* The tab is labelled "Collateral" and opens with its own explainer
-          sentence, so a visible heading here would be the third title on one
-          screen. Kept for the document outline. */}
-      <h3 id="dittobond-title" className="sr-only">
-        What happens to your collateral
+    <section className="text-body" aria-labelledby="dittobond-title">
+      <h3 id="dittobond-title" className="text-meta font-semibold">
+        What happens to your hold
       </h3>
-
-      <div className="overflow-hidden rounded-md border border-border">
-        <div className="flex items-center gap-cozy border-b bg-muted px-cozy py-snug">
-          <p className="market-label min-w-0 flex-1 text-muted-foreground">
-            How it ends
-          </p>
-          <p className="market-label shrink-0 text-muted-foreground">
-            Your collateral
-          </p>
-        </div>
-        <ul className="divide-y divide-border">
-          {outcomes(currency).map(({ icon: Icon, tone, event, result, note }) => (
-            <li
-              key={event}
-              className="flex items-start gap-cozy px-cozy py-snug"
-            >
-              <HugeiconsIcon icon={Icon} className={cn('mt-0.5 size-4 shrink-0', tone)} aria-hidden />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-foreground">{event}</p>
-                {note ? (
-                  <p className="text-meta text-muted-foreground">{note}</p>
-                ) : null}
-              </div>
-              <p className="shrink-0 text-right font-medium tabular-nums">
-                {result}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <p className="flex items-start gap-snug text-muted-foreground">
-        <HugeiconsIcon icon={Timer01Icon} className="mt-0.5 size-4 shrink-0" aria-hidden />
-        {/* "About seven days" was the old estimate; a card hold placed without the
-            cardholder present can lapse after under five (ESC-17a, 114 hours). The
-            trade clock is planned inside that, so the member needs the fact, not a
-            number that was wrong. */}
+      <ul className="mt-tight divide-y divide-border/60">
+        {outcomes(other).map(({ event, result, bad }) => (
+          <li key={event} className="flex items-baseline justify-between gap-cozy py-snug">
+            <span className="min-w-0">{event}</span>
+            <span className={cn('shrink-0 text-right', bad ? 'text-destructive' : 'text-muted-foreground')}>
+              {result}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-snug flex items-start gap-snug text-meta text-muted-foreground">
+        <Icon icon={TimerIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+        {/* ESC-17a: a card hold placed without the cardholder can lapse in under
+            five days, and the trade clock is planned inside that. */}
         Card holds only last a few days, so the meeting and inspection are planned
         to finish well before they expire.
       </p>
@@ -140,7 +84,7 @@ export function DittoBondExplainer({ currency = 'aud' }: { currency?: string }) 
 }
 
 function ProtectionOutcome({
-  icon: Icon,
+  icon: Glyph,
   title,
   children,
   action,
@@ -162,7 +106,7 @@ function ProtectionOutcome({
         action && 'bg-destructive/5',
       )}
     >
-      <HugeiconsIcon icon={Icon}
+      <Icon icon={Glyph}
         className={cn(
           'mt-0.5 size-4 shrink-0',
           action ? 'text-destructive' : 'text-muted-foreground',
@@ -238,7 +182,7 @@ export function CashSaleProtectionExplainer({
           release it.
         </ProtectionOutcome>
         <ProtectionOutcome
-          icon={CheckmarkCircle02Icon}
+          icon={CheckCircleIcon}
           title={
             inPerson
               ? viewerIsBuyer
@@ -254,7 +198,7 @@ export function CashSaleProtectionExplainer({
             problem" described the reader in the third person while asking them
             to press it. */}
         <ProtectionOutcome
-          icon={ShieldAlertIcon}
+          icon={ShieldWarningIcon}
           title={viewerIsBuyer ? 'If you report a problem' : 'If the buyer reports a problem'}
           action={reportAction}
         >
@@ -265,7 +209,7 @@ export function CashSaleProtectionExplainer({
 
       {!inPerson ? (
         <p className="flex gap-snug text-body text-muted-foreground">
-          <HugeiconsIcon icon={Timer01Icon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <Icon icon={TimerIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             If the buyer takes no action before the inspection deadline, the sale
             completes automatically and the seller is paid.

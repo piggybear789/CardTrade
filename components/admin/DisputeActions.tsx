@@ -22,8 +22,8 @@
 // out of platform funds.
 
 import { useState, useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ScaleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ScalesIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { resolveCashSaleDispute } from '@/lib/actions/admin';
@@ -151,7 +151,7 @@ export function DisputeActions({
   return (
     <div className="space-y-cozy rounded-lg border border-border bg-muted p-cozy">
       <p className="flex items-center gap-snug text-body font-medium">
-        <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        <Icon icon={ScalesIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
 

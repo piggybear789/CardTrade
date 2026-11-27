@@ -5,14 +5,18 @@
 //
 // Deliberately NOT here any more: the eyebrow ("Purchase contract" — the page shell
 // already renders that as the route h1) and the "whose move is it" clause, which now
-// lives in exactly one place, `ContractActionCard`. The connection indicator only
-// appears when the realtime link is degraded; a healthy socket is not news.
+// lives in exactly one place, `ContractActionCard`.
+//
+// CUT DOWN (UX review 2026-11-27), matching the phone's chat bar: the title and the
+// money on one line, the progress under it. The status badge said what the
+// progress label beside it already says ("Inspection" over "Step 3 of 4: Inspect"),
+// "Holds placed with Stripe" restated the timeline, and "Offline" read as the other
+// person being offline. The props stay so existing call sites compile.
 
 import type { ReactNode } from 'react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import { ContractConnectionStatus } from './ContractConnectionStatus';
 import type { ContractConnectionStatus as Status } from './types';
 
 export interface ContractHeaderProps {
@@ -29,13 +33,13 @@ export interface ContractHeaderProps {
   money?: ReactNode;
   /** The compact party line, usually `<ContractPartyLine/>`. */
   parties?: ReactNode;
-  /** The flow's status badge. */
+  /** @deprecated Not shown; the progress label names the step. */
   status?: ReactNode;
-  /** `FundsHeldMark` while money is held; beside the status it qualifies. */
+  /** @deprecated Not shown; the timeline records the holds and the payment. */
   assurance?: ReactNode;
   /** `ContractProgressStrip`, as a second line under the identity row. */
   progress?: ReactNode;
-  /** Realtime connection state. Rendered only while degraded. */
+  /** @deprecated Not shown. */
   connectionStatus?: Status;
   className?: string;
 }
@@ -45,16 +49,9 @@ export function ContractHeader({
   title,
   money,
   parties,
-  status,
-  assurance,
   progress,
-  connectionStatus,
   className,
 }: ContractHeaderProps) {
-  // Initial connection and brief retries are normal background work. Only surface a
-  // terminal failure, when the contract may actually be showing stale information.
-  const degraded = connectionStatus === 'error';
-
   return (
     <Card className={cn('border-border shadow-sm', className)}>
       <CardContent className="px-group py-cozy">
@@ -79,16 +76,9 @@ export function ContractHeader({
             {parties ? <div className="min-w-0">{parties}</div> : null}
           </div>
 
-          <div className="flex shrink-0 items-center gap-cozy">
-            {degraded && connectionStatus ? (
-              <ContractConnectionStatus status={connectionStatus} />
-            ) : null}
-            {assurance}
-            {status}
-            {money ? (
-              <p className="display-value shrink-0 text-lead">{money}</p>
-            ) : null}
-          </div>
+          {money ? (
+            <p className="display-value shrink-0 text-lead">{money}</p>
+          ) : null}
         </div>
         {progress ? <div className="mt-snug">{progress}</div> : null}
       </CardContent>

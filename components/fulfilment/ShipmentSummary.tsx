@@ -20,8 +20,8 @@
 
 'use client';
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRightIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowUpRightIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { formatContractDateTime } from '@/lib/format';
@@ -96,7 +96,7 @@ export function ShipmentSummary({
                   carrier and the new-tab notice follow as screen-reader-only text. */}
               Track parcel
               <span className="sr-only"> with {carrier ?? 'the carrier'} (opens in a new tab)</span>
-              <HugeiconsIcon icon={ArrowUpRightIcon} aria-hidden />
+              <Icon icon={ArrowUpRightIcon} aria-hidden />
             </a>
           </Button>
         ) : null}

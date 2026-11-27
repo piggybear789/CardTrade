@@ -251,7 +251,7 @@ abstract final class Money {
 
   /// Hint beside the fee row. Mirrors `PROCESSING_FEE_HINT` in `lib/fees/feeLabels.ts`.
   static const String processingFeeHint =
-      "Most of it goes to Stripe for the payment and payout. NoDitto keeps about 2% on larger sales, less on small ones. Returned if the sale is refunded in full.";
+      "Returned if the sale is refunded in full.";
 
   /// Beside a trade's fee. Mirrors `TRADE_FEE_NOTE` in `lib/fees/feeLabels.ts`.
   static const String tradeFeeNote =

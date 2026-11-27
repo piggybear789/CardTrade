@@ -18,8 +18,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { MessageQuestionIcon, Search01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ChatCircleTextIcon, MagnifyingGlassIcon } from '@/components/ui/icons';
 
 import { StartDealTextLink } from '@/components/deals/StartDealButton';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
@@ -318,8 +318,8 @@ export function HelpCentre({
   return (
     <div className="mt-section space-y-section">
       <div className="relative">
-        <HugeiconsIcon
-          icon={Search01Icon}
+        <Icon
+          icon={MagnifyingGlassIcon}
           className="pointer-events-none absolute left-cozy top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden
         />
@@ -377,7 +377,7 @@ export function HelpCentre({
         className="flex flex-col gap-cozy rounded-lg border bg-muted/60 p-group sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex gap-cozy">
-          <HugeiconsIcon icon={MessageQuestionIcon} className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
+          <Icon icon={ChatCircleTextIcon} className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
           <div>
             <h2 id="contact-heading" className="text-body font-semibold text-foreground">
               Still stuck?

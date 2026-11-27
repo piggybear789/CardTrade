@@ -17,8 +17,8 @@
 // THE BIO STAYS OUT OF HERE. It is member-authored, so it is presented as their words
 // in the header and nowhere near a verified fact.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ShieldCheckIcon } from '@/components/ui/icons';
 
 import { regionLabel } from '@/domain/region/regions';
 import { displayLegalName, formatMonthYear, formatShortDate } from '@/lib/format';
@@ -104,7 +104,7 @@ export function SellerTrustBand({
     >
       {verified ? (
         <p className="flex min-w-0 items-start gap-tight font-medium text-trust">
-          <HugeiconsIcon icon={ShieldCheckIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <Icon icon={ShieldCheckIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
             <FactRun facts={['ID verified by Stripe', ...verifiedFacts]} />
           </span>

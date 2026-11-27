@@ -21,8 +21,8 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretRightIcon } from '@/components/ui/icons';
 
 import type { ProviderReturn } from '@/components/onboarding/providerReturn';
 import { UnifiedOnboardingSurface } from '@/components/onboarding/UnifiedOnboardingSurface';
@@ -89,7 +89,7 @@ export function VerificationSequence({
         <Button asChild className="w-full sm:w-auto">
           <Link href="/listings/new">
             Sell an item
-            <HugeiconsIcon icon={ArrowRight01Icon} className="ml-snug size-4" aria-hidden />
+            <Icon icon={CaretRightIcon} className="ml-snug size-4" aria-hidden />
           </Link>
         </Button>
       }

@@ -23,8 +23,8 @@ import { useRouter } from 'next/navigation';
 import { navigateWithType } from '@/lib/motion/navigate';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LockIcon, PencilIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { LockIcon, PencilSimpleIcon, XIcon } from '@/components/ui/icons';
 
 import { FieldError } from '@/components/motion/FieldError';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -421,7 +421,7 @@ export function TradeOfferForm({
         {/* The unlisted draft sits at the top: it is the primary item. */}
         {unlisted ? (
           <div className="flex items-center gap-cozy rounded-md border border-border bg-muted p-snug text-body">
-            <HugeiconsIcon icon={LockIcon} className="size-4 shrink-0 text-iris-ink" aria-hidden="true" />
+            <Icon icon={LockIcon} className="size-4 shrink-0 text-iris-ink" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate font-medium">
               {unlistedLabel}
               <span className="ml-1.5 font-normal text-muted-foreground">
@@ -435,7 +435,7 @@ export function TradeOfferForm({
               className="size-11 shrink-0 p-0 md:size-8"
               onClick={() => setUnlistedDialogOpen(true)}
             >
-              <HugeiconsIcon icon={PencilIcon} aria-hidden="true" />
+              <Icon icon={PencilSimpleIcon} aria-hidden="true" />
               <span className="sr-only">Edit {unlistedLabel}</span>
             </Button>
             <Button
@@ -445,7 +445,7 @@ export function TradeOfferForm({
               className="size-11 shrink-0 p-0 md:size-8"
               onClick={() => setUnlisted(null)}
             >
-              <HugeiconsIcon icon={XIcon} aria-hidden="true" />
+              <Icon icon={XIcon} aria-hidden="true" />
               <span className="sr-only">Remove {unlistedLabel}</span>
             </Button>
           </div>

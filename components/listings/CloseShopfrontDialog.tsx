@@ -17,8 +17,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArchiveIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArchiveIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -70,7 +70,7 @@ export function CloseShopfrontDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button type="button" variant="outline" className="min-w-0 w-full px-snug">
-          <HugeiconsIcon icon={ArchiveIcon} aria-hidden />
+          <Icon icon={ArchiveIcon} aria-hidden />
           <span className="truncate">Close</span>
         </Button>
       </DialogTrigger>
@@ -99,7 +99,7 @@ export function CloseShopfrontDialog({
             aria-busy={isPending}
           >
             <PendingLabel pending={isPending} pendingLabel="Closing…">
-              <HugeiconsIcon icon={ArchiveIcon} aria-hidden />
+              <Icon icon={ArchiveIcon} aria-hidden />
               Close listing
             </PendingLabel>
           </Button>

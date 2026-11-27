@@ -35,13 +35,13 @@ import {
   isValidElement,
   type ComponentPropsWithoutRef,
   type HTMLAttributes,
+  type ReactElement,
   type ReactNode,
   type Ref,
 } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import type { IconSvgElement } from '@hugeicons/react';
-import { ChevronRightIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
+import { CaretRightIcon, ShieldWarningIcon } from '@/components/ui/icons';
 
 import { StatusGlyph } from '@/components/ui/status-glyph';
 import { cn } from '@/lib/utils';
@@ -151,7 +151,13 @@ export function SettingsListRow({
   type = 'button',
   ...rest
 }: {
-  icon?: IconSvgElement;
+  /**
+   * A glyph from `components/ui/icons`, or `<Icon icon={…} />` already drawn. A SERVER
+   * Component must pass the element: a glyph is a component, and components cannot
+   * cross into this client module as props (the previous set's glyphs were plain
+   * arrays, which could).
+   */
+  icon?: IconGlyph | ReactElement;
   tone?: StatusTone;
   label: ReactNode;
   /** Second line under the label, for a row whose purpose is not self-evident. */
@@ -243,7 +249,7 @@ export function SettingsListRow({
       ) : null}
       {trailing ?? null}
       {interactive && !trailing ? (
-        <HugeiconsIcon icon={ChevronRightIcon} className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
+        <Icon icon={CaretRightIcon} className="size-4 shrink-0 text-muted-foreground/60" aria-hidden />
       ) : null}
     </>
   );
@@ -348,7 +354,7 @@ export function TrustLine({
   if (!identityVerified) {
     return (
       <p className="flex items-center gap-tight text-body text-muted-foreground">
-        <HugeiconsIcon icon={ShieldAlertIcon} className="size-4 shrink-0" aria-hidden />
+        <Icon icon={ShieldWarningIcon} className="size-4 shrink-0" aria-hidden />
         Not verified yet
       </p>
     );
@@ -403,10 +409,11 @@ export type StatusTone = 'verified' | 'pending' | 'required' | 'neutral';
  * announcing it would duplicate that label for a screen reader.
  */
 export function IconMedallion({
-  icon: Icon,
+  icon: RowGlyph,
   tone = 'neutral',
 }: {
-  icon: IconSvgElement;
+  /** A glyph, or an `<Icon>` element drawn by a Server Component (see `SettingsListRow`). */
+  icon: IconGlyph | ReactElement;
   tone?: StatusTone;
 }) {
   const toneClass: Record<StatusTone, string> = {
@@ -423,7 +430,13 @@ export function IconMedallion({
       )}
       aria-hidden
     >
-      <HugeiconsIcon icon={Icon} className="size-4" />
+      {/* A drawn element is sized by the medallion (`[&_svg]` beats the 24px default
+          attributes), so a server caller's `<Icon icon={…} />` needs no class. */}
+      {isValidElement(RowGlyph) ? (
+        <span className="contents [&_svg]:size-4">{RowGlyph}</span>
+      ) : (
+        <Icon icon={RowGlyph} className="size-4" />
+      )}
     </span>
   );
 }

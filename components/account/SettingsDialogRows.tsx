@@ -31,7 +31,7 @@
 // data crosses from the page; the element and the clone are both client-side, so
 // `isValidElement` is true on both passes and the handler always lands.
 
-import { CreditCardIcon } from '@hugeicons/core-free-icons';
+import { CreditCardIcon } from '@/components/ui/icons';
 
 import { SettingsListRow } from '@/components/account/SettingsPrimitives';
 import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';

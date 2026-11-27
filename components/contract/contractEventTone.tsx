@@ -9,8 +9,8 @@
 // disagree about whether a milestone went well — the timeline could mark a
 // payment green while the thread showed it as a neutral dot.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { AlertCircleIcon, CancelCircleIcon, CheckIcon, CircleDotIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, RadioButtonIcon, WarningCircleIcon, XCircleIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -79,12 +79,12 @@ export function ContractEventIcon({
     case 'success':
       // `text-trust`, not a raw Tailwind green. The palette has exactly one "settled /
       // confirmed" hue and this was the only place in the app reaching past it.
-      return <HugeiconsIcon icon={CheckIcon} className={cn(base, 'text-trust')} aria-hidden />;
+      return <Icon icon={CheckIcon} className={cn(base, 'text-trust')} aria-hidden />;
     case 'destructive':
-      return <HugeiconsIcon icon={CancelCircleIcon} className={cn(base, 'text-destructive')} aria-hidden />;
+      return <Icon icon={XCircleIcon} className={cn(base, 'text-destructive')} aria-hidden />;
     case 'warning':
-      return <HugeiconsIcon icon={AlertCircleIcon} className={cn(base, 'text-iris-ink')} aria-hidden />;
+      return <Icon icon={WarningCircleIcon} className={cn(base, 'text-iris-ink')} aria-hidden />;
     default:
-      return <HugeiconsIcon icon={CircleDotIcon} className={cn(base, 'text-muted-foreground')} aria-hidden />;
+      return <Icon icon={RadioButtonIcon} className={cn(base, 'text-muted-foreground')} aria-hidden />;
   }
 }

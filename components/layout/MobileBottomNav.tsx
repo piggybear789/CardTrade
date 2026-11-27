@@ -26,7 +26,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 
 import {
   GUEST_MOBILE_HUBS,
@@ -76,7 +76,7 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
       <ul className={cn('mx-auto grid h-14 max-w-lg', hubs.length === 5 ? 'grid-cols-5' : 'grid-cols-4')}>
         {hubs.map((hub) => {
           const active = hub.isActive(pathname);
-          const Icon = hub.icon;
+          const Glyph = hub.icon;
           // `px-0.5`, not `px-tight`: "References" is the longest label the bar has
           // carried. A fifth of a 360px phone is 72px, and 4px of padding a side left
           // the label about 62px, a pixel or two short, so it truncated on the
@@ -97,8 +97,8 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
                   href={`/sign-in?redirectTo=${encodeURIComponent(destination)}`}
                   className={className}
                 >
-                  <HugeiconsIcon
-                    icon={Icon}
+                  <Icon
+                    icon={Glyph}
                     className="size-5 text-muted-foreground"
                     aria-hidden="true"
                   />
@@ -130,7 +130,10 @@ export function MobileBottomNav({ isAuthenticated }: MobileBottomNavProps) {
                 className={className}
               >
                 <span className="relative">
-                  <HugeiconsIcon icon={Icon}
+                  {/* Filled where you are, outline elsewhere: Instagram's tab bar. */}
+                  <Icon
+                    icon={Glyph}
+                    weight={active ? 'fill' : undefined}
                     className={cn(
                       'size-5',
                       active ? 'text-iris-ink' : 'text-muted-foreground',

@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckmarkCircle02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckCircleIcon } from '@/components/ui/icons';
 
 import { ReferenceOrbitPending } from '@/components/references/ReferenceOrbitPending';
 import { Avatar } from '@/components/ui/avatar';
@@ -236,7 +236,7 @@ export function ReferenceOrbit({ people }: { people: readonly ReferenceSuggestio
                     {/* A count: the tick says what is counted, one colour for the line
                         (see the suggestion rows in `ReferenceSearch`). */}
                     <span className="inline-flex items-center gap-0.5 text-meta font-medium leading-snug tabular-nums text-trust">
-                      <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3 shrink-0" aria-hidden />
+                      <Icon icon={CheckCircleIcon} className="size-3 shrink-0" aria-hidden />
                       {person.referenceCount} positive
                     </span>
                   </span>

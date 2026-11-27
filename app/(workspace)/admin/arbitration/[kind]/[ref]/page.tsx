@@ -15,8 +15,8 @@
 
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ShieldWarningIcon } from '@/components/ui/icons';
 
 import { getArbitrationCase } from '@/lib/actions/arbitration';
 import { parseCaseKind } from '@/domain/arbitration/arbitrationCase';
@@ -58,7 +58,7 @@ export default async function ArbitrationCasePage({
         <MarketplaceShell title="Cases" center>
           <EmptyState
             variant="page"
-            icon={<HugeiconsIcon icon={ShieldAlertIcon} className="size-6" aria-hidden />}
+            icon={<Icon icon={ShieldWarningIcon} className="size-6" aria-hidden />}
             title="Not authorized"
             titleAs="h3"
             description="Cases are limited to NoDitto support staff."

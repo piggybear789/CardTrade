@@ -18,13 +18,8 @@ import {
 } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  CheckmarkCircle02Icon,
-  Clock01Icon,
-  Search01Icon,
-  XIcon,
-} from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckCircleIcon, ClockIcon, MagnifyingGlassIcon, XIcon } from '@/components/ui/icons';
 
 import {
   suggestCatalogItems,
@@ -138,13 +133,12 @@ function HeaderSearchFallback({
 }) {
   return (
     <div role="search" className={cn('relative w-full', className)}>
-      <HugeiconsIcon icon={Search01Icon}
+      <Icon icon={MagnifyingGlassIcon}
         className={cn(
           'pointer-events-none absolute top-1/2 -translate-y-1/2',
           appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
           appearance === 'default' ? 'text-muted-foreground' : 'text-foreground',
         )}
-        strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
       />
       <Input
@@ -480,13 +474,12 @@ function HeaderSearchInner({
       onSubmit={handleSubmit}
       className={cn('relative w-full', className)}
     >
-      <HugeiconsIcon icon={Search01Icon}
+      <Icon icon={MagnifyingGlassIcon}
         className={cn(
           'pointer-events-none absolute top-1/2 z-[1] -translate-y-1/2',
           appearance === 'pill' ? 'left-2.5 size-3' : 'left-3 size-4',
           appearance === 'default' ? 'text-muted-foreground' : 'text-foreground',
         )}
-        strokeWidth={appearance === 'default' ? 2 : 2.25}
         aria-hidden="true"
       />
       <Input
@@ -547,7 +540,7 @@ function HeaderSearchInner({
             trailing ? 'right-9' : 'right-1',
           )}
         >
-          <HugeiconsIcon icon={XIcon} className="size-3.5" aria-hidden />
+          <Icon icon={XIcon} className="size-3.5" aria-hidden />
         </button>
       ) : null}
       {trailing ? (
@@ -585,7 +578,7 @@ function HeaderSearchInner({
                       onClick={() => runSearch(term)}
                       className={optionClass(highlight === optionIndex)}
                     >
-                      <HugeiconsIcon icon={Clock01Icon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <Icon icon={ClockIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                       <span className="min-w-0 flex-1 truncate text-body">{term}</span>
                     </button>
                   </li>
@@ -624,7 +617,7 @@ function HeaderSearchInner({
                         ))}
                       </span>
                       <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-trust/10 px-2 py-0.5 text-meta font-semibold tabular-nums text-trust">
-                        <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3" aria-hidden />
+                        <Icon icon={CheckCircleIcon} className="size-3" aria-hidden />
                         {ref.referenceCount}
                       </span>
                     </Link>
@@ -712,7 +705,7 @@ function HeaderSearchInner({
                 onMouseEnter={() => setHighlight(options.length - 1)}
                 className={cn(optionClass(options[highlight]?.group === 'search'), 'mt-tight border-t border-border')}
               >
-                <HugeiconsIcon icon={Search01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <Icon icon={MagnifyingGlassIcon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
                 <span className="min-w-0 truncate text-body">Search listings for “{trimmedQuery}”</span>
               </button>
             </li>

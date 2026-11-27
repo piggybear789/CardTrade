@@ -13,8 +13,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowLeftIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -28,8 +28,8 @@ export function BackLink({ href, children, className }: { href: string; children
         className,
       )}
     >
-      <HugeiconsIcon
-        icon={ArrowLeft02Icon}
+      <Icon
+        icon={ArrowLeftIcon}
         className="size-3.5"
         aria-hidden
       />

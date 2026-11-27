@@ -2,7 +2,7 @@
 //
 // FILLED, COLOURED MARKS FOR ICONS THAT CARRY MEANING.
 //
-// The icon set (`@hugeicons/core-free-icons`) is one style only: thin outline strokes.
+// The icon set (`components/ui/icons.ts`, Phosphor) draws outline glyphs for this job.
 // That is right for navigation, actions and decoration, and every SaaS reference we
 // studied (Linear, Vercel, Stripe, Attio, Clerk, Mercury; Mobbin, 2026-11-21) draws those
 // the same way. It is wrong for the small icons that ARE the information: verified, good,
@@ -13,10 +13,10 @@
 // a shape rather than a hairline.
 //
 // THE RULE: an icon that states a fact about a person, a contract or a check uses a
-// glyph from here. Every other icon stays a grey outline `HugeiconsIcon`.
+// glyph from here. Every other icon stays a grey outline `<Icon>`.
 //
 // Hand-drawn on a 20px grid so the knockout stays crisp at 14px. Decorative by default
-// (`aria-hidden`): the caller owns the label, exactly as with `HugeiconsIcon`.
+// (`aria-hidden`): the caller owns the label, exactly as with `<Icon>`.
 
 import type { CSSProperties } from 'react';
 

@@ -17,8 +17,8 @@
 // re-declares the button's `gap-1.5` because the gap does not reach inside a span.
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -61,7 +61,7 @@ export function PendingLabel({
       </span>
       <span className={cn(cell, !pending && 'invisible')} aria-hidden={!pending || undefined}>
         {spinner ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : null}
         {pendingLabel ?? children}
       </span>

@@ -3,17 +3,48 @@
 // components/messages/MessageLog.tsx
 //
 // Shared thread body for the inbox and the contract room. Clusters consecutive
-// messages from the same person so a run of replies is one visual group with a
-// single timestamp. Attachments render in the bubble: photos open the contract
-// lightbox, files download.
+// messages from the same person so a run of replies is one visual group. Attachments
+// render in the bubble: photos open the contract lightbox, files download.
+//
+// THE INSTAGRAM GRAMMAR (2026-11-28, design-system audit; Mobbin, Instagram Direct web
+// and iOS). What a production chat does that this one did not:
+//
+//   - BUBBLES ARE NEAR-PILLS THAT JOIN. 20px corners, and where two bubbles from one
+//     person meet, the corners on the sender's side close to 6px, so a run reads as one
+//     shape rather than a stack of separate cards (`bubbleCorners`).
+//   - YOUR MESSAGES ARE VIOLET. `--iris-ink` with white type (7.7:1), Instagram's own
+//     move: the one large area of brand colour in the product is the member's own voice.
+//     Theirs stay the slate `--muted`. See WHERE THE VIOLET IS ALLOWED in `globals.css`.
+//   - TIME IS A DIVIDER, NOT A CAPTION. A clock under every cluster put a line of grey
+//     type between every exchange. Time now heads the conversation where a gap opens
+//     (`TIME_BREAK_MS`), merges into the day divider at the top of a day, sits on each
+//     bubble as a hover title, and is still read out per cluster to a screen reader.
+//   - ONE RECEIPT. "Seen" (or "Sent", "Sending…") under your message while it is the
+//     last word, instead of " · Read" on every cluster you sent.
+//   - THE AVATAR SITS AT THE FOOT of their run, level with the last bubble's bottom edge,
+//     as Instagram, iMessage and Messenger all place it.
 
 import { useMemo, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ExternalLinkIcon, FileTextIcon } from '@hugeicons/core-free-icons';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
+import {
+  ArrowSquareOutIcon,
+  CheckIcon,
+  FileTextIcon,
+  LockSimpleIcon,
+  PackageIcon,
+  ShieldCheckIcon,
+  TruckIcon,
+  WarningIcon,
+  XIcon,
+} from '@/components/ui/icons';
 
 import { Avatar } from '@/components/ui/avatar';
 import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
-import { ContractEventIcon, classifyContractEvent } from '@/components/contract/contractEventTone';
+import {
+  classifyContractEvent,
+  type ContractEventTone,
+} from '@/components/contract/contractEventTone';
+import { isOptimisticMessage } from '@/lib/realtime/useConversationRealtime';
 import { cn } from '@/lib/utils';
 import {
   formatAttachmentBytes,
@@ -23,6 +54,7 @@ import {
   groupMessages,
   messageTimeLabel,
   type ChatMessage,
+  type MessageCluster,
 } from '@/components/messages/groupMessages';
 import { useConversationAttachments } from '@/components/messages/useConversationAttachments';
 
@@ -45,13 +77,13 @@ import { useConversationAttachments } from '@/components/messages/useConversatio
 export const MESSAGE_COLUMN = 'w-full';
 
 /**
- * How wide one bubble may get: 82% of the column, and never more than 36rem.
+ * How wide one bubble may get: 78% of the column, and never more than 34rem.
  *
  * The percentage is what keeps a short line from looking stranded on a phone; the rem
  * cap is what keeps a long one readable when the pane is 1300px. Both are needed —
  * either alone breaks at one end of the range.
  */
-export const MESSAGE_MEASURE = 'max-w-[min(82%,36rem)]';
+export const MESSAGE_MEASURE = 'max-w-[min(78%,34rem)]';
 
 /** Prose measure for the contract-activity block, which is sentences rather than chat. */
 export const MESSAGE_PROSE = 'max-w-[44rem]';
@@ -59,7 +91,45 @@ export const MESSAGE_PROSE = 'max-w-[44rem]';
 // The horizontal inset every band in the thread shares is NOT re-exported from here.
 // It lives in `threadGeometry` with the pane-bar height, and each band imports it from
 // there — a re-export through this `'use client'` module would put a client reference in
-// the server trees that also need it (`loading.tsx`, `WorkspaceSkeletons`).
+// the server trees that also need it.
+
+/**
+ * A gap this long between two entries puts the time back above the next one, as
+ * Instagram does. Shorter, the exchange is one conversation and the hover title on each
+ * bubble carries the exact minute.
+ */
+const TIME_BREAK_MS = 30 * 60 * 1000;
+
+/**
+ * The bubble's corners. 20px everywhere except where it touches its neighbour in the same
+ * run, on the sender's side, which closes to 6px (`rounded-*-md`). A single bubble is a
+ * whole capsule; a run of three is a first, a middle and a last.
+ */
+export const MESSAGE_BUBBLE_RADIUS = 'rounded-[1.25rem]';
+
+type RunPosition = 'single' | 'first' | 'middle' | 'last';
+
+function runPosition(index: number, count: number): RunPosition {
+  if (count === 1) return 'single';
+  if (index === 0) return 'first';
+  if (index === count - 1) return 'last';
+  return 'middle';
+}
+
+function bubbleCorners(mine: boolean, position: RunPosition): string {
+  const top = mine ? 'rounded-tr-md' : 'rounded-tl-md';
+  const bottom = mine ? 'rounded-br-md' : 'rounded-bl-md';
+  switch (position) {
+    case 'first':
+      return bottom;
+    case 'middle':
+      return cn(top, bottom);
+    case 'last':
+      return top;
+    default:
+      return '';
+  }
+}
 
 /**
  * The event codes that mean "the seller handed it to a carrier".
@@ -73,26 +143,29 @@ const SHIPMENT_EVENTS = new Set(['SHIPMENT_RECORDED', 'SHIPPED']);
  * scrolls back to find — money held, goods sent, goods arrived, a problem raised, the
  * end. Everything else (terms edits, confirmations) stays a centred line. Keyed by
  * event code; an unknown code is never a milestone.
+ *
+ * Each names its own glyph, so the card says WHAT happened in its mark (a shield for
+ * money held, a truck for a parcel) while the disc's colour says how it went.
  */
-const MILESTONE_TITLE: Record<string, string> = {
-  PAYMENT_CLEARED: 'Payment held',
-  ESCROW_LOCKED: 'Payment held',
-  HOLDS_CONFIRMED: 'Holds placed',
-  SHIPMENT_RECORDED: 'Shipped',
-  SHIPPED: 'Shipped',
-  BOTH_SHIPPED: 'Both items shipped',
-  CARRIER_DELIVERED: 'Delivered',
-  RECEIPT_RECORDED: 'Received',
-  BOTH_RECEIVED: 'Both items received',
-  DISPUTE_RAISED: 'Dispute raised',
-  CONDITION_DISPUTE: 'Dispute raised',
-  INSPECTION_ACCEPTED: 'Completed',
-  AUTO_COMPLETED: 'Completed',
-  BOTH_ACCEPTED: 'Completed',
-  COMPLETED: 'Completed',
-  DEAL_COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-  DEAL_CANCELLED: 'Cancelled',
+const MILESTONES: Record<string, { title: string; glyph: IconGlyph }> = {
+  PAYMENT_CLEARED: { title: 'Payment held', glyph: ShieldCheckIcon },
+  ESCROW_LOCKED: { title: 'Payment held', glyph: ShieldCheckIcon },
+  HOLDS_CONFIRMED: { title: 'Holds placed', glyph: LockSimpleIcon },
+  SHIPMENT_RECORDED: { title: 'Shipped', glyph: TruckIcon },
+  SHIPPED: { title: 'Shipped', glyph: TruckIcon },
+  BOTH_SHIPPED: { title: 'Both items shipped', glyph: TruckIcon },
+  CARRIER_DELIVERED: { title: 'Delivered', glyph: PackageIcon },
+  RECEIPT_RECORDED: { title: 'Received', glyph: PackageIcon },
+  BOTH_RECEIVED: { title: 'Both items received', glyph: PackageIcon },
+  DISPUTE_RAISED: { title: 'Dispute raised', glyph: WarningIcon },
+  CONDITION_DISPUTE: { title: 'Dispute raised', glyph: WarningIcon },
+  INSPECTION_ACCEPTED: { title: 'Completed', glyph: CheckIcon },
+  AUTO_COMPLETED: { title: 'Completed', glyph: CheckIcon },
+  BOTH_ACCEPTED: { title: 'Completed', glyph: CheckIcon },
+  COMPLETED: { title: 'Completed', glyph: CheckIcon },
+  DEAL_COMPLETED: { title: 'Completed', glyph: CheckIcon },
+  CANCELLED: { title: 'Cancelled', glyph: XIcon },
+  DEAL_CANCELLED: { title: 'Cancelled', glyph: XIcon },
 };
 
 /** Carrier details for the shipped milestone, when the thread has a shipment. */
@@ -118,11 +191,11 @@ export interface MessageLogProps {
   counterpartyName: string;
   counterpartyAvatarPath?: string | null;
   emptyHint: string;
-  /** Incoming avatar on the last bubble of a cluster. Inbox on, contract off. */
+  /** Incoming avatar at the foot of a run. Inbox on, contract off. */
   showAvatars?: boolean;
-  /** "You" / their name on the first bubble of a cluster. */
+  /** "You" / their name above the first bubble of a run. */
   showNames?: boolean;
-  /** Read receipt on the last outgoing bubble of a cluster. */
+  /** "Seen" / "Sent" under your message while it is the last thing either of you said. */
   showReadReceipt?: boolean;
   /**
    * The shipment this thread's contract is carrying, if any. Supplied rather
@@ -139,6 +212,13 @@ export interface MessageLogProps {
    * that replaces it signs them. Defaults to `true`.
    */
   signAttachments?: boolean;
+}
+
+/** When the entry a cluster follows happened, for the time-break rule. */
+function lastAt(cluster: MessageCluster | undefined): number | null {
+  if (!cluster || cluster.type === 'day') return null;
+  const last = cluster.messages[cluster.messages.length - 1];
+  return new Date(last.created_at).getTime();
 }
 
 export function MessageLog({
@@ -174,6 +254,18 @@ export function MessageLog({
     return images;
   }, [messages, urls]);
 
+  // The one message the receipt sits under: yours, when it is the last thing a PERSON
+  // said. Once they have replied, the reply is the receipt (Instagram drops "Seen"
+  // the same way); a contract notice after it does not count as a reply.
+  const latestMine = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
+      if (message.kind !== 'USER') continue;
+      return message.sender_id === currentUserId ? message : null;
+    }
+    return null;
+  }, [messages, currentUserId]);
+
   if (messages.length === 0) {
     return (
       <div className="grid h-full place-items-center text-center">
@@ -184,20 +276,27 @@ export function MessageLog({
 
   return (
     <>
-      {/* Matched to the gap between contract notices. Left at 16 it would have
-          been SMALLER than the spacing inside a single run, so the last notice
-          in a run would have looked attached to the bubble after it. */}
-      <div className="flex flex-col gap-6">
-        {clusters.map((cluster) => {
+      {/* `gap-group` between runs; a run's own bubbles are 2px apart, so a change of
+          speaker reads at a glance. A time break travels INSIDE the run it heads, so
+          it sits nearer the messages it dates than the ones before them. */}
+      <div className="flex flex-col gap-group">
+        {clusters.map((cluster, index) => {
           if (cluster.type === 'day') {
+            // THE FIRST TIME OF THE DAY JOINS THE DAY: "Today 2:46 am", one line,
+            // when a person's message opens it. A contract notice carries its own
+            // time, so before one the divider is the day alone.
+            const next = clusters[index + 1];
+            const opening =
+              next?.type === 'user' ? messageTimeLabel(next.messages[0].created_at) : null;
             return (
-              <div key={cluster.key} className="flex justify-center">
+              <div key={cluster.key} className="flex justify-center pt-tight">
                 <time
                   dateTime={cluster.dateTime}
                   suppressHydrationWarning
-                  className="text-meta font-medium text-muted-foreground"
+                  className="text-meta text-muted-foreground"
                 >
-                  {cluster.label}
+                  <span className="font-semibold">{cluster.label}</span>
+                  {opening ? ` ${opening}` : null}
                 </time>
               </div>
             );
@@ -213,77 +312,97 @@ export function MessageLog({
             );
           }
 
+          const previous = clusters[index - 1];
+          const first = cluster.messages[0];
           const last = cluster.messages[cluster.messages.length - 1];
-          const stamp = messageTimeLabel(last.created_at);
-          const read =
-            showReadReceipt && cluster.mine && Boolean(last.read_at) ? ' · Read' : '';
+          const previousAt = lastAt(previous);
+          const timeBreak =
+            previous?.type !== 'day' &&
+            (previousAt === null ||
+              new Date(first.created_at).getTime() - previousAt >= TIME_BREAK_MS);
+          const receiptHere =
+            showReadReceipt && cluster.mine && latestMine !== null && last.id === latestMine.id;
 
           return (
-            <div
-              key={cluster.key}
-              className={cn('flex flex-col gap-0.5', cluster.mine ? 'items-end' : 'items-start')}
-            >
-              {showNames ? (
-                <span className="mb-0.5 px-tight text-meta font-medium text-muted-foreground">
-                  {cluster.mine ? 'You' : counterpartyName}
-                </span>
+            <div key={cluster.key} className="flex flex-col gap-snug">
+              {timeBreak ? (
+                <time
+                  dateTime={first.created_at}
+                  suppressHydrationWarning
+                  className="self-center text-meta text-muted-foreground"
+                >
+                  {messageTimeLabel(first.created_at)}
+                </time>
               ) : null}
-              {cluster.messages.map((message, index) => {
-                const lastInCluster = index === cluster.messages.length - 1;
-                return (
-                  <div
-                    key={message.id}
-                    className={cn(
-                      // `items-center`, not `items-end`. Bottom-aligning a 24px
-                      // avatar against a ~34px single-line bubble drops it about
-                      // five pixels under the bubble's optical centre, which is
-                      // the misalignment you see on every short incoming line.
-                      `flex ${MESSAGE_MEASURE} items-center gap-1.5`,
-                      cluster.mine ? 'flex-row-reverse' : 'flex-row',
-                    )}
-                  >
-                    {showAvatars && !cluster.mine ? (
-                      lastInCluster ? (
-                        <Avatar
-                          avatarPath={counterpartyAvatarPath}
-                          displayName={counterpartyName}
-                          size="xs"
-                        />
-                      ) : (
-                        <span className="size-6 shrink-0" aria-hidden />
-                      )
-                    ) : null}
-                    <MessageBubble
-                      message={message}
-                      mine={cluster.mine}
-                      last={lastInCluster}
-                      url={
-                        // `undefined` while the path is still being signed, `null`
-                        // once signing has answered without a URL. The bubble needs
-                        // the difference — see `MessageBubble`.
-                        message.attachment_path
-                          ? urls[message.attachment_path]
-                          : null
-                      }
-                      onOpenImage={() => {
-                        if (!message.attachment_path) return;
-                        const url = urls[message.attachment_path];
-                        if (!url) return;
-                        const at = gallery.findIndex((image) => image.url === url);
-                        setLightbox(at === -1 ? 0 : at);
-                      }}
-                    />
-                  </div>
-                );
-              })}
-              <time
-                dateTime={last.created_at}
-                suppressHydrationWarning
-                className="px-tight text-meta text-muted-foreground"
+              <div
+                className={cn(
+                  'flex flex-col gap-0.5',
+                  cluster.mine ? 'items-end' : 'items-start',
+                )}
               >
-                {stamp}
-                {read}
-              </time>
+                {showNames ? (
+                  <span className="mb-0.5 px-cozy text-meta font-medium text-muted-foreground">
+                    {cluster.mine ? 'You' : counterpartyName}
+                  </span>
+                ) : null}
+                {cluster.messages.map((message, messageIndex) => {
+                  const position = runPosition(messageIndex, cluster.messages.length);
+                  const footOfRun = position === 'single' || position === 'last';
+                  return (
+                    <div
+                      key={message.id}
+                      className={cn(
+                        // `items-end`: the avatar stands at the foot of the run, its
+                        // bottom edge on the last bubble's, the way every chat client
+                        // places it. Centred, it floated halfway up a long bubble.
+                        `flex ${MESSAGE_MEASURE} items-end gap-snug`,
+                        cluster.mine ? 'flex-row-reverse' : 'flex-row',
+                      )}
+                    >
+                      {showAvatars && !cluster.mine ? (
+                        footOfRun ? (
+                          <Avatar
+                            avatarPath={counterpartyAvatarPath}
+                            displayName={counterpartyName}
+                            size="xs"
+                          />
+                        ) : (
+                          <span className="size-6 shrink-0" aria-hidden />
+                        )
+                      ) : null}
+                      <MessageBubble
+                        message={message}
+                        mine={cluster.mine}
+                        position={position}
+                        url={
+                          // `undefined` while the path is still being signed, `null`
+                          // once signing has answered without a URL. The bubble needs
+                          // the difference — see `MessageBubble`.
+                          message.attachment_path
+                            ? urls[message.attachment_path]
+                            : null
+                        }
+                        onOpenImage={() => {
+                          if (!message.attachment_path) return;
+                          const url = urls[message.attachment_path];
+                          if (!url) return;
+                          const at = gallery.findIndex((image) => image.url === url);
+                          setLightbox(at === -1 ? 0 : at);
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+                {/* The run's time for a screen reader, which cannot hover a bubble. */}
+                <time dateTime={last.created_at} suppressHydrationWarning className="sr-only">
+                  {messageTimeLabel(last.created_at)}
+                </time>
+                {receiptHere ? (
+                  <span className="px-tight pt-0.5 text-meta text-muted-foreground">
+                    {isOptimisticMessage(last) ? 'Sending…' : last.read_at ? 'Seen' : 'Sent'}
+                  </span>
+                ) : null}
+              </div>
             </div>
           );
         })}
@@ -356,33 +475,53 @@ function contractEventBody(
 }
 
 /**
- * Contract events as CENTRED SYSTEM NOTICES — the 闲鱼 treatment.
+ * A milestone's mark: a solid disc in the outcome's colour with the event's own glyph
+ * knocked out in white, the `StatusGlyph` rule (an icon that states a fact is a filled
+ * shape, never a hairline). Green went well, violet is in progress (the badge's "live"
+ * hue), red needs attention.
+ */
+function MilestoneDisc({ glyph, tone }: { glyph: IconGlyph; tone: ContractEventTone }) {
+  const alarming = tone === 'destructive' || tone === 'warning';
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        'grid size-8 shrink-0 place-items-center rounded-full text-white',
+        alarming ? 'bg-destructive' : tone === 'success' ? 'bg-trust' : 'bg-iris-ink',
+      )}
+    >
+      <Icon icon={glyph} className="size-4" />
+    </span>
+  );
+}
+
+/**
+ * Contract events as CENTRED SYSTEM NOTICES — the 闲鱼 and Instagram treatment.
  *
  * WHY THIS IS NOT A LEDGER ANY MORE. It was: a "Contract activity" heading, a vertical
  * rail, a tone icon per row, a timestamp on its own line, and the newest event set in
  * `foreground` while the rest were muted. Every one of those was doing a job the room
- * did not have anywhere else to do — the cash-sale room drew no progress rail and had no
- * Status tab, so the transcript was the only place the contract's shape appeared, and it
- * grew a spine to carry it.
+ * did not have anywhere else to do. `ContractStatusPanel` in the Status tab now holds the
+ * rail, the live step and whose move it is, and the chat dock repeats the step above the
+ * composer, so a system notice in a chat only has to say what happened, at a weight that
+ * lets the eye skip it once it has.
  *
- * That is no longer true. `ContractStatusPanel` in the Status tab now holds the rail, the
- * live step and whose move it is, and the chat dock repeats the step above the composer.
- * With the state stated twice elsewhere, a heading, a rail and an emphasised "latest" in
- * the middle of the conversation are three claims on attention that the conversation
- * itself should be getting. A system notice in a chat only has to say what happened, at
- * a weight that lets the eye skip it once it has.
+ * SO: centred, `text-meta`, muted, one line per event. THE EXCEPTION is the handful of
+ * milestones in `MILESTONES` — money held, goods sent and arrived, a dispute, the end —
+ * which render as cards, because those are what a member scrolls back to find.
  *
- * SO: centred, `text-meta`, muted, one line per event, no icon, no heading. The same
- * treatment the day divider above it already uses, which is the point — both are the
- * transcript talking rather than a person. THE EXCEPTION is the handful of milestones
- * in `MILESTONE_TITLE` — money held, goods sent and arrived, a dispute, the end — which
- * render as small cards, because those are what a member scrolls back to find.
+ * THE CARD (2026-11-28, design-system audit). It was a tinted box with a tinted border
+ * and a hairline outline icon, and on a dispute the whole box went pink with a violet
+ * glyph in it: the alert-box recipe, and three colours saying one thing. Now the box is
+ * one quiet slate tile with no edge, the outcome is carried by the solid disc, and only
+ * a problem's title turns red. Title and sentence are the same size in two weights, the
+ * time is the one 12px figure.
  *
- * WHAT IS KEPT AND WHY. The timestamp stays, inline as a prefix: these lines are the
- * audit trail an arbitrator reads, and "when" is half of what they are for. Destructive
- * events keep their colour — a cancellation or a dispute is not something to let the eye
- * skip. And the Track link stays, because a shipment notice whose number you cannot open
- * is the problem `ShipmentSummary` exists to fix.
+ * WHAT IS KEPT AND WHY. The timestamp stays: these lines are the audit trail an
+ * arbitrator reads, and "when" is half of what they are for. Destructive events keep
+ * their colour — a cancellation or a dispute is not something to let the eye skip. And
+ * the Track link stays, because a shipment notice whose number you cannot open is the
+ * problem `ShipmentSummary` exists to fix.
  */
 function ContractMilestones({
   messages,
@@ -394,12 +533,7 @@ function ContractMilestones({
   saleContext: MessageLogSaleContext | null;
 }) {
   return (
-    // `ol` for the reading order and `aria-label` so the run announces as what it is;
-    // the heading it replaces was doing that job visually and only visually.
-    //
-    // `gap-cozy` between notices, against `gap-0.5` inside one. Each notice is now two
-    // centred lines, so the gap between them has to be clearly larger than the gap
-    // between a notice's own time and body or the run reads as one block of text.
+    // `ol` for the reading order and `aria-label` so the run announces as what it is.
     <ol className="flex flex-col gap-cozy" aria-label="Contract activity">
       {messages.map((message) => {
         const tone = classifyContractEvent(message.system_event);
@@ -412,46 +546,46 @@ function ContractMilestones({
             ? shipment
             : null;
 
-        const milestone = message.system_event ? MILESTONE_TITLE[message.system_event] : undefined;
+        const milestone = message.system_event ? MILESTONES[message.system_event] : undefined;
         if (milestone) {
-          // A MILESTONE IS A CARD: a title that names it, the event's own sentence as
-          // the one fact, the time, and the one link it has (Track). As a faint centred
-          // line, "payment held" and "shipped" were the same weight as a terms edit,
-          // and they are what a member scrolls back to find.
           return (
             <li key={message.id} className="flex justify-center">
-              <div
-                className={cn(
-                  'w-full max-w-sm rounded-lg border bg-card px-cozy py-snug',
-                  alarming && 'border-destructive/40 bg-destructive/[0.04]',
-                )}
-              >
-                <div className="flex items-center gap-snug">
-                  <ContractEventIcon tone={tone} />
-                  <p className="min-w-0 flex-1 truncate text-body font-semibold">{milestone}</p>
-                  <time
-                    dateTime={message.created_at}
-                    suppressHydrationWarning
-                    className="shrink-0 text-meta text-muted-foreground"
-                  >
-                    {messageTimeLabel(message.created_at)}
-                  </time>
+              <div className="flex w-full max-w-[24rem] items-start gap-cozy rounded-2xl bg-muted/80 p-cozy">
+                <MilestoneDisc glyph={milestone.glyph} tone={tone} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline gap-snug">
+                    <p
+                      className={cn(
+                        'min-w-0 flex-1 truncate text-body font-semibold',
+                        alarming ? 'text-destructive' : 'text-foreground',
+                      )}
+                    >
+                      {milestone.title}
+                    </p>
+                    <time
+                      dateTime={message.created_at}
+                      suppressHydrationWarning
+                      className="shrink-0 text-meta tabular-nums text-muted-foreground"
+                    >
+                      {messageTimeLabel(message.created_at)}
+                    </time>
+                  </div>
+                  <p className="text-pretty text-body text-muted-foreground">
+                    {contractEventBody(message, saleContext)}
+                  </p>
+                  {tracked ? (
+                    <a
+                      href={tracked.trackingUrl as string}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Track parcel${tracked.carrier ? ` with ${tracked.carrier}` : ''} (opens in a new tab)`}
+                      className="mt-snug inline-flex items-center gap-tight text-body font-medium text-foreground underline decoration-iris/55 underline-offset-4 transition-colors hover:decoration-iris focus:outline-none focus-visible:decoration-iris"
+                    >
+                      Track parcel
+                      <Icon icon={ArrowSquareOutIcon} className="size-3.5" />
+                    </a>
+                  ) : null}
                 </div>
-                <p className="mt-0.5 text-pretty text-meta text-muted-foreground">
-                  {contractEventBody(message, saleContext)}
-                </p>
-                {tracked ? (
-                  <a
-                    href={tracked.trackingUrl as string}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Track parcel${tracked.carrier ? ` with ${tracked.carrier}` : ''} (opens in a new tab)`}
-                    className="mt-tight inline-flex items-center gap-0.5 text-meta font-medium text-foreground underline decoration-iris/55 underline-offset-4 transition-colors hover:decoration-iris focus:outline-none focus-visible:decoration-iris"
-                  >
-                    Track parcel
-                    <HugeiconsIcon icon={ExternalLinkIcon} className="size-3 shrink-0" aria-hidden />
-                  </a>
-                ) : null}
               </div>
             </li>
           );
@@ -471,12 +605,11 @@ function ContractMilestones({
             >
               {messageTimeLabel(message.created_at)}
             </time>
-            {/* `max-w-[85%]`, not the full column. A centred line that runs the width
-                of a wide pane stops reading as an aside and starts reading as a
-                paragraph — and the wrap point is what makes the difference. */}
+            {/* A centred line that runs the width of a wide pane stops reading as an
+                aside and starts reading as a paragraph, so it wraps at 85% or 30rem. */}
             <p
               className={cn(
-                'max-w-[85%] text-balance text-center text-meta',
+                'max-w-[min(85%,30rem)] text-balance text-center text-meta',
                 alarming ? 'font-medium text-destructive' : 'text-muted-foreground',
               )}
             >
@@ -494,11 +627,7 @@ function ContractMilestones({
                     className="inline-flex items-center gap-0.5 font-medium text-foreground underline decoration-iris/55 underline-offset-4 transition-colors hover:decoration-iris focus:outline-none focus-visible:decoration-iris"
                   >
                     Track
-                    <HugeiconsIcon
-                      icon={ExternalLinkIcon}
-                      className="size-3 shrink-0"
-                      aria-hidden
-                    />
+                    <Icon icon={ArrowSquareOutIcon} className="size-3" />
                   </a>
                 </>
               ) : null}
@@ -513,13 +642,13 @@ function ContractMilestones({
 function MessageBubble({
   message,
   mine,
-  last,
+  position,
   url,
   onOpenImage,
 }: {
   message: ChatMessage;
   mine: boolean;
-  last: boolean;
+  position: RunPosition;
   /** Signed URL; `undefined` while signing is in flight, `null` when it failed. */
   url: string | null | undefined;
   onOpenImage: () => void;
@@ -530,19 +659,19 @@ function MessageBubble({
 
   return (
     <div
+      // The exact minute on hover; the log shows time only where a gap opens.
+      title={messageTimeLabel(message.created_at)}
+      suppressHydrationWarning
       className={cn(
         'min-w-0 overflow-hidden text-body',
-        // YOUR OWN MESSAGES IN THE PRIMARY (ink since the primary stopped being
-        // violet), the same `--primary` on `--primary-foreground` pair the app's bubble
-        // draws (`message_bubble.dart`), so the two clients read as one product.
-        mine ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground',
-        mine
-          ? last
-            ? 'rounded-xl rounded-br-md'
-            : 'rounded-xl rounded-br-sm'
-          : last
-            ? 'rounded-xl rounded-bl-md'
-            : 'rounded-xl rounded-bl-sm',
+        // YOUR OWN MESSAGES IN `--iris-ink`, theirs in the slate `--muted`. White on
+        // iris-ink is 7.7:1. See the module note and WHERE THE VIOLET IS ALLOWED.
+        mine ? 'bg-iris-ink text-white' : 'bg-muted text-foreground',
+        MESSAGE_BUBBLE_RADIUS,
+        bubbleCorners(mine, position),
+        // A message still on its way is drawn at full strength: it is swapped for the
+        // server's row within a round trip, and dimming it made every send flicker.
+        // The receipt under it says "Sending…" instead.
       )}
     >
       {image ? (
@@ -550,7 +679,7 @@ function MessageBubble({
           type="button"
           onClick={url ? onOpenImage : undefined}
           disabled={!url}
-          className="relative block aspect-[4/3] w-56 max-w-full overflow-hidden border border-transparent focus:outline-none focus-visible:border-ring disabled:cursor-default"
+          className="relative block aspect-[4/3] w-60 max-w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default"
         >
           {url ? (
             // Signed URLs are private and short-lived; next/image cannot cache them.
@@ -558,8 +687,8 @@ function MessageBubble({
             <img
               src={url}
               alt={message.attachment_name ?? 'Photo'}
-              width={224}
-              height={168}
+              width={240}
+              height={180}
               loading="lazy"
               className="absolute inset-0 size-full object-cover"
             />
@@ -579,7 +708,7 @@ function MessageBubble({
             rel="noopener noreferrer"
             className={cn(
               'flex items-center gap-snug px-cozy py-snug',
-              mine ? 'text-primary-foreground' : 'text-foreground',
+              mine ? 'text-white' : 'text-foreground',
             )}
           >
             <FileAttachmentLabel message={message} mine={mine} />
@@ -592,7 +721,7 @@ function MessageBubble({
           <div
             className={cn(
               'flex items-center gap-snug px-cozy py-snug opacity-70',
-              mine ? 'text-primary-foreground' : 'text-foreground',
+              mine ? 'text-white' : 'text-foreground',
             )}
           >
             <FileAttachmentLabel message={message} mine={mine} />
@@ -610,7 +739,6 @@ function MessageBubble({
   );
 }
 
-
 /** Glyph, name and size of a file attachment — shared by the link and its pending row. */
 function FileAttachmentLabel({
   message,
@@ -621,13 +749,22 @@ function FileAttachmentLabel({
 }) {
   return (
     <>
-      <HugeiconsIcon icon={FileTextIcon} className="size-4 shrink-0" aria-hidden />
+      {/* The file's own tile inside the bubble: a tint of whatever colour it sits on. */}
+      <span
+        aria-hidden
+        className={cn(
+          'grid size-9 shrink-0 place-items-center rounded-xl',
+          mine ? 'bg-white/15' : 'bg-foreground/[0.06]',
+        )}
+      >
+        <Icon icon={FileTextIcon} className="size-[1.125rem]" />
+      </span>
       <span className="min-w-0">
         <span className="block truncate font-medium">
           {message.attachment_name ?? 'File'}
         </span>
         {message.attachment_bytes != null ? (
-          <span className={cn('block text-meta', mine ? 'opacity-70' : 'text-muted-foreground')}>
+          <span className={cn('block text-meta', mine ? 'text-white/75' : 'text-muted-foreground')}>
             {formatAttachmentBytes(message.attachment_bytes)}
           </span>
         ) : null}

@@ -64,22 +64,11 @@ export interface ContractStep {
   /** Imperative where the viewer must act, descriptive otherwise. */
   label: string;
   /**
-   * The same sentence with the subject dropped, for `ContractActionCard`'s dock
-   * BELOW `md`. Falls back to `label`.
-   *
-   * On a phone the dock is pinned over the conversation and the title shares one
-   * row with a 40px control, so a `label` that names its actor — "Buyer confirms
-   * the item" — wraps to the second line and spends it restating who the reader
-   * already is. "Confirm item" says the same thing in the space available.
-   *
-   * NOT a third rail label: `short` is one or two words under a numbered circle
-   * and gets truncated, this is the imperative phrase and gets clamped. A step
-   * can want one, both, or neither.
-   */
-  compactLabel?: string;
-  /**
-   * One or two words for the progress rail, where there is only room for a tick
-   * label. Falls back to `label`.
+   * THE STEP'S NAME (2026-11-27): one verb phrase, the same in both flows ("Pay",
+   * "Post", "Meet", "Confirm arrival", "Inspect"). The progress rail, the progress
+   * strip and the action dock's title all read it, so a step is called one thing
+   * everywhere. The dock adds "· Waiting for Dave" when it is the other side's
+   * move. Falls back to `label`.
    */
   short?: string;
   /**
@@ -128,9 +117,7 @@ export interface ContractStep {
 export interface ContractStepDraft {
   id: string;
   label: string;
-  /** Subject-less `label` for the phone dock. See {@link ContractStep.compactLabel}. */
-  compactLabel?: string;
-  /** One or two words for the progress rail. */
+  /** The step's name. See {@link ContractStep.short}. */
   short?: string;
   /** Noun phrase under the rail label. See {@link ContractStep.caption}. */
   caption?: string;
@@ -169,7 +156,6 @@ export function sequenceSteps(drafts: ContractStepDraft[]): ContractStep[] {
       return {
         id: draft.id,
         label: draft.label,
-        compactLabel: draft.compactLabel,
         short: draft.short,
         caption: draft.caption,
         detail: draft.detail,
@@ -191,7 +177,6 @@ export function sequenceSteps(drafts: ContractStepDraft[]): ContractStep[] {
     return {
       id: draft.id,
       label: draft.label,
-      compactLabel: draft.compactLabel,
       short: draft.short,
       caption: draft.caption,
       detail: draft.detail,
@@ -232,7 +217,6 @@ export function sequenceHaltedSteps(
     const base = {
       id: draft.id,
       label: draft.label,
-      compactLabel: draft.compactLabel,
       short: draft.short,
       caption: draft.caption,
       detail: draft.detail,
@@ -249,12 +233,6 @@ export function sequenceHaltedSteps(
       return {
         ...base,
         label: outcome.label,
-        // Dropped, not carried like `short`. The rail tick is positional — it
-        // still marks the step the contract reached — but `compactLabel` is a
-        // shorthand for THIS step's `label`, and the halted step's label is now
-        // the outcome's. Keeping it would leave a phone reading "Confirm item"
-        // on a sale that was cancelled at inspection.
-        compactLabel: undefined,
         short: outcome.short ?? draft.short,
         detail: outcome.detail,
         owner: 'platform' as const,

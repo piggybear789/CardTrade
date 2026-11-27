@@ -15,14 +15,8 @@
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  CheckIcon,
-  LoaderCircleIcon,
-  PlusIcon,
-  StarIcon,
-  XIcon,
-} from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, CircleNotchIcon, PlusIcon, StarIcon, XIcon } from '@/components/ui/icons';
 
 import {
   deleteAddress,
@@ -100,7 +94,7 @@ export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
     return (
       <SettingsPlaceholder>
         <span className="inline-flex items-center gap-snug">
-          <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="size-4 animate-spin" aria-hidden />
           Loading your saved addresses…
         </span>
       </SettingsPlaceholder>
@@ -113,7 +107,7 @@ export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
         <SettingsPlaceholder
           action={
             <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
-              <HugeiconsIcon icon={PlusIcon} aria-hidden />
+              <Icon icon={PlusIcon} aria-hidden />
               Add an address
             </Button>
           }
@@ -148,7 +142,7 @@ export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
       ) : addresses.length > 0 ? (
         <div>
           <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
-            <HugeiconsIcon icon={PlusIcon} aria-hidden />
+            <Icon icon={PlusIcon} aria-hidden />
             Add another
           </Button>
         </div>
@@ -230,7 +224,7 @@ function SavedAddressRow({
         <div className="flex shrink-0 items-center gap-snug">
           {address.isDefault ? (
             <span className="inline-flex items-center gap-tight text-meta font-medium text-muted-foreground">
-              <HugeiconsIcon icon={StarIcon} className="size-3.5" aria-hidden />
+              <Icon icon={StarIcon} className="size-3.5" aria-hidden />
               Default
             </span>
           ) : (
@@ -250,7 +244,7 @@ function SavedAddressRow({
             aria-label="Remove address"
             className="flex size-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:border-ring disabled:opacity-65"
           >
-            <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+            <Icon icon={XIcon} className="size-4" aria-hidden />
           </button>
         </div>
       </div>
@@ -267,9 +261,9 @@ function SavedAddressRow({
         {labelDirty ? (
           <Button type="button" size="sm" onClick={saveLabel} disabled={pending} aria-busy={pending}>
             {pending ? (
-              <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+              <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
             ) : (
-              <HugeiconsIcon icon={CheckIcon} aria-hidden />
+              <Icon icon={CheckIcon} aria-hidden />
             )}
             Save
           </Button>

@@ -8,8 +8,8 @@
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HandshakeIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { HandshakeIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { Badge } from '@/components/ui/badge';
@@ -63,7 +63,7 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
                 className="flex min-h-11 min-w-0 flex-1 items-start gap-group rounded-md border border-transparent focus:outline-none focus-visible:border-ring sm:items-center"
               >
                 <div className="flex size-12 shrink-0 items-center justify-center rounded-md border bg-muted text-muted-foreground">
-                  <HugeiconsIcon icon={HandshakeIcon} className="size-5" aria-hidden />
+                  <Icon icon={HandshakeIcon} className="size-5" aria-hidden />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 break-words text-lead font-medium">

@@ -8,8 +8,8 @@
 // its own room rather than on a card here.
 
 import { redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HourglassIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { HourglassIcon } from '@/components/ui/icons';
 
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { getMyTrades } from '@/lib/actions/account';
@@ -132,7 +132,7 @@ export default async function TradesPage({
         </>
       ) : scope === 'active' ? (
         <StartDealEmptyState
-          icon={<HugeiconsIcon icon={HourglassIcon} className="size-6" aria-hidden="true" />}
+          icon={<Icon icon={HourglassIcon} className="size-6" aria-hidden="true" />}
           title="No trades yet"
           description="Find an item you would like, then offer whatever you think is fair for it. Or send a private deal link."
           help={{ label: 'How holds and disputes work', href: '/help#holds' }}

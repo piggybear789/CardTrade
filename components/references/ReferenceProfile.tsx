@@ -10,8 +10,8 @@
 
 import { memo, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon } from '@/components/ui/icons';
 
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
@@ -319,7 +319,7 @@ const ProfileHeader = memo(function ProfileHeader({
             className="-ml-2 size-10 shrink-0 rounded-md md:size-9 [&_svg]:size-5"
           >
             <Link href="/references" aria-label="Back to references">
-              <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+              <Icon icon={CaretLeftIcon} aria-hidden />
             </Link>
           </Button>
 

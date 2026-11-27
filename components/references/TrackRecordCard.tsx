@@ -13,8 +13,8 @@
 //
 // Server-renderable: no state, no effects.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowUpRightIcon } from '@/components/ui/icons';
 
 import { PlatformChip } from '@/components/references/referenceLabels';
 import {
@@ -87,7 +87,7 @@ export function TrackRecordCard({
                   className="inline-flex max-w-full items-center gap-1 rounded-sm text-body font-semibold text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <span className="break-all">{entry.username}</span>
-                  <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                  <Icon icon={ArrowUpRightIcon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
                   <span className="sr-only">on eBay (opens in a new tab)</span>
                 </a>
                 <p className="text-meta text-muted-foreground">{externalProofLabel(entry.proof)}</p>

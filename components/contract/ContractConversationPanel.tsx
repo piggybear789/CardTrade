@@ -19,6 +19,7 @@ import type { ReactNode } from 'react';
 import {
   ContractChat,
   ContractChatBar,
+  type ContractChatCounterparty,
   type ContractChatSubject,
 } from '@/components/messages/ContractChat';
 import type {
@@ -33,6 +34,8 @@ export interface ContractConversationPanelProps {
   counterpartyName: string;
   /** Avatar object path, or null. A PATH, not a URL. */
   counterpartyAvatarPath?: string | null;
+  /** ID check and rating, for the chat bar's person line. */
+  counterparty?: ContractChatCounterparty | null;
   /** Panel heading. Unused visually — the counterpart's name is the title. */
   title?: string;
   placeholder?: string;
@@ -49,7 +52,7 @@ export interface ContractConversationPanelProps {
   status?: ReactNode;
   /** `FundsHeldMark compact` while money is held. */
   assurance?: ReactNode;
-  /** `ContractProgressStrip`, under the chat bar on a phone. */
+  /** `ContractStepCard`, under the chat bar's person line in the thread layout. */
   progress?: ReactNode;
   /** Carrier details, so the shipped milestone can link out to tracking. */
   shipment?: MessageLogShipment | null;
@@ -67,6 +70,7 @@ export function ContractConversationPanel({
   currentUserId,
   counterpartyName,
   counterpartyAvatarPath,
+  counterparty,
   placeholder,
   emptyHint,
   subject,
@@ -88,6 +92,7 @@ export function ContractConversationPanel({
         currentUserId={currentUserId}
         counterpartyName={counterpartyName}
         counterpartyAvatarPath={counterpartyAvatarPath}
+        counterparty={counterparty}
         placeholder={placeholder}
         emptyHint={emptyHint}
         subject={subject}
@@ -108,6 +113,7 @@ export function ContractConversationPanel({
       <ContractChatBar
         counterpartyName={counterpartyName}
         counterpartyAvatarPath={counterpartyAvatarPath}
+        counterparty={counterparty}
         subject={subject}
         backHref={backHref}
         status={status}

@@ -17,18 +17,18 @@ import { useEffect, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  Cancel01Icon,
-  CheckmarkCircle02Icon,
-  Copy01Icon,
-  ExternalLinkIcon,
-  ImageAdd01Icon,
-  LoaderCircleIcon,
+  ArrowSquareOutIcon,
+  CameraPlusIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  CopyIcon,
   PlusIcon,
-} from '@hugeicons/core-free-icons';
+  XIcon,
+} from '@/components/ui/icons';
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { Button } from '@/components/ui/button';
@@ -436,7 +436,7 @@ export function ClaimHandle({
           // FILLED: on their own page this is the owner's main action, and as an
           // outline it sat at the same weight as "Share reference link" beside it.
           <Button type="button">
-            <HugeiconsIcon icon={PlusIcon} aria-hidden />
+            <Icon icon={PlusIcon} aria-hidden />
             Link another handle
           </Button>
         ) : (
@@ -454,7 +454,7 @@ export function ClaimHandle({
         {dmVerified ? (
           <div className="space-y-group py-2 text-center">
             <div className="mx-auto grid size-11 place-items-center rounded-full bg-trust/10 text-trust">
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" aria-hidden />
+              <Icon icon={CheckCircleIcon} className="size-5" aria-hidden />
             </div>
             <div className="space-y-1">
               <p className="text-body font-semibold text-foreground">{displayHandle} is now linked</p>
@@ -469,7 +469,7 @@ export function ClaimHandle({
         ) : manualSubmitted ? (
           <div className="space-y-group py-2 text-center">
             <div className="mx-auto grid size-11 place-items-center rounded-full bg-trust/10 text-trust">
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5" aria-hidden />
+              <Icon icon={CheckCircleIcon} className="size-5" aria-hidden />
             </div>
             <div className="space-y-1">
               <p className="text-body font-semibold text-foreground">Proof submitted for {displayHandle}</p>
@@ -564,7 +564,7 @@ export function ClaimHandle({
                     disabled={uploadingManual || manualNames.length >= MANUAL_PROOF_LIMIT}
                     onClick={() => manualFileRef.current?.click()}
                   >
-                    <HugeiconsIcon icon={ImageAdd01Icon} aria-hidden />
+                    <Icon icon={CameraPlusIcon} aria-hidden />
                     {uploadingManual
                       ? 'Uploading…'
                       : manualNames.length > 0
@@ -584,7 +584,7 @@ export function ClaimHandle({
                         aria-label={`Remove ${name}`}
                         className="text-muted-foreground transition-colors hover:text-foreground"
                       >
-                        <HugeiconsIcon icon={Cancel01Icon} className="size-3" aria-hidden />
+                        <Icon icon={XIcon} className="size-3" aria-hidden />
                       </button>
                     </span>
                   ))}
@@ -607,7 +607,7 @@ export function ClaimHandle({
                   setDmNotice(null);
                 }}
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
               <Button
@@ -639,7 +639,7 @@ export function ClaimHandle({
                     {dmSession.code}
                   </code>
                   <Button type="button" variant="outline" size="sm" onClick={copyCode}>
-                    <HugeiconsIcon icon={Copy01Icon} aria-hidden />
+                    <Icon icon={CopyIcon} aria-hidden />
                     {copied ? 'Copied' : 'Copy code'}
                   </Button>
                 </div>
@@ -661,7 +661,7 @@ export function ClaimHandle({
                     </span>
                     DM @{dmSession.botHandle} on Instagram
                   </span>
-                  <HugeiconsIcon icon={ExternalLinkIcon} className="size-4 text-muted-foreground" aria-hidden />
+                  <Icon icon={ArrowSquareOutIcon} className="size-4 text-muted-foreground" aria-hidden />
                 </a>
               </Button>
 
@@ -681,7 +681,7 @@ export function ClaimHandle({
                   setDmNotice(null);
                 }}
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
 
@@ -753,7 +753,7 @@ export function ClaimHandle({
                   >
                     <span className={cn('inline-flex size-5 shrink-0 items-center justify-center', p.iconClass)}>
                       {p.slug === 'manual' ? (
-                        <HugeiconsIcon icon={ImageAdd01Icon} className="size-5" aria-hidden />
+                        <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
                       ) : (
                         <SocialPlatformIcon slug={p.slug} className="size-5" />
                       )}
@@ -763,14 +763,14 @@ export function ClaimHandle({
                       <span className="block truncate text-meta text-muted-foreground">{p.hint}</span>
                     </span>
                     {isConnecting ? (
-                      <HugeiconsIcon
-                        icon={LoaderCircleIcon}
+                      <Icon
+                        icon={CircleNotchIcon}
                         className="size-4 shrink-0 animate-spin text-muted-foreground"
                         aria-hidden
                       />
                     ) : (
-                      <HugeiconsIcon
-                        icon={ArrowRight01Icon}
+                      <Icon
+                        icon={CaretRightIcon}
                         className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
                         aria-hidden
                       />

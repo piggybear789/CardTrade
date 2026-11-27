@@ -26,8 +26,8 @@
 // "Sell" link still point here.
 
 import { redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ShieldWarningIcon } from '@/components/ui/icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser, getCachedProfile } from '@/lib/supabase/cachedAuth';
@@ -83,7 +83,7 @@ export default async function NewListingPage({
             the disclosure case cannot be given each other's instructions. */}
         <EmptyState
           variant="page"
-          icon={<HugeiconsIcon icon={ShieldAlertIcon} className="size-6" aria-hidden />}
+          icon={<Icon icon={ShieldWarningIcon} className="size-6" aria-hidden />}
           title={gate.title}
           titleAs="h3"
           description={gate.message}

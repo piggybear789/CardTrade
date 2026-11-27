@@ -7,8 +7,8 @@
 // sending a link (`DealLinkActions`); this is the single control for lists.
 
 import { useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, LinkIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, LinkIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -45,7 +45,7 @@ export function CopyDealLink({
     >
       {appearance === 'icon' ? (
         <>
-          {copied ? <HugeiconsIcon icon={CheckIcon} aria-hidden /> : <HugeiconsIcon icon={LinkIcon} aria-hidden />}
+          {copied ? <Icon icon={CheckIcon} aria-hidden /> : <Icon icon={LinkIcon} aria-hidden />}
           <span className="sr-only">{copied ? 'Copied' : 'Copy deal link'}</span>
         </>
       ) : (
@@ -67,12 +67,12 @@ function CopyLabel({ copied }: { copied: boolean }) {
       spinner={false}
       pendingLabel={
         <>
-          <HugeiconsIcon icon={CheckIcon} aria-hidden />
+          <Icon icon={CheckIcon} aria-hidden />
           Copied
         </>
       }
     >
-      <HugeiconsIcon icon={LinkIcon} aria-hidden />
+      <Icon icon={LinkIcon} aria-hidden />
       Copy deal link
     </PendingLabel>
   );

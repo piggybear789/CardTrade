@@ -22,8 +22,8 @@
 
 import { createContext, use, useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { BellOffIcon, CheckCheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { BellSlashIcon, ChecksIcon, CircleNotchIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { navigateWithType } from '@/lib/motion/navigate';
@@ -128,9 +128,9 @@ export function NotificationsToolbar() {
         disabled={isPending || unreadCount === 0}
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={CheckCheckIcon} aria-hidden />
+          <Icon icon={ChecksIcon} aria-hidden />
         )}
         Mark all read
       </Button>
@@ -176,7 +176,7 @@ export function NotificationCenter({
   if (notifications.length === 0) {
     return (
       <EmptyState
-        icon={<HugeiconsIcon icon={BellOffIcon} className="size-6" aria-hidden />}
+        icon={<Icon icon={BellSlashIcon} className="size-6" aria-hidden />}
         title="No notifications yet"
         description="Updates on your offers, sales and trades will show up here. Messages are in your inbox."
         fill

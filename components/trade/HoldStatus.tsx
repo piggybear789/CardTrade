@@ -2,82 +2,149 @@
 
 // components/trade/HoldStatus.tsx
 //
-// Renders the current status of each Pre_Auth_Hold associated with a Trade
-// (Req 11.1). Its only job now is to label each hold relative to the viewer and
-// order the viewer's own hold first; the presentation comes from the shared
-// <ContractHoldList/>, which the deal room's collateral list also uses.
+// The top of a trade's Collateral tab (Req 11.1, UX review 2026-11-27): one plain
+// statement of what is on the VIEWER's card, then both holds as rows named for
+// their owner ("Your hold", "Bob's hold"). It replaced an explainer sentence over a
+// list labelled "Your collateral" and "Counterpart's collateral".
 //
-// Purely presentational — hold updates arrive via the realtime subscription
-// upstream.
+// Member copy says trade collateral is a temporary card hold, never a payment and
+// never escrow. Purely presentational; hold updates arrive via Realtime upstream.
 
-import { ContractHoldList, type ContractHold } from '@/components/contract';
+import { formatMoney } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import type { HoldRow } from '@/lib/realtime/useTradeRealtime';
 import type { TradeViewerRole } from '@/domain/state-machine/types';
+import type { ContractHoldStatus } from '@/components/contract/types';
 
 export interface HoldStatusProps {
-  /** The holds for the trade (one per trader). */
+  /** The holds for the trade (one live one per trader). */
   holds: HoldRow[];
-  /** Map of profile id -> role, used to label each hold relative to the viewer. */
   initiatorId: string;
   counterpartId: string;
-  /** The viewer's own role, so their hold can be labelled "You". */
+  /** The viewer's own role, so their hold leads and reads "Your hold". */
   viewerRole: TradeViewerRole;
-  /** The trade's currency (`trades.currency`), which the holds are denominated in. */
+  /** The other trader's display name, for "Bob's hold". */
+  counterpartName: string;
+  /** The trade's currency (`trades.currency`). */
   currency: string;
 }
 
-/** Resolve a friendly owner label for a hold given its trader id. */
-function ownerLabel(
-  traderId: string,
-  initiatorId: string,
-  counterpartId: string,
-  viewerRole: TradeViewerRole,
-): string {
-  const role: TradeViewerRole | null =
-    traderId === initiatorId
-      ? 'INITIATOR'
-      : traderId === counterpartId
-        ? 'COUNTERPART'
-        : null;
-  if (role === null) return 'Trader';
-  if (role === viewerRole) return 'Your collateral';
-  return "Counterpart's collateral";
+/**
+ * Label and tone per `hold_status`. `aria-label="Hold status: …"` on each row's pill
+ * is read by the e2e helpers (`shownHoldStatuses`), so keep the two in step.
+ */
+const STATUS: Record<ContractHoldStatus, { label: string; tone: 'ok' | 'muted' | 'bad' }> = {
+  ACTIVE: { label: 'Held', tone: 'ok' },
+  VOIDED: { label: 'Released', tone: 'muted' },
+  PARTIALLY_CAPTURED: { label: 'Partially captured', tone: 'bad' },
+  FULLY_CAPTURED: { label: 'Fully captured', tone: 'bad' },
+  FAILED: { label: 'Failed', tone: 'bad' },
+  // The authorisation window ran out and the collateral is gone: not a good outcome.
+  EXPIRED: { label: 'Expired — no longer protected', tone: 'bad' },
+};
+
+const PILL = {
+  ok: 'bg-[hsl(var(--trust)/0.1)] text-trust',
+  muted: 'bg-muted text-muted-foreground',
+  bad: 'bg-destructive/10 text-destructive',
+} as const;
+
+/** Possessive for the other trader's row: "Bob's hold", "Chris' hold". */
+function possessive(name: string): string {
+  return /s$/i.test(name) ? `${name}’` : `${name}’s`;
 }
 
-/**
- * List of collateral holds with amount + live status (Req 11.1). Renders an
- * explanatory empty state before any holds have been placed (e.g. while the
- * Trade is still COLLATERAL_PENDING).
- */
+/** The viewer's hold, in one statement. */
+function Hero({ hold, currency }: { hold: HoldRow | undefined; currency: string }) {
+  let eyebrow: string;
+  let amount: number | null;
+  let line: string;
+  let bad = false;
+  if (!hold) {
+    eyebrow = 'Nothing on hold yet';
+    amount = null;
+    line = 'Your hold is placed before the meeting. It is a temporary hold on your card, not a payment.';
+  } else if (hold.status === 'ACTIVE') {
+    eyebrow = 'On hold on your card';
+    amount = hold.amount_cents;
+    line = 'A temporary hold, not a payment. It is released when the trade completes.';
+  } else if (hold.status === 'VOIDED') {
+    eyebrow = 'Released from your card';
+    amount = hold.amount_cents;
+    line = 'The hold has been released. Nothing was charged.';
+  } else if (hold.status === 'PARTIALLY_CAPTURED' || hold.status === 'FULLY_CAPTURED') {
+    eyebrow = 'Taken from your hold';
+    amount = hold.captured_cents ?? hold.amount_cents;
+    line = 'Support decided this when it resolved the dispute.';
+    bad = true;
+  } else {
+    eyebrow = STATUS[hold.status]?.label ?? 'Your hold';
+    amount = hold.amount_cents;
+    line =
+      hold.status === 'FAILED'
+        ? 'Your card declined the hold. Replace it, then retry from the chat.'
+        : 'The hold lapsed before the trade finished.';
+    bad = true;
+  }
+  return (
+    <div className={cn('rounded-lg px-cozy py-2.5', bad ? 'bg-destructive/[0.06]' : 'bg-accent/70')}>
+      <p className={cn('text-meta font-semibold', bad ? 'text-destructive' : 'text-iris-ink')}>
+        {eyebrow}
+      </p>
+      {amount != null ? (
+        <p className="display-value mt-0.5 text-head">{formatMoney(amount, currency)}</p>
+      ) : null}
+      <p className="mt-0.5 text-meta text-muted-foreground">{line}</p>
+    </div>
+  );
+}
+
 export function HoldStatus({
   holds,
   initiatorId,
   counterpartId,
   viewerRole,
+  counterpartName,
   currency,
 }: HoldStatusProps) {
   const myId = viewerRole === 'INITIATOR' ? initiatorId : counterpartId;
-
-  // Stable ordering: the viewer's own hold first, then the counterpart's.
-  const ordered: ContractHold[] = [...holds]
-    .sort((a, b) => {
-      const aMine = a.trader_id === myId;
-      const bMine = b.trader_id === myId;
-      return aMine === bMine ? 0 : aMine ? -1 : 1;
-    })
-    .map((hold) => ({
-      id: hold.id,
-      label: ownerLabel(hold.trader_id, initiatorId, counterpartId, viewerRole),
-      amountCents: hold.amount_cents,
-      capturedCents: hold.captured_cents,
-      status: hold.status,
-    }));
+  const mine = holds.find((hold) => hold.trader_id === myId);
+  const ordered = [...holds].sort((a, b) => {
+    const aMine = a.trader_id === myId;
+    const bMine = b.trader_id === myId;
+    return aMine === bMine ? 0 : aMine ? -1 : 1;
+  });
 
   return (
-    <ContractHoldList
-      holds={ordered}
-      ariaLabel="What each trader has on the line"
-      currency={currency}
-    />
+    <div className="space-y-snug">
+      <Hero hold={mine} currency={currency} />
+      {ordered.length > 0 ? (
+        <ul className="divide-y divide-border/60" aria-label="What each trader has on the line">
+          {ordered.map((hold) => {
+            const status = STATUS[hold.status] ?? {
+              label: hold.status.toLowerCase().replace(/_/g, ' '),
+              tone: 'muted' as const,
+            };
+            const isMine = hold.trader_id === myId;
+            return (
+              <li key={hold.id} className="flex items-center gap-cozy py-snug">
+                <p className="min-w-0 flex-1 truncate font-medium">
+                  {isMine ? 'Your hold' : `${possessive(counterpartName)} hold`}
+                </p>
+                <span className="display-value shrink-0">
+                  {formatMoney(hold.amount_cents, currency)}
+                </span>
+                <span
+                  className={cn('shrink-0 rounded-md px-1.5 text-meta font-semibold leading-5', PILL[status.tone])}
+                  aria-label={`Hold status: ${status.label}`}
+                >
+                  {status.label}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
   );
 }

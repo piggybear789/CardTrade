@@ -14,7 +14,7 @@
 // this dialog's own description — was "private deal". Only the button disagreed.
 
 import type { ReactNode } from 'react';
-import { HandshakeIcon } from '@hugeicons/core-free-icons';
+import { HandshakeIcon } from '@/components/ui/icons';
 
 import { SettingsListRow } from '@/components/account/SettingsPrimitives';
 import { useStartDeal } from '@/components/deals/StartDealProvider';

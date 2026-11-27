@@ -35,7 +35,7 @@ export { ContractConversationPanel } from './ContractConversationPanel';
 export { ContractDetailList, ContractDetailRow } from './ContractDetailList';
 export { DisputeEvidencePanel } from './DisputeEvidencePanel';
 export { DittoBondExplainer, CashSaleProtectionExplainer } from './DittoBondExplainer';
-export { ContractExchangePanel } from './ContractExchangePanel';
+export { ContractExchangeLedger, ContractExchangePanel } from './ContractExchangePanel';
 export { ContractFocusProvider, useContractFocus } from './ContractFocus';
 export { ContractHeader } from './ContractHeader';
 export { ContractHoldList } from './ContractHoldList';

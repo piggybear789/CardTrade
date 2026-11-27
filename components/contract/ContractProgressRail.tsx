@@ -15,8 +15,8 @@
 // card, so the two can never disagree.
 
 import { useState, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, XIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 import type { ContractStep } from '@/domain/contract';
@@ -146,9 +146,9 @@ export function ContractProgressRail({
                   )}
                 >
                   {done ? (
-                    <HugeiconsIcon icon={CheckIcon} className={numbered ? 'size-3.5' : 'size-3'} aria-hidden />
+                    <Icon icon={CheckIcon} className={numbered ? 'size-3.5' : 'size-3'} aria-hidden />
                   ) : halted ? (
-                    <HugeiconsIcon icon={XIcon} className={numbered ? 'size-3.5' : 'size-3'} aria-hidden />
+                    <Icon icon={XIcon} className={numbered ? 'size-3.5' : 'size-3'} aria-hidden />
                   ) : numbered ? (
                     index + 1
                   ) : (

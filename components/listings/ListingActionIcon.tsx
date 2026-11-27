@@ -1,11 +1,11 @@
 import type { ComponentPropsWithoutRef, ReactNode, Ref } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
 
 import { cn } from '@/lib/utils';
 
 type SharedProps = {
-  icon: IconSvgElement;
+  icon: IconGlyph;
   label: string;
   /** Filled primary chip vs outlined secondary. */
   variant?: 'default' | 'outline';
@@ -40,7 +40,7 @@ function chipClass(variant: 'default' | 'outline') {
  * Used for Buy / Trade / Offer on the item detail page.
  */
 export function ListingActionIcon({
-  icon: Icon,
+  icon: Glyph,
   label,
   variant = 'outline',
   iconClassName,
@@ -51,7 +51,7 @@ export function ListingActionIcon({
 }: ListingActionIconProps) {
   const chip = (
     <span className={chipClass(variant)} aria-hidden="true">
-      <HugeiconsIcon icon={Icon} className={cn('size-5', iconClassName)} />
+      <Icon icon={Glyph} className={cn('size-5', iconClassName)} />
     </span>
   );
 

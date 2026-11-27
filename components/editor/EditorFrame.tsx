@@ -9,8 +9,8 @@
 // constants from a client module would get a client reference instead of the value.
 
 import type { ReactNode, RefObject } from 'react';
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
-import { Tick02Icon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
+import { CheckIcon, XIcon } from '@/components/ui/icons';
 import { cn } from '@/lib/utils';
 
 /** The editor's own top bar sticks under the site header and its 1px rule. */
@@ -143,7 +143,7 @@ export function EditorSteps({
                       : 'bg-muted text-muted-foreground',
                   )}
                 >
-                  {step.done ? <HugeiconsIcon icon={Tick02Icon} className="size-3.5" /> : index + 1}
+                  {step.done ? <Icon icon={CheckIcon} className="size-3.5" /> : index + 1}
                 </span>
                 <span className="truncate">{step.label}</span>
               </button>
@@ -198,7 +198,8 @@ export function EditorPageHeader({
 }: {
   title: string;
   description: string;
-  onClose: () => void;
+  /** Omit for no close button. */
+  onClose?: () => void;
   closeLabel?: string;
   className?: string;
 }) {
@@ -208,15 +209,15 @@ export function EditorPageHeader({
         <h1 className="min-w-0 flex-1 text-balance text-head font-bold tracking-[-0.025em] text-foreground">
           {title}
         </h1>
-        <button
+        {onClose ? (<button
           type="button"
           onClick={onClose}
           aria-label={closeLabel}
           title={closeLabel}
           className="-my-1.5 -mr-2 hidden size-9 shrink-0 place-items-center rounded-full border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:border-ring md:grid"
         >
-          <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />
-        </button>
+          <Icon icon={XIcon} className="size-5" aria-hidden />
+        </button>) : null}
       </div>
       <p className="text-pretty text-body text-muted-foreground">{description}</p>
     </header>
@@ -252,7 +253,7 @@ export function EditorBar({
         aria-label={closeLabel}
         className="grid size-9 shrink-0 place-items-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus:outline-none focus-visible:border-ring"
       >
-        <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />
+        <Icon icon={XIcon} className="size-5" aria-hidden />
       </button>
       <span className="h-5 w-px shrink-0 bg-border" aria-hidden />
       <p className="min-w-0 truncate text-body font-medium text-foreground">{title}</p>
@@ -288,7 +289,7 @@ export function OptionCard({
   id: string;
   checked: boolean;
   onSelect: () => void;
-  icon: IconSvgElement;
+  icon: IconGlyph;
   label: string;
   hint: string;
   disabled?: boolean;
@@ -323,7 +324,7 @@ export function OptionCard({
         )}
         aria-hidden
       >
-        <HugeiconsIcon icon={icon} className="size-[18px]" />
+        <Icon icon={icon} className="size-[18px]" />
       </span>
       <span className="min-w-0 flex-1 space-y-0.5">
         <span className="block text-body font-semibold text-foreground">{label}</span>

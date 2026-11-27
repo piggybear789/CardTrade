@@ -18,8 +18,8 @@
 
 import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowUpRight01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowUpRightIcon } from '@/components/ui/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,7 +68,7 @@ function ExternalLink({ href, children }: { href: string; children: ReactNode })
       className="inline-flex items-center gap-1 rounded-sm font-semibold text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
     >
       {children}
-      <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+      <Icon icon={ArrowUpRightIcon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
     </a>
   );
 }

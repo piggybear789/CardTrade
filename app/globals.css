@@ -227,6 +227,10 @@
        - links and inline brand text in `--iris-ink`.
        - the focus indicator (`focus-visible:border-iris` / `ring-iris`). This is
          the one violet LINE, and it stays because a keyboard user needs it.
+       - IN A CONVERSATION, YOU (2026-11-28): your own chat bubbles and the send
+         button that makes them are `--iris-ink` with white type (7.7:1), the
+         Instagram move. It is the one large violet area in the product, and it
+         means one thing: these words are yours. Theirs stay `--muted`.
      
      NOT ALLOWED: a violet border on a container, tile, chip, thumbnail or step;
      a violet wash on a panel; violet on hover. A selected tile or thumbnail is

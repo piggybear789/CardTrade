@@ -16,8 +16,8 @@
 // derivation's own words — see `ContractNextMove` in `lib/actions/account.ts` for why
 // there is no second copy of that copy.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ImageOffIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ImageBrokenIcon } from '@/components/ui/icons';
 import type { ReactNode } from 'react';
 
 import { EmptyState } from '@/components/ui/empty-state';
@@ -80,7 +80,7 @@ export function ContractRowThumb({
       ) : (
         (children ?? (
           <>
-            <HugeiconsIcon icon={ImageOffIcon} className="size-5" aria-hidden />
+            <Icon icon={ImageBrokenIcon} className="size-5" aria-hidden />
             <span className="sr-only">No image available</span>
           </>
         ))

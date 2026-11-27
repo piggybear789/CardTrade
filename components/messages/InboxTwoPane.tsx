@@ -27,8 +27,8 @@
 // status pill, a clock and an unread badge on one line, which does not survive 21rem.
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { MessageSquareIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ChatsCircleIcon } from '@/components/ui/icons';
 
 import { PANE_BAR_MIN_H } from '@/components/messages/threadGeometry';
 import { cn } from '@/lib/utils';
@@ -38,7 +38,9 @@ import { cn } from '@/lib/utils';
  * with the thread's bar in `paneBar.ts` — the two borders have to meet, and each pane
  * computing its own height from its own contents is what made them miss.
  */
-const PANE_BAR = 'flex shrink-0 items-center border-b bg-card px-cozy py-2.5';
+// `px-group`: the rows below are inset tiles whose content starts 16px from the pane
+// edge (`p-snug` list, `px-snug` row), so the title sits on that same line.
+const PANE_BAR = 'flex shrink-0 items-center border-b bg-card px-group py-2.5';
 
 export function InboxTwoPane({
   list,
@@ -107,7 +109,7 @@ export function InboxNoSelection() {
           className="mx-auto mb-cozy flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground"
           aria-hidden
         >
-          <HugeiconsIcon icon={MessageSquareIcon} className="size-5" />
+          <Icon icon={ChatsCircleIcon} className="size-5" />
         </span>
         <p className="text-body text-muted-foreground">
           Pick a conversation to read it here.

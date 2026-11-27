@@ -15,8 +15,8 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Flag01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { FlagIcon } from '@/components/ui/icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -168,7 +168,7 @@ export function ReportDialog({
       {appearance === 'none' ? null : (
         <DialogTrigger asChild>
           {appearance === 'icon' ? (
-            <ListingActionIcon icon={Flag01Icon} label="Report" />
+            <ListingActionIcon icon={FlagIcon} label="Report" />
           ) : appearance === 'icon-only' ? (
             <Button
               type="button"
@@ -180,11 +180,11 @@ export function ReportDialog({
               )}
               aria-label={triggerLabel}
             >
-              <HugeiconsIcon icon={Flag01Icon} aria-hidden />
+              <Icon icon={FlagIcon} aria-hidden />
             </Button>
           ) : (
             <Button type="button" variant={triggerVariant} size="sm" className="w-full sm:w-auto">
-              <HugeiconsIcon icon={Flag01Icon} aria-hidden />
+              <Icon icon={FlagIcon} aria-hidden />
               {triggerLabel}
             </Button>
           )}

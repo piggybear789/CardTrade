@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronDownIcon, ChevronUpIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretDownIcon, CaretUpIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -41,9 +41,9 @@ export function ExpandableDescription({
           className="mt-tight inline-flex min-h-10 items-center gap-0.5 rounded-sm border border-transparent text-body font-medium text-iris-ink focus:outline-none focus-visible:border-ring"
         >
           {expanded ? (
-            <HugeiconsIcon icon={ChevronUpIcon} className="size-3.5" aria-hidden />
+            <Icon icon={CaretUpIcon} className="size-3.5" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={ChevronDownIcon} className="size-3.5" aria-hidden />
+            <Icon icon={CaretDownIcon} className="size-3.5" aria-hidden />
           )}
           {expanded ? 'Show less' : 'Read more'}
         </button>

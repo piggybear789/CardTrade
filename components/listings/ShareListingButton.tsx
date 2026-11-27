@@ -3,8 +3,8 @@
 // Copies or system-shares the current listing URL. Lives in listing chrome so
 // the page body does not need a second share control.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Share08Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ExportIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { cn } from '@/lib/utils';
@@ -38,7 +38,7 @@ export function ShareListingButton({ className }: { className?: string }) {
         className,
       )}
     >
-      <HugeiconsIcon icon={Share08Icon} className="size-5" strokeWidth={1.75} aria-hidden />
+      <Icon icon={ExportIcon} className="size-5" aria-hidden />
     </button>
   );
 }

@@ -10,7 +10,7 @@
 // Works as either a radio or a checkbox; the caller owns the group and the
 // selection.
 
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
 
 import { OPTION_SELECTED } from '@/components/ui/option-button';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,7 @@ export interface ChoiceTileProps {
   type: 'radio' | 'checkbox';
   checked: boolean;
   onChange: () => void;
-  icon?: IconSvgElement;
+  icon?: IconGlyph;
   label: string;
   /**
    * Short line beneath the label. OPTIONAL: where the options are
@@ -49,7 +49,7 @@ export function ChoiceTile({
   type,
   checked,
   onChange,
-  icon: Icon,
+  icon: Glyph,
   label,
   hint,
   invalid = false,
@@ -110,9 +110,9 @@ export function ChoiceTile({
           with a grey glyph they read exactly like the neutral Cancel beside them. The
           glyph carries the brand colour (`--iris-ink`, not `--primary`, which is ink)
           so the paths read as paths; the edge and fill stay neutral. */}
-      {Icon ? (
-        <HugeiconsIcon
-          icon={Icon}
+      {Glyph ? (
+        <Icon
+          icon={Glyph}
           className={cn(stacked ? 'size-6' : 'size-4', 'shrink-0 text-iris-ink')}
           aria-hidden
         />

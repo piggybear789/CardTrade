@@ -12,20 +12,20 @@
 
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
 import {
-  AlertCircleIcon,
-  ArrowLeft01Icon,
-  ArrowUpRight01Icon,
-  Clock01Icon,
-  Globe02Icon,
-  Link01Icon,
-  Location01Icon,
-  RefreshCwIcon,
-  Shield01Icon,
+  ArrowClockwiseIcon,
+  ArrowUpRightIcon,
+  CaretLeftIcon,
+  ClockIcon,
+  GlobeSimpleIcon,
+  LinkIcon,
+  MapPinIcon,
   ShieldCheckIcon,
+  ShieldIcon,
   StarIcon,
-} from '@hugeicons/core-free-icons';
+  WarningCircleIcon,
+} from '@/components/ui/icons';
 
 import {
   CheckProgress,
@@ -63,10 +63,10 @@ import { cn } from '@/lib/utils';
  */
 // The states that carry a colour take a FILLED glyph (`status-glyph`); "Limited history"
 // has no colour to carry, so it keeps a grey outline clock.
-const VERDICT_STYLE: Record<RealnessTier, { icon: IconSvgElement | StatusGlyphKind; tone: TagTone; label: string }> = {
+const VERDICT_STYLE: Record<RealnessTier, { icon: IconGlyph | StatusGlyphKind; tone: TagTone; label: string }> = {
   ID_VERIFIED: { icon: 'verified', tone: 'trust', label: 'ID-verified' },
   ESTABLISHED_FOOTPRINT: { icon: 'success', tone: 'trust', label: 'Looks established' },
-  LIMITED_FOOTPRINT: { icon: Clock01Icon, tone: 'neutral', label: 'Limited history' },
+  LIMITED_FOOTPRINT: { icon: ClockIcon, tone: 'neutral', label: 'Limited history' },
   WARNING_FLAGGED: { icon: 'danger', tone: 'danger', label: 'Red flags found' },
 };
 
@@ -188,7 +188,7 @@ function RowBadge({
   icon,
   tone = 'neutral',
 }: {
-  icon: typeof Globe02Icon;
+  icon: typeof GlobeSimpleIcon;
   tone?: 'neutral' | 'trust' | 'destructive';
 }) {
   return (
@@ -203,7 +203,7 @@ function RowBadge({
             : 'border-border bg-muted/40 text-muted-foreground',
       )}
     >
-      <HugeiconsIcon icon={icon} className="size-4" aria-hidden />
+      <Icon icon={icon} className="size-4" aria-hidden />
     </span>
   );
 }
@@ -234,7 +234,7 @@ function EbaySellerAvatar({ avatarUrl, username }: { avatarUrl?: string | null; 
   );
 }
 
-/** Crisp domain favicon with graceful fallback to `Globe02Icon`. */
+/** Crisp domain favicon with graceful fallback to `GlobeSimpleIcon`. */
 function SiteFavicon({
   faviconUrl,
   label,
@@ -256,7 +256,7 @@ function SiteFavicon({
           boxClass,
         )}
       >
-        <HugeiconsIcon icon={Globe02Icon} className={size === 'sm' ? 'size-2.5' : 'size-3.5'} />
+        <Icon icon={GlobeSimpleIcon} className={size === 'sm' ? 'size-2.5' : 'size-3.5'} />
       </span>
     );
   }
@@ -477,7 +477,7 @@ export function BackgroundCheckPanel({
               href="/references"
               className="inline-flex items-center gap-1.5 text-meta font-medium text-muted-foreground hover:text-foreground"
             >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" aria-hidden />
+              <Icon icon={CaretLeftIcon} className="size-3.5" aria-hidden />
               References
             </Link>
           ) : null}
@@ -592,7 +592,7 @@ export function BackgroundCheckPanel({
           href="/references"
           className="inline-flex items-center gap-1.5 text-meta font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" aria-hidden />
+          <Icon icon={CaretLeftIcon} className="size-3.5" aria-hidden />
           References
         </Link>
       ) : null}
@@ -653,8 +653,8 @@ export function BackgroundCheckPanel({
               aria-label="Refresh digital footprint"
               className="size-9 shrink-0 rounded-md text-muted-foreground hover:text-foreground"
             >
-              <HugeiconsIcon
-                icon={RefreshCwIcon}
+              <Icon
+                icon={ArrowClockwiseIcon}
                 className={cn('size-4', (loading || isPolling) && 'animate-spin')}
                 aria-hidden
               />
@@ -683,8 +683,8 @@ export function BackgroundCheckPanel({
             <ul className="space-y-2.5">
               {warnings.map((w, idx) => (
                 <li key={`${w.title}-${idx}`} className="flex items-start gap-2.5 text-body">
-                  <HugeiconsIcon
-                    icon={AlertCircleIcon}
+                  <Icon
+                    icon={WarningCircleIcon}
                     className={cn(
                       'mt-0.5 size-4 shrink-0',
                       w.severity === 'HIGH' ? 'text-destructive' : 'text-action-foreground',
@@ -709,7 +709,7 @@ export function BackgroundCheckPanel({
                   <span className="font-normal text-muted-foreground">
                     ({topLookalike.positiveRefs} positive {topLookalike.positiveRefs === 1 ? 'ref' : 'refs'})
                   </span>
-                  <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3 text-muted-foreground" aria-hidden />
+                  <Icon icon={ArrowUpRightIcon} className="size-3 text-muted-foreground" aria-hidden />
                 </Link>
               </div>
             ) : null}
@@ -738,8 +738,8 @@ export function BackgroundCheckPanel({
                           className="inline-flex max-w-full items-center gap-1 rounded-sm text-body font-semibold text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                         >
                           <span className="break-all">@{ebay.username}</span>
-                          <HugeiconsIcon
-                            icon={ArrowUpRight01Icon}
+                          <Icon
+                            icon={ArrowUpRightIcon}
                             className="size-3.5 shrink-0 text-muted-foreground"
                             aria-hidden
                           />
@@ -752,7 +752,7 @@ export function BackgroundCheckPanel({
                             reader who knows eBay. */}
                         {ebayStarTier ? (
                           <span className="inline-flex items-center gap-1 text-meta tabular-nums text-muted-foreground">
-                            <HugeiconsIcon
+                            <Icon
                               icon={StarIcon}
                               className={cn('size-3.5', ebayStarTier.iconClass)}
                               aria-hidden
@@ -773,7 +773,7 @@ export function BackgroundCheckPanel({
                         <span className="font-medium text-foreground">eBay seller</span>
                         {ebay.memberSince ? (
                           <span className="inline-flex items-center gap-1">
-                            <HugeiconsIcon icon={Clock01Icon} className="size-3.5" aria-hidden />
+                            <Icon icon={ClockIcon} className="size-3.5" aria-hidden />
                             Member since {ebay.memberSince}
                           </span>
                         ) : null}
@@ -955,7 +955,7 @@ export function BackgroundCheckPanel({
                           {sale.itemId ? (
                             <span className="inline-flex items-center gap-0.5 font-medium text-muted-foreground group-hover:text-foreground">
                               View
-                              <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" aria-hidden />
+                              <Icon icon={ArrowUpRightIcon} className="size-3" aria-hidden />
                             </span>
                           ) : null}
                         </div>
@@ -1022,8 +1022,8 @@ export function BackgroundCheckPanel({
                           <span className="break-all">
                             {visibleProfile.displayName ?? `@${igHandle}`}
                           </span>
-                          <HugeiconsIcon
-                            icon={ArrowUpRight01Icon}
+                          <Icon
+                            icon={ArrowUpRightIcon}
                             className="size-3.5 shrink-0 text-muted-foreground"
                             aria-hidden
                           />
@@ -1040,7 +1040,7 @@ export function BackgroundCheckPanel({
                           pill on a line of its own it sat between the name and the bio. */}
                       {parsedIgBio.location ? (
                         <span className="inline-flex items-center gap-1 text-meta text-muted-foreground">
-                          <HugeiconsIcon icon={Location01Icon} className="size-3.5" aria-hidden />
+                          <Icon icon={MapPinIcon} className="size-3.5" aria-hidden />
                           {parsedIgBio.location}
                         </span>
                       ) : null}
@@ -1110,7 +1110,7 @@ export function BackgroundCheckPanel({
             <li className="py-group first:pt-0 last:pb-0">
               <div className="flex items-center justify-between gap-cozy">
                 <div className="flex min-w-0 items-start gap-cozy">
-                  <RowBadge icon={Globe02Icon} />
+                  <RowBadge icon={GlobeSimpleIcon} />
                   <div className="min-w-0">
                     <p className="text-body font-semibold text-foreground">
                       Open web &amp; community
@@ -1167,8 +1167,8 @@ export function BackgroundCheckPanel({
                             {m.sourceLabel}
                           </span>
                         </div>
-                        <HugeiconsIcon
-                          icon={ArrowUpRight01Icon}
+                        <Icon
+                          icon={ArrowUpRightIcon}
                           className="size-3.5 shrink-0 text-muted-foreground transition-[color,transform] duration-300 ease-enter group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-foreground"
                           aria-hidden
                         />
@@ -1207,7 +1207,7 @@ export function BackgroundCheckPanel({
           <li className="flex flex-col gap-cozy py-group first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-group">
             <div className="flex min-w-0 items-start gap-cozy">
               <RowBadge
-                icon={dossier.scamRisk.matchedReportCount > 0 ? AlertCircleIcon : ShieldCheckIcon}
+                icon={dossier.scamRisk.matchedReportCount > 0 ? WarningCircleIcon : ShieldCheckIcon}
                 tone={dossier.scamRisk.matchedReportCount > 0 ? 'destructive' : 'trust'}
               />
               <div className="min-w-0">
@@ -1246,8 +1246,8 @@ export function BackgroundCheckPanel({
                       className="inline-flex max-w-full items-center gap-1 rounded-sm text-body font-semibold text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <span>NoDitto references</span>
-                      <HugeiconsIcon
-                        icon={ArrowUpRight01Icon}
+                      <Icon
+                        icon={ArrowUpRightIcon}
                         className="size-3.5 shrink-0 text-muted-foreground"
                         aria-hidden
                       />
@@ -1278,7 +1278,7 @@ export function BackgroundCheckPanel({
             <li className="py-group first:pt-0 last:pb-0">
               <div className="flex flex-col gap-cozy sm:flex-row sm:items-center sm:justify-between sm:gap-group">
                 <div className="flex min-w-0 items-start gap-cozy">
-                  <RowBadge icon={Link01Icon} />
+                  <RowBadge icon={LinkIcon} />
                   <div className="min-w-0">
                     <p className="text-body font-semibold text-foreground">Other public sites</p>
                     <p className="text-meta text-muted-foreground">
@@ -1310,8 +1310,8 @@ export function BackgroundCheckPanel({
                       >
                         <SiteFavicon faviconUrl={fav} label={match.site} size="sm" />
                         {match.site}
-                        <HugeiconsIcon
-                          icon={ArrowUpRight01Icon}
+                        <Icon
+                          icon={ArrowUpRightIcon}
                           className="size-3 text-muted-foreground"
                           aria-hidden
                         />
@@ -1336,7 +1336,7 @@ export function BackgroundCheckPanel({
           {dossier.forensics?.waybackFirstSeen ? (
             <li className="flex flex-col gap-cozy py-group first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-group">
               <div className="flex min-w-0 items-start gap-cozy">
-                <RowBadge icon={Clock01Icon} />
+                <RowBadge icon={ClockIcon} />
                 <div className="min-w-0">
                   <p className="text-body font-semibold text-foreground">Web archive</p>
                   <p className="text-meta text-muted-foreground">Earliest Wayback Machine snapshot</p>
@@ -1354,7 +1354,7 @@ export function BackgroundCheckPanel({
               <div className="flex flex-col gap-cozy sm:flex-row sm:items-center sm:justify-between sm:gap-group">
                 <div className="flex min-w-0 items-start gap-cozy">
                   <RowBadge
-                    icon={Shield01Icon}
+                    icon={ShieldIcon}
                     tone={dossier.psaCert.riskLevel === 'HIGH' ? 'destructive' : 'trust'}
                   />
                   <div className="min-w-0">
@@ -1365,8 +1365,8 @@ export function BackgroundCheckPanel({
                       className="inline-flex max-w-full items-center gap-1 rounded-sm text-body font-semibold text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <span>PSA Cert #{dossier.psaCert.certNumber}</span>
-                      <HugeiconsIcon
-                        icon={ArrowUpRight01Icon}
+                      <Icon
+                        icon={ArrowUpRightIcon}
                         className="size-3.5 shrink-0 text-muted-foreground"
                         aria-hidden
                       />
@@ -1433,7 +1433,7 @@ export function BackgroundCheckPanel({
           {dossier.paymentForensics?.bsbBankName ? (
             <li className="flex flex-col gap-cozy py-group first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-group">
               <div className="flex min-w-0 items-start gap-cozy">
-                <RowBadge icon={Shield01Icon} />
+                <RowBadge icon={ShieldIcon} />
                 <div className="min-w-0">
                   <p className="text-body font-semibold text-foreground">Bank (BSB)</p>
                   <p className="text-meta text-muted-foreground">Resolved from payment details</p>
@@ -1527,14 +1527,14 @@ function FacebookIndexRow({ report }: { report: FacebookIndexReport }) {
                 className="inline-flex max-w-full items-center gap-1 rounded-sm text-body font-semibold text-foreground underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <span className="break-all">{report.displayName ?? `facebook.com/${report.slug}`}</span>
-                <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                <Icon icon={ArrowUpRightIcon} className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
               </a>
               {report.displayName && report.nameSource === 'SLUG' ? (
                 <span className="text-meta text-muted-foreground">name guessed from the link</span>
               ) : null}
               {report.livesIn ? (
                 <span className="inline-flex items-center gap-1 text-meta text-muted-foreground">
-                  <HugeiconsIcon icon={Location01Icon} className="size-3.5" aria-hidden />
+                  <Icon icon={MapPinIcon} className="size-3.5" aria-hidden />
                   {report.livesIn}
                 </span>
               ) : null}
@@ -1587,7 +1587,7 @@ function FacebookIndexRow({ report }: { report: FacebookIndexReport }) {
                   className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   facebook.com/{account.slug}
-                  <HugeiconsIcon icon={ArrowUpRight01Icon} className="size-3" aria-hidden />
+                  <Icon icon={ArrowUpRightIcon} className="size-3" aria-hidden />
                 </a>
               </li>
             ))}

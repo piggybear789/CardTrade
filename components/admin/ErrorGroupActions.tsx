@@ -10,8 +10,8 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, CircleNotchIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { resolveErrorGroup } from '@/lib/actions/admin';
@@ -47,9 +47,9 @@ export function ErrorGroupActions({ fingerprint }: { fingerprint: string }) {
   return (
     <Button type="button" size="sm" disabled={isPending} onClick={resolve}>
       {isPending ? (
-        <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+        <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
       ) : (
-        <HugeiconsIcon icon={CheckIcon} aria-hidden />
+        <Icon icon={CheckIcon} aria-hidden />
       )}
       Mark resolved
     </Button>

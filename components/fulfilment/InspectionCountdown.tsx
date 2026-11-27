@@ -39,13 +39,18 @@ function minuteNow(): number {
   return Math.floor(Date.now() / MINUTE_MS) * MINUTE_MS;
 }
 
+/** The current instant, floored to the minute and re-read every minute. See above. */
+export function useMinuteNow(): number {
+  return useSyncExternalStore(subscribeMinute, minuteNow, minuteNow);
+}
+
 /** Round hours remaining down, so "1 hour left" never means 119 minutes. */
-function hoursUntil(deadlineIso: string, now: number): number {
+export function hoursUntil(deadlineIso: string, now: number): number {
   return Math.floor((new Date(deadlineIso).getTime() - now) / HOUR_MS);
 }
 
 /** Human remaining time, coarse on purpose: an exact second count invites refreshing. */
-function remainingLabel(hours: number): string {
+export function remainingLabel(hours: number): string {
   if (hours <= 0) return 'closing now';
   if (hours === 1) return '1 hour left';
   if (hours < 24) return `${hours} hours left`;
@@ -65,6 +70,12 @@ export interface InspectionCountdownProps {
   holdRisk?: InspectionHoldRisk;
   /** What happens when the clock runs out, phrased per flow. */
   expiryConsequence: string;
+  /**
+   * Hide below `lg` (the thread layout), where the chat bar's status card carries the same clock
+   * (`ContractStepCard`). The collateral-lapse warning still shows there, because
+   * the card has no room for it.
+   */
+  hideOnPhone?: boolean;
   className?: string;
 }
 
@@ -79,9 +90,10 @@ export function InspectionCountdown({
   viewerMustAct = true,
   holdRisk = 'safe',
   expiryConsequence,
+  hideOnPhone = false,
   className,
 }: InspectionCountdownProps) {
-  const now = useSyncExternalStore(subscribeMinute, minuteNow, minuteNow);
+  const now = useMinuteNow();
   if (!deadlineAt) return null;
 
   const hours = hoursUntil(deadlineAt, now);
@@ -92,7 +104,10 @@ export function InspectionCountdown({
   return (
     <div
       className={cn(
-        'rounded-lg border px-group py-cozy text-body',
+        // Slim (UX review 2026-11-27): on a phone this sits above the chat bar, and
+        // at five lines it was the biggest thing in the room. Title plus one
+        // sentence that names the instant and what happens at it.
+        'rounded-lg border px-cozy py-snug text-body',
         // The alarming branch keeps a red edge, because there the border IS the
         // signal and red is not otherwise on the page. The calm branch is a plain
         // hairline over a violet wash: it is a running clock, not a warning, and a
@@ -100,13 +115,14 @@ export function InspectionCountdown({
         alarming
           ? 'border-destructive/40 bg-destructive/5'
           : 'border-border bg-muted',
+        hideOnPhone && !collateralLapsesFirst && 'max-lg:hidden',
         className,
       )}
       role={alarming ? 'alert' : undefined}
     >
       <p
         suppressHydrationWarning
-        className="text-balance text-subhead font-semibold tracking-tight"
+        className="text-balance text-body font-semibold"
       >
         Inspection window · {remainingLabel(hours)}
       </p>
@@ -122,9 +138,9 @@ export function InspectionCountdown({
           "You have already acted" was also untrue for a Cash_Sale seller. Inspection is
           the BUYER's step; the seller never had an action in it to have already taken.
           The copy now says who it is waiting on and until when. */}
-      <p className="mt-tight text-muted-foreground" suppressHydrationWarning>
+      <p className="mt-0.5 text-muted-foreground" suppressHydrationWarning>
         {viewerMustAct
-          ? `Check what you received, then accept it or raise a dispute by ${formatContractDateTime(deadlineAt)}. ${expiryConsequence}`
+          ? `Accept it or report a problem by ${formatContractDateTime(deadlineAt)}. ${expiryConsequence}`
           : `Nothing is needed from you until ${formatContractDateTime(deadlineAt)}. ${expiryConsequence}`}
       </p>
       {collateralLapsesFirst ? (

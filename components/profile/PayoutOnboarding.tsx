@@ -29,8 +29,16 @@
 
 import { useEffect, useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { BadgeCheckIcon, ExternalLinkIcon, LoaderCircleIcon, RefreshCwIcon, ShieldAlertIcon, ShieldCheckIcon, Timer01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  ArrowClockwiseIcon,
+  ArrowSquareOutIcon,
+  CircleNotchIcon,
+  SealCheckIcon,
+  ShieldCheckIcon,
+  ShieldWarningIcon,
+  TimerIcon,
+} from '@/components/ui/icons';
 
 import {
   createPayoutOnboardingLink,
@@ -78,8 +86,8 @@ function PayoutNotice({ message, blocked }: { message: string | null; blocked: b
   }
   return (
     <div role="status" className="flex gap-cozy rounded-lg border bg-muted/40 p-group">
-      <HugeiconsIcon
-        icon={Timer01Icon}
+      <Icon
+        icon={TimerIcon}
         className="mt-0.5 size-4 shrink-0 text-muted-foreground"
         aria-hidden
       />
@@ -202,9 +210,9 @@ export function PayoutOnboarding({
           <div className="flex items-center justify-between gap-cozy">
             <CardTitle className="flex items-center gap-snug text-lead">
               {state.settlementsEnabled ? (
-                <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+                <Icon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
               ) : (
-                <HugeiconsIcon icon={ShieldAlertIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <Icon icon={ShieldWarningIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
               )}
               {/* NEVER "Verified Account". That wording is the 0060 mistake this card
                   is named in `product.md` for making — it once read "Verified Account"
@@ -252,9 +260,9 @@ export function PayoutOnboarding({
               className="w-full"
             >
               {isPending ? (
-                <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+                <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
               ) : (
-                <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
+                <Icon icon={ArrowSquareOutIcon} className="size-3.5" aria-hidden />
               )}
               {needsPayoutCompletion ? 'Continue with Stripe' : 'Manage with Stripe'}
             </Button>
@@ -272,7 +280,7 @@ export function PayoutOnboarding({
         <div className="flex flex-col items-start gap-snug sm:flex-row sm:justify-between">
           <div className="min-w-0">
             <CardTitle className="flex items-center gap-snug text-lead mb-snug">
-              <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+              <Icon icon={ShieldCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
               Stripe Connect
             </CardTitle>
             <CardDescription>
@@ -332,13 +340,13 @@ export function PayoutOnboarding({
             </p>
             <div className="flex flex-wrap gap-snug">
               <Button onClick={openHostedOnboarding} disabled={isPending}>
-                {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : (
-                  <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
+                {isPending ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : (
+                  <Icon icon={ArrowSquareOutIcon} className="size-3.5" aria-hidden />
                 )}
                 Continue with Stripe
               </Button>
               <Button variant="outline" onClick={handleRecheck} disabled={isPending}>
-                <HugeiconsIcon icon={RefreshCwIcon} className="size-3.5" aria-hidden />
+                <Icon icon={ArrowClockwiseIcon} className="size-3.5" aria-hidden />
                 Check status
               </Button>
             </div>
@@ -349,7 +357,7 @@ export function PayoutOnboarding({
           <div className="space-y-group">
             {state.merchantStatus === 'REJECTED' ? (
               <p className="flex gap-snug text-body text-destructive">
-                <HugeiconsIcon icon={ShieldAlertIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <Icon icon={ShieldWarningIcon} className="mt-0.5 size-4 shrink-0" aria-hidden />
                 Payout setup did not complete last time. You can start again.
               </p>
             ) : null}
@@ -372,9 +380,9 @@ export function PayoutOnboarding({
               // card cannot succeed, so it should not look like the way forward.
               variant={platformBlocked ? 'outline' : 'default'}
             >
-              {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : (
-                <HugeiconsIcon
-                  icon={platformBlocked ? RefreshCwIcon : BadgeCheckIcon}
+              {isPending ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : (
+                <Icon
+                  icon={platformBlocked ? ArrowClockwiseIcon : SealCheckIcon}
                   className="size-3.5"
                   aria-hidden
                 />

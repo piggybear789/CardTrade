@@ -6,12 +6,12 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PlusIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { PlusIcon } from '@/components/ui/icons';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
 
-const CREATE_GLYPH = <HugeiconsIcon icon={PlusIcon} aria-hidden="true" />;
+const CREATE_GLYPH = <Icon icon={PlusIcon} aria-hidden="true" />;
 
 // The theme primary, which is the ink (see INK PRIMARY in globals.css): a solid
 // black button is what says "press" on a retail page, the way StockX, Goldin and

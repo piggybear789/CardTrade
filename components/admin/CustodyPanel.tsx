@@ -15,8 +15,8 @@
 // all-clear when its instrument is broken is worse than no panel: it converts an unknown
 // into a false negative.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HelpCircleIcon, ShieldCheckIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { QuestionIcon, ShieldCheckIcon, WarningIcon } from '@/components/ui/icons';
 
 import type { CustodyPosition } from '@/domain/payouts/custodyReconciliation';
 import { formatMoney } from '@/lib/format';
@@ -67,20 +67,20 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
           wrapper: 'border-destructive/40 bg-destructive/10',
           badge: 'destructive' as const,
           label: 'Shortfall',
-          icon: <HugeiconsIcon icon={TriangleAlertIcon} className="size-4 shrink-0" aria-hidden />,
+          icon: <Icon icon={WarningIcon} className="size-4 shrink-0" aria-hidden />,
         }
       : state === 'SOLVENT'
         ? {
             wrapper: 'border-border bg-card',
             badge: 'default' as const,
             label: 'Funds covered',
-            icon: <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 shrink-0" aria-hidden />,
+            icon: <Icon icon={ShieldCheckIcon} className="size-4 shrink-0" aria-hidden />,
           }
         : {
             wrapper: 'border-border bg-card',
             badge: 'outline' as const,
             label: 'Unknown',
-            icon: <HugeiconsIcon icon={HelpCircleIcon} className="size-4 shrink-0" aria-hidden />,
+            icon: <Icon icon={QuestionIcon} className="size-4 shrink-0" aria-hidden />,
           };
 
   return (

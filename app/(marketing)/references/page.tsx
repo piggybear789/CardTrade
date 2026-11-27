@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeft01Icon, CheckmarkCircle02Icon, UserCheck01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon, CheckCircleIcon, UserCheckIcon } from '@/components/ui/icons';
 
 import { IdentityReturnRefresh } from '@/components/identity/IdentityReturnRefresh';
 import { BackgroundCheckPanel } from '@/components/references/BackgroundCheckPanel';
@@ -35,8 +35,8 @@ const PLATFORMS = ['instagram', 'facebook', 'discord', 'whatnot', 'ebay', 'nodit
 // they publish at once, tied to the author's verified ID, and staff can take one down
 // (`admin.removeReference`). Do not claim a review step here.
 const TRUST_POINTS = [
-  { icon: UserCheck01Icon, label: 'ID-verified references only' },
-  { icon: CheckmarkCircle02Icon, label: 'Good and bad experiences shown' },
+  { icon: UserCheckIcon, label: 'ID-verified references only' },
+  { icon: CheckCircleIcon, label: 'Good and bad experiences shown' },
 ] as const;
 
 // A soft violet light behind the search, the brand's only wash on this page. `closest-side`
@@ -101,7 +101,7 @@ export default async function ReferencesPage({
                 href="/references"
                 className="inline-flex items-center gap-1.5 text-meta font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
-                <HugeiconsIcon icon={ArrowLeft01Icon} className="size-3.5" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-3.5" aria-hidden />
                 All references
               </Link>
               <h1 className="sr-only">References lookup for {q || secondaryHandle || fb}</h1>
@@ -212,7 +212,7 @@ export default async function ReferencesPage({
               key={point.label}
               className="inline-flex items-center gap-1.5 text-[clamp(0.8125rem,0.85vw,0.9375rem)] font-medium text-muted-foreground"
             >
-              <HugeiconsIcon icon={point.icon} className="size-4 shrink-0 text-trust" aria-hidden />
+              <Icon icon={point.icon} className="size-4 shrink-0 text-trust" aria-hidden />
               {point.label}
             </li>
           ))}

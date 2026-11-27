@@ -12,16 +12,16 @@
 // has not happened.
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  CheckmarkCircle02Icon,
-  Globe02Icon,
-  Link01Icon,
-  LoaderCircleIcon,
-  MinusSignCircleIcon,
-  Note01Icon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  GlobeSimpleIcon,
+  LinkIcon,
+  MinusCircleIcon,
+  NoteIcon,
   ShieldCheckIcon,
-} from '@hugeicons/core-free-icons';
+} from '@/components/ui/icons';
 
 import { PlatformChip } from '@/components/references/referenceLabels';
 
@@ -147,11 +147,11 @@ export function checkStepViews({
  * where there is one, a round icon badge where there is not. The loader is the card's
  * rows before they have answers, so nothing changes place when they arrive.
  */
-const STEP_ICON: Record<Exclude<CheckStep, 'ebay' | 'profile'>, typeof Globe02Icon> = {
-  web: Globe02Icon,
+const STEP_ICON: Record<Exclude<CheckStep, 'ebay' | 'profile'>, typeof GlobeSimpleIcon> = {
+  web: GlobeSimpleIcon,
   scam: ShieldCheckIcon,
-  summary: Note01Icon,
-  sites: Link01Icon,
+  summary: NoteIcon,
+  sites: LinkIcon,
 };
 
 function StepBadge({
@@ -179,7 +179,7 @@ function StepBadge({
         quiet && 'opacity-50',
       )}
     >
-      <HugeiconsIcon icon={STEP_ICON[step]} className="size-4" aria-hidden />
+      <Icon icon={STEP_ICON[step]} className="size-4" aria-hidden />
     </span>
   );
 }
@@ -187,15 +187,15 @@ function StepBadge({
 /** Where a part stands, at the end of its cell. */
 function StepMark({ status }: { status: StepStatus }) {
   if (status === 'done') {
-    return <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4 shrink-0 text-trust" aria-hidden />;
+    return <Icon icon={CheckCircleIcon} className="size-4 shrink-0 text-trust" aria-hidden />;
   }
   if (status === 'skipped') {
-    return <HugeiconsIcon icon={MinusSignCircleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
+    return <Icon icon={MinusCircleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />;
   }
   if (status === 'checking') {
     return (
-      <HugeiconsIcon
-        icon={LoaderCircleIcon}
+      <Icon
+        icon={CircleNotchIcon}
         className="size-4 shrink-0 animate-spin text-iris-ink motion-reduce:animate-none"
         aria-hidden
       />

@@ -24,8 +24,8 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PencilLineIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { PencilSimpleLineIcon } from '@/components/ui/icons';
 
 import { PendingLabel } from '@/components/ui/pending-label';
 import { Button } from '@/components/ui/button';
@@ -124,7 +124,7 @@ export function EditContractItemsDialog({
           size="sm"
           className="gap-tight px-cozy text-meta font-medium leading-none [&_svg]:size-3"
         >
-          <HugeiconsIcon icon={PencilLineIcon} aria-hidden />
+          <Icon icon={PencilSimpleLineIcon} aria-hidden />
           Edit
         </Button>
       </DialogTrigger>

@@ -2,8 +2,8 @@ import type { CSSProperties } from 'react';
 import { memo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HeartIcon, LibraryIcon, StarIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CardsThreeIcon, HeartIcon, StarIcon } from '@/components/ui/icons';
 import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
 import { NewListingPill } from '@/components/listings/NewListingPill';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
@@ -233,7 +233,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         <div className="absolute left-1.5 top-1.5 z-[1] flex flex-col items-start gap-1">
           {isShopfront ? (
             <span className="inline-flex items-center gap-0.5 rounded-sm bg-obsidian/75 px-1.5 py-0.5 text-meta font-medium text-mist">
-              <HugeiconsIcon icon={LibraryIcon} className="size-3" aria-hidden />
+              <Icon icon={CardsThreeIcon} className="size-3" aria-hidden />
               Multiple items
             </span>
           ) : null}
@@ -281,7 +281,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             />
           ) : (
             <span className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 items-center gap-0.5 rounded-md border border-foreground/10 bg-card px-2 text-meta font-medium tabular-nums text-foreground">
-              <HugeiconsIcon icon={HeartIcon} className="size-[18px] translate-y-px" strokeWidth={1.75} aria-hidden />
+              <Icon icon={HeartIcon} className="size-[18px] translate-y-px" aria-hidden />
               {item.watch_count}
               <span className="sr-only"> saves</span>
             </span>
@@ -486,7 +486,7 @@ function SellerReputation({ seller }: { seller: NonNullable<CatalogItem['seller'
         seller.ratingCount > 0 ? ` from ${seller.ratingCount} reviews` : ''
       }`}
     >
-      <HugeiconsIcon
+      <Icon
         icon={StarIcon}
         className="size-3 fill-iris text-iris-ink"
         aria-hidden="true"

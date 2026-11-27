@@ -9,8 +9,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CreditCardIcon } from '@/components/ui/icons';
 
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
@@ -145,7 +145,7 @@ export function SavedCardRow({
   return (
     <div className={className}>
       <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-        <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+        <Icon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-medium">
             {hasCard ? (label ?? 'Card on file') : 'No card on file'}

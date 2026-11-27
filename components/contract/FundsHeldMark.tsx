@@ -9,8 +9,8 @@
 // NoDitto does not offer. Callers decide WHEN with `isCashSaleFundsHeld` /
 // `isTradeHoldsPlaced` (`lib/lifecycle.ts`); this only draws it.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ShieldCheckIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -39,7 +39,7 @@ export function FundsHeldMark({
         className,
       )}
     >
-      <HugeiconsIcon icon={ShieldCheckIcon} className="size-3.5" aria-hidden />
+      <Icon icon={ShieldCheckIcon} className="size-3.5" aria-hidden />
       {compact ? LABEL[kind].short : LABEL[kind].full}
     </span>
   );

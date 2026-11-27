@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { EyeIcon, EyeOffIcon } from "@hugeicons/core-free-icons";
+import { Icon } from "@/components/ui/icon";
+import { EyeIcon, EyeSlashIcon } from "@/components/ui/icons";
 
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -36,7 +36,7 @@ const PasswordInput = React.forwardRef<
         aria-label={visible ? "Hide password" : "Show password"}
         className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:pointer-events-none"
       >
-        <HugeiconsIcon icon={visible ? EyeOffIcon : EyeIcon} className="size-4" aria-hidden />
+        <Icon icon={visible ? EyeSlashIcon : EyeIcon} className="size-4" aria-hidden />
       </button>
     </div>
   );

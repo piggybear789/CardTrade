@@ -240,9 +240,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 1. Somebody proposes how the item changes hands. Either party may.
   drafts.push({
     id: 'terms',
-    short: 'Discuss terms',
+    short: 'Agree terms',
     label: 'Set handover terms',
-    compactLabel: 'Handover terms',
     detail: termsSet
       ? isDelivery
         ? 'Shipping with tracking.'
@@ -262,7 +261,7 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
   // 2. The buyer pays. That is the commitment — there is no confirm step.
   drafts.push({
     id: 'payment',
-    short: 'Payment',
+    short: 'Pay',
     // SECOND PERSON, LIKE THE DETAIL BELOW IT. `label` is the action card's `<h3>` and
     // the string the rail reveals when a tick is tapped, so it is read as "what now" —
     // but it was written as a passive description of the step ("Payment collected and
@@ -272,7 +271,6 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       viewerRole === 'BUYER'
         ? 'Pay to lock in the deal'
         : `Waiting for ${counterpartyName} to pay`,
-    compactLabel: viewerRole === 'BUYER' ? 'Pay to lock it in' : 'Waiting on payment',
     detail: !termsSet
       ? 'Available once handover terms have been proposed.'
       : viewerRole === 'BUYER'
@@ -325,12 +323,11 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
     // 4a. Shipping branch: the seller sends, the buyer confirms arrival.
     drafts.push({
       id: 'ship',
-      short: 'Delivery',
+      short: 'Post',
       label:
         viewerRole === 'SELLER'
           ? 'Post it and add the tracking number'
           : `Waiting for ${counterpartyName} to post it`,
-      compactLabel: viewerRole === 'SELLER' ? 'Post and add tracking' : 'Waiting on posting',
       detail: hasTracking
         ? 'Tracking recorded.'
         : viewerRole === 'SELLER'
@@ -348,13 +345,11 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
 
     drafts.push({
       id: 'receive',
-      // Six ticks in the delivery branch: keep short for mobile.
-      short: 'Received',
+      short: 'Confirm arrival',
       label:
         viewerRole === 'BUYER'
           ? 'Confirm it arrived'
           : `Waiting for ${counterpartyName} to confirm it arrived`,
-      compactLabel: viewerRole === 'BUYER' ? 'Confirm arrival' : 'Awaiting arrival',
       detail:
         viewerRole === 'BUYER'
           ? 'Confirm receipt, or report it as not received.'
@@ -374,10 +369,8 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       (myHandoverConfirmed && theirHandoverConfirmed) || status === 'COMPLETED';
     drafts.push({
       id: 'handover',
-      // Rail shorts must survive a five-tick rail on a 320px screen.
-      short: 'Delivery',
+      short: 'Meet',
       label: 'Both confirm the handover',
-      compactLabel: 'Confirm handover',
       detail: bothConfirmed
         ? viewerRole === 'SELLER'
           ? 'Handover confirmed. The buyer has a day to raise a problem before you are paid.'
@@ -417,8 +410,6 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
         viewerRole === 'BUYER'
           ? 'Accept the item, or report a problem'
           : `Waiting for ${counterpartyName} to accept it`,
-      // Sentence case, matching every other string here. This was `Accept Delivery`.
-      compactLabel: viewerRole === 'BUYER' ? 'Accept or report' : 'Awaiting acceptance',
       detail:
         viewerRole === 'BUYER'
           ? 'Complete to release the funds, or dispute. Completes on its own at the deadline.'
@@ -445,7 +436,6 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
         viewerRole === 'BUYER'
           ? 'Post the item back'
           : `Waiting for ${counterpartyName} to post it back`,
-      compactLabel: viewerRole === 'BUYER' ? 'Post it back' : 'Waiting on the return',
       detail: returnDisputedNow
         ? 'The seller contested this return. The case is back with support.'
         : facts.hasReturnTracking
@@ -473,10 +463,9 @@ export function deriveCashSaleSteps(facts: CashSaleStepFacts): ContractStep[] {
       id: 'return-inspect',
       // Rail labels must fit a narrow tick (~8 characters). A blank one rendered nothing:
       // the rail falls back to the label only when this is ABSENT, not empty.
-      short: 'Check',
+      short: 'Check return',
       label:
         viewerRole === 'SELLER' ? 'Check the return' : `${counterpartyName} checks the return`,
-      compactLabel: viewerRole === 'SELLER' ? 'Check the return' : 'Return being checked',
       detail:
         viewerRole === 'SELLER'
           ? `You have ${RETURN_INSPECTION_LABEL} after delivery to report a problem. After that the buyer is refunded automatically.`

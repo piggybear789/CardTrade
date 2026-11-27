@@ -15,13 +15,13 @@
 // A violet tint, not a white card with a hairline: that is what every listing tile
 // under it looks like, so the one line explaining NoDitto would read as one more tile.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LockIcon, ScaleIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { LockIcon, ScalesIcon, ShieldCheckIcon } from '@/components/ui/icons';
 
 const POINTS = [
   { icon: ShieldCheckIcon, text: 'Every seller ID-checked by Stripe' },
   { icon: LockIcon, text: 'Payment held until you accept the card' },
-  { icon: ScaleIcon, text: 'Disputes reviewed by our case team' },
+  { icon: ScalesIcon, text: 'Disputes reviewed by our case team' },
 ] as const;
 
 export function GuestTrustBand() {
@@ -36,7 +36,7 @@ export function GuestTrustBand() {
       <ul className="flex flex-wrap gap-x-group gap-y-tight">
         {POINTS.map((point) => (
           <li key={point.text} className="flex items-center gap-tight text-meta text-muted-foreground">
-            <HugeiconsIcon icon={point.icon} className="size-3.5 shrink-0 text-iris" aria-hidden />
+            <Icon icon={point.icon} className="size-3.5 shrink-0 text-iris" aria-hidden />
             {point.text}
           </li>
         ))}

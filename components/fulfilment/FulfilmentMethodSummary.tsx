@@ -11,8 +11,8 @@
 // implies the choice is yours to flip on the spot, which is exactly the wrong
 // promise for a term the counterparty also has to live with.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { MapPinIcon, TruckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { MapPinIcon, TruckIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 import type { FulfilmentMethod } from '@/domain/fulfilment';
@@ -59,7 +59,7 @@ export function FulfilmentMethodSummary({
     <div className={cn('grid gap-snug sm:grid-cols-2', className)}>
       {shown.map((option) => {
         const chosen = option.value === method;
-        const Icon = option.icon;
+        const Glyph = option.icon;
         return (
           <div
             key={option.value}
@@ -79,7 +79,7 @@ export function FulfilmentMethodSummary({
                   'border-dashed border-border',
             )}
           >
-            <HugeiconsIcon icon={Icon}
+            <Icon icon={Glyph}
               className={cn(
                 'size-4 shrink-0',
                 chosen ? 'text-iris-ink' : 'text-muted-foreground',

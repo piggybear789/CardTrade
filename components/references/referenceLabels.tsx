@@ -5,8 +5,8 @@
 // TikTok), sentiment marks, and counted nouns.
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
-import { AlertCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
+import { WarningCircleIcon } from '@/components/ui/icons';
 
 import { SocialPlatformIcon } from '@/components/profile/SocialPlatformIcon';
 import { StatusGlyph, type StatusGlyphKind } from '@/components/ui/status-glyph';
@@ -89,7 +89,7 @@ export function IssueBadge({ category }: { category: string | null }) {
       aria-label={label}
       className="inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive"
     >
-      <HugeiconsIcon icon={AlertCircleIcon} className="size-3.5" aria-hidden />
+      <Icon icon={WarningCircleIcon} className="size-3.5" aria-hidden />
     </span>
   );
 }
@@ -136,7 +136,7 @@ export function Tag({
   title,
   children,
 }: {
-  icon: IconSvgElement | StatusGlyphKind;
+  icon: IconGlyph | StatusGlyphKind;
   tone: TagTone;
   /** `md` beside a heading or for the one item a panel is about; `sm` in lists. */
   size?: 'sm' | 'md';
@@ -159,7 +159,7 @@ export function Tag({
       {typeof icon === 'string' ? (
         <StatusGlyph kind={icon} className={size === 'md' ? 'size-4' : 'size-3.5'} />
       ) : (
-        <HugeiconsIcon icon={icon} className={cn(size === 'md' ? 'size-4' : 'size-3.5', 'shrink-0', style.icon)} aria-hidden />
+        <Icon icon={icon} className={cn(size === 'md' ? 'size-4' : 'size-3.5', 'shrink-0', style.icon)} aria-hidden />
       )}
       {children}
     </span>

@@ -23,8 +23,8 @@ import {
   useElements,
   useStripe,
 } from '@stripe/react-stripe-js';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, LockIcon, ShieldCheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CircleNotchIcon, LockIcon, ShieldCheckIcon } from '@/components/ui/icons';
 
 import { beginCardSetup, completeCardSetup } from '@/lib/actions/payments';
 import { Button } from '@/components/ui/button';
@@ -201,10 +201,10 @@ function CardSetupFields({
       </div>
 
       <Button type="submit" disabled={busy} aria-busy={busy} className="w-full">
-        {busy ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
+        {busy ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : null}
         {!ready ? 'Loading secure checkout…' : isPending ? 'Saving…' : (
           <>
-            <HugeiconsIcon icon={LockIcon} className="size-3.5" aria-hidden />
+            <Icon icon={LockIcon} className="size-3.5" aria-hidden />
             Save card
           </>
         )}
@@ -270,7 +270,7 @@ function SimulatedCardSetup({
       ) : null}
 
       <Button type="submit" disabled={isPending} aria-busy={isPending} className="w-full">
-        {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
+        {isPending ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : null}
         {isPending ? 'Saving…' : 'Save demo card'}
       </Button>
     </form>
@@ -280,7 +280,7 @@ function SimulatedCardSetup({
 function ProcessorNote() {
   return (
     <p className="flex items-start justify-center gap-tight text-center text-body text-muted-foreground">
-      <HugeiconsIcon icon={ShieldCheckIcon} className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
+      <Icon icon={ShieldCheckIcon} className="mt-0.5 size-3.5 shrink-0 text-trust" aria-hidden />
       <span>
         Payments processed by{' '}
         <a

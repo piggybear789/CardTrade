@@ -7,8 +7,13 @@
 // a photo opens the same lightbox used by contract thumbnails.
 
 import { useCallback, useRef, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronLeftIcon, ChevronRightIcon, ImageOffIcon, ZoomInIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  CaretLeftIcon,
+  CaretRightIcon,
+  ImageBrokenIcon,
+  MagnifyingGlassPlusIcon,
+} from '@/components/ui/icons';
 
 import { ContractImageLightbox } from '@/components/contract/ContractImageLightbox';
 import { ListingPhotoEmpty } from '@/components/listings/ListingPhotoEmpty';
@@ -384,7 +389,7 @@ export function ImageGallery({
             aria-hidden="true"
             className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-md border border-white/15 bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur"
           >
-            <HugeiconsIcon icon={ZoomInIcon} className="size-3.5" />
+            <Icon icon={MagnifyingGlassPlusIcon} className="size-3.5" />
             <span className="[@media(hover:none)]:hidden">Click to enlarge</span>
             <span className="hidden [@media(hover:none)]:inline">Tap to enlarge</span>
           </p>
@@ -418,7 +423,7 @@ export function ImageGallery({
               className="flex size-11 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-ring"
               aria-label="Previous image"
             >
-              <HugeiconsIcon icon={ChevronLeftIcon} className="size-4" aria-hidden />
+              <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
             </button>
             <span
               className="min-w-[3ch] text-center text-meta font-medium tabular-nums text-white/90"
@@ -433,7 +438,7 @@ export function ImageGallery({
               className="flex size-11 items-center justify-center rounded-md text-white/90 transition-colors hover:bg-white/15 border border-transparent focus:outline-none focus-visible:border-ring"
               aria-label="Next image"
             >
-              <HugeiconsIcon icon={ChevronRightIcon} className="size-4" aria-hidden />
+              <Icon icon={CaretRightIcon} className="size-4" aria-hidden />
             </button>
           </nav>
         ) : null}
@@ -498,7 +503,7 @@ export function ImageGallery({
                 >
                   {failed ? (
                     <span className="grid h-full w-full place-items-center text-muted-foreground">
-                      <HugeiconsIcon icon={ImageOffIcon} className="size-4" aria-hidden />
+                      <Icon icon={ImageBrokenIcon} className="size-4" aria-hidden />
                     </span>
                   ) : (
                     // 56px of source for a 56px box. This rail is where the old
@@ -645,7 +650,7 @@ function SwipeCarousel({
               >
                 {failed ? (
                   <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                    <HugeiconsIcon icon={ImageOffIcon} className="size-8" aria-hidden />
+                    <Icon icon={ImageBrokenIcon} className="size-8" aria-hidden />
                     <span className="sr-only">Photo could not be loaded for {title}</span>
                   </div>
                 ) : (
@@ -742,7 +747,7 @@ function GalleryMissing({
         <ListingPhotoEmpty title={title} hint={hint} />
       </div>
       <div className="hidden h-full w-full flex-col items-center justify-center gap-snug text-muted-foreground md:flex">
-        <HugeiconsIcon icon={ImageOffIcon} className="size-12" aria-hidden />
+        <Icon icon={ImageBrokenIcon} className="size-12" aria-hidden />
         <span className="sr-only">No image available for {title}</span>
       </div>
     </>

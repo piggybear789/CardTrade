@@ -18,8 +18,8 @@
 import { useEffect, useState, useTransition, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChatFeedbackIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ChatTeardropTextIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -192,12 +192,12 @@ export function FeedbackDialog({
               size="sm"
               className={cn('!h-9 w-full justify-start', className)}
             >
-              <HugeiconsIcon icon={ChatFeedbackIcon} aria-hidden />
+              <Icon icon={ChatTeardropTextIcon} aria-hidden />
               Send feedback
             </Button>
           ) : (
             <Button type="button" variant="outline" size="sm" className={className}>
-              <HugeiconsIcon icon={ChatFeedbackIcon} aria-hidden />
+              <Icon icon={ChatTeardropTextIcon} aria-hidden />
               Send feedback
             </Button>
           )

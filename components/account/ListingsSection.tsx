@@ -20,8 +20,8 @@
 // uses, so "Hidden 3" is a place you can go.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PackagePlusIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { PlusSquareIcon } from '@/components/ui/icons';
 
 import { EmptyState } from '@/components/account/EmptyState';
 import { ListingRowMenu } from '@/components/account/ListingRowMenu';
@@ -122,7 +122,7 @@ export function ListingsSection({
   if (items.length === 0 && drafts.length === 0) {
     return (
       <EmptyState
-        icon={<HugeiconsIcon icon={PackagePlusIcon} className="size-6" aria-hidden />}
+        icon={<Icon icon={PlusSquareIcon} className="size-6" aria-hidden />}
         title="You haven't listed anything yet"
         description="List a collectible to start selling or trading on NoDitto."
         ctaLabel="Sell an item"
@@ -176,7 +176,7 @@ export function ListingsSection({
         <ListingDraftList drafts={drafts} />
       ) : visible.length === 0 ? (
         <SharedEmptyState
-          icon={<HugeiconsIcon icon={PackagePlusIcon} className="size-6" aria-hidden />}
+          icon={<Icon icon={PlusSquareIcon} className="size-6" aria-hidden />}
           title="Nothing here"
           description="No listings are in this state right now."
           action={{ label: 'Show all listings', href: '/listings/mine', variant: 'outline' }}

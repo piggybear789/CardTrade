@@ -60,21 +60,21 @@ import {
   type RefObject,
 } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  ArrowLeft01Icon,
-  BanknoteIcon,
-  CancelCircleIcon,
-  CheckmarkCircle02Icon,
-  ComputerIcon,
-  LoaderCircleIcon,
-  LinkSquare02Icon,
+  ArrowSquareOutIcon,
+  ArrowsLeftRightIcon,
+  CaretLeftIcon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  DesktopIcon,
+  DeviceMobileIcon,
+  DotsThreeIcon,
+  EyeSlashIcon,
   LockIcon,
-  MoreHorizontalIcon,
-  RepeatIcon,
-  SmartPhone01Icon,
-  ViewOffSlashIcon,
-} from '@hugeicons/core-free-icons';
+  MoneyIcon,
+  XCircleIcon,
+} from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
@@ -141,7 +141,6 @@ import {
   EditorPageHeader,
   EditorSteps,
   OptionCard,
-  ScreenHeading,
 } from '@/components/editor/EditorFrame';
 import { BROWSER, BrowserDevice, DeviceStage, PHONE, PhoneDevice } from '@/components/editor/DevicePreview';
 
@@ -612,7 +611,7 @@ export function DealComposeForm({
       onClick={() => goStage('card')}
       disabled={isPending}
     >
-      <HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden />
+      <Icon icon={CaretLeftIcon} aria-hidden />
       Back
     </Button>
   );
@@ -644,7 +643,7 @@ export function DealComposeForm({
           <div className="ml-auto flex items-center gap-snug">
             <Button asChild variant="outline" size="sm">
               <a href={dealInvitePath(existing.token)} target="_blank" rel="noreferrer">
-                <HugeiconsIcon icon={LinkSquare02Icon} aria-hidden />
+                <Icon icon={ArrowSquareOutIcon} aria-hidden />
                 View as them
               </a>
             </Button>
@@ -658,7 +657,7 @@ export function DealComposeForm({
                   disabled={isPending}
                   className="size-8 md:size-8"
                 >
-                  <HugeiconsIcon icon={MoreHorizontalIcon} aria-hidden />
+                  <Icon icon={DotsThreeIcon} aria-hidden />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
@@ -672,7 +671,7 @@ export function DealComposeForm({
                   className="text-destructive focus:text-destructive"
                   onSelect={() => setConfirmingCancelLink(true)}
                 >
-                  <HugeiconsIcon icon={CancelCircleIcon} aria-hidden />
+                  <Icon icon={XCircleIcon} aria-hidden />
                   Cancel link
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -704,7 +703,7 @@ export function DealComposeForm({
                 description="Restoring your card and photos."
               >
                 <div role="status" className="flex justify-center py-section text-muted-foreground">
-                  <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin" aria-hidden />
+                  <Icon icon={CircleNotchIcon} className="size-5 animate-spin" aria-hidden />
                   <span className="sr-only">Loading</span>
                 </div>
               </Panel>
@@ -775,7 +774,6 @@ export function DealComposeForm({
                   <EditorPageHeader
                     title="Start a private deal"
                     description="Sell or swap a card with anyone. Send them a link and agree the details together."
-                    onClose={requestClose}
                   />
                 )}
 
@@ -806,19 +804,6 @@ export function DealComposeForm({
                   onStage={goStage}
                   disabled={isPending}
                 />
-
-                <ScreenHeading
-                  headingRef={headingRef}
-                  title={stage === 'card' ? 'Your card' : 'Terms'}
-                  description={
-                    stage === 'card'
-                      ? 'Sell it or swap it, then add photos and what it is.'
-                      : selling
-                        ? 'What they pay, and what you receive.'
-                        : 'What you want, and what yours is worth.'
-                  }
-                />
-
                 {stage === 'card' ? (
                   <div className="space-y-group">
                     {/* SELL OR TRADE FIRST, as the composer always opened: it is the
@@ -837,9 +822,9 @@ export function DealComposeForm({
                         id="deal-kind-cash"
                         checked={selling}
                         onSelect={() => setKind('CASH_SALE')}
-                        icon={BanknoteIcon}
+                        icon={MoneyIcon}
                         label="Sell a card"
-                        hint="Set a price, send a link"
+                        hint="Send a private link"
                         disabled={existing != null && !selling}
                       />
                       <OptionCard
@@ -847,9 +832,9 @@ export function DealComposeForm({
                         id="deal-kind-trade"
                         checked={!selling}
                         onSelect={() => setKind('TRADE')}
-                        icon={RepeatIcon}
+                        icon={ArrowsLeftRightIcon}
                         label="Trade cards"
-                        hint="Swap, with cash if needed"
+                        hint="Swap safely"
                         disabled={existing != null && selling}
                       />
                     </div>
@@ -1021,7 +1006,7 @@ function LinkPanel({
           aria-hidden
           className="grid size-5 shrink-0 place-items-center rounded-full bg-trust/10 text-trust"
         >
-          <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-3.5" />
+          <Icon icon={CheckCircleIcon} className="size-3.5" />
         </span>
         <p className="min-w-0 truncate text-body font-semibold text-foreground" role="status">
           {existing.justCreated ? 'Your link is ready' : 'Your link is live'}
@@ -1119,7 +1104,7 @@ function CanvasHeader({
         />
       ) : (
         <div className="flex h-11 items-center gap-snug rounded-xl border border-border bg-card/70 px-cozy text-body text-muted-foreground">
-          <HugeiconsIcon icon={LockIcon} className="size-4 shrink-0" aria-hidden />
+          <Icon icon={LockIcon} className="size-4 shrink-0" aria-hidden />
           <span className="truncate">Your link will appear here</span>
         </div>
       )}
@@ -1212,7 +1197,7 @@ function Panel({
             disabled={backDisabled}
             className="-ml-1 inline-flex items-center gap-tight rounded-sm border border-transparent text-body font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring disabled:opacity-50"
           >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" aria-hidden />
+            <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
             Back to your deal
           </button>
         ) : null}
@@ -1245,8 +1230,8 @@ function DeviceToggle({
   onDevice: (next: PreviewDevice) => void;
 }) {
   const options = [
-    { value: 'phone', label: 'Phone preview', icon: SmartPhone01Icon },
-    { value: 'desktop', label: 'Desktop preview', icon: ComputerIcon },
+    { value: 'phone', label: 'Phone preview', icon: DeviceMobileIcon },
+    { value: 'desktop', label: 'Desktop preview', icon: DesktopIcon },
   ] as const;
   return (
     <div className="flex shrink-0 gap-0.5 rounded-lg border border-border bg-card p-0.5">
@@ -1266,7 +1251,7 @@ function DeviceToggle({
                 : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
             )}
           >
-            <HugeiconsIcon icon={option.icon} className="size-4" aria-hidden />
+            <Icon icon={option.icon} className="size-4" aria-hidden />
           </button>
         );
       })}
@@ -1342,7 +1327,7 @@ function LinkFacts({ className }: { className?: string }) {
         className,
       )}
     >
-      <HugeiconsIcon icon={ViewOffSlashIcon} className="mt-px size-4 shrink-0" aria-hidden />
+      <Icon icon={EyeSlashIcon} className="mt-px size-4 shrink-0" aria-hidden />
       Only people with the link can open it, and it never appears in the catalog. It lasts 14
       days, and you can cancel it any time.
     </p>

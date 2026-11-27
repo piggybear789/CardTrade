@@ -18,8 +18,8 @@
 // fewer thumbs, no footnote).
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowsDownUpIcon, CaretRightIcon } from '@/components/ui/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { formatMoney } from '@/lib/format';
@@ -350,6 +350,109 @@ function SideColumn({
   );
 }
 
+/** One item row in the ledger: photo, title, condition, value. */
+function LedgerItem({ item, currency }: { item: ContractExchangeItem; currency: string }) {
+  return (
+    <li className="flex items-center gap-snug">
+      <ContractThumbnails images={item.images ?? []} label={item.title} size="sm" max={1} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-body font-semibold">{item.title}</p>
+        {item.subtitle ? (
+          <p className="truncate text-meta text-muted-foreground">{item.subtitle}</p>
+        ) : null}
+      </div>
+      {item.valueCents != null ? (
+        <span className="display-value shrink-0 text-body">
+          {formatMoney(item.valueCents, currency)}
+        </span>
+      ) : null}
+    </li>
+  );
+}
+
+/** One side of the ledger: its label, its items, and any cash it pays. */
+function LedgerSide({ side, currency }: { side: ContractExchangeSide; currency: string }) {
+  const cashCents = side.cashCents ?? 0;
+  return (
+    <div className="min-w-0 py-cozy">
+      <p className="mb-snug text-meta text-muted-foreground">{side.heading}</p>
+      {side.items.length === 0 && cashCents <= 0 ? (
+        <p className="text-body text-muted-foreground">{side.emptyLabel ?? 'Nothing recorded.'}</p>
+      ) : (
+        <ul className="space-y-snug">
+          {side.items.map((item) => (
+            <LedgerItem key={item.id} item={item} currency={currency} />
+          ))}
+          {cashCents > 0 ? (
+            <li className="flex items-center gap-snug">
+              <MoneyGlyph />
+              <p className="min-w-0 flex-1 truncate text-body font-semibold">
+                {side.cashLabel ?? 'Cash'}
+              </p>
+              <span className="display-value shrink-0 text-body">
+                {formatMoney(cashCents, currency)}
+              </span>
+            </li>
+          ) : null}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+export interface ContractExchangeLedgerProps {
+  /** Exactly two: what the viewer sends, then what they get. */
+  sides: [ContractExchangeSide, ContractExchangeSide];
+  /** Label/value rows under the box, e.g. the viewer's fee and the cash. */
+  rows?: { label: ReactNode; value: ReactNode }[];
+  footnote?: ReactNode;
+  currency: string;
+  className?: string;
+}
+
+/**
+ * A trade's exchange as ONE ledger (UX review 2026-11-27, option E1): what goes,
+ * then what comes, in a single box with a swap mark between them, like a swap
+ * summary. It replaced two side-by-side cards that each repeated the trader's name,
+ * ID badge and a caps "VALUE" heading, which the header and chat bar now carry.
+ * The fee sits outside the box: it is not part of what is swapped.
+ */
+export function ContractExchangeLedger({
+  sides,
+  rows = [],
+  footnote,
+  currency,
+  className,
+}: ContractExchangeLedgerProps) {
+  return (
+    <div className={cn('flex w-full flex-col gap-cozy', className)}>
+      <div className="rounded-xl border bg-card px-cozy">
+        <LedgerSide side={sides[0]} currency={currency} />
+        <div className="flex items-center gap-snug" aria-hidden>
+          <span className="h-px flex-1 bg-border" />
+          <Icon
+            icon={ArrowsDownUpIcon}
+            className="size-4 text-muted-foreground"
+          />
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <LedgerSide side={sides[1]} currency={currency} />
+      </div>
+      {rows.length > 0 ? (
+        <dl className="divide-y divide-border/60 text-body">
+          {rows.map((row, index) => (
+            <div key={index} className="flex items-baseline justify-between gap-cozy py-snug">
+              <dt className="text-muted-foreground">{row.label}</dt>
+              <dd className="text-right tabular-nums">{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {footnote ? <p className="text-meta text-muted-foreground">{footnote}</p> : null}
+    </div>
+  );
+}
+
 export interface ContractExchangePanelProps {
   /** One side for a sale, two for a trade or deal. */
   sides: ContractExchangeSide[];
@@ -422,7 +525,7 @@ export function ContractExchangePanel({
                   compact ? 'size-7' : 'size-8',
                 )}
               >
-                <HugeiconsIcon icon={ArrowRight01Icon}
+                <Icon icon={CaretRightIcon}
                   className={cn(
                     'rotate-90 lg:rotate-0',
                     compact ? 'size-3.5' : 'size-4',

@@ -3,8 +3,8 @@
 import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
-import { HugeiconsIcon } from '@hugeicons/react';
-import { XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { XIcon } from '@/components/ui/icons';
 
 import { cn } from "@/lib/utils"
 
@@ -105,7 +105,7 @@ const SheetContent = React.forwardRef<
               closeClassName,
             )}
           >
-            <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden="true" />
+            <Icon icon={XIcon} className="size-4" aria-hidden="true" />
             <span className="sr-only">Close</span>
           </SheetPrimitive.Close>
         )}

@@ -83,7 +83,7 @@ export function cardTierClause(currency: string | null | undefined, method: Paym
 export function processingFeeExplanation(currency?: string | null): string {
   const domestic = cardTierPhrase(currency, 'CARD');
   const others = otherCardRatesNote(currency);
-  return `The buyer protection fee is ${processingFeeRateLabel(currency)} of the price and postage by ${domestic ? `a card ${domestic}` : 'card'}.${others ? ` ${others}` : ''} Most of it goes to Stripe for taking the payment and paying the seller. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Paying from your bank, where offered, can cost less.`;
+  return `The buyer protection fee is ${processingFeeRateLabel(currency)} of the price and postage by ${domestic ? `a card ${domestic}` : 'card'}.${others ? ` ${others}` : ''} Paying from your bank, where offered, can cost less.`;
 }
 
 /**
@@ -93,11 +93,11 @@ export function processingFeeExplanation(currency?: string | null): string {
  * Pay dialog prices them. `processingFeeExplanation` keeps the full version for Help.
  */
 export function processingFeeShortNote(currency?: string | null): string {
-  return `Paid by the buyer on top of your price: ${processingFeeRateLabel(currency)} by card. Most of it goes to Stripe. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones.`;
+  return `Paid by the buyer on top of your price: ${processingFeeRateLabel(currency)} by card.`;
 }
 
 /** Hint beside the fee row in a contract's money table. */
-export const PROCESSING_FEE_HINT = `Most of it goes to Stripe for the payment and payout. NoDitto keeps about ${bpsLabel(NODITTO_FEE_BPS)} on larger sales, less on small ones. Returned if the sale is refunded in full.`;
+export const PROCESSING_FEE_HINT = `Returned if the sale is refunded in full.`;
 
 /**
  * What a dispute means on a rail, said to the BUYER, whose protection is NoDitto's
@@ -141,8 +141,7 @@ export function termsFeeSentence(): string {
     `price and postage for each way of paying (for example ${processingFeeRateLabel('aud')} ` +
     'by an Australian card in Australia). A card issued outside the seller\'s country, or ' +
     'for a European seller outside the EEA or the UK, may pay a higher rate, because Stripe ' +
-    'charges more for it. Most of it goes to Stripe for taking the payment and paying the ' +
-    `seller. NoDitto keeps about ${nodittoFeeRateLabel()} on larger sales, less on small ones. Every way of paying is shown ` +
+    'charges more for it. Every way of paying is shown ' +
     'with its rate and total before the buyer pays. The seller receives their price and ' +
     `postage in full. On a trade, each trader pays NoDitto ${bpsLabel(TRADE_FEE_BPS)} of the value ` +
     'they receive (the other side, plus any cash coming to them), charged once both card ' +

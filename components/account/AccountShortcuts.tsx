@@ -17,14 +17,14 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
 import {
   BellIcon,
   HandCoinsIcon,
   HandshakeIcon,
   HeartIcon,
-  TagsIcon,
-} from '@hugeicons/core-free-icons';
+  StorefrontIcon,
+} from '@/components/ui/icons';
 
 import { CONTRACT_LINKS } from '@/components/layout/marketplace-nav-config';
 import { useStartDeal } from '@/components/deals/StartDealProvider';
@@ -39,14 +39,14 @@ function TileBody({
   label,
   count = 0,
 }: {
-  icon: IconSvgElement;
+  icon: IconGlyph;
   label: string;
   count?: number;
 }) {
   return (
     <>
       <span className="relative grid size-10 place-items-center rounded-full bg-muted text-foreground">
-        <HugeiconsIcon icon={icon} className="size-5" strokeWidth={1.75} aria-hidden />
+        <Icon icon={icon} className="size-5" aria-hidden />
         <CountBadge count={count} className="absolute -right-1 -top-1 ring-2 ring-card" />
       </span>
       <span className="w-full truncate text-meta font-medium text-foreground">{label}</span>
@@ -61,7 +61,7 @@ function Tile({
   count,
 }: {
   href: string;
-  icon: IconSvgElement;
+  icon: IconGlyph;
   label: string;
   count?: number;
 }) {
@@ -105,7 +105,7 @@ export function AccountShortcuts({
         <Tile href="/notifications" icon={BellIcon} label="Activity" count={unreadNotifications} />
         <Tile href="/saved" icon={HeartIcon} label="Saved" />
         <Tile href="/offers" icon={HandCoinsIcon} label="Offers" count={offersWaiting} />
-        <Tile href="/listings/mine" icon={TagsIcon} label="Listings" />
+        <Tile href="/listings/mine" icon={StorefrontIcon} label="Listings" />
       </Row>
       <div className="mx-snug h-px bg-border" aria-hidden />
       <Row label="Contracts">

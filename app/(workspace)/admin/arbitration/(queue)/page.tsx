@@ -17,8 +17,14 @@
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Clock01Icon, InboxIcon, ShieldAlertIcon, TriangleAlertIcon, Wrench01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  ClockIcon,
+  ShieldWarningIcon,
+  TrayIcon,
+  WarningIcon,
+  WrenchIcon,
+} from '@/components/ui/icons';
 
 import { getArbitrationQueue } from '@/lib/actions/arbitration';
 import {
@@ -120,7 +126,7 @@ export default async function ArbitrationQueuePage({
       <MarketplaceShell title="Cases" center>
         <EmptyState
           variant="page"
-          icon={<HugeiconsIcon icon={ShieldAlertIcon} className="size-6" aria-hidden />}
+          icon={<Icon icon={ShieldWarningIcon} className="size-6" aria-hidden />}
           title="Not authorized"
           titleAs="h3"
           description="Cases are limited to NoDitto support staff."
@@ -149,7 +155,7 @@ export default async function ArbitrationQueuePage({
           viewerIsAdmin ? (
             <Button asChild variant="outline">
               <Link href="/admin" transitionTypes={['nav-back']}>
-                <HugeiconsIcon icon={Wrench01Icon} aria-hidden />
+                <Icon icon={WrenchIcon} aria-hidden />
                 Operations
               </Link>
             </Button>
@@ -215,7 +221,7 @@ export default async function ArbitrationQueuePage({
 
       {shown.length === 0 ? (
         <EmptyState
-          icon={<HugeiconsIcon icon={InboxIcon} className="size-6" aria-hidden />}
+          icon={<Icon icon={TrayIcon} className="size-6" aria-hidden />}
           title={scope === 'mine' ? 'Nothing assigned to you' : 'Queue is clear'}
           titleAs="h3"
           description={
@@ -254,7 +260,7 @@ export default async function ArbitrationQueuePage({
                     </div>
                     <CardDescription className="flex flex-wrap items-center gap-x-cozy gap-y-tight">
                       <span className={cn('flex items-center gap-tight', overdue && 'text-destructive')}>
-                        <HugeiconsIcon icon={Clock01Icon} className="size-3.5 shrink-0" aria-hidden />
+                        <Icon icon={ClockIcon} className="size-3.5 shrink-0" aria-hidden />
                         {c.openedAt ? formatRelativeTime(c.openedAt) : 'age unknown'}
                         {overdue ? ` · over ${ARBITRATION_SLA_HOURS}h` : ''}
                       </span>
@@ -265,7 +271,7 @@ export default async function ArbitrationQueuePage({
                             c.hoursToDeadline < DEADLINE_WARNING_HOURS && 'text-destructive',
                           )}
                         >
-                          <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5 shrink-0" aria-hidden />
+                          <Icon icon={WarningIcon} className="size-3.5 shrink-0" aria-hidden />
                           {c.hoursToDeadline < 0
                             ? 'evidence deadline passed'
                             : `${c.hoursToDeadline}h to evidence deadline`}

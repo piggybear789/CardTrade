@@ -16,8 +16,8 @@
 // is not the viewer's move, the room passes no children and the card shows no buttons.
 
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { InformationCircleIcon, MoreVerticalIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { DotsThreeVerticalIcon, InfoIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -82,7 +82,7 @@ function StepInfo({ children }: { children: ReactNode }) {
           className="-my-1.5 size-6 shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
           aria-label="About this step"
         >
-          <HugeiconsIcon icon={InformationCircleIcon} className="size-4" aria-hidden />
+          <Icon icon={InfoIcon} className="size-4" aria-hidden />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-cozy text-body text-muted-foreground">
@@ -137,6 +137,11 @@ export interface ContractActionCardProps {
    * identity strip — no title, no tint, just the controls.
    */
   appearance?: 'card' | 'dock' | 'header';
+  /**
+   * The other party's display name. The dock titles a step the other side owns
+   * "Post · Waiting for Ada".
+   */
+  waitingFor?: string;
   className?: string;
 }
 
@@ -211,7 +216,7 @@ export function ContractOverflowMenu({
           className="shrink-0 text-muted-foreground"
           aria-label="More actions"
         >
-          <HugeiconsIcon icon={MoreVerticalIcon} className="size-4" aria-hidden />
+          <Icon icon={DotsThreeVerticalIcon} className="size-4" aria-hidden />
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -300,6 +305,7 @@ export function ContractActionCard({
   children,
   more,
   appearance = 'card',
+  waitingFor,
   className,
 }: ContractActionCardProps) {
   const viewersMove = isViewersMove(step);
@@ -334,12 +340,17 @@ export function ContractActionCard({
   if (appearance === 'dock') {
     const { blocks, primary, rest } = splitPrimary(children);
     const menu = rest.length > 0 ? <>{rest}{more}</> : more;
-    // THE SHORT TITLE AT EVERY WIDTH. The dock is a strip beside a button in a
-    // narrow chat column; every step carries a `compactLabel` written for it
-    // ("Handover terms", "Waiting on payment"). The full label ("Waiting for Ada to
-    // pay") is still the rail's, and heads the (i) when it says more.
-    const label = title ?? step?.compactLabel ?? step?.label ?? 'This contract is finished';
-    const fullLabel = !title && step?.compactLabel && step.compactLabel !== step.label ? step.label : null;
+    // THE STEP'S NAME, THE SAME ONE THE PROGRESS STRIP AND RAIL SHOW (2026-11-27).
+    // The buttons say what to do; the title says which step this is. On the other
+    // side's move there are no buttons, so it says who it is waiting for. The full
+    // label ("Waiting for Ada to pay") heads the (i).
+    const stepName = step ? (step.short ?? step.label) : null;
+    const waiting =
+      !title && step?.status === 'active' && step.owner === 'them' && waitingFor
+        ? `Waiting for ${waitingFor}`
+        : null;
+    const label = title ?? stepName ?? 'This contract is finished';
+    const fullLabel = !title && step && step.label !== stepName ? step.label : null;
     const explanation = detail ?? step?.detail;
     // AN OUTCOME IS SAID, NOT HIDDEN. On a step the viewer acts on, the sentence only
     // explains the button, so it waits behind the (i). On an outcome ("The payment could
@@ -384,27 +395,43 @@ export function ContractActionCard({
               rides inline after the last word instead of claiming its own
               column. Two lines at most (`line-clamp-2`); the short titles are
               written to fit one. */}
-          <h3 className="line-clamp-2 min-w-[9rem] flex-1 text-pretty text-body font-semibold leading-snug">
+          {/* THE OUTCOME SENTENCE SITS UNDER THE TITLE, in the same column
+              (2026-11-27). It was a paragraph below the whole row, so a dispute's
+              title, its button and its one-line explanation took three bands of
+              height, with the sentence pushed under the button. */}
+          <div className="min-w-[9rem] flex-1">
+          <h3 className="line-clamp-2 text-pretty text-body font-semibold leading-snug">
             {label}
+            {/* Spaced, not dotted (2026-11-27). */}
+            {waiting ? (
+              <span className="ml-cozy font-normal text-muted-foreground">{waiting}</span>
+            ) : null}
             {sentence ? (
               <span className="ml-1 inline-flex align-middle">
                 <StepInfo>{sentence}</StepInfo>
               </span>
             ) : null}
           </h3>
+          {outcome && explanation ? (
+            <p className="line-clamp-2 text-meta text-muted-foreground">{explanation}</p>
+          ) : null}
+          {note ? <p className="line-clamp-1 text-meta text-muted-foreground">{note}</p> : null}
+          </div>
 
           {primary || hasMenuContent(menu) ? (
-            <div className="ml-auto flex min-w-0 max-w-full items-center gap-x-tight max-md:w-full [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
+            <div className="ml-auto flex min-w-0 max-w-full items-center gap-x-tight [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
               {primary ? (
                 // COMPACT, NOT TINY (UX review 2026-11-26). Three 40px / 36px buttons
                 // side by side were the heaviest thing in the room. 36px on a phone
                 // keeps a comfortable touch target, 32px from `md` matches the
                 // header's controls, 13px type and 14px icons keep the labels easy
                 // to read, and a slightly wider gap keeps them separate choices.
-                // ON A PHONE A SET SHARES ONE ROW in equal widths with no icons, so
-                // the last button is never left alone on a second line; the colour
-                // still says which is the escalation.
-                <ActionControls className="gap-2 [&_a]:h-9 [&_button]:h-9 [&_button]:px-3 [&_a]:px-3 [&_a]:text-[0.8125rem] [&_button]:text-[0.8125rem] [&_svg]:size-3.5 md:[&_a]:h-8 md:[&_button]:h-8 [&_[role=group]]:gap-2 max-md:flex-1 max-md:[&_[role=group]]:flex-nowrap max-md:[&_[role=group]>*]:min-w-0 max-md:[&_[role=group]>*]:flex-1 max-md:[&_[role=group]_button]:w-full max-md:[&_[role=group]_button]:px-2 max-md:[&_[role=group]_svg]:hidden">
+                // NATURAL WIDTH ON A PHONE TOO (2026-11-27). Stretching the set to
+                // fill the row made a full-width slab of the primary; the buttons
+                // keep their own size, right-aligned, on one line, beside the
+                // title when they fit and under it when they do not.
+                <ActionControls className="gap-2 [&_a]:h-8 [&_button]:h-8 [&_button]:px-3 [&_a]:px-3 [&_a]:text-[0.8125rem] [&_button]:text-[0.8125rem] [&_svg]:size-3.5 [&_[role=group]]:gap-2 [&_[role=group]]:flex-nowrap [&_[role=group]>*]:shrink-0">
+
                   {primary}
                 </ActionControls>
               ) : null}
@@ -412,10 +439,6 @@ export function ContractActionCard({
             </div>
           ) : null}
         </div>
-        {outcome && explanation ? (
-          <p className="mt-0.5 line-clamp-2 text-body text-muted-foreground">{explanation}</p>
-        ) : null}
-        {note ? <p className="mt-0.5 line-clamp-1 text-meta text-muted-foreground">{note}</p> : null}
       </section>
     );
   }

@@ -16,8 +16,8 @@
 // and inspect on the spot, so they never race the authorisation window.
 
 import { useSyncExternalStore } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Clock01Icon, PackageCheckIcon, TriangleAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ClockIcon, PackageIcon, WarningIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -118,7 +118,7 @@ export function ShippingDeadline({
           className,
         )}
       >
-        <HugeiconsIcon icon={Clock01Icon} className="size-3 shrink-0" aria-hidden />
+        <Icon icon={ClockIcon} className="size-3 shrink-0" aria-hidden />
         {late ? 'Overdue' : `${humaniseHours(hours)} left`}
       </span>
     );
@@ -133,7 +133,7 @@ export function ShippingDeadline({
         )}
         role="status"
       >
-        <HugeiconsIcon icon={PackageCheckIcon} className="size-4 shrink-0 text-trust" aria-hidden />
+        <Icon icon={PackageIcon} className="size-4 shrink-0 text-trust" aria-hidden />
         <p className="text-muted-foreground">
           Both items are on their way. The dispatch deadline no longer applies.
         </p>
@@ -156,7 +156,7 @@ export function ShippingDeadline({
             the headline it belongs to — and how far it drifts depends on how
             much the body wraps, so it moves with the viewport. */}
         <p className="flex items-center gap-snug font-medium text-foreground">
-          <HugeiconsIcon icon={TriangleAlertIcon} className="size-4 shrink-0 text-destructive" aria-hidden />
+          <Icon icon={WarningIcon} className="size-4 shrink-0 text-destructive" aria-hidden />
           Dispatch is overdue
         </p>
         <p className="mt-tight text-muted-foreground">
@@ -182,7 +182,7 @@ export function ShippingDeadline({
       role={urgent ? 'alert' : 'status'}
     >
       <p className="flex items-center gap-snug font-medium text-foreground">
-        <HugeiconsIcon icon={Clock01Icon}
+        <Icon icon={ClockIcon}
           className={cn(
             'size-4 shrink-0',
             urgent ? 'text-destructive' : 'text-muted-foreground',

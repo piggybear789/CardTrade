@@ -37,14 +37,16 @@
  *
  *     text-lead/leading-tight title   16 × 1.25            = 20.0px
  *     mt-0.5                                               =  2.0px
- *     meta row, tallest child a Badge  12 × 1.4 + 4 + 2    = 22.8px
+ *     meta row, the text-body line     14 × 1.6            = 22.4px
  *     py-2.5                           10 × 2              = 20.0px
  *                                                            ------
- *                                                            64.8px
+ *                                                            64.4px
  *
- * The badge is the floor of that third line, not the `text-body` text beside it (22.4px),
- * because `CashSaleStatusBadge` and the "No contract" badge both render there. 68px leaves
- * ~3px of air, in the same spirit as the original.
+ * The badges in that third line (`CashSaleStatusBadge`, "No contract") are 20px since
+ * the borderless recipe (2026-11-28), under the 22.4px text line beside them; at 22.8px
+ * they used to set the line themselves. The 40px avatar or photo beside the block is
+ * shorter than both lines together. 68px leaves ~3.6px of air, in the same spirit as the
+ * original.
  *
  * RE-DERIVE THIS WHENEVER THE TYPE SCALE MOVES. `body` is annotated in
  * `tailwind.config.ts` as under test at 14px, up from 13px, with a warning that

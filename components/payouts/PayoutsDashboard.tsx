@@ -20,13 +20,13 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  AlertCircleIcon,
-  ArrowUpRight01Icon,
-  ScaleIcon,
+  ArrowUpRightIcon,
+  ScalesIcon,
   ShieldCheckIcon,
-} from '@hugeicons/core-free-icons';
+  WarningCircleIcon,
+} from '@/components/ui/icons';
 
 import type {
   ArbitrationRecord,
@@ -321,8 +321,8 @@ function BlockedReleaseBanner({ model, currency }: { model: PayoutReadModel; cur
       className="rounded-lg border border-destructive/40 bg-destructive/[0.05] p-group"
     >
       <div className="flex items-start gap-cozy">
-        <HugeiconsIcon
-          icon={AlertCircleIcon}
+        <Icon
+          icon={WarningCircleIcon}
           className="mt-0.5 size-5 shrink-0 text-destructive"
           aria-hidden
         />
@@ -390,7 +390,7 @@ function DestinationAccountSummary({
       <CardContent className="flex flex-col gap-cozy p-group sm:flex-row sm:items-center sm:justify-between">
         <div className="flex min-w-0 items-center gap-cozy">
           <span className="grid size-10 shrink-0 place-items-center rounded-md border bg-muted">
-            <HugeiconsIcon icon={ShieldCheckIcon} className="size-4 text-muted-foreground" aria-hidden />
+            <Icon icon={ShieldCheckIcon} className="size-4 text-muted-foreground" aria-hidden />
           </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-snug">
@@ -415,7 +415,7 @@ function DestinationAccountSummary({
           <Button asChild size="sm" variant="outline" className="shrink-0">
             <Link href="/profile?tab=payouts#payout-setup">
               {needsSetup ? 'Finish setup' : 'Manage with Stripe'}
-              <HugeiconsIcon icon={ArrowUpRight01Icon} aria-hidden />
+              <Icon icon={ArrowUpRightIcon} aria-hidden />
             </Link>
           </Button>
         ) : null}
@@ -698,7 +698,7 @@ function ArbitrationSummary({ model, currency }: { model: PayoutReadModel; curre
                   <CardHeader className="pb-cozy">
                     <div className="flex flex-wrap items-center justify-between gap-snug">
                       <div className="flex flex-wrap items-center gap-snug">
-                        <HugeiconsIcon icon={ScaleIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                        <Icon icon={ScalesIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
                         <CardTitle className="text-lead">
                           {ARBITRATION_LABEL[record.kind]}
                         </CardTitle>

@@ -9,8 +9,8 @@
 // object, so the thumbnail slot carries the swap glyph instead.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowsLeftRightIcon } from '@/components/ui/icons';
 
 import { StateBadge } from '@/components/trade/StateBadge';
 import type { TradeSummary } from '@/lib/actions/account';
@@ -50,7 +50,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
   if (trades.length === 0) {
     return (
       <EmptyState
-        icon={<HugeiconsIcon icon={ArrowLeftRightIcon} className="size-6" aria-hidden />}
+        icon={<Icon icon={ArrowsLeftRightIcon} className="size-6" aria-hidden />}
         title="No trades yet"
         description="Find an item you'd like to swap for and propose a trade."
         ctaLabel="Browse the marketplace"
@@ -67,7 +67,7 @@ export function TradesSection({ trades }: { trades: TradeSummary[] }) {
         return (
           <li key={trade.id} className={cn(CONTRACT_ROW_GRID, 'px-group py-cozy')}>
             <ContractRowThumb>
-              <HugeiconsIcon icon={ArrowLeftRightIcon} className="size-5" aria-hidden />
+              <Icon icon={ArrowsLeftRightIcon} className="size-5" aria-hidden />
             </ContractRowThumb>
 
             <div className="min-w-0">

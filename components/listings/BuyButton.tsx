@@ -17,8 +17,8 @@
 import { useCallback, useEffect, useRef, useState, useTransition, type ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon, ShoppingCart01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CreditCardIcon, ShoppingCartIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
@@ -186,7 +186,7 @@ export function ShopfrontBuyButton({
       // "Request", as the phone buyer bar says. "Buy now" on a listing with multiple
       // items promised a purchase where the buyer is really asking for specific cards
       // at a price, with nothing held (UX review 2026-11-26).
-      trigger={trigger ?? <ListingActionIcon icon={ShoppingCart01Icon} label="Request" variant="default" />}
+      trigger={trigger ?? <ListingActionIcon icon={ShoppingCartIcon} label="Request" variant="default" />}
       prepareSale={() => {
         if (toRequestLineItems(request).length === 0) {
           return { ok: false, error: 'Describe what you want from this listing.' };
@@ -360,7 +360,7 @@ function PurchaseDialog({
         onTouchStart={prefetchCard}
       >
         {trigger ?? (
-          <ListingActionIcon icon={ShoppingCart01Icon} label="Buy now" variant="default" />
+          <ListingActionIcon icon={ShoppingCartIcon} label="Buy now" variant="default" />
         )}
       </DialogTrigger>
       {/* No subtitle (the binder form): tell Radix there is deliberately no
@@ -420,7 +420,7 @@ function PurchaseDialog({
                   the footer down). With no card the way forward is the footer's own
                   button, so this row only explains. */}
               <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-                <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+                <Icon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium">
                     {loading ? 'Checking your card…' : card ? (card.label ?? 'Card on file') : 'Add a card to reserve'}

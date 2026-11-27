@@ -17,7 +17,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { LockPasswordIcon, Logout01Icon, Mail01Icon } from '@hugeicons/core-free-icons';
+import { EnvelopeSimpleIcon, LockKeyIcon, SignOutIcon } from '@/components/ui/icons';
 
 import { requestPasswordReset, signOutEverywhere } from '@/lib/actions/auth';
 import { setEmailPreference, type EmailPreference } from '@/lib/actions/profile';
@@ -112,7 +112,7 @@ export function AccountSecuritySettings({
             their protection or their money, so these send regardless. Saying so here
             answers "why do I still get these?" before it is asked. */}
         <SettingsListRow
-          icon={Mail01Icon}
+          icon={EnvelopeSimpleIcon}
           label="Deadlines and disputes"
           description="Always sent, so you never miss a window that protects you."
         />
@@ -121,7 +121,7 @@ export function AccountSecuritySettings({
       <SettingsGroup label="Security">
         <SettingsListRow label="Sign-in email" value={signInEmail ?? 'Not available'} />
         <SettingsListRow
-          icon={LockPasswordIcon}
+          icon={LockKeyIcon}
           label="Password"
           description="We email you a link to set a new one."
           trailing={
@@ -138,7 +138,7 @@ export function AccountSecuritySettings({
           }
         />
         <SettingsListRow
-          icon={Logout01Icon}
+          icon={SignOutIcon}
           label="Sign out everywhere"
           description="Ends every session, on every device, including this one."
           trailing={

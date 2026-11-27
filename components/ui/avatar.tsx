@@ -57,6 +57,44 @@ const AVATAR_SIZES = {
 
 export type AvatarSize = keyof typeof SIZES;
 
+/**
+ * The initials' colours: a soft tint and a dark label of the same hue, picked from the
+ * name so a member is the same colour on every surface.
+ *
+ * WHY COLOUR (2026-11-28, design-system audit). Initials are the normal rendering (see
+ * above), and they were all one grey disc with a grey border, so an inbox of twenty
+ * conversations was twenty identical placeholders and the eye had nothing to tell the
+ * rows apart by except reading every name. Slack, Linear and Gmail tint initials per
+ * person for exactly that reason. Eight hues, all at the same lightness so none is
+ * louder than another; every label clears 6:1 on its tint. Not the brand violet alone,
+ * and never `--destructive` red, which would read as an error.
+ *
+ * Inline style rather than classes: the eight pairs are one table here, not sixteen
+ * arbitrary utilities, and no call site sets an avatar colour of its own.
+ */
+const INITIALS_TONES = [
+  { backgroundColor: 'hsl(250 92% 95%)', color: 'hsl(250 52% 42%)' },
+  { backgroundColor: 'hsl(212 96% 93%)', color: 'hsl(214 66% 34%)' },
+  { backgroundColor: 'hsl(174 62% 89%)', color: 'hsl(176 78% 22%)' },
+  { backgroundColor: 'hsl(140 58% 90%)', color: 'hsl(142 64% 24%)' },
+  { backgroundColor: 'hsl(44 96% 88%)', color: 'hsl(28 78% 28%)' },
+  { backgroundColor: 'hsl(18 100% 92%)', color: 'hsl(14 66% 36%)' },
+  { backgroundColor: 'hsl(334 88% 94%)', color: 'hsl(334 58% 38%)' },
+  { backgroundColor: 'hsl(214 32% 91%)', color: 'hsl(217 32% 30%)' },
+] as const;
+
+/** FNV-1a over the trimmed, lower-cased name; the same name always lands on the same tone. */
+function initialsTone(displayName?: string | null) {
+  const key = (displayName ?? '').trim().toLowerCase();
+  if (!key) return INITIALS_TONES[INITIALS_TONES.length - 1];
+  let hash = 0x811c9dc5;
+  for (const char of key) {
+    hash ^= char.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return INITIALS_TONES[hash % INITIALS_TONES.length];
+}
+
 export interface AvatarProps extends Omit<React.ComponentProps<'span'>, 'children'> {
   /** Stored object path in `profile-images`, or null. NOT a URL. */
   avatarPath?: string | null;
@@ -92,10 +130,19 @@ function Avatar({
       className={cn(
         // `shrink-0` because these sit in flex rows beside names that can be long;
         // without it the circle squashes into an ellipse.
-        'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full border border-border bg-muted font-semibold uppercase text-muted-foreground',
+        //
+        // NO BORDER. The 1px `--border` ring drew every avatar as an outlined
+        // placeholder. A photo takes an 8% ink hairline INSIDE its edge instead
+        // (`after:`, painted over the image, so a white background still has an
+        // edge on a white page), the way Instagram and iOS draw a profile picture;
+        // initials are a tinted disc and need no edge at all.
+        'relative inline-flex shrink-0 select-none items-center justify-center overflow-hidden rounded-full font-semibold uppercase',
+        showImage &&
+          "bg-muted after:pointer-events-none after:absolute after:inset-0 after:rounded-full after:shadow-[inset_0_0_0_1px_hsl(var(--foreground)/0.08)] after:content-['']",
         SIZES[size],
         className,
       )}
+      style={showImage ? undefined : initialsTone(displayName)}
       {...props}
     >
       {showImage ? (

@@ -54,8 +54,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, LoaderCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretRightIcon, CircleNotchIcon } from '@/components/ui/icons';
 
 import { getIdentityCheckState, refreshIdentityCheck } from '@/lib/actions/identity';
 import { getMerchantState, refreshPayoutStatus } from '@/lib/actions/merchant';
@@ -770,7 +770,7 @@ export function UnifiedOnboardingSurface({
     completion === undefined ? (
       <Button type="button" onClick={finishPayout} className="w-full">
         Start listing
-        <HugeiconsIcon icon={ArrowRight01Icon} className="ml-snug size-4" aria-hidden />
+        <Icon icon={CaretRightIcon} className="ml-snug size-4" aria-hidden />
       </Button>
     ) : (
       completion
@@ -936,8 +936,8 @@ function WaitingOnProvider({ copy, children }: { copy: string; children?: ReactN
         role="status"
         className="flex min-w-0 items-start gap-snug text-pretty text-body text-muted-foreground sm:text-right"
       >
-        <HugeiconsIcon
-          icon={LoaderCircleIcon}
+        <Icon
+          icon={CircleNotchIcon}
           className="mt-0.5 size-4 shrink-0 animate-spin"
           aria-hidden
         />

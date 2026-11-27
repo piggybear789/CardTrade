@@ -26,8 +26,14 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon, CheckmarkBadge01Icon, HelpCircleIcon, ShieldCheckIcon, Wallet01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  CaretRightIcon,
+  QuestionIcon,
+  SealCheckIcon,
+  ShieldCheckIcon,
+  WalletIcon,
+} from '@/components/ui/icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -278,7 +284,7 @@ export default async function ProfilePage({
             aria-label="View your public profile"
             className="grid size-10 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <HugeiconsIcon icon={ArrowRight01Icon} className="size-5" aria-hidden />
+            <Icon icon={CaretRightIcon} className="size-5" aria-hidden />
           </Link>
         </header>
 
@@ -453,13 +459,13 @@ function ProfilePanel({
           <FeedbackSettingRow />
           <SettingsListRow
             href="/safety"
-            icon={ShieldCheckIcon}
+            icon={<Icon icon={ShieldCheckIcon} />}
             label="Staying safe"
             description="Protecting yourself as a buyer, seller and trader."
           />
           <SettingsListRow
             href="/help"
-            icon={HelpCircleIcon}
+            icon={<Icon icon={QuestionIcon} />}
             label="Help"
             description="How buying, selling and trading work."
           />
@@ -471,7 +477,7 @@ function ProfilePanel({
               <SettingsListRow
                 key={link.href}
                 href={link.href}
-                icon={link.icon}
+                icon={<Icon icon={link.icon} />}
                 label={link.label}
               />
             ))}
@@ -567,14 +573,14 @@ function VerificationPanel({
                 moves into the description beside them and the slot carries the status
                 it was always implying. */}
             <SettingsListRow
-              icon={ShieldCheckIcon}
+              icon={<Icon icon={ShieldCheckIcon} />}
               tone="verified"
               label="Identity"
               description={identityEvidence}
               trailing={<Badge variant="trust">Verified</Badge>}
             />
             <SettingsListRow
-              icon={Wallet01Icon}
+              icon={<Icon icon={WalletIcon} />}
               tone="verified"
               label="Payout destination"
               // THE PRIVACY FACT, which is the one thing a member actually hesitates
@@ -618,7 +624,7 @@ function VerificationPanel({
         <SettingsGroup>
           <SettingsListRow
             href="/trusted-sellers/apply"
-            icon={CheckmarkBadge01Icon}
+            icon={<Icon icon={SealCheckIcon} />}
             tone={trustedReviewStatus === 'APPROVED' ? 'verified' : 'neutral'}
             label="Trusted Seller"
             description={

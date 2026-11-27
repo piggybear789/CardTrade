@@ -18,8 +18,8 @@
 // read as the same product: `trust` for travelled/complete, `iris` for "you are here".
 
 import type { ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -102,7 +102,7 @@ export function OnboardingSpineStep({
           )}
           aria-hidden
         >
-          {done ? <HugeiconsIcon icon={CheckIcon} className="size-3.5" /> : index}
+          {done ? <Icon icon={CheckIcon} className="size-3.5" /> : index}
         </span>
         <span
           aria-hidden

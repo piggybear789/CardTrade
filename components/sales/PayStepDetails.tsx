@@ -16,8 +16,8 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CreditCardIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CreditCardIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { getPaymentMethodStatus } from '@/lib/actions/payments';
@@ -146,7 +146,7 @@ export function PayCardSection({
 
   return (
     <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-      <HugeiconsIcon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+      <Icon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
       <div className="min-w-0 flex-1">
         <p className="truncate text-body font-medium">{card.label ?? 'Card on file'}</p>
         <p className="text-body text-muted-foreground">Stripe method</p>

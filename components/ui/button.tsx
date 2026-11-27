@@ -138,7 +138,14 @@ const buttonVariants = cva(
         // fill (`bg-accent` / `bg-secondary/75`); the edge only firms up, from 14% to
         // 25% foreground.
         outline: `border ${QUIET_EDGE} bg-card text-foreground hover:border-input-hover hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
-        secondary: `border ${QUIET_EDGE} bg-secondary text-secondary-foreground hover:border-input-hover hover:bg-secondary/75 active:bg-secondary/60 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        // TONAL (2026-11-28, design-system audit): a tint of the ink with NO edge and no
+        // drop, Instagram's "View profile" and Apple's grey button. For the quiet action
+        // that sits in a bar beside a title (the chat bar's "Open contract"), where an
+        // outlined box read as a form control dropped into the chrome. A tint of the INK
+        // rather than `--secondary`, so it darkens any surface it sits on by the same
+        // step; on the slate rail a slate fill would vanish. The label is the full ink,
+        // and a keyboard user gets the same 2px `--ring` frame the filled variants draw.
+        secondary: `bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.1] active:bg-foreground/[0.14] focus-visible:ring-2 focus-visible:ring-ring disabled:bg-foreground/[0.04] disabled:text-muted-foreground`,
         ghost: `hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
         link: `text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
       },

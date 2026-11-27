@@ -7,8 +7,8 @@
 // the same way. Keyboard users are unaffected.
 
 import { useCallback, useRef, useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ZoomInIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { MagnifyingGlassPlusIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -132,7 +132,7 @@ export function ZoomableImage({
           zoomPoint ? 'opacity-0' : 'opacity-100',
         )}
       >
-        <HugeiconsIcon icon={ZoomInIcon} className="size-3.5" />
+        <Icon icon={MagnifyingGlassPlusIcon} className="size-3.5" />
         <span className="[@media(hover:none)]:hidden">Click to zoom</span>
         <span className="hidden [@media(hover:none)]:inline">Tap to zoom</span>
       </p>

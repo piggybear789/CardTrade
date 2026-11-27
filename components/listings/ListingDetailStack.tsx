@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowRight01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretRightIcon } from '@/components/ui/icons';
 import { ExpandableDescription } from '@/components/listings/ExpandableDescription';
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { TrustedSellerBadge } from '@/components/identity/TrustedSellerBadge';
@@ -235,8 +235,8 @@ export function ListingDetailStack({
             )}
           </span>
         </span>
-        <HugeiconsIcon
-          icon={ArrowRight01Icon}
+        <Icon
+          icon={CaretRightIcon}
           className="size-4 shrink-0 text-muted-foreground"
           aria-hidden
         />

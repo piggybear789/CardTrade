@@ -13,8 +13,8 @@
 import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, LoaderCircleIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, CircleNotchIcon, XIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { setFeedbackStatus, type AdminActionResult } from '@/lib/actions/admin';
@@ -59,9 +59,9 @@ export function FeedbackActions({ feedbackId }: FeedbackActionsProps) {
         onClick={() => run('ACTIONED')}
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={CheckIcon} aria-hidden />
+          <Icon icon={CheckIcon} aria-hidden />
         )}
         Mark handled
       </Button>
@@ -73,9 +73,9 @@ export function FeedbackActions({ feedbackId }: FeedbackActionsProps) {
         onClick={() => run('DISMISSED')}
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={XIcon} aria-hidden />
+          <Icon icon={XIcon} aria-hidden />
         )}
         Dismiss
       </Button>

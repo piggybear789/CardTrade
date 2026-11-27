@@ -10,8 +10,8 @@
 // reach but moves into the menu, the same arrangement as the listing page.
 
 import { useState } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Flag01Icon, MoreHorizontalIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { DotsThreeIcon, FlagIcon } from '@/components/ui/icons';
 
 import { MessageSellerButton } from '@/components/messages/MessageSellerButton';
 import { ReportDialog } from '@/components/reports/ReportDialog';
@@ -47,12 +47,12 @@ export function SellerProfileActions({ sellerId }: { sellerId: string }) {
             aria-label="More actions"
             className="size-8 text-muted-foreground hover:text-foreground"
           >
-            <HugeiconsIcon icon={MoreHorizontalIcon} aria-hidden />
+            <Icon icon={DotsThreeIcon} aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={() => setReportOpen(true)}>
-            <HugeiconsIcon icon={Flag01Icon} aria-hidden />
+            <Icon icon={FlagIcon} aria-hidden />
             Report user
           </DropdownMenuItem>
         </DropdownMenuContent>

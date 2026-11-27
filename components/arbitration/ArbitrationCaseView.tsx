@@ -8,8 +8,18 @@
 // understand what happened, then act.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Clock01Icon, ExternalLinkIcon, FileTextIcon, GavelIcon, PackageIcon, RotateCcwIcon, ScaleIcon, TriangleAlertIcon, UsersIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  ArrowCounterClockwiseIcon,
+  ArrowSquareOutIcon,
+  ClockIcon,
+  FileTextIcon,
+  GavelIcon,
+  PackageIcon,
+  ScalesIcon,
+  UsersIcon,
+  WarningIcon,
+} from '@/components/ui/icons';
 
 import type { ArbitrationCaseDetail, ArbitrationShipmentLeg } from '@/lib/actions/arbitration';
 import type { DisputeEvidenceEntry } from '@/lib/actions/disputeEvidence';
@@ -84,9 +94,9 @@ function ShipmentLeg({ label, leg }: { label: string; leg: ArbitrationShipmentLe
     <div>
       <p className="flex items-center gap-tight text-meta font-medium uppercase tracking-wide text-muted-foreground">
         {label.includes('Return') ? (
-          <HugeiconsIcon icon={RotateCcwIcon} className="size-3 shrink-0" aria-hidden />
+          <Icon icon={ArrowCounterClockwiseIcon} className="size-3 shrink-0" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={PackageIcon} className="size-3 shrink-0" aria-hidden />
+          <Icon icon={PackageIcon} className="size-3 shrink-0" aria-hidden />
         )}
         {label}
       </p>
@@ -151,7 +161,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             overdue ? 'text-destructive' : 'text-muted-foreground',
           )}
         >
-          <HugeiconsIcon icon={Clock01Icon} className="size-3.5 shrink-0" aria-hidden />
+          <Icon icon={ClockIcon} className="size-3.5 shrink-0" aria-hidden />
           Opened {c.openedAt ? formatRelativeTime(c.openedAt) : 'unknown'}
           {overdue ? ` · overdue` : ''}
         </span>
@@ -164,7 +174,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 : 'text-muted-foreground',
             )}
           >
-            <HugeiconsIcon icon={TriangleAlertIcon} className="size-3.5 shrink-0" aria-hidden />
+            <Icon icon={WarningIcon} className="size-3.5 shrink-0" aria-hidden />
             {c.hoursToDeadline < 0
               ? 'Evidence deadline passed'
               : `${c.hoursToDeadline}h to deadline`}
@@ -190,7 +200,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           <Card>
             <CardHeader className="pb-cozy">
               <div className="flex items-center gap-snug">
-                <HugeiconsIcon icon={FileTextIcon} className="size-4 text-muted-foreground" aria-hidden />
+                <Icon icon={FileTextIcon} className="size-4 text-muted-foreground" aria-hidden />
                 <CardTitle className="text-lead">The dispute</CardTitle>
               </div>
             </CardHeader>
@@ -225,7 +235,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             <CardHeader className="pb-cozy">
               <div className="flex items-center justify-between gap-snug">
                 <div className="flex items-center gap-snug">
-                  <HugeiconsIcon icon={GavelIcon} className="size-4 text-muted-foreground" aria-hidden />
+                  <Icon icon={GavelIcon} className="size-4 text-muted-foreground" aria-hidden />
                   <CardTitle className="text-lead">Evidence filed by the parties</CardTitle>
                 </div>
                 {evidence.length > 0 ? (
@@ -258,7 +268,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
             <Card>
               <CardHeader className="pb-cozy">
                 <div className="flex items-center gap-snug">
-                  <HugeiconsIcon icon={PackageIcon} className="size-4 text-muted-foreground" aria-hidden />
+                  <Icon icon={PackageIcon} className="size-4 text-muted-foreground" aria-hidden />
                   <CardTitle className="text-lead">Shipment evidence</CardTitle>
                 </div>
               </CardHeader>
@@ -347,7 +357,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           <Card>
             <CardHeader className="pb-cozy">
               <div className="flex items-center gap-snug">
-                <HugeiconsIcon icon={UsersIcon} className="size-4 text-muted-foreground" aria-hidden />
+                <Icon icon={UsersIcon} className="size-4 text-muted-foreground" aria-hidden />
                 <CardTitle className="text-lead">Parties</CardTitle>
               </div>
             </CardHeader>
@@ -465,7 +475,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
           <Card className="bg-muted/50">
             <CardHeader className="pb-cozy">
               <div className="flex items-center gap-snug">
-                <HugeiconsIcon icon={ScaleIcon} className="size-4 text-iris-ink" aria-hidden />
+                <Icon icon={ScalesIcon} className="size-4 text-iris-ink" aria-hidden />
                 <CardTitle className="text-lead">Decision</CardTitle>
               </div>
             </CardHeader>
@@ -478,7 +488,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 <div className="space-y-cozy">
                   {resolution.refundStatus === 'FAILED' ? (
                     <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-body text-destructive">
-                      <HugeiconsIcon icon={TriangleAlertIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                      <Icon icon={WarningIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                       A previous refund attempt failed. Retrying is safe (deduplicated).
                     </p>
                   ) : null}
@@ -590,7 +600,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       rel="noopener noreferrer"
                     >
                       Open in Stripe
-                      <HugeiconsIcon icon={ExternalLinkIcon} className="size-3.5" aria-hidden />
+                      <Icon icon={ArrowSquareOutIcon} className="size-3.5" aria-hidden />
                     </a>
                   </Button>
                 </div>

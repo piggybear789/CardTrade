@@ -25,7 +25,12 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
+import { Icon } from '@/components/ui/icon';
+import { WarningIcon } from '@/components/ui/icons';
+
 import { Button, type ButtonProps } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   HandoverFailedDialog,
@@ -223,6 +228,91 @@ async function runAction(
   }
 }
 
+/** The escalations behind the Problem button, in menu order. */
+type ProblemKind = 'HANDOVER_FAILED' | 'RAISE_DISPUTE' | 'REPORT_FRAUD';
+
+/** Menu row copy: what it is, and when it fits, so the reader can pick. */
+function problemRow(kind: ProblemKind, inPerson: boolean): { label: string; hint: string } {
+  switch (kind) {
+    case 'HANDOVER_FAILED':
+      return inPerson
+        ? { label: 'Handover failed', hint: 'They did not show, or the swap went wrong' }
+        : { label: 'Item never arrived', hint: 'The parcel is lost or came empty' };
+    case 'RAISE_DISPUTE':
+      return { label: 'Raise dispute', hint: 'Not in the condition agreed' };
+    case 'REPORT_FRAUD':
+      return { label: 'Report fraud', hint: 'Fake, or an empty box' };
+  }
+}
+
+/**
+ * "Problem", a soft red button that opens the escalations. It only CHOOSES one;
+ * each claim's dialog lives outside the popover so closing the menu cannot take
+ * a just-opened dialog with it.
+ */
+function ProblemMenu({
+  problems,
+  inPerson,
+  disabled,
+  onChoose,
+}: {
+  problems: readonly ProblemKind[];
+  inPerson: boolean;
+  disabled?: boolean;
+  onChoose: (kind: ProblemKind) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="destructive-soft"
+          disabled={disabled}
+        >
+          <Icon icon={WarningIcon} aria-hidden />
+          Problem
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent side="top" align="start" className="w-64 p-tight">
+        <p className="px-2.5 pb-tight pt-snug text-meta font-medium text-muted-foreground">
+          What went wrong?
+        </p>
+        <ul className="flex flex-col">
+          {problems.map((kind) => {
+            const row = problemRow(kind, inPerson);
+            return (
+              <li key={kind}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false);
+                    onChoose(kind);
+                  }}
+                  className={cn(
+                    'flex w-full flex-col items-start rounded-md px-2.5 py-snug text-left transition-colors',
+                    'hover:bg-muted focus:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'text-body font-medium',
+                      kind === 'REPORT_FRAUD' ? 'text-destructive' : 'text-foreground',
+                    )}
+                  >
+                    {row.label}
+                  </span>
+                  <span className="text-meta text-muted-foreground">{row.hint}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 export interface ActionBarProps {
   tradeId: string;
   state: TradeState;
@@ -254,13 +344,27 @@ export function ActionBar({
   const [pendingConfirm, setPendingConfirm] = useState<BarAction | null>(null);
   const [shipOpen, setShipOpen] = useState(false);
 
-  const permitted = availableActions(state, viewer);
-  const actions = permitted.filter(isBarAction);
-  const canReportFailure = permitted.includes('REPORT_HANDOVER_FAILED');
+  const [problemOpen, setProblemOpen] = useState<ProblemKind | null>(null);
 
-  if (actions.length === 0 && !canReportFailure) {
+  const permitted = availableActions(state, viewer);
+  // THE ESCALATIONS SHARE ONE "PROBLEM" BUTTON (UX review 2026-11-27). Accept,
+  // Raise dispute and Report fraud side by side were three equal choices for what
+  // is one happy path and a rare exit. The exits stay one tap away, behind a red
+  // button that says what they are for, and the menu says which one fits.
+  const actions = permitted
+    .filter(isBarAction)
+    .filter((action) => action !== 'RAISE_DISPUTE' && action !== 'REPORT_FRAUD');
+  const problems: ProblemKind[] = [
+    ...(permitted.includes('REPORT_HANDOVER_FAILED') ? (['HANDOVER_FAILED'] as const) : []),
+    ...(permitted.includes('RAISE_DISPUTE') ? (['RAISE_DISPUTE'] as const) : []),
+    ...(permitted.includes('REPORT_FRAUD') ? (['REPORT_FRAUD'] as const) : []),
+  ];
+
+  if (actions.length === 0 && problems.length === 0) {
     return null;
   }
+
+  const inPerson = handoverMethod === 'IN_PERSON';
 
   function invoke(action: BarAction, shipment?: ShipmentInput): Promise<boolean> {
     return new Promise((resolve) => {
@@ -304,6 +408,14 @@ export function ActionBar({
           future label is longer. Nothing here can overflow: a button at its
           natural width is about half the container. */}
       <div className="flex w-full flex-wrap gap-snug sm:gap-cozy" role="group" aria-label="Trade actions">
+        {problems.length > 0 ? (
+          <ProblemMenu
+            problems={problems}
+            inPerson={inPerson}
+            disabled={isPending}
+            onChoose={setProblemOpen}
+          />
+        ) : null}
         {actions.map((action) => {
           const config = ACTION_CONFIG[action];
 
@@ -330,48 +442,6 @@ export function ActionBar({
                   </PendingLabel>
                 </Button>
               </div>
-            );
-          }
-
-          // Dispute and fraud collect the claimant's account rather than a bare
-          // confirm (0083) — see the note on ACTION_CONFIG.
-          if (action === 'RAISE_DISPUTE') {
-            return (
-              <HandoverFailedDialog
-                key={action}
-                triggerLabel="Raise dispute"
-                triggerVariant="caution-soft"
-                title="Raise a condition dispute"
-                outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while NoDitto support reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — support decides on what you write here."
-                reasonPlaceholder="e.g. Listed NM, arrived creased"
-                evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
-                onSubmit={async (reason) => {
-                  const result = await raiseDispute(tradeId, reason);
-                  return result.ok
-                    ? { ok: true }
-                    : { ok: false, message: errorMessage(result) };
-                }}
-              />
-            );
-          }
-
-          if (action === 'REPORT_FRAUD') {
-            return (
-              <HandoverFailedDialog
-                key={action}
-                triggerLabel="Report fraud"
-                triggerVariant="destructive-soft"
-                title="Report fraud"
-                outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to NoDitto support, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
-                reasonPlaceholder="e.g. Fails the light test"
-                evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
-                onSubmit={async (reason) => {
-                  const result = await reportFraud(tradeId, reason);
-                  return result.ok
-                    ? { ok: true }
-                    : { ok: false, message: errorMessage(result) };
-                }}
-              />
             );
           }
 
@@ -405,41 +475,60 @@ export function ActionBar({
           );
         })}
 
-        {/* The exchange did not happen: a no-show, a refusal at the meeting point,
-            an exchange under duress, or a parcel that never arrived. Freezes the
-            trade for review and captures nothing — which is why it is separate from
-            RAISE_DISPUTE, whose Friction_Tax would settle $20 against a trader who
-            may have done nothing wrong. */}
-        {canReportFailure ? (
-          <HandoverFailedDialog
-            triggerLabel={
-              handoverMethod === 'IN_PERSON' ? 'Handover failed' : 'Item never arrived'
-            }
-            title={
-              handoverMethod === 'IN_PERSON'
-                ? 'Report a failed handover'
-                : 'Report an item that never arrived'
-            }
-            outcomeDescription={
-              handoverMethod === 'IN_PERSON'
-                ? 'Use this if the other trader did not show up, refused to hand over, or the exchange went wrong. The trade freezes for review and NOTHING is charged to either of you — NoDitto support decides what happens next.'
-                : 'Use this if the parcel has not arrived or arrived empty. The trade freezes for review and NOTHING is charged to either of you — a lost parcel is nobody’s fault, so no deposit is taken while an operator looks at it.'
-            }
-            reasonPlaceholder={
-              handoverMethod === 'IN_PERSON'
-                ? 'e.g. they did not turn up at the agreed time and have not replied…'
-                : 'e.g. tracking says delivered but nothing arrived; the box was empty…'
-            }
-            evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
-            onSubmit={async (reason) => {
-              const result = await reportTradeHandoverFailed(tradeId, reason);
-              return result.ok
-                ? { ok: true }
-                : { ok: false, message: errorMessage(result) };
-            }}
-          />
-        ) : null}
       </div>
+
+      {/* The claim dialogs, opened from the Problem menu. Each collects the
+          claimant's own account rather than a bare confirm (0083), because a
+          dispute or a fraud claim must say what it is about. */}
+      <HandoverFailedDialog
+        hideTrigger
+        open={problemOpen === 'HANDOVER_FAILED'}
+        onOpenChange={(open) => setProblemOpen(open ? 'HANDOVER_FAILED' : null)}
+        title={inPerson ? 'Report a failed handover' : 'Report an item that never arrived'}
+        outcomeDescription={
+          inPerson
+            ? 'Use this if the other trader did not show up, refused to hand over, or the exchange went wrong. The trade freezes for review and NOTHING is charged to either of you — NoDitto support decides what happens next.'
+            : 'Use this if the parcel has not arrived or arrived empty. The trade freezes for review and NOTHING is charged to either of you — a lost parcel is nobody’s fault, so no deposit is taken while an operator looks at it.'
+        }
+        reasonPlaceholder={
+          inPerson
+            ? 'e.g. they did not turn up at the agreed time and have not replied…'
+            : 'e.g. tracking says delivered but nothing arrived; the box was empty…'
+        }
+        evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
+        onSubmit={async (reason) => {
+          const result = await reportTradeHandoverFailed(tradeId, reason);
+          return result.ok ? { ok: true } : { ok: false, message: errorMessage(result) };
+        }}
+      />
+      <HandoverFailedDialog
+        hideTrigger
+        open={problemOpen === 'RAISE_DISPUTE'}
+        onOpenChange={(open) => setProblemOpen(open ? 'RAISE_DISPUTE' : null)}
+        title="Raise a condition dispute"
+        // NOTHING IS TAKEN AT RAISE (ESC-01). This used to promise $20.00 from the
+        // other trader, which stopped being true when capture moved to the decision.
+        outcomeDescription="Use this when the item is not in the condition that was agreed. Both trade collateral holds stay in place while NoDitto support reviews it. Nothing is charged when you raise it; support decides any compensation from what you write here."
+        reasonPlaceholder="e.g. Listed NM, arrived creased"
+        evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
+        onSubmit={async (reason) => {
+          const result = await raiseDispute(tradeId, reason);
+          return result.ok ? { ok: true } : { ok: false, message: errorMessage(result) };
+        }}
+      />
+      <HandoverFailedDialog
+        hideTrigger
+        open={problemOpen === 'REPORT_FRAUD'}
+        onOpenChange={(open) => setProblemOpen(open ? 'REPORT_FRAUD' : null)}
+        title="Report fraud"
+        outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to NoDitto support, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
+        reasonPlaceholder="e.g. Fails the light test"
+        evidenceContext={{ caseKind: 'TRADE', caseRef: tradeId }}
+        onSubmit={async (reason) => {
+          const result = await reportFraud(tradeId, reason);
+          return result.ok ? { ok: true } : { ok: false, message: errorMessage(result) };
+        }}
+      />
 
       <RecordShipmentDialog
         open={shipOpen}

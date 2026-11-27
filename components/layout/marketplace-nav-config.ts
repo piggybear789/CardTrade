@@ -1,13 +1,30 @@
 // Shared marketplace section map for the desktop rail and mobile bottom hubs.
 // Keep labels/hrefs in one place so active-state logic cannot drift.
 
-import type { IconSvgElement } from '@hugeicons/react';
-import { BellIcon, CheckmarkBadge01Icon, HandCoinsIcon, HeartIcon, LayoutGridIcon, Login03Icon, MessageCircleIcon, PackagePlusIcon, RepeatIcon, ScaleIcon, Search01Icon, ShieldCheckIcon, ShoppingBag01Icon, Tag01Icon, TagsIcon, UserRoundIcon } from '@hugeicons/core-free-icons';
+import type { IconGlyph } from '@/components/ui/icon';
+import {
+  ArrowsLeftRightIcon,
+  BellIcon,
+  ChatCircleIcon,
+  HandCoinsIcon,
+  HeartIcon,
+  MagnifyingGlassIcon,
+  PlusSquareIcon,
+  ScalesIcon,
+  SealCheckIcon,
+  ShieldCheckIcon,
+  ShoppingBagIcon,
+  SignInIcon,
+  SquaresFourIcon,
+  StorefrontIcon,
+  TagIcon,
+  UserIcon,
+} from '@/components/ui/icons';
 
 export type MarketplaceNavLink = {
   href: string;
   label: string;
-  icon: IconSvgElement;
+  icon: IconGlyph;
 };
 
 export type MarketplaceNavGroup = {
@@ -37,7 +54,7 @@ export type MarketplaceNavGroup = {
 export const STAFF_NAV_GROUP = {
   label: 'Staff',
   links: [
-    { href: '/admin/arbitration', label: 'Cases', icon: ScaleIcon },
+    { href: '/admin/arbitration', label: 'Cases', icon: ScalesIcon },
     { href: '/admin', label: 'Operations', icon: ShieldCheckIcon },
   ],
 } as const satisfies MarketplaceNavGroup;
@@ -63,7 +80,7 @@ export const MARKETPLACE_NAV_GROUPS = [
       // The catalog is the homepage. Listing detail pages stayed under
       // `/listings/[id]`, which is why the active-state helper below cannot
       // simply prefix-match this href.
-      { href: '/', label: 'Browse all', icon: LayoutGridIcon },
+      { href: '/', label: 'Browse all', icon: SquaresFourIcon },
       // The heart, the same glyph `WatchButton` saves with. It was a bookmark, so
       // members saved with one symbol and found their saves under another.
       { href: '/saved', label: 'Saved', icon: HeartIcon },
@@ -72,27 +89,27 @@ export const MARKETPLACE_NAV_GROUPS = [
   {
     label: 'Contracts',
     links: [
-      { href: '/purchases', label: 'Purchases', icon: ShoppingBag01Icon },
-      { href: '/sales', label: 'Sales', icon: Tag01Icon },
+      { href: '/purchases', label: 'Purchases', icon: ShoppingBagIcon },
+      { href: '/sales', label: 'Sales', icon: TagIcon },
       // Private deals are invites that open a Cash_Sale or a Trade. Pending
       // unused invites sit in those inboxes; the rooms themselves are unchanged.
-      { href: '/trades', label: 'Trades', icon: RepeatIcon },
+      { href: '/trades', label: 'Trades', icon: ArrowsLeftRightIcon },
     ],
   },
   {
     label: 'Selling',
     links: [
-      { href: '/listings/new', label: 'Sell an item', icon: PackagePlusIcon },
-      { href: '/listings/mine', label: 'My listings', icon: TagsIcon },
+      { href: '/listings/new', label: 'Sell an item', icon: PlusSquareIcon },
+      { href: '/listings/mine', label: 'My listings', icon: StorefrontIcon },
       { href: '/offers', label: 'Offers', icon: HandCoinsIcon },
     ],
   },
   {
     label: 'You',
     links: [
-      { href: '/messages', label: 'Messages', icon: MessageCircleIcon },
+      { href: '/messages', label: 'Messages', icon: ChatCircleIcon },
       { href: '/notifications', label: 'Notifications', icon: BellIcon },
-      { href: '/profile', label: 'Account', icon: UserRoundIcon },
+      { href: '/profile', label: 'Account', icon: UserIcon },
     ],
   },
 ] as const satisfies readonly MarketplaceNavGroup[];
@@ -162,7 +179,7 @@ export type MobileHub = HubAudience & {
   id: MobileHubId;
   href: string;
   label: string;
-  icon: IconSvgElement;
+  icon: IconGlyph;
   isActive: (pathname: string) => boolean;
 };
 
@@ -197,7 +214,7 @@ const BROWSE_HUB: MobileHub = {
   label: 'Browse',
   // The catalog is public, so a guest can use this hub as-is.
   requiresAuth: false,
-  icon: LayoutGridIcon,
+  icon: SquaresFourIcon,
   isActive: (pathname) =>
     isMarketplaceSectionActive(pathname, '/') ||
     pathname.startsWith('/sellers/'),
@@ -214,7 +231,7 @@ const REFERENCES_HUB: MobileHub = {
   href: '/references',
   label: 'References',
   requiresAuth: false,
-  icon: CheckmarkBadge01Icon,
+  icon: SealCheckIcon,
   isActive: (pathname) => isMarketplaceSectionActive(pathname, '/references'),
 };
 
@@ -227,7 +244,7 @@ const SELL_HUB: MobileHub = {
   href: '/listings/new',
   label: 'Sell',
   requiresAuth: true,
-  icon: PackagePlusIcon,
+  icon: PlusSquareIcon,
   isActive: (pathname) => pathname === '/listings/new',
 };
 
@@ -241,7 +258,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     href: '/messages',
     label: 'Inbox',
     requiresAuth: true,
-    icon: MessageCircleIcon,
+    icon: ChatCircleIcon,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/messages'),
   },
@@ -250,7 +267,7 @@ export const MOBILE_HUBS: readonly MobileHub[] = [
     href: '/profile',
     label: 'Account',
     requiresAuth: true,
-    icon: UserRoundIcon,
+    icon: UserIcon,
     isActive: (pathname) =>
       isMarketplaceSectionActive(pathname, '/profile') ||
       isMarketplaceSectionActive(pathname, '/notifications') ||
@@ -277,7 +294,7 @@ export const GUEST_MOBILE_HUBS: readonly MobileHub[] = [
     href: '/?search=1',
     label: 'Search',
     requiresAuth: false,
-    icon: Search01Icon,
+    icon: MagnifyingGlassIcon,
     isActive: () => false,
   },
   SELL_HUB,
@@ -286,7 +303,7 @@ export const GUEST_MOBILE_HUBS: readonly MobileHub[] = [
     href: '/sign-in',
     label: 'Sign in',
     requiresAuth: false,
-    icon: Login03Icon,
+    icon: SignInIcon,
     isActive: (pathname) => pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up'),
   },
 ];

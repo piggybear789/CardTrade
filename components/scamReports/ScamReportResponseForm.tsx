@@ -11,8 +11,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Cancel01Icon, ImageAdd01Icon, LoaderCircleIcon, LockIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CameraPlusIcon, CircleNotchIcon, LockIcon, XIcon } from '@/components/ui/icons';
 
 import { respondToScamReportMatch } from '@/lib/actions/scamReports';
 import { uploadScamReportEvidence } from '@/lib/storage/uploadScamReportEvidence';
@@ -106,7 +106,7 @@ export function ScamReportResponseForm({ reportId }: { reportId: string }) {
             Your side
           </Label>
           <span className="inline-flex items-center gap-tight text-meta text-muted-foreground">
-            <HugeiconsIcon icon={LockIcon} className="size-3.5" aria-hidden />
+            <Icon icon={LockIcon} className="size-3.5" aria-hidden />
             Only our team sees this
           </span>
         </div>
@@ -151,7 +151,7 @@ export function ScamReportResponseForm({ reportId }: { reportId: string }) {
               <img src={tile.preview} alt={`Photo ${index + 1}`} className="size-full object-cover" />
               {tile.state === 'uploading' ? (
                 <span className="absolute inset-0 grid place-items-center bg-background/70" role="status">
-                  <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin" aria-hidden />
+                  <Icon icon={CircleNotchIcon} className="size-5 animate-spin" aria-hidden />
                   <span className="sr-only">Uploading</span>
                 </span>
               ) : (
@@ -161,7 +161,7 @@ export function ScamReportResponseForm({ reportId }: { reportId: string }) {
                   aria-label={`Remove photo ${index + 1}`}
                   className="absolute right-1 top-1 grid size-7 place-items-center rounded-md bg-background/90 text-foreground shadow-sm transition-colors hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" aria-hidden />
+                  <Icon icon={XIcon} className="size-3.5" aria-hidden />
                 </button>
               )}
             </li>
@@ -176,7 +176,7 @@ export function ScamReportResponseForm({ reportId }: { reportId: string }) {
                   'hover:border-input-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
-                <HugeiconsIcon icon={ImageAdd01Icon} className="size-5" aria-hidden />
+                <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
                 Add photos
               </button>
             </li>

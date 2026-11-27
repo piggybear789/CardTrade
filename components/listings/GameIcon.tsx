@@ -11,8 +11,8 @@
 // foreground, but a `currentColor` mark can.
 
 import type { ReactNode, SVGProps } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LayoutGridIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { SquaresFourIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -357,7 +357,7 @@ export function GameMark({
   className?: string;
 }) {
   if (slug === 'all') {
-    return <HugeiconsIcon icon={LayoutGridIcon} className={cn('size-3.5 shrink-0', className)} aria-hidden />;
+    return <Icon icon={SquaresFourIcon} className={cn('size-3.5 shrink-0', className)} aria-hidden />;
   }
   const Mark = GAME_MARKS[slug] ?? OtherTcgMark;
   return <Mark className={className} />;

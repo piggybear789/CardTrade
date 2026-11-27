@@ -17,8 +17,8 @@
 //
 // Server-safe (no hooks), so it renders inside Server and Client Components alike.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Exchange01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { SwapIcon } from '@/components/ui/icons';
 
 import { FX_FEE_BPS } from '@/domain/fees/fxFee';
 import { formatMoney } from '@/lib/format';
@@ -69,7 +69,7 @@ export function CurrencyNotice({
       role="note"
       aria-label="Currency"
     >
-      <HugeiconsIcon icon={Exchange01Icon} className="mt-px size-4 shrink-0 text-iris-ink" aria-hidden />
+      <Icon icon={SwapIcon} className="mt-px size-4 shrink-0 text-iris-ink" aria-hidden />
       <div className="min-w-0 space-y-tight">
         <p className="font-medium text-foreground">You pay in {code}.</p>
         {fxFee > 0 ? (

@@ -17,8 +17,8 @@
 import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, ChevronRightIcon, InfoIcon, TruckIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretRightIcon, CheckIcon, InfoIcon, TruckIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -126,9 +126,9 @@ function Lane({
             {/* The padding belongs to the gap in the line, not to the glyph:
                 putting it on the SVG shrinks the truck inside its own box. */}
             <span className="absolute left-1/2 -translate-x-1/2 bg-card px-1.5">
-              <HugeiconsIcon icon={TruckIcon} className="size-4 text-muted-foreground" />
+              <Icon icon={TruckIcon} className="size-4 text-muted-foreground" />
             </span>
-            <HugeiconsIcon icon={ChevronRightIcon} className="absolute right-0 size-3.5 -translate-y-px text-muted-foreground" />
+            <Icon icon={CaretRightIcon} className="absolute right-0 size-3.5 -translate-y-px text-muted-foreground" />
           </span>
           <Endpoint destination>{to}</Endpoint>
         </span>
@@ -149,7 +149,7 @@ function Lane({
                 : 'border-border bg-muted text-muted-foreground',
           )}
         >
-          {ready ? <HugeiconsIcon icon={CheckIcon} className="size-3" aria-hidden /> : null}
+          {ready ? <Icon icon={CheckIcon} className="size-3" aria-hidden /> : null}
           {status}
         </span>
       </div>
@@ -324,7 +324,7 @@ export function DeliveryAddressPanel({
           the fourth muted paragraph in the tab and got skipped — and this is the
           one that stops people pasting their street into the chat thread. */}
       <p className="flex items-center gap-snug rounded-md bg-muted px-cozy py-snug text-body text-muted-foreground">
-        <HugeiconsIcon icon={InfoIcon} className="size-4 shrink-0" aria-hidden />
+        <Icon icon={InfoIcon} className="size-4 shrink-0" aria-hidden />
         <span>Addresses are never shown in chat, and only to the sender.</span>
       </p>
 

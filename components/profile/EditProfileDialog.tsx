@@ -7,8 +7,8 @@
 // the inputs behind a deliberate action.
 
 import { useState, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { PencilIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { PencilSimpleIcon } from '@/components/ui/icons';
 
 import { ProfileForm } from './ProfileForm';
 import { withRowOpenHandler } from '@/components/account/SettingsPrimitives';
@@ -59,7 +59,7 @@ export function EditProfileDialog({
           onClick={() => setOpen(true)}
           className="inline-flex items-center gap-tight text-body font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline border border-transparent focus:outline-none focus-visible:border-ring"
         >
-          <HugeiconsIcon icon={PencilIcon} className="size-3" aria-hidden />
+          <Icon icon={PencilSimpleIcon} className="size-3" aria-hidden />
           Edit
         </button>
       )}

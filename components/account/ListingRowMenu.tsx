@@ -6,8 +6,8 @@
 
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LinkIcon, MoreHorizontalIcon, PencilIcon, ViewIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { DotsThreeIcon, EyeIcon, LinkIcon, PencilSimpleIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -46,26 +46,26 @@ export function ListingRowMenu({
           aria-label={`More actions for ${itemTitle}`}
           className="text-muted-foreground hover:text-foreground"
         >
-          <HugeiconsIcon icon={MoreHorizontalIcon} aria-hidden />
+          <Icon icon={DotsThreeIcon} aria-hidden />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         <DropdownMenuItem asChild>
           <Link href={`/listings/${itemId}`}>
-            <HugeiconsIcon icon={ViewIcon} aria-hidden />
+            <Icon icon={EyeIcon} aria-hidden />
             View listing
           </Link>
         </DropdownMenuItem>
         {editable ? (
           <DropdownMenuItem asChild>
             <Link href={`/listings/${itemId}/edit`}>
-              <HugeiconsIcon icon={PencilIcon} aria-hidden />
+              <Icon icon={PencilSimpleIcon} aria-hidden />
               Edit listing
             </Link>
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem onSelect={() => void copyLink()}>
-          <HugeiconsIcon icon={LinkIcon} aria-hidden />
+          <Icon icon={LinkIcon} aria-hidden />
           Copy link
         </DropdownMenuItem>
       </DropdownMenuContent>

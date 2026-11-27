@@ -20,8 +20,8 @@
 // caller has one, the loaded image's size once it arrives, card-shaped until then.
 
 import { useCallback, useEffect, useState, type CSSProperties } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronLeftIcon, ChevronRightIcon, ImageOffIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon, CaretRightIcon, ImageBrokenIcon, XIcon } from '@/components/ui/icons';
 
 import { ZoomableImage } from '@/components/listings/ZoomableImage';
 import {
@@ -202,12 +202,12 @@ export function ContractImageLightbox({
             />
           ) : (
             <div className="grid size-full place-items-center text-mist/50">
-              <HugeiconsIcon icon={ImageOffIcon} className="size-8" aria-hidden />
+              <Icon icon={ImageBrokenIcon} className="size-8" aria-hidden />
             </div>
           )}
 
           <DialogClose className={cn(LIGHTBOX_CONTROL, 'absolute right-2 top-2')}>
-            <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+            <Icon icon={XIcon} className="size-4" aria-hidden />
             <span className="sr-only">Close</span>
           </DialogClose>
 
@@ -222,7 +222,7 @@ export function ContractImageLightbox({
                   'absolute left-2 top-1/2 -translate-y-1/2',
                 )}
               >
-                <HugeiconsIcon icon={ChevronLeftIcon} className="size-5" aria-hidden />
+                <Icon icon={CaretLeftIcon} className="size-5" aria-hidden />
               </button>
               <button
                 type="button"
@@ -233,7 +233,7 @@ export function ContractImageLightbox({
                   'absolute right-2 top-1/2 -translate-y-1/2',
                 )}
               >
-                <HugeiconsIcon icon={ChevronRightIcon} className="size-5" aria-hidden />
+                <Icon icon={CaretRightIcon} className="size-5" aria-hidden />
               </button>
             </>
           ) : null}
@@ -317,7 +317,7 @@ function ContractThumbnailImage({
           fallbackClassName ?? className,
         )}
       >
-        <HugeiconsIcon icon={ImageOffIcon} className="size-7" aria-hidden />
+        <Icon icon={ImageBrokenIcon} className="size-7" aria-hidden />
       </span>
     );
   }
@@ -361,7 +361,7 @@ export function ContractThumbnails({
           className,
         )}
       >
-        <HugeiconsIcon icon={ImageOffIcon} className={stacked ? 'size-8' : 'size-4'} aria-hidden />
+        <Icon icon={ImageBrokenIcon} className={stacked ? 'size-8' : 'size-4'} aria-hidden />
         <span className="sr-only">No photos for {label}</span>
       </div>
     );

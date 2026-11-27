@@ -18,7 +18,7 @@
 // menu row is also `md` and up for a signed-in member. Without this row a member on a
 // phone — most of them — has no way to reach the dialog.
 
-import { ChatFeedbackIcon } from '@hugeicons/core-free-icons';
+import { ChatTeardropTextIcon } from '@/components/ui/icons';
 
 import { SettingsListRow } from '@/components/account/SettingsPrimitives';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
@@ -29,7 +29,7 @@ export function FeedbackSettingRow() {
     <FeedbackDialog
       trigger={
         <SettingsListRow
-          icon={ChatFeedbackIcon}
+          icon={ChatTeardropTextIcon}
           label="Send feedback"
           description="Report a problem or suggest a feature."
         />

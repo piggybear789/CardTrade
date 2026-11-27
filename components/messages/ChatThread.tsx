@@ -21,8 +21,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ChevronLeftIcon, InformationCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CaretLeftIcon, CaretRightIcon, ShieldCheckIcon } from '@/components/ui/icons';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -45,11 +45,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { CashSaleStatusBadge } from '@/components/sales/CashSaleStatusBadge';
 import { StateBadge } from '@/components/trade/StateBadge';
 import { MessageComposer } from '@/components/messages/MessageComposer';
-import {
-  MESSAGE_COLUMN,
-  MESSAGE_PROSE,
-  MessageLog,
-} from '@/components/messages/MessageLog';
+import { MESSAGE_COLUMN, MessageLog } from '@/components/messages/MessageLog';
 import {
   MESSAGE_GUTTER,
   PANE_BAR_MIN_H,
@@ -203,13 +199,14 @@ export function ChatThread({
   // prominent without adding a rule that only one of the two panes has.
   //
   // It is not quite free, and the note in `PANE_BAR_MIN_H` is the thing to read before
-  // touching this row. A Badge is 22.8px against the 22.4px `text-body` line beside it,
-  // so it — not the text — sets the row height, and the bar's height is what has to
-  // stay under the shared floor for the pane borders to line up.
+  // touching this row. A Badge is 20px against the 22.4px `text-body` line beside it, so
+  // the text sets the row height today; a taller badge would set it instead, and the
+  // bar's height is what has to stay under the shared floor for the pane borders to
+  // line up.
   //
-  // `outline`, the quietest variant, matching `REFUNDED` in `CASH_SALE_STATUS_MAP`.
-  // The filled tones mean "a contract is at this stage" and there is no contract, so
-  // a chip with a fill would misreport the situation in the other direction.
+  // `outline`, the quietest variant, matching `REFUNDED` in `CASH_SALE_STATUS_MAP`: a
+  // hairline and no fill. The tinted tones mean "a contract is at this stage" and there
+  // is no contract, so a tint would misreport the situation in the other direction.
   const showNoContract = Boolean(item) && !underContract;
   const statusText = trade
     ? tradeMove
@@ -341,21 +338,22 @@ export function ChatThread({
           className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
           aria-label="Back to messages"
         >
-          <HugeiconsIcon
-            icon={ChevronLeftIcon}
+          <Icon
+            icon={CaretLeftIcon}
             className="size-5"
-            strokeWidth={1.75}
             aria-hidden
           />
         </Link>
 
+        {/* 40px, the same footprint as the avatar it replaces on a listing thread, with
+            the inset hairline the inbox rows draw instead of a 1px border box. */}
         {itemThumb ? (
           <StorageImage
             src={itemThumb}
             alt=""
-            width={36}
-            height={36}
-            className="size-9 shrink-0 rounded-md border object-cover"
+            width={40}
+            height={40}
+            className="size-10 shrink-0 rounded-lg object-cover outline outline-1 -outline-offset-1 outline-foreground/[0.08]"
             loading="lazy"
           />
         ) : (
@@ -407,11 +405,17 @@ export function ChatThread({
           </div>
         </div>
 
-        {/* Outline: the bar names where the deal lives, and the room it opens is
-            where the next action is. FILLED ONLY ON YOUR MOVE: then opening the room
-            IS the next action, and the button is the way to it. */}
+        {/* TONAL, not outlined (2026-11-28): the bar names where the deal lives, and
+            an outlined box beside the title read as a form control dropped into the
+            chrome. The trailing caret says it goes somewhere. FILLED ONLY ON YOUR MOVE:
+            then opening the room IS the next action, and the button is the way to it. */}
         {dock ? (
-          <Button asChild variant={tradeYourMove ? 'default' : 'outline'} size="sm" className="shrink-0">
+          <Button
+            asChild
+            variant={tradeYourMove ? 'default' : 'secondary'}
+            size="sm"
+            className="shrink-0 gap-tight pr-snug"
+          >
             <Link href={dock.href} transitionTypes={['nav-forward']}>
               {/* "Open contract" is a quarter of a phone's bar; below `sm` the verb goes,
                   and the status line beside it gets the width back. */}
@@ -423,6 +427,7 @@ export function ChatThread({
               ) : (
                 dock.label
               )}
+              <Icon icon={CaretRightIcon} />
             </Link>
           </Button>
         ) : null}
@@ -431,10 +436,9 @@ export function ChatThread({
       <div
         ref={logRef}
         className={cn(
-          // `pb-6` for the same reason as the contract room's log: clusters are `gap-6`
-          // apart, and at `pb-cozy` the newest one sat closer to the composer than to its
-          // own neighbour above.
-          'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-6 pt-5',
+          // `pb-group`, the gap between runs (`MessageLog`), so the newest run sits as far
+          // from the composer as from its own neighbour above.
+          'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-group pt-group',
           MESSAGE_GUTTER,
         )}
         role="log"
@@ -488,60 +492,44 @@ export function ChatThread({
         </div>
       </div>
 
-      {/* THIS SITS BELOW THE LOG BECAUSE THE TOP OF THE PANE IS A SHARED SEAM AND
-          THE BOTTOM IS NOT.
-          
-          It was briefly moved directly under the subject bar — nearer the "View
-          listing" button it explains, and read before the conversation rather than
-          after it — and that broke the layout. `InboxTwoPane` draws its own bar
-          with the same `PANE_BAR_MIN_H` and `border-b` as this pane's header
+      {/* THE "NO CONTRACT YET" NOTE RIDES IN THE COMPOSER'S DOCK, ABOVE THE PILL, and
+          that position is the one rule here that must not move.
+
+          THE TOP OF THE PANE IS A SHARED SEAM AND THE BOTTOM IS NOT. The note was
+          briefly moved directly under the subject bar — nearer the "View listing"
+          button it explains — and that broke the layout. `InboxTwoPane` draws its own
+          bar with the same `PANE_BAR_MIN_H` and `border-b` as this pane's header
           precisely so the two bottom borders read as ONE line across both panes. A
           band inserted under the header puts a second rule on this side only and
-          pushes the log down, so the conversation starts lower than the thread
-          list beside it — the "step down an edge" `threadGeometry` exists to
-          prevent. The panes share no bottom edge, since this one ends in a
-          composer and the list just ends, so a band HERE costs nothing.
-          
-          NO RULE OF ITS OWN. The composer below carries `border-t`, so a border
-          here would stack two rules a line apart. The tint alone lifts it off the
-          log, and the icon is what stops it reading as a caption: it was one line
-          of the faintest type in the scale with no mark on it, which is why it
-          never registered where it sits. The always-visible statement of the same
-          fact is the "No contract" badge in the bar, which is the one place this
-          could get more prominent without moving a seam — see `showNoContract`. */}
-      {/* `showNoContract`, not `dock && !dock.underContract`. Those two expressions
+          pushes the log down, so the conversation starts lower than the thread list
+          beside it — the "step down an edge" `threadGeometry` exists to prevent. The
+          panes share no bottom edge, so the dock is free.
+
+          IN THE DOCK, NOT A BAND OF ITS OWN (2026-11-28). It was a full-width tinted
+          strip between the log and the composer: a third band in a column that is
+          otherwise one white surface. As a centred line over the pill, with the
+          shield that says "safety" rather than an (i) that says "footnote", it is
+          read at the moment it matters, as you type. The always-visible statement of
+          the same fact is the "No contract" badge in the bar — see `showNoContract`.
+
+          `showNoContract`, not `dock && !dock.underContract`. Those two expressions
           are equivalent today — `dock.underContract` is false only on the `item`
           branch — and that is the problem: one fact with two derivations, which is
           the shape that drifts the moment a fourth `dock` branch appears. */}
-      {showNoContract ? (
-        <p
-          className={cn(
-            'flex shrink-0 items-start gap-snug bg-muted/50 py-2 text-meta text-muted-foreground',
-            MESSAGE_GUTTER,
-          )}
-        >
-          <HugeiconsIcon
-            icon={InformationCircleIcon}
-            // `mt-px` optically centres a 14px glyph against the cap height of the
-            // line beside it, which sitting on the text baseline does not.
-            className="mt-px size-3.5 shrink-0"
-            aria-hidden
-          />
-          {/* Keeps the thread's prose measure. NOT `MESSAGE_COLUMN` — that is
-              `w-full`, which is right for a band that IS the column and wrong for
-              one of two flex children. */}
-          <span className={cn(MESSAGE_PROSE, 'min-w-0')}>
-            No contract yet — messages alone do not reserve goods or hold payment.
-          </span>
-        </p>
-      ) : null}
-
       <MessageComposer
         conversationId={conversationId}
         // A preview can share the DOM with the thread it is replacing, which is hidden
         // but still mounted (`ThreadPane`), so the two field ids must differ.
         inputId={preview ? 'message-composer-preview' : 'message-composer'}
         contentClassName={MESSAGE_COLUMN}
+        notice={
+          showNoContract ? (
+            <p className="flex items-center justify-center gap-tight text-center text-meta text-muted-foreground">
+              <Icon icon={ShieldCheckIcon} className="size-3.5 shrink-0" />
+              No contract yet — messages alone do not reserve goods or hold payment.
+            </p>
+          ) : null
+        }
         optimistic={{
           currentUserId,
           add: addOptimistic,

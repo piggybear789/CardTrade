@@ -8,8 +8,8 @@
 // and never reach it.
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Cancel01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { XIcon } from '@/components/ui/icons';
 
 import { IdentityBadge } from '@/components/identity/IdentityBadge';
 import { Avatar } from '@/components/ui/avatar';
@@ -186,7 +186,7 @@ function Header({
       </div>
       {hasPage ? <OpenNetwork orbits={orbits} personKey={person.key} /> : null}
       <Button variant="ghost" size="icon" className="-mr-1.5 shrink-0 max-sm:size-10" aria-label="Close" onClick={onClose}>
-        <HugeiconsIcon icon={Cancel01Icon} aria-hidden />
+        <Icon icon={XIcon} aria-hidden />
       </Button>
     </header>
   );

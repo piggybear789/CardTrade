@@ -8,13 +8,12 @@
 // for it are in `HeaderControls`.
 
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { HeartIcon, MessageCircleIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ChatCircleIcon, HeartIcon } from '@/components/ui/icons';
 
 import {
   HEADER_ICON_BUTTON,
   HEADER_ICON_GLYPH,
-  HEADER_ICON_STROKE,
   HeaderSellLink,
 } from '@/components/layout/HeaderControls';
 import { HeaderTooltip } from '@/components/layout/HeaderTooltip';
@@ -53,20 +52,18 @@ export function SignedInHeaderTools({
           listing, and the /saved empty state tells members to tap it. */}
       <HeaderTooltip label="Saved">
         <Link href="/saved" aria-label="Saved listings" className={HEADER_ICON_BUTTON}>
-          <HugeiconsIcon
+          <Icon
             icon={HeartIcon}
             className={HEADER_ICON_GLYPH}
-            strokeWidth={HEADER_ICON_STROKE}
             aria-hidden
           />
         </Link>
       </HeaderTooltip>
       <HeaderTooltip label="Messages">
         <Link href="/messages" aria-label="Messages" className={HEADER_ICON_BUTTON}>
-          <HugeiconsIcon
-            icon={MessageCircleIcon}
+          <Icon
+            icon={ChatCircleIcon}
             className={HEADER_ICON_GLYPH}
-            strokeWidth={HEADER_ICON_STROKE}
             aria-hidden
           />
         </Link>

@@ -13,8 +13,8 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { Delete02Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { TrashIcon } from '@/components/ui/icons';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -85,7 +85,7 @@ export function DeleteListingDialog({
           className={className ?? 'w-full sm:w-auto'}
           aria-label="Delete listing"
         >
-          <HugeiconsIcon icon={Delete02Icon} aria-hidden />
+          <Icon icon={TrashIcon} aria-hidden />
           {compact ? null : 'Delete listing'}
         </Button>
       </DialogTrigger>
@@ -114,7 +114,7 @@ export function DeleteListingDialog({
             aria-busy={isPending}
           >
             <PendingLabel pending={isPending} pendingLabel="Deleting…">
-              <HugeiconsIcon icon={Delete02Icon} aria-hidden />
+              <Icon icon={TrashIcon} aria-hidden />
               Delete listing
             </PendingLabel>
           </Button>

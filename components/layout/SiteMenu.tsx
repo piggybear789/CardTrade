@@ -18,8 +18,17 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ArrowDown01Icon, BanknoteIcon, CheckmarkBadge01Icon, HelpCircleIcon, MenuIcon, Settings01Icon, ShieldCheckIcon, XIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import {
+  CaretDownIcon,
+  GearSixIcon,
+  ListIcon,
+  MoneyIcon,
+  QuestionIcon,
+  SealCheckIcon,
+  ShieldCheckIcon,
+  XIcon,
+} from '@/components/ui/icons';
 
 import { StartDealButton } from '@/components/deals/StartDealButton';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
@@ -95,7 +104,7 @@ export function SiteMenu({
         className={cn('!h-9 justify-start', active && 'bg-accent text-accent-foreground')}
       >
         <Link href={link.href} aria-current={active ? 'page' : undefined}>
-          <HugeiconsIcon icon={link.icon} aria-hidden />
+          <Icon icon={link.icon} aria-hidden />
           {link.label}
         </Link>
       </Button>
@@ -178,13 +187,12 @@ export function SiteMenu({
               size="sm"
             />
           </span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
+          <Icon
+            icon={CaretDownIcon}
             className={cn(
               'size-3.5 shrink-0 transition-transform motion-reduce:transition-none',
               open && 'rotate-180',
             )}
-            strokeWidth={2}
             aria-hidden
           />
         </button>
@@ -198,9 +206,9 @@ export function SiteMenu({
           className="flex size-11 touch-manipulation items-center justify-center rounded-md border border-transparent hover:bg-accent focus:outline-none focus-visible:border-ring"
         >
           {open ? (
-            <HugeiconsIcon icon={XIcon} className="size-5" aria-hidden />
+            <Icon icon={XIcon} className="size-5" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={MenuIcon} className="size-5" aria-hidden />
+            <Icon icon={ListIcon} className="size-5" aria-hidden />
           )}
         </button>
       )}
@@ -267,7 +275,7 @@ export function SiteMenu({
                 </div>
                 <div className="my-0.5 border-t" />
 
-                {renderLink({ href: '/profile/payouts', label: 'Payouts', icon: BanknoteIcon })}
+                {renderLink({ href: '/profile/payouts', label: 'Payouts', icon: MoneyIcon })}
                 <Button
                   asChild
                   variant="ghost"
@@ -275,7 +283,7 @@ export function SiteMenu({
                   className={cn('!h-9 justify-start', accountActive && 'bg-accent text-accent-foreground')}
                 >
                   <Link href="/profile" aria-current={accountActive ? 'page' : undefined}>
-                    <HugeiconsIcon icon={Settings01Icon} aria-hidden />
+                    <Icon icon={GearSixIcon} aria-hidden />
                     Account settings
                   </Link>
                 </Button>
@@ -297,19 +305,19 @@ export function SiteMenu({
                 <div className="my-0.5 border-t" />
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <Link href="/help">
-                    <HugeiconsIcon icon={HelpCircleIcon} aria-hidden />
+                    <Icon icon={QuestionIcon} aria-hidden />
                     Help
                   </Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <Link href="/safety">
-                    <HugeiconsIcon icon={ShieldCheckIcon} aria-hidden />
+                    <Icon icon={ShieldCheckIcon} aria-hidden />
                     Staying safe
                   </Link>
                 </Button>
                 <Button asChild variant="ghost" size="sm" className="!h-9 justify-start">
                   <Link href="/references">
-                    <HugeiconsIcon icon={CheckmarkBadge01Icon} aria-hidden />
+                    <Icon icon={SealCheckIcon} aria-hidden />
                     References
                   </Link>
                 </Button>

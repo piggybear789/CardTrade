@@ -8,8 +8,8 @@
 // editors draw the same device, not two look-alikes.
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LockIcon, Search01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { LockIcon, MagnifyingGlassIcon } from '@/components/ui/icons';
 import { LogoMark } from '@/components/layout/Logo';
 import { GUEST_MOBILE_HUBS } from '@/components/layout/marketplace-nav-config';
 import { cn } from '@/lib/utils';
@@ -117,7 +117,7 @@ export function PhoneDevice({
         {/* Safari's address bar. */}
         <div className="flex h-[44px] shrink-0 items-center justify-center px-group">
           <span className="flex h-[34px] w-full items-center justify-center gap-1.5 rounded-full bg-muted text-[15px] text-foreground">
-            <HugeiconsIcon icon={LockIcon} className="size-3.5 text-muted-foreground" />
+            <Icon icon={LockIcon} className="size-3.5 text-muted-foreground" />
             noditto.app
           </span>
         </div>
@@ -145,7 +145,7 @@ export function PhoneDevice({
                 key={hub.id}
                 className="flex flex-col items-center justify-center gap-0.5 px-0.5 text-meta font-medium text-muted-foreground"
               >
-                <HugeiconsIcon icon={hub.icon} className="size-5" />
+                <Icon icon={hub.icon} className="size-5" />
                 <span className="truncate">{hub.label}</span>
               </span>
             ))}
@@ -179,7 +179,7 @@ export function BrowserDevice({ children }: { children: ReactNode }) {
           <span className="size-3 rounded-full bg-[#28c840]" />
         </span>
         <span className="mx-auto flex h-7 w-[26rem] items-center justify-center gap-1.5 rounded-md bg-background text-body text-muted-foreground">
-          <HugeiconsIcon icon={LockIcon} className="size-3.5" />
+          <Icon icon={LockIcon} className="size-3.5" />
           noditto.app/t/your-link
         </span>
         <span className="w-[3.25rem] shrink-0" />
@@ -197,7 +197,7 @@ export function BrowserDevice({ children }: { children: ReactNode }) {
           <span className="px-cozy">References</span>
         </span>
         <span className="flex h-9 min-w-0 flex-1 items-center gap-snug rounded-md bg-muted px-3 text-body text-muted-foreground">
-          <HugeiconsIcon icon={Search01Icon} className="size-4" />
+          <Icon icon={MagnifyingGlassIcon} className="size-4" />
           Search cards, @handles, or sellers…
         </span>
         <span className="flex items-center gap-tight">

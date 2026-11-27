@@ -17,7 +17,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
-import { ArrowLeftRightIcon } from '@hugeicons/core-free-icons';
+import { ArrowsLeftRightIcon } from '@/components/ui/icons';
 
 import { ListingActionIcon } from '@/components/listings/ListingActionIcon';
 import {
@@ -91,7 +91,7 @@ export function ProposeTradeDialog({
       <DialogTrigger asChild>
         {trigger ?? (
           <ListingActionIcon
-            icon={ArrowLeftRightIcon}
+            icon={ArrowsLeftRightIcon}
             // Matches the dialog's own title. The chip said "Propose Trade" and
             // the dialog then said "Offer a trade", so the thing you clicked and
             // the thing that opened had different names.

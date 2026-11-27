@@ -8,8 +8,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { TriangleAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { WarningIcon } from '@/components/ui/icons';
 
 import { Button, type ButtonProps } from '@/components/ui/button';
 import { PendingLabel } from '@/components/ui/pending-label';
@@ -83,7 +83,7 @@ export function ConfirmDialog({
               // against title and description together, it landed between the two,
               // and drifted further down the longer the description ran.
               <div className="flex items-start gap-snug">
-                <HugeiconsIcon icon={TriangleAlertIcon}
+                <Icon icon={WarningIcon}
                   className="mt-tight size-4 shrink-0 text-destructive"
                   aria-hidden
                 />

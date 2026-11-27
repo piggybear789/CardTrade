@@ -9,7 +9,7 @@
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 
 import {
   MARKETPLACE_NAV_GROUPS,
@@ -87,7 +87,7 @@ export function MarketplaceNav({
                     pathname,
                     link.href,
                   );
-                  const Icon = link.icon;
+                  const Glyph = link.icon;
                   const count = waiting[link.href] ?? 0;
                   return (
                     <li key={link.href} className="w-full">
@@ -126,7 +126,12 @@ export function MarketplaceNav({
                             : 'font-medium text-foreground/85 hover:bg-muted/70 hover:text-foreground',
                         )}
                       >
-                        <HugeiconsIcon icon={Icon}
+                        {/* THE CURRENT SECTION'S GLYPH IS FILLED, Instagram's tab rule:
+                            outline at rest, solid where you are. A second "you are
+                            here" signal that does not depend on colour. */}
+                        <Icon
+                          icon={Glyph}
+                          weight={active ? 'fill' : undefined}
                           className={cn(
                             'size-[1.125rem] shrink-0',
                             active ? 'text-foreground' : 'text-muted-foreground',

@@ -29,14 +29,14 @@
 // (`frame="none"`): the reader is already on a phone.
 
 import { useState, type DragEvent, type KeyboardEvent } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  ArrowLeft01Icon,
-  ArrowRight01Icon,
-  ImagePlusIcon,
-  PlusSignIcon,
+  CameraPlusIcon,
+  CaretLeftIcon,
+  CaretRightIcon,
+  PlusIcon,
   XIcon,
-} from '@hugeicons/core-free-icons';
+} from '@/components/ui/icons';
 
 import { DeviceStage } from '@/components/editor/DevicePreview';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
@@ -261,7 +261,7 @@ function PhotoGallery({ photos }: { photos: PreviewPhotos }) {
         )}
       >
         <span className="grid size-14 place-items-center rounded-full border border-border bg-card text-foreground">
-          <HugeiconsIcon icon={ImagePlusIcon} className="size-6" aria-hidden />
+          <Icon icon={CameraPlusIcon} className="size-6" aria-hidden />
         </span>
         <span className="text-lead font-semibold text-foreground">Drop photos here</span>
         <span className="text-body text-muted-foreground">or click to choose them</span>
@@ -349,7 +349,7 @@ function PhotoGallery({ photos }: { photos: PreviewPhotos }) {
               title="Add photos"
               className="grid size-14 cursor-pointer place-items-center rounded-md border border-dashed border-input bg-card text-muted-foreground transition-colors hover:border-input-hover hover:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
             >
-              <HugeiconsIcon icon={PlusSignIcon} className="size-5" aria-hidden />
+              <Icon icon={PlusIcon} className="size-5" aria-hidden />
               <PhotoInput photos={photos} onPicked={() => setActive(count)} />
             </label>
           </li>
@@ -398,7 +398,7 @@ function PhotoGallery({ photos }: { photos: PreviewPhotos }) {
           aria-label={`Remove photo ${index + 1}`}
           className={cn(PHOTO_CHIP, ON_HOVER, 'absolute right-3 top-3 size-9')}
         >
-          <HugeiconsIcon icon={XIcon} className="size-4" aria-hidden />
+          <Icon icon={XIcon} className="size-4" aria-hidden />
         </button>
 
         {count > 1 ? (
@@ -409,7 +409,7 @@ function PhotoGallery({ photos }: { photos: PreviewPhotos }) {
               aria-label="Previous photo"
               className={cn(PHOTO_CHIP, ON_HOVER, 'absolute left-3 top-1/2 size-10 -translate-y-1/2')}
             >
-              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-5" aria-hidden />
+              <Icon icon={CaretLeftIcon} className="size-5" aria-hidden />
             </button>
             <button
               type="button"
@@ -417,7 +417,7 @@ function PhotoGallery({ photos }: { photos: PreviewPhotos }) {
               aria-label="Next photo"
               className={cn(PHOTO_CHIP, ON_HOVER, 'absolute right-3 top-1/2 size-10 -translate-y-1/2')}
             >
-              <HugeiconsIcon icon={ArrowRight01Icon} className="size-5" aria-hidden />
+              <Icon icon={CaretRightIcon} className="size-5" aria-hidden />
             </button>
             <span className="pointer-events-none absolute bottom-3 left-3 rounded-md bg-obsidian/65 px-2.5 py-1 text-body font-medium tabular-nums text-mist">
               {index + 1} / {count}

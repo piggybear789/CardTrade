@@ -30,14 +30,14 @@
 // A notification is a pointer at those, so it says what happened and when, and links.
 
 import type * as React from 'react';
-import { HugeiconsIcon, type IconSvgElement } from '@hugeicons/react';
+import { Icon, type IconGlyph } from '@/components/ui/icon';
 import {
+  ArrowsLeftRightIcon,
   BellIcon,
+  ChatCircleIcon,
   HandCoinsIcon,
-  MessageCircleIcon,
-  RepeatIcon,
-  Tag01Icon,
-} from '@hugeicons/core-free-icons';
+  TagIcon,
+} from '@/components/ui/icons';
 
 import type { NotificationRow } from '@/lib/realtime/useNotifications';
 import type { Enums } from '@/lib/supabase/database.types';
@@ -50,8 +50,8 @@ type NotificationType = Enums<'notification_type'>;
  * Glyph and label per notification kind.
  *
  * Icons are borrowed from the navigation the notification points AT —
- * `marketplace-nav-config` uses `HandCoinsIcon` for offers, `RepeatIcon` for trades,
- * `Tag01Icon` for sales — so a row and its destination carry the same mark.
+ * `marketplace-nav-config` uses `HandCoinsIcon` for offers, `ArrowsLeftRightIcon` for trades,
+ * `TagIcon` for sales — so a row and its destination carry the same mark.
  */
 export const NOTIFICATION_TYPE_META: Record<
   NotificationType,
@@ -62,13 +62,13 @@ export const NOTIFICATION_TYPE_META: Record<
      * SYSTEM chip read "NoDittos".
      */
     plural: string;
-    icon: IconSvgElement;
+    icon: IconGlyph;
   }
 > = {
   OFFER: { label: 'Offer', plural: 'Offers', icon: HandCoinsIcon },
-  MESSAGE: { label: 'Message', plural: 'Messages', icon: MessageCircleIcon },
-  TRADE: { label: 'Trade', plural: 'Trades', icon: RepeatIcon },
-  SALE: { label: 'Sale', plural: 'Sales', icon: Tag01Icon },
+  MESSAGE: { label: 'Message', plural: 'Messages', icon: ChatCircleIcon },
+  TRADE: { label: 'Trade', plural: 'Trades', icon: ArrowsLeftRightIcon },
+  SALE: { label: 'Sale', plural: 'Sales', icon: TagIcon },
   SYSTEM: { label: 'NoDitto', plural: 'Updates', icon: BellIcon },
 };
 
@@ -147,7 +147,7 @@ export function NotificationRowBody({
     <>
       <span className="relative mt-0.5 shrink-0" aria-hidden>
         <span className="grid size-9 place-items-center rounded-full bg-muted text-foreground">
-          <HugeiconsIcon icon={meta.icon} className="size-4" strokeWidth={1.75} />
+          <Icon icon={meta.icon} className="size-4" />
         </span>
         {unread ? (
           <span className="absolute -left-0.5 -top-0.5 size-2.5 rounded-full bg-iris ring-2 ring-background" />

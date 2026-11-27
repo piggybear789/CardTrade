@@ -17,8 +17,8 @@
 
 import { useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { CheckIcon, GlobalIcon, Location01Icon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { CheckIcon, GlobeIcon, MapPinIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { REGIONS, regionLabel, type RegionSource } from '@/domain/region';
@@ -108,7 +108,7 @@ export function BrowseRegionSettingRow({
   return (
     <>
       <SettingsListRow
-        icon={Location01Icon}
+        icon={MapPinIcon}
         label="Browsing region"
         description="Which region's listings the marketplace shows."
         value={value}
@@ -126,7 +126,7 @@ export function BrowseRegionSettingRow({
 
           <div role="radiogroup" aria-label="Browsing region" className="space-y-tight">
             <RegionOption
-              badge={<GlyphStamp icon={Location01Icon} />}
+              badge={<GlyphStamp icon={MapPinIcon} />}
               label="Automatic"
               hint={`${automaticLabel}, from ${automaticReason}`}
               tag={null}
@@ -135,7 +135,7 @@ export function BrowseRegionSettingRow({
               onSelect={() => select(AUTOMATIC_REGION)}
             />
             <RegionOption
-              badge={<GlyphStamp icon={GlobalIcon} />}
+              badge={<GlyphStamp icon={GlobeIcon} />}
               label="All regions"
               hint="Every listing, in its own currency"
               tag={null}
@@ -185,13 +185,13 @@ function CodeStamp({ code }: { code: string }) {
   );
 }
 
-function GlyphStamp({ icon }: { icon: typeof GlobalIcon }) {
+function GlyphStamp({ icon }: { icon: typeof GlobeIcon }) {
   return (
     <span
       className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground"
       aria-hidden
     >
-      <HugeiconsIcon icon={icon} className="size-4" />
+      <Icon icon={icon} className="size-4" />
     </span>
   );
 }
@@ -249,7 +249,7 @@ function RegionOption({
           {hint}
         </span>
       </span>
-      <HugeiconsIcon
+      <Icon
         icon={CheckIcon}
         className={cn('size-4 shrink-0', selected ? 'opacity-100' : 'opacity-0')}
         aria-hidden

@@ -32,8 +32,8 @@
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ScaleIcon, ShieldAlertIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ScalesIcon, ShieldWarningIcon } from '@/components/ui/icons';
 
 import { createClient } from '@/lib/supabase/server';
 import { getVerifiedAuthUser } from '@/lib/supabase/cachedAuth';
@@ -538,7 +538,7 @@ function NotAuthorized() {
     <PageShell centered>
       <EmptyState
         variant="page"
-        icon={<HugeiconsIcon icon={ShieldAlertIcon} className="size-6" aria-hidden />}
+        icon={<Icon icon={ShieldWarningIcon} className="size-6" aria-hidden />}
         title="Not authorized"
         titleAs="h1"
         description="You don't have permission to view the operations console."
@@ -753,7 +753,7 @@ export default async function AdminPage({
         actions={
           <Button asChild variant={openCases > 0 ? 'default' : 'outline'}>
             <Link href="/admin/arbitration" transitionTypes={['nav-forward']}>
-              <HugeiconsIcon icon={ScaleIcon} aria-hidden />
+              <Icon icon={ScalesIcon} aria-hidden />
               {openCases > 0 ? `${openCases} case${openCases === 1 ? '' : 's'}` : 'Cases'}
             </Link>
           </Button>

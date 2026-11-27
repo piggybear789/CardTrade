@@ -106,20 +106,6 @@ function symmetricLabel(
   return labels.both;
 }
 
-/**
- * The dock's short title for a two-sided step (see {@link ContractStep.compactLabel}):
- * the same whose-move rule as {@link symmetricLabel}, without names, so it fits beside
- * a button in a narrow chat column.
- */
-function symmetricCompact(
-  pair: { mine: boolean; theirs: boolean },
-  labels: { both: string; yours: string; waiting: string },
-): string {
-  if (pair.mine && !pair.theirs) return labels.waiting;
-  if (!pair.mine && pair.theirs) return labels.yours;
-  return labels.both;
-}
-
 /** States at or beyond INSPECTION, i.e. the goods have changed hands. */
 const EXCHANGED: ReadonlySet<TradeState> = new Set<TradeState>([
   'INSPECTION',
@@ -160,15 +146,12 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   const drafts: ContractStepDraft[] = [
     {
       id: 'collateral',
-      // Rail shorts must fit a five-tick rail on a 320px screen (~6
-      // characters). 'Holds' matches the release step's "Both holds released".
-      short: 'Holds',
+      short: 'Place collateral',
       label: symmetricLabel(holds, counterpartyName, {
         both: 'Both traders post collateral',
         yours: 'Post your collateral',
         waiting: 'post collateral',
       }),
-      compactLabel: symmetricCompact(holds, { both: 'Post collateral', yours: 'Post collateral', waiting: 'Waiting on collateral' }),
       detail: facts.collateralSeekFailed
         ? 'A card declined. Replace it, then retry the hold from the actions on this trade.'
         : symmetricDetail(
@@ -211,15 +194,12 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     // robbed, coerced, or handed a fake at the meeting point still has a remedy.
     drafts.push({
       id: 'handover',
-      // Rail shorts must survive a five-tick rail on a 320px screen (~6
-      // characters); 'Handover' truncates to 'Handov…'.
-      short: 'Delivery',
+      short: 'Meet',
       label: symmetricLabel(handover, counterpartyName, {
         both: 'Meet and swap',
         yours: 'Confirm the handover',
         waiting: 'confirm the handover',
       }),
-      compactLabel: symmetricCompact(handover, { both: 'Meet and swap', yours: 'Confirm handover', waiting: 'Waiting on handover' }),
       detail: symmetricDetail(
         handover,
         counterpartyName,
@@ -240,13 +220,12 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       const addresses = input.addresses;
       drafts.push({
         id: 'addresses',
-        short: 'Address',
+        short: 'Add address',
         label: symmetricLabel(addresses, counterpartyName, {
           both: 'Both traders add a delivery address',
           yours: 'Add your delivery address',
           waiting: 'add an address',
         }),
-        compactLabel: symmetricCompact(addresses, { both: 'Add your address', yours: 'Add your address', waiting: 'Waiting on address' }),
         detail: symmetricDetail(
           { mine: addresses.mine, theirs: addresses.theirs },
           counterpartyName,
@@ -266,13 +245,12 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
     drafts.push(
       {
         id: 'ship',
-        short: 'Delivery',
+        short: 'Post',
         label: symmetricLabel(shipped, counterpartyName, {
           both: 'Both traders post with tracking',
           yours: 'Post your item with tracking',
           waiting: 'post their item',
         }),
-        compactLabel: symmetricCompact(shipped, { both: 'Post with tracking', yours: 'Post with tracking', waiting: 'Waiting on their parcel' }),
         detail: symmetricDetail(
           shipped,
           counterpartyName,
@@ -289,13 +267,12 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
       },
       {
         id: 'receive',
-        short: 'Received',
+        short: 'Confirm arrival',
         label: symmetricLabel(received, counterpartyName, {
           both: 'Both parcels arrive',
           yours: 'Confirm their item arrived',
           waiting: 'confirm receipt',
         }),
-        compactLabel: symmetricCompact(received, { both: 'Confirm arrival', yours: 'Confirm arrival', waiting: 'Waiting on receipt' }),
         detail: symmetricDetail(
           received,
           counterpartyName,
@@ -316,13 +293,12 @@ export function deriveTradeSteps(input: TradeStepFacts): ContractStep[] {
   drafts.push(
     {
       id: 'accept',
-      short: 'Accept items',
+      short: 'Inspect',
       label: symmetricLabel(accepted, counterpartyName, {
         both: 'Both traders accept what they got',
         yours: 'Accept what you received',
         waiting: 'accept',
       }),
-      compactLabel: symmetricCompact(accepted, { both: 'Accept what you got', yours: 'Accept what you got', waiting: 'Waiting on acceptance' }),
       detail: symmetricDetail(
         accepted,
         counterpartyName,

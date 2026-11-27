@@ -1,10 +1,6 @@
 import Link from 'next/link';
-import { HugeiconsIcon } from '@hugeicons/react';
-import {
-  ArrowLeftRightIcon,
-  HandCoinsIcon,
-  LogInIcon,
-} from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowsLeftRightIcon, HandCoinsIcon, SignInIcon } from '@/components/ui/icons';
 
 import { BuyButton, ShopfrontBuyButton } from '@/components/listings/BuyButton';
 import { WatchButton } from '@/components/listings/WatchButton';
@@ -100,7 +96,7 @@ export function ListingBuyerBar({
       <div data-hide-for-keyboard className={barClass}>
         <Button asChild size="lg" className="w-full">
           <Link href={`/sign-in?redirectTo=/listings/${itemId}`}>
-            <HugeiconsIcon icon={LogInIcon} aria-hidden />
+            <Icon icon={SignInIcon} aria-hidden />
             Sign in to buy
           </Link>
         </Button>
@@ -128,7 +124,7 @@ export function ListingBuyerBar({
           sellerIdentity={sellerIdentity!}
           trigger={
             <button type="button" aria-label="Make an offer" className={BAR_SECONDARY}>
-              <HugeiconsIcon icon={HandCoinsIcon} className="size-5" aria-hidden />
+              <Icon icon={HandCoinsIcon} className="size-5" aria-hidden />
             </button>
           }
         />
@@ -156,7 +152,7 @@ export function ListingBuyerBar({
             aria-label="Propose a trade"
             className={BAR_SECONDARY}
           >
-            <HugeiconsIcon icon={ArrowLeftRightIcon} className="size-5" aria-hidden />
+            <Icon icon={ArrowsLeftRightIcon} className="size-5" aria-hidden />
           </button>
         }
       />

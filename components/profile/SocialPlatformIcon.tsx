@@ -4,8 +4,8 @@
 // marks, so these are inline paths — one source for both the editor and the
 // public display.
 
-import { HugeiconsIcon } from '@hugeicons/react';
-import { ExternalLinkIcon, GlobeIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowSquareOutIcon, GlobeIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -20,7 +20,7 @@ export function SocialPlatformIcon({
 
   switch (slug) {
     case 'website':
-      return <HugeiconsIcon icon={GlobeIcon} className={base} aria-hidden />;
+      return <Icon icon={GlobeIcon} className={base} aria-hidden />;
     case 'instagram':
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={base} aria-hidden>
@@ -98,6 +98,6 @@ export function SocialPlatformIcon({
         <img src="/brand/noditto-mark.png" alt="" className={cn(base, 'object-contain')} />
       );
     default:
-      return <HugeiconsIcon icon={ExternalLinkIcon} className={base} aria-hidden />;
+      return <Icon icon={ArrowSquareOutIcon} className={base} aria-hidden />;
   }
 }

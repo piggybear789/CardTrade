@@ -13,8 +13,8 @@
 // nonce, so the provider deduplicates instead of paying twice.
 
 import { useTransition } from 'react';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, RefreshCwIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ArrowClockwiseIcon, CircleNotchIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { drainCashSalePayouts, retryCashSalePayout } from '@/lib/actions/admin';
@@ -58,9 +58,9 @@ export function RetryPayoutButton({ cashSaleId }: RetryPayoutButtonProps) {
       aria-busy={isPending}
     >
       {isPending ? (
-        <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+        <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
       ) : (
-        <HugeiconsIcon icon={RefreshCwIcon} aria-hidden />
+        <Icon icon={ArrowClockwiseIcon} aria-hidden />
       )}
       Retry release
     </Button>
@@ -100,9 +100,9 @@ export function DrainPayoutsButton({ disabled = false }: { disabled?: boolean } 
         aria-busy={isPending}
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={RefreshCwIcon} aria-hidden />
+          <Icon icon={ArrowClockwiseIcon} aria-hidden />
         )}
         Run release queue
       </Button>

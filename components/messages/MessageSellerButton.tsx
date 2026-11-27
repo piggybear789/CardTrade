@@ -16,8 +16,8 @@
 import { useEffect, useId, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
-import { LoaderCircleIcon, MessageCircleIcon, SendIcon } from '@hugeicons/core-free-icons';
+import { Icon } from '@/components/ui/icon';
+import { ChatCircleIcon, CircleNotchIcon, PaperPlaneTiltIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -152,9 +152,9 @@ export function MessageSellerButton({
           className="grid size-11 shrink-0 place-items-center rounded-md border border-transparent text-muted-foreground focus:outline-none focus-visible:border-ring disabled:opacity-60"
         >
           {isPending ? (
-            <HugeiconsIcon icon={LoaderCircleIcon} className="size-5 animate-spin" aria-hidden />
+            <Icon icon={CircleNotchIcon} className="size-5 animate-spin" aria-hidden />
           ) : (
-            <HugeiconsIcon icon={MessageCircleIcon} className="size-5" aria-hidden />
+            <Icon icon={ChatCircleIcon} className="size-5" aria-hidden />
           )}
         </button>
       </div>
@@ -171,7 +171,7 @@ export function MessageSellerButton({
         disabled={isPending}
         aria-busy={isPending}
       >
-        {isPending ? <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden /> : null}
+        {isPending ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : null}
         Chat
       </Button>
     );
@@ -198,7 +198,7 @@ export function MessageSellerButton({
             htmlFor={inlineInputId}
             className="mb-snug flex items-center gap-tight text-body font-medium text-foreground"
           >
-            <HugeiconsIcon icon={MessageCircleIcon} className="size-4 text-muted-foreground" aria-hidden />
+            <Icon icon={ChatCircleIcon} className="size-4 text-muted-foreground" aria-hidden />
             Send seller a message
           </label>
           <form onSubmit={handleInlineSend} className="flex flex-col gap-snug sm:flex-row sm:items-center">
@@ -219,9 +219,9 @@ export function MessageSellerButton({
               className="min-h-10 w-full sm:w-auto"
             >
               {isPending ? (
-                <HugeiconsIcon icon={LoaderCircleIcon} className="size-4 animate-spin" aria-hidden />
+                <Icon icon={CircleNotchIcon} className="size-4 animate-spin" aria-hidden />
               ) : (
-                <HugeiconsIcon icon={SendIcon} className="size-4" aria-hidden />
+                <Icon icon={PaperPlaneTiltIcon} className="size-4" aria-hidden />
               )}
               Send
             </Button>
@@ -245,9 +245,9 @@ export function MessageSellerButton({
         aria-busy={isPending}
       >
         {isPending ? (
-          <HugeiconsIcon icon={LoaderCircleIcon} className="animate-spin" aria-hidden />
+          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
         ) : (
-          <HugeiconsIcon icon={MessageCircleIcon} aria-hidden />
+          <Icon icon={ChatCircleIcon} aria-hidden />
         )}
         {/* ONE LABEL IN BOTH STATES. This swapped to "Opening…" while pending, and
             from `sm` the button is `w-auto`, so it narrowed by a word and pulled

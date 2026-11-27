@@ -12,16 +12,16 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { HugeiconsIcon } from '@hugeicons/react';
+import { Icon } from '@/components/ui/icon';
 import {
-  CheckmarkCircle02Icon,
-  Clock01Icon,
-  Copy01Icon,
-  ImageAdd01Icon,
-  LoaderCircleIcon,
-  ShieldAlertIcon,
+  CameraPlusIcon,
+  CheckCircleIcon,
+  CircleNotchIcon,
+  ClockIcon,
+  CopyIcon,
   ShieldCheckIcon,
-} from '@hugeicons/core-free-icons';
+  ShieldWarningIcon,
+} from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import type { ProofChallengeView } from '@/lib/enrichment/proofChallenge';
@@ -116,13 +116,13 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
                     : 'bg-action/35 text-action-foreground',
               )}
             >
-              <HugeiconsIcon
+              <Icon
                 icon={
                   challenge.status === 'SUBMITTED'
                     ? ShieldCheckIcon
                     : challenge.status === 'EXPIRED'
-                      ? ShieldAlertIcon
-                      : Clock01Icon
+                      ? ShieldWarningIcon
+                      : ClockIcon
                 }
                 className="size-3.5"
                 aria-hidden
@@ -143,7 +143,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
             </p>
           </div>
           <Button type="button" variant="outline" size="sm" onClick={() => void copyShareLink()}>
-            <HugeiconsIcon icon={Copy01Icon} className="size-3.5" aria-hidden />
+            <Icon icon={CopyIcon} className="size-3.5" aria-hidden />
             Copy link for seller
           </Button>
         </div>
@@ -194,8 +194,8 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
               onClick={() => cameraRef.current?.click()}
               className="w-full sm:w-auto"
             >
-              <HugeiconsIcon
-                icon={uploading ? LoaderCircleIcon : ImageAdd01Icon}
+              <Icon
+                icon={uploading ? CircleNotchIcon : CameraPlusIcon}
                 className={cn('size-4', uploading && 'animate-spin')}
                 aria-hidden
               />
@@ -211,7 +211,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
         <section className="ref-surface ref-rise space-y-4 rounded-xl bg-card p-group [--ref-step:1] sm:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-body font-semibold text-foreground">
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-5 text-trust" aria-hidden />
+              <Icon icon={CheckCircleIcon} className="size-5 text-trust" aria-hidden />
               <span>Submitted photo for code {challenge.code}</span>
             </div>
             {challenge.submittedAt ? (

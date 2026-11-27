@@ -107,10 +107,11 @@ describe('the cross-platform region rule', () => {
   });
 
   it('is off unless the environment turns it on', () => {
-    expect(crossPlatformCashSalesEnabled({} as NodeJS.ProcessEnv)).toBe(false);
-    expect(crossPlatformCashSalesEnabled({ CROSS_PLATFORM_CASH_SALES: 'off' } as NodeJS.ProcessEnv)).toBe(false);
-    expect(crossPlatformCashSalesEnabled({ CROSS_PLATFORM_CASH_SALES: 'on' } as NodeJS.ProcessEnv)).toBe(true);
-    expect(crossPlatformCashSalesEnabled({ CROSS_PLATFORM_CASH_SALES: 'TRUE' } as NodeJS.ProcessEnv)).toBe(true);
+    const env = (vars: Record<string, string>) => vars as unknown as NodeJS.ProcessEnv;
+    expect(crossPlatformCashSalesEnabled(env({}))).toBe(false);
+    expect(crossPlatformCashSalesEnabled(env({ CROSS_PLATFORM_CASH_SALES: 'off' }))).toBe(false);
+    expect(crossPlatformCashSalesEnabled(env({ CROSS_PLATFORM_CASH_SALES: 'on' }))).toBe(true);
+    expect(crossPlatformCashSalesEnabled(env({ CROSS_PLATFORM_CASH_SALES: 'TRUE' }))).toBe(true);
   });
 });
 

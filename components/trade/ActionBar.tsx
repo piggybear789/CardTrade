@@ -340,7 +340,7 @@ export function ActionBar({
               <HandoverFailedDialog
                 key={action}
                 triggerLabel="Raise dispute"
-                triggerVariant="outline"
+                triggerVariant="caution-soft"
                 title="Raise a condition dispute"
                 outcomeDescription="Use this when the item is not in the condition that was agreed. Both deposits stay frozen while NoDitto support reviews it, and $20.00 is taken from the other trader towards return postage. Describe what is wrong — support decides on what you write here."
                 reasonPlaceholder="e.g. Listed NM, arrived creased"
@@ -360,6 +360,7 @@ export function ActionBar({
               <HandoverFailedDialog
                 key={action}
                 triggerLabel="Report fraud"
+                triggerVariant="destructive-soft"
                 title="Report fraud"
                 outcomeDescription="Use this for an empty box or a counterfeit item. This freezes both deposits and sends the trade to NoDitto support, who decides the outcome. Reporting it does not by itself move any money, and the other trader will see what you have alleged."
                 reasonPlaceholder="e.g. Fails the light test"

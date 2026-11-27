@@ -372,13 +372,19 @@ export function ContractActionCard({
             step, with or without a button, so the conversation above never moves
             when the contract's state arrives over Realtime. */}
         {blocks.length > 0 ? <div className="mb-snug space-y-snug">{blocks}</div> : null}
-        <div className="flex min-h-10 min-w-0 items-center gap-x-cozy md:min-h-9">
+        {/* ONE ROW WHEN IT FITS, TWO WHEN IT DOES NOT. One button sits beside the
+            title. A set of them (accept, dispute, fraud) is wider than the chat
+            column allows beside a readable title, so it wraps onto its own line
+            under the title instead of squeezing the title to "Ac… w…" or running
+            off the edge on a phone (UX review 2026-11-26). The title keeps a 9rem
+            floor, which is what forces the wrap. */}
+        <div className="flex min-h-10 min-w-0 flex-wrap items-center gap-x-cozy gap-y-snug md:min-h-9">
           {/* WRAPS, NEVER CUTS OFF. A truncated title ("Set handover t…") hid
               the one thing the row is for. It may take two lines, and the (i)
               rides inline after the last word instead of claiming its own
               column. Two lines at most (`line-clamp-2`); the short titles are
               written to fit one. */}
-          <h3 className="line-clamp-2 min-w-0 flex-1 text-pretty text-body font-semibold leading-snug">
+          <h3 className="line-clamp-2 min-w-[9rem] flex-1 text-pretty text-body font-semibold leading-snug">
             {label}
             {sentence ? (
               <span className="ml-1 inline-flex align-middle">
@@ -388,11 +394,17 @@ export function ContractActionCard({
           </h3>
 
           {primary || hasMenuContent(menu) ? (
-            <div className="flex shrink-0 items-center gap-x-tight [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
+            <div className="ml-auto flex min-w-0 max-w-full items-center gap-x-tight max-md:w-full [&>[data-slot=menu]]:-my-2.5 md:[&>[data-slot=menu]]:my-0">
               {primary ? (
-                // 40px on a phone, compacting from `md`: the room's primary action
-                // must not drop to the desktop size on touch.
-                <ActionControls className="[&_a]:h-10 [&_button]:h-10 [&_button]:px-cozy md:[&_a]:h-9 md:[&_button]:h-9">
+                // COMPACT, NOT TINY (UX review 2026-11-26). Three 40px / 36px buttons
+                // side by side were the heaviest thing in the room. 36px on a phone
+                // keeps a comfortable touch target, 32px from `md` matches the
+                // header's controls, 13px type and 14px icons keep the labels easy
+                // to read, and a slightly wider gap keeps them separate choices.
+                // ON A PHONE A SET SHARES ONE ROW in equal widths with no icons, so
+                // the last button is never left alone on a second line; the colour
+                // still says which is the escalation.
+                <ActionControls className="gap-2 [&_a]:h-9 [&_button]:h-9 [&_button]:px-3 [&_a]:px-3 [&_a]:text-[0.8125rem] [&_button]:text-[0.8125rem] [&_svg]:size-3.5 md:[&_a]:h-8 md:[&_button]:h-8 [&_[role=group]]:gap-2 max-md:flex-1 max-md:[&_[role=group]]:flex-nowrap max-md:[&_[role=group]>*]:min-w-0 max-md:[&_[role=group]>*]:flex-1 max-md:[&_[role=group]_button]:w-full max-md:[&_[role=group]_button]:px-2 max-md:[&_[role=group]_svg]:hidden">
                   {primary}
                 </ActionControls>
               ) : null}

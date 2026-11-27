@@ -123,6 +123,14 @@ const buttonVariants = cva(
         // still reads, and the red fill waits for the dialog's confirm button.
         destructive: `border border-destructive bg-destructive text-destructive-foreground ${FILLED_DEPTH} hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground ${FILLED_DISABLED}`,
         "destructive-quiet": `border ${QUIET_EDGE} bg-card text-destructive hover:border-destructive/40 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        // TINTED, FOR AN ESCALATION SITTING BESIDE THE STEP'S MAIN ACTION. A white
+        // outline at the same weight as the main button made "Raise dispute" and
+        // "Report fraud" look like equal choices (UX review 2026-11-26). A soft fill
+        // in the signal's own colour says what kind of action it is and stays
+        // quieter than the solid primary. Labels keep 4.5:1 on their fill:
+        // `destructive` on a 7% red wash, `action-foreground` on a 28% amber one.
+        "destructive-soft": `border border-destructive/25 bg-destructive/[0.07] text-destructive hover:border-destructive/40 hover:bg-destructive/[0.12] active:bg-destructive/[0.16] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        "caution-soft": `border border-action-edge/35 bg-action/[0.28] text-action-foreground hover:border-action-edge/55 hover:bg-action/40 active:bg-action/50 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
         // A neutral edge on hover, not a violet one. These two are the QUIET
         // variants, the ones used where `default` would be too loud, and turning
         // their border violet on hover put them back in the primary's colour at the

@@ -30,8 +30,11 @@ export const metadata = {
   description: 'Your buyer and seller conversations.',
 };
 
-/** Conversations per inbox page. */
-const PAGE_SIZE = 20;
+/**
+ * Conversations per inbox page. 10 (was 20, 2026-11-27): twenty rows ran well past
+ * a laptop screen, so Previous/Next sat far below the fold. Ten fit with the bar visible.
+ */
+const PAGE_SIZE = 10;
 
 export default async function MessagesPage({
   searchParams,
@@ -83,7 +86,7 @@ export default async function MessagesPage({
             icon={<Icon icon={ChatsCircleIcon} className="size-6" aria-hidden="true" />}
             title="No conversations yet"
             description="Messages with buyers and sellers appear here. Ask a seller about any listing to start one."
-            action={{ label: 'Browse the marketplace', href: '/', variant: 'outline' }}
+            action={{ label: 'Browse the marketplace', href: '/', variant: 'secondary' }}
             fill
           />
         </div>
@@ -121,13 +124,13 @@ function PageLink({
 }) {
   if (disabled) {
     return (
-      <Button variant="outline" size="sm" disabled>
+      <Button variant="secondary" size="sm" disabled>
         {children}
       </Button>
     );
   }
   return (
-    <Button asChild variant="outline" size="sm">
+    <Button asChild variant="secondary" size="sm">
       <Link href={page === 1 ? '/messages' : `/messages?page=${page}`}>{children}</Link>
     </Button>
   );

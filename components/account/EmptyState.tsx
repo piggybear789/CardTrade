@@ -34,7 +34,7 @@ export function EmptyState({
       icon={icon}
       title={title}
       description={description}
-      action={{ label: ctaLabel, href: ctaHref, variant: 'outline' }}
+      action={{ label: ctaLabel, href: ctaHref, variant: 'secondary' }}
       compact
       fill
     />

@@ -1,0 +1,80 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;background:#eef0f4;color:#0f172a;padding:28px;width:1520px}
+h1{font-size:22px;font-weight:700}.lede{color:#64748b;font-size:14px;margin:6px 0 20px;line-height:1.5;max-width:1400px}
+.grid{display:grid;grid-template-columns:repeat(3,470px);gap:22px;align-items:start}
+.tag{font-size:14px;font-weight:700;margin-bottom:4px}.tag.rec{color:#6d28d9}
+.why{font-size:12.5px;color:#475569;line-height:1.45;margin-bottom:10px;min-height:72px}
+.pane{background:#fff;border:1px solid #dbe1ea;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+.tabs{display:flex;gap:20px;padding:0 18px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#64748b}
+.tabs span{padding:12px 0 10px}.tabs .on{color:#dc2626;font-weight:600;box-shadow:inset 0 -2px 0 #dc2626}
+.body{padding:16px 18px;font-size:13px}
+h3{font-size:17px;font-weight:700;margin-bottom:12px}
+.muted{color:#64748b}.sm{font-size:11.5px;color:#64748b}
+.pill{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:999px;font-size:11.5px;font-weight:600}
+.amber{background:#fef3c7;color:#92400e}.red{background:#fee2e2;color:#b91c1c}.grey{background:#f1f5f9;color:#475569}
+.btn{height:36px;padding:0 14px;border-radius:9px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.p{background:#0f172a;color:#fff}.o{border:1px solid #e2e8f0;background:#fff}
+.tile{width:84px;height:84px;border-radius:12px;border:2px dashed #c4b5fd;background:#faf8ff;display:grid;place-items:center;color:#6d28d9;font-size:26px;flex:none}
+.ph{width:84px;height:84px;border-radius:12px;flex:none;background:linear-gradient(150deg,#fbbf24,#dc2626 50%,#7c2d12)}
+.field{border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;min-height:84px;color:#94a3b8;background:#fff}
+.tl{position:relative;padding-left:22px}.tl:before{content:"";position:absolute;left:7px;top:6px;bottom:6px;width:2px;background:#e2e8f0}
+.ev{position:relative;padding-bottom:14px}.ev:before{content:"";position:absolute;left:-20px;top:3px;width:12px;height:12px;border-radius:99px;background:#475569;border:2px solid #fff;box-shadow:0 0 0 1px #475569}
+.ev.now:before{background:#fff;box-shadow:0 0 0 2px #d97706}.ev.next:before{background:#fff;box-shadow:0 0 0 1px #cbd5e1}
+.ev b{font-size:13px}.ev .q{margin-top:5px;background:#f8fafc;border-radius:8px;padding:7px 9px;color:#334155}
+.step{display:flex;gap:10px;align-items:flex-start;padding:10px 0}.step+.step{border-top:1px solid #f1f5f9}
+.n{width:22px;height:22px;border-radius:99px;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+.done{background:#475569;color:#fff}.cur{background:#7c3aed;color:#fff}.up{background:#f1f5f9;color:#94a3b8}
+.box{border:1px solid #e2e8f0;border-radius:12px;padding:12px}
+.act{border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:12px}
+</style></head><body>
+<h1>Dispute tab: three directions</h1>
+<p class="lede">Same case: Alice raised a condition dispute ("Card has edge wear not shown in photos"), nothing submitted yet. References: Whop's resolution case (status pill, case timeline, "response needed" step), Upwork's "Action required" box, Yubo/Bevel/Muse report forms (a big photo tile with +), Airbnb's refund status (one clear number and a short tracker). Each direction drops the red banner-over-form stack, the caps eyebrow and the dashed strip, and makes "what you do next" the one thing with contrast.</p>
+<div class="grid">
+
+<!-- A -->
+<div><div class="tag rec">A · Case page (recommended)</div>
+<div class="why">Whop and Airbnb: a status line with one pill says where the case is, then a short tracker of the case's own steps. The live step is an amber "Your turn" box holding the form: photos first as big + tiles, then one text box, then Submit. Everything else is quiet.</div>
+<div class="pane"><div class="tabs"><span>Summary</span><span>Collateral</span><span class="on">Dispute</span><span>History</span></div>
+<div class="body"><h3>Dispute</h3>
+<div style="display:flex;justify-content:space-between;align-items:center"><div><b>Condition dispute</b><div class="sm">Raised by you · Fri 27 Nov, 2:47 am</div></div><span class="pill amber">Waiting for evidence</span></div>
+<div style="margin-top:10px;font-size:13px">“Card has edge wear not shown in photos”</div>
+<div style="margin-top:14px">
+<div class="step"><span class="n done">✓</span><div><b>Raised</b><div class="sm">Both holds frozen, nothing charged</div></div></div>
+<div class="step"><span class="n cur">2</span><div style="flex:1"><b>Add your evidence</b>
+<div class="act" style="margin-top:8px">
+<div style="display:flex;gap:8px"><span class="ph"></span><span class="tile">+</span></div>
+<div class="field" style="margin-top:8px">What happened, with dates</div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px"><span class="sm">Bob and support see this. It can't be edited.</span><span class="btn p">Submit</span></div>
+</div></div></div>
+<div class="step"><span class="n up">3</span><div><b class="muted">Support decides</b><div class="sm">Usually within 2 business days</div></div></div>
+</div></div></div></div>
+
+<!-- B -->
+<div><div class="tag">B · Conversation thread</div>
+<div class="why">Better Stack and Aboard: the case is a thread. Your claim is the first entry, each submission is a card with its photos, and a composer sits pinned at the bottom, like the chat. Familiar, and it shows both sides' evidence in order, but it looks a lot like the chat beside it.</div>
+<div class="pane"><div class="tabs"><span>Summary</span><span>Collateral</span><span class="on">Dispute</span><span>History</span></div>
+<div class="body"><h3>Dispute <span class="pill amber" style="vertical-align:middle;margin-left:6px">Open</span></h3>
+<div class="tl">
+<div class="ev"><b>You raised a condition dispute</b> <span class="sm">Fri 2:47 am</span><div class="q">Card has edge wear not shown in photos</div></div>
+<div class="ev"><b>Both holds frozen</b> <span class="sm">Fri 2:47 am</span><div class="sm">Nothing is charged while support reviews it</div></div>
+<div class="ev now"><b>Waiting for your evidence</b></div>
+<div class="ev next"><b class="muted">Bob responds, then support decides</b></div>
+</div>
+<div class="box" style="margin-top:6px;display:flex;gap:8px;align-items:center"><span class="tile" style="width:40px;height:40px;font-size:18px;border-radius:9px">+</span><div class="field" style="min-height:40px;flex:1;padding:9px 12px">Add your account…</div><span class="btn p">Send</span></div>
+</div></div></div>
+
+<!-- C -->
+<div><div class="tag">C · Checklist</div>
+<div class="why">Upwork's action-required pattern: a short checklist of what support needs (photos of the card, a photo of what was listed, your account), each row with its own Add button and a tick when done. Submit stays dark until the required rows are ticked. The most guided, at the cost of a rigid shape.</div>
+<div class="pane"><div class="tabs"><span>Summary</span><span>Collateral</span><span class="on">Dispute</span><span>History</span></div>
+<div class="body"><h3>Dispute</h3>
+<div class="box" style="background:#f8fafc;border:none"><div style="display:flex;justify-content:space-between"><b>Condition dispute</b><span class="pill grey">Raised by you</span></div><div style="margin-top:6px">“Card has edge wear not shown in photos”</div></div>
+<div style="font-size:13px;font-weight:700;margin:16px 0 4px">What support needs from you</div>
+<div class="step"><span class="n up">○</span><div style="flex:1"><b>Photos of the card you got</b><div class="sm">Front, back and the damage</div></div><span class="btn o">Add</span></div>
+<div class="step"><span class="n done">✓</span><div style="flex:1"><b>The listing photos</b><div class="sm">Already on the contract</div></div></div>
+<div class="step"><span class="n up">○</span><div style="flex:1"><b>What happened</b><div class="sm">A few sentences, with dates</div></div><span class="btn o">Write</span></div>
+<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px"><span class="sm">Shared with Bob and support</span><span class="btn p" style="opacity:.4">Submit evidence</span></div>
+</div></div></div>
+</div></body></html>

@@ -473,7 +473,7 @@ function OfferNegotiation({
                   selected-state colour — and sat after Decline. */}
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setCounterOpen(true)}
                 disabled={isPending}
               >
@@ -510,7 +510,7 @@ function OfferNegotiation({
             <>
               <Button
                 size="sm"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setConfirming('withdraw')}
                 disabled={isPending}
                 aria-busy={isPending}

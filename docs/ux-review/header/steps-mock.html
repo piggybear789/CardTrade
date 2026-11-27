@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, "Segoe UI", system-ui, sans-serif; background: #eef0f4; color: #0f172a; padding: 28px; width: 1220px; }
+  h1 { font-size: 22px; font-weight: 700; }
+  .lede { color: #64748b; font-size: 14px; margin: 6px 0 22px; line-height: 1.45; max-width: 1100px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 370px); gap: 26px 30px; }
+  .tag { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+  .tag.rec { color: #6d28d9; }
+  .why { font-size: 12.5px; color: #475569; line-height: 1.45; height: 56px; margin-bottom: 8px; }
+  .src { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+
+  .frame { background: #fff; border: 1px solid #dbe1ea; border-radius: 18px; padding: 10px 0 12px; box-shadow: 0 8px 24px rgba(15,23,42,.06); }
+  .person { padding: 2px 14px 10px; display: flex; align-items: center; gap: 9px; }
+  .avatar { width: 32px; height: 32px; border-radius: 999px; background: #c7d2fe; color: #3730a3; font-weight: 700; font-size: 13px; display: grid; place-items: center; }
+  .muted { color: #64748b; }
+  .card { margin: 0 12px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 11px; }
+  .thumb { width: 36px; height: 36px; border-radius: 7px; flex: none; background: linear-gradient(135deg,#f59e0b,#b91c1c 55%,#7c2d12); }
+  .head { display: flex; align-items: center; gap: 10px; }
+  .t { font-size: 13.5px; font-weight: 600; }
+  .s { font-size: 11.5px; margin-top: 1px; color: #64748b; }
+  .iris { color: #6d28d9; }
+  .done { color: #475569; }
+  .chev { color: #94a3b8; font-size: 16px; }
+
+  /* 1 dots stepper */
+  .stepper { display: flex; align-items: flex-start; margin-top: 11px; }
+  .stepper .st { flex: 1; display: flex; flex-direction: column; align-items: center; position: relative; font-size: 10.5px; color: #64748b; }
+  .stepper .st::before { content: ""; position: absolute; top: 7px; left: -50%; width: 100%; height: 2px; background: #e2e8f0; z-index: 0; }
+  .stepper .st:first-child::before { display: none; }
+  .stepper .st.ok::before, .stepper .st.on::before { background: #475569; }
+  .stepper .dot { width: 16px; height: 16px; border-radius: 999px; border: 2px solid #cbd5e1; background: #fff; z-index: 1; display: grid; place-items: center; font-size: 9px; color: #fff; margin-bottom: 4px; }
+  .stepper .ok .dot { background: #475569; border-color: #475569; }
+  .stepper .on .dot { border-color: #7c3aed; box-shadow: 0 0 0 3px #ede9fe; }
+  .stepper .on .dot::after { content: ""; width: 6px; height: 6px; border-radius: 9px; background: #7c3aed; }
+  .stepper .on { color: #5b21b6; font-weight: 600; }
+
+  /* 2 ring */
+  .ring { width: 44px; height: 44px; border-radius: 999px; flex: none; display: grid; place-items: center; background: conic-gradient(#7c3aed 0 33%, #ede9fe 33% 100%); }
+  .ring span { width: 36px; height: 36px; border-radius: 999px; background: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #5b21b6; line-height: 1; text-align: center; }
+
+  /* 3 time bar */
+  .tbar { position: relative; height: 6px; border-radius: 9px; background: #ede9fe; margin-top: 10px; overflow: hidden; }
+  .tbar i { position: absolute; left: 0; top: 0; bottom: 0; width: 86%; background: #c4b5fd; }
+  .tlabels { display: flex; justify-content: space-between; font-size: 10.5px; color: #64748b; margin-top: 4px; }
+
+  /* 4 chips */
+  .chips { display: flex; gap: 4px; flex-wrap: nowrap; margin-top: 10px; font-size: 11px; }
+  .chip { height: 22px; padding: 0 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 3px; background: #f1f5f9; color: #475569; white-space: nowrap; }
+  .chip.on { background: #7c3aed; color: #fff; font-weight: 600; }
+  .chip.up { background: #fff; border: 1px dashed #cbd5e1; color: #94a3b8; }
+
+  /* 5 now / next */
+  .nn { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10px; border-top: 1px solid #f1f5f9; padding-top: 8px; font-size: 11.5px; }
+  .nn div + div { border-left: 1px solid #f1f5f9; padding-left: 10px; }
+  .nn .k { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; font-weight: 600; }
+
+  /* 6 vertical expandable */
+  .vlist { margin-top: 9px; border-top: 1px solid #f1f5f9; padding-top: 6px; }
+  .vrow { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 3px 0; color: #475569; }
+  .vrow .m { width: 14px; height: 14px; border-radius: 999px; border: 2px solid #cbd5e1; flex: none; }
+  .vrow.ok .m { background: #475569; border-color: #475569; }
+  .vrow.on { color: #0f172a; font-weight: 600; }
+  .vrow.on .m { border-color: #7c3aed; box-shadow: 0 0 0 3px #ede9fe; }
+  .vrow .w { margin-left: auto; font-size: 11px; font-weight: 400; color: #94a3b8; }
+</style>
+</head>
+<body>
+  <h1>Showing the steps: six other ways</h1>
+  <p class="lede">All six sit inside option A's status card: Bob on the first line, the card under it. Same trade, at Inspect with 1 day of the 3-day window left. Sources: eBay's and SHEIN's order steppers, Talabat's arrival ring, Temu's "Waiting to pick" time bar, Airbnb-style step chips, and Uber Eats' expandable timeline.</p>
+
+  <div class="grid">
+    <!-- 1 -->
+    <div>
+      <div class="tag">1 · Dots and lines</div>
+      <div class="why">The classic order tracker (eBay "Paid → Tracking → Delivered", SHEIN). Each step a dot, done steps filled, the current one ringed. Reads at a glance; four labels fit at 360px.</div>
+      <div class="frame">
+        <div class="person"><span class="muted">‹</span><span class="avatar">BC</span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Bob Carter</div><div class="s">✓ ID verified · ★ 4.9 (12)</div></div><span>⋮</span></div>
+        <div class="card">
+          <div class="head"><div style="flex:1"><div class="t">Inspect · 1 day left</div><div class="s">Completes on its own Sat 28 Nov, 3:53 pm</div></div><span class="thumb"></span><span class="chev">›</span></div>
+          <div class="stepper">
+            <div class="st ok"><span class="dot">✓</span>Collateral</div>
+            <div class="st ok"><span class="dot">✓</span>Meet</div>
+            <div class="st on"><span class="dot"></span>Inspect</div>
+            <div class="st"><span class="dot"></span>Done</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 -->
+    <div>
+      <div class="tag rec">2 · Countdown ring (recommended)</div>
+      <div class="why">The ring is the deadline, not the steps: it empties as the window runs out (Talabat, Uber). The steps become one line of text. The thing you act on, time, gets the picture.</div>
+      <div class="frame">
+        <div class="person"><span class="muted">‹</span><span class="avatar">BC</span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Bob Carter</div><div class="s">✓ ID verified · ★ 4.9 (12)</div></div><span>⋮</span></div>
+        <div class="card">
+          <div class="head">
+            <span class="ring"><span>1d<br/><small style="font-weight:500;font-size:9px">left</small></span></span>
+            <div style="flex:1"><div class="t">Inspect</div><div class="s">Step 3 of 4 · completes on its own Sat 28 Nov</div></div>
+            <span class="thumb"></span><span class="chev">›</span>
+          </div>
+        </div>
+      </div>
+      <div class="src">Steps with no clock (Pay, Post) show the step number in the ring instead: "3/4".</div>
+    </div>
+
+    <!-- 3 -->
+    <div>
+      <div class="tag">3 · Time bar</div>
+      <div class="why">Temu's "waiting to pick" bar: the bar is how much of the inspection window is used, labelled with start and end. Honest about time, but a bar per step means it resets every step.</div>
+      <div class="frame">
+        <div class="person"><span class="muted">‹</span><span class="avatar">BC</span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Bob Carter</div><div class="s">✓ ID verified · ★ 4.9 (12)</div></div><span>⋮</span></div>
+        <div class="card">
+          <div class="head"><div style="flex:1"><div class="t">Inspect <span class="muted" style="font-weight:500">· step 3 of 4</span></div><div class="s">1 day left to accept or report a problem</div></div><span class="thumb"></span><span class="chev">›</span></div>
+          <div class="tbar"><i></i></div>
+          <div class="tlabels"><span>Met Wed 25 Nov</span><span>Completes Sat 28 Nov, 3:53 pm</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 -->
+    <div>
+      <div class="tag">4 · Step chips</div>
+      <div class="why">A row of pills: done ones grey with a tick, the current one filled violet, the rest dashed. Names every step in full, so it scales to six steps by scrolling sideways.</div>
+      <div class="frame">
+        <div class="person"><span class="muted">‹</span><span class="avatar">BC</span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Bob Carter</div><div class="s">✓ ID verified · ★ 4.9 (12)</div></div><span>⋮</span></div>
+        <div class="card">
+          <div class="head"><div style="flex:1"><div class="t">1 day left</div><div class="s">Completes on its own Sat 28 Nov, 3:53 pm</div></div><span class="thumb"></span><span class="chev">›</span></div>
+          <div class="chips"><span class="chip">✓ Collateral</span><span class="chip">✓ Meet</span><span class="chip on">Inspect</span><span class="chip up">Done</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 -->
+    <div>
+      <div class="tag">5 · Now and next</div>
+      <div class="why">No sequence at all: what is happening now and what happens after it. Most people only want those two facts; the full list lives in the details sheet.</div>
+      <div class="frame">
+        <div class="person"><span class="muted">‹</span><span class="avatar">BC</span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Bob Carter</div><div class="s">✓ ID verified · ★ 4.9 (12)</div></div><span>⋮</span></div>
+        <div class="card">
+          <div class="head"><div style="flex:1"><div class="t">TradeDisputeOff 1795575…</div><div class="s">$60.00 AUD each side</div></div><span class="thumb"></span><span class="chev">›</span></div>
+          <div class="nn">
+            <div><div class="k">Now · 1 day left</div><div style="font-weight:600;margin-top:2px" class="iris">Inspect</div></div>
+            <div><div class="k">Then</div><div style="margin-top:2px">Done, holds released</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 -->
+    <div>
+      <div class="tag">6 · Short list, tap to expand</div>
+      <div class="why">Uber Eats' timeline, collapsed: the current step and the one before it, with times. Tap "All steps" to open the rest. Tallest of the six, but the only one that shows when things happened.</div>
+      <div class="frame">
+        <div class="person"><span class="muted">‹</span><span class="avatar">BC</span><div style="flex:1"><div style="font-weight:600;font-size:14.5px">Bob Carter</div><div class="s">✓ ID verified · ★ 4.9 (12)</div></div><span>⋮</span></div>
+        <div class="card">
+          <div class="head"><div style="flex:1"><div class="t">Inspect · 1 day left</div><div class="s">Completes on its own Sat 28 Nov, 3:53 pm</div></div><span class="thumb"></span></div>
+          <div class="vlist">
+            <div class="vrow ok"><span class="m"></span>Met and swapped<span class="w">Wed 1:55 pm</span></div>
+            <div class="vrow on"><span class="m"></span>Inspect<span class="w">until Sat 3:53 pm</span></div>
+            <div class="vrow" style="color:#6d28d9;font-size:11.5px;padding-left:22px">All 4 steps ›</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

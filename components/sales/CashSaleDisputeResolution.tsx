@@ -210,9 +210,9 @@ export function CashSaleDisputeResolution({
               // the goods, the refund now WAITS for them to post it back, and the
               // refund releases automatically once a carrier confirms it arrived.
               `This ends the dispute in ${counterpartyName}'s favour. If they already have the item, ` +
-              `they must post it back to you first — the ${formatMoney(amountCents, currency)} is refunded ` +
+              `they must post it back to you first, then the ${formatMoney(amountCents, currency)} is refunded ` +
               `automatically once a carrier confirms it reached you, and your listing goes back on ` +
-              `sale at that point. If the item never reached them, they are refunded straight away. ` +
+              `sale at that point. If the item didn't reach them, they're refunded straight away. ` +
               `This cannot be undone.`
         }
         confirmLabel={iAmBuyer ? 'Release the payment' : 'Refund in full'}

@@ -122,12 +122,15 @@ export function readImageDims(
  * approximately left-to-right if no single tile is worth several of its
  * neighbours.
  *
- * The floor is 0.7 rather than the more obvious 3:4, because a trading card is
- * 63x88mm — 0.716 — and clamping the single most common shape in the catalog
- * would flatten the mosaic back into the uniform grid it is replacing.
+ * 3:4 to 4:3, Xianyu's range (2026-11-29, read off its home feed): nothing it
+ * draws is taller than 3:4, and a taller photo is cropped from the bottom
+ * (`object-top` on the cover keeps a slab's label). A bare card (63x88mm, 0.716)
+ * therefore draws at 3:4, and the mosaic's stagger comes from the photos that are
+ * NOT a bare card — a slab in a hand, a box, two cards side by side — and from the
+ * text block, whose optional rows vary per tile (`catalogTileExtraRows`).
  */
-export const COVER_ASPECT_MIN = 0.7;
-export const COVER_ASPECT_MAX = 1.4;
+export const COVER_ASPECT_MIN = 0.75;
+export const COVER_ASPECT_MAX = 4 / 3;
 
 /**
  * The shape used when nothing is known about an image: 3:4 portrait, the catalog's

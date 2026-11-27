@@ -288,7 +288,7 @@ export function SavedAddressField({
               {saveToBook ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={saveEntered}
                   disabled={disabled || saving}

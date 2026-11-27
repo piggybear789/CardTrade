@@ -1,0 +1,109 @@
+<!doctype html><html><head><meta charset="utf-8"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,"Segoe UI",system-ui,sans-serif;background:#eef0f4;color:#0f172a;padding:28px;width:1500px}
+h1{font-size:22px;font-weight:700}.lede{color:#64748b;font-size:14px;margin:6px 0 20px;line-height:1.5;max-width:1400px}
+.grid{display:grid;grid-template-columns:repeat(4,330px);gap:22px;align-items:start}
+.tag{font-size:14px;font-weight:700;margin-bottom:4px}.tag.rec{color:#6d28d9}
+.why{font-size:12.5px;color:#475569;line-height:1.45;margin-bottom:10px;min-height:90px}
+.side{background:#fff;border:1px solid #dbe1ea;border-radius:14px;height:760px;overflow:hidden;padding:16px;font-size:13px;box-shadow:0 8px 24px rgba(15,23,42,.06)}
+.btn{height:38px;border-radius:9px;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px}
+.lbl{font-size:11px;font-weight:600;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px}
+.h{font-size:13px;font-weight:700;margin:16px 0 8px;display:flex;justify-content:space-between}.h small{font-weight:500;color:#64748b}
+.row{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:8px}
+.row.on{background:#f1f5f9;font-weight:600}
+.n{margin-left:auto;font-size:11.5px;color:#94a3b8}
+.logo{width:22px;height:22px;border-radius:6px;flex:none;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff}
+.chk{width:15px;height:15px;border:1.5px solid #cbd5e1;border-radius:4px;flex:none}.chk.on{background:#0f172a;border-color:#0f172a}
+.pill{display:inline-flex;align-items:center;height:28px;padding:0 10px;border-radius:999px;border:1px solid #e2e8f0;font-size:12px;margin:0 4px 6px 0;background:#fff}
+.pill.on{background:#0f172a;color:#fff;border-color:#0f172a}
+.slider{height:4px;background:#e2e8f0;border-radius:9px;position:relative;margin:12px 6px}.slider i{position:absolute;left:10%;right:35%;top:0;bottom:0;background:#0f172a;border-radius:9px}
+.slider b{position:absolute;top:-6px;width:16px;height:16px;border-radius:99px;background:#fff;border:2px solid #0f172a}
+.in{display:flex;gap:6px}.in span{flex:1;height:32px;border:1px solid #e2e8f0;border-radius:7px;display:flex;align-items:center;padding:0 8px;color:#64748b;font-size:12px}
+.hr{height:1px;background:#eef2f7;margin:14px -16px}
+.tile{display:flex;align-items:center;gap:8px;padding:8px;border-radius:10px;border:1px solid #eef2f7;margin-bottom:6px}
+.thumb{width:34px;height:46px;border-radius:5px;flex:none}
+</style></head><body>
+<h1>Catalog sidebar: four directions</h1>
+<p class="lede">Today the sidebar is four nav rows and three filters behind "›" with "Any", over a lot of empty space, and no card games at all. Alt and Fanatics stand out because the sidebar is the <b>catalog itself</b>: categories with art and counts, filters you can use without opening anything. References: Etsy and Zendesk (categories with counts), Klarna, Faire and Behance (open filter groups, price slider with inputs, checkboxes with counts), Care.com (pill choices), Databricks and fal (dense checklists). All four keep Sell an item at the top.</p>
+<div class="grid">
+
+<div><div class="tag rec">A · Games first, filters open (recommended)</div>
+<div class="why">The card games are the top-level navigation, each with its logo and live count, like Alt's categories. Under them every filter is already open: condition as pills, price as a slider with two boxes, a "Sold" toggle. One tap per filter, nothing hidden behind "›".</div>
+<div class="side"><div class="btn">+ Sell an item</div>
+<div class="lbl">Games</div>
+<div class="row on"><span class="logo" style="background:#0f172a">All</span>All cards<span class="n">1,284</span></div>
+<div class="row"><span class="logo" style="background:#f59e0b">PK</span>Pokémon<span class="n">612</span></div>
+<div class="row"><span class="logo" style="background:#dc2626">OP</span>One Piece<span class="n">188</span></div>
+<div class="row"><span class="logo" style="background:#7c3aed">YG</span>Yu-Gi-Oh!<span class="n">142</span></div>
+<div class="row"><span class="logo" style="background:#ea580c">MT</span>Magic<span class="n">97</span></div>
+<div class="row"><span class="logo" style="background:#0284c7">SP</span>Sports cards<span class="n">71</span></div>
+<div class="row" style="color:#64748b">Show all 16 games</div>
+<div class="hr"></div>
+<div class="h">Condition</div>
+<span class="pill on">Graded</span><span class="pill">Unopened</span><span class="pill">Near Mint</span><span class="pill">Lightly Played</span><span class="pill">Played</span>
+<div class="h">Price <small>AUD</small></div>
+<div class="slider"><i></i><b style="left:10%"></b><b style="left:62%"></b></div>
+<div class="in"><span>$10</span><span>$500</span></div>
+<div class="h">Show sold <small style="width:30px;height:18px;border-radius:99px;background:#e2e8f0;display:inline-block"></small></div>
+</div></div>
+
+<div><div class="tag">B · Shelves (Alt / Fanatics)</div>
+<div class="why">The sidebar is a set of "shelves": quick links that mean something to collectors (New today, Graded slabs, Sealed product, Under $50, Trusted Sellers), then games. Filters move to a bar above the grid. Most like Alt, least like a filter panel.</div>
+<div class="side"><div class="btn">+ Sell an item</div>
+<div class="lbl">Shop</div>
+<div class="row on">★ For you</div>
+<div class="row">● New today<span class="n">38</span></div>
+<div class="row">▣ Graded slabs<span class="n">214</span></div>
+<div class="row">▤ Sealed product<span class="n">96</span></div>
+<div class="row">$ Under $50<span class="n">402</span></div>
+<div class="row">✓ Trusted Sellers<span class="n">61</span></div>
+<div class="row">♡ Saved</div>
+<div class="lbl">Games</div>
+<div class="tile"><span class="thumb" style="background:linear-gradient(150deg,#fbbf24,#dc2626)"></span><div><b>Pokémon</b><div style="font-size:11.5px;color:#64748b">612 listed</div></div></div>
+<div class="tile"><span class="thumb" style="background:linear-gradient(150deg,#f87171,#7f1d1d)"></span><div><b>One Piece</b><div style="font-size:11.5px;color:#64748b">188 listed</div></div></div>
+<div class="tile"><span class="thumb" style="background:linear-gradient(150deg,#a78bfa,#312e81)"></span><div><b>Yu-Gi-Oh!</b><div style="font-size:11.5px;color:#64748b">142 listed</div></div></div>
+<div class="row" style="color:#64748b">All games</div>
+</div></div>
+
+<div><div class="tag">C · Classic filter panel</div>
+<div class="why">Klarna, Faire, Databricks: open groups of checkboxes with counts, a "Clear" per group, a search box inside a long list. Dense and powerful, the most familiar to eBay buyers, and fills the column with useful controls.</div>
+<div class="side"><div class="btn">+ Sell an item</div>
+<div class="h" style="margin-top:16px">Filters <small>Clear all</small></div>
+<div class="hr" style="margin:6px -16px"></div>
+<div class="h">Game <small>Clear</small></div>
+<div class="in"><span>Search games</span></div>
+<div class="row"><span class="chk on"></span>Pokémon<span class="n">612</span></div>
+<div class="row"><span class="chk"></span>One Piece<span class="n">188</span></div>
+<div class="row"><span class="chk"></span>Yu-Gi-Oh!<span class="n">142</span></div>
+<div class="row"><span class="chk"></span>Magic<span class="n">97</span></div>
+<div class="row" style="color:#64748b">Show 12 more</div>
+<div class="hr"></div>
+<div class="h">Condition</div>
+<div class="row"><span class="chk on"></span>Graded<span class="n">214</span></div>
+<div class="row"><span class="chk"></span>Unopened<span class="n">96</span></div>
+<div class="row"><span class="chk"></span>Near Mint<span class="n">530</span></div>
+<div class="row"><span class="chk"></span>Lightly Played<span class="n">221</span></div>
+<div class="hr"></div>
+<div class="h">Price</div>
+<div class="in"><span>Min</span><span>Max</span></div>
+</div></div>
+
+<div><div class="tag">D · Compact rail + filter drawer</div>
+<div class="why">Vercel / Base44: the sidebar keeps only navigation (Browse, Saved, Selling, Trades) and the games, tightly. A "Filters" button opens a drawer over the grid with everything (Shop's pattern). Cleanest, but filters are one click away again.</div>
+<div class="side"><div class="btn">+ Sell an item</div>
+<div class="lbl">Marketplace</div>
+<div class="row on">▦ Browse</div>
+<div class="row">♡ Saved</div>
+<div class="row">⇄ Trades</div>
+<div class="row">$ Selling</div>
+<div class="lbl">Games</div>
+<div class="row"><span class="logo" style="background:#f59e0b">PK</span>Pokémon</div>
+<div class="row"><span class="logo" style="background:#dc2626">OP</span>One Piece</div>
+<div class="row"><span class="logo" style="background:#7c3aed">YG</span>Yu-Gi-Oh!</div>
+<div class="row"><span class="logo" style="background:#ea580c">MT</span>Magic</div>
+<div class="row"><span class="logo" style="background:#0284c7">SP</span>Sports cards</div>
+<div class="row" style="color:#64748b">All 16 games</div>
+<div style="margin-top:18px;border:1px solid #e2e8f0;border-radius:9px;height:36px;display:flex;align-items:center;justify-content:center;font-weight:600">⚙ Filters · 2</div>
+</div></div>
+</div></body></html>

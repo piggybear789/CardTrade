@@ -120,7 +120,7 @@ export function EditContractItemsDialog({
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="gap-tight px-cozy text-meta font-medium leading-none [&_svg]:size-3"
         >

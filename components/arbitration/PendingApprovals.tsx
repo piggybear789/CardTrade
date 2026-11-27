@@ -42,7 +42,7 @@ export function PendingApprovals({
     return (
       <p
         role="alert"
-        className="rounded-md border border-destructive/40 bg-destructive/5 px-cozy py-snug text-body text-destructive"
+        className="rounded-lg bg-destructive/[0.07] px-cozy py-snug text-body text-destructive"
       >
         Couldn&rsquo;t load the decisions waiting for a second approval. Refresh to try again.
       </p>
@@ -146,7 +146,7 @@ function ApprovalCard({
         <p className="min-w-0 text-body text-muted-foreground">{statusLine(approval, mine)}</p>
         <div className="flex flex-wrap items-center gap-snug">
           {caseLink ? (
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="secondary" size="sm">
               <Link href={caseLink.href} transitionTypes={['nav-forward']}>
                 Open case
               </Link>
@@ -156,7 +156,7 @@ function ApprovalCard({
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               disabled={pending}
               aria-haspopup="dialog"
               onClick={() => setConfirming('reject')}

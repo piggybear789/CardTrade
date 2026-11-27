@@ -85,7 +85,7 @@ export function RequestResetForm() {
             Nothing after a few minutes? Check your spam folder, then request another.
           </p>
           <div className="flex flex-wrap gap-snug">
-            <Button type="button" variant="outline" size="sm" onClick={() => setSent(false)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setSent(false)}>
               Send another
             </Button>
             <BackLink href="/sign-in">Back to sign in</BackLink>
@@ -112,7 +112,7 @@ export function RequestResetForm() {
         <CardContent className="space-y-group">
           {/* Why they landed here, when they arrived from a dead link. */}
           {linkError && !error ? (
-            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-cozy text-body text-destructive">
+            <p role="alert" className="rounded-lg bg-destructive/[0.07] p-cozy text-body text-destructive">
               {linkError}
             </p>
           ) : null}
@@ -154,7 +154,7 @@ export function RequestResetForm() {
           <p className="text-center text-body text-muted-foreground">
             {intent === 'reset' ? (
               <>
-                Never confirmed your email?{' '}
+                Didn't confirm your email?{' '}
                 <button
                   type="button"
                   onClick={() => {

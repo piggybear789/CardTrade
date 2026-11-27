@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, "Segoe UI", system-ui, sans-serif; background: #eef0f4; color: #0f172a; padding: 28px; width: 1520px; }
+  h1 { font-size: 22px; font-weight: 700; }
+  h2 { font-size: 16px; font-weight: 700; margin: 28px 0 4px; }
+  .lede { color: #64748b; font-size: 14px; margin: 6px 0 16px; line-height: 1.5; max-width: 1420px; }
+  .grid { display: grid; gap: 20px; align-items: start; }
+  .g3 { grid-template-columns: repeat(3, 352px) 1fr; }
+  .g4 { grid-template-columns: repeat(4, 352px); }
+  .tag { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+  .tag.rec { color: #6d28d9; }
+  .notes { font-size: 12px; color: #475569; line-height: 1.45; margin-bottom: 10px; min-height: 70px; }
+  .muted { color: #64748b; }
+  .money { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pane { background: #fff; border: 1px solid #dbe1ea; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 24px rgba(15,23,42,.06); }
+  .tabs { display: flex; gap: 18px; padding: 0 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; }
+  .tabs span { padding: 11px 0 9px; }
+  .tabs .on { color: #0f172a; font-weight: 600; box-shadow: inset 0 -2px 0 #7c3aed; }
+  .body { padding: 12px 14px; font-size: 13px; }
+  .thumb { width: 36px; height: 36px; border-radius: 6px; flex: none; background: linear-gradient(135deg,#f59e0b,#b91c1c 55%,#7c2d12); }
+  .card-img { aspect-ratio: 5/7; border-radius: 9px; background: linear-gradient(150deg,#fbbf24,#dc2626 50%,#7c2d12); box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+  .row { display: flex; align-items: center; gap: 10px; }
+  .kv div { display: flex; justify-content: space-between; padding: 6px 0; font-size: 12.5px; }
+  .kv div + div { border-top: 1px solid #f1f5f9; }
+  .sec { font-size: 11.5px; font-weight: 600; color: #64748b; margin: 12px 0 6px; }
+  .sec:first-child { margin-top: 0; }
+  .hr { height: 1px; background: #eef2f7; margin: 12px -14px; }
+
+  /* history */
+  .day { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin: 2px 0 6px; }
+  .ev { display: grid; grid-template-columns: 52px 16px 1fr; gap: 0 8px; position: relative; }
+  .ev .time { font-size: 11.5px; color: #64748b; text-align: right; padding-top: 1px; font-variant-numeric: tabular-nums; }
+  .ev .rail { position: relative; display: flex; justify-content: center; }
+  .ev .rail::before { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background: #e2e8f0; }
+  .ev:first-of-type .rail::before { top: 6px; }
+  .ev .dot { width: 10px; height: 10px; border-radius: 999px; background: #475569; margin-top: 4px; position: relative; }
+  .ev .what { padding-bottom: 12px; }
+  .ev .t { font-size: 12.5px; font-weight: 600; }
+  .ev .d { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+  .ev.now .dot { background: #fff; box-shadow: 0 0 0 2px #7c3aed; }
+  .ev.next .dot { background: #fff; box-shadow: 0 0 0 1px #cbd5e1; }
+  .ev.next .t { color: #94a3b8; font-weight: 500; }
+  .who { display: inline-flex; width: 16px; height: 16px; border-radius: 999px; font-size: 8px; font-weight: 700; align-items: center; justify-content: center; vertical-align: -3px; margin-right: 4px; }
+  .who.a { background: #fde68a; color: #92400e; } .who.b { background: #c7d2fe; color: #3730a3; } .who.n { background: #e9d5ff; color: #6b21a8; }
+  .chip { font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 5px; background: #f1f5f9; color: #475569; margin-left: 4px; }
+
+  .jump { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+  .jump span { padding: 3px 9px; border-radius: 999px; background: #f1f5f9; color: #475569; }
+  .jump .on { background: #0f172a; color: #fff; }
+  .callout { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px 14px; font-size: 12.5px; color: #7c2d12; line-height: 1.5; }
+  .callout b { color: #431407; }
+  .callout li { margin-left: 16px; }
+</style>
+</head>
+<body>
+  <h1>Detail tabs, round 2: hierarchy, Exchange and History</h1>
+  <p class="lede">Terms and Collateral are kept as approved. This round looks at why the tabs feel empty, then gives two takes each on Exchange and History. Same trade, at Inspect, seen by Alice.</p>
+
+  <!-- HIERARCHY -->
+  <h2>1 · The whitespace problem</h2>
+  <p class="lede" style="margin-top:2px">The tabs are not too loose inside; they are <b>too short for the box they sit in</b>. The details pane is as tall as the chat beside it (about 680px), and three of the four tabs need 250 to 400px, so each one ends in a large blank area. Two ways out, compared:</p>
+  <div class="grid g3">
+    <div>
+      <div class="tag">A · Keep tabs, size them to their content</div>
+      <div class="notes">The pane shrinks to the tab and the page background shows below it. Simple, but the pane changes height on every tab switch, which the room's no-jump rule forbids.</div>
+      <div class="pane">
+        <div class="tabs"><span class="on">Exchange</span><span>Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body"><div class="muted" style="font-size:12px;padding:30px 0;text-align:center">≈ 260px of Exchange, then nothing</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="tag rec">B · One scrolling Details pane (recommended)</div>
+      <div class="notes">All four sections stacked in one column, in the order a member asks: what is being swapped, where and when, what is on hold, what has happened. The tabs become jump chips that scroll to a section. No blank space, nothing hidden behind a click, and one fixed height.</div>
+      <div class="pane">
+        <div class="jump"><span class="on">Exchange</span><span>Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body">
+          <div class="sec">Exchange</div>
+          <div class="row"><span class="thumb"></span><div style="flex:1;font-size:12.5px"><span class="muted">You send</span><br/><b>TradeDisputeOff 1795…</b></div><span class="money" style="font-size:12.5px">$60.00 AUD</span></div>
+          <div class="row" style="margin-top:6px"><span class="thumb"></span><div style="flex:1;font-size:12.5px"><span class="muted">You get</span><br/><b>TradeDisputeReq 1795…</b></div><span class="money" style="font-size:12.5px">$60.00 AUD</span></div>
+          <div class="hr"></div>
+          <div class="sec">Terms</div>
+          <div style="font-size:12.5px"><b>Meet in person</b> <span class="muted">at 12 Test Street, Sydney</span><br/><span class="muted">Wed, 25 Nov, 3:53 pm AEDT</span></div>
+          <div class="hr"></div>
+          <div class="sec">Collateral</div>
+          <div class="row" style="font-size:12.5px"><span style="flex:1">On hold on your card</span><span class="money">$60.00 AUD</span></div>
+          <div class="hr"></div>
+          <div class="sec">History</div>
+          <div class="muted" style="font-size:12px">3 events · scrolls on…</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="tag">C · Keep tabs, fill the space with the next useful thing</div>
+      <div class="notes">Each tab ends with a related block: Exchange with "What happens next", Terms with "Safety at the meeting", and so on. Uses the space, but it is filler that pushes the useful parts apart.</div>
+      <div class="pane">
+        <div class="tabs"><span class="on">Exchange</span><span>Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body"><div class="muted" style="font-size:12px;padding:30px 0;text-align:center">Exchange, then a "What happens next" block</div></div>
+      </div>
+    </div>
+    <div class="callout">
+      <b>Hierarchy, whichever way</b>
+      <ul style="margin-top:6px">
+        <li>Every section opens with its answer in one line (what's swapped, where, how much is held), detail after.</li>
+        <li>Labels are sentence-case, small and grey; values are the dark, bold thing. Today the caps labels ("VALUE", "HOW IT ENDS") are louder than some values.</li>
+        <li>One size for money in lists; a big figure only where it IS the answer (the hold).</li>
+        <li>Spacing is 12px inside a section and a hairline between sections, rather than cards inside cards.</li>
+        <li>Nothing the header or the next-step row already says is repeated (names, ID badges, status).</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- EXCHANGE -->
+  <h2>2 · Exchange and History, two takes each</h2>
+  <p class="lede" style="margin-top:2px">Exchange (E1, E2): round 1 made the swap clear but kept two boxes and a separate fee list; these are tighter. History (H1, H2): two ways to make it a timeline worth opening.</p>
+  <div class="grid g4">
+    <div>
+      <div class="tag rec">E1 · One ledger (recommended)</div>
+      <div class="notes">One box, two rows: what goes, what comes, each with its condition and value, the ⇅ between. Fee and the frozen-terms note as one footer line. About half the height of round 1.</div>
+      <div class="pane">
+        <div class="tabs"><span class="on">Exchange</span><span>Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body">
+          <div style="border:1px solid #e2e8f0;border-radius:12px;padding:4px 12px">
+            <div class="row" style="padding:9px 0"><span class="thumb"></span><div style="flex:1;min-width:0"><div class="muted" style="font-size:11px">You send</div><div style="font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeOff 1795559…</div><div class="muted" style="font-size:11px">Near Mint</div></div><span class="money" style="font-size:13px">$60.00 AUD</span></div>
+            <div style="display:flex;align-items:center;gap:8px;margin:-2px 0"><span style="flex:1;height:1px;background:#eef2f7"></span><span style="font-size:13px;color:#64748b">⇅</span><span style="flex:1;height:1px;background:#eef2f7"></span></div>
+            <div class="row" style="padding:9px 0"><span class="thumb"></span><div style="flex:1;min-width:0"><div class="muted" style="font-size:11px">You get from Bob</div><div style="font-weight:600;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeReq 1795559…</div><div class="muted" style="font-size:11px">Near Mint</div></div><span class="money" style="font-size:13px">$60.00 AUD</span></div>
+          </div>
+          <div class="kv" style="margin-top:8px">
+            <div><span class="muted">Your NoDitto fee</span><span>$1.20 AUD</span></div>
+            <div><span class="muted">No cash either way</span><span class="muted">Fixed 25 Nov</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="tag">E2 · The cards, face up</div>
+      <div class="notes">These are trading cards, and their photos are what people check at inspection. Two card images side by side at card proportions with ⇄ between, names and values under them, fee line below. Taller, but the most "this is a swap" of all.</div>
+      <div class="pane">
+        <div class="tabs"><span class="on">Exchange</span><span>Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body">
+          <div style="display:grid;grid-template-columns:1fr 28px 1fr;align-items:center;gap:6px">
+            <div><div class="card-img"></div></div>
+            <div style="text-align:center;color:#64748b;font-size:16px">⇄</div>
+            <div><div class="card-img" style="background:linear-gradient(150deg,#a78bfa,#4338ca 55%,#1e1b4b)"></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 28px 1fr;gap:6px;margin-top:8px;font-size:12px">
+            <div><div class="muted" style="font-size:11px">You send</div><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeOff 179…</b><span class="money">$60.00 AUD</span></div><div></div>
+            <div><div class="muted" style="font-size:11px">You get</div><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeReq 179…</b><span class="money">$60.00 AUD</span></div>
+          </div>
+          <div class="kv" style="margin-top:8px"><div><span class="muted">Your NoDitto fee</span><span>$1.20 AUD</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div>
+      <div class="tag rec">H1 · Who, what, when (recommended)</div>
+      <div class="notes">Times in a left column so they line up, grouped under the day. Each event says who did it (a small avatar), and money events carry the amount. The current step is ringed with its deadline; what comes next is faint.</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span>Terms</span><span>Collateral</span><span class="on">History</span></div>
+        <div class="body">
+          <div class="day">Wed, 25 Nov</div>
+          <div class="ev"><div class="time">1:53 pm</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Terms agreed</div><div class="d"><span class="who a">AN</span>You accepted, then <span class="who b">BC</span>Bob</div></div></div>
+          <div class="ev"><div class="time">1:54 pm</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Both holds placed<span class="chip">$60.00 AUD each</span></div><div class="d">Nothing charged</div></div></div>
+          <div class="ev"><div class="time">1:55 pm</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Met and swapped</div><div class="d"><span class="who a">AN</span>You and <span class="who b">BC</span>Bob confirmed</div></div></div>
+          <div class="ev now"><div class="time">Now</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Inspect what you got</div><div class="d">Until Sat, 28 Nov, 3:53 pm</div></div></div>
+          <div class="ev next"><div class="time"></div><div class="rail"><span class="dot"></span></div><div class="what" style="padding-bottom:0"><div class="t">Done, both holds released</div></div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="tag">H2 · Steps, with what happened inside each</div>
+      <div class="notes">The four steps as the spine (the same names as the progress bar), each finished one collapsed to a line with its time, the live one open. Mirrors the rail, so History and the bar never disagree. Less detail per event.</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span>Terms</span><span>Collateral</span><span class="on">History</span></div>
+        <div class="body">
+          <div class="kv">
+            <div><span>✓ <b>Agree terms</b></span><span class="muted">25 Nov, 1:53 pm</span></div>
+            <div><span>✓ <b>Place collateral</b> <span class="muted">$60.00 AUD each</span></span><span class="muted">1:54 pm</span></div>
+            <div><span>✓ <b>Meet</b> <span class="muted">both confirmed</span></span><span class="muted">1:55 pm</span></div>
+          </div>
+          <div style="margin-top:6px;border:1px solid #ddd6fe;background:#faf8ff;border-radius:10px;padding:9px 11px">
+            <div style="display:flex;justify-content:space-between;font-size:12.5px"><b style="color:#5b21b6">● Inspect</b><span class="muted">1 day left</span></div>
+            <div class="muted" style="font-size:11.5px;margin-top:3px">Neither of you has accepted yet. Completes on its own Sat, 28 Nov, 3:53 pm.</div>
+          </div>
+          <div class="kv"><div><span class="muted">○ Done, both holds released</span><span></span></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

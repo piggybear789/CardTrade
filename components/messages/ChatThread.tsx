@@ -335,7 +335,7 @@ export function ChatThread({
           // glyph 20px wide. 36px is the phone control height everywhere else in the
           // app and the negative margin pulls the hit area into the gutter, so the
           // title gains 14px and the chevron stays a comfortable target.
-          className="-ml-2.5 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
+          className="-ml-2.5 -mr-2 inline-flex size-9 shrink-0 touch-manipulation items-center justify-center rounded-md border border-transparent text-foreground transition-colors hover:bg-foreground/5 focus:outline-none focus-visible:border-ring md:hidden"
           aria-label="Back to messages"
         >
           <Icon
@@ -396,7 +396,13 @@ export function ChatThread({
                 No contract
               </Badge>
             ) : null}
-            {meta ? <span className="min-w-0 truncate">{meta}</span> : null}
+            {/* On a phone a contract thread shows the status badge alone: the step
+                label beside it ("Frozen for review") only ever fit as a cut-off word. */}
+            {meta ? (
+              <span className={cn('min-w-0 truncate', underContract && 'max-sm:hidden')}>
+                {meta}
+              </span>
+            ) : null}
             {offline ? (
               <span className="shrink-0 text-destructive" role="status">
                 Offline
@@ -526,7 +532,7 @@ export function ChatThread({
           showNoContract ? (
             <p className="flex items-center justify-center gap-tight text-center text-meta text-muted-foreground">
               <Icon icon={ShieldCheckIcon} className="size-3.5 shrink-0" />
-              No contract yet — messages alone do not reserve goods or hold payment.
+              No contract yet. Messages don&apos;t reserve anything or hold payment.
             </p>
           ) : null
         }

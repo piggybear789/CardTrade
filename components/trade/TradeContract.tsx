@@ -344,7 +344,7 @@ function TradeCashSettlementNotice({
   const amount = formatMoney(cashAmountCents, trade.currency);
 
   return (
-    <div className="rounded-lg border border-border bg-muted px-group py-cozy text-body">
+    <div className="rounded-lg bg-muted/80 px-group py-cozy text-body">
       {pendingAfterComplete ? (
         <>
           <p className="font-medium">
@@ -362,7 +362,7 @@ function TradeCashSettlementNotice({
           </p>
           <div className="mt-cozy flex flex-wrap gap-snug">
             {iReceive ? (
-              <Button asChild size="sm" variant="outline">
+              <Button asChild size="sm" variant="secondary">
                 <Link href="/profile?tab=payouts">Set up payouts</Link>
               </Button>
             ) : null}
@@ -402,11 +402,10 @@ function TradeCashSettlementNotice({
               : `Cash of ${amount} settles after they finish payout setup`}
           </p>
           <p className="mt-tight text-muted-foreground">
-            You can keep trading — collateral covers the goods. Stripe
-            moves the cash once the receiver can take payouts.
+            You can keep trading. Stripe sends the cash once the receiver has set up payouts.
           </p>
           {iReceive ? (
-            <Button asChild size="sm" variant="outline" className="mt-cozy">
+            <Button asChild size="sm" variant="secondary" className="mt-cozy">
               <Link href="/profile?tab=payouts">Set up payouts</Link>
             </Button>
           ) : null}

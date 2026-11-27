@@ -17,53 +17,91 @@ import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { NOTIFICATIONS_DEFAULT_LIMIT } from '@/lib/marketplace-constants';
 import type { Tables } from '@/lib/supabase/database.types';
+import { parseContractLink, type ContractMove } from '@/lib/notifications/linkedContract';
+import {
+  describeLinkedRows,
+  SALE_CONTRACT_SELECT,
+  TRADE_CONTRACT_SELECT,
+  TRADE_HOLDS_SELECT,
+  type SaleContractRow,
+  type TradeContractRow,
+  type TradeHoldRow,
+} from '@/lib/notifications/describeLinkedRows';
 
 /**
- * A notification as the list renders it: the persisted row, plus whether the contract
- * it links to can still be opened. See {@link flagMissingTargets}.
+ * A notification as the list renders it: the persisted row, plus three things read from
+ * the contract it links to — whether it can still be opened, its subject where the row
+ * named none, and what it is waiting on now. See {@link resolveContractLinks}.
  */
-export type NotificationRow = Tables<'notifications'> & { target_missing?: boolean };
-
-const CONTRACT_LINK = /^\/(sales|trades)\/([0-9a-f-]{36})(?:[/?#]|$)/i;
+export type NotificationRow = Tables<'notifications'> & {
+  target_missing?: boolean;
+  contract_move?: ContractMove | null;
+};
 
 /**
- * Mark rows whose linked sale or trade the caller can no longer open.
+ * Read the sale or trade each row links to: whether the caller can still open it, what
+ * it is about, and whose move it is. The mapping is `describeLinkedRows`.
  *
- * A notification outlives what it points at: a contract can be removed, and RLS hides
- * one the caller is no longer party to. Following such a row landed on a 404 — the
+ * GONE. A notification outlives what it points at: a contract can be removed, and RLS
+ * hides one the caller is no longer party to. Following such a row landed on a 404 — the
  * first thing a seller tried with fifteen "New purchase request" rows was a dead page.
- * Two batched reads (one per contract table) decide it for the whole list, so the row
- * can say "no longer available" in place instead of navigating.
+ * The row says "no longer available" in place instead of navigating.
+ *
+ * ABOUT WHAT (2026-11-28). A row whose producer named no card or member takes them from
+ * the contract it links to (`lib/notifications/linkedContract.ts` says why, and what is
+ * never filled).
+ *
+ * WHOSE MOVE (2026-11-28). The row also carries the contract's live step for its reader,
+ * from the plan the contract room and the contract lists derive, so a notification about
+ * something still waiting on you can say so, and one about a contract that has moved on
+ * asks for nothing. It is never inferred from the notification's own words.
+ *
+ * ONE ROUND TRIP, the same number as before: the contract reads embed their subjects and
+ * run beside the id checks and the holds a trade's plan needs. This runs on every page,
+ * because the header seeds the bell with it. The id checks stay separate so a failed
+ * embed costs only the subject and the move, never the "gone" verdict.
  */
-async function flagMissingTargets(
+async function resolveContractLinks(
   supabase: Awaited<ReturnType<typeof createClient>>,
   rows: NotificationRow[],
 ): Promise<NotificationRow[]> {
   const saleIds = new Set<string>();
   const tradeIds = new Set<string>();
   for (const row of rows) {
-    const match = row.link ? CONTRACT_LINK.exec(row.link) : null;
-    if (!match) continue;
-    (match[1].toLowerCase() === 'sales' ? saleIds : tradeIds).add(match[2].toLowerCase());
+    const link = parseContractLink(row.link);
+    if (link) (link.kind === 'sale' ? saleIds : tradeIds).add(link.id);
   }
   if (saleIds.size === 0 && tradeIds.size === 0) return rows;
 
-  const [sales, trades] = await Promise.all([
+  const none = Promise.resolve({ data: [] as { id: string }[], error: null });
+  const [sales, trades, saleContracts, tradeContracts, holds] = await Promise.all([
+    saleIds.size > 0 ? supabase.from('cash_sales').select('id').in('id', [...saleIds]) : none,
+    tradeIds.size > 0 ? supabase.from('trades').select('id').in('id', [...tradeIds]) : none,
     saleIds.size > 0
-      ? supabase.from('cash_sales').select('id').in('id', [...saleIds])
-      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+      ? supabase.from('cash_sales').select(SALE_CONTRACT_SELECT).in('id', [...saleIds])
+      : none,
     tradeIds.size > 0
-      ? supabase.from('trades').select('id').in('id', [...tradeIds])
-      : Promise.resolve({ data: [] as { id: string }[], error: null }),
+      ? supabase.from('trades').select(TRADE_CONTRACT_SELECT).in('id', [...tradeIds])
+      : none,
+    tradeIds.size > 0
+      ? supabase.from('pre_auth_holds').select(TRADE_HOLDS_SELECT).in('trade_id', [...tradeIds])
+      : none,
   ]);
-  // A failed read decides nothing: better a link that might 404 than a live contract
-  // reported as gone.
-  if (sales.error || trades.error) return rows;
-  const live = new Set([...(sales.data ?? []), ...(trades.data ?? [])].map((row) => row.id.toLowerCase()));
 
-  return rows.map((row) => {
-    const match = row.link ? CONTRACT_LINK.exec(row.link) : null;
-    return match ? { ...row, target_missing: !live.has(match[2].toLowerCase()) } : row;
+  return describeLinkedRows(rows, {
+    liveIds:
+      sales.error || trades.error
+        ? null
+        : new Set(
+            [...(sales.data ?? []), ...(trades.data ?? [])].map((row) => row.id.toLowerCase()),
+          ),
+    sales: saleContracts.error
+      ? null
+      : ((saleContracts.data ?? []) as unknown as SaleContractRow[]),
+    trades: tradeContracts.error
+      ? null
+      : ((tradeContracts.data ?? []) as unknown as TradeContractRow[]),
+    holds: holds.error ? null : ((holds.data ?? []) as unknown as TradeHoldRow[]),
   });
 }
 
@@ -127,7 +165,7 @@ export const listMyNotifications = withActionLog('notifications.listMyNotificati
 
   return {
     ok: true,
-    notifications: await flagMissingTargets(supabase, (data ?? []) as NotificationRow[]),
+    notifications: await resolveContractLinks(supabase, (data ?? []) as NotificationRow[]),
   };
 });
 

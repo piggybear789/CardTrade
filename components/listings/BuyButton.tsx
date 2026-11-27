@@ -419,7 +419,7 @@ function PurchaseDialog({
                   back (the saved card's fee line used to wrap onto a second line and push
                   the footer down). With no card the way forward is the footer's own
                   button, so this row only explains. */}
-              <div className="flex items-center gap-cozy rounded-lg border p-cozy">
+              <div className="flex items-center gap-cozy rounded-lg bg-muted/60 p-cozy">
                 <Icon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-body font-medium">

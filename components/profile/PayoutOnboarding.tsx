@@ -85,7 +85,7 @@ function PayoutNotice({ message, blocked }: { message: string | null; blocked: b
     );
   }
   return (
-    <div role="status" className="flex gap-cozy rounded-lg border bg-muted/40 p-group">
+    <div role="status" className="flex gap-cozy rounded-lg bg-muted/60 p-group">
       <Icon
         icon={TimerIcon}
         className="mt-0.5 size-4 shrink-0 text-muted-foreground"
@@ -254,7 +254,7 @@ export function PayoutOnboarding({
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               onClick={openHostedOnboarding}
               disabled={isPending}
               className="w-full"
@@ -305,8 +305,7 @@ export function PayoutOnboarding({
             <div className="space-y-tight text-body leading-snug">
               <p className="font-medium text-foreground">This is what buyers may see</p>
               <p className="text-muted-foreground">
-                Your provider-reported name may be disclosed to a buyer for an agreed sale.
-                NoDitto never shows your address or bank details.
+                A buyer may see your verified name on an agreed sale. Your address and bank details stay private.
               </p>
             </div>
             <dl className="grid gap-x-6 gap-y-cozy text-body sm:grid-cols-3">
@@ -335,8 +334,7 @@ export function PayoutOnboarding({
         {needsPayoutCompletion ? (
           <div className="space-y-cozy">
             <p className="text-body text-muted-foreground">
-              Stripe has not finished your setup yet, so you cannot be paid. Continue
-              with Stripe to complete it — you will pick up where you left off.
+              Your Stripe setup isn&apos;t finished, so you can&apos;t be paid yet. Continue with Stripe to finish it.
             </p>
             <div className="flex flex-wrap gap-snug">
               <Button onClick={openHostedOnboarding} disabled={isPending}>
@@ -345,7 +343,7 @@ export function PayoutOnboarding({
                 )}
                 Continue with Stripe
               </Button>
-              <Button variant="outline" onClick={handleRecheck} disabled={isPending}>
+              <Button variant="secondary" onClick={handleRecheck} disabled={isPending}>
                 <Icon icon={ArrowClockwiseIcon} className="size-3.5" aria-hidden />
                 Check status
               </Button>
@@ -378,7 +376,7 @@ export function PayoutOnboarding({
               aria-busy={isPending}
               // Demoted while the platform is the blocker: the primary action on this
               // card cannot succeed, so it should not look like the way forward.
-              variant={platformBlocked ? 'outline' : 'default'}
+              variant={platformBlocked ? 'secondary' : 'default'}
             >
               {isPending ? <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden /> : (
                 <Icon

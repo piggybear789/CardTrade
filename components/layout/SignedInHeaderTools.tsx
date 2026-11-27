@@ -4,14 +4,16 @@
 // guest document that imported this file also imported the notification
 // popover and the account menu.
 //
-// Sell, then Saved, Messages and the bell, then the avatar. The look and the reasons
-// for it are in `HeaderControls`.
+// Sell, then Messages and the bell, then the avatar. The look and the reasons for it
+// are in `HeaderControls`.
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
-import { ChatCircleIcon, HeartIcon } from '@/components/ui/icons';
+import { ChatCircleIcon } from '@/components/ui/icons';
 
 import {
+  HEADER_ICON_BADGE,
   HEADER_ICON_BUTTON,
   HEADER_ICON_GLYPH,
   HeaderSellLink,
@@ -22,7 +24,9 @@ import {
   NotificationBell,
   type NotificationBellProps,
 } from '@/components/notifications/NotificationBell';
+import { CountBadge } from '@/components/ui/count-badge';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { useUnreadCounts } from '@/lib/realtime/useUnreadCounts';
 
 export function SignedInHeaderTools({
   email,
@@ -41,6 +45,14 @@ export function SignedInHeaderTools({
   avatarPath: string | null;
   initialNotifications: NotificationBellProps['initialNotifications'];
 }) {
+  const pathname = usePathname();
+  // ITS OWN COUNT. The header sits in the root layout, outside the
+  // `WorkspaceChromeProvider` the rail and the phone bar read, so it takes the same
+  // head counts itself. The hook starts from the last figures this tab read, so the
+  // badge does not blink out when the route group changes.
+  const unread = useUnreadCounts(userId);
+  const onMessages = pathname === '/messages' || pathname.startsWith('/messages/');
+
   return (
     // ONE provider for the rail, so moving from one icon to the next shows the next
     // label at once instead of restarting the delay (see `HeaderTooltip`). Mounted
@@ -48,31 +60,26 @@ export function SignedInHeaderTools({
     // signed-in chunk, not in the guest catalog document.
     <TooltipProvider delayDuration={300}>
       <HeaderSellLink />
-      {/* A HEART, because saving IS the heart: `WatchButton` draws one on every
-          listing, and the /saved empty state tells members to tap it. */}
-      <HeaderTooltip label="Saved">
-        <Link href="/saved" aria-label="Saved listings" className={HEADER_ICON_BUTTON}>
-          <Icon
-            icon={HeartIcon}
-            className={HEADER_ICON_GLYPH}
-            aria-hidden
-          />
-        </Link>
-      </HeaderTooltip>
       <HeaderTooltip label="Messages">
-        <Link href="/messages" aria-label="Messages" className={HEADER_ICON_BUTTON}>
+        <Link
+          href="/messages"
+          aria-label={unread.messages > 0 ? `Messages, ${unread.messages} unread` : 'Messages'}
+          aria-current={onMessages ? 'page' : undefined}
+          className={HEADER_ICON_BUTTON}
+        >
           <Icon
             icon={ChatCircleIcon}
+            weight={onMessages ? 'fill' : undefined}
             className={HEADER_ICON_GLYPH}
             aria-hidden
           />
+          <CountBadge count={unread.messages} className={HEADER_ICON_BADGE} />
         </Link>
       </HeaderTooltip>
       <NotificationBell initialNotifications={initialNotifications} />
-      {/* NO FEEDBACK CONTROL IN THE RAIL. A filled "Feedback" button in the
-          primary chrome competed with the page's own primary action and read as
-          a beta label on every screen. The account menu's Support section and the
-          Account tab both carry it. */}
+      {/* NO FEEDBACK CONTROL HERE. A filled "Feedback" button in the primary chrome
+          competed with the page's own primary action and read as a beta label on
+          every screen. The account menu carries it. */}
       {/* The avatar chip. It opens the menu, whose first row is Account. */}
       <SiteMenu
         isAuthenticated

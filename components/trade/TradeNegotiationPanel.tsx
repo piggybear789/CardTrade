@@ -366,7 +366,7 @@ export function TradeNegotiationPanel({
                   value: acceptCost.collateralText,
                   hint:
                     acceptCost.copy?.collateralHint ??
-                    'A temporary hold, not a charge. Released when the trade completes.',
+                    'Nothing is charged. Released when the trade completes.',
                 },
               ]}
             />

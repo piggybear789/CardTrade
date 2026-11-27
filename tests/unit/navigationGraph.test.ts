@@ -43,6 +43,9 @@ const REACHABILITY_ALLOWLIST = new Set<string>([
   // Redirect shim to /references for Trusted Seller links already shared
   // externally (Instagram). Deliberately unlinked: References replaced it.
   '/trusted-sellers',
+  // Redirect shim to `/?saved=1`: Saved became a catalog filter (2026-11-27). Kept for
+  // links already sent in emails and bookmarks.
+  '/saved',
   // The trade-offer page for one listing, reached from the "Copy trade link" a seller
   // shares (built from `window.location.origin`, which the scanner cannot follow). In
   // the app the listing opens the same form as a dialog, and the bare route only says

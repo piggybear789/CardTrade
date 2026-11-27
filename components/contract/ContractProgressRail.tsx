@@ -132,16 +132,20 @@ export function ContractProgressRail({
                     // The tick stays 20px visually, but an invisible overlay
                     // stretches the hit area to ~44px for touch guidelines.
                     "relative before:absolute before:-inset-y-3 before:inset-x-0 before:content-['']",
-                    // Neutral on hover. The LIVE step below is a violet marker, and a
-                    // violet hover edge meant pointing at any step made it look like
-                    // the current one.
-                    'hover:border-input-hover hover:text-foreground',
+                    // DISCS WITHOUT EDGES (2026-11-28): the fill is the state. Done is
+                    // the trust tint, the live step the ink, an ended contract the red
+                    // tint and a step still to come a tint of the ink, which is also
+                    // the only one that darkens on hover: a hover edge made pointing at
+                    // any step look like selecting it. The border stays transparent so
+                    // keyboard focus can still colour it.
                     'border border-transparent focus:outline-none focus-visible:border-ring',
                     done && 'cardtrade-success-chip',
-                    live && 'border-primary bg-primary text-primary-foreground',
-                    halted &&
-                      'border-destructive/40 bg-destructive/10 text-destructive',
-                    !done && !live && !halted && 'border-border bg-card text-muted-foreground',
+                    live && 'bg-primary text-primary-foreground',
+                    halted && 'bg-destructive/10 text-destructive',
+                    !done &&
+                      !live &&
+                      !halted &&
+                      'bg-foreground/[0.06] text-muted-foreground hover:bg-foreground/[0.1] hover:text-foreground',
                     selected && 'ring-2 ring-ring ring-offset-1',
                   )}
                 >

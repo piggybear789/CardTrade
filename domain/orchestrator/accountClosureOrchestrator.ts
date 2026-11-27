@@ -258,7 +258,7 @@ export async function closeAccount(
     return {
       ok: false,
       error: 'ELIGIBILITY_UNREADABLE',
-      message: 'We could not check your open contracts just now. Please try again.',
+      message: 'We couldn’t check your open contracts. Please try again.',
     };
   }
 
@@ -281,7 +281,7 @@ export async function closeAccount(
     return {
       ok: false,
       error: 'ANONYMISE_FAILED',
-      message: 'We could not close your account just now. Nothing has changed. Please try again.',
+      message: 'We couldn’t close your account, and nothing has changed. Please try again.',
     };
   }
 
@@ -292,7 +292,7 @@ export async function closeAccount(
     return {
       ok: false,
       error: 'MARK_CLOSED_FAILED',
-      message: 'We could not close your account just now. Please try again.',
+      message: 'We couldn’t close your account. Please try again.',
     };
   }
 

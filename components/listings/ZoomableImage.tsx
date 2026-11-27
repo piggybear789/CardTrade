@@ -128,7 +128,7 @@ export function ZoomableImage({
       <p
         aria-hidden="true"
         className={cn(
-          'pointer-events-none absolute bottom-3 left-3 flex items-center gap-tight rounded-md border border-white/15 bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur transition-opacity duration-200',
+          'pointer-events-none absolute bottom-3 left-3 flex items-center gap-tight rounded-md bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur transition-opacity duration-200',
           zoomPoint ? 'opacity-0' : 'opacity-100',
         )}
       >

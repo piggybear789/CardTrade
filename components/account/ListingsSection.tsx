@@ -179,7 +179,7 @@ export function ListingsSection({
           icon={<Icon icon={PlusSquareIcon} className="size-6" aria-hidden />}
           title="Nothing here"
           description="No listings are in this state right now."
-          action={{ label: 'Show all listings', href: '/listings/mine', variant: 'outline' }}
+          action={{ label: 'Show all listings', href: '/listings/mine', variant: 'secondary' }}
           compact
           fill
         />
@@ -295,7 +295,7 @@ export function ListingsSection({
                     {/* One visible verb, chosen by what the row can do; the rest are in
                         the "⋯". A sold or closed listing is a record, not a thing to edit. */}
                     {editable ? (
-                      <Button asChild variant="outline" size="sm">
+                      <Button asChild variant="secondary" size="sm">
                         <Link href={`/listings/${item.id}/edit`}>Edit</Link>
                       </Button>
                     ) : (

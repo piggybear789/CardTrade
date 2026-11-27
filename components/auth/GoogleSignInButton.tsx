@@ -85,7 +85,7 @@ export function GoogleSignInButton({
     // action. A white Google button is also the shape members expect.
     <Button
       type="button"
-      variant="outline"
+      variant="secondary"
       className="min-h-11 w-full"
       onClick={handleClick}
       disabled={disabled || isPending}

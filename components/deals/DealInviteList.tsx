@@ -105,7 +105,7 @@ export function DealInviteList({ invites }: { invites: DealInviteSummary[] }) {
             <DialogDescription>It stops working straight away.</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setPendingId(null)}>
+            <Button type="button" variant="secondary" onClick={() => setPendingId(null)}>
               Keep link
             </Button>
             <Button

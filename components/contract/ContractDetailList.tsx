@@ -187,7 +187,7 @@ export function ContractDetailList({
       <Root
         className={cn(
           'flex h-full min-h-0 flex-col overflow-hidden',
-          inSheet ? 'bg-transparent' : 'border-border shadow-sm',
+          inSheet && 'bg-transparent',
           className,
         )}
       >

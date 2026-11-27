@@ -67,5 +67,5 @@ export const OG_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 export const DEFAULT_OG_IMAGE = {
   url: '/og',
   ...OG_IMAGE_SIZE,
-  alt: 'NoDitto — buy, sell and swap trading cards with verified sellers',
+  alt: 'NoDitto: buy, sell and swap trading cards with verified sellers',
 } as const;

@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Message box redesign options</title>
+<style>
+  :root {
+    --ink: #0f172a; --ink2: #334155; --muted: #64748b; --faint: #94a3b8;
+    --line: #e2e8f0; --line2: #cbd5e1; --card: #ffffff; --field: #f1f5f9;
+    --iris: #7c6cf0; --iris-wash: #f4f2ff; --amber-bg: #fdf3dc; --amber-edge: #ecd29a; --amber-ink: #6b4a12;
+    --red-bg: #fdf0f0; --red-edge: #f2c8c8; --red-ink: #c0262d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: #eef1f6; font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: var(--ink); width: 1340px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lede { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 400px); gap: 28px 24px; }
+  .option h2 { font-size: 15px; margin: 0 0 2px; }
+  .option p { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.45; min-height: 57px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px; }
+  .tag.rec { background: #e7f6ee; color: #146c43; }
+  .tag.now { background: #fde8e8; color: #9b1c1c; }
+  .panel { width: 400px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+  .msgs { height: 118px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; font-size: 12.5px; }
+  .sys { text-align: center; color: var(--muted); }
+  .bubble { align-self: flex-start; background: var(--field); padding: 7px 11px; border-radius: 14px 14px 14px 4px; max-width: 75%; }
+  .dock { border-top: 1px solid var(--line); border-left: 3px solid var(--iris); background: var(--iris-wash); padding: 10px 12px; }
+  .dock .t { font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+  .dock .t i { font-style: normal; display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1.4px solid var(--muted); border-radius: 50%; font-size: 9px; color: var(--muted); margin-left: 5px; vertical-align: 1px; }
+  .btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .b { height: 32px; padding: 0 12px; border-radius: 7px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; border: 1px solid transparent; }
+  .b.p { background: var(--ink); color: #fff; }
+  .b.a { background: var(--amber-bg); border-color: var(--amber-edge); color: var(--amber-ink); }
+  .b.r { background: var(--red-bg); border-color: var(--red-edge); color: var(--red-ink); }
+  .comp { padding: 10px 12px 12px; border-top: 1px solid var(--line); background: var(--card); }
+  .icon { display: inline-grid; place-items: center; flex: none; color: var(--ink2); }
+  .cur { display: flex; gap: 10px; align-items: flex-end; }
+  .cur .plus { width: 40px; height: 40px; border-radius: 8px; background: var(--field); font-size: 20px; }
+  .cur .field { flex: 1; height: 78px; border: 1.5px solid var(--ink2); border-radius: 12px; background: var(--field); padding: 9px 12px; font-size: 14px; color: var(--muted); }
+  .cur .send { width: 40px; height: 40px; border-radius: 8px; background: #8b929c; color: #e5e7eb; font-size: 16px; }
+  .pill { display: flex; align-items: flex-end; gap: 4px; min-height: 40px; border: 1px solid var(--line2); border-radius: 20px; background: var(--card); padding: 5px 5px 5px 6px; }
+  .pill.focus { border-color: #94a3b8; box-shadow: 0 0 0 3px rgba(124,108,240,.14); }
+  .round { width: 30px; height: 30px; border-radius: 50%; }
+  .add { font-size: 19px; }
+  .pill .txt { flex: 1; font-size: 14px; line-height: 20px; padding: 5px 4px; color: var(--faint); }
+  .pill .txt.typed { color: var(--ink); }
+  .send2 { background: #e8ecf1; color: #a3acb9; font-size: 14px; }
+  .send2.on { background: var(--ink); color: #fff; }
+  .thumbs { display: flex; gap: 6px; padding: 2px 4px 6px; }
+  .thumb { position: relative; width: 44px; height: 44px; border-radius: 8px; background: linear-gradient(135deg, #f59e0b, #ef4444); }
+  .thumb.b2 { background: linear-gradient(135deg, #38bdf8, #6366f1); }
+  .thumb span { position: absolute; top: -5px; right: -5px; width: 17px; height: 17px; border-radius: 50%; background: var(--ink); color: #fff; font-size: 10px; display: grid; place-items: center; border: 2px solid #fff; }
+  .pillcol { flex: 1; display: flex; flex-direction: column; }
+  .hint { font-size: 11px; color: var(--faint); margin: 6px 4px 0; }
+  .cardc { border: 1px solid var(--line2); border-radius: 14px; background: var(--card); padding: 10px 10px 8px 12px; }
+  .cardc .txt { font-size: 14px; color: var(--faint); min-height: 22px; margin-bottom: 8px; }
+  .cardc .row { display: flex; align-items: center; gap: 2px; }
+  .tool { width: 30px; height: 30px; border-radius: 8px; font-size: 16px; }
+  .sp { flex: 1; }
+  .chips { display: flex; gap: 6px; overflow: hidden; margin-bottom: 8px; }
+  .chip { flex: none; font-size: 12.5px; padding: 6px 11px; border-radius: 999px; border: 1px solid var(--line2); background: var(--card); color: var(--ink2); white-space: nowrap; }
+  .menu { position: relative; }
+  .pop { position: absolute; bottom: 46px; left: 0; width: 190px; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 30px rgba(15,23,42,.14); padding: 5px; font-size: 13.5px; z-index: 2; }
+  .pop div { padding: 8px 10px; border-radius: 8px; }
+  .pop div:first-child { background: var(--field); }
+  .notes { margin-top: 18px; font-size: 12.5px; color: var(--ink2); line-height: 1.5; padding-left: 18px; }
+</style>
+</head>
+<body>
+  <h1>Message box: redesign options</h1>
+  <p class="lede">Each one sits in the trade room's chat column at its real desktop width (about 400px), under the new compact dock buttons. Icons are stand-ins.</p>
+  <div class="grid">
+    <div class="option">
+      <h2>Today <span class="tag now">current</span></h2>
+      <p>Three separate blocks. The field is three lines tall as soon as you click in, the focus outline is near-black, and the grey send slab looks disabled even when it's the next step.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="dock"><div class="t">Accept what you got <i>i</i></div><div class="btns"><span class="b p">Accept item</span><span class="b a">&#9888; Raise dispute</span><span class="b r">&#9888; Report fraud</span></div></div>
+        <div class="comp"><div class="cur"><span class="icon plus">+</span><div class="field">Message about the trade&hellip;</div><span class="icon send">&#10148;</span></div></div>
+      </div>
+    </div>
+    <div class="option">
+      <h2>A &middot; One pill <span class="tag rec">recommended</span></h2>
+      <p>One rounded field, one line at rest, with + and send inside it. Send is a faint circle until there's something to send.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="dock"><div class="t">Accept what you got <i>i</i></div><div class="btns"><span class="b p">Accept item</span><span class="b a">&#9888; Raise dispute</span><span class="b r">&#9888; Report fraud</span></div></div>
+        <div class="comp"><div class="pill"><span class="icon round add">+</span><div class="txt">Message Dave&hellip;</div><span class="icon round send2">&uarr;</span></div></div>
+      </div>
+    </div>
+    <div class="option">
+      <h2>A &middot; While typing</h2>
+      <p>A soft focus ring instead of a dark outline. The field grows with the text, up to about 5 lines, and send turns solid.</p>
+      <div class="panel">
+        <div class="msgs"><div class="bubble">Card's in great shape, thanks!</div></div>
+        <div class="comp">
+          <div class="pill focus"><span class="icon round add">+</span><div class="txt typed">Same here, really happy with it. Accepting now, thanks for being on time at the station</div><span class="icon round send2 on">&uarr;</span></div>
+          <div class="hint">Enter to send &middot; Shift + Enter for a new line</div>
+        </div>
+      </div>
+    </div>
+    <div class="option">
+      <h2>A &middot; With photos picked</h2>
+      <p>Thumbnails appear inside the pill, above the text, each with a &#10005;. It only grows when there's something in it.</p>
+      <div class="panel">
+        <div class="msgs"><div class="bubble">Can you send a photo of the back?</div></div>
+        <div class="comp"><div class="pill focus"><span class="icon round add">+</span><div class="pillcol"><div class="thumbs"><div class="thumb"><span>&#10005;</span></div><div class="thumb b2"><span>&#10005;</span></div></div><div class="txt typed">Here's the back and the corner</div></div><span class="icon round send2 on">&uarr;</span></div></div>
+      </div>
+    </div>
+    <div class="option">
+      <h2>A &middot; The + menu</h2>
+      <p>+ opens a small menu instead of jumping straight to the file picker, so it's clear what it does.</p>
+      <div class="panel" style="overflow:visible">
+        <div class="msgs" style="height:150px"></div>
+        <div class="comp"><div class="menu"><div class="pop"><div>Add photos</div><div>Take a photo</div></div><div class="pill focus"><span class="icon round add" style="background:var(--field)">+</span><div class="txt">Message Dave&hellip;</div><span class="icon round send2">&uarr;</span></div></div></div>
+      </div>
+    </div>
+    <div class="option">
+      <h2>B &middot; Card with a toolbar</h2>
+      <p>Text on top, tools on a row underneath. Room for more tools later, but about 30px taller than A at rest.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="comp"><div class="cardc"><div class="txt">Message Dave&hellip;</div><div class="row"><span class="icon tool">+</span><span class="icon tool">&#9635;</span><span class="sp"></span><span class="icon round send2">&uarr;</span></div></div></div>
+      </div>
+    </div>
+    <div class="option">
+      <h2>C &middot; Pill with quick replies</h2>
+      <p>Option A plus a row of replies for the current step. One tap fills the field to edit or send. Shown only while the chat is short.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="comp">
+          <div class="chips"><span class="chip">Got it, looks great</span><span class="chip">Can you check yours?</span><span class="chip">Thanks for meeting</span></div>
+          <div class="pill"><span class="icon round add">+</span><div class="txt">Message Dave&hellip;</div><span class="icon round send2">&uarr;</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <ul class="notes">
+    <li><b>Heights at rest:</b> today about 100px with focus, A 40px, B about 70px, C about 76px.</li>
+    <li><b>Phone:</b> the same pill at full width, with 36px circles for touch, and Enter adding a line instead of sending.</li>
+    <li><b>Placeholder</b> names the other trader ("Message Dave&hellip;") instead of "Message about the trade&hellip;".</li>
+  </ul>
+</body>
+</html>

@@ -280,7 +280,7 @@ export function buildDeterministicJudgeVerdict(
     warnings.push({
       severity: 'CAUTION',
       title: `${dossier.scamRisk.nameMatchCount} report${dossier.scamRisk.nameMatchCount === 1 ? '' : 's'} mention a similar name`,
-      detail: 'Names can overlap — double-check payment details before sending money.',
+      detail: 'Many people share a name. Check the payment details before sending money.',
     });
   }
 
@@ -433,8 +433,8 @@ export function buildDeterministicJudgeVerdict(
         : 'Established cross-platform footprint with no scam reports found.';
   } else if (warnings.length > 0) {
     summary = topLookalike
-      ? `No verified history found, and @${topLookalike.handle} (${topLookalike.positiveRefs} positive ${topLookalike.positiveRefs === 1 ? 'ref' : 'refs'}) has a similar handle — verify before paying.`
-      : `Limited public history with ${warnings.length} caution ${warnings.length === 1 ? 'signal' : 'signals'} — verify before paying.`;
+      ? `No verified history found, and @${topLookalike.handle} (${topLookalike.positiveRefs} positive ${topLookalike.positiveRefs === 1 ? 'ref' : 'refs'}) has a similar handle. Check before paying.`
+      : `Limited public history with ${warnings.length} caution ${warnings.length === 1 ? 'signal' : 'signals'}. Check before paying.`;
   } else {
     summary =
       'Limited public trading history found across eBay and the open web. Public signals are not a NoDitto reference.';

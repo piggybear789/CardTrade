@@ -127,7 +127,7 @@ function sent(): string[] {
 /** What one won return-lapse stamp sends: the seller first, then the buyer. */
 function returnLapseNotices(id: string): string[] {
   return [
-    `seller-${id}: Return not posted \u2014 we are reviewing it`,
+    `seller-${id}: Return not posted: we’re reviewing it`,
     `buyer-${id}: Return deadline passed`,
   ];
 }
@@ -234,7 +234,7 @@ describe('Property 6: won stamps, failed writes and every other step behave as b
     });
     expect(sent()).toEqual([
       'buyer-c1: Purchase completed automatically',
-      'seller-c1: Sale completed \u2014 payout queued',
+      'seller-c1: Sale complete: payout on its way',
       'buyer-i1: Inspection window closing',
       'buyer-w1: Post your return within 24 hours',
       ...returnLapseNotices('r1'),

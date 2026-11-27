@@ -1,0 +1,161 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, "Segoe UI", system-ui, sans-serif; background: #eef0f4; color: #0f172a; padding: 28px; width: 1520px; }
+  h1 { font-size: 22px; font-weight: 700; }
+  .lede { color: #64748b; font-size: 14px; margin: 6px 0 18px; line-height: 1.5; max-width: 1420px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 352px); gap: 20px; align-items: start; }
+  .tag { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+  .notes { font-size: 12px; color: #475569; line-height: 1.45; margin-bottom: 10px; min-height: 72px; }
+  .el { display: inline-block; font-size: 10.5px; font-weight: 700; color: #6d28d9; background: #ede9fe; border-radius: 5px; padding: 1px 6px; margin-bottom: 6px; }
+  .muted { color: #64748b; }
+  .money { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .pane { height: 680px; background: #fff; border: 1px solid #dbe1ea; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 24px rgba(15,23,42,.06); display: flex; flex-direction: column; }
+  .tabs { display: flex; gap: 18px; padding: 0 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; flex: none; }
+  .tabs span { padding: 11px 0 9px; }
+  .tabs .on { color: #0f172a; font-weight: 600; box-shadow: inset 0 -2px 0 #7c3aed; }
+  .body { padding: 14px; font-size: 13px; flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+  .grow { flex: 1; min-height: 0; outline: 2px dashed #c4b5fd; outline-offset: 3px; border-radius: 12px; }
+  .kv div { display: flex; justify-content: space-between; padding: 7px 0; font-size: 12.5px; }
+  .kv div + div { border-top: 1px solid #f1f5f9; }
+  .thumb { width: 36px; height: 36px; border-radius: 6px; flex: none; background: linear-gradient(135deg,#f59e0b,#b91c1c 55%,#7c2d12); }
+
+  .cards { display: grid; grid-template-columns: 1fr 26px 1fr; grid-template-rows: 100%; gap: 6px; }
+  .cell { min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; container-type: size; } .cimg { border-radius: 10px; background: linear-gradient(150deg,#fbbf24,#dc2626 50%,#7c2d12); box-shadow: 0 4px 14px rgba(0,0,0,.15); width: min(100cqw, calc(100cqh * 5 / 7)); aspect-ratio: 5/7; }
+  .map { border-radius: 12px; background:
+      linear-gradient(90deg, transparent 47%, #dde3ea 47% 52%, transparent 52%),
+      linear-gradient(0deg, transparent 40%, #dde3ea 40% 45%, transparent 45%),
+      linear-gradient(0deg, transparent 72%, #e6ebf0 72% 75%, transparent 75%),
+      linear-gradient(120deg, #f6efe0 0 55%, #e3f2e7 55% 100%); position: relative; }
+  .pin { position: absolute; left: 46%; top: 36%; width: 24px; height: 24px; border-radius: 999px 999px 999px 0; transform: rotate(-45deg); background: #7c3aed; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+  .line { display: flex; gap: 10px; padding: 8px 0; }
+  .line + .line { border-top: 1px solid #f1f5f9; }
+  .ico { width: 26px; height: 26px; border-radius: 8px; background: #f1f5f9; display: grid; place-items: center; font-size: 13px; flex: none; }
+
+  .hero { background: #f5f3ff; border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: center; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .split div { background: #fff; border-radius: 10px; padding: 10px; }
+  .meter { height: 8px; border-radius: 9px; background: #ede9fe; overflow: hidden; margin-top: 8px; }
+  .meter i { display: block; height: 100%; width: 66%; background: #a78bfa; }
+
+  .day { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .ev { display: grid; grid-template-columns: 50px 16px 1fr; gap: 0 8px; }
+  .ev .time { font-size: 11.5px; color: #64748b; text-align: right; padding-top: 1px; }
+  .ev .rail { position: relative; display: flex; justify-content: center; }
+  .ev .rail::before { content: ""; position: absolute; top: 0; bottom: 0; width: 2px; background: #e2e8f0; }
+  .ev .dot { width: 10px; height: 10px; border-radius: 999px; background: #475569; margin-top: 4px; position: relative; }
+  .ev .what { padding-bottom: 14px; }
+  .ev .t { font-size: 12.5px; font-weight: 600; }
+  .ev .d { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+  .ev.now .dot { background: #fff; box-shadow: 0 0 0 2px #7c3aed; }
+  .ev.next .dot { background: #fff; box-shadow: 0 0 0 1px #cbd5e1; }
+  .ev.next .t { color: #94a3b8; font-weight: 500; }
+  .who { display: inline-flex; width: 16px; height: 16px; border-radius: 999px; font-size: 8px; font-weight: 700; align-items: center; justify-content: center; vertical-align: -3px; margin-right: 3px; }
+  .who.a { background: #fde68a; color: #92400e; } .who.b { background: #c7d2fe; color: #3730a3; }
+  .chat { background: #f8fafc; border-radius: 10px; padding: 9px 11px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <h1>Filling the pane: one stretchy part per tab</h1>
+  <p class="lede">Yes. Keep the pane at the chat's height (so nothing jumps), and give each tab ONE part that grows into whatever height is left, marked with a dashed outline here. Everything else stays its natural size, packed at the top. On a short screen the stretchy part shrinks first, and the tab only scrolls when even that runs out. Drawn at the real pane size, 352 × 680.</p>
+  <div class="grid">
+    <!-- EXCHANGE -->
+    <div>
+      <div class="tag">Exchange: the cards grow</div>
+      <div class="notes"><span class="el">Stretches</span><br/>The two card photos, at card shape, as big as the space allows. The swap is the subject of the room, and the photos are what you check at inspection.</div>
+      <div class="pane">
+        <div class="tabs"><span class="on">Exchange</span><span>Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body">
+          <div class="grow cards">
+            <div class="cell"><div class="cimg"></div></div>
+            <div style="display:grid;place-items:center;color:#64748b;font-size:16px">⇄</div>
+            <div class="cell"><div class="cimg" style="background:linear-gradient(150deg,#a78bfa,#4338ca 55%,#1e1b4b)"></div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 26px 1fr;gap:6px;font-size:12px">
+            <div><div class="muted" style="font-size:11px">You send</div><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeOff 1795…</b><span class="muted">Near Mint</span><br/><span class="money">$60.00 AUD</span></div><div></div>
+            <div><div class="muted" style="font-size:11px">You get from Bob</div><b style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeReq 1795…</b><span class="muted">Near Mint</span><br/><span class="money">$60.00 AUD</span></div>
+          </div>
+          <div class="kv">
+            <div><span class="muted">Your NoDitto fee</span><span>$1.20 AUD</span></div>
+            <div><span class="muted">No cash either way</span><span class="muted">Fixed 25 Nov</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TERMS -->
+    <div>
+      <div class="tag">Terms: the map grows</div>
+      <div class="notes"><span class="el">Stretches</span><br/>The map. Your approved layout, with the three lines (method, place, time) pinned under it. A taller map is simply a more useful map.</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span class="on">Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body">
+          <div class="grow map"><span class="pin"></span></div>
+          <div>
+            <div class="line"><span class="ico">🤝</span><div><div style="font-weight:600">Meet in person</div><div class="muted" style="font-size:12px">You swap face to face, then check what you got</div></div></div>
+            <div class="line"><span class="ico">📍</span><div><div style="font-weight:600">12 Test Street</div><div class="muted" style="font-size:12px">Sydney NSW 2000, Australia</div><div style="color:#5b21b6;font-weight:600;font-size:12.5px;margin-top:3px">Get directions ↗</div></div></div>
+            <div class="line"><span class="ico">🕒</span><div><div style="font-weight:600">Wed, 25 Nov, 3:53 pm AEDT</div><div class="muted" style="font-size:12px">The meeting has passed</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLLATERAL -->
+    <div>
+      <div class="tag">Collateral: the hold panel grows</div>
+      <div class="notes"><span class="el">Stretches</span><br/>Your approved hold panel, centred in the space, now showing both holds side by side and how long they last: a bar from placed to when the card network releases it.</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span>Terms</span><span class="on">Collateral</span><span>History</span></div>
+        <div class="body">
+          <div class="grow hero">
+            <div style="font-size:12px;color:#5b21b6;font-weight:600">On hold on your card</div>
+            <div class="money" style="font-size:28px;margin-top:2px">$60.00 AUD</div>
+            <div class="muted" style="font-size:12px;margin-top:4px">A temporary hold, not a payment. It is released when the trade completes.</div>
+            <div class="split">
+              <div><div class="muted" style="font-size:11px">Your hold</div><div class="money">$60.00 AUD</div><div style="font-size:11px;color:#047857;font-weight:600">Held</div></div>
+              <div><div class="muted" style="font-size:11px">Bob's hold</div><div class="money">$60.00 AUD</div><div style="font-size:11px;color:#047857;font-weight:600">Held</div></div>
+            </div>
+            <div class="meter"><i></i></div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-top:4px" class="muted"><span>Placed Wed 1:54 pm</span><span>Planned to end before Sun 30 Nov</span></div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:600;margin-bottom:2px">What happens to your hold</div>
+            <div class="kv">
+              <div><span>The trade completes</span><span class="muted">Released</span></div>
+              <div><span>The handover fails</span><span class="muted">Released</span></div>
+              <div><span>Bob proves a condition problem</span><span class="muted">Part, set by support</span></div>
+              <div><span>Support finds fraud by you</span><span style="color:#b91c1c">All of it, to Bob</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div>
+      <div class="tag">History: the timeline grows</div>
+      <div class="notes"><span class="el">Stretches</span><br/>The timeline (H1). With few events it stays packed at the top and the rest of the space shows the steps still to come, each with its expected time, so the list reads as a plan as well as a record.</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span>Terms</span><span>Collateral</span><span class="on">History</span></div>
+        <div class="body">
+          <div class="grow" style="padding:4px 2px">
+            <div class="day">Wed, 25 Nov</div>
+            <div class="ev"><div class="time">1:53 pm</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Terms agreed</div><div class="d"><span class="who a">AN</span>You accepted, then <span class="who b">BC</span>Bob</div></div></div>
+            <div class="ev"><div class="time">1:54 pm</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Both holds placed</div><div class="d">$60.00 AUD each, nothing charged</div></div></div>
+            <div class="ev"><div class="time">1:55 pm</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Met and swapped</div><div class="d"><span class="who a">AN</span>You and <span class="who b">BC</span>Bob confirmed</div></div></div>
+            <div class="day" style="margin-top:6px">Now</div>
+            <div class="ev now"><div class="time">1 day</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Inspect what you got</div><div class="d">Accept it or report a problem</div></div></div>
+            <div class="day" style="margin-top:6px">Coming up</div>
+            <div class="ev next"><div class="time">Sat 3:53</div><div class="rail"><span class="dot"></span></div><div class="what"><div class="t">Completes on its own if nobody acts</div></div></div>
+            <div class="ev next"><div class="time"></div><div class="rail"><span class="dot"></span></div><div class="what" style="padding-bottom:0"><div class="t">Both holds released</div></div></div>
+          </div>
+          <div class="chat"><b>Something wrong?</b> <span class="muted">Use Problem in the chat before Sat, 28 Nov.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

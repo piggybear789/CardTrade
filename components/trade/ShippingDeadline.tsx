@@ -111,10 +111,10 @@ export function ShippingDeadline({
     return (
       <span
         className={cn(
-          'inline-flex max-w-full items-center gap-tight truncate rounded-md border px-snug py-0.5 text-meta font-medium',
+          'inline-flex max-w-full items-center gap-tight truncate rounded-md px-snug py-0.5 text-meta font-medium',
           late || (!viewerShipped && hours <= 12)
-            ? 'border-destructive/40 bg-destructive/10 text-destructive'
-            : 'border-border bg-muted text-foreground',
+            ? 'bg-destructive/[0.08] text-destructive'
+            : 'bg-foreground/[0.06] text-foreground',
           className,
         )}
       >
@@ -128,7 +128,7 @@ export function ShippingDeadline({
     return (
       <div
         className={cn(
-          'flex items-center gap-snug rounded-lg border bg-muted px-cozy py-snug text-body',
+          'flex items-center gap-snug rounded-lg bg-muted/80 px-cozy py-snug text-body',
           className,
         )}
         role="status"
@@ -145,7 +145,7 @@ export function ShippingDeadline({
     return (
       <div
         className={cn(
-          'rounded-lg border border-destructive/40 bg-destructive/5 px-cozy py-snug text-body',
+          'rounded-lg bg-destructive/[0.06] px-cozy py-snug text-body',
           className,
         )}
         role="alert"
@@ -162,7 +162,7 @@ export function ShippingDeadline({
         <p className="mt-tight text-muted-foreground">
           {viewerShipped
             ? 'You have posted, they have not. Raise a dispute before the collateral lapses.'
-            : 'Post now — the trade loses its collateral protection when the hold lapses.'}
+            : 'Post now. Protection ends when the collateral expires.'}
         </p>
       </div>
     );
@@ -175,8 +175,8 @@ export function ShippingDeadline({
   return (
     <div
       className={cn(
-        'rounded-lg border px-cozy py-snug text-body',
-        urgent ? 'border-destructive/40 bg-destructive/5' : 'bg-muted',
+        'rounded-lg px-cozy py-snug text-body',
+        urgent ? 'bg-destructive/[0.06]' : 'bg-muted/80',
         className,
       )}
       role={urgent ? 'alert' : 'status'}

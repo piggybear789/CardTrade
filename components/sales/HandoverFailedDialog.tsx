@@ -55,7 +55,7 @@ export function HandoverFailedDialog({
       // States what actually happens, not what we hope happens. This previously
       // promised "the buyer is refunded", which was untrue in two ways: nothing
       // refunded automatically, and a refund is only one of three outcomes.
-      outcomeDescription="Describe what went wrong. This raises a dispute and freezes the money — nothing is released to either side until NoDitto support reviews it. They can refund you in full, refund part of it, or decide the sale stands. You will be notified of the outcome."
+      outcomeDescription="Describe what went wrong. The money is frozen until NoDitto support reviews it. They can refund you in full, refund part, or let the sale stand. We'll tell you the outcome."
       reasonPlaceholder="e.g. Seller didn't show up"
       onSubmit={async (reason) => {
         const result = await disputeCashSale(cashSaleId, reason);

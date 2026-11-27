@@ -83,7 +83,7 @@ export const MARKETPLACE_NAV_GROUPS = [
       { href: '/', label: 'Browse all', icon: SquaresFourIcon },
       // The heart, the same glyph `WatchButton` saves with. It was a bookmark, so
       // members saved with one symbol and found their saves under another.
-      { href: '/saved', label: 'Saved', icon: HeartIcon },
+      { href: '/?saved=1', label: 'Saved', icon: HeartIcon },
     ],
   },
   {

@@ -65,7 +65,7 @@ import {
   ArrowSquareOutIcon,
   ArrowsLeftRightIcon,
   CaretLeftIcon,
-  CheckCircleIcon,
+  CheckIcon,
   CircleNotchIcon,
   DesktopIcon,
   DeviceMobileIcon,
@@ -605,7 +605,7 @@ export function DealComposeForm({
   const backButton = (className?: string) => (
     <Button
       type="button"
-      variant="outline"
+      variant="secondary"
       size="lg"
       className={className}
       onClick={() => goStage('card')}
@@ -641,7 +641,7 @@ export function DealComposeForm({
           // Square, Squarespace). A lone red "Cancel link" was the loudest thing in the
           // bar for the action least often wanted.
           <div className="ml-auto flex items-center gap-snug">
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="secondary" size="sm">
               <a href={dealInvitePath(existing.token)} target="_blank" rel="noreferrer">
                 <Icon icon={ArrowSquareOutIcon} aria-hidden />
                 View as them
@@ -651,7 +651,7 @@ export function DealComposeForm({
               <DropdownMenuTrigger asChild>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
                   aria-label="More actions"
                   disabled={isPending}
@@ -719,7 +719,7 @@ export function DealComposeForm({
                   <GoogleSignInButton mode="sign-up" redirectTo={DEAL_RESUME_PATH}>
                     Continue with Google
                   </GoogleSignInButton>
-                  <Button asChild variant="outline" size="lg" className="w-full">
+                  <Button asChild variant="secondary" size="lg" className="w-full">
                     <Link href={`/sign-up?redirectTo=${encodeURIComponent(DEAL_RESUME_PATH)}`}>
                       Continue with email
                     </Link>
@@ -1000,13 +1000,15 @@ function LinkPanel({
   );
   const todo = linkTodo(existing.kind, readiness);
   return (
-    <div className={cn('grid gap-snug rounded-2xl border border-border bg-card p-cozy', className)}>
+    // The card edge (`.surface`) rather than a border, and the solid success disc the
+    // contract timeline uses rather than a ringed tick inside a tinted ring (2026-11-28).
+    <div className={cn('surface grid gap-snug rounded-xl bg-card p-cozy', className)}>
       <div className="flex items-center gap-snug px-tight">
         <span
           aria-hidden
-          className="grid size-5 shrink-0 place-items-center rounded-full bg-trust/10 text-trust"
+          className="grid size-5 shrink-0 place-items-center rounded-full bg-trust text-white"
         >
-          <Icon icon={CheckCircleIcon} className="size-3.5" />
+          <Icon icon={CheckIcon} className="size-3" />
         </span>
         <p className="min-w-0 truncate text-body font-semibold text-foreground" role="status">
           {existing.justCreated ? 'Your link is ready' : 'Your link is live'}
@@ -1014,9 +1016,7 @@ function LinkPanel({
         <p className="ml-auto flex min-h-[1lh] shrink-0 items-center gap-tight text-meta text-muted-foreground">
           <span className={expires ? undefined : 'invisible'}>Expires {expires ?? 'soon'}</span>
           <InfoPopover label="About this link">
-            Only people with the link can open it, and it never appears in the catalog. The
-            first person to join gets the deal. Edit it here any time before they do; the
-            link stays the same.
+            Only people with the link can see it. The first person to join gets the deal. You can edit it until then.
           </InfoPopover>
         </p>
       </div>
@@ -1087,8 +1087,7 @@ function CanvasHeader({
                   Expires {expires ?? 'soon'}. Only people with the link can open it.
                 </span>
                 <InfoPopover label="About this link">
-                  It never appears in the catalog. The first person to join gets the deal.
-                  Edit it here any time before they do; the link stays the same.
+                  Hidden from the catalog. The first person to join gets the deal. You can edit it until then.
                 </InfoPopover>
               </>
             )}
@@ -1234,7 +1233,9 @@ function DeviceToggle({
     { value: 'desktop', label: 'Desktop preview', icon: DesktopIcon },
   ] as const;
   return (
-    <div className="flex shrink-0 gap-0.5 rounded-lg border border-border bg-card p-0.5">
+    // A segmented control (2026-11-28): a tinted track with the chosen segment
+    // raised in white, the iOS and Airbnb shape, instead of a bordered white box.
+    <div className="flex shrink-0 gap-0.5 rounded-lg bg-foreground/[0.06] p-0.5">
       {options.map((option) => {
         const active = device === option.value;
         return (
@@ -1247,8 +1248,8 @@ function DeviceToggle({
             className={cn(
               'grid size-8 place-items-center rounded-md border border-transparent transition-colors focus:outline-none focus-visible:border-ring',
               active
-                ? 'bg-muted text-foreground'
-                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                ? 'bg-card text-foreground shadow-[0_1px_2px_hsl(var(--obsidian)/0.12)]'
+                : 'text-muted-foreground hover:text-foreground',
             )}
           >
             <Icon icon={option.icon} className="size-4" aria-hidden />
@@ -1328,8 +1329,7 @@ function LinkFacts({ className }: { className?: string }) {
       )}
     >
       <Icon icon={EyeSlashIcon} className="mt-px size-4 shrink-0" aria-hidden />
-      Only people with the link can open it, and it never appears in the catalog. It lasts 14
-      days, and you can cancel it any time.
+      Only people with the link can see it. It lasts 14 days, and you can cancel it any time.
     </p>
   );
 }

@@ -185,8 +185,9 @@ export function MessageSellerButton({
             page with a hairline edge, so it read as empty space and the field inside
             it had nothing to stand against. The tint sets the composer apart from the
             listing details; the field keeps `bg-card` (from `Input`), so it is the
-            brightest thing in the panel and reads as the place to type. */}
-        <div className="rounded-lg border bg-muted p-cozy">
+            brightest thing in the panel and reads as the place to type. No edge
+            (2026-11-28): the tint is the shape. */}
+        <div className="rounded-lg bg-muted p-cozy">
           {/* UNIQUE PER INSTANCE, and the listing page mounts two of these — one
               in the `lg:hidden` phone stack, one in the desktop pane. Both used
               a hardcoded `message-seller-input`, so the document carried the id
@@ -237,7 +238,7 @@ export function MessageSellerButton({
           the page is for. */}
       <Button
         type="button"
-        variant={emphasis === 'primary' ? 'default' : 'outline'}
+        variant={emphasis === 'primary' ? 'default' : 'secondary'}
         size={size}
         className={className ?? 'w-full sm:w-auto'}
         onClick={handleClick}

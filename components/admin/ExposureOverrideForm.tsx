@@ -89,7 +89,7 @@ export function ExposureOverrideForm() {
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           disabled={isPending || !profileId.trim()}
           onClick={() => submit(true)}
         >

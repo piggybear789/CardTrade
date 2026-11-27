@@ -137,13 +137,10 @@ export default function SafetyPage() {
               <p>
                 You&rsquo;ll need to verify your identity before you can list, and it&rsquo;s worth
                 setting up payouts at the same time so there&rsquo;s nothing holding up your money later.
-                Describe each card precisely, because if there&rsquo;s ever a dispute, it gets decided on
-                what the contract says rather than on the listing. {sellerFee}
+                Describe each card precisely, because a dispute is decided on what the contract says. {sellerFee}
               </p>
               <p>
-                Once the buyer has paid, you&rsquo;ve got 3 business days to post. Only send it once the
-                contract itself shows the payment as collected, never because of a message or a
-                screenshot. Before you seal the parcel, photograph the card and the packed box, then
+                Once the buyer has paid, you&rsquo;ve got 3 business days to post. Only send it when the contract shows the payment as collected. A message or screenshot doesn&rsquo;t count. Before you seal the parcel, photograph the card and the packed box, then
                 photograph the sealed parcel with the label showing, and keep your postage receipt. Use
                 tracked postage and record the tracking in the contract room.
               </p>
@@ -156,8 +153,7 @@ export default function SafetyPage() {
 
             <Guide id="trading" title="Trading cards">
               <p>
-                A trade works a little differently, because instead of anyone paying, both of you put a
-                temporary hold on your card for the value of your side. Nothing is charged and no money
+                A trade works a little differently. Nobody pays: you each put a temporary hold on your card for the value of your side. Nothing is charged and no money
                 moves, but that hold only lasts about a week, which is why the deadlines on a trade are
                 shorter than on a purchase.
               </p>
@@ -174,7 +170,7 @@ export default function SafetyPage() {
                 charging anyone.
               </p>
               <p>
-                After the swap, you get {TRADE_INSPECTION_HOURS} hours to inspect, and never less than{' '}
+                After the swap, you get {TRADE_INSPECTION_HOURS} hours to inspect, and at least{' '}
                 {TRADE_INSPECTION_FLOOR_HOURS}. That clock starts at the agreed meeting time, or when the
                 later of the two parcels is delivered. If the other trader turns out to have committed
                 fraud, their hold is captured and paid to you, and their account is banned.
@@ -189,7 +185,7 @@ export default function SafetyPage() {
                 sign.
               </p>
               <p>
-                It helps to know what confirming the handover actually does. On a purchase, it completes
+                It helps to know what confirming the handover does. On a purchase, it completes
                 the sale and releases the money to the seller, so there&rsquo;s no going back. On a trade,
                 it only records the swap, and you still have {TRADE_INSPECTION_HOURS} hours to inspect
                 what you received.
@@ -198,8 +194,7 @@ export default function SafetyPage() {
 
             <Guide id="sealed" title="Buying sealed product">
               <p>
-                Sealed boxes and cases are the one thing the inspection window can&rsquo;t really help
-                with. Your 7 days runs whether you open it or not, and opening it is usually what
+                Sealed boxes and cases are the one thing the inspection window can&rsquo;t help with. Your 7 days runs whether you open it or not, and opening it is usually what
                 destroys its value. If you keep it sealed, you&rsquo;re accepting the contents without
                 seeing them, and once the sale completes there&rsquo;s nothing we can do.
               </p>
@@ -229,7 +224,7 @@ export default function SafetyPage() {
 
             <Guide id="limits" title="What we can't do">
               <p>
-                We never handle the cards ourselves, so we can&rsquo;t authenticate them, and we
+                We don&rsquo;t handle the cards ourselves, so we can&rsquo;t authenticate them, and we
                 can&rsquo;t help with anything that was paid for outside NoDitto. When neither side has
                 any evidence, we usually can&rsquo;t decide a claim either way. Listings with multiple
                 items don&rsquo;t reserve individual cards, so nothing on them is held for you. And we&rsquo;re

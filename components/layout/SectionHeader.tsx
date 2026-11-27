@@ -64,7 +64,7 @@ export function SectionLoadError({ label }: { label: string }) {
   return (
     <p
       role="alert"
-      className="rounded-xl border border-destructive/40 bg-destructive/10 px-group py-cozy text-body text-destructive"
+      className="rounded-xl bg-destructive/[0.07] px-group py-cozy text-body text-destructive"
     >
       We couldn&apos;t load your {label} right now. Reload the page to try again.
     </p>

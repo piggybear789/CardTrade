@@ -74,7 +74,7 @@ export function CaseAssignButton({
       <Button
         type="button"
         size="sm"
-        variant={mine ? 'outline' : 'default'}
+        variant={mine ? 'secondary' : 'default'}
         disabled={isPending}
         onClick={() => apply(mine ? null : viewerId)}
       >

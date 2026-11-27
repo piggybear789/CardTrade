@@ -154,14 +154,21 @@ export default async function ReferencesPage({
   // everything in it (`-z-10`), the orbit above the glow (`z-0`), and the hero text and
   // search above the orbit (`z-10`), so neither decoration can ever paint over text.
   return (
-    <div className="relative flex flex-1 flex-col overflow-x-clip">
+    // ONE SCREEN, NO SCROLL. `data-fits-viewport` caps the body at the viewport and lifts
+    // the marketing layout's one-screen minimum (both layouts read it with `:has`), so the
+    // footer sits on this screen instead of below it.
+    <div data-fits-viewport className="relative flex min-h-0 flex-1 flex-col overflow-x-clip">
       {/* The onboarding wizard's "I'm adding a reference" path returns here from the ID
           check (`?identity=complete`). Read the result from Stripe now rather than
           waiting on its webhook. Renders nothing. */}
       <Suspense fallback={null}>
         <IdentityReturnRefresh />
       </Suspense>
-      <article className="relative isolate mx-auto flex w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-start px-group pb-section pt-[clamp(2rem,calc(50svh-19rem),7rem)] sm:justify-center sm:px-6 sm:pt-[clamp(3rem,8vh,7rem)] sm:pb-[clamp(18rem,32vh,26rem)]">
+      <article className="relative isolate mx-auto flex min-h-0 w-full max-w-[clamp(48rem,55vw,72rem)] flex-1 flex-col justify-start px-group pb-section pt-[clamp(2rem,calc(50svh-19rem),7rem)] sm:px-6 sm:py-0">
+        {/* From `sm`, SPACERS instead of padding: their bases are the old top and bottom
+            padding and they grow alike, so with room the block sits where it did; on a
+            short screen they shrink (padding cannot) and the page still fits. */}
+        <div aria-hidden className="hidden sm:block sm:flex-[1_1_clamp(3rem,8vh,7rem)]" />
         <header className="relative z-10 mx-auto max-w-[clamp(42rem,48vw,64rem)] text-center">
           {/* The platform marks lead the block, so they carry real size; the glyph
               inside each chip scales with it (`[&_svg]`). */}
@@ -237,6 +244,7 @@ export default async function ReferencesPage({
           {/* After the search in the DOM, so a keyboard reaches the search first. */}
           <ReferenceOrbit people={orbit} />
         </div>
+        <div aria-hidden className="hidden sm:block sm:flex-[1_1_clamp(18rem,32vh,26rem)]" />
       </article>
     </div>
   );

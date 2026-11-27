@@ -258,7 +258,7 @@ export async function checkPsaCert(
     riskReason = `PSA cert #${certNumber} is DEACTIVATED by PSA (often revoked for counterfeit/altered slabs). Do not buy.`;
   } else if (psa.status === 'NOT_FOUND') {
     riskLevel = 'HIGH';
-    riskReason = `PSA cert #${certNumber} was not found in PSA’s registry — strong indicator of a fake or fabricated slab.`;
+    riskReason = `PSA cert #${certNumber} isn’t in PSA’s registry. It is likely a fake slab.`;
   } else if (conflictingEbayMatches.length > 0) {
     const sellers = Array.from(new Set(conflictingEbayMatches.map((m) => m.sellerUsername))).join(', ');
     riskLevel = 'HIGH';

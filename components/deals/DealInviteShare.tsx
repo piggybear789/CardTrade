@@ -134,7 +134,7 @@ export function DealInviteShare({ preview }: { preview: DealInvitePreview }) {
           Cancel link
         </Button>
         <div className="flex flex-wrap gap-snug">
-          <Button type="button" variant="outline" onClick={leave}>
+          <Button type="button" variant="secondary" onClick={leave}>
             {inboxLabel(preview)}
           </Button>
         </div>

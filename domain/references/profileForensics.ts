@@ -132,7 +132,7 @@ export function analyzeFacebookIdAge(
         code: 'FB_RECENT_615_ID',
         label: 'Brand-new Facebook ID (6158–6159 series)',
         detail:
-          'Facebook numeric IDs starting with 6158–6159 are very recently created accounts (~2025–2026) — a major red flag on Facebook Marketplace when paired with zero verifiable references.',
+          'Facebook IDs starting 6158 or 6159 are accounts made in 2025 or 2026. With no references, that is a major red flag.',
         severity: 'HIGH',
         points: 35,
       },
@@ -219,7 +219,7 @@ export function analyzeHandlePattern(handle: string | null | undefined): Forensi
     flags.push({
       code: 'TRAILING_DIGIT_VARIANT',
       label: 'Single trailing digit in handle',
-      detail: `Handle "@${clean}" ends in a digit — double-check it isn't a secondary or throwaway account.`,
+      detail: `Handle "@${clean}" ends in a number. Check it isn't a second or throwaway account.`,
       severity: 'INFO',
       points: 5,
     });
@@ -269,7 +269,7 @@ export function scoreVisibleProfile(profile: VisibleProfileMetrics): ForensicsFl
     flags.push({
       code: 'CATEGORY_BIO_MISMATCH',
       label: `Category mismatch ("${profile.category}" on a TCG vendor bio)`,
-      detail: `The account category is "${profile.category}" while the bio advertises trading-card buying/selling — a strong sign of a repurposed or bought/hijacked account.`,
+      detail: `The account category is "${profile.category}" but the bio sells trading cards. The account may have been bought or hijacked.`,
       severity: 'HIGH',
       points: 30,
     });
@@ -368,7 +368,7 @@ export function analyzeDmScriptHeuristic(rawText: string): DmScamAnalysis {
   ) {
     flags.push({
       code: 'DM_COLLATERAL_BACKSTORY',
-      label: 'Classic "left as collateral / just recouping my cost" backstory',
+      label: 'Classic "left as collateral" or "only covering my cost" story',
       detail:
         'Scammers routinely claim someone left a high-value card as collateral/depot or debt to justify selling far below market value.',
       severity: 'HIGH',
@@ -388,7 +388,7 @@ export function analyzeDmScriptHeuristic(rawText: string): DmScamAnalysis {
       flags.push({
         code: 'DM_STEEP_BELOW_MARKET',
         label: `Too-good-to-be-true discount (${Math.round((1 - minAmt / maxAmt) * 100)}% below stated value)`,
-        detail: `Message cites ~$${maxAmt.toLocaleString('en-US')} value while offering around ~$${minAmt.toLocaleString('en-US')}. High-liquidity grail cards never need a ~50% cold-DM discount.`,
+        detail: `Message cites ~$${maxAmt.toLocaleString('en-US')} value while offering around ~$${minAmt.toLocaleString('en-US')}. A card that sells easily doesn't need a half-price cold DM.`,
         severity: 'HIGH',
         points: 35,
       });

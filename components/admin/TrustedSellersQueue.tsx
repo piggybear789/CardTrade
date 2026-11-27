@@ -141,7 +141,7 @@ export function TrustedSellersQueue({
                   <CardContent className="space-y-group">
                     {row.scamMatchCount > 0 ? (
                       // A lead, not a finding: the Scams tab is where it gets checked.
-                      <p className="rounded-lg border border-destructive/40 bg-destructive/5 p-cozy text-body text-foreground">
+                      <p className="rounded-lg bg-destructive/[0.06] p-cozy text-body text-foreground">
                         Their details match{' '}
                         {row.scamMatchCount === 1 ? 'an off-platform scam report' : `${row.scamMatchCount} off-platform scam reports`}
                         .{' '}
@@ -220,7 +220,7 @@ export function TrustedSellersQueue({
                     </dl>
 
                     {/* WHAT THEY TOLD US, in their own words, then their photos. */}
-                    <div className="space-y-snug rounded-lg border border-border bg-muted/40 p-cozy">
+                    <div className="space-y-snug rounded-lg bg-muted/60 p-cozy">
                       <p className="text-meta font-medium text-foreground">Their application</p>
                       <p className="whitespace-pre-line break-words text-body text-foreground">
                         {row.details ??

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 type SharedProps = {
   icon: IconGlyph;
   label: string;
-  /** Filled primary chip vs outlined secondary. */
+  /** Filled primary chip vs the tonal secondary (`outline` is the legacy name). */
   variant?: 'default' | 'outline';
   /** Extra classes on the icon (e.g. a larger offer glyph). */
   iconClassName?: string;
@@ -31,7 +31,10 @@ function chipClass(variant: 'default' | 'outline') {
     'flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors group-focus-visible:border-ring md:size-12 md:rounded-md',
     variant === 'default'
       ? 'border-primary bg-primary text-primary-foreground group-hover:bg-primary/90'
-      : 'border-input bg-card text-foreground group-hover:border-input-hover group-hover:bg-accent group-hover:text-accent-foreground',
+      : // Tonal, as the quiet button is (2026-11-28): an ink tint, no edge. On a phone
+        // the ROW is the tinted control and this chip only holds the glyph, so two
+        // tints never stack; from `md` the row is bare and the chip takes the tint.
+        'border-transparent text-foreground md:bg-foreground/[0.06] md:group-hover:bg-foreground/[0.1]',
   );
 }
 
@@ -65,7 +68,10 @@ export function ListingActionIcon({
   );
 
   const sharedClass = cn(
-    'group inline-flex w-full min-h-12 touch-manipulation flex-row items-center justify-start gap-cozy rounded-md border border-input bg-card px-group py-cozy focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:flex-col md:items-center md:justify-center md:gap-tight md:rounded-md md:border-transparent md:bg-transparent md:px-0 md:py-0',
+    // PHONE: a full-width tonal row (2026-11-28), the quiet button's tint and inset
+    // focus ring; it was a bordered white row. FROM `md`: a bare column, the chip
+    // above its label, and the chip carries the tint and the focus edge.
+    'group inline-flex w-full min-h-12 touch-manipulation flex-row items-center justify-start gap-cozy rounded-md bg-foreground/[0.06] px-group py-cozy transition-colors hover:bg-foreground/[0.1] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:min-h-0 md:flex-col md:items-center md:justify-center md:gap-tight md:rounded-md md:bg-transparent md:px-0 md:py-0 md:hover:bg-transparent md:focus-visible:ring-0',
     className,
   );
 

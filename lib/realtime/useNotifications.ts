@@ -21,6 +21,8 @@ import type {
   RealtimeChannel,
   RealtimePostgresChangesPayload,
 } from '@supabase/supabase-js';
+import { listMyNotifications } from '@/lib/actions/notifications';
+import { parseContractLink, type ContractMove } from '@/lib/notifications/linkedContract';
 import { uniqueRealtimeTopic } from '@/lib/realtime/channelTopic';
 import { createClient } from '@/lib/supabase/browser';
 import type { Tables } from '@/lib/supabase/database.types';
@@ -29,9 +31,14 @@ import { DB_SCHEMA } from '@/lib/supabase/schema';
 /**
  * A notification row, strongly typed from the generated database types, plus the
  * read-time `target_missing` flag `listMyNotifications` adds. Rows arriving over
- * Realtime are new, so their target exists and the flag is simply absent.
+ * Realtime are new, so their target exists and the flag is simply absent. The server
+ * list also fills a contract-linked row's subject when its producer named none, and the
+ * contract's live move for the reader, neither of which a table read can (`withDescription`).
  */
-export type NotificationRow = Tables<'notifications'> & { target_missing?: boolean };
+export type NotificationRow = Tables<'notifications'> & {
+  target_missing?: boolean;
+  contract_move?: ContractMove | null;
+};
 
 /**
  * Connection state of the underlying Realtime channel, surfaced so the bell UI
@@ -85,6 +92,23 @@ function byCreatedAtDesc(a: NotificationRow, b: NotificationRow): number {
 }
 
 /**
+ * Keep what the server list knew about a row that a table read cannot: whether its
+ * contract still opens, the subject it took from that contract when its producer named
+ * none, and what the contract is waiting on (`listMyNotifications`). The table's own
+ * values win where it has them.
+ */
+function withDescription(row: NotificationRow, described: NotificationRow): NotificationRow {
+  return {
+    ...row,
+    target_missing: row.target_missing ?? described.target_missing,
+    contract_move: row.contract_move ?? described.contract_move,
+    subject_title: row.subject_title ?? described.subject_title,
+    image_path: row.image_path ?? described.image_path,
+    actor_name: row.actor_name ?? described.actor_name,
+  };
+}
+
+/**
  * Subscribe to the signed-in user's notifications in real time.
  *
  * Given the current user's `meId` and an `initial` server-provided list, this
@@ -124,6 +148,24 @@ export function useNotifications(
         if (prev.some((n) => n.id === next.id)) return prev;
         return [next, ...prev].sort(byCreatedAtDesc);
       });
+      // A Realtime payload is the bare row. One that links to a sale or trade and names
+      // no card is described by the server list, as every loaded row is
+      // (`lib/notifications/linkedContract.ts`); until that answers it reads as before.
+      if (!next.subject_title && parseContractLink(next.link)) {
+        void listMyNotifications(10)
+          .then((result) => {
+            const described = result.ok
+              ? result.notifications.find((row) => row.id === next.id)
+              : undefined;
+            if (!described) return;
+            setNotifications((prev) =>
+              prev.map((row) => (row.id === next.id ? withDescription(row, described) : row)),
+            );
+          })
+          .catch(() => {
+            // Decoration only: the row already shows its own title and body.
+          });
+      }
     },
     [],
   );
@@ -248,12 +290,12 @@ export function useNotifications(
               continue;
             }
             map.set(n.id, {
-              ...incoming,
+              // A table read cannot know whether the linked contract still exists, nor
+              // what a contract-linked row is about when its producer did not say; both
+              // came from the server list (`listMyNotifications`).
+              ...withDescription(incoming, n),
               // Preserve local optimistic read state.
               read_at: n.read_at !== null && incoming.read_at === null ? n.read_at : incoming.read_at,
-              // A table read cannot know whether the linked contract still exists;
-              // that verdict comes from the server list (`listMyNotifications`).
-              target_missing: n.target_missing,
             });
           }
           return Array.from(map.values()).sort(byCreatedAtDesc);

@@ -106,7 +106,7 @@ export function AddPaymentMethodForm({ onAttached, platform }: AddPaymentMethodF
         </p>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           className="w-full"
           onClick={() => {
             setConfigError(null);
@@ -255,7 +255,7 @@ function SimulatedCardSetup({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-group">
-      <div className="rounded-lg border border-border bg-muted px-cozy py-snug text-body" role="note">
+      <div className="rounded-lg bg-muted/80 px-cozy py-snug text-body" role="note">
         <p className="font-medium text-foreground">Simulated card entry</p>
         <p className="text-muted-foreground">
           No payment provider is configured, so saving adds a demo card (Visa

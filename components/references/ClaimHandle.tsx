@@ -440,11 +440,9 @@ export function ClaimHandle({
             Link another handle
           </Button>
         ) : (
-          // A HAIRLINE EDGE, not the control edge (`--input`) the outline variant rests
-          // at. Beside the filled "Leave a reference" that 3:1 grey outline was the
-          // darkest line in the header, on the quieter of the two actions. The label
-          // is what says this is a button, so its edge only has to hold the shape.
-          <Button type="button" variant="outline" className="border-border">
+          // TONAL, beside the filled "Leave a reference": the quieter of the two
+          // actions, with no edge to compete with the filled one.
+          <Button type="button" variant="secondary">
             Claim this account
           </Button>
         )}
@@ -559,7 +557,7 @@ export function ClaimHandle({
                 <div className="flex flex-wrap items-center gap-snug">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     disabled={uploadingManual || manualNames.length >= MANUAL_PROOF_LIMIT}
                     onClick={() => manualFileRef.current?.click()}
@@ -575,7 +573,7 @@ export function ClaimHandle({
                   {manualNames.map((name, idx) => (
                     <span
                       key={`${name}-${idx}`}
-                      className="inline-flex max-w-[160px] items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-meta text-foreground"
+                      className="inline-flex max-w-[160px] items-center gap-1.5 rounded-md bg-foreground/[0.06] px-2.5 py-1 text-meta text-foreground"
                     >
                       <span className="truncate">{name}</span>
                       <button
@@ -638,7 +636,7 @@ export function ClaimHandle({
                   <code className="font-mono text-subhead font-semibold tracking-wider text-foreground">
                     {dmSession.code}
                   </code>
-                  <Button type="button" variant="outline" size="sm" onClick={copyCode}>
+                  <Button type="button" variant="secondary" size="sm" onClick={copyCode}>
                     <Icon icon={CopyIcon} aria-hidden />
                     {copied ? 'Copied' : 'Copy code'}
                   </Button>
@@ -649,7 +647,7 @@ export function ClaimHandle({
                 </p>
               )}
 
-              <Button asChild variant="outline" className="w-full justify-between">
+              <Button asChild variant="secondary" className="w-full justify-between">
                 <a
                   href={`https://ig.me/m/${encodeURIComponent(dmSession.botHandle)}`}
                   target="_blank"

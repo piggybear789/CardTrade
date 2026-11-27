@@ -98,7 +98,7 @@ export default async function ReportScamPage() {
       <div className="mt-section space-y-group">
         <section
           aria-labelledby="scam-first-heading"
-          className="space-y-tight rounded-xl border border-border bg-muted/40 p-group"
+          className="space-y-tight rounded-xl bg-muted/60 p-group"
         >
           <h2 id="scam-first-heading" className="text-body font-semibold text-foreground">
             Do these first
@@ -147,7 +147,7 @@ export default async function ReportScamPage() {
                 every report comes from a real person. It takes a few minutes.
               </p>
             </div>
-            <Button asChild variant="outline" className="shrink-0">
+            <Button asChild variant="secondary" className="shrink-0">
               <Link href="/profile?tab=verification">Verify ID</Link>
             </Button>
           </section>

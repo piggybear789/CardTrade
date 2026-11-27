@@ -66,13 +66,13 @@ export default async function ScamReportResponsePage({ params }: { params: Promi
 
       {responded ? null : (
         <div className="mt-section space-y-group">
-          <section aria-labelledby="response-how-heading" className="space-y-tight rounded-xl border border-border bg-muted/40 p-group">
+          <section aria-labelledby="response-how-heading" className="space-y-tight rounded-xl bg-muted/60 p-group">
             <h2 id="response-how-heading" className="text-body font-semibold text-foreground">
               What happens next
             </h2>
             <ul className="list-disc space-y-tight pl-5 text-pretty text-body text-muted-foreground">
               <li>Tell us your side{due ? ` by ${due}` : ''}. A person reads every response.</li>
-              <li>We don&rsquo;t act on a single report, and we never take action without checking first.</li>
+              <li>We don&rsquo;t act on a single report, and we always check first.</li>
               <li>
                 We can&rsquo;t tell you who sent the report or share what it says, the same way we&rsquo;d
                 protect you if you reported someone.

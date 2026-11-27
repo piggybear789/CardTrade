@@ -80,7 +80,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
       await createNotification({
         userId: sale.seller_id as string,
         type: 'SALE',
-        title: 'Sale completed — payout queued',
+        title: 'Sale complete: payout on its way',
         body: 'The buyer\'s inspection window closed. Your payout is being processed.',
         link: `/sales/${sale.id}`,
       });
@@ -123,7 +123,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         userId: sale.buyer_id as string,
         type: 'SALE',
         title: 'Inspection window closing',
-        body: 'Your inspection window closes within 24 hours. Complete the purchase or raise a dispute before then — otherwise the sale completes and the seller is paid.',
+        body: 'Your inspection window closes within 24 hours. Complete the purchase or raise a problem by then. Otherwise the sale completes and the seller is paid.',
         link: `/sales/${sale.id}`,
       });
       void emailNotify.inspectionDeadlineWarning({
@@ -179,8 +179,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         // action would be a lie told for convenience.
         body:
           'Your refund is waiting on the item coming back. Post it and add the tracking '
-          + 'number within 24 hours. If you miss the deadline our team picks the case up '
-          + 'rather than closing it automatically — but it will take longer to resolve.',
+          + 'number within 24 hours. If you miss it, our team reviews ' + 'the case, which takes longer.',
         link: `/sales/${sale.id}`,
       });
       void emailNotify.returnDeadlineWarning({
@@ -254,7 +253,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
       await createNotification({
         userId: sale.seller_id as string,
         type: 'SALE',
-        title: 'Return not posted — we are reviewing it',
+        title: 'Return not posted: we’re reviewing it',
         body:
           'The buyer did not post the item back before the deadline. Our team is now '
           + 'reviewing the case. Nothing has been paid out either way while we do.',
@@ -266,7 +265,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         title: 'Return deadline passed',
         body:
           'You have not posted the item back yet, so your refund is on hold and our team '
-          + 'is reviewing the case. You can still post it — add the tracking number and '
+          + 'is reviewing the case. You can still post it. Add the tracking number and '
           + 'the review closes on its own.',
         link: `/sales/${sale.id}`,
       });
@@ -361,7 +360,7 @@ export async function sweepCashSaleInspections(): Promise<CashSaleInspectionSwee
         title: 'Ship-by date passed',
         body:
           'The item has not been marked as posted. Post it and add the tracking number '
-          + 'now — our team has been asked to check in on this sale.',
+          + 'now. Our team will check in on this sale.',
         link: `/sales/${sale.id}`,
       });
       await createNotification({

@@ -429,7 +429,7 @@ export function canFraudBan(p: {
     return { ok: false, reason: 'Needs reports from at least two independent members.' };
   }
   if (p.matchStrength === 'WEAK') {
-    return { ok: false, reason: 'A handle-only match is never enough to ban.' };
+    return { ok: false, reason: 'A handle match alone isn’t enough to ban.' };
   }
   if (!p.notifiedAt) {
     return { ok: false, reason: 'Tell the member first and give them time to respond.' };

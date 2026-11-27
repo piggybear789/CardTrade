@@ -97,7 +97,7 @@ const DECLINED_WITHOUT_REASON =
  * other is waiting on the member.
  */
 const STILL_UNDER_REVIEW =
-  'Stripe is still reviewing your document. Checks usually finish in a few minutes, but a manual review can take longer. You can safely leave this page — we will update it when the result arrives.';
+  'Stripe is still reviewing your document. This usually takes a few minutes. You can leave this page and we’ll update it.';
 
 /** Shown while a submitted document is known to be with the provider. */
 const UNDER_REVIEW_NOW =
@@ -816,7 +816,7 @@ export function UnifiedOnboardingSurface({
               {identityWaiting && !identityChecking && confirming !== 'identity' ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   onClick={recheckIdentity}
                   disabled={identityRechecking}
                   aria-busy={identityRechecking}
@@ -873,7 +873,7 @@ export function UnifiedOnboardingSurface({
               {!payoutPolling ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   onClick={recheckPayout}
                   disabled={payoutRechecking}
                   aria-busy={payoutRechecking}

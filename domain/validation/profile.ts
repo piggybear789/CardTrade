@@ -29,7 +29,7 @@ const profileTextField = (label: string) =>
 export const profileUpdateSchema = z.object({
   displayName: profileTextField('Display name'),
   contactEmail: profileTextField('Contact email').refine(isDeliverableEmail, {
-    error: 'Enter a complete email address, including the domain — like you@example.com',
+    error: 'Enter a full email address, like you@example.com',
   }),
 });
 

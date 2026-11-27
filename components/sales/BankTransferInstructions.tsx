@@ -94,7 +94,7 @@ export function BankTransferInstructions({
       </ul>
 
       {instructions.hostedInstructionsUrl ? (
-        <Button asChild variant="outline" className="w-full">
+        <Button asChild variant="secondary" className="w-full">
           <a href={instructions.hostedInstructionsUrl} target="_blank" rel="noopener noreferrer">
             Open printable instructions
           </a>

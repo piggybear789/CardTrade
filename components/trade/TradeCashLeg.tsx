@@ -152,7 +152,7 @@ export function TradeCashLeg({
   }
 
   return (
-    <div className="rounded-lg border border-border bg-muted px-group py-cozy text-body">
+    <div className="rounded-lg bg-muted/80 px-group py-cozy text-body">
       <p className="font-medium">{title}</p>
       <p className="mt-tight text-muted-foreground">{body}</p>
       {awaitingPayment && iPay && fxFeeCents > 0 ? (
@@ -171,7 +171,7 @@ export function TradeCashLeg({
         </Button>
       ) : null}
       {!iPay && !cashReceiverPayoutReady && leg.status !== 'REFUND_PENDING' && leg.status !== 'REFUNDED' ? (
-        <Button asChild size="sm" variant="outline" className="mt-cozy">
+        <Button asChild size="sm" variant="secondary" className="mt-cozy">
           <Link href="/profile?tab=payouts">Set up payouts</Link>
         </Button>
       ) : null}

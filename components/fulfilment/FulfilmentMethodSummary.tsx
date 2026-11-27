@@ -66,17 +66,17 @@ export function FulfilmentMethodSummary({
             className={cn(
               'flex min-w-0 items-center gap-snug rounded-lg border p-cozy',
               chosen
-                ? // The accent pair, which is the app's documented selected look
-                  // (globals.css) and what ChoiceTile already uses. A full-strength
-                  // iris EDGE was doing the same job twice: the pair of tiles is
-                  // already 100% against 60% opacity, so the frame only added weight.
-                  'border-border bg-accent text-accent-foreground'
+                ? // A filled tile with no edge (2026-11-28): the fill is the shape, as
+                  // on the badges and notices. A full-strength iris EDGE was doing the
+                  // same job twice, and so was a hairline around the fill.
+                  'border-transparent bg-muted text-foreground'
                 : // The option NOT taken stays visible and stays quiet. Dropping
                   // it entirely would leave a lone card that reads as a heading;
                   // showing it at equal weight would read as a live choice. Quiet
-                  // through a dashed edge, NOT opacity: muted text at 60% failed
-                  // the WCAG AA contrast check (e2e audit, color-contrast).
-                  'border-dashed border-border',
+                  // through a hairline and no fill, NOT opacity: muted text at 60%
+                  // failed the WCAG AA contrast check (e2e audit, color-contrast).
+                  // Solid, because the app draws no dashed edges (globals.css).
+                  'border-border',
             )}
           >
             <Icon icon={Glyph}

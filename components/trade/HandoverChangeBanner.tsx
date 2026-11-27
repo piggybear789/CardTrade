@@ -58,7 +58,7 @@ export function HandoverChangeBanner({ change, viewerId, otherName, current }: H
   return (
     <section
       aria-labelledby={`handover-change-${change.id}`}
-      className="space-y-snug rounded-lg border border-border bg-muted p-cozy text-body"
+      className="space-y-snug rounded-lg bg-muted/80 p-cozy text-body"
     >
       <h3 id={`handover-change-${change.id}`} className="font-medium">
         {mine ? `Waiting for ${otherName} to accept the new meeting details` : `${otherName} proposed new meeting details`}
@@ -84,7 +84,7 @@ export function HandoverChangeBanner({ change, viewerId, otherName, current }: H
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             disabled={isPending}
             onClick={() => run(() => withdrawTradeHandoverChange(change.id))}
           >
@@ -103,7 +103,7 @@ export function HandoverChangeBanner({ change, viewerId, otherName, current }: H
             <Button
               type="button"
               size="sm"
-              variant="outline"
+              variant="secondary"
               disabled={isPending}
               onClick={() => run(() => respondTradeHandoverChange({ changeId: change.id, decision: 'DECLINE' }))}
             >

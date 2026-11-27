@@ -85,7 +85,7 @@ export const signUpCredentialsSchema = z.object({
     .trim()
     .regex(
       DELIVERABLE_EMAIL_REGEX,
-      'Enter a complete email address, including the domain — like you@example.com',
+      'Enter a full email address, like you@example.com',
     ),
   password: passwordField,
 });

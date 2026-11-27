@@ -1,0 +1,169 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Inter, "Segoe UI", system-ui, sans-serif; background: #eef0f4; color: #0f172a; padding: 28px; width: 1520px; }
+  h1 { font-size: 22px; font-weight: 700; }
+  .lede { color: #64748b; font-size: 14px; margin: 6px 0 20px; line-height: 1.45; max-width: 1400px; }
+  .rowlabel { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #94a3b8; margin: 4px 0 10px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 352px); gap: 20px; }
+  .tag { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+  .notes { font-size: 12px; color: #475569; line-height: 1.45; margin-bottom: 10px; min-height: 88px; }
+  .notes li { margin-left: 14px; }
+  .shot { background: #fff; border: 1px solid #dbe1ea; border-radius: 14px; overflow: hidden; height: 330px; }
+  .shot img { width: 100%; display: block; }
+
+  .pane { background: #fff; border: 1px solid #dbe1ea; border-radius: 14px; overflow: hidden; height: 520px; box-shadow: 0 8px 24px rgba(15,23,42,.06); }
+  .tabs { display: flex; gap: 18px; padding: 0 16px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; }
+  .tabs span { padding: 11px 0 9px; }
+  .tabs .on { color: #0f172a; font-weight: 600; box-shadow: inset 0 -2px 0 #7c3aed; }
+  .body { padding: 14px 16px; font-size: 13px; }
+  .muted { color: #64748b; }
+  .money { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .thumb { width: 40px; height: 40px; border-radius: 7px; flex: none; background: linear-gradient(135deg,#f59e0b,#b91c1c 55%,#7c2d12); }
+  .kv { margin-top: 14px; background: #f8fafc; border-radius: 10px; padding: 4px 12px; }
+  .kv div { display: flex; justify-content: space-between; padding: 8px 0; font-size: 12.5px; }
+  .kv div + div { border-top: 1px solid #eef2f7; }
+  .note { font-size: 11.5px; color: #64748b; margin-top: 10px; line-height: 1.45; }
+
+  .side { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; }
+  .side .k { font-size: 11.5px; color: #64748b; font-weight: 600; }
+  .item { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+  .swapdot { width: 28px; height: 28px; border-radius: 999px; background: #fff; border: 1px solid #e2e8f0; display: grid; place-items: center; margin: -8px auto; position: relative; z-index: 1; color: #475569; font-size: 14px; }
+
+  .map { height: 132px; border-radius: 10px; background:
+      linear-gradient(90deg, transparent 47%, #dde3ea 47% 53%, transparent 53%),
+      linear-gradient(0deg, transparent 40%, #dde3ea 40% 46%, transparent 46%),
+      linear-gradient(120deg, #f6efe0 0 55%, #e3f2e7 55% 100%);
+    position: relative; }
+  .pin { position: absolute; left: 47%; top: 30%; width: 22px; height: 22px; border-radius: 999px 999px 999px 0; transform: rotate(-45deg); background: #7c3aed; border: 3px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+  .line { display: flex; gap: 10px; padding: 9px 0; }
+  .line + .line { border-top: 1px solid #f1f5f9; }
+  .ico { width: 26px; height: 26px; border-radius: 8px; background: #f1f5f9; display: grid; place-items: center; font-size: 13px; flex: none; }
+  .link { color: #5b21b6; font-weight: 600; font-size: 12.5px; }
+
+  .hero { background: #f5f3ff; border-radius: 12px; padding: 12px; }
+  .holdrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+  .holdrow + .holdrow { border-top: 1px solid #f1f5f9; }
+  .pill { font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 6px; background: #ecfdf5; color: #047857; }
+  .out { font-size: 12.5px; }
+  .out div { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; }
+  .out div + div { border-top: 1px solid #f1f5f9; }
+
+  .tl { position: relative; padding-left: 22px; }
+  .tl::before { content: ""; position: absolute; left: 7px; top: 6px; bottom: 6px; width: 2px; background: #e2e8f0; }
+  .ev { position: relative; padding: 0 0 14px; }
+  .ev::before { content: ""; position: absolute; left: -20px; top: 3px; width: 12px; height: 12px; border-radius: 999px; background: #475569; border: 2px solid #fff; box-shadow: 0 0 0 1px #475569; }
+  .ev.now::before { background: #fff; box-shadow: 0 0 0 2px #7c3aed; }
+  .ev.next::before { background: #fff; box-shadow: 0 0 0 1px #cbd5e1; }
+  .ev .t { font-size: 13px; font-weight: 600; }
+  .ev.next .t { color: #94a3b8; font-weight: 500; }
+  .ev .w { font-size: 11.5px; color: #64748b; margin-top: 1px; }
+</style>
+</head>
+<body>
+  <h1>Contract room: the four detail tabs</h1>
+  <p class="lede">The same trade at Inspect, seen by Alice. Top row: today. Bottom row: a redesign of each tab, based on swap summaries (Phantom, OKX, Trust Wallet), trip and booking details (Grab, Waymo, Careem), card-hold explainers (Walmart, Lyft, Careem) and order timelines (StubHub, Bolt Food, Shopee). One change applies to all four: the grey caps heading that repeats the tab's own name goes.</p>
+
+  <div class="rowlabel">Today</div>
+  <div class="grid">
+    <div><div class="tag">Exchange</div><div class="notes"><ul><li>Two big side-by-side cards; both people's names and ID badges again (now in the header).</li><li>"VALUE" in caps over each, the ">" between them looks like a button.</li><li>The fee sits inside each card, read as part of the goods.</li></ul></div><div class="shot"><img src="current/exchange.png" /></div></div>
+    <div><div class="tag">Terms</div><div class="notes"><ul><li>"Face to face" is drawn as a selectable option card, but it can't be changed here.</li><li>The address is printed twice: above the map and under it.</li></ul></div><div class="shot"><img src="current/terms.png" /></div></div>
+    <div><div class="tag">Collateral</div><div class="notes"><ul><li>"Counterpart's collateral" is internal wording; "Active" badges say little.</li><li>The outcomes table is good, but "Up to $20.00 AUD" is out of date: since ESC-01 staff choose compensation up to the hold.</li></ul></div><div class="shot"><img src="current/collateral.png" /></div></div>
+    <div><div class="tag">History</div><div class="notes"><ul><li>Raw state names: "negotiating → collateral pending".</li><li>Icons don't line up into a timeline, and nothing says what comes next.</li></ul></div><div class="shot"><img src="current/history.png" /></div></div>
+  </div>
+
+  <div class="rowlabel" style="margin-top:26px">Proposed</div>
+  <div class="grid">
+    <!-- EXCHANGE -->
+    <div>
+      <div class="tag" style="color:#6d28d9">Exchange: you send, you get</div>
+      <div class="notes">A swap summary (Phantom, OKX): what leaves you on top, what arrives below, one swap mark between. The people are in the header now, so the cards carry goods only. Fees and the frozen-terms note move into a plain list underneath.</div>
+      <div class="pane">
+        <div class="tabs"><span class="on">Exchange</span><span>Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body">
+          <div class="side">
+            <div class="k">You send</div>
+            <div class="item"><span class="thumb"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeOff 17955593…</div><div class="muted" style="font-size:11.5px">Near Mint</div></div><span class="money">$60.00 AUD</span></div>
+          </div>
+          <div class="swapdot">⇅</div>
+          <div class="side">
+            <div class="k">You get from Bob</div>
+            <div class="item"><span class="thumb"></span><div style="flex:1;min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">TradeDisputeReq 17955593…</div><div class="muted" style="font-size:11.5px">Near Mint</div></div><span class="money">$60.00 AUD</span></div>
+          </div>
+          <div class="kv">
+            <div><span class="muted">Cash</span><span>None</span></div>
+            <div><span class="muted">Your NoDitto fee</span><span>$1.20 AUD</span></div>
+            <div><span class="muted">Agreed</span><span>Wed, 25 Nov, 1:53 pm</span></div>
+          </div>
+          <p class="note">Fixed when you both accepted the terms. Neither of you can change them now.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TERMS -->
+    <div>
+      <div class="tag" style="color:#6d28d9">Terms: where and when</div>
+      <div class="notes">Trip details (Grab, Waymo): the map first, then one line each for the method, the place and the time, with a directions link. The method reads as a fact, not a choice, and the address appears once.</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span class="on">Terms</span><span>Collateral</span><span>History</span></div>
+        <div class="body">
+          <div class="map"><span class="pin"></span></div>
+          <div style="margin-top:8px">
+            <div class="line"><span class="ico">🤝</span><div><div style="font-weight:600">Meet in person</div><div class="muted" style="font-size:12px">You swap face to face, then check what you got</div></div></div>
+            <div class="line"><span class="ico">📍</span><div style="flex:1"><div style="font-weight:600">12 Test Street</div><div class="muted" style="font-size:12px">Sydney NSW 2000, Australia</div><div class="link" style="margin-top:3px">Get directions ↗</div></div></div>
+            <div class="line"><span class="ico">🕒</span><div><div style="font-weight:600">Wed, 25 Nov, 3:53 pm AEDT</div><div class="muted" style="font-size:12px">The meeting has passed</div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLLATERAL -->
+    <div>
+      <div class="tag" style="color:#6d28d9">Collateral: a hold, not a charge</div>
+      <div class="notes">Card-hold explainers (Walmart "This is not a charge", Careem): one plain statement up top with your amount, then both holds as rows with the card they sit on, then the outcomes as sentences. "Bob's" instead of "Counterpart's".</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span>Terms</span><span class="on">Collateral</span><span>History</span></div>
+        <div class="body">
+          <div class="hero">
+            <div style="font-size:12px;color:#5b21b6;font-weight:600">On hold on your card</div>
+            <div class="money" style="font-size:22px;margin-top:2px">$60.00 AUD</div>
+            <div class="muted" style="font-size:12px;margin-top:3px">A temporary hold, not a payment. It is released when the trade completes.</div>
+          </div>
+          <div style="margin-top:8px">
+            <div class="holdrow"><div style="flex:1"><div style="font-weight:600">Your hold</div><div class="muted" style="font-size:11.5px">Visa ending 4242</div></div><span class="money">$60.00 AUD</span><span class="pill">Held</span></div>
+            <div class="holdrow"><div style="flex:1"><div style="font-weight:600">Bob's hold</div><div class="muted" style="font-size:11.5px">His card</div></div><span class="money">$60.00 AUD</span><span class="pill">Held</span></div>
+          </div>
+          <div style="font-size:12px;font-weight:600;margin-top:10px">What happens to your hold</div>
+          <div class="out">
+            <div><span>The trade completes</span><span class="muted">Released</span></div>
+            <div><span>The handover fails</span><span class="muted">Released</span></div>
+            <div><span>Bob proves a condition problem</span><span class="muted">Part, set by support</span></div>
+            <div><span>Support finds fraud by you</span><span style="color:#b91c1c">All of it, to Bob</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div>
+      <div class="tag" style="color:#6d28d9">History: a real timeline</div>
+      <div class="notes">Order timelines (StubHub, Bolt Food): one dot per event on a line, a plain sentence, the time under it. The current step is ringed and the step still to come is shown faint, so the list says what's next.</div>
+      <div class="pane">
+        <div class="tabs"><span>Exchange</span><span>Terms</span><span>Collateral</span><span class="on">History</span></div>
+        <div class="body">
+          <div class="tl">
+            <div class="ev"><div class="t">You both agreed the terms</div><div class="w">Wed, 25 Nov, 1:53 pm</div></div>
+            <div class="ev"><div class="t">Both holds placed</div><div class="w">Wed, 25 Nov, 1:54 pm</div></div>
+            <div class="ev"><div class="t">You met and swapped</div><div class="w">Wed, 25 Nov, 1:55 pm</div></div>
+            <div class="ev now"><div class="t">Inspect what you got</div><div class="w">Until Sat, 28 Nov, 3:53 pm</div></div>
+            <div class="ev next" style="padding-bottom:0"><div class="t">Done, both holds released</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -132,7 +132,7 @@ function MediaTile({
 
   if (!url) {
     return (
-      <div className="grid aspect-square place-items-center rounded-lg border border-border bg-muted text-muted-foreground">
+      <div className="grid aspect-square place-items-center rounded-lg bg-muted text-muted-foreground">
         <span className="px-snug text-center text-meta leading-tight">
           Attachment unavailable
         </span>
@@ -400,9 +400,9 @@ export function DisputeEvidencePanel({
     <div className="space-y-section">
       {/* THE CLAIM. The one surface on the tab, because it is the subject of the tab. */}
       {disputeReason ? (
-        {/* MINIMAL (2026-11-27): no tint, no icon, no chip. The quote is the
-            subject; who and when are one grey line under it. */}
         <section aria-labelledby="dispute-claim-heading" className="border-b pb-group">
+          {/* MINIMAL (2026-11-27): no tint, no icon, no chip. The quote is the
+              subject; who and when are one grey line under it. */}
           <h3 id="dispute-claim-heading" className="sr-only">
             The claim
           </h3>
@@ -502,7 +502,7 @@ export function DisputeEvidencePanel({
                   action={
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="secondary"
                       size="sm"
                       onClick={() => fileInputRef.current?.click()}
                       disabled={busy || files.length >= EVIDENCE_FILES_MAX}
@@ -516,7 +516,7 @@ export function DisputeEvidencePanel({
                       {files.map((file, index) => (
                         <li
                           key={`${file.name}-${index}`}
-                          className="inline-flex max-w-full items-center gap-tight rounded-md border bg-card py-tight pl-snug pr-tight text-meta"
+                          className="inline-flex max-w-full items-center gap-tight rounded-md bg-foreground/[0.06] py-tight pl-snug pr-tight text-meta"
                         >
                           <span className="truncate">{file.name}</span>
                           <button
@@ -544,7 +544,7 @@ export function DisputeEvidencePanel({
                     writing || statement ? null : (
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
                         onClick={() => {
                           setWriting(true);

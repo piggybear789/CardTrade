@@ -72,7 +72,7 @@ const VERDICT_STYLE: Record<RealnessTier, { icon: IconGlyph | StatusGlyphKind; t
 
 function buildFallbackSummary(dossier: BackgroundCheckDossier): string {
   if (dossier.scamRisk.matchedReportCount > 0) {
-    return `Matches ${dossier.scamRisk.matchedReportCount} scam report${dossier.scamRisk.matchedReportCount === 1 ? '' : 's'} — do not send unprotected payment.`;
+    return `Matches ${dossier.scamRisk.matchedReportCount} scam report${dossier.scamRisk.matchedReportCount === 1 ? '' : 's'}. Don't send an unprotected payment.`;
   }
 
   const parts: string[] = [];
@@ -99,7 +99,7 @@ function buildFallbackSummary(dossier: BackgroundCheckDossier): string {
     return `${joined.charAt(0).toUpperCase()}${joined.slice(1)}. Public signals from other sites.`;
   }
 
-  return 'Public signals from other sites — separate from NoDitto references.';
+  return 'Public information from other sites.';
 }
 
 function collectFallbackWarnings(dossier: BackgroundCheckDossier): FootprintJudgeWarning[] {
@@ -115,7 +115,7 @@ function collectFallbackWarnings(dossier: BackgroundCheckDossier): FootprintJudg
     out.push({
       severity: 'CAUTION',
       title: `${dossier.scamRisk.nameMatchCount} scam report${dossier.scamRisk.nameMatchCount === 1 ? '' : 's'} mention a similar name`,
-      detail: 'Names can overlap — double-check payment details before sending money.',
+      detail: 'Many people share a name. Check the payment details before sending money.',
     });
   }
 
@@ -195,12 +195,12 @@ function RowBadge({
     <span
       aria-hidden
       className={cn(
-        'inline-flex size-10 shrink-0 items-center justify-center rounded-full border',
+        'inline-flex size-10 shrink-0 items-center justify-center rounded-full',
         tone === 'trust'
-          ? 'border-trust/25 bg-trust/10 text-trust'
+          ? 'bg-trust/10 text-trust'
           : tone === 'destructive'
-            ? 'border-destructive/30 bg-destructive/10 text-destructive'
-            : 'border-border bg-muted/40 text-muted-foreground',
+            ? 'bg-destructive/10 text-destructive'
+            : 'bg-foreground/[0.06] text-muted-foreground',
       )}
     >
       <Icon icon={icon} className="size-4" aria-hidden />
@@ -225,7 +225,7 @@ function EbaySellerAvatar({ avatarUrl, username }: { avatarUrl?: string | null; 
         decoding="async"
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
-        className="size-10 rounded-full border border-border object-cover bg-muted"
+        className="size-10 rounded-full object-cover bg-muted outline outline-1 -outline-offset-1 outline-foreground/[0.08]"
       />
       <span className="absolute -right-0.5 -bottom-0.5 inline-flex size-5 items-center justify-center rounded-full bg-card ring-2 ring-card">
         <PlatformChip slug="ebay" className="size-full bg-card" />
@@ -252,7 +252,7 @@ function SiteFavicon({
       <span
         aria-hidden
         className={cn(
-          'inline-flex shrink-0 items-center justify-center border border-border bg-muted/50 text-muted-foreground',
+          'inline-flex shrink-0 items-center justify-center bg-foreground/[0.06] text-muted-foreground',
           boxClass,
         )}
       >
@@ -264,7 +264,7 @@ function SiteFavicon({
   return (
     <span
       className={cn(
-        'inline-flex shrink-0 items-center justify-center overflow-hidden border border-border bg-background',
+        'inline-flex shrink-0 items-center justify-center overflow-hidden bg-background outline outline-1 -outline-offset-1 outline-foreground/[0.08]',
         boxClass,
       )}
     >
@@ -295,7 +295,7 @@ function ListingThumb({ src, alt }: { src: string | null; alt: string }) {
       decoding="async"
       referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
-      className="size-12 shrink-0 rounded-md border border-border bg-muted object-cover"
+      className="size-12 shrink-0 rounded-md bg-muted object-cover outline outline-1 -outline-offset-1 outline-foreground/[0.08]"
     />
   );
 }
@@ -600,7 +600,7 @@ export function BackgroundCheckPanel({
       {error ? (
         <div
           role="alert"
-          className="rounded-lg border border-destructive/35 bg-destructive/5 px-4 py-2.5 text-meta text-destructive"
+          className="rounded-lg bg-destructive/[0.07] px-4 py-2.5 text-meta text-destructive"
         >
           {error}
         </div>
@@ -674,10 +674,8 @@ export function BackgroundCheckPanel({
             role="status"
             inert={covered}
             className={cn(
-              'mt-group rounded-lg border p-cozy',
-              hasHighWarning
-                ? 'border-destructive/25 bg-destructive/[0.04]'
-                : 'border-action-border/50 bg-action/20',
+              'mt-group rounded-lg p-cozy',
+              hasHighWarning ? 'bg-destructive/[0.06]' : 'bg-action/25',
             )}
           >
             <ul className="space-y-2.5">
@@ -867,7 +865,7 @@ export function BackgroundCheckPanel({
                       href={item.itemUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="ref-tile group flex items-center gap-2.5 rounded-xl border border-border bg-card p-2 hover:bg-muted/35"
+                      className="ref-tile group flex items-center gap-2.5 rounded-xl bg-muted/60 p-2 hover:bg-muted"
                     >
                       <ListingThumb src={item.imageUrl} alt={item.title} />
                       <div className="min-w-0 flex-1">
@@ -922,19 +920,19 @@ export function BackgroundCheckPanel({
                                   'inline-flex items-center rounded-sm px-1.5 py-1 text-meta font-medium tabular-nums leading-none',
                                   parsed.gradeBadge.highlight
                                     ? 'bg-iris/12 text-iris-ink'
-                                    : 'bg-muted text-foreground',
+                                    : 'bg-card text-foreground',
                                 )}
                               >
                                 {parsed.gradeBadge.label}
                               </span>
                             ) : null}
                             {parsed.categoryBadge ? (
-                              <span className="inline-flex items-center rounded-sm bg-muted px-1.5 py-1 text-meta font-medium leading-none text-muted-foreground">
+                              <span className="inline-flex items-center rounded-sm bg-card px-1.5 py-1 text-meta font-medium leading-none text-muted-foreground">
                                 {parsed.categoryBadge}
                               </span>
                             ) : null}
                             {!parsed.gradeBadge && !parsed.categoryBadge && parsed.year ? (
-                              <span className="inline-flex items-center rounded-sm bg-muted px-1.5 py-1 text-meta font-medium tabular-nums leading-none text-muted-foreground">
+                              <span className="inline-flex items-center rounded-sm bg-card px-1.5 py-1 text-meta font-medium tabular-nums leading-none text-muted-foreground">
                                 {parsed.year}
                               </span>
                             ) : null}
@@ -963,9 +961,11 @@ export function BackgroundCheckPanel({
                     );
 
                     // Only a sale that opens on eBay lifts on hover (`ref-tile`); one with no
-                    // item to open is not a link and must not look like one.
+                    // item to open is not a link and must not look like one. A tinted tile
+                    // inside the panel, not a bordered card inside a card (2026-11-28);
+                    // its tags turn white to stay distinct on the tint.
                     const cardClasses =
-                      'group flex flex-col justify-between rounded-xl border border-border bg-card p-3';
+                      'group flex flex-col justify-between rounded-xl bg-muted/60 p-3';
 
                     return sale.itemId ? (
                       <a
@@ -973,7 +973,7 @@ export function BackgroundCheckPanel({
                         href={`https://www.ebay.com.au/itm/${encodeURIComponent(sale.itemId)}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={cn(cardClasses, 'ref-tile hover:bg-muted/30')}
+                        className={cn(cardClasses, 'ref-tile hover:bg-muted')}
                       >
                         {inner}
                       </a>
@@ -1045,7 +1045,7 @@ export function BackgroundCheckPanel({
                         </span>
                       ) : null}
                       {visibleProfile.isPrivate ? (
-                        <span className="rounded-md border border-border bg-muted/60 px-2 py-0.5 text-meta font-medium text-muted-foreground">
+                        <span className="rounded-md bg-foreground/[0.06] px-2 py-0.5 text-meta font-medium text-muted-foreground">
                           Private
                         </span>
                       ) : null}
@@ -1059,7 +1059,7 @@ export function BackgroundCheckPanel({
                             {parsedIgBio.tags.map((tag) => (
                               <span
                                 key={tag}
-                                className="inline-flex items-center rounded-md border border-border bg-muted/35 px-2 py-0.5 text-meta font-medium text-muted-foreground"
+                                className="inline-flex items-center rounded-md bg-foreground/[0.06] px-2 py-0.5 text-meta font-medium text-muted-foreground"
                               >
                                 {tag}
                               </span>
@@ -1149,10 +1149,10 @@ export function BackgroundCheckPanel({
                     target="_blank"
                     rel="noopener noreferrer"
                     className={cn(
-                      'ref-tile group flex flex-col justify-between rounded-xl border p-3',
+                      'ref-tile group flex flex-col justify-between rounded-xl p-3',
                       m.riskFlag === 'WARNING'
-                        ? 'border-destructive/35 bg-destructive/[0.03] hover:bg-destructive/[0.06]'
-                        : 'border-border bg-card hover:border-border hover:bg-muted/30',
+                        ? 'bg-destructive/[0.06] hover:bg-destructive/[0.09]'
+                        : 'bg-muted/60 hover:bg-muted',
                     )}
                   >
                     <div>
@@ -1190,7 +1190,7 @@ export function BackgroundCheckPanel({
                         {m.metaPills.map((pill) => (
                           <span
                             key={pill}
-                            className="inline-flex items-center rounded-sm bg-muted/60 px-1.5 py-0.5 text-meta font-medium tabular-nums text-muted-foreground"
+                            className="inline-flex items-center rounded-sm bg-card px-1.5 py-0.5 text-meta font-medium tabular-nums text-muted-foreground"
                           >
                             {pill}
                           </span>
@@ -1225,7 +1225,7 @@ export function BackgroundCheckPanel({
                 verdict at the top is the one pill. A match is the exception, and keeps
                 its fill so it cannot be read past. */}
             {dossier.scamRisk.matchedReportCount > 0 ? (
-              <span className="inline-flex items-center self-start rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive sm:self-auto">
+              <span className="inline-flex items-center self-start rounded-md bg-destructive/10 px-2.5 py-0.5 text-meta font-semibold tabular-nums text-destructive sm:self-auto">
                 {dossier.scamRisk.matchedReportCount} match
                 {dossier.scamRisk.matchedReportCount === 1 ? '' : 'es'}
               </span>
@@ -1306,7 +1306,7 @@ export function BackgroundCheckPanel({
                         href={match.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 rounded-md border border-input bg-card py-1 pr-2.5 pl-1.5 text-meta font-medium text-foreground transition-colors hover:border-input-hover hover:bg-accent"
+                        className="inline-flex items-center gap-1.5 rounded-md bg-foreground/[0.06] py-1 pr-2.5 pl-1.5 text-meta font-medium text-foreground transition-colors hover:bg-foreground/[0.1]"
                       >
                         <SiteFavicon faviconUrl={fav} label={match.site} size="sm" />
                         {match.site}
@@ -1387,7 +1387,7 @@ export function BackgroundCheckPanel({
                       href={m.itemUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/[0.03] px-3 py-1.5 text-meta hover:bg-destructive/[0.06]"
+                      className="flex items-center justify-between gap-2 rounded-lg bg-destructive/[0.06] px-3 py-1.5 text-meta transition-colors hover:bg-destructive/[0.1]"
                     >
                       <span className="truncate font-medium text-foreground">{m.title}</span>
                       {m.priceValue !== null ? (
@@ -1464,9 +1464,9 @@ export function BackgroundCheckPanel({
                 {!loading ? (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
-                    className="mt-cozy border-border"
+                    className="mt-cozy"
                     onClick={() => setRequested(false)}
                   >
                     Show results so far
@@ -1568,14 +1568,13 @@ function FacebookIndexRow({ report }: { report: FacebookIndexReport }) {
       </div>
 
       {sameName.length > 0 && report.displayName ? (
-        <div className="mt-cozy rounded-xl border border-border bg-muted/30 p-3 sm:ml-[3.25rem]">
+        <div className="mt-cozy rounded-xl bg-muted/60 p-3 sm:ml-[3.25rem]">
           <p className="text-meta font-semibold text-foreground">
             {sameName.length} other Facebook {sameName.length === 1 ? 'account' : 'accounts'} named &ldquo;
             {report.displayName}&rdquo;
           </p>
           <p className="mt-0.5 text-meta text-muted-foreground">
-            Scammers copy a real person&rsquo;s name and photos onto a new account. Compare the link, not the name,
-            with the one you have dealt with before. Many real people share a name.
+            Scammers copy a real person&rsquo;s name and photos onto a new account. Check the profile link matches the one you&rsquo;ve dealt with before.
           </p>
           <ul className="mt-snug flex flex-wrap gap-1.5">
             {sameName.map((account) => (
@@ -1584,7 +1583,7 @@ function FacebookIndexRow({ report }: { report: FacebookIndexReport }) {
                   href={account.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-0.5 text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  className="inline-flex items-center gap-1 rounded-md bg-card px-2 py-0.5 text-meta font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                 >
                   facebook.com/{account.slug}
                   <Icon icon={ArrowUpRightIcon} className="size-3" aria-hidden />

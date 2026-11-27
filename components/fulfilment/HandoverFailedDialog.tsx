@@ -95,7 +95,7 @@ export function HandoverFailedDialog({
   triggerLabel = 'Report a problem',
   title = 'Report a problem with the handover',
   outcomeDescription,
-  reasonPlaceholder = 'e.g. they did not show up, the item was not what was agreed, the parcel never arrived…',
+  reasonPlaceholder = 'e.g. they did not show up, the item was not what was agreed, the parcel didn’t arrive…',
   triggerVariant = 'destructive-quiet',
   evidenceContext,
   open: controlledOpen,
@@ -253,8 +253,7 @@ export function HandoverFailedDialog({
             <div className="space-y-snug">
               <Label>Evidence (optional)</Label>
               <p className="text-meta text-muted-foreground">
-                Attach up to {MAX_EVIDENCE_FILES} photos — damaged packaging,
-                screenshots, the item you received.
+                Attach up to {MAX_EVIDENCE_FILES} photos of what happened.
               </p>
 
               <input

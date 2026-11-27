@@ -334,9 +334,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
             The details they used
           </h2>
           <p className="text-pretty text-body text-muted-foreground">
-            The PayID, bank account, PayPal, phone number or handle they gave you. We turn these into
-            a code that can only be matched, never read back, so we can spot the same person in other
-            reports.
+            The PayID, bank account, PayPal, phone number or handle they gave you. We store them as a one-way code, so we can spot the same person in other reports.
           </p>
         </div>
 
@@ -425,7 +423,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
         <FieldError id="scam-identifiers-error" message={errors.identifiers} />
 
         {rows.length < SCAM_REPORT_LIMITS.identifiersMax ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setRows((current) => [...current, newRow()])}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setRows((current) => [...current, newRow()])}>
             <Icon icon={PlusIcon} aria-hidden />
             Add another detail
           </Button>
@@ -451,7 +449,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
             <FieldError id="scam-name-error" message={errors.scammerName} />
           ) : (
             <p id="scam-name-hint" className="text-meta text-muted-foreground">
-              Scammers often use fake names, so we never match on this. It just helps us read the report.
+              Scammers often use fake names, so we don&apos;t match on this. It helps us read the report.
             </p>
           )}
         </div>
@@ -471,7 +469,7 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
 
         <ul className="grid grid-cols-3 gap-snug sm:grid-cols-5" aria-describedby={errors.evidence ? 'scam-evidence-error' : undefined}>
           {tiles.map((tile, index) => (
-            <li key={tile.key} className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted">
+            <li key={tile.key} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-foreground/[0.08]">
               {/* A local object URL: not a host the image optimizer knows. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={tile.preview} alt={`Screenshot ${index + 1}`} className="size-full object-cover" />
@@ -498,9 +496,9 @@ export function ScamReportForm({ currency }: ScamReportFormProps) {
                 type="button"
                 onClick={() => fileInput.current?.click()}
                 className={cn(
-                  'flex size-full flex-col items-center justify-center gap-tight rounded-lg border border-dashed text-meta text-muted-foreground transition-colors',
-                  errors.evidence ? 'border-destructive' : 'border-input',
-                  'hover:border-input-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'flex size-full flex-col items-center justify-center gap-tight rounded-lg text-meta text-muted-foreground transition-colors',
+                  errors.evidence ? 'bg-destructive/[0.07] text-destructive' : 'bg-foreground/[0.04]',
+                  'hover:bg-foreground/[0.07] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
                 <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />

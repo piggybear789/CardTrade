@@ -139,8 +139,12 @@ export function WatchButton({
             filled the heart with the winner: black on the catalog, grey on the
             listing bar, red only where nobody passed a colour. A class on the svg
             is outside that merge, so a saved heart is red on every surface. */}
+        {/* A FILLED HEART when saved. Phosphor draws the outline from paths, so a
+            `fill-*` class never filled it (the saved state read as an outline in a
+            new colour); the `fill` weight is the solid twin of the glyph. */}
         <Icon icon={HeartIcon}
-          className={cn('size-3.5', watching && 'fill-destructive text-destructive')}
+          weight={watching ? 'fill' : undefined}
+          className={cn('size-3.5', watching && 'text-destructive')}
           aria-hidden
         />
         {shown > 0 ? (
@@ -155,7 +159,7 @@ export function WatchButton({
   return (
     <Button
       type="button"
-      variant={watching ? 'secondary' : 'outline'}
+      variant={watching ? 'secondary' : 'secondary'}
       size="lg"
       className={cn('w-full sm:w-auto', className)}
       onClick={handleToggle}

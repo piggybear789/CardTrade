@@ -141,7 +141,7 @@ export function HostedProviderStep({
         aria-busy={isPending}
         // Demoted once the platform is the blocker: leaving a primary call to action
         // on screen invites a press that cannot succeed.
-        variant={tone === 'notice' ? 'outline' : 'default'}
+        variant={tone === 'notice' ? 'secondary' : 'default'}
         className="w-full sm:w-auto"
       >
         {/* WIDTH-STABLE. From `sm` this button is `w-auto` beside the step's title and

@@ -128,7 +128,7 @@ export function ReferenceSearch({
       if (seq !== requestSeq.current) return;
       if (!result || !result.ok) {
         setSearchFailed(true);
-        toast.error(result?.message ?? "We couldn't search references just now. Please try again.");
+        toast.error(result?.message ?? "We couldn't search references. Please try again.");
         return;
       }
       if (result.data.length > 0) {
@@ -362,7 +362,7 @@ export function ReferenceSearch({
             <div className="px-4 py-5 text-center">
               <p className="text-body font-medium text-foreground">
                 {searchFailed
-                  ? "Couldn't search just now"
+                  ? "Search failed. Try again"
                   : `No references for ${isHandle ? `@${needle}` : `“${needle}”`} yet`}
               </p>
               <p className="mt-0.5 text-meta text-muted-foreground">
@@ -375,7 +375,7 @@ export function ReferenceSearch({
             <div className="flex flex-col items-center px-4 py-6 text-center sm:py-8">
               <span
                 aria-hidden
-                className="grid size-10 place-items-center rounded-full border bg-muted text-muted-foreground"
+                className="grid size-10 place-items-center rounded-full bg-foreground/[0.06] text-muted-foreground"
               >
                 <Icon icon={loadFailed ? MagnifyingGlassIcon : UsersThreeIcon} className="size-5" />
               </span>
@@ -451,7 +451,7 @@ export function ReferenceSearch({
                   )}
                 >
                   <span className="flex min-w-0 items-center gap-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground/[0.06] text-foreground">
                       <Icon icon={MagnifyingGlassIcon} className="size-4" aria-hidden />
                     </span>
                     <span className="min-w-0">

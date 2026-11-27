@@ -387,7 +387,7 @@ export function ImageGallery({
         {!activeFailed && !isCover ? (
           <p
             aria-hidden="true"
-            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-md border border-white/15 bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur"
+            className="pointer-events-none absolute bottom-3 left-3 z-[2] flex items-center gap-tight rounded-md bg-obsidian/65 px-snug py-tight text-meta font-medium text-white/90 shadow-sm backdrop-blur"
           >
             <Icon icon={MagnifyingGlassPlusIcon} className="size-3.5" />
             <span className="[@media(hover:none)]:hidden">Click to enlarge</span>
@@ -414,7 +414,7 @@ export function ImageGallery({
 
         {!isCover && images.length > 1 ? (
           <nav
-            className="absolute right-3 top-3 z-[2] flex items-center gap-tight rounded-lg border border-white/15 bg-obsidian/65 px-tight py-tight shadow-sm backdrop-blur"
+            className="absolute right-3 top-3 z-[2] flex items-center gap-tight rounded-lg bg-obsidian/65 px-tight py-tight backdrop-blur"
             aria-label="Image navigation"
           >
             <button
@@ -697,7 +697,7 @@ function SwipeCarousel({
           <>
             <p
               aria-hidden="true"
-              className="pointer-events-none absolute right-3 top-3 z-[2] rounded-md border border-white/15 bg-obsidian/70 px-snug py-0.5 text-meta font-medium tabular-nums text-white/90 shadow-sm backdrop-blur"
+              className="pointer-events-none absolute right-3 top-3 z-[2] rounded-md bg-obsidian/70 px-snug py-0.5 text-meta font-medium tabular-nums text-white/90 shadow-sm backdrop-blur"
             >
               {visibleIndex + 1}/{images.length}
             </p>

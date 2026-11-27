@@ -281,6 +281,12 @@
        0 }` override that sat here went too: `react-remove-scroll-bar` needs its
        margin again to stop dialogs nudging the page. `InboxTwoPane` keeps its own
        internal gutter, which is inside the page and painted with it. */
+    /* THIN SCROLLBARS (2026-11-27). Under classic scrollbars (Windows, macOS
+       "always show") the page slid sideways by the scrollbar's width between pages
+       that scroll and pages that do not. A thin bar halves that slide without the
+       painted gutter described above. Not inherited: this sets the page's own
+       scrollbar, which is the one that causes the slide. */
+    scrollbar-width: thin;
     /* The grey flash just looks broken on Android/iOS. */
     -webkit-tap-highlight-color: transparent;
   }
@@ -362,11 +368,11 @@
   }
 
   /* Neutral chip: an eyebrow is a label, not a brand moment. */
+  /* No edge (2026-11-28): a tint of the ink, the same quiet chip a neutral badge is. */
   .cardtrade-eyebrow {
-    @apply inline-flex w-fit items-center rounded-sm border px-2 py-1;
+    @apply inline-flex w-fit items-center rounded-md px-2 py-1;
     color: hsl(var(--muted-foreground));
-    border-color: hsl(var(--border));
-    background-color: hsl(var(--muted));
+    background-color: hsl(var(--foreground) / 0.06);
   }
 
   /* The search in the desktop top bar. The bar is the page colour, so a white
@@ -423,8 +429,8 @@
      product chrome. Text in `--iris-ink`, a whisper of `--iris` behind it. */
   .noditto-character {
     color: hsl(var(--iris-ink));
-    border-color: hsl(var(--iris) / 0.25);
-    background-color: hsl(var(--iris) / 0.06);
+    border-color: transparent;
+    background-color: hsl(var(--iris) / 0.1);
   }
 
   /* The credentials screens' backdrop: a soft pastel mesh behind the form, the way
@@ -484,27 +490,31 @@
      orange; against the same white page a 68% pastel at 0.12 is barely a tint
      and its 0.45 edge all but disappears. The border takes the darker
      `--action-border` so the callout still has a defined edge. */
+  /* THE CALLOUTS LOST THEIR EDGES (2026-11-28, design-system audit). A tinted fill with a
+     tinted border is the stock alert box; the fill alone is the shape, as on the badges
+     and the chat's milestone tiles. `border-color: transparent` rather than no border,
+     so a call site's `border` keeps its 1px and nothing moves. */
   .cardtrade-warning {
-    border-color: hsl(var(--action-border) / 0.5);
-    background-color: hsl(var(--action) / 0.22);
+    border-color: transparent;
+    background-color: hsl(var(--action) / 0.26);
     color: hsl(var(--foreground));
   }
 
   /* Danger callout — the red sibling of `.cardtrade-warning`, and the distinction is
      the point. Amber is "this is your move"; this is "do not do the thing". The amber
-     is a pale, warm fill and the red a saturated edge, so a page carrying both reads
-     as two different instructions rather than two intensities of one.
+     is a warm fill and the red a cool one, so a page carrying both reads as two
+     different instructions rather than two intensities of one.
 
      TEXT STAYS `--foreground`, exactly as the amber callout does. The established
      destructive recipe elsewhere in the app pairs the tint with `text-destructive`
      (`ShippingDeadline`, `ContractProgressRail`), which is right for a three-word
      status chip and wrong for a block of copy: a whole list set in 45%-lightness red
-     is shouty and harder to read than the thing it is warning about. The tint and the
-     edge carry the alarm; the words stay legible. Markers take the red at the call
-     site, which is the one place the hue belongs on a per-item basis. */
+     is shouty and harder to read than the thing it is warning about. The tint carries
+     the alarm; the words stay legible. Markers take the red at the call site, which
+     is the one place the hue belongs on a per-item basis. */
   .cardtrade-danger {
-    border-color: hsl(var(--destructive) / 0.45);
-    background-color: hsl(var(--destructive) / 0.08);
+    border-color: transparent;
+    background-color: hsl(var(--destructive) / 0.07);
     color: hsl(var(--foreground));
   }
 
@@ -514,8 +524,8 @@
   }
 
   .cardtrade-success-chip {
-    border-color: hsl(var(--trust) / 0.4);
-    background-color: hsl(var(--trust) / 0.12);
+    border-color: transparent;
+    background-color: hsl(var(--trust) / 0.1);
     color: hsl(var(--trust));
   }
 }

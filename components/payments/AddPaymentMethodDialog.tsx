@@ -51,7 +51,7 @@ export function AddPaymentMethodDialog({ trigger, onAttached, platform }: AddPay
       {trigger ? (
         withRowOpenHandler(trigger, () => setOpen(true))
       ) : (
-        <Button type="button" variant="outline" onClick={() => setOpen(true)}>
+        <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
           <Icon icon={CreditCardIcon} aria-hidden />
           Add payment method
         </Button>

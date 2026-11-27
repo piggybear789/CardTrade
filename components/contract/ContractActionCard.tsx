@@ -32,21 +32,18 @@ import type { ContractStep } from '@/domain/contract';
 /** Visual weight of the card, for terminal or degraded outcomes. */
 export type ContractActionTone = 'default' | 'success' | 'warning' | 'danger';
 
-// THE TINT CARRIES THE TONE; THE EDGE STAYS NEUTRAL — see the border rule in
-// globals.css. `default` and `warning` used to draw their own violet frames, and
-// this card is the single most repeated surface in the product: it is on every
-// cash sale and every trade, at every step. A violet-framed card here is most of
-// why the interface read as over-emphasised, and the frame was not carrying
-// anything the wash does not.
-//
-// `success` and `danger` keep their coloured edges. Those two are OUTCOMES rather
-// than "here is your next move", they are rare, and teal and red each appear
-// nowhere else on the surface — the edge is the signal, not decoration.
+// THE TINT CARRIES THE TONE, and nothing else does. The card is `Card`, whose edge is
+// the `.surface` hairline shadow with no border, so the border colours these tones
+// once named drew nothing; they were removed (2026-11-28) rather than left to suggest
+// a coloured frame. `default` and `warning` used to draw violet frames, and this card
+// is the single most repeated surface in the product: on every cash sale and every
+// trade, at every step. A framed card here was most of why the interface read as
+// over-emphasised.
 const TONE: Record<ContractActionTone, string> = {
-  default: 'border-border bg-card',
-  success: 'border-[hsl(var(--trust)/0.4)] bg-[hsl(var(--trust)/0.06)]',
-  warning: 'border-border bg-muted/60',
-  danger: 'border-destructive/40 bg-destructive/[0.06]',
+  default: 'bg-card',
+  success: 'bg-[hsl(var(--trust)/0.06)]',
+  warning: 'bg-muted/60',
+  danger: 'bg-destructive/[0.06]',
 };
 
 // The dock is a flat strip inside the chat panel, so it tints only — the
@@ -60,11 +57,11 @@ const STRIP_TONE: Record<ContractActionTone, string> = {
 
 /**
  * The "your move" surface, layered over the `default` tone only — an outcome
- * (success, danger) is louder than whose move it is. The one place the violet edge
- * is spent on this card, because it marks the single thing in the room that is
- * waiting on the reader.
+ * (success, danger) is louder than whose move it is. On the card it is the slate
+ * wash plus the "Your move" pill; on the dock strip a 3px iris bar as well, because
+ * it marks the single thing in the room that is waiting on the reader.
  */
-const YOUR_MOVE_CARD = 'border-iris/50 bg-accent/60';
+const YOUR_MOVE_CARD = 'bg-accent/60';
 const YOUR_MOVE_STRIP = 'bg-accent/60 shadow-[inset_3px_0_0_hsl(var(--iris))]';
 
 /**
@@ -79,7 +76,7 @@ function StepInfo({ children }: { children: ReactNode }) {
           type="button"
           variant="ghost"
           size="icon"
-          className="-my-1.5 size-6 shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground"
+          className="-my-1.5 size-6 shrink-0 text-muted-foreground hover:bg-transparent hover:text-foreground active:bg-transparent"
           aria-label="About this step"
         >
           <Icon icon={InfoIcon} className="size-4" aria-hidden />
@@ -407,7 +404,7 @@ export function ContractActionCard({
               <span className="ml-cozy font-normal text-muted-foreground">{waiting}</span>
             ) : null}
             {sentence ? (
-              <span className="ml-1 inline-flex align-middle">
+              <span className="ml-1 inline-flex h-[1lh] items-center align-top">
                 <StepInfo>{sentence}</StepInfo>
               </span>
             ) : null}

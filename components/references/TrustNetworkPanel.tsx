@@ -133,7 +133,7 @@ function OpenNetwork({ orbits, personKey }: { orbits: TrustOrbits; personKey: st
   return (
     <Button
       size="xs"
-      variant="outline"
+      variant="secondary"
       className="shrink-0"
       disabled={pending}
       aria-label={pending ? 'Opening…' : 'Open their network'}

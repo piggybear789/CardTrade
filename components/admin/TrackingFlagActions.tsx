@@ -50,7 +50,7 @@ export function TrackingFlagActions({ cashSaleId, reason, carrierDeliveredAt }: 
   }
 
   return (
-    <div className="space-y-snug rounded-lg border border-border bg-muted p-cozy text-body">
+    <div className="space-y-snug rounded-lg bg-muted/80 p-cozy text-body">
       <p className="font-medium">Tracking flagged</p>
       <p className="text-muted-foreground">
         {reason === 'DELIVERED_AT_REGISTRATION'

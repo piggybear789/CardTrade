@@ -24,7 +24,7 @@ export default function AccountSuspendedPage() {
           fraud finding. It cannot buy, sell, trade, or use member features.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-cozy">
-          <Button asChild variant="outline">
+          <Button asChild variant="secondary">
             <Link href="/">Return to home</Link>
           </Button>
           <Button asChild variant="ghost">

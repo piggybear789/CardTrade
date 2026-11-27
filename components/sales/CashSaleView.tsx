@@ -1171,7 +1171,7 @@ function CashSaleRoom({
                           // stated in the note beside it.
                           <Button
                             type="button"
-                            variant={termsSet ? 'action' : 'outline'}
+                            variant={termsSet ? 'action' : 'secondary'}
                             size="sm"
                             disabled={allowingName}
                             onClick={() =>
@@ -1185,7 +1185,7 @@ function CashSaleRoom({
                             <PendingLabel pending={allowingName}>Show my verified name</PendingLabel>
                           </Button>
                         ) : (
-                          <Button asChild variant={termsSet ? 'action' : 'outline'} size="sm">
+                          <Button asChild variant={termsSet ? 'action' : 'secondary'} size="sm">
                             <Link href="/profile?tab=verification">
                               {payoutSetupOnly ? 'Finish payout setup' : 'Verify with Stripe'}
                             </Link>
@@ -1442,7 +1442,7 @@ function CashSaleRoom({
                 {!termsSet ? (
               editable ? (
                 <div>
-                  <div className="w-full rounded-xl border bg-background p-cozy text-center">
+                  <div className="w-full rounded-xl bg-muted/60 p-cozy text-center">
                     <h3 className="text-subhead font-semibold tracking-tight">
                       Propose handover terms
                     </h3>
@@ -1564,7 +1564,7 @@ function CashSaleRoom({
                 {editable && sale.fulfillment_method ? (
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="secondary"
                     size="sm"
                     className="mt-snug"
                     onClick={() => setDetailsFor(sale.fulfillment_method!)}
@@ -2049,8 +2049,8 @@ function CashSaleRoom({
         title="Confirm the handover happened?"
         description={
           theirHandoverConfirmed
-            ? `${them.name} has already confirmed. Your confirmation starts a 24-hour window for the buyer to raise a problem, after which the seller is paid. Only confirm if you met and the item actually changed hands.`
-            : 'Only confirm if you met and the item actually changed hands. When you both confirm, the buyer has 24 hours to raise a problem before the seller is paid — one confirmation is not enough.'
+            ? `${them.name} has confirmed. Once you confirm, the buyer has 24 hours to raise a problem, then the seller is paid. Only confirm once you have met and swapped.`
+            : 'Only confirm once you have met and swapped. After you both confirm, the buyer has 24 hours to raise a problem before the seller is paid.'
         }
         confirmLabel={
           iAmBuyer ? 'We met and I have the item' : 'We met and I handed it over'

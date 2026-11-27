@@ -3,6 +3,10 @@
 // Inline status — blocked, empty, already-in-progress — as opposed to Card,
 // which is for a browseable object (a seller, a listing). One chrome for every
 // notice so a column of them does not grow three outlines.
+//
+// A QUIET TILE, NO EDGE (2026-11-28, design-system audit): the same slate tile the chat's
+// contract milestones sit on. A grey box with a grey border was the stock alert recipe;
+// the tint alone separates a notice from the page, and the title carries it.
 
 import type { ReactNode } from 'react';
 
@@ -23,7 +27,7 @@ export function StatusNotice({
     <div
       role="status"
       className={cn(
-        'flex flex-col gap-group rounded-lg border border-border bg-muted px-group py-group',
+        'flex flex-col gap-group rounded-xl bg-muted/80 px-group py-group',
         className,
       )}
     >

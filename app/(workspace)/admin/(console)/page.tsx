@@ -542,7 +542,7 @@ function NotAuthorized() {
         title="Not authorized"
         titleAs="h1"
         description="You don't have permission to view the operations console."
-        action={{ label: 'Return home', href: '/', variant: 'outline' }}
+        action={{ label: 'Return home', href: '/', variant: 'secondary' }}
       />
     </PageShell>
   );
@@ -751,7 +751,7 @@ export default async function AdminPage({
         title="Operations"
         description="Queues the platform runs itself, plus community reports. Disputes that need a decision from you live in Cases."
         actions={
-          <Button asChild variant={openCases > 0 ? 'default' : 'outline'}>
+          <Button asChild variant={openCases > 0 ? 'default' : 'secondary'}>
             <Link href="/admin/arbitration" transitionTypes={['nav-forward']}>
               <Icon icon={ScalesIcon} aria-hidden />
               {openCases > 0 ? `${openCases} case${openCases === 1 ? '' : 's'}` : 'Cases'}

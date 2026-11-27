@@ -151,8 +151,7 @@ export function IdentityCheckCard({
         ) : null}
 
         <p className="text-body text-muted-foreground">
-          One step on Stripe&apos;s pages, with a photo ID and a selfie — NoDitto never
-          sees the document. No bank details needed for this.
+          One step on Stripe&apos;s pages, with a photo ID and a selfie. Only Stripe sees the document, and no bank details are needed.
         </p>
       </div>
     );

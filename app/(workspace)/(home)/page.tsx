@@ -159,6 +159,8 @@ export default async function HomePage({
   const maxDollars = firstString(raw.max).trim();
   const includeSold = firstString(raw.sold).trim() === '1';
   const includeReserved = firstString(raw.reserved).trim() === '1';
+  // SAVED IS A CATALOG FILTER (2026-11-27), `/?saved=1`. `/saved` redirects here.
+  const savedOnly = firstString(raw.saved).trim() === '1';
   const sortRaw = firstString(raw.sort) as CatalogSort;
   const sort: CatalogSort = SORT_KEYS.includes(sortRaw) ? sortRaw : 'newest';
   const pageRaw = Number(firstString(raw.page));
@@ -183,6 +185,7 @@ export default async function HomePage({
       maxCents,
       includeSold,
       includeReserved,
+      savedOnly,
       sort,
       page,
       regionCode: region.code,
@@ -208,7 +211,7 @@ export default async function HomePage({
         Sell an item
       </RailPrimaryAction>
     ) : (
-      <Button asChild variant="outline" className="w-full">
+      <Button asChild variant="secondary" className="w-full">
         <Link href="/sign-up?redirectTo=%2Flistings%2Fnew">Sign up to sell</Link>
       </Button>
     ),
@@ -231,7 +234,9 @@ export default async function HomePage({
       // instance and the new server snapshot is discarded — the grid kept showing
       // the previous region's listings. Filters and paging stay client-side and
       // do not change the key, so they still update in place.
-      key={region.code ?? 'all'}
+      // `saved` too: the rail's Saved and Browse all are links, so switching
+      // between them is a navigation, and the provider must take the new snapshot.
+      key={`${region.code ?? 'all'}:${savedOnly ? 'saved' : 'all'}`}
       initial={{
         items,
         total: result.total,
@@ -252,6 +257,7 @@ export default async function HomePage({
           max: maxDollars,
           includeSold,
           includeReserved,
+          savedOnly,
           sort,
           page: result.page,
         },

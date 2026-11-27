@@ -267,7 +267,7 @@ export function ListingDesktopPane({
                       size={12}
                       className="text-meta"
                     />
-                    <span className="sr-only"> — Read seller reviews</span>
+                    <span className="sr-only">Read seller reviews</span>
                   </Link>
                 )
               ) : (

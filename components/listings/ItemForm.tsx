@@ -1156,7 +1156,7 @@ function ItemFormInner({
             {step === 2 ? (
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 size="lg"
                 onClick={() => goToStep(1)}
                 disabled={isSubmitting}

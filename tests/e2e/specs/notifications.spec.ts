@@ -31,7 +31,7 @@ pathway(
     await ctx.step('Open /notifications and mark all read', 'member', async (page) => {
       await page.goto('/notifications');
       await expect(page.getByText('[E2E] Audit notification').first()).toBeVisible({ timeout: 15_000 });
-      await page.getByRole('button', { name: /Mark all read/i }).click();
+      await page.getByRole('button', { name: /Mark all (as )?read/i }).click();
     });
 
     await ctx.assertState('Unread notification count is 0 in DB and after reload', {
@@ -45,7 +45,7 @@ pathway(
       },
       ui: async (page) => {
         await page.reload();
-        const btn = page.getByRole('button', { name: /Mark all read/i });
+        const btn = page.getByRole('button', { name: /Mark all (as )?read/i });
         return (await btn.isDisabled().catch(() => true)) ? 0 : 1;
       },
       expect: 0,

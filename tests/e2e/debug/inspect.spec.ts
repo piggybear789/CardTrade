@@ -148,7 +148,7 @@ test.describe('inspect as alice', () => {
 
     console.log('--- bells BEFORE:', JSON.stringify(await names(), null, 1));
 
-    const markAll = page.getByRole('button', { name: 'Mark all read' });
+    const markAll = page.getByRole('button', { name: 'Mark all as read' });
     console.log('--- markAll enabled BEFORE:', await markAll.isEnabled());
     await markAll.click();
     await page.waitForTimeout(6000);

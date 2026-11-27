@@ -53,7 +53,7 @@ export function PayoutReturnRefresh() {
           result.data.settlementsEnabled;
         toast[payoutReady ? 'success' : 'info'](
           payoutReady
-            ? 'Payouts are set up — releases will be sent automatically.'
+            ? 'Payouts are set up. We’ll send your money automatically.'
             : 'Still setting up payouts. We will update this automatically.',
         );
       }

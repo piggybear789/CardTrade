@@ -165,12 +165,33 @@ export function MessageComposer({
   // The border is added back because `scrollHeight` excludes it. The field inside the
   // pill has none today (the pill draws the edge), so this is 0; it stays so that a
   // border added later cannot leave the field 2px short of its content again.
+  //
+  // An EMPTY field is not measured: `scrollHeight` counts the placeholder, and a
+  // field measured while its container was still narrow (the phone room mounts the
+  // composer before its column has its final width) wrapped the placeholder onto
+  // several lines and kept that height. Width changes re-measure for the same reason.
   useLayoutEffect(() => {
     const field = fieldRef.current;
     if (!field) return;
-    field.style.height = '0px';
-    const border = field.offsetHeight - field.clientHeight;
-    field.style.height = `${field.scrollHeight + border}px`;
+    const measure = () => {
+      if (!field.value) {
+        field.style.height = '';
+        return;
+      }
+      field.style.height = '0px';
+      const border = field.offsetHeight - field.clientHeight;
+      field.style.height = `${field.scrollHeight + border}px`;
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    let width = field.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (field.clientWidth === width) return;
+      width = field.clientWidth;
+      measure();
+    });
+    observer.observe(field);
+    return () => observer.disconnect();
   }, [draft]);
 
   useEffect(() => {

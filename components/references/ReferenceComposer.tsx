@@ -684,7 +684,7 @@ function ImageField() {
       <div className="flex flex-wrap items-center gap-snug">
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           disabled={uploadingProof || proofNames.length >= PROOF_LIMIT}
           onClick={() => fileInput.current?.click()}
@@ -700,7 +700,7 @@ function ImageField() {
         {proofNames.map((name, index) => (
           <span
             key={`${name}-${index}`}
-            className="inline-flex max-w-[180px] items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2.5 py-1 text-meta text-foreground"
+            className="inline-flex max-w-[180px] items-center gap-1.5 rounded-md bg-foreground/[0.06] px-2.5 py-1 text-meta text-foreground"
           >
             <span className="truncate">{name}</span>
             <button
@@ -796,7 +796,7 @@ export function CopyReferenceLink({ returnPath, className }: { returnPath: strin
     }
   };
   return (
-    <Button variant="outline" className={cn('shrink-0', className)} onClick={copy}>
+    <Button variant="secondary" className={cn('shrink-0', className)} onClick={copy}>
       <Icon icon={CopyIcon} className="size-3.5" aria-hidden />
       {copied ? 'Copied link' : 'Share reference link'}
     </Button>

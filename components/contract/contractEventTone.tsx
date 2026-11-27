@@ -10,7 +10,7 @@
 // payment green while the thread showed it as a neutral dot.
 
 import { Icon } from '@/components/ui/icon';
-import { CheckIcon, RadioButtonIcon, WarningCircleIcon, XCircleIcon } from '@/components/ui/icons';
+import { CheckIcon, ExclamationMarkIcon, XIcon } from '@/components/ui/icons';
 
 import { cn } from '@/lib/utils';
 
@@ -61,11 +61,18 @@ export function classifyContractEvent(
 }
 
 /**
- * The tone's glyph. Decorative — the event sentence carries the meaning.
+ * The tone's mark. Decorative — the event sentence carries the meaning.
  *
  * Both contract-room audits and conversation ledgers render these in a fixed
- * marker column. The shared glyph keeps success, warning, and failure semantics
+ * marker column. The shared mark keeps success, warning, and failure semantics
  * consistent without turning each event into a separate card.
+ *
+ * A SOLID DISC, NOT A HAIRLINE (2026-11-28, design-system audit): the `StatusGlyph`
+ * rule, and the same mark the chat's milestone cards wear (`MilestoneDisc`). A 1.5px
+ * green check beside a sentence read as decoration; a filled disc in the outcome's
+ * colour reads as the outcome. A dispute (`warning`) is red, as it is in the chat and on
+ * the "Disputed" badge; it used to be a violet circle here and a red card there. A
+ * neutral step is a small slate dot, so the eye can skip the routine rows.
  */
 export function ContractEventIcon({
   tone,
@@ -74,17 +81,33 @@ export function ContractEventIcon({
   tone: ContractEventTone;
   className?: string;
 }) {
-  const base = cn('size-4 shrink-0', className);
+  const disc = 'grid size-5 shrink-0 place-items-center rounded-full text-white';
   switch (tone) {
     case 'success':
-      // `text-trust`, not a raw Tailwind green. The palette has exactly one "settled /
+      // `bg-trust`, not a raw Tailwind green. The palette has exactly one "settled /
       // confirmed" hue and this was the only place in the app reaching past it.
-      return <Icon icon={CheckIcon} className={cn(base, 'text-trust')} aria-hidden />;
+      return (
+        <span aria-hidden className={cn(disc, 'bg-trust', className)}>
+          <Icon icon={CheckIcon} className="size-3" />
+        </span>
+      );
     case 'destructive':
-      return <Icon icon={XCircleIcon} className={cn(base, 'text-destructive')} aria-hidden />;
+      return (
+        <span aria-hidden className={cn(disc, 'bg-destructive', className)}>
+          <Icon icon={XIcon} className="size-3" />
+        </span>
+      );
     case 'warning':
-      return <Icon icon={WarningCircleIcon} className={cn(base, 'text-iris-ink')} aria-hidden />;
+      return (
+        <span aria-hidden className={cn(disc, 'bg-destructive', className)}>
+          <Icon icon={ExclamationMarkIcon} className="size-3" />
+        </span>
+      );
     default:
-      return <Icon icon={RadioButtonIcon} className={cn(base, 'text-muted-foreground')} aria-hidden />;
+      return (
+        <span aria-hidden className={cn('grid size-5 shrink-0 place-items-center', className)}>
+          <span className="size-2 rounded-full bg-foreground/25" />
+        </span>
+      );
   }
 }

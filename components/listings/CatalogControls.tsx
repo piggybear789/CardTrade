@@ -11,7 +11,9 @@ import {
   type ReactNode,
 } from 'react';
 import { Icon } from '@/components/ui/icon';
+import { CARD_GAMES } from '@/lib/catalog/cardGames';
 import {
+  CardsIcon,
   CaretRightIcon,
   CheckIcon,
   CoinsIcon,
@@ -202,6 +204,13 @@ export function CatalogFilters() {
     pushWith({ condition: next });
   }
 
+  function toggleCategory(name: string) {
+    const next = current.categories.includes(name)
+      ? current.categories.filter((value) => value !== name)
+      : [...current.categories, name];
+    pushWith({ category: next });
+  }
+
   function commitPrices([minStop, maxStop]: [number, number]) {
     pushWith({
       min: minStop > 0 ? dollarsParam(priceLadder[minStop]) : null,
@@ -307,6 +316,7 @@ export function CatalogFilters() {
           <CatalogPropertyRows
             current={current}
             isPending={isPending}
+            onToggleCategory={toggleCategory}
             onToggleCondition={toggleCondition}
             onToggleSold={() => pushWith({ sold: current.includeSold ? null : '1' })}
             onToggleReserved={() =>
@@ -326,7 +336,14 @@ export function CatalogFilters() {
   );
 }
 
-type CatalogPropertyKey = 'condition' | 'price' | 'showing';
+type CatalogPropertyKey = 'category' | 'condition' | 'price' | 'showing';
+
+/** Plain-language summary of the selected games, for a property-row value. */
+function categorySummary(categories: readonly string[]): string {
+  if (categories.length === 0) return 'All';
+  if (categories.length === 1) return categories[0].length > 12 ? '1 selected' : categories[0];
+  return `${categories.length} selected`;
+}
 
 /**
  * The desktop rail as property rows: one row per filter that states its value
@@ -341,6 +358,7 @@ type CatalogPropertyKey = 'condition' | 'price' | 'showing';
 function CatalogPropertyRows({
   current,
   isPending,
+  onToggleCategory,
   onToggleCondition,
   onToggleSold,
   onToggleReserved,
@@ -354,9 +372,10 @@ function CatalogPropertyRows({
 }: {
   current: Pick<
     CatalogFilterState,
-    'conditions' | 'includeSold' | 'includeReserved'
+    'categories' | 'conditions' | 'includeSold' | 'includeReserved'
   >;
   isPending: boolean;
+  onToggleCategory: (name: string) => void;
   onToggleCondition: (condition: string) => void;
   onToggleSold: () => void;
   onToggleReserved: () => void;
@@ -374,7 +393,9 @@ function CatalogPropertyRows({
   histogram: number[];
 }) {
   const [open, setOpen] = useState<CatalogPropertyKey | null>(() =>
-    current.conditions.length > 0
+    current.categories.length > 0
+      ? 'category'
+      : current.conditions.length > 0
       ? 'condition'
       : priceStopsActive(priceStops, topStop)
         ? 'price'
@@ -382,6 +403,8 @@ function CatalogPropertyRows({
           ? 'showing'
           : null,
   );
+
+  const [showAllGames, setShowAllGames] = useState(false);
 
   function toggle(key: CatalogPropertyKey) {
     setOpen((value) => (value === key ? null : key));
@@ -392,6 +415,43 @@ function CatalogPropertyRows({
 
   return (
     <div className="flex flex-col gap-0.5">
+      {/* CATEGORY (2026-11-27): the card game, as the first filter. It was only
+          settable from the pills above the grid, so the rail could not say or
+          change which games the grid showed. Same URL param as the pills. */}
+      <CatalogPropertyRow
+        label="Category"
+        value={categorySummary(current.categories)}
+        active={current.categories.length > 0}
+        open={open === 'category'}
+        onClick={() => toggle('category')}
+        icon={CardsIcon}
+      >
+        {/* SIX, THEN "SHOW ALL" (2026-11-27). All sixteen games at full row height
+            ran the rail off a laptop screen, and the long names truncated. A ticked
+            game is always shown, even past the first six. */}
+        <div className="flex flex-col">
+          {CARD_GAMES.filter(
+            (game, index) =>
+              showAllGames || index < 6 || current.categories.includes(game.name),
+          ).map((game) => (
+            <FilterCheckRow
+              key={game.slug}
+              label={game.name}
+              pressed={current.categories.includes(game.name)}
+              onClick={() => onToggleCategory(game.name)}
+              disabled={isPending}
+              compact
+            />
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowAllGames((value) => !value)}
+            className="mt-tight self-start px-cozy text-meta font-medium text-iris-ink hover:underline focus:outline-none focus-visible:underline"
+          >
+            {showAllGames ? 'Show fewer' : `Show all ${CARD_GAMES.length} games`}
+          </button>
+        </div>
+      </CatalogPropertyRow>
       <CatalogPropertyRow
         label="Condition"
         value={conditionSummary(current.conditions)}
@@ -720,11 +780,14 @@ function FilterCheckRow({
   pressed,
   onClick,
   disabled,
+  compact = false,
 }: {
   label: string;
   pressed: boolean;
   onClick: () => void;
   disabled: boolean;
+  /** Tighter rows for a long list (the game list). */
+  compact?: boolean;
 }) {
   return (
     <button
@@ -733,7 +796,8 @@ function FilterCheckRow({
       disabled={disabled}
       aria-pressed={pressed}
       className={cn(
-        'flex w-full items-center gap-cozy rounded-lg px-cozy py-snug text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-ring disabled:opacity-60',
+        'flex w-full items-center gap-cozy rounded-lg px-cozy text-left text-body transition-colors border border-transparent focus:outline-none focus-visible:border-ring disabled:opacity-60',
+        compact ? 'py-tight leading-snug' : 'py-snug',
         // No violet wash behind a ticked row. The box IS the state — it is the
         // thing that changes shape when you click — and tinting the whole row
         // as well put a second, much larger violet element in the rail for the
@@ -763,7 +827,8 @@ function FilterCheckRow({
       >
         {pressed ? <Icon icon={CheckIcon} className="size-3" /> : null}
       </span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {/* Wraps rather than truncating: "Magic: The …" hid which game it was. */}
+      <span className="min-w-0 flex-1 text-pretty">{label}</span>
     </button>
   );
 }
@@ -791,9 +856,11 @@ function FilterSquare({
         // above the grid already use for exactly this — a chosen filter chip.
         // It was a violet border over a violet wash with violet text, three
         // uses of the hue on one 9px-tall control.
+        // Unselected is a tint, as the tonal button is (2026-11-28); the border
+        // stays transparent so focus can still colour it.
         pressed
           ? 'border-foreground bg-foreground text-primary-foreground'
-          : 'border-input bg-card text-muted-foreground hover:border-input-hover hover:text-foreground',
+          : 'border-transparent bg-foreground/[0.05] text-foreground/75 hover:bg-foreground/[0.09] hover:text-foreground',
       )}
     >
       {label}

@@ -149,7 +149,7 @@ describe('trade accept dialog — cost disclosure', () => {
     // Design §1.12 / ESC-01: the fee row explains the Trade_Fee.
     expect(within(dialog).getByText(feeHint)).toBeInTheDocument();
     expect(
-      within(dialog).getByText(/^A temporary hold, not a charge\./),
+      within(dialog).getByText(/^Nothing is charged\. Released when the trade completes\./),
     ).toBeInTheDocument();
     expect(within(dialog).queryByText(/not charged/i)).toBeNull();
   });

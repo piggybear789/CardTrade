@@ -16,11 +16,13 @@
 import { withActionLog } from '@/lib/errors/withActionLog';
 import {
   currentStep,
-  deriveCashSaleSteps,
-  isCashSaleStatus,
   type ContractStep,
   type ContractStepOwner,
 } from '@/domain/contract';
+import {
+  CASH_SALE_STEP_COLUMNS,
+  cashSaleStepsForRow,
+} from '@/lib/sales/cashSaleStepsForRow';
 import type { HoldRowLike } from '@/domain/state-machine/holdLegs';
 import type { TradeRow } from '@/lib/actions/tradeLifecycleStore';
 import { createClient } from '@/lib/supabase/server';
@@ -193,9 +195,9 @@ export const getMyListings = withActionLog('account.getMyListings', async functi
  * AVAILABLE items or your own, so a buyer cannot read the item once it is SOLD,
  * and a snapshot is also what the parties actually agreed on.
  *
- * WIDER THAN WHAT A ROW DISPLAYS, DELIBERATELY. The second group is what
- * `deriveCashSaleSteps` reads, so a list row can say whose move the contract is
- * waiting on. They cost nothing — the same query, more columns — and the alternative
+ * WIDER THAN WHAT A ROW DISPLAYS, DELIBERATELY. The second group is what the step
+ * plan reads (`CASH_SALE_STEP_COLUMNS`), so a list row can say whose move the contract
+ * is waiting on. They cost nothing — the same query, more columns — and the alternative
  * was a status-to-copy table beside the derivation the contract room already uses.
  */
 const CASH_SALE_SUMMARY_COLUMNS = [
@@ -203,25 +205,10 @@ const CASH_SALE_SUMMARY_COLUMNS = [
   'item_id',
   'amount_cents',
   'currency',
-  'status',
   'created_at',
   'item_title',
   'item_image_paths',
-  // Identifies the counterparty, whose display name the step copy interpolates.
-  'buyer_id',
-  'seller_id',
-  // The step facts. Column for column, `lib/api/contractStepPlan.ts`'s mapping —
-  // which is itself `CashSaleView`'s.
-  'fulfillment_method',
-  'terms_version',
-  'tracking_number',
-  'buyer_handover_confirmed_at',
-  'seller_handover_confirmed_at',
-  'disputed_by',
-  'return_tracking_number',
-  'return_disputed_at',
-  'return_carrier_delivered_at',
-  'return_inspection_deadline_at',
+  ...CASH_SALE_STEP_COLUMNS,
 ].join(', ');
 
 /** Shape of the selected cash-sale summary row. */
@@ -259,41 +246,10 @@ function toCashSaleSummary(
   const counterpartyName =
     names.get(iAmBuyer ? row.seller_id : row.buyer_id) ?? UNKNOWN_COUNTERPARTY;
 
-  // `haltedAt` IS DELIBERATELY NOT SUPPLIED. Reading it means one `cash_sale_events`
-  // query per contract, and all it refines is WHICH step a closed contract marks as
-  // halted. A closed contract has no live step either way, so `currentStep` is null and
-  // this surface shows no next move for one — the refinement would change nothing here.
-  // The contract room, where the halt point IS the point, still reads it.
-  //
-  // The guard rather than a cast: a status this build has never seen (a migration
-  // adding one) must produce no next move rather than a plan that looks derived and is
-  // not. Same reasoning as `cashSaleStepPlan`, which refuses outright.
-  const steps: ContractStep[] = isCashSaleStatus(row.status)
-    ? deriveCashSaleSteps({
-        status: row.status,
-        viewerRole,
-        counterpartyName,
-        termsSet: row.fulfillment_method !== null,
-        termsVersion: row.terms_version,
-        isDelivery: row.fulfillment_method === 'DELIVERY',
-        hasTracking: Boolean(row.tracking_number),
-        myHandoverConfirmed: Boolean(
-          iAmBuyer
-            ? row.buyer_handover_confirmed_at
-            : row.seller_handover_confirmed_at,
-        ),
-        theirHandoverConfirmed: Boolean(
-          iAmBuyer
-            ? row.seller_handover_confirmed_at
-            : row.buyer_handover_confirmed_at,
-        ),
-        disputeRaisedByMe: row.disputed_by === userId,
-        hasReturnTracking: Boolean(row.return_tracking_number),
-        returnDisputed: Boolean(row.return_disputed_at),
-        returnCarrierDeliveredAt: row.return_carrier_delivered_at ?? null,
-        returnInspectionDeadlineAt: row.return_inspection_deadline_at ?? null,
-      })
-    : [];
+  // The plan from the row (`cashSaleStepsForRow`, which says why `haltedAt` is not
+  // supplied and why an unknown status yields no plan). The notification list reads
+  // the same mapping.
+  const steps: ContractStep[] = cashSaleStepsForRow(row, userId, counterpartyName);
 
   return {
     id: row.id,

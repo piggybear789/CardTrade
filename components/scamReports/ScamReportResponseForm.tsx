@@ -32,7 +32,7 @@ const PLACEHOLDER = [
   'For example:',
   '• Whether you recognise the deal, and what you remember of it',
   '• If someone may be using your details or pretending to be you',
-  '• Anything that shows what really happened',
+  '• Anything that shows what happened',
 ].join('\n');
 
 export function ScamReportResponseForm({ reportId }: { reportId: string }) {
@@ -145,7 +145,7 @@ export function ScamReportResponseForm({ reportId }: { reportId: string }) {
         </div>
         <ul className="grid grid-cols-3 gap-snug sm:grid-cols-5">
           {tiles.map((tile, index) => (
-            <li key={tile.key} className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted">
+            <li key={tile.key} className="relative aspect-square overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-foreground/[0.08]">
               {/* A local object URL: not a host the image optimizer knows. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={tile.preview} alt={`Photo ${index + 1}`} className="size-full object-cover" />
@@ -172,8 +172,8 @@ export function ScamReportResponseForm({ reportId }: { reportId: string }) {
                 type="button"
                 onClick={() => fileInput.current?.click()}
                 className={cn(
-                  'flex size-full flex-col items-center justify-center gap-tight rounded-lg border border-dashed border-input text-meta text-muted-foreground transition-colors',
-                  'hover:border-input-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'flex size-full flex-col items-center justify-center gap-tight rounded-lg bg-foreground/[0.04] text-meta text-muted-foreground transition-colors',
+                  'hover:bg-foreground/[0.07] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
                 <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />

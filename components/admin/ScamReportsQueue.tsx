@@ -109,10 +109,10 @@ export function ScamReportsQueue({
           <Badge variant={toReview > 0 ? 'default' : 'secondary'}>{toReview} to review</Badge>
         </div>
         <div className="flex w-full flex-wrap gap-tight md:w-auto">
-          <Button asChild size="sm" variant={showingClosed ? 'ghost' : 'outline'}>
+          <Button asChild size="sm" variant={showingClosed ? 'ghost' : 'secondary'}>
             <Link href="/admin?tab=scams">Open</Link>
           </Button>
-          <Button asChild size="sm" variant={showingClosed ? 'outline' : 'ghost'}>
+          <Button asChild size="sm" variant={showingClosed ? 'secondary' : 'ghost'}>
             <Link href="/admin?tab=scams&view=all">All</Link>
           </Button>
         </div>
@@ -225,7 +225,7 @@ export function ScamReportsQueue({
                         ) : null}
                       </dl>
 
-                      <div className="space-y-snug rounded-lg border border-border bg-muted/40 p-cozy">
+                      <div className="space-y-snug rounded-lg bg-muted/60 p-cozy">
                         <p className="text-meta font-medium text-foreground">What they told us</p>
                         <p className="whitespace-pre-line break-words text-body text-foreground">{report.narrative}</p>
                         <PhotoGrid photos={report.evidence} label="screenshot" />
@@ -283,7 +283,7 @@ export function ScamReportsQueue({
                                 </p>
 
                                 {match.response ? (
-                                  <div className="space-y-snug rounded-lg border border-border bg-muted/40 p-cozy">
+                                  <div className="space-y-snug rounded-lg bg-muted/60 p-cozy">
                                     <p className="text-meta font-medium text-foreground">Their side</p>
                                     <p className="whitespace-pre-line break-words text-body text-foreground">
                                       {match.response}

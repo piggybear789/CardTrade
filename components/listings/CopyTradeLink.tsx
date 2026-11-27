@@ -42,7 +42,7 @@ export function CopyTradeLink({ itemId, className, size }: CopyTradeLinkProps) {
 
   return (
     <Button
-      variant="outline"
+      variant="secondary"
       size={size}
       className={className ?? 'w-full sm:w-auto'}
       onClick={handleCopy}

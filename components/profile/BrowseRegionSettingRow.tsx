@@ -177,7 +177,7 @@ function RegionGroup({ label, children }: { label: string; children: ReactNode }
 function CodeStamp({ code }: { code: string }) {
   return (
     <span
-      className="flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-meta font-semibold tabular-nums tracking-wider text-foreground"
+      className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-meta font-semibold tabular-nums tracking-wider text-foreground"
       aria-hidden
     >
       {code}

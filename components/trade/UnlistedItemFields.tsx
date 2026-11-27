@@ -336,7 +336,7 @@ export function UnlistedPhotoField({
           // The input lives inside its label so the button is the control: clicking
           // anywhere on it opens the picker, and `has-` puts the focus edge on the
           // button rather than the hidden input.
-          <label className="inline-flex h-10 cursor-pointer items-center gap-tight rounded-md border border-input bg-card px-group text-body font-medium text-foreground transition-colors hover:border-input-hover hover:bg-accent hover:text-accent-foreground has-[:focus-visible]:border-ring md:h-9">
+          <label className="inline-flex h-10 cursor-pointer items-center gap-tight rounded-md bg-foreground/[0.06] px-group text-body font-medium text-foreground transition-colors hover:bg-foreground/[0.1] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring md:h-9">
             <Icon icon={CameraPlusIcon} aria-hidden="true" className="size-3.5" />
             {count === 0 ? 'Add photos' : 'Add more'}
             <input
@@ -511,8 +511,8 @@ export function PhotoGrid({
               <label
                 {...fileDropHandlers}
                 className={cn(
-                  'flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg border border-input bg-card text-muted-foreground transition-colors hover:border-input-hover hover:bg-accent hover:text-foreground has-[:focus-visible]:border-ring',
-                  fileOver && 'border-foreground bg-accent text-foreground',
+                  'flex aspect-square cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg bg-foreground/[0.05] text-muted-foreground transition-colors hover:bg-foreground/[0.09] hover:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                  fileOver && 'bg-foreground/[0.12] text-foreground',
                 )}
               >
                 <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
@@ -592,18 +592,18 @@ export function PhotoGrid({
           ))}
           {/* The empty slots that keep the grid one size (see above). */}
           {Array.from({ length: emptySlots }, (_, slot) => (
-            <li key={`slot-${slot}`} aria-hidden className={cn('aspect-square rounded-lg', !empty && 'border border-dashed border-input')} />
+            <li key={`slot-${slot}`} aria-hidden className={cn('aspect-square rounded-lg', !empty && 'bg-foreground/[0.04]')} />
           ))}
         </ul>
         {empty ? (
           <label
             {...fileDropHandlers}
             className={cn(
-              'absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-snug rounded-xl border border-input bg-muted/40 px-group text-center transition-colors hover:border-input-hover hover:bg-muted/70 has-[:focus-visible]:border-ring',
-              fileOver && 'border-foreground bg-accent',
+              'absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-snug rounded-xl bg-foreground/[0.04] px-group text-center transition-colors hover:bg-foreground/[0.06] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring',
+              fileOver && 'bg-foreground/[0.09]',
             )}
           >
-            <span className="grid size-11 place-items-center rounded-full border border-border bg-card text-foreground">
+            <span className="grid size-11 place-items-center rounded-full bg-foreground/[0.06] text-foreground">
               <Icon icon={CameraPlusIcon} className="size-5" aria-hidden />
             </span>
             <span className="text-body font-medium text-foreground">Add photos</span>

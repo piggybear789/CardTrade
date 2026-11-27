@@ -193,17 +193,19 @@ describe('ListingDetailStack', () => {
 });
 
 describe('MessageSellerButton', () => {
-  it('is an outline button by default, not tinted', () => {
+  // The quiet button is tonal since 2026-11-28 (`components/ui/button.tsx`): a tint of
+  // the ink, no edge. It was the bordered white `outline` button.
+  it('is the quiet tonal button by default, not filled', () => {
     render(<MessageSellerButton itemId="item-1" sellerId="seller-1" />);
     const button = screen.getByRole('button', { name: 'Message seller' });
-    expect(button.className).not.toContain('bg-secondary');
-    expect(button.className).toContain('bg-card');
+    expect(button.className).not.toContain('bg-primary');
+    expect(button.className).toContain('bg-foreground/[0.06]');
   });
 
   it('is filled where messaging is the page’s main action', () => {
     render(<MessageSellerButton itemId={null} sellerId="seller-1" emphasis="primary" />);
     const button = screen.getByRole('button', { name: 'Message seller' });
     expect(button.className).toContain('bg-primary');
-    expect(button.className).not.toContain('bg-card');
+    expect(button.className).not.toContain('bg-foreground/[0.06]');
   });
 });

@@ -339,6 +339,17 @@ export function formatRelativeTime(
 }
 
 /**
+ * {@link formatRelativeTime} without the suffix: `"now"`, `"5m"`, `"13h"`, `"2d"`, or
+ * the date. For a column where every figure is an age (the inbox, notification rows),
+ * where " ago" cost a narrow list about 28px a row and said nothing the column did not.
+ */
+export function formatAge(iso: string | null | undefined, now: Date = new Date()): string {
+  const label = formatRelativeTime(iso, now);
+  if (label === 'just now') return 'now';
+  return label.replace(/ ago$/, '');
+}
+
+/**
  * The ONE zone server-rendered dates are shown in.
  *
  * A date formatted with no `timeZone` is formatted in the RUNTIME's zone: UTC on

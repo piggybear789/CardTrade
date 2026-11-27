@@ -1031,7 +1031,7 @@ export const resolveCashSaleDispute = withActionLog('admin.resolveCashSaleDisput
         : result.error === 'NOTHING_TO_REFUND'
           ? 'No funds were ever collected for this sale, so there is nothing to refund.'
           : result.error === 'REFUND_FAILED'
-            ? 'The provider rejected the refund. The sale is still disputed — you can retry.'
+            ? 'The provider refused the refund. The sale is still disputed, and you can retry.'
             : result.error === 'INVALID_STATE'
               ? `This sale is ${result.detail ?? 'not disputed'}, so it cannot be resolved.`
               : (result.detail ?? 'The dispute could not be resolved.');
@@ -1166,7 +1166,7 @@ export const resolveTradeDispute = withActionLog('admin.resolveTradeDispute', as
     await createNotification({
       userId: outcome.victimId,
       type: 'TRADE',
-      title: 'Fraud confirmed — you are being compensated',
+      title: 'Fraud confirmed: you’re being compensated',
       body:
         "NoDitto support confirmed objective fraud. The other trader's collateral is being " +
         'paid to you after a 7-day safety hold, and your own trade collateral has been released.',
@@ -1175,7 +1175,7 @@ export const resolveTradeDispute = withActionLog('admin.resolveTradeDispute', as
     await createNotification({
       userId: resolution.offendingTraderId,
       type: 'TRADE',
-      title: 'Fraud confirmed — your account is permanently suspended',
+      title: 'Fraud confirmed: your account is permanently suspended',
       body: 'NoDitto support confirmed objective fraud on your trade. Your trade collateral has been captured.',
       link: `/trades/${tradeId}`,
     });
@@ -2586,7 +2586,7 @@ export const findEbayLinkCandidates = withActionLog('admin.findEbayLinkCandidate
   try {
     found = await findEbaySellers(Array.from(names.values()));
   } catch {
-    return { ok: false, error: 'external-unavailable', message: 'eBay could not be read just now. Try again in a moment.' };
+    return { ok: false, error: 'external-unavailable', message: 'We couldn’t reach eBay. Try again in a moment.' };
   }
 
   const admin = createAdminClient();

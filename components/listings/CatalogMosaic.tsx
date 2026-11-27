@@ -71,6 +71,11 @@ export interface CatalogMosaicProps<T> {
    */
   dimOf: (item: T) => ImageDim | null;
   /**
+   * Optional text rows each tile draws (`catalogTileExtraRows`), so the balance
+   * counts the text as well as the cover. Hoist to module scope, like `dimOf`.
+   */
+  extraRowsOf?: (item: T) => number;
+  /**
    * Renders one tile. `coverDim` is `undefined` at md and up (the tile is not
    * in a mosaic and should stay square) and the item's dimensions below md.
    * Pass it straight through to `CatalogItemCard`.
@@ -83,13 +88,14 @@ export function CatalogMosaic<T>({
   items,
   keyOf,
   dimOf,
+  extraRowsOf,
   children,
   className,
 }: CatalogMosaicProps<T>) {
   const isDesktop = useIsDesktop();
   const columns = useMemo(
-    () => balanceMosaicColumns(items, dimOf),
-    [items, dimOf],
+    () => balanceMosaicColumns(items, dimOf, undefined, extraRowsOf),
+    [items, dimOf, extraRowsOf],
   );
   // Read once per item list. `dimOf` builds a fresh object per call, and a new
   // `coverDim` on every render would defeat the memoised tile.

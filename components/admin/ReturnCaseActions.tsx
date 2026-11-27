@@ -109,7 +109,7 @@ export function ReturnCaseActions({
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           disabled={isPending}
           aria-haspopup="dialog"
           onClick={() => setConfirming('RELEASE_SELLER')}

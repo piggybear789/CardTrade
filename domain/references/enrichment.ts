@@ -394,7 +394,7 @@ export function computeRealnessAssessment(input: {
   ) {
     return {
       tier: 'WARNING_FLAGGED',
-      headline: 'High-risk warning signals detected — pause before paying',
+      headline: 'High-risk signs found. Hold off on paying',
       guidance:
         input.scamRisk.matchedReportCount > 0
           ? 'The payment detail or handle provided matches an internal scam report. Do not send unprotected bank/PayID/F&F transfers.'
@@ -435,8 +435,8 @@ export function computeRealnessAssessment(input: {
       headline: 'Established public footprint found',
       guidance:
         input.targetKind === 'PERSON_NAME'
-          ? 'Public signals exist, but common names can belong to multiple people. Confirm they actually control the linked Instagram or eBay account (e.g. ask them to DM or claim it here).'
-          : 'This handle has an active footprint across platforms. Before sending money, confirm the person messaging you actually controls this account.',
+          ? 'A common name can belong to several people. Ask them to prove they control the linked Instagram or eBay account.'
+          : 'This handle is active on several platforms. Before paying, check the person messaging you controls it.',
       collisionRisk,
       signalsSummary,
     };
@@ -446,8 +446,8 @@ export function computeRealnessAssessment(input: {
     tier: 'LIMITED_FOOTPRINT',
     headline:
       input.forensics.riskLevel === 'ELEVATED'
-        ? 'Suspicious or limited footprint — verify before paying'
-        : 'Limited verifiable footprint — verify before paying',
+        ? 'Little or suspicious history. Check before paying'
+        : 'Little history to check. Check before paying',
     guidance:
       input.targetKind === 'PERSON_NAME'
         ? 'Facebook Marketplace cannot be scraped directly, and a name alone is not proof of identity. Drop a screenshot of their profile or DM, paste their PayID/phone/BSB, or ask them to verify on NoDitto.'

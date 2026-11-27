@@ -130,7 +130,7 @@ export default async function ArbitrationQueuePage({
           title="Not authorized"
           titleAs="h3"
           description="Cases are limited to NoDitto support staff."
-          action={{ label: 'Return home', href: '/', variant: 'outline' }}
+          action={{ label: 'Return home', href: '/', variant: 'secondary' }}
         />
       </MarketplaceShell>
     );
@@ -153,7 +153,7 @@ export default async function ArbitrationQueuePage({
         description="Disputes where two members disagree and money is frozen, so only a person can decide who gets it. Ordered by urgency, then by how long someone has been waiting."
         actions={
           viewerIsAdmin ? (
-            <Button asChild variant="outline">
+            <Button asChild variant="secondary">
               <Link href="/admin" transitionTypes={['nav-back']}>
                 <Icon icon={WrenchIcon} aria-hidden />
                 Operations
@@ -172,7 +172,7 @@ export default async function ArbitrationQueuePage({
           { label: `Over ${ARBITRATION_SLA_HOURS}h`, value: String(summary.overdue) },
           { label: 'Money at stake', value: moneyAtStakeLabel(cases) },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-lg border bg-muted p-cozy">
+          <div key={stat.label} className="rounded-lg bg-muted p-cozy">
             <dt className="text-meta uppercase tracking-wide text-muted-foreground">
               {stat.label}
             </dt>
@@ -187,7 +187,7 @@ export default async function ArbitrationQueuePage({
           amount, which is the exact behaviour the rule exists to prevent. The string
           lives beside the derivation in `arbitrationCase.ts`, so publishing it and
           changing it are one edit. */}
-      <p className="mb-5 rounded-md border border-border bg-muted px-cozy py-snug text-meta text-muted-foreground">
+      <p className="mb-5 rounded-lg bg-muted/80 px-cozy py-snug text-meta text-muted-foreground">
         {TRIAGE_RULE_SUMMARY}
       </p>
 
@@ -303,7 +303,7 @@ export default async function ArbitrationQueuePage({
                       {c.parties.map((p) => `${p.role}: ${p.name}`).join(' · ')}
                     </p>
                     <div className="flex items-center gap-snug">
-                      <Button asChild variant="outline" size="sm">
+                      <Button asChild variant="secondary" size="sm">
                         <Link href={`/admin/arbitration/${c.kind}/${c.ref}`} transitionTypes={['nav-forward']}>
                           Open case
                         </Link>

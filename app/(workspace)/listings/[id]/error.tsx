@@ -22,7 +22,7 @@ export default function ListingError({
       title="This listing didn't load"
       // Says the listing still exists, because that is what distinguishes this
       // boundary from not-found.
-      description="It's still there, we just couldn't fetch it. Try again in a moment."
+      description="We couldn't load this listing. Try again in a moment."
     />
   );
 }

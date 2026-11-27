@@ -63,7 +63,7 @@ export function ReportActions({ reportId, targetType, targetId }: ReportActionsP
       {targetType === 'item' && (
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           disabled={isPending}
           onClick={() => run(() => hideItem(targetId))}
         >

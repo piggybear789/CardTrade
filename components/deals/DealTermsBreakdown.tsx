@@ -92,7 +92,7 @@ export function TradeTermsBreakdown({
       <BreakdownRow
         label="Trade collateral, held on your card"
         value={valueCents ? formatMoney(valueCents, currency) : "Your card's value"}
-        info="A temporary hold, not a charge. It's released when the trade completes."
+        info="Nothing is charged. Released when the trade completes."
       />
       <BreakdownRow label="Your fee" value={`${tradeFeeRateLabel()} of what you receive`} info={TRADE_FEE_NOTE} />
     </Breakdown>

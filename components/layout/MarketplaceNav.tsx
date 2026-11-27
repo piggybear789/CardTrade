@@ -8,7 +8,7 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
 
 import {
@@ -33,6 +33,8 @@ export function MarketplaceNav({
   primaryExtras?: ReactNode;
 } = {}) {
   const pathname = usePathname();
+  // Saved is the catalog with `?saved=1`, so Browse all and Saved share a path.
+  const savedFilter = useSearchParams().get('saved') === '1';
   // Read from the workspace provider rather than a prop, so the loading
   // skeleton can draw this same nav without a profile read of its own. See
   // `components/layout/WorkspaceChrome.tsx`.
@@ -82,11 +84,13 @@ export function MarketplaceNav({
               <ul className="flex flex-col gap-0.5">
                 {group.links.map((link) => {
                   // Saving needs an account; for a guest the row was a link to sign-in.
-                  if (!signedIn && link.href === '/saved') return null;
-                  const active = isMarketplaceSectionActive(
-                    pathname,
-                    link.href,
-                  );
+                  if (!signedIn && link.href === '/?saved=1') return null;
+                  const active =
+                    link.href === '/?saved=1'
+                      ? pathname === '/' && savedFilter
+                      : link.href === '/'
+                        ? isMarketplaceSectionActive(pathname, '/') && !(pathname === '/' && savedFilter)
+                        : isMarketplaceSectionActive(pathname, link.href);
                   const Glyph = link.icon;
                   const count = waiting[link.href] ?? 0;
                   return (

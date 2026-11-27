@@ -106,7 +106,7 @@ export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
       {addresses.length === 0 && !adding ? (
         <SettingsPlaceholder
           action={
-            <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setAdding(true)}>
               <Icon icon={PlusIcon} aria-hidden />
               Add an address
             </Button>
@@ -141,7 +141,7 @@ export function MemberAddressesEditor({ onSaved }: { onSaved?: () => void }) {
         />
       ) : addresses.length > 0 ? (
         <div>
-          <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setAdding(true)}>
             <Icon icon={PlusIcon} aria-hidden />
             Add another
           </Button>

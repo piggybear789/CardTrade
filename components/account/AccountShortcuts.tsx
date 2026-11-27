@@ -103,7 +103,7 @@ export function AccountShortcuts({
     >
       <Row label="Activity">
         <Tile href="/notifications" icon={BellIcon} label="Activity" count={unreadNotifications} />
-        <Tile href="/saved" icon={HeartIcon} label="Saved" />
+        <Tile href="/?saved=1" icon={HeartIcon} label="Saved" />
         <Tile href="/offers" icon={HandCoinsIcon} label="Offers" count={offersWaiting} />
         <Tile href="/listings/mine" icon={StorefrontIcon} label="Listings" />
       </Row>

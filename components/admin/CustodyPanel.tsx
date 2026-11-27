@@ -64,7 +64,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
   const tone =
     state === 'SHORTFALL'
       ? {
-          wrapper: 'border-destructive/40 bg-destructive/10',
+          wrapper: 'border-transparent bg-destructive/[0.07]',
           badge: 'destructive' as const,
           label: 'Shortfall',
           icon: <Icon icon={WarningIcon} className="size-4 shrink-0" aria-hidden />,
@@ -182,7 +182,7 @@ export function CustodyPanel({ position }: CustodyPanelProps) {
       {state === 'SHORTFALL' ? (
         // Named causes, in the order they are actually likely. An operator seeing red
         // for the first time needs somewhere to look, not just a number.
-        <div className="mt-group space-y-tight rounded-md border border-destructive/40 bg-destructive/10 p-cozy text-body text-destructive">
+        <div className="mt-group space-y-tight rounded-lg bg-destructive/[0.07] p-cozy text-body text-destructive">
           <p className="font-semibold">
             Money members are owed is not all present. Check, in this order:
           </p>

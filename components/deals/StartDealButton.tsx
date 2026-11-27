@@ -99,7 +99,7 @@ export function StartDealEmptyState({
   ...props
 }: Omit<Parameters<typeof EmptyState>[0], 'action'> & {
   actionLabel?: string;
-  actionVariant?: 'default' | 'outline';
+  actionVariant?: 'default' | 'secondary' | 'outline';
   /** Set false when a sibling already offers the same action. */
   showAction?: boolean;
 }) {

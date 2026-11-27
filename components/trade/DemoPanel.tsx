@@ -84,7 +84,7 @@ export function DemoPanel({ tradeId }: DemoPanelProps) {
               Hackathon · Test Mode
             </span>
             <span className="mt-0.5 block text-body text-muted-foreground">
-              Simulated payments — not live Stripe
+              Simulated payments (test only)
             </span>
           </span>
         </span>

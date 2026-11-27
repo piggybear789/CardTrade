@@ -42,7 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { MobileList } from '@/components/ui/mobile-list';
 import { CashSaleStatusBadge } from '@/components/sales/CashSaleStatusBadge';
 import { StorageImage } from '@/components/ui/storage-image';
-import { formatRelativeTime, itemImageUrl } from '@/lib/format';
+import { formatAge, itemImageUrl } from '@/lib/format';
 import type { ConversationListEntry } from '@/lib/actions/messages';
 import { cn } from '@/lib/utils';
 
@@ -82,14 +82,6 @@ function previewFor(c: ConversationListEntry): string {
   return c.lastMessage?.body ?? c.item?.title ?? 'No messages yet';
 }
 
-/**
- * "13h", not "13h ago". The row is a list of recent activity, so every figure in that
- * column is an age; the suffix cost a narrow rail about 28px a row for no information.
- */
-function compactAge(label: string): string {
-  if (label === 'just now') return 'now';
-  return label.replace(/ ago$/, '');
-}
 
 /** The iris dot, with the count spoken. The weight change says "unread" to the eye. */
 function UnreadDot({ count }: { count: number }) {
@@ -166,7 +158,8 @@ function ThreadRow({
 }) {
   const name = c.other.displayName?.trim() || 'NoDitto member';
   const preview = previewFor(c);
-  const age = compactAge(formatRelativeTime(c.lastMessage?.createdAt ?? c.lastMessageAt));
+  // "13h", not "13h ago" (`formatAge`): every figure in that column is an age.
+  const age = formatAge(c.lastMessage?.createdAt ?? c.lastMessageAt);
   const unread = c.unreadCount > 0;
 
   return (

@@ -1,54 +1,15 @@
 // app/saved/page.tsx
 //
-// The caller's watchlist: listings they are tracking but have not acted on.
+// SAVED IS A CATALOG FILTER (2026-11-27): the marketplace with `?saved=1`, so a
+// member's saves are browsed, sorted and filtered like every other listing. This
+// route stays so old links, emails and bookmarks still land in the right place.
 
 import { redirect } from 'next/navigation';
 
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
-import { listMyWatchlist } from '@/lib/actions/watchlist';
-import { WatchlistSection } from '@/components/account/WatchlistSection';
-import {
-  MarketplaceShell,
-  RailPrimaryAction,
-} from '@/components/layout/MarketplaceShell';
-import { SectionHeader, SectionLoadError } from '@/components/layout/SectionHeader';
-
-// TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
-// See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
-
-export const metadata = {
-  title: 'Saved · NoDitto',
-  description: 'Listings you are watching.',
-};
 
 export default async function SavedPage() {
-  // Together: the list resolves the caller through the same request-cached read.
-  const [user, result] = await Promise.all([getCachedAuthUser(), listMyWatchlist()]);
-  if (!user) {
-    redirect('/sign-in?redirectTo=/saved');
-  }
-  const hasItems = result.ok && result.items.length > 0;
-
-  // One node, two homes: the rail on desktop, the section heading below `lg`.
-  // No plus: browsing the marketplace creates nothing.
-  const browseMarketplace = () => (
-    <RailPrimaryAction href="/" glyph={null}>
-      Browse marketplace
-    </RailPrimaryAction>
-  );
-
-  return (
-    <MarketplaceShell title="Saved" primaryAction={browseMarketplace()}>
-      <SectionHeader
-        title="Saved"
-        description="Listings you are watching. Saving does not reserve an item."
-        mobileAction={hasItems ? browseMarketplace() : undefined}
-      />
-      {result.ok ? (
-        <WatchlistSection items={result.items} />
-      ) : (
-        <SectionLoadError label="saved listings" />
-      )}
-    </MarketplaceShell>
-  );
+  const user = await getCachedAuthUser();
+  if (!user) redirect('/sign-in?redirectTo=%2F%3Fsaved%3D1');
+  redirect('/?saved=1');
 }

@@ -111,7 +111,7 @@ export function ScamReportActions({ reportId, status, notes }: ScamReportActions
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           disabled={isPending || draft.trim() === (notes ?? '').trim()}
           onClick={() => run('notes', () => saveScamReportNotes(reportId, draft), 'Notes saved.')}
         >
@@ -131,7 +131,7 @@ export function ScamReportActions({ reportId, status, notes }: ScamReportActions
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             disabled={isPending}
             onClick={() =>
               run('corroborated', () => reviewScamReport(reportId, 'CORROBORATED'), 'Marked corroborated.')
@@ -249,7 +249,7 @@ export function ScamMatchActions({
           <Button
             type="button"
             size="sm"
-            variant="outline"
+            variant="secondary"
             disabled={isPending}
             onClick={() => run('confirm', () => confirmScamReportMatch(reportId, profileId), 'Match confirmed.')}
           >

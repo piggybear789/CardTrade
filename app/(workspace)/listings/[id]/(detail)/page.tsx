@@ -1083,7 +1083,7 @@ function ItemActions({
         title="You have a contract on this"
         description={
           isShopfront
-            ? "You already have an open contract with this seller for items from this listing. Add anything else to that contract rather than starting a second one."
+            ? "You already have an open contract with this seller for items from this listing. Add anything else to that contract."
             : "You are already buying this item. Everything about the purchase lives on the contract."
         }
       >

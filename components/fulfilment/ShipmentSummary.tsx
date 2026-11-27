@@ -86,7 +86,7 @@ export function ShipmentSummary({
         </p>
 
         {trackingUrl ? (
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="secondary" size="sm">
             {/* `noopener` and a stated new tab: this leaves the contract room for a
                 third-party site, and a link that does that without saying so is the
                 thing screen-reader users are entitled to be told about. */}

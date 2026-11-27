@@ -15,6 +15,7 @@
 //     the tile was, and would re-flow on every arrival.
 
 import { coverAspectRatio, type ImageDim } from '@/lib/images/dimensions';
+import type { CatalogItem } from '@/lib/actions/listings';
 
 /**
  * The uniform grid at every breakpoint. Still the right class for surfaces that
@@ -102,7 +103,44 @@ export const CATALOG_MOSAIC_COLUMNS = 2;
  * change which column is shorter unless the columns hold different numbers of
  * tiles — which is exactly when it should count.
  */
-const TILE_TEXT_RATIO = 0.75;
+// The base is the block with a ONE-line title (~120px): in the mosaic the title
+// no longer reserves a second line, and every row that comes and goes is counted
+// by `catalogTileExtraRows` instead (2026-11-29).
+const TILE_TEXT_RATIO = 0.68;
+
+/**
+ * One optional text row in the mosaic (a title's second line, the Trusted Seller
+ * tag), with its gap, as a fraction of the tile's width: ~22px under ~176px.
+ */
+const TILE_EXTRA_ROW_RATIO = 0.125;
+
+/**
+ * Characters of `text-body` that fit one line of a phone mosaic tile (~150px of
+ * text width). An estimate for the balancer only: the real wrap decides what is
+ * drawn, and being a few characters out moves one tile by one line.
+ */
+const TITLE_CHARS_PER_LINE = 22;
+
+/**
+ * How many optional text rows a catalog tile draws in the phone mosaic, beyond
+ * the one-line title, category, price and seller that every tile has.
+ *
+ * THIS IS WHAT STAGGERS A FEED OF LOOK-ALIKE PHOTOS. Most card photos are the
+ * same shape, so on Xianyu (whose feed this follows) much of the stagger comes
+ * from the text: a title that takes one line or two, and tag rows only some tiles
+ * carry. Only facts that are known at render time count — a row decided by the
+ * clock (`NewListingPill`) appears after hydration and would move the column, so
+ * it stays on the photo.
+ *
+ * Kept beside the balancer so the rows `CatalogItemCard` draws and the rows the
+ * balancer counts are read from one place.
+ */
+export function catalogTileExtraRows(item: CatalogItem): number {
+  let rows = 0;
+  if (item.title.length > TITLE_CHARS_PER_LINE) rows += 1;
+  if (item.seller?.isTrustedSeller) rows += 1;
+  return rows;
+}
 
 /** Nominal mosaic column width in rem, for intrinsic-size estimates. */
 const TILE_WIDTH_REM = 11;
@@ -111,8 +149,8 @@ const TILE_WIDTH_REM = 11;
  * Estimated rendered height of a tile as a multiple of its width. Used only to
  * decide which column is shorter.
  */
-function tileHeightRatio(dim: ImageDim | null | undefined): number {
-  return 1 / coverAspectRatio(dim) + TILE_TEXT_RATIO;
+function tileHeightRatio(dim: ImageDim | null | undefined, extraRows = 0): number {
+  return 1 / coverAspectRatio(dim) + TILE_TEXT_RATIO + extraRows * TILE_EXTRA_ROW_RATIO;
 }
 
 /**
@@ -123,8 +161,11 @@ function tileHeightRatio(dim: ImageDim | null | undefined): number {
  * An estimate is enough: the `auto` keyword means the browser replaces it with
  * the real measurement the first time the tile renders.
  */
-export function tileIntrinsicHeight(dim: ImageDim | null | undefined): string {
-  return `${(tileHeightRatio(dim) * TILE_WIDTH_REM).toFixed(2)}rem`;
+export function tileIntrinsicHeight(
+  dim: ImageDim | null | undefined,
+  extraRows = 0,
+): string {
+  return `${(tileHeightRatio(dim, extraRows) * TILE_WIDTH_REM).toFixed(2)}rem`;
 }
 
 /** One tile's place in the mosaic: the item, and where it sat in the feed. */
@@ -161,6 +202,8 @@ export function balanceMosaicColumns<T>(
   items: readonly T[],
   dimOf: (item: T) => ImageDim | null | undefined,
   columnCount: number = CATALOG_MOSAIC_COLUMNS,
+  /** Optional text rows per tile; see {@link catalogTileExtraRows}. */
+  extraRowsOf?: (item: T) => number,
 ): MosaicTile<T>[][] {
   const columns: MosaicTile<T>[][] = Array.from(
     { length: columnCount },
@@ -176,7 +219,10 @@ export function balanceMosaicColumns<T>(
       if (heights[column] < heights[shortest]) shortest = column;
     }
     columns[shortest].push({ item: items[index], index });
-    heights[shortest] += tileHeightRatio(dimOf(items[index]));
+    heights[shortest] += tileHeightRatio(
+      dimOf(items[index]),
+      extraRowsOf?.(items[index]) ?? 0,
+    );
   }
 
   return columns;

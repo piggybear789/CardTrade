@@ -90,7 +90,7 @@ export async function generateMetadata({
   const bio = (data?.bio as string | null)?.trim();
   const description =
     bio ||
-    `Trading card listings from ${name} on NoDitto — identity-checked seller, payments held until you accept the card.`;
+    `Trading card listings from ${name} on NoDitto. ID-checked seller, and your payment is held until you accept.`;
   // The PUBLIC display name and avatar only. The verified legal name this seller
   // discloses to a counterparty on a live contract is loaded further down the page
   // and must never reach a metadata tag, which is served to anyone who asks.
@@ -425,7 +425,7 @@ export default async function SellerProfilePage({
           {user && !isOwner ? (
             <SellerProfileActions sellerId={id} />
           ) : isOwner ? (
-            <Button asChild variant="outline" size="sm" className="w-full shrink-0 sm:w-auto">
+            <Button asChild variant="secondary" size="sm" className="w-full shrink-0 sm:w-auto">
               <Link href="/profile">Edit profile</Link>
             </Button>
           ) : (

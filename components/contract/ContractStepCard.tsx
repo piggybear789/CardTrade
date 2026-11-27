@@ -77,7 +77,9 @@ export function ContractStepCard({
       onClick={openDetails}
       aria-haspopup="dialog"
       className={cn(
-        'block w-full rounded-xl border bg-card px-cozy py-2.5 text-left shadow-sm transition-colors hover:bg-card/80',
+        // The card edge everywhere (`.surface`), not a border and a shadow; hover
+        // is a faint slate step, where `bg-card/80` on a white page was no change.
+        'surface block w-full rounded-xl bg-card px-cozy py-2.5 text-left transition-colors hover:bg-muted/50',
         'focus:outline-none focus-visible:ring-1 focus-visible:ring-ring',
         className,
       )}

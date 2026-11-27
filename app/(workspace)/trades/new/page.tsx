@@ -121,7 +121,7 @@ export default async function NewTradePage({
           variant="page"
           title="Pick something to trade for"
           description="Find a listing you want, then choose Propose Trade on it. You decide what to put up, and they decide whether it is fair."
-          action={{ label: 'Browse marketplace', href: '/', variant: 'outline' }}
+          action={{ label: 'Browse marketplace', href: '/', variant: 'secondary' }}
         />
       </Shell>
     );
@@ -167,7 +167,7 @@ export default async function NewTradePage({
           variant="page"
           title="This item is not open to offers"
           description="It may have sold, been reserved, or belong to you. Browse the marketplace for something else to trade for."
-          action={{ label: 'Browse marketplace', href: '/', variant: 'outline' }}
+          action={{ label: 'Browse marketplace', href: '/', variant: 'secondary' }}
         />
       </Shell>
     );

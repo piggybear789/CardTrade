@@ -113,7 +113,7 @@ function validateFeedback(
     return {
       ok: false,
       field: 'message',
-      message: `Please add a little more detail — at least ${FEEDBACK_MESSAGE_MIN} characters.`,
+      message: `Please add a bit more detail (at least ${FEEDBACK_MESSAGE_MIN} characters).`,
     };
   }
   if (trimmed.length > FEEDBACK_MESSAGE_MAX) {

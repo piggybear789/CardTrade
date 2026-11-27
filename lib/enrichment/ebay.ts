@@ -658,7 +658,7 @@ export async function lookupEbaySeller(
         ? `Member since ${fdbk.memberSince}`
         : fdbk.feedbackScore !== null
           ? '0 active listings right now'
-          : '0 active listings right now — open profile to view feedback',
+          : 'No active listings. Open their profile to see feedback',
     };
   }
 

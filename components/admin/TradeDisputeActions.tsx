@@ -211,14 +211,14 @@ export function TradeDisputeActions({
   })();
 
   return (
-    <div className="space-y-group rounded-lg border border-border bg-muted p-cozy">
+    <div className="space-y-group rounded-lg bg-muted/80 p-cozy">
       <p className="flex items-center gap-snug text-body font-medium">
         <Icon icon={ScalesIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
       </p>
 
       {fraudClaimedById ? (
-        <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-body text-destructive">
+        <p className="flex items-start gap-snug rounded-lg bg-destructive/[0.07] p-snug text-body text-destructive">
           <Icon icon={ShieldWarningIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span>
             {parties.find((p) => p.id === fraudClaimedById)?.name ?? 'A trader'} has

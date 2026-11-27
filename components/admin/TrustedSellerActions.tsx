@@ -110,7 +110,7 @@ export function TrustedSellerActions({
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           disabled={isPending || draft.trim() === (notes ?? '').trim()}
           onClick={() => run('notes', () => saveTrustedSellerNotes(reviewId, draft), 'Notes saved.')}
         >

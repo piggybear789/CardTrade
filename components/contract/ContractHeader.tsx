@@ -16,7 +16,6 @@
 import type { ReactNode } from 'react';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { cn } from '@/lib/utils';
 import type { ContractConnectionStatus as Status } from './types';
 
 export interface ContractHeaderProps {
@@ -53,7 +52,7 @@ export function ContractHeader({
   className,
 }: ContractHeaderProps) {
   return (
-    <Card className={cn('border-border shadow-sm', className)}>
+    <Card className={className}>
       <CardContent className="px-group py-cozy">
         {/* Identity on one line: the workspace below (details + chat) owns the
             vertical budget, so the strip packs title · parties on the left and

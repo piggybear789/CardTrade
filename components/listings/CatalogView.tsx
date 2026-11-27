@@ -37,6 +37,8 @@ export interface CatalogBrowseCurrent {
   includeSold: boolean;
   /** Show items under an active contract. Independent of {@link includeSold}. */
   includeReserved: boolean;
+  /** Only the member's saved listings (`?saved=1`). */
+  savedOnly: boolean;
   sort: CatalogSort;
   page: number;
 }
@@ -131,6 +133,7 @@ export function CatalogViewProvider({
       maxCents: dollarsToCents(next.max),
       includeSold: next.includeSold || undefined,
       includeReserved: next.includeReserved || undefined,
+      savedOnly: next.savedOnly || undefined,
       sort: next.sort,
       page: next.page,
       regionCode: regionCodeRef.current,
@@ -307,6 +310,7 @@ export function emptyBrowseCurrent(): CatalogBrowseCurrent {
     max: '',
     includeSold: false,
     includeReserved: false,
+    savedOnly: false,
     sort: 'newest',
     page: 1,
   };
@@ -326,6 +330,7 @@ function mergeBrowseCurrent(
   if ('max' in updates) next.max = asString(updates.max);
   if ('sold' in updates) next.includeSold = asString(updates.sold) === '1';
   if ('reserved' in updates) next.includeReserved = asString(updates.reserved) === '1';
+  if ('saved' in updates) next.savedOnly = asString(updates.saved) === '1';
   if ('sort' in updates) {
     const sort = asString(updates.sort) as CatalogSort;
     next.sort = SORT_KEYS.includes(sort) ? sort : 'newest';
@@ -366,6 +371,7 @@ function writeCatalogUrl(current: CatalogBrowseCurrent, regionParam: string | nu
   if (current.max) params.set('max', current.max);
   if (current.includeSold) params.set('sold', '1');
   if (current.includeReserved) params.set('reserved', '1');
+  if (current.savedOnly) params.set('saved', '1');
   if (current.sort !== 'newest') params.set('sort', current.sort);
   if (current.page > 1) params.set('page', String(current.page));
   if (regionParam) params.set('region', regionParam);
@@ -388,6 +394,7 @@ function catalogHref(
   if (current.max) params.set('max', current.max);
   if (current.includeSold) params.set('sold', '1');
   if (current.includeReserved) params.set('reserved', '1');
+  if (current.savedOnly) params.set('saved', '1');
   if (current.sort !== 'newest') params.set('sort', current.sort);
   if (page > 1) params.set('page', String(page));
   if (regionParam) params.set('region', regionParam);
@@ -412,6 +419,7 @@ export function browseCurrentFromSearch(search: string): CatalogBrowseCurrent {
     max: params.get('max')?.trim() ?? '',
     includeSold: params.get('sold') === '1',
     includeReserved: params.get('reserved') === '1',
+    savedOnly: params.get('saved') === '1',
     sort: sortRaw && SORT_KEYS.includes(sortRaw) ? sortRaw : 'newest',
     page: Number.isFinite(pageRaw) && pageRaw > 1 ? Math.trunc(pageRaw) : 1,
   };

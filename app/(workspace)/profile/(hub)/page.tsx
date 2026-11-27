@@ -484,8 +484,10 @@ function ProfilePanel({
           </SettingsGroup>
         ) : null}
         {/* `!h-12`: the button's `sm` size sets 24px from `md` inside a
-            media query, which a plain `h-12` cannot override. */}
-        <SignOutButton className="!h-12 w-full justify-start rounded-md border border-input bg-card px-group text-body font-medium text-destructive hover:bg-destructive/5 hover:text-destructive" />
+            media query, which a plain `h-12` cannot override. A one-row group
+            (2026-11-28): the settings cards' own edge and radius, a red label,
+            the iOS and Instagram "Log out" row; it was a bordered white box. */}
+        <SignOutButton className="surface !h-12 w-full justify-start rounded-xl bg-card px-group text-body font-medium text-destructive hover:bg-destructive/5 hover:text-destructive" />
       </div>
     </div>
   );

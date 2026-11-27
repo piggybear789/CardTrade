@@ -235,7 +235,7 @@ export function PayoutsDashboard({
           description="Purchases, sales, trade fees and collateral will appear here as they happen."
           // A seller's money page: the action that leads to money arriving is listing
           // something, not browsing as a buyer.
-          action={{ label: 'Sell an item', href: '/listings/new', variant: 'outline' }}
+          action={{ label: 'Sell an item', href: '/listings/new', variant: 'secondary' }}
           // Matches the other section empty states here. `EmptyState` deliberately
           // drops its card chrome below `md` so a section state sits where the first
           // row would; only the desktop dashed border is overridden to solid.
@@ -318,7 +318,7 @@ function BlockedReleaseBanner({ model, currency }: { model: PayoutReadModel; cur
   return (
     <section
       aria-labelledby="blocked-release-heading"
-      className="rounded-lg border border-destructive/40 bg-destructive/[0.05] p-group"
+      className="rounded-lg bg-destructive/[0.06] p-group"
     >
       <div className="flex items-start gap-cozy">
         <Icon
@@ -412,7 +412,7 @@ function DestinationAccountSummary({
           </div>
         </div>
         {destination.hostedOnboarding ? (
-          <Button asChild size="sm" variant="outline" className="shrink-0">
+          <Button asChild size="sm" variant="secondary" className="shrink-0">
             <Link href="/profile?tab=payouts#payout-setup">
               {needsSetup ? 'Finish setup' : 'Manage with Stripe'}
               <Icon icon={ArrowUpRightIcon} aria-hidden />
@@ -753,8 +753,7 @@ function ArbitrationSummary({ model, currency }: { model: PayoutReadModel; curre
           longer uses, so it pointed at figures the member could not find. */}
       {model.atRiskProceedsCents > 0 ? (
         <p className="mt-cozy px-tight text-body text-muted-foreground">
-          Money under dispute is counted here only — not in &ldquo;Owed to you&rdquo; or
-          &ldquo;Held for open sales&rdquo; — until the outcome is decided.
+          Money under dispute is tracked here until the dispute is decided.
         </p>
       ) : null}
     </section>

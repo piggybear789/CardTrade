@@ -40,7 +40,7 @@ const STATUS: Record<ContractHoldStatus, { label: string; tone: 'ok' | 'muted' |
   FULLY_CAPTURED: { label: 'Fully captured', tone: 'bad' },
   FAILED: { label: 'Failed', tone: 'bad' },
   // The authorisation window ran out and the collateral is gone: not a good outcome.
-  EXPIRED: { label: 'Expired — no longer protected', tone: 'bad' },
+  EXPIRED: { label: 'Collateral period has expired', tone: 'bad' },
 };
 
 const PILL = {
@@ -63,11 +63,11 @@ function Hero({ hold, currency }: { hold: HoldRow | undefined; currency: string 
   if (!hold) {
     eyebrow = 'Nothing on hold yet';
     amount = null;
-    line = 'Your hold is placed before the meeting. It is a temporary hold on your card, not a payment.';
+    line = 'Your hold is placed before the meeting. Nothing is charged.';
   } else if (hold.status === 'ACTIVE') {
     eyebrow = 'On hold on your card';
     amount = hold.amount_cents;
-    line = 'A temporary hold, not a payment. It is released when the trade completes.';
+    line = 'Nothing is charged. Released when the trade completes.';
   } else if (hold.status === 'VOIDED') {
     eyebrow = 'Released from your card';
     amount = hold.amount_cents;

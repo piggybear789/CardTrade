@@ -191,7 +191,7 @@ export function analyzePaymentRail(input: {
         code: 'PAYEE_NAME_MISMATCH',
         label: `Payment account name ("${payeeName}") does not match profile ("${profileName}")`,
         detail:
-          'Hijacked Facebook and Instagram accounts almost never have a bank or PayID in the profile owner’s name. Sending money to a third party or "partner/brother" account is a classic money-mule scam pattern.',
+          'Hijacked accounts usually ask you to pay someone else’s bank or PayID. Paying a "partner" or "brother" account is a classic scam.',
         severity: 'HIGH',
         points: 45,
       });
@@ -209,7 +209,7 @@ export function analyzePaymentRail(input: {
         flags.push({
           code: 'DISPOSABLE_PAYMENT_EMAIL',
           label: `Disposable / throwaway email domain (${emailDomain})`,
-          detail: 'This email uses a temporary inbox provider — legitimate sellers do not receive payouts on disposable email addresses.',
+          detail: 'This is a disposable email address. Real sellers don’t use one for payouts.',
           severity: 'HIGH',
           points: 45,
         });

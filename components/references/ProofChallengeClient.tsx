@@ -91,7 +91,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
 
   const copyShareLink = async () => {
     if (typeof window === 'undefined') return;
-    const msg = `Hey — before I send payment for ${challenge.itemDescription}, could you take a quick 10-second live photo with code ${challenge.code} here? ${window.location.href}`;
+    const msg = `Hey, before I pay for ${challenge.itemDescription}, could you take a quick live photo with code ${challenge.code} here? ${window.location.href}`;
     try {
       await navigator.clipboard.writeText(msg);
       toast.success('Copied proof link & message');
@@ -142,7 +142,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
               {challenge.psaCertNumber ? ` (PSA #${challenge.psaCertNumber})` : ''}
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => void copyShareLink()}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => void copyShareLink()}>
             <Icon icon={CopyIcon} className="size-3.5" aria-hidden />
             Copy link for seller
           </Button>
@@ -152,7 +152,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
       {/* Body */}
       {challenge.status === 'PENDING' ? (
         <section className="ref-surface ref-rise space-y-5 rounded-xl bg-card p-group [--ref-step:1] sm:p-6">
-          <div className="rounded-xl border border-border bg-muted/25 p-5 text-center">
+          <div className="rounded-xl bg-muted/60 p-5 text-center">
             <p className="text-meta font-semibold uppercase tracking-wider text-muted-foreground">
               Write this one-time code on paper next to the card
             </p>
@@ -181,7 +181,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
           />
 
           {error ? (
-            <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-meta text-destructive">
+            <p role="alert" className="rounded-lg bg-destructive/[0.07] px-3 py-2 text-meta text-destructive">
               {error}
             </p>
           ) : null}
@@ -202,8 +202,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
               {uploading ? 'Uploading & verifying…' : 'Take live proof photo'}
             </Button>
             <p className="text-center text-[12px] text-muted-foreground">
-              Expires {new Date(challenge.expiresAt).toLocaleString('en-AU')} · If you are the buyer,
-              keep this page open — it updates automatically when the seller submits.
+              Expires {new Date(challenge.expiresAt).toLocaleString('en-AU')} · If you&apos;re the buyer, keep this page open. It updates when the seller sends the photo.
             </p>
           </div>
         </section>
@@ -222,7 +221,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
           </div>
 
           {challenge.photoUrl ? (
-            <div className="overflow-hidden rounded-xl border border-border bg-muted/20">
+            <div className="overflow-hidden rounded-xl bg-muted/40 outline outline-1 -outline-offset-1 outline-foreground/[0.08]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={challenge.photoUrl}
@@ -233,7 +232,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
           ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-border bg-muted/20 p-3.5 text-meta">
+            <div className="rounded-xl bg-muted/60 p-3.5 text-meta">
               <p className="font-semibold text-foreground">Capture Forensics</p>
               <ul className="mt-1.5 space-y-1 text-muted-foreground">
                 <li>
@@ -253,7 +252,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
               </ul>
             </div>
 
-            <div className="rounded-xl border border-border bg-muted/20 p-3.5 text-meta">
+            <div className="rounded-xl bg-muted/60 p-3.5 text-meta">
               <p className="font-semibold text-foreground">Buyer Checklist</p>
               <ul className="mt-1.5 space-y-1 text-muted-foreground">
                 <li>
@@ -283,7 +282,7 @@ export function ProofChallengeClient({ initial }: { initial: ProofChallengeView 
           <p className="mt-1 text-meta text-muted-foreground">
             Run a new background check to generate a fresh 1-time Proof-of-Card link.
           </p>
-          <Button asChild variant="outline" size="sm" className="mt-4">
+          <Button asChild variant="secondary" size="sm" className="mt-4">
             <Link href="/references">Back to references</Link>
           </Button>
         </section>

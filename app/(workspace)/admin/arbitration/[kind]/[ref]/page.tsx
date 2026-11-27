@@ -62,7 +62,7 @@ export default async function ArbitrationCasePage({
             title="Not authorized"
             titleAs="h3"
             description="Cases are limited to NoDitto support staff."
-            action={{ label: 'Return home', href: '/', variant: 'outline' }}
+            action={{ label: 'Return home', href: '/', variant: 'secondary' }}
           />
         </MarketplaceShell>
       );

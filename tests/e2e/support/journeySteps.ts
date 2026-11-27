@@ -610,7 +610,7 @@ const HOLD_STATUS_BY_LABEL: Readonly<Record<string, string>> = {
   'Partially captured': 'PARTIALLY_CAPTURED',
   'Fully captured': 'FULLY_CAPTURED',
   Failed: 'FAILED',
-  'Expired — no longer protected': 'EXPIRED',
+  'Collateral period has expired': 'EXPIRED',
 };
 
 /** Each hold's status as the Collateral tab shows it, sorted, as `hold_status` values. */

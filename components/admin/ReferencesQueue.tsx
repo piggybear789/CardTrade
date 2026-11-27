@@ -145,7 +145,7 @@ export function ReferencesQueue({
                   <Button size="sm" disabled={pending} onClick={() => act(row.id, () => decideHandleClaim(row.id, 'APPROVE'))}>
                     Approve claim
                   </Button>
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => act(row.id, () => decideHandleClaim(row.id, 'DECLINE'))}>
+                  <Button size="sm" variant="secondary" disabled={pending} onClick={() => act(row.id, () => decideHandleClaim(row.id, 'DECLINE'))}>
                     Decline
                   </Button>
                 </div>
@@ -173,7 +173,7 @@ export function ReferencesQueue({
                   <Button size="sm" disabled={pending} onClick={() => act(row.id, () => setReferenceProofChecked(row.id))}>
                     Mark receipt checked
                   </Button>
-                  <Button size="sm" variant="outline" disabled={pending} onClick={() => act(row.id, () => rejectReferenceProof(row.id))}>
+                  <Button size="sm" variant="secondary" disabled={pending} onClick={() => act(row.id, () => rejectReferenceProof(row.id))}>
                     Doesn&rsquo;t show the deal
                   </Button>
                 </div>
@@ -254,7 +254,7 @@ function ReleaseHandleForm() {
               spellCheck={false}
             />
           </div>
-          <Button variant="outline" disabled={pending || handle.trim().length === 0} onClick={release}>
+          <Button variant="secondary" disabled={pending || handle.trim().length === 0} onClick={release}>
             {pending ? 'Releasing…' : 'Release handle'}
           </Button>
         </div>

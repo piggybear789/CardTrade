@@ -122,7 +122,7 @@ export function tradeFeeRateLabel(): string {
 
 /** Beside a trade's fee row. */
 export const TRADE_FEE_NOTE =
-  `NoDitto's fee is ${bpsLabel(TRADE_FEE_BPS)} of the value you receive, charged to your card once both holds are in place and refunded if the swap doesn't go ahead. Very small trades have no fee. The collateral itself is a card hold, not a charge.`;
+  `NoDitto's fee is ${bpsLabel(TRADE_FEE_BPS)} of the value you receive, charged to your card once both holds are in place and refunded if the swap doesn't go ahead. Very small trades have no fee. The collateral is a card hold, so nothing is charged for it.`;
 
 /**
  * The trade fee beside its row in the accept dialog: one line. The longer

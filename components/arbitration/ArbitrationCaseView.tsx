@@ -150,7 +150,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
       </div>
 
       {/* Status strip */}
-      <div className="flex flex-wrap items-center gap-snug rounded-lg border bg-muted px-group py-cozy">
+      <div className="flex flex-wrap items-center gap-snug rounded-lg bg-muted px-group py-cozy">
         <Badge variant={priority.variant}>{priority.label}</Badge>
         <Badge variant="outline">{SITUATION_LABEL[c.situation] ?? CASE_KIND_LABEL[c.kind] ?? c.kind}</Badge>
         {c.fraudAlleged && <Badge variant="destructive">Fraud alleged</Badge>}
@@ -292,7 +292,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                 ) : null}
                 <ShipmentLeg label="Return (buyer → seller)" leg={shipment.returnLeg} />
                 {shipment.returnDisputedAt ? (
-                  <div className="rounded-md border border-destructive/40 bg-destructive/5 p-cozy">
+                  <div className="rounded-lg bg-destructive/[0.06] p-cozy">
                     <p className="text-meta font-medium uppercase tracking-wide text-destructive">
                       Seller contested return · {formatContractDateTime(shipment.returnDisputedAt) ?? shipment.returnDisputedAt}
                     </p>
@@ -487,7 +487,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
               ) : resolution.kind === 'CASH_SALE' ? (
                 <div className="space-y-cozy">
                   {resolution.refundStatus === 'FAILED' ? (
-                    <p className="flex items-start gap-snug rounded-md border border-destructive/40 bg-destructive/10 p-snug text-body text-destructive">
+                    <p className="flex items-start gap-snug rounded-lg bg-destructive/[0.07] p-snug text-body text-destructive">
                       <Icon icon={WarningIcon} className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                       A previous refund attempt failed. Retrying is safe (deduplicated).
                     </p>
@@ -589,7 +589,7 @@ export function ArbitrationCaseView({ detail }: { detail: ArbitrationCaseDetail 
                       </div>
                     ) : null}
                   </dl>
-                  <Button asChild size="sm" variant="outline">
+                  <Button asChild size="sm" variant="secondary">
                     <a
                       href={
                         resolution.disputeRef

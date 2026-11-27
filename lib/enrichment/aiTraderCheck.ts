@@ -319,7 +319,7 @@ function buildDeterministicReply(
   const lines: string[] = [];
 
   if (dossier.assessment.tier === 'WARNING_FLAGGED') {
-    lines.push(`Hold off — I found red flags for ${dossier.queryLabel}.`);
+    lines.push(`Hold off: I found red flags for ${dossier.queryLabel}.`);
   } else if (dossier.assessment.tier === 'ID_VERIFIED') {
     lines.push(`${dossier.queryLabel} is ID-verified on NoDitto.`);
   } else if (dossier.assessment.tier === 'ESTABLISHED_FOOTPRINT') {
@@ -548,7 +548,7 @@ export async function runAiTraderCheck(input: {
 
   return {
     reply: needsAiKeyForImages
-      ? 'To read screenshots directly in chat, add a cheap multimodal key (`GEMINI_API_KEY` for Gemini 2.5 Flash-Lite or `OPENAI_API_KEY` for GPT-4o-mini) to `.env.local` — or type their @handle / eBay username / PayID below.'
+      ? 'To read screenshots directly in chat, add a cheap multimodal key (`GEMINI_API_KEY` for Gemini 2.5 Flash-Lite or `OPENAI_API_KEY` for GPT-4o-mini) to `.env.local`, or type their @handle, eBay username or PayID below.'
       : 'Drop a handle, Instagram/Facebook/eBay link, PayID, PSA cert #, or DM message and I will check it.',
     model: null,
     dossier: null,

@@ -104,7 +104,7 @@ export default async function OffersPage({
           <AddPaymentMethodDialog
             platform={platform}
             trigger={
-              <Button type="button" variant="outline" className="w-full sm:w-auto">
+              <Button type="button" variant="secondary" className="w-full sm:w-auto">
                 Add a card
               </Button>
             }

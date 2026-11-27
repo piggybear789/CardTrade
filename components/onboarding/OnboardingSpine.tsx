@@ -95,10 +95,11 @@ export function OnboardingSpineStep({
         />
         <span
           className={cn(
-            'my-tight grid size-7 shrink-0 place-items-center rounded-full border text-meta font-semibold',
+            // Discs without edges (2026-11-28), as the contract room's progress rail.
+            'my-tight grid size-7 shrink-0 place-items-center rounded-full border border-transparent text-meta font-semibold',
             done && 'cardtrade-success-chip',
-            active && 'border-primary bg-primary text-primary-foreground',
-            !done && !active && 'border-border bg-card text-muted-foreground',
+            active && 'bg-primary text-primary-foreground',
+            !done && !active && 'bg-foreground/[0.06] text-muted-foreground',
           )}
           aria-hidden
         >

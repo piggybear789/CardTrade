@@ -34,7 +34,11 @@ const SECTION = {
 
 export default async function NotificationsPage() {
   // Together: the list resolves the caller through the same request-cached read.
-  const [user, result] = await Promise.all([getCachedAuthUser(), listMyNotifications()]);
+  // FIFTY, the realtime hook's own window: it re-reads 50 rows from the table when its
+  // channel connects, and a table read cannot say whether a row's contract still opens
+  // or what it is about. Seeding the same 50 means every row it holds has been through
+  // the server's checks; a 30-row seed left rows 31–50 without them.
+  const [user, result] = await Promise.all([getCachedAuthUser(), listMyNotifications(50)]);
   if (!user) {
     redirect('/sign-in?redirectTo=/notifications');
   }

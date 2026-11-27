@@ -44,11 +44,14 @@ function Tracker({ stages }: { stages: Stage[] }) {
           <div className="flex items-center gap-snug sm:w-full">
             <span
               className={cn(
-                'grid size-7 shrink-0 place-items-center rounded-full border text-meta font-semibold',
-                stage.state === 'done' && 'border-trust bg-trust text-white',
-                stage.state === 'current' && 'border-iris bg-iris/10 text-iris-ink',
-                stage.state === 'todo' && 'border-border text-muted-foreground',
-                stage.state === 'failed' && 'border-border bg-muted text-muted-foreground',
+                // Solid discs, no edges (2026-11-28), as the contract room's progress
+                // rail: done is the trust fill, the current stage the ink, and a stage
+                // still to come a tint of the ink.
+                'grid size-7 shrink-0 place-items-center rounded-full text-meta font-semibold',
+                stage.state === 'done' && 'bg-trust text-white',
+                stage.state === 'current' && 'bg-foreground text-background',
+                stage.state === 'todo' && 'bg-foreground/[0.06] text-muted-foreground',
+                stage.state === 'failed' && 'bg-foreground/[0.1] text-muted-foreground',
               )}
               aria-hidden
             >
@@ -186,7 +189,7 @@ export default async function TrustedSellerApplyPage({
                 until that&rsquo;s done.
               </p>
             </div>
-            <Button asChild variant="outline" className="shrink-0">
+            <Button asChild variant="secondary" className="shrink-0">
               <Link href="/profile?tab=verification">Verify ID</Link>
             </Button>
           </section>
@@ -212,13 +215,13 @@ export default async function TrustedSellerApplyPage({
 
             <div className="flex flex-wrap gap-snug border-t border-border pt-group">
               {review.status === 'PENDING' ? (
-                <Button asChild variant="outline">
+                <Button asChild variant="secondary">
                   <Link href="/trusted-sellers/apply?edit=1">Edit application</Link>
                 </Button>
               ) : null}
               {/* Outline, not ghost: on its own (an approved review has no Edit) a ghost
                   button's padding read as the text being indented from the card edge. */}
-              <Button asChild variant="outline">
+              <Button asChild variant="secondary">
                 <Link href="/references">See References</Link>
               </Button>
             </div>

@@ -341,7 +341,7 @@ export function facebookIndexFlags(report: FacebookIndexReport | null | undefine
       code: 'FB_SAME_NAME_ACCOUNTS',
       label: `${count} other Facebook ${plural} named "${report.displayName}"`,
       detail:
-        'Scammers copy a real person\'s name and photos onto a new account. Check that the profile you are dealing with is the one with years of history: compare the profile link, not the name. Many real people share a name, so this is not proof on its own.',
+        'Scammers copy a real person\'s name and photos onto a new account. Check the profile link is the one with years of history. Many people share a name.',
       severity: count >= 3 ? 'CAUTION' : 'INFO',
       points: count >= 3 ? 10 : 0,
     });

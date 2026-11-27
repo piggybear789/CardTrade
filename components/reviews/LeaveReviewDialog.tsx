@@ -123,7 +123,7 @@ export function LeaveReviewDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-auto">
+        <Button variant="secondary" className="w-full sm:w-auto">
 
           Leave a review
         </Button>

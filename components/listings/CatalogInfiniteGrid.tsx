@@ -25,6 +25,7 @@ import {
   catalogCoverDim,
 } from '@/components/listings/CatalogMosaic';
 import { CatalogItemCard } from '@/components/listings/ItemCard';
+import { catalogTileExtraRows } from '@/components/listings/catalogGrid';
 
 /** Hoisted: these are inputs to the mosaic's column balance, which is memoised. */
 const itemKey = (item: CatalogItem) => item.id;
@@ -68,6 +69,7 @@ export interface CatalogInfiniteGridProps {
     maxCents?: number;
     includeSold: boolean;
     includeReserved: boolean;
+    savedOnly?: boolean;
     sort: CatalogSort;
     /** Region scope (0065). Must be replayed, or scrolling leaves the region. */
     regionCode?: string | null;
@@ -148,6 +150,7 @@ export function CatalogInfiniteGrid({
       maxCents: q.maxCents,
       includeSold: q.includeSold || undefined,
       includeReserved: q.includeReserved || undefined,
+      savedOnly: q.savedOnly || undefined,
       sort: q.sort,
       regionCode: q.regionCode ?? undefined,
       page: nextPage,
@@ -234,7 +237,12 @@ export function CatalogInfiniteGrid({
 
   return (
     <>
-      <CatalogMosaic items={items} keyOf={itemKey} dimOf={itemCoverDim}>
+      <CatalogMosaic
+        items={items}
+        keyOf={itemKey}
+        dimOf={itemCoverDim}
+        extraRowsOf={catalogTileExtraRows}
+      >
         {/* No per-tile fade on filter changes: the grid swaps instantly. */}
         {(item, coverDim) => (
           <CatalogItemCard
@@ -258,7 +266,7 @@ export function CatalogInfiniteGrid({
           <button
             type="button"
             onClick={() => void loadMoreRef.current({ force: true })}
-            className="mt-snug h-10 w-full rounded-md border border-input bg-card px-group text-body font-medium text-foreground transition-colors hover:bg-muted/50 focus:outline-none focus-visible:border-ring"
+            className="mt-snug h-10 w-full rounded-md bg-foreground/[0.06] px-group text-body font-medium text-foreground transition-colors hover:bg-foreground/[0.1] active:bg-foreground/[0.14] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
           >
             Load more listings
           </button>

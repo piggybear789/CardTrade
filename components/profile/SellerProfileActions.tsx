@@ -42,7 +42,7 @@ export function SellerProfileActions({ sellerId }: { sellerId: string }) {
         <DropdownMenuTrigger asChild>
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="icon"
             aria-label="More actions"
             className="size-8 text-muted-foreground hover:text-foreground"

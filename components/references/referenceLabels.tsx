@@ -223,7 +223,7 @@ export function PlatformChip({
         aria-label={label}
         className={cn(
           'inline-flex size-6 shrink-0 items-center justify-center',
-          bare ? null : 'rounded-full border border-border bg-muted/40',
+          bare ? null : 'rounded-full bg-foreground/[0.06]',
           platformTint(slug),
           className,
         )}

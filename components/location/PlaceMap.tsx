@@ -113,7 +113,7 @@ export function PlaceMap({
     return (
       <div
         className={cn(
-          'flex items-center justify-center rounded-lg border border-border bg-muted text-body text-muted-foreground',
+          'flex items-center justify-center rounded-lg bg-muted text-body text-muted-foreground',
           'h-14',
           className,
         )}
@@ -196,7 +196,7 @@ export function PlaceMap({
     return (
       <div
         className={cn(
-          'flex flex-col items-center justify-center gap-snug rounded-lg border bg-muted p-group text-center text-body',
+          'flex flex-col items-center justify-center gap-snug rounded-lg bg-muted p-group text-center text-body',
           // The caller's map height, not a fixed `h-32`: callers and their skeletons
           // reserve `heightClassName`, so a keyless fallback must occupy the same box.
           heightClassName,

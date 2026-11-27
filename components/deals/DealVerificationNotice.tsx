@@ -105,7 +105,7 @@ export function HostVerificationNotice({
 
   // Amber for the mark: this is the host's own move, which is what `--action` means.
   return (
-    <div className={cn('grid gap-group rounded-lg border p-group', className)}>
+    <div className={cn('grid gap-group rounded-lg bg-muted/80 p-group', className)}>
       <div className="flex items-center gap-cozy">
         <Icon icon={WarningCircleIcon} className="size-5 shrink-0 text-action-edge" aria-hidden />
         <div className="grid gap-tight">
@@ -115,13 +115,13 @@ export function HostVerificationNotice({
       </div>
       {kind !== 'TRADE' && readiness === 'disclosure-needed' ? (
         // Pressing this IS the disclosure consent (Req 4.8-4.12), stated above it.
-        <Button type="button" variant="outline" size="lg" onClick={allow} disabled={isPending} aria-busy={isPending}>
+        <Button type="button" variant="secondary" size="lg" onClick={allow} disabled={isPending} aria-busy={isPending}>
           <PendingLabel pending={isPending} pendingLabel="Saving…">
             {copy.action}
           </PendingLabel>
         </Button>
       ) : (
-        <Button asChild variant="outline" size="lg">
+        <Button asChild variant="secondary" size="lg">
           <Link href={VERIFY_HREF}>{copy.action}</Link>
         </Button>
       )}
@@ -227,7 +227,7 @@ export function SwapIdentityRequirement({
       <p className="text-pretty text-body">{outstanding}</p>
       {!youVerified ? (
         <div>
-          <Button asChild variant="outline" size="sm">
+          <Button asChild variant="secondary" size="sm">
             <Link href={VERIFY_HREF}>Verify with Stripe</Link>
           </Button>
         </div>

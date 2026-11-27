@@ -1,0 +1,29 @@
+1 for 1
+EXCHANGE
+You send
+VALUE
+$60.00 AUD
+AN
+Alice Nguyen
+Identity verified
+·
+New to NoDitto
+TradeDisputeOff 1795575055591
+$60.00 AUD
+$
+NoDitto fee
+$1.20 AUD
+You receive
+VALUE
+$60.00 AUD
+BC
+Bob Carter
+Identity verified
+·
+New to NoDitto
+TradeDisputeReq 1795575055013
+$60.00 AUD
+$
+NoDitto fee
+$1.20 AUD
+The bundle and cash were fixed when both of you accepted the terms, so neither side can change them now.

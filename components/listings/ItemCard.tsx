@@ -15,7 +15,7 @@ import { itemImageUrl } from '@/lib/format';
 import { ListedPrice } from '@/components/listings/ListedPrice';
 import { cn } from '@/lib/utils';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
-import { tileIntrinsicHeight } from '@/components/listings/catalogGrid';
+import { catalogTileExtraRows, tileIntrinsicHeight } from '@/components/listings/catalogGrid';
 import type { CatalogItem } from '@/lib/actions/listings';
 
 export { CATALOG_TILE_GRID } from '@/components/listings/catalogGrid';
@@ -148,7 +148,10 @@ export const CatalogItemCard = memo(function CatalogItemCard({
         inMosaic
           ? ({
               '--catalog-cover-aspect': coverAspectCss(coverDim),
-              '--catalog-tile-height': tileIntrinsicHeight(coverDim),
+              '--catalog-tile-height': tileIntrinsicHeight(
+                coverDim,
+                catalogTileExtraRows(item),
+              ),
             } as CSSProperties)
           : undefined
       }
@@ -280,7 +283,7 @@ export const CatalogItemCard = memo(function CatalogItemCard({
               )}
             />
           ) : (
-            <span className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 items-center gap-0.5 rounded-md border border-foreground/10 bg-card px-2 text-meta font-medium tabular-nums text-foreground">
+            <span className="absolute right-1.5 top-1.5 z-10 inline-flex h-8 items-center gap-0.5 rounded-md bg-card/90 px-2 text-meta font-medium tabular-nums text-foreground shadow-[0_1px_3px_hsl(var(--obsidian)/0.18)] backdrop-blur-sm">
               <Icon icon={HeartIcon} className="size-[18px] translate-y-px" aria-hidden />
               {item.watch_count}
               <span className="sr-only"> saves</span>
@@ -298,9 +301,17 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             set, year and grade all live in the tail that got cut. */}
         {/* `min-h-[2lh]`: always TWO lines tall. A one-line title made its tile 22px
             shorter than the next, so a grid row's height (and the mosaic column's)
-            depended on how long sellers' titles happened to be. */}
+            depended on how long sellers' titles happened to be. That still holds
+            in the uniform grid, so the floor is kept wherever the tile is NOT in the
+            phone mosaic. In the mosaic (2026-11-29) the title takes its own height,
+            as on Xianyu: the columns are meant to fall out of step. */}
         {/* The tile's hover: the title underlines, on a pointer that can hover. */}
-        <h3 className="line-clamp-2 min-h-[2lh] text-body font-medium text-foreground underline-offset-2 [@media(hover:hover)]:group-hover:underline">
+        <h3
+          className={cn(
+            'line-clamp-2 text-body font-medium text-foreground underline-offset-2 [@media(hover:hover)]:group-hover:underline',
+            inMosaic ? 'md:min-h-[2lh]' : 'min-h-[2lh]',
+          )}
+        >
           {item.title}
         </h3>
         {/* THE GAME ONLY. Condition used to follow it behind a hairline — the
@@ -370,6 +381,17 @@ export const CatalogItemCard = memo(function CatalogItemCard({
           </p>
           )}
         </div>
+        {/* A TAG ROW, MOSAIC ONLY (2026-11-29, after Xianyu's service tags). Shown
+            only for a Trusted Seller, so it is one of the rows that differ from
+            tile to tile and stagger the columns; `catalogTileExtraRows` counts it.
+            From md the uniform grid keeps the icon on the seller row instead. */}
+        {inMosaic && item.seller?.isTrustedSeller ? (
+          <TrustedSellerBadge
+            trusted
+            size={12}
+            className="self-start rounded-sm border border-iris/25 px-1 py-px md:hidden"
+          />
+        ) : null}
         {item.seller ? (
           <Link
             href={`/sellers/${item.seller.id}`}
@@ -407,7 +429,8 @@ export const CatalogItemCard = memo(function CatalogItemCard({
                 trusted={item.seller.isTrustedSeller}
                 iconOnly
                 size={12}
-                className="shrink-0"
+                // In the phone mosaic the tag row above says it in words.
+                className={cn('shrink-0', inMosaic && 'max-md:hidden')}
               />
             </span>
             <SellerReputation seller={item.seller} />

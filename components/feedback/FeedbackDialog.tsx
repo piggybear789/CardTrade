@@ -52,7 +52,7 @@ import { cn } from '@/lib/utils';
 
 /** Placeholder prompts per kind — the question a member is actually being asked. */
 const PROMPTS: Record<FeedbackKindValue, string> = {
-  BUG: 'What were you doing, and what happened instead of what you expected?',
+  BUG: 'What were you doing, what did you expect, and what happened?',
   IDEA: 'What would you like to be able to do, and what would it let you get done?',
   OTHER: 'Tell us what is on your mind.',
 };
@@ -149,7 +149,7 @@ export function FeedbackDialog({
     }
     if (message.trim().length < FEEDBACK_MESSAGE_MIN) {
       setInlineError(
-        `Please add a little more detail — at least ${FEEDBACK_MESSAGE_MIN} characters.`,
+        `Please add a bit more detail (at least ${FEEDBACK_MESSAGE_MIN} characters).`,
       );
       return;
     }
@@ -164,8 +164,8 @@ export function FeedbackDialog({
         // copy already promises a moderator will review it.)
         toast.success(
           result.data.kind === 'IDEA'
-            ? 'Thanks — your idea is with the team.'
-            : 'Thanks — we have got it.',
+            ? 'Thanks, your idea is with the team.'
+            : 'Thanks, we’ve got it.',
         );
         handleOpenChange(false);
         return;
@@ -196,7 +196,7 @@ export function FeedbackDialog({
               Send feedback
             </Button>
           ) : (
-            <Button type="button" variant="outline" size="sm" className={className}>
+            <Button type="button" variant="secondary" size="sm" className={className}>
               <Icon icon={ChatTeardropTextIcon} aria-hidden />
               Send feedback
             </Button>

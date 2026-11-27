@@ -255,7 +255,7 @@ abstract final class Money {
 
   /// Beside a trade's fee. Mirrors `TRADE_FEE_NOTE` in `lib/fees/feeLabels.ts`.
   static const String tradeFeeNote =
-      "NoDitto's fee is 2% of the value you receive, charged to your card once both holds are in place and refunded if the swap doesn't go ahead. Very small trades have no fee. The collateral itself is a card hold, not a charge.";
+      "NoDitto's fee is 2% of the value you receive, charged to your card once both holds are in place and refunded if the swap doesn't go ahead. Very small trades have no fee. The collateral is a card hold, so nothing is charged for it.";
 
   /// Returns total cost for a cash sale buyer: price + shipping + buyer protection fee.
   static int cashSaleTotal({

@@ -40,7 +40,7 @@ import { cn } from "@/lib/utils";
 // The filled variants no longer carry `shadow-sm`. It was doing nothing a
 // border and a surface step were not already doing, and the palette pass gave
 // cards a real lift off the page that a button does not need to compete with.
-// What they carry now is a 1-2px edge treatment, not a bloom; see EDGE AND DEPTH.
+// What they carry now is a 1-2px edge treatment, not a bloom; see TONAL, NOT EDGED.
 //
 // FOCUS IS A RING INSIDE THE CONTROL, NOT A BORDER-COLOUR SWAP.
 //
@@ -48,9 +48,9 @@ import { cn } from "@/lib/utils";
 // `--primary` edge for a 1px `--iris` edge — the same hue — so a keyboard user
 // tabbing onto "Sign in" saw almost nothing change. Two rules now:
 //
-//   - QUIET variants (outline, secondary, ghost, link) turn their edge `--ring` and add
-//     a 1px inset ring: a 2px graphite frame (`--ring`), far firmer than the
-//     alpha edge they rest at.
+//   - QUIET variants (secondary and its `outline` alias, the soft and quiet
+//     destructive ones, ghost) draw a 2px inset graphite frame (`--ring`), far firmer
+//     than the tint they rest on. `link` keeps its 1px frame on the transparent edge.
 //   - FILLED variants keep their edge and draw a 2px inset ring in their own LABEL
 //     colour. The label colour is by construction the one that contrasts with the
 //     fill (white on ink 17:1, white on red 6:1), so the indicator holds on
@@ -71,31 +71,36 @@ import { cn } from "@/lib/utils";
 // control it will be, and holds its shape on a tinted surface because the fill is
 // its own colour, not a surface token.
 //
-// A QUIET variant goes to the `--muted` fill and KEEPS ITS EDGE (the same alpha edge
-// it rests at, not `--muted`). A matching border read as a flat slab on white and
-// disappeared on any tinted surface — the contract room's status card is
-// `bg-iris/[0.08]`, at roughly the same lightness — leaving a label floating with
-// nothing around it. An alpha edge darkens whatever is under it, so a disabled control
-// keeps an edge on every surface. Do NOT fix that by tinting the fill per surface: the
-// fill is one token and the surfaces are many.
+// A QUIET variant goes to a fainter tint of the ink with a muted label. The tint is an
+// ALPHA of the foreground, so it darkens whatever is under it and a disabled control
+// keeps its shape on every surface — the contract room's status card is
+// `bg-iris/[0.08]`, at roughly the lightness `--muted` would have been, and a muted
+// slab vanished on it. Do NOT fix that by tinting the fill per surface: the fill is one
+// token and the surfaces are many.
 //
-// EDGE AND DEPTH (2026-11-21, from Stripe, Vercel, Clerk and Linear on Mobbin).
+// TONAL, NOT EDGED (2026-11-28, design-system audit; Instagram, Apple, Airbnb on Mobbin).
 //
-// QUIET variants rest on `border-input`, THE control edge, the same one every field,
-// select, chip and filter pill wears, and firm to `border-input-hover` under the
-// pointer (see `input` in tailwind.config.ts). Before that, buttons, chips and fields
-// each had their own edge (an alpha, a 40% input, a 58% grey), so a select sat beside a
-// row of chips in a visibly different outline. Quiet buttons add a 1px drop shadow,
-// the bordered-white secondary Stripe, Vercel and Clerk use; fields do not.
+// Quiet variants rested on `border-input`, the control edge, with a 1px drop: the
+// bordered-white secondary Stripe and Clerk use, and the stock shadcn button. Beside
+// borderless badges and the pill composer it was the last object on each screen that
+// still read as a template, so every quiet variant is now a tint of the ink with no
+// edge and no drop (`TONAL` below). Fields keep `border-input`: a field is a place to
+// type, and its edge is what says so; a button is a thing to press, and its fill is.
 //
 // FILLED variants get a 1px inner top highlight and a hairline drop shadow: the fill
 // reads as a pressable surface rather than a flat swatch. Not the old `shadow-sm` bloom,
 // which was removed for good reason; both layers here are 1-2px. The focus ring still
 // draws, because Tailwind composes `ring` and `shadow` into one `box-shadow`.
 const FILLED_DEPTH = "shadow-[inset_0_1px_0_hsl(0_0%_100%/0.16),0_1px_2px_hsl(var(--obsidian)/0.14)]";
-const QUIET_EDGE = "border-input shadow-[0_1px_2px_hsl(var(--obsidian)/0.05)]";
 const FILLED_DISABLED = "disabled:opacity-50";
 const QUIET_DISABLED = "disabled:border-input disabled:bg-muted disabled:text-muted-foreground";
+// THE TONAL RECIPE every quiet variant shares since 2026-11-28: a tint of the ink, no
+// edge, no drop. Focus is the 2px inset `--ring` frame the filled variants draw (in their
+// label colour); disabled is a fainter tint with a muted label, which stays visible on any
+// surface because the tint darkens whatever is under it.
+const TONAL = "bg-foreground/[0.06]";
+const TONAL_FOCUS = "focus-visible:ring-2 focus-visible:ring-ring";
+const TONAL_DISABLED = "disabled:bg-foreground/[0.04] disabled:text-muted-foreground";
 
 const buttonVariants = cva(
   "inline-flex touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-inset active:translate-y-px disabled:pointer-events-none disabled:shadow-none disabled:active:translate-y-0 [&_svg]:pointer-events-none [&_svg]:block [&_svg]:size-4 [&_svg]:shrink-0",
@@ -119,25 +124,32 @@ const buttonVariants = cva(
         // FILLED RED IS FOR THE CONFIRMATION, NOT THE TRIGGER. A button that only opens
         // "Delete listing?" or "Report this user" was the loudest control on its
         // screen, louder than the action the member came to take. Triggers use
-        // `destructive-quiet`: the outline shape with a red label (5.45:1), so danger
-        // still reads, and the red fill waits for the dialog's confirm button.
+        // `destructive-quiet`: the tonal shape with a red label, so danger still reads,
+        // and the red fill waits for the dialog's confirm button.
         destructive: `border border-destructive bg-destructive text-destructive-foreground ${FILLED_DEPTH} hover:bg-destructive/90 active:bg-destructive/80 focus-visible:ring-2 focus-visible:ring-destructive-foreground ${FILLED_DISABLED}`,
-        "destructive-quiet": `border ${QUIET_EDGE} bg-card text-destructive hover:border-destructive/40 hover:bg-destructive/5 active:bg-destructive/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        // The tonal shape with a red label (4.8:1 on the ink tint): danger still reads,
+        // and the red fill waits for the dialog's confirm button. It was the outlined
+        // shape until the outlined quiet button was retired (2026-11-28, below).
+        "destructive-quiet": `${TONAL} text-destructive hover:bg-destructive/[0.1] active:bg-destructive/[0.14] ${TONAL_FOCUS} ${TONAL_DISABLED}`,
         // TINTED, FOR AN ESCALATION SITTING BESIDE THE STEP'S MAIN ACTION. A white
         // outline at the same weight as the main button made "Raise dispute" and
         // "Report fraud" look like equal choices (UX review 2026-11-26). A soft fill
         // in the signal's own colour says what kind of action it is and stays
         // quieter than the solid primary. Labels keep 4.5:1 on their fill:
-        // `destructive` on a 7% red wash, `action-foreground` on a 28% amber one.
-        "destructive-soft": `border border-destructive/25 bg-destructive/[0.07] text-destructive hover:border-destructive/40 hover:bg-destructive/[0.12] active:bg-destructive/[0.16] focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
-        "caution-soft": `border border-action-edge/35 bg-action/[0.28] text-action-foreground hover:border-action-edge/55 hover:bg-action/40 active:bg-action/50 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
-        // A neutral edge on hover, not a violet one. These two are the QUIET
-        // variants, the ones used where `default` would be too loud, and turning
-        // their border violet on hover put them back in the primary's colour at the
-        // exact moment the pointer was on them. The hover state is carried by the
-        // fill (`bg-accent` / `bg-secondary/75`); the edge only firms up, from 14% to
-        // 25% foreground.
-        outline: `border ${QUIET_EDGE} bg-card text-foreground hover:border-input-hover hover:bg-accent hover:text-accent-foreground active:bg-accent/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        // `destructive` on an 8% red wash, `action-foreground` on a 28% amber one.
+        // NO EDGE (2026-11-28): the tinted fill with a tinted border was the alert-box
+        // recipe the badges and callouts also dropped; the fill alone is the shape.
+        "destructive-soft": `bg-destructive/[0.08] text-destructive hover:bg-destructive/[0.12] active:bg-destructive/[0.16] ${TONAL_FOCUS} ${TONAL_DISABLED}`,
+        "caution-soft": `bg-action/[0.28] text-action-foreground hover:bg-action/40 active:bg-action/50 ${TONAL_FOCUS} ${TONAL_DISABLED}`,
+        // THE OUTLINED QUIET BUTTON IS RETIRED (2026-11-28, design-system audit), and
+        // `outline` is now an ALIAS of `secondary`, the tonal button, the way `iris`
+        // aliases `default` in `badge.tsx`. A white box with a grey control edge and a
+        // drop shadow was the stock shadcn button, and beside borderless badges and a
+        // pill composer it was the one part of every screen that still read as a
+        // template. Kept as a name so call sites and habits compile, and so any
+        // `variant="outline"` written from memory still draws the current button.
+        // New code says `secondary`.
+        outline: `${TONAL} text-foreground hover:bg-foreground/[0.1] active:bg-foreground/[0.14] ${TONAL_FOCUS} ${TONAL_DISABLED}`,
         // TONAL (2026-11-28, design-system audit): a tint of the ink with NO edge and no
         // drop, Instagram's "View profile" and Apple's grey button. For the quiet action
         // that sits in a bar beside a title (the chat bar's "Open contract"), where an
@@ -145,8 +157,10 @@ const buttonVariants = cva(
         // rather than `--secondary`, so it darkens any surface it sits on by the same
         // step; on the slate rail a slate fill would vanish. The label is the full ink,
         // and a keyboard user gets the same 2px `--ring` frame the filled variants draw.
-        secondary: `bg-foreground/[0.06] text-foreground hover:bg-foreground/[0.1] active:bg-foreground/[0.14] focus-visible:ring-2 focus-visible:ring-ring disabled:bg-foreground/[0.04] disabled:text-muted-foreground`,
-        ghost: `hover:bg-accent hover:text-accent-foreground active:bg-accent/80 active:text-accent-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
+        secondary: `${TONAL} text-foreground hover:bg-foreground/[0.1] active:bg-foreground/[0.14] ${TONAL_FOCUS} ${TONAL_DISABLED}`,
+        // Hover is a tint of the ink, as the tonal button's rest is, so a ghost control
+        // darkens a slate rail or a tinted card by the same step it darkens white.
+        ghost: `hover:bg-foreground/[0.06] active:bg-foreground/[0.1] focus-visible:ring-2 focus-visible:ring-ring ${TONAL_DISABLED} disabled:bg-transparent`,
         link: `text-foreground underline decoration-iris/55 underline-offset-4 hover:decoration-iris active:decoration-iris active:text-foreground/80 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring ${QUIET_DISABLED}`,
       },
       size: {

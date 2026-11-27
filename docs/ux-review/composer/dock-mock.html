@@ -1,0 +1,194 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Next-step row redesign options</title>
+<style>
+  :root {
+    --ink: #0f172a; --ink2: #334155; --muted: #64748b; --faint: #94a3b8;
+    --line: #e2e8f0; --line2: #cbd5e1; --card: #ffffff; --field: #f1f5f9;
+    --iris: #7c6cf0; --iris-ink: #5b4bd6; --iris-wash: #f4f2ff;
+    --amber-bg: #fdf3dc; --amber-edge: #ecd29a; --amber-ink: #6b4a12;
+    --red-bg: #fdf0f0; --red-edge: #f2c8c8; --red-ink: #c0262d;
+    --green: #15803d; --green-bg: #e9f7ee;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 28px; background: #eef1f6; font-family: 'Segoe UI', Inter, system-ui, sans-serif; color: var(--ink); width: 1340px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .lede { color: var(--muted); font-size: 14px; margin: 0 0 24px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 400px); gap: 28px 24px; align-items: start; }
+  .option h2 { font-size: 15px; margin: 0 0 2px; }
+  .option p { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.45; min-height: 57px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: 2px; }
+  .tag.rec { background: #e7f6ee; color: #146c43; }
+  .tag.now { background: #fde8e8; color: #9b1c1c; }
+
+  .panel { width: 400px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .msgs { height: 104px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; font-size: 12.5px; }
+  .sys { text-align: center; color: var(--muted); }
+  .comp { padding: 10px 12px 12px; background: var(--card); }
+  .comp.rule { border-top: 1px solid var(--line); }
+
+  /* message box A */
+  .pill { display: flex; align-items: center; gap: 4px; height: 40px; border: 1px solid var(--line2); border-radius: 20px; background: var(--card); padding: 5px 5px 5px 6px; }
+  .round { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; color: var(--ink2); font-size: 19px; flex: none; }
+  .pill .txt { flex: 1; font-size: 14px; color: var(--faint); padding: 0 4px; }
+  .send { background: #e8ecf1; color: #a3acb9; font-size: 14px; }
+
+  .b { height: 32px; padding: 0 12px; border-radius: 7px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; border: 1px solid transparent; white-space: nowrap; }
+  .b.p { background: var(--ink); color: #fff; }
+  .b.a { background: var(--amber-bg); border-color: var(--amber-edge); color: var(--amber-ink); }
+  .b.r { background: var(--red-bg); border-color: var(--red-edge); color: var(--red-ink); }
+  .b.o { background: var(--card); border-color: var(--line2); color: var(--ink2); }
+  .b.full { width: 100%; height: 36px; font-size: 13.5px; }
+  .info { display: inline-grid; place-items: center; width: 15px; height: 15px; border: 1.4px solid var(--muted); border-radius: 50%; font-size: 9px; color: var(--muted); font-style: normal; margin-left: 5px; vertical-align: 1px; }
+
+  /* 0: today */
+  .d0 { border-top: 1px solid var(--line); border-left: 3px solid var(--iris); background: var(--iris-wash); padding: 10px 12px; }
+  .d0 .t { font-size: 13.5px; font-weight: 600; margin-bottom: 8px; }
+  .row { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* 1: floating next-step card */
+  .d1 { margin: 0 12px 2px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); box-shadow: 0 6px 20px rgba(15,23,42,.08); padding: 12px; }
+  .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--iris-ink); }
+  .d1 .t { font-size: 15px; font-weight: 600; margin: 2px 0 2px; }
+  .d1 .s { font-size: 12.5px; color: var(--muted); margin-bottom: 10px; }
+  .links { margin-top: 9px; font-size: 12.5px; color: var(--muted); text-align: center; }
+  .links a { text-decoration: none; font-weight: 600; }
+  .links .la { color: var(--amber-ink); }
+  .links .lr { color: var(--red-ink); }
+
+  /* 2: status line + one button, links under */
+  .d2 { border-top: 1px solid var(--line); padding: 10px 12px; }
+  .d2 .top { display: flex; align-items: center; gap: 10px; }
+  .d2 .who { flex: 1; min-width: 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--iris-ink); background: var(--iris-wash); border-radius: 999px; padding: 2px 9px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--iris); }
+  .d2 .t { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .d2 .sub { display: flex; gap: 14px; margin-top: 8px; font-size: 12.5px; }
+  .d2 .sub a { text-decoration: none; font-weight: 600; }
+
+  /* 3: progress strip */
+  .d3 { border-top: 1px solid var(--line); padding: 10px 12px 12px; }
+  .steps { display: flex; gap: 4px; margin-bottom: 9px; }
+  .steps i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+  .steps i.done { background: #86b8a0; }
+  .steps i.now { background: var(--iris); }
+  .d3 .head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 9px; }
+  .d3 .t { font-size: 14px; font-weight: 600; }
+  .d3 .time { font-size: 12px; color: var(--muted); }
+  .d3 .row { justify-content: stretch; }
+  .d3 .row .b { flex: 1; }
+
+  /* 4: split primary + problem menu-button (visible) */
+  .d4 { border-top: 1px solid var(--line); padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+  .d4 .t { flex: 1; font-size: 13.5px; font-weight: 600; }
+  .d4 .t small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; margin-top: 1px; }
+
+  /* 5: waiting state of the recommended one */
+  .d1.wait .t { color: var(--ink); }
+  .d1.wait .eyebrow { color: var(--muted); }
+  .avatar { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: #d1fae5; color: #065f46; font-size: 10px; font-weight: 700; margin-right: 6px; vertical-align: -6px; }
+  .notes { margin-top: 18px; font-size: 12.5px; color: var(--ink2); line-height: 1.55; padding-left: 18px; }
+</style>
+</head>
+<body>
+  <h1>The next-step row: redesign options</h1>
+  <p class="lede">The same moment in every panel: the trade is at inspection, it's your move, and you can accept, raise a dispute or report fraud. Message box A sits underneath each one. Chat column at its real desktop width (about 400px).</p>
+
+  <div class="grid">
+
+    <div class="option">
+      <h2>Today, with box A <span class="tag now">current</span></h2>
+      <p>A tinted strip with a title and three buttons. The buttons are the same visual weight, the title doesn't say how long you have, and the strip blends into the chat.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="d0"><div class="t">Accept what you got <i class="info">i</i></div><div class="row"><span class="b p">Accept item</span><span class="b a">&#9888; Raise dispute</span><span class="b r">&#9888; Report fraud</span></div></div>
+        <div class="comp rule"><div class="pill"><span class="round">+</span><div class="txt">Message Dave&hellip;</div><span class="round send">&uarr;</span></div></div>
+      </div>
+    </div>
+
+    <div class="option">
+      <h2>1 &middot; Next-step card <span class="tag rec">recommended</span></h2>
+      <p>A small card floating just above the message box, like DoorDash and Swiggy's order prompts. One big action. The two problem actions stay visible as coloured links under it, so they're there but don't compete.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="d1">
+          <div class="eyebrow">Your move &middot; 2 days 22 h left</div>
+          <div class="t">Check the card you got</div>
+          <div class="s">Happy with it? Accept to finish the swap. Both holds are then released.</div>
+          <span class="b p full">Accept item</span>
+          <div class="links">Something wrong? <a class="la">Raise a dispute</a> &middot; <a class="lr">Report fraud</a></div>
+        </div>
+        <div class="comp"><div class="pill"><span class="round">+</span><div class="txt">Message Dave&hellip;</div><span class="round send">&uarr;</span></div></div>
+      </div>
+    </div>
+
+    <div class="option">
+      <h2>1 &middot; When it's the other trader's move</h2>
+      <p>The same card, quieter: no button, just who it's waiting for and the deadline, so the space never jumps around between states.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">You accepted the card.</div></div>
+        <div class="d1 wait">
+          <div class="eyebrow">Waiting &middot; 2 days 22 h left</div>
+          <div class="t"><span class="avatar">D</span>Dave is checking his card</div>
+          <div class="s" style="margin-bottom:0">The swap finishes when he accepts, or by itself on Mon 30 Nov.</div>
+          <div class="links">Something wrong? <a class="la">Raise a dispute</a> &middot; <a class="lr">Report fraud</a></div>
+        </div>
+        <div class="comp"><div class="pill"><span class="round">+</span><div class="txt">Message Dave&hellip;</div><span class="round send">&uarr;</span></div></div>
+      </div>
+    </div>
+
+    <div class="option">
+      <h2>2 &middot; Status line with one button</h2>
+      <p>Flatter, no card: a status chip and the step on the left, the main button on the right, the problem actions as small coloured links on a second line. The most compact option, at about 76px.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="d2">
+          <div class="top">
+            <div class="who"><span class="chip"><span class="dot"></span>Inspection &middot; 2 days left</span><div class="t">Check the card you got</div></div>
+            <span class="b p">Accept item</span>
+          </div>
+          <div class="sub"><a style="color:var(--amber-ink)">&#9888; Raise a dispute</a><a style="color:var(--red-ink)">&#9888; Report fraud</a></div>
+        </div>
+        <div class="comp rule"><div class="pill"><span class="round">+</span><div class="txt">Message Dave&hellip;</div><span class="round send">&uarr;</span></div></div>
+      </div>
+    </div>
+
+    <div class="option">
+      <h2>3 &middot; Progress strip with buttons</h2>
+      <p>A thin progress bar shows where the trade is up to, and the time left sits beside the title. The buttons share the row in equal widths, keeping today's colours. It reads most like a status panel.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="d3">
+          <div class="steps"><i class="done"></i><i class="done"></i><i class="now"></i><i></i></div>
+          <div class="head"><div class="t">Check the card you got</div><div class="time">2 days 22 h left</div></div>
+          <div class="row"><span class="b p">Accept item</span><span class="b a">Raise dispute</span><span class="b r">Report fraud</span></div>
+        </div>
+        <div class="comp rule"><div class="pill"><span class="round">+</span><div class="txt">Message Dave&hellip;</div><span class="round send">&uarr;</span></div></div>
+      </div>
+    </div>
+
+    <div class="option">
+      <h2>4 &middot; One line, two buttons</h2>
+      <p>Everything on one row: the step and its deadline, the main button, and one "Problem" button that opens a choice of dispute or fraud. Smallest footprint, but it puts the two problem types one tap further away.</p>
+      <div class="panel">
+        <div class="msgs"><div class="sys">Both traders confirmed the handover.</div></div>
+        <div class="d4">
+          <div class="t">Check the card you got<small>2 days 22 h left</small></div>
+          <span class="b o">&#9888; Problem</span>
+          <span class="b p">Accept item</span>
+        </div>
+        <div class="comp rule"><div class="pill"><span class="round">+</span><div class="txt">Message Dave&hellip;</div><span class="round send">&uarr;</span></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <ul class="notes">
+    <li><b>Titles become instructions with the deadline beside them</b> ("Check the card you got", "2 days 22 h left"), instead of "Accept what you got" with the deadline hidden behind the (i).</li>
+    <li><b>Option 1 on a phone:</b> the same card at full width, and the main button at 44px for touch.</li>
+    <li><b>Outcome states</b> (refunded, completed, frozen for review) use the same card with a green, grey or red eyebrow and no button.</li>
+  </ul>
+</body>
+</html>

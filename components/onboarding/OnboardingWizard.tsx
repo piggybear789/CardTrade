@@ -619,9 +619,8 @@ export function OnboardingWizard({
                   button, which reads as a broken page.
                 */}
                 {regionChoices.length === 0 ? (
-                  <p className="rounded-lg border border-border bg-muted p-group text-body text-muted-foreground">
-                    No regions are open for deals right now. Please try again shortly —
-                    you can still browse listings in the meantime.
+                  <p className="rounded-lg bg-muted/80 p-group text-body text-muted-foreground">
+                    No regions are open for deals yet. You can still browse listings.
                   </p>
                 ) : null}
               </fieldset>
@@ -786,7 +785,7 @@ export function OnboardingWizard({
 
           {step === 'username' ? (
             <WizardFooter>
-              <Button type="button" variant="outline" onClick={goBack}>
+              <Button type="button" variant="secondary" onClick={goBack}>
                 <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
@@ -805,7 +804,7 @@ export function OnboardingWizard({
             <WizardFooter>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={goBack}
                 disabled={saving}
               >
@@ -834,7 +833,7 @@ export function OnboardingWizard({
 
           {step === 'intent' ? (
             <WizardFooter>
-              <Button type="button" variant="outline" onClick={goBack} disabled={saving}>
+              <Button type="button" variant="secondary" onClick={goBack} disabled={saving}>
                 <Icon icon={CaretLeftIcon} className="size-4" aria-hidden />
                 Back
               </Button>
@@ -880,7 +879,7 @@ export function OnboardingWizard({
             <WizardFooter>
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={() => setStep(presetIntent ? 'region' : 'intent')}
                 disabled={sellerSettled === null}
                 aria-hidden={sellerSettled === null || undefined}

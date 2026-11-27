@@ -109,8 +109,7 @@ export function AddressesSettingRow({ count }: { count: number }) {
           <DialogHeader>
             <DialogTitle>Saved addresses</DialogTitle>
             <DialogDescription>
-              Private to you. An address is shared with a seller only when you choose
-              it for a purchase or trade — never before.
+              Private to you. A seller only sees an address once you choose it for a purchase or trade.
             </DialogDescription>
           </DialogHeader>
           <MemberAddressesEditor />

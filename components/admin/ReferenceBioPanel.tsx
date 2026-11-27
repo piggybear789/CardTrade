@@ -155,7 +155,7 @@ export function ReferenceBioPanel() {
               spellCheck={false}
             />
           </div>
-          <Button variant="outline" disabled={pending || handle.trim().length === 0} onClick={look}>
+          <Button variant="secondary" disabled={pending || handle.trim().length === 0} onClick={look}>
             See current
           </Button>
         </div>
@@ -191,7 +191,7 @@ export function ReferenceBioPanel() {
               <BioCard title="Live on the page" row={state.published}>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   disabled={pending}
                   onClick={() => change(() => removeReferenceBio(state.published!.id), 'Taken down.')}
                 >
@@ -215,7 +215,7 @@ export function ReferenceBioPanel() {
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline"
+                  variant="secondary"
                   disabled={pending}
                   onClick={() => change(() => removeReferenceBio(state.draft!.id), 'Draft discarded.')}
                 >

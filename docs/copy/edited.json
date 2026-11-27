@@ -1,0 +1,1003 @@
+[
+  {
+    "where": "contract/AcceptWithPhotoDialog.tsx:122",
+    "current": "Video taken at acceptance — record of item condition when received.",
+    "rewrite": "Video evidence if available, showing the condition when received. ",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "contract/AcceptWithPhotoDialog.tsx:123",
+    "current": "Photo taken at acceptance — record of item condition when received.",
+    "rewrite": "Photo evidence if available, showing the condition when received. ",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "contract/AcceptWithPhotoDialog.tsx:201",
+    "current": "Recommended — it is your evidence if there is a dispute later.",
+    "rewrite": "Add evidence to protect yourself from a future dispute.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "contract/ContractHoldList.tsx:25",
+    "current": "Expired — no longer protected",
+    "rewrite": "Collateral period has expired",
+    "keep": false,
+    "note": "I'm not too sure about this one - but something short like this. "
+  },
+  {
+    "where": "fulfilment/DeliveryAddressPanel.tsx:329",
+    "current": "Addresses are never shown in chat, and only to the sender.",
+    "rewrite": "Address will only be shown to the sender. ",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "fulfilment/HandoverFailedDialog.tsx:98",
+    "current": "e.g. they did not show up, the item was not what was agreed, the parcel never arrived…",
+    "rewrite": "e.g. they didn't show up, the item wasn't what we agreed, the parcel didn't arrive…",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "fulfilment/HandoverFailedDialog.tsx:255",
+    "current": "Attach up to … photos — damaged packaging, screenshots, the item you received.",
+    "rewrite": "Attach up to … photos of what happened.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "fulfilment/InspectionCountdown.tsx:148",
+    "current": "The collateral authorisation on this trade expires before the inspection window closes. Raise a dispute now rather than later: after the authorisation lapses there is nothing left to capture.",
+    "rewrite": "The collateral authorization on this trade expires before the inspection window closes. Raise a dispute before collateral expires. ",
+    "keep": false,
+    "note": "Shouldn't this literally be - something that needs to be changed? Like - we shouldn't let the end of inspection window = collateral expiry? "
+  },
+  {
+    "where": "payouts/PayoutReturnRefresh.tsx:56",
+    "current": "Payouts are set up — releases will be sent automatically.",
+    "rewrite": "Payouts are set up. We'll send your money automatically.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "payouts/PayoutSummary.tsx:106",
+    "current": "NoDitto is not a bank. What we hold for you sits with Stripe… It earns no interest and there is nothing here to withdraw.",
+    "rewrite": "Money we hold for you sits with Stripe, our payment provider, until a sale settles. Then it goes to your payout account automatically.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "payouts/PayoutsDashboard.tsx:756",
+    "current": "Money under dispute is counted here only — not in \"Owed to you\" or \"Held for open sales\" — until the outcome is decided.",
+    "rewrite": "Money under dispute is tracked here until the dispute is decided.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sales/CashSaleDisputeResolution.tsx:213",
+    "current": "they must post it back to you first — the … is refunded",
+    "rewrite": "They must post it back to you first, then the … is refunded",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sales/CashSaleDisputeResolution.tsx:215",
+    "current": "If the item never reached them, they are refunded straight away.",
+    "rewrite": "If the item didn't reach them, they're refunded straight away.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sales/CashSaleReturnPanel.tsx:185",
+    "current": "Return postage is at your cost and is not refunded. Use a tracked service — the refund depends on the carrier confirming delivery…",
+    "rewrite": "You pay return postage, and it isn't refunded. Use a tracked service - your refund is released when the carrier confirms delivery.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sales/CashSaleReturnPanel.tsx:199",
+    "current": "If you miss it, our team reviews the case instead of closing it automatically — your refund is not cancelled, but it takes longer.",
+    "rewrite": "If you miss it, our team reviews the case. You still get your refund, but it will take longer.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sales/CashSaleReturnPanel.tsx:284",
+    "current": "arrived if you can — an empty or wrong parcel is much easier to act on with them.",
+    "rewrite": "Photos make an empty or wrong parcel much easier to sort out.",
+    "keep": false,
+    "note": "clean up language here... shorter entirely. "
+  },
+  {
+    "where": "sales/CashSaleView.tsx:2052",
+    "current": "… has already confirmed. Your confirmation starts a 24-hour window… Only confirm if you met and the item actually changed hands.",
+    "rewrite": "… has already confirmed. When you confirm, the buyer has 24 hours to raise a problem, and then the seller is paid. Only confirm once you've met and swapped.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sales/CashSaleView.tsx:2053",
+    "current": "Only confirm if you met and the item actually changed hands. When you both confirm… — one confirmation is not enough.",
+    "rewrite": "Only confirm once you've met and swapped. After you both confirm, the buyer has 24 hours to raise a problem before the seller is paid.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sales/HandoverFailedDialog.tsx:58",
+    "current": "Describe what went wrong. This raises a dispute and freezes the money — nothing is released…",
+    "rewrite": "Describe what went wrong. This raises a dispute and freezes the money until NoDitto support reviews it. Support can refund you in full, refund part, or let the sale stand. We'll tell you the outcome.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/ActionBar.tsx:128",
+    "current": "Only confirm if you met and the goods actually changed hands. This does not release either deposit — you still get…",
+    "rewrite": "Only confirm once you've met and swapped. Both holds stay in place, and you still have … days to check what you got.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/ActionBar.tsx:182",
+    "current": "The trade was just updated by someone else. Please try again.",
+    "rewrite": "The other trader updated this trade a moment ago. Please try again.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/ActionBar.tsx:240 / :487",
+    "current": "Item never arrived / Report an item that never arrived",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "trade/ActionBar.tsx:490",
+    "current": "…The trade freezes for review and NOTHING is charged to either of you — NoDitto support decides what happens next.",
+    "rewrite": "Use this if the other trader didn't show up, refused to hand over, or the swap went wrong. The trade freezes and neither of you is charged. NoDitto support decides what happens next.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/ActionBar.tsx:491",
+    "current": "…NOTHING is charged to either of you — a lost parcel is nobody's fault, so no deposit is taken while an operator looks at it.",
+    "rewrite": "Use this if the parcel hasn't arrived or arrived empty. The trade freezes and neither of you is charged while support looks into it.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/DemoPanel.tsx:87",
+    "current": "Simulated payments — not live Stripe",
+    "rewrite": "Simulated payments (test only)",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/HoldStatus.tsx:43",
+    "current": "Expired — no longer protected",
+    "rewrite": "Expired. No longer protected",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/HoldStatus.tsx:66",
+    "current": "Your hold is placed before the meeting. It is a temporary hold on your card, not a payment.",
+    "rewrite": "Your hold is placed before the meeting. It's a temporary hold on your card, and nothing is charged.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/HoldStatus.tsx:70",
+    "current": "A temporary hold, not a payment. It is released when the trade completes.",
+    "rewrite": "Nothing is charged. The hold is released when the trade completes.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/ShippingDeadline.tsx:165",
+    "current": "Post now — the trade loses its collateral protection when the hold lapses.",
+    "rewrite": "Post now. The trade loses its protection when the holds expire.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/TradeContract.tsx:405",
+    "current": "You can keep trading — collateral covers the goods. Stripe moves the cash once the receiver can take payouts.",
+    "rewrite": "You can keep trading. The holds cover the goods, and Stripe sends the cash once the receiver has set up payouts.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "trade/TradeNegotiationPanel.tsx:369",
+    "current": "A temporary hold, not a charge. Released when the trade completes.",
+    "rewrite": "A temporary hold on your card. Nothing is charged, and it's released when the trade completes.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/handover/terms.ts:60",
+    "current": ", plus a … currency conversion fee (…, not refunded).",
+    "rewrite": ", plus a … currency conversion fee (…, non-refundable).",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/handover/terms.ts:132",
+    "current": "Delivered — free delivery.",
+    "rewrite": "Delivered, free postage.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/handover/terms.ts:133",
+    "current": "Delivered — … delivery on top of the cash amount.",
+    "rewrite": "Delivered, with … postage on top of the cash.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/handover/terms.ts:238",
+    "current": "Delivery — set postage",
+    "rewrite": "Delivery: set postage",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/fees/feeLabels.ts:125",
+    "current": "…The collateral itself is a card hold, not a charge.",
+    "rewrite": "…The collateral is a card hold, so nothing is charged for it.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "deals/DealComposeForm.tsx:1017",
+    "current": "Only people with the link can open it, and it never appears in the catalog. The first person to join gets the deal…",
+    "rewrite": "Only people with the link can open it. It stays out of the catalog. The first person to join gets the deal, and you can edit it until then; the link stays the same.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "deals/DealComposeForm.tsx:1090",
+    "current": "It never appears in the catalog. The first person to join gets the deal…",
+    "rewrite": "It stays out of the catalog. The first person to join gets the deal, and you can edit it until then; the link stays the same.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "deals/DealComposeForm.tsx:1331",
+    "current": "Only people with the link can open it, and it never appears in the catalog. It lasts 14 days, and you can cancel it any time.",
+    "rewrite": "Only people with the link can open it, and it stays out of the catalog. It lasts 14 days, and you can cancel it any time.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "deals/DealTermsBreakdown.tsx:95",
+    "current": "A temporary hold, not a charge. It's released when the trade completes.",
+    "rewrite": "A temporary hold on your card. Nothing is charged, and it's released when the trade completes.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "listings/[id]/(detail)/page.tsx:1086",
+    "current": "…Add anything else to that contract rather than starting a second one.",
+    "rewrite": "You already have an open contract with this seller for items from this listing. Add anything else to that contract.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "listings/[id]/error.tsx:25",
+    "current": "It's still there, we just couldn't fetch it. Try again in a moment.",
+    "rewrite": "The listing is still there, but we couldn't load it. Try again in a moment.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "sellers/[id]/page.tsx:93",
+    "current": "Trading card listings from … on NoDitto — identity-checked seller, payments held until you accept the card.",
+    "rewrite": "Trading card listings from … on NoDitto. ID-checked seller, and your payment is held until you accept the card.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "listings/ListingDesktopPane.tsx:270",
+    "current": "— Read seller reviews",
+    "rewrite": "Read seller reviews",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "profile/(hub)/page.tsx:589",
+    "current": "Stripe collects your bank details directly. NoDitto never sees them.",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "account/AccountSecuritySettings.tsx:117",
+    "current": "Always sent, so you never miss a window that protects you.",
+    "rewrite": "Always sent, so you don't miss a deadline that protects you.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "auth/RequestResetForm.tsx:157",
+    "current": "Never confirmed your email?",
+    "rewrite": "Didn't confirm your email?",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "identity/IdentityCheckCard.tsx:154",
+    "current": "One step on Stripe's pages, with a photo ID and a selfie — NoDitto never sees the document. No bank details needed for this.",
+    "rewrite": "One step on Stripe's pages, with a photo ID and a selfie. Only Stripe sees the document, and no bank details are needed.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "identity/IdentityDemoControls.tsx:96",
+    "current": "Simulated identity check — not live Stripe",
+    "rewrite": "Simulated identity check (test only)",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "identity/IdentityGatePrompt.tsx:130",
+    "current": "Still checking — we will update this automatically.",
+    "rewrite": "Still checking. This page updates by itself.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "identity/IdentityGatePrompt.tsx:156",
+    "current": "This step opens on Stripe's pages. NoDitto never sees the document.",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "onboarding/OnboardingWizard.tsx:623",
+    "current": "No regions are open for deals right now. Please try again shortly — you can still browse listings in the meantime.",
+    "rewrite": "No regions are open for deals right now. Please try again soon. You can still browse listings meanwhile.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "onboarding/UnifiedOnboardingSurface.tsx:100",
+    "current": "…You can safely leave this page — we will update it when the result arrives.",
+    "rewrite": "Stripe is still reviewing your document. Most checks take a few minutes; a manual review can take longer. You can leave this page, and we'll update it when the result comes in.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "profile/AvatarUploadField.tsx:251",
+    "current": "…Shown next to your name on listings and in chats — it is not used to verify you.",
+    "rewrite": "Optional. PNG, JPEG or WebP, up to 2 MB. Shown next to your name on listings and in chats.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "profile/PayoutOnboarding.tsx:308",
+    "current": "…NoDitto never shows your address or bank details.",
+    "rewrite": "Your verified name may be shown to a buyer on an agreed sale. Your address and bank details stay private.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "profile/PayoutOnboarding.tsx:338",
+    "current": "…Continue with Stripe to complete it — you will pick up where you left off.",
+    "rewrite": "Stripe hasn't finished your setup, so you can't be paid yet. Continue with Stripe to finish; you'll pick up where you left off.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "profile/ProfileSettingRows.tsx:112",
+    "current": "Private to you. An address is shared with a seller only when you choose it for a purchase or trade — never before.",
+    "rewrite": "Private to you. A seller only sees an address once you choose it for a purchase or trade.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "profile/SocialLinksEditor.tsx:80",
+    "current": "Username only — not the full link.",
+    "rewrite": "Just the username, e.g. noditto",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/orchestrator/accountClosureOrchestrator.ts:261",
+    "current": "We could not check your open contracts just now. Please try again.",
+    "rewrite": "We couldn't check your open contracts. Please try again.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/orchestrator/accountClosureOrchestrator.ts:284",
+    "current": "We could not close your account just now. Nothing has changed. Please try again.",
+    "rewrite": "We couldn't close your account, and nothing has changed. Please try again.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/orchestrator/accountClosureOrchestrator.ts:295",
+    "current": "We could not close your account just now. Please try again.",
+    "rewrite": "We couldn't close your account. Please try again.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/validation/profile.ts:32, registration.ts:88",
+    "current": "Enter a complete email address, including the domain — like you@example.com",
+    "rewrite": "Enter a full email address, like you@example.com",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/profileForensics.ts:135",
+    "current": "Facebook numeric IDs starting with 6158–6159 are very recently created accounts (~2025–2026) — a major red flag…",
+    "rewrite": "Facebook IDs starting 6158 or 6159 belong to accounts made in 2025 or 2026. With no references, that's a major red flag on Marketplace.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/profileForensics.ts:222",
+    "current": "Handle \"@…\" ends in a digit — double-check it isn't a secondary or throwaway account.",
+    "rewrite": "\"@…\" ends in a number. Check it isn't a second or throwaway account.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/profileForensics.ts:272",
+    "current": "The account category is \"…\" while the bio advertises trading-card buying/selling — a strong sign of a repurposed or bought/hijacked account.",
+    "rewrite": "The account is listed as \"…\" but the bio sells trading cards. That often means the account was bought, hijacked or repurposed.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/profileForensics.ts:371",
+    "current": "Classic \"left as collateral / just recouping my cost\" backstory",
+    "rewrite": "Classic \"left as collateral\" or \"only covering my cost\" story",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/profileForensics.ts:391",
+    "current": "…High-liquidity grail cards never need a ~50% cold-DM discount.",
+    "rewrite": "They mention ~$… value but offer ~$…. A card that sells easily doesn't need a half-price cold DM.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "report-scam/response/[id]/page.tsx:75",
+    "current": "We don't act on a single report, and we never take action without checking first.",
+    "rewrite": "We don't act on a single report, and we always check before doing anything.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "api/references/ai-check/route.ts:44",
+    "current": "Too many checks — please wait a moment and try again.",
+    "rewrite": "Too many checks. Please wait a moment and try again.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/BackgroundCheckPanel.tsx:75",
+    "current": "Matches … scam report… — do not send unprotected payment.",
+    "rewrite": "Matches … scam report…. Don't send an unprotected payment.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/BackgroundCheckPanel.tsx:102",
+    "current": "Public signals from other sites — separate from NoDitto references.",
+    "rewrite": "Public information from other sites. These are separate from NoDitto references.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/BackgroundCheckPanel.tsx:118, footprintJudge.ts:283",
+    "current": "Names can overlap — double-check payment details before sending money.",
+    "rewrite": "Many people share a name. Check the payment details before sending money.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/BackgroundCheckPanel.tsx:1577",
+    "current": "…Compare the link, not the name, with the one you have dealt with before. Many real people share a name.",
+    "rewrite": "Scammers copy a real person's name and photos onto a new account. Check the profile link matches the one you've dealt with before; many real people share a name.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/ProofChallengeClient.tsx:94",
+    "current": "Hey — before I send payment for …, could you take a quick 10-second live photo with code … here? …",
+    "rewrite": "Hey, before I pay for …, could you take a quick live photo with code … here? …",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/ProofChallengeClient.tsx:204",
+    "current": "Expires … · If you are the buyer, keep this page open — it updates automatically when the seller submits.",
+    "rewrite": "Expires … · If you're the buyer, keep this page open. It updates when the seller sends the photo.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/ReferenceSearch.tsx:131",
+    "current": "We couldn't search references just now. Please try again.",
+    "rewrite": "We couldn't search references. Please try again.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "references/ReferenceSearch.tsx:365",
+    "current": "Couldn't search just now",
+    "rewrite": "Search failed. Try again",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "scamReports/ScamReportForm.tsx:337",
+    "current": "…We turn these into a code that can only be matched, never read back…",
+    "rewrite": "The PayID, bank account, PayPal, phone number or handle they gave you. We store it as a one-way code we can match against other reports, so we can spot the same person again.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "scamReports/ScamReportForm.tsx:454",
+    "current": "Scammers often use fake names, so we never match on this. It just helps us read the report.",
+    "rewrite": "Scammers often use fake names, so we don't match on this. It helps us read the report.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "scamReports/ScamReportResponseForm.tsx:35",
+    "current": "• Anything that shows what really happened",
+    "rewrite": "• Anything that shows what happened",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/bio.ts:186/190/193",
+    "current": "(instructions to the AI model)",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "domain/references/enrichment.ts:397",
+    "current": "High-risk warning signals detected — pause before paying",
+    "rewrite": "High-risk signs found. Hold off on paying",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/enrichment.ts:438",
+    "current": "…Confirm they actually control the linked Instagram or eBay account…",
+    "rewrite": "Public signals exist, but a common name can belong to several people. Ask them to prove they control the linked Instagram or eBay account (e.g. DM you or claim it here).",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/enrichment.ts:439",
+    "current": "…confirm the person messaging you actually controls this account.",
+    "rewrite": "This handle is active on several platforms. Before paying, check the person messaging you controls this account.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/enrichment.ts:449",
+    "current": "Suspicious or limited footprint — verify before paying",
+    "rewrite": "Little or suspicious history. Check before paying",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/enrichment.ts:450",
+    "current": "Limited verifiable footprint — verify before paying",
+    "rewrite": "Little history we can check. Check before paying",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/externalSeller.ts:240",
+    "current": "Say why it is not them, in at least … characters.",
+    "rewrite": "Say why this account belongs to someone else, in at least … characters.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/facebookIndex.ts:344",
+    "current": "…compare the profile link, not the name. Many real people share a name, so this is not proof on its own.",
+    "rewrite": "Scammers copy a real person's name and photos onto a new account. Check the profile you're dealing with is the one with years of history, by its link. Many people share a name, so this alone proves nothing.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/paymentForensics.ts:194",
+    "current": "Hijacked Facebook and Instagram accounts almost never have a bank or PayID in the profile owner's name…",
+    "rewrite": "Hijacked Facebook and Instagram accounts almost always ask for payment to someone else's bank or PayID. Paying a \"partner\" or \"brother\" account is a classic money-mule scam.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/paymentForensics.ts:212",
+    "current": "This email uses a temporary inbox provider — legitimate sellers do not receive payouts on disposable email addresses.",
+    "rewrite": "This is a disposable email address. Real sellers don't take payouts on one.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/references/reference.ts:36",
+    "current": "Item never arrived",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "domain/risk/scamReports.ts:432",
+    "current": "A handle-only match is never enough to ban.",
+    "rewrite": "A handle match alone can't justify a ban. (Staff only)",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "messages/ChatThread.tsx:529",
+    "current": "No contract yet — messages alone do not reserve goods or hold payment.",
+    "rewrite": "No contract yet. Messages don't reserve anything or hold payment.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/notifications/payoutNotifier.ts:28, supabaseCollateralDisbursementRepository.ts:213",
+    "current": "Payout on hold — finish your payout setup",
+    "rewrite": "Payout on hold: finish your payout setup",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/notifications/payoutNotifier.ts:120",
+    "current": "Dispute resolved — buyer refunded",
+    "rewrite": "Dispute resolved: buyer refunded",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/notifications/payoutNotifier.ts:135",
+    "current": "Dispute resolved — partial refund",
+    "rewrite": "Dispute resolved: partial refund",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/notifications/payoutNotifier.ts:143",
+    "current": "Dispute resolved — no refund",
+    "rewrite": "Dispute resolved: no refund",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/cashSaleInspectionSweep.ts:83",
+    "current": "Sale completed — payout queued",
+    "rewrite": "Sale complete: payout on its way",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/cashSaleInspectionSweep.ts:126",
+    "current": "…Complete the purchase or raise a dispute before then — otherwise the sale completes and the seller is paid.",
+    "rewrite": "Your inspection window closes within 24 hours. Complete the purchase or raise a problem by then. If you do nothing, the sale completes and the seller is paid.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/cashSaleInspectionSweep.ts:183",
+    "current": "rather than closing it automatically — but it will take longer to resolve.",
+    "rewrite": "…our team reviews the case. It will take longer to resolve.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/cashSaleInspectionSweep.ts:257",
+    "current": "Return not posted — we are reviewing it",
+    "rewrite": "Return not posted: we're reviewing it",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/cashSaleInspectionSweep.ts:269",
+    "current": "is reviewing the case. You can still post it — add the tracking number and",
+    "rewrite": "…is reviewing the case. You can still post it: add the tracking number and",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/cashSaleInspectionSweep.ts:364",
+    "current": "now — our team has been asked to check in on this sale.",
+    "rewrite": "now. Our team will check in on this sale.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/inspectionSweep.ts:204",
+    "current": "the settlement is still being finalised and our team is on it — if a",
+    "rewrite": "the settlement is still being finalised and our team is on it. If a",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/trades/bondPlacementSweep.ts:227",
+    "current": "you never met, report it now.",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "lib/email/templates.ts:39",
+    "current": "…If you don't respond, the … will auto-complete. Review it here: … — …",
+    "rewrite": "Hi …, Your inspection window closes in … hours. If you do nothing, the … completes on its own. Review it here: … (sign-off on its own line)",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/email/templates.ts:63/64",
+    "current": "…our team reviews the case rather than closing it automatically, but it will take longer to resolve…",
+    "rewrite": "Hi …, Your refund is waiting for the item to come back. Please post it and add the tracking number within … hours. If you miss that, our team reviews the case, which takes longer.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/email/templates.ts:80/97/113/128/144",
+    "current": "… — … (sign-off joined by an em dash)",
+    "rewrite": "Put the link and the \"NoDitto\" sign-off on separate lines.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "privacy/page.tsx:68/97/109/167/191/267",
+    "current": "(privacy policy)",
+    "rewrite": "Keep. Legal text, and every \"never\" is a factual commitment.",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "terms/page.tsx:112/319/361",
+    "current": "(terms)",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:95",
+    "current": "…We'll also never ask for your password, your card number or a code, so anyone claiming to be NoDitto support who does isn't us.",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:137",
+    "current": "…it gets decided on what the contract says rather than on the listing.",
+    "rewrite": "…Describe each card exactly, because a dispute is decided on what the contract says.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:144",
+    "current": "…Only send it once the contract itself shows the payment as collected, never because of a message or a screenshot…",
+    "rewrite": "Once the buyer has paid, you have 3 business days to post. Only send it when the contract shows the payment as collected. A message or screenshot doesn't count…",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:159",
+    "current": "A trade works a little differently, because instead of anyone paying, both of you put a temporary hold on your card…",
+    "rewrite": "A trade works a little differently. Nobody pays: each of you puts a temporary hold on your card for the value of your side…",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:176",
+    "current": "After the swap, you get … hours to inspect, and never less than …",
+    "rewrite": "After the swap, you get … hours to inspect, and at least …",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:191",
+    "current": "It helps to know what confirming the handover actually does…",
+    "rewrite": "It helps to know what confirming the handover does…",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:201",
+    "current": "…the one thing the inspection window can't really help with…",
+    "rewrite": "Sealed boxes and cases are the one thing the inspection window can't help with…",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "safety/page.tsx:232",
+    "current": "We never handle the cards ourselves, so we can't authenticate them…",
+    "rewrite": "We don't handle the cards ourselves, so we can't authenticate them…",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "help/HelpCentre.tsx:72",
+    "current": "…We never publish reports or tell anyone who sent them.",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "help/HelpCentre.tsx:151",
+    "current": "…a separate Stripe step — you can sell before it is done, but the money waits until it is.",
+    "rewrite": "A Stripe identity check lets you list. To be paid you also set up payouts, a separate Stripe step. You can sell before then, but the money waits until it's done.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "help/HelpCentre.tsx:162",
+    "current": "A payout is queued when the sale completes — when the buyer accepts or their window ends — and Stripe sends it…",
+    "rewrite": "A payout is queued when the sale completes, which is when the buyer accepts or their window ends. Stripe then sends it to your bank on its schedule.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "help/HelpCentre.tsx:191",
+    "current": "…for what they receive — an uncaptured authorisation, so nothing is charged…",
+    "rewrite": "Trades are face to face. Each trader puts a temporary hold on their card for what they receive, and nothing is charged if the trade goes normally. You meet, swap, confirm, then have … days to check what you got.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "help/HelpCentre.tsx:225",
+    "current": "…A verified status says Stripe accepted that check — not a credit score or a guarantee of performance.",
+    "rewrite": "You send Stripe Identity a government ID and a selfie; Stripe checks them and we record the result. \"Verified\" means Stripe accepted the check. It says nothing about credit or how someone will trade.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "help/HelpCentre.tsx:251",
+    "current": "…Stripe collects your bank details directly; NoDitto never sees them.",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "feedback/FeedbackDialog.tsx:55",
+    "current": "What were you doing, and what happened instead of what you expected?",
+    "rewrite": "What were you doing, what did you expect, and what happened?",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "feedback/FeedbackDialog.tsx:152, lib/actions/feedback.ts:116",
+    "current": "Please add a little more detail — at least … characters.",
+    "rewrite": "Please add a bit more detail (at least … characters).",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "feedback/FeedbackDialog.tsx:167",
+    "current": "Thanks — your idea is with the team.",
+    "rewrite": "Thanks, your idea is with the team.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "feedback/FeedbackDialog.tsx:168",
+    "current": "Thanks — we have got it.",
+    "rewrite": "Thanks, we've got it.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/actions/trades.ts:274",
+    "current": "This trade is face to face. Confirm the handover instead of recording a shipment.",
+    "rewrite": "This trade is face to face, so confirm the handover when you meet.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/actions/trades.ts:281",
+    "current": "This trade is posted. Record a shipment instead of confirming a handover.",
+    "rewrite": "This trade is posted, so record the shipment once you've sent it.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/seo/site.ts:70",
+    "current": "NoDitto — buy, sell and swap trading cards with verified sellers",
+    "rewrite": "NoDitto: buy, sell and swap trading cards with verified sellers",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/enrichment/ebay.ts:661",
+    "current": "0 active listings right now — open profile to view feedback",
+    "rewrite": "No active listings. Open their profile to see feedback",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/enrichment/footprintJudge.ts:436",
+    "current": "No verified history found, and @… (… positive …) has a similar handle — verify before paying.",
+    "rewrite": "No verified history, and @… (… positive …) has a similar handle. Check before paying.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/enrichment/footprintJudge.ts:437",
+    "current": "Limited public history with … caution … — verify before paying.",
+    "rewrite": "Little public history and … caution …. Check before paying.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/enrichment/psaCert.ts:261",
+    "current": "PSA cert #… was not found in PSA's registry — strong indicator of a fake or fabricated slab.",
+    "rewrite": "PSA cert #… isn't in PSA's registry. That strongly suggests a fake slab.",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/enrichment/aiTraderCheck.ts:322",
+    "current": "Hold off — I found red flags for ….",
+    "rewrite": "Hold off: I found red flags for ….",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/enrichment/aiTraderCheck.ts:551",
+    "current": "…to `.env.local` — or type their @handle / eBay username / PayID below.",
+    "rewrite": "Developer setup text. Keep, or drop the em dash: \"…to `.env.local`, or type their @handle, eBay username or PayID below.\"",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/actions/admin.ts:1034",
+    "current": "The provider rejected the refund. The sale is still disputed — you can retry.",
+    "rewrite": "The provider refused the refund. The sale is still disputed, and you can retry. (Staff only)",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/actions/admin.ts:1169",
+    "current": "Fraud confirmed — you are being compensated",
+    "rewrite": "Fraud confirmed: you're being compensated",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/actions/admin.ts:1178",
+    "current": "Fraud confirmed — your account is permanently suspended",
+    "rewrite": "Fraud confirmed: your account is permanently suspended",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "lib/actions/admin.ts:2589",
+    "current": "eBay could not be read just now. Try again in a moment.",
+    "rewrite": "We couldn't reach eBay. Try again in a moment. (Staff only)",
+    "keep": false,
+    "note": ""
+  },
+  {
+    "where": "domain/services/index.ts:106, providerMode.ts:36",
+    "current": "(server configuration errors)",
+    "rewrite": "Keep",
+    "keep": true,
+    "note": ""
+  },
+  {
+    "where": "lib/enrichment/aiTraderCheck.ts:396, aiWebScour.ts:179/181/192/724/951/953, footprintJudge.ts:75, proofChallenge.ts:153, screenshotAnalyzer.ts:38",
+    "current": "(instructions sent to AI models)",
+    "rewrite": "Keep. Members never see these, and \"never\" is how the model is told a hard rule.",
+    "keep": true,
+    "note": ""
+  }
+]

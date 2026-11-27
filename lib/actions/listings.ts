@@ -1212,6 +1212,12 @@ export interface SearchCatalogParams {
    * price comparison rather than intent.
    */
   includeReserved?: boolean;
+  /**
+   * Only the signed-in member's saved (watched) listings (2026-11-27). Saved is a
+   * filter on the catalog, not a page of its own. Every status is shown, so a saved
+   * card that sold or went under contract stays findable. Empty for a guest.
+   */
+  savedOnly?: boolean;
   /** Result ordering (defaults to `newest`). */
   sort?: CatalogSort;
   /** 1-based page number (defaults to 1). */
@@ -1397,6 +1403,20 @@ export const searchCatalog = withActionLog('listings.searchCatalog', async funct
 
   let emptyPage: CatalogPage | null = null;
 
+  let savedIds: string[] | null = null;
+  if (params.savedOnly) {
+    const user = await getCachedAuthUser();
+    if (!user) return { ok: true, items: [], total: 0, page, pageSize, hasMore: false };
+    const { data: saved, error: savedError } = await supabase
+      .from('watchlist')
+      .select('item_id')
+      .eq('user_id', user.id)
+      .limit(1000);
+    if (savedError) return { ok: false, error: 'persistence-error', message: savedError.message };
+    savedIds = (saved ?? []).map((row) => row.item_id as string);
+    if (savedIds.length === 0) return { ok: true, items: [], total: 0, page, pageSize, hasMore: false };
+  }
+
   for (const textQuery of textAttempts) {
     // Base query: public catalog only, with an exact total for pagination.
     // `closed_at` is null for every SINGLE listing and for every open shopfront; a
@@ -1410,9 +1430,10 @@ export const searchCatalog = withActionLog('listings.searchCatalog', async funct
     // Status filter: AVAILABLE always; SOLD and RESERVED are opt-in and
     // independent, so all four combinations are reachable from the URL.
     const statuses: Array<'AVAILABLE' | 'RESERVED' | 'SOLD'> = ['AVAILABLE'];
-    if (params.includeSold) statuses.push('SOLD');
-    if (params.includeReserved) statuses.push('RESERVED');
+    if (params.includeSold || savedIds) statuses.push('SOLD');
+    if (params.includeReserved || savedIds) statuses.push('RESERVED');
     query = query.in('status', statuses);
+    if (savedIds) query = query.in('id', savedIds);
 
     if (textQuery) {
       query = query.textSearch('search_tsv', textQuery, {

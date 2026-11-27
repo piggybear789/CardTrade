@@ -52,7 +52,7 @@ export function RetryPayoutButton({ cashSaleId }: RetryPayoutButtonProps) {
     <Button
       type="button"
       size="sm"
-      variant="outline"
+      variant="secondary"
       onClick={handleClick}
       disabled={isPending}
       aria-busy={isPending}

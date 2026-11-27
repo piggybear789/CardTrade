@@ -1,0 +1,11 @@
+3 events · both handover confirmed
+HISTORY
+Terms agreed
+negotiating → collateral pending
+Wed, 25 Nov, 1:53 pm AEDT
+Holds confirmed(you)
+collateral pending → collateral locked
+Wed, 25 Nov, 1:54 pm AEDT
+Both handover confirmed
+collateral locked → inspection
+Wed, 25 Nov, 1:55 pm AEDT

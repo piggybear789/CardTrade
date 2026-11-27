@@ -271,14 +271,14 @@ async function recordLifecycle(
     return {
       ok: false,
       error: 'not-permitted',
-      detail: 'This trade is face to face. Confirm the handover instead of recording a shipment.',
+      detail: 'This trade is face to face. Confirm the handover when you meet.',
     };
   }
   if (action === 'handover' && !inPerson) {
     return {
       ok: false,
       error: 'not-permitted',
-      detail: 'This trade is posted. Record a shipment instead of confirming a handover.',
+      detail: 'This trade is posted. Record the shipment once you have sent it.',
     };
   }
 

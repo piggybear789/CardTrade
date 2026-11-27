@@ -25,7 +25,7 @@ import type { PayoutNotifier } from '@/domain/orchestrator/cashSaleOrchestrator'
 /** Member-safe headline and body per failure cause. */
 const FAILURE_COPY = {
   NOT_PAYABLE: {
-    title: 'Payout on hold — finish your payout setup',
+    title: 'Payout on hold: finish your payout setup',
     body: (itemTitle: string) =>
       `We are holding your proceeds for "${itemTitle}" because your payout setup is not finished. ` +
       'Complete it and we will release the money automatically.',
@@ -117,7 +117,7 @@ export function createPayoutNotifier(): PayoutNotifier {
               'Card refunds usually appear within a few business days.',
           },
           seller: {
-            title: 'Dispute resolved — buyer refunded',
+            title: 'Dispute resolved: buyer refunded',
             body:
               `The dispute over "${itemTitle}" was resolved in the buyer's favour, so no ` +
               'proceeds are owed. If they had the item, it has been returned to you and ' +
@@ -132,7 +132,7 @@ export function createPayoutNotifier(): PayoutNotifier {
               'item and the difference has been returned to you.',
           },
           seller: {
-            title: 'Dispute resolved — partial refund',
+            title: 'Dispute resolved: partial refund',
             body:
               `The dispute over "${itemTitle}" was resolved with ${refund} refunded ` +
               `to the buyer. ${sellerNet} is being released to you.`,
@@ -140,7 +140,7 @@ export function createPayoutNotifier(): PayoutNotifier {
         },
         RELEASE_SELLER: {
           buyer: {
-            title: 'Dispute resolved — no refund',
+            title: 'Dispute resolved: no refund',
             body:
               `After review, the dispute over "${itemTitle}" was not upheld, so the sale stands and ` +
               'no refund has been issued.',

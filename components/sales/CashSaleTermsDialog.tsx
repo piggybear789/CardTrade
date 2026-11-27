@@ -238,7 +238,7 @@ export function CashSaleTermsDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {hideTrigger ? null : (
         <DialogTrigger asChild>
-          <Button type="button" variant="outline" size="sm" className="gap-tight px-cozy text-meta font-medium leading-none [&_svg]:size-3">
+          <Button type="button" variant="secondary" size="sm" className="gap-tight px-cozy text-meta font-medium leading-none [&_svg]:size-3">
             <Icon icon={PencilSimpleIcon} aria-hidden />
             Edit
           </Button>

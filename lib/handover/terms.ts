@@ -57,7 +57,7 @@ export function tradeAcceptCopy(params: {
     params.cashMinor > 0 && params.payerIsViewer
       ? ` You then pay the ${formatMoney(params.cashMinor, params.currency)} cash before the hold goes on` +
         (fxFeeMinor > 0
-          ? `, plus a ${formatMoney(fxFeeMinor, params.currency)} currency conversion fee (${fxFeeRateLabel()}, not refunded). `
+          ? `, plus a ${formatMoney(fxFeeMinor, params.currency)} currency conversion fee (${fxFeeRateLabel()}, non-refundable). `
           : '. ') +
         'NoDitto holds it until the trade completes, and refunds it if the trade is cancelled.'
       : '';
@@ -129,8 +129,8 @@ export function describeDelivery(
 ): string {
   const priceLine =
     costCents === 0
-      ? 'Delivered — free delivery.'
-      : `Delivered — ${formatMoney(costCents, currency)} delivery on top of the cash amount.`;
+      ? 'Delivered, free postage.'
+      : `Delivered, ${formatMoney(costCents, currency)} postage on top of the cash.`;
   return notes ? `${priceLine}\n${notes}` : priceLine;
 }
 
@@ -235,7 +235,7 @@ export function summarizeHandover(input: {
     }
     // Method chosen, postage still open — don't leave the tab reading bare
     // "Delivery" with no hint that something is outstanding.
-    return input.delivery_details?.trim() || 'Delivery — set postage';
+    return input.delivery_details?.trim() || 'Delivery: set postage';
   }
   return 'Not set';
 }

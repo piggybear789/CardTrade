@@ -342,7 +342,7 @@ export function TradeOfferForm({
         <h3 id="trade-get-heading" className="text-body font-medium">
           You get
         </h3>
-        <div className="flex items-center gap-cozy rounded-lg border bg-card p-cozy">
+        <div className="flex items-center gap-cozy rounded-lg bg-muted/60 p-cozy">
           {thumb ? (
             <StorageImage
               src={thumb}
@@ -523,7 +523,7 @@ export function TradeOfferForm({
       {/* Running total. Sides do not have to match — this just shows where the
           offer stands so nobody has to do the arithmetic themselves. */}
       <div
-        className="rounded-lg border bg-muted p-cozy text-body"
+        className="rounded-lg bg-muted/80 p-cozy text-body"
         role="status"
         aria-live="polite"
       >

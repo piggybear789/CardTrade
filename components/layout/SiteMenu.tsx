@@ -101,10 +101,12 @@ export function SiteMenu({
         asChild
         variant="ghost"
         size="sm"
-        className={cn('!h-9 justify-start', active && 'bg-accent text-accent-foreground')}
+        // The current section is the ghost's own hover tint held on, with the filled
+        // glyph the header and the phone tab bar use for the same fact.
+        className={cn('!h-9 justify-start', active && 'bg-foreground/[0.06] text-foreground')}
       >
         <Link href={link.href} aria-current={active ? 'page' : undefined}>
-          <Icon icon={link.icon} aria-hidden />
+          <Icon icon={link.icon} weight={active ? 'fill' : undefined} aria-hidden />
           {link.label}
         </Link>
       </Button>
@@ -174,8 +176,8 @@ export function SiteMenu({
           aria-label={`${initialsFor(displayName)} ${displayName ?? 'Your account'}, account menu`}
           title={displayName ?? undefined}
           className={cn(
-            'ml-tight flex h-10 shrink-0 touch-manipulation items-center gap-0.5 rounded-full border border-transparent pl-1 pr-1.5 text-foreground transition-colors hover:bg-accent focus:outline-none focus-visible:border-ring',
-            open && 'bg-accent',
+            'ml-tight flex h-10 shrink-0 touch-manipulation items-center gap-0.5 rounded-full border border-transparent pl-1 pr-1.5 text-foreground transition-colors hover:bg-foreground/[0.06] focus:outline-none focus-visible:border-ring',
+            open && 'bg-foreground/[0.06]',
           )}
         >
           {/* The button's aria-label already names the account. The avatar's initials are
@@ -280,10 +282,10 @@ export function SiteMenu({
                   asChild
                   variant="ghost"
                   size="sm"
-                  className={cn('!h-9 justify-start', accountActive && 'bg-accent text-accent-foreground')}
+                  className={cn('!h-9 justify-start', accountActive && 'bg-foreground/[0.06] text-foreground')}
                 >
                   <Link href="/profile" aria-current={accountActive ? 'page' : undefined}>
-                    <Icon icon={GearSixIcon} aria-hidden />
+                    <Icon icon={GearSixIcon} weight={accountActive ? 'fill' : undefined} aria-hidden />
                     Account settings
                   </Link>
                 </Button>

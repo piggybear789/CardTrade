@@ -36,7 +36,7 @@ export function inspectionDeadlineWarning(params: {
 }) {
   const link = `${SITE_URL}/${params.contractType === 'sale' ? 'sales' : 'trades'}/${params.contractId}`;
   const subject = `Action needed: ${params.hoursRemaining}h left to inspect your ${params.contractType === 'sale' ? 'purchase' : 'trade'}`;
-  const text = `Hi ${params.recipientName},\n\nYour inspection window closes in ${params.hoursRemaining} hours. If you don't respond, the ${params.contractType} will auto-complete.\n\nReview it here: ${link}\n\n— ${BRAND}`;
+  const text = `Hi ${params.recipientName},\n\nYour inspection window closes in ${params.hoursRemaining} hours. If you do nothing, the ${params.contractType} completes on its own.\n\nReview it here: ${link}\n\n— ${BRAND}`;
   const html = wrap(`
 <h2 style="font-size:20px;margin:0 0 16px;">Inspection closing soon</h2>
 <p>Hi ${params.recipientName},</p>
@@ -60,13 +60,13 @@ export function returnDeadlineWarning(params: {
 }) {
   const link = `${SITE_URL}/sales/${params.contractId}`;
   const subject = `Action needed: ${params.hoursRemaining}h to post your return`;
-  const text = `Hi ${params.recipientName},\n\nYour refund is waiting on the item coming back. Please post it and add the tracking number within ${params.hoursRemaining} hours.\n\nIf you miss the deadline our team reviews the case rather than closing it automatically, but it will take longer to resolve.\n\nAdd tracking here: ${link}\n\n— ${BRAND}`;
+  const text = `Hi ${params.recipientName},\n\nYour refund is waiting on the item coming back. Please post it and add the tracking number within ${params.hoursRemaining} hours.\n\nIf you miss it, our team reviews the case, which takes longer.\n\nAdd tracking here: ${link}\n\n— ${BRAND}`;
   const html = wrap(`
 <h2 style="font-size:20px;margin:0 0 16px;">Post your return soon</h2>
 <p>Hi ${params.recipientName},</p>
 <p>Your refund is waiting on the item coming back. Please post it and add the tracking number within <strong>${params.hoursRemaining} hours</strong>.</p>
 <p style="margin:24px 0;">${button(link, 'Add return tracking')}</p>
-<p style="font-size:13px;color:#666;">Your refund is released automatically once the carrier confirms it arrived. If you miss the deadline our team reviews the case rather than closing it automatically.</p>`);
+<p style="font-size:13px;color:#666;">Your refund is released automatically once the carrier confirms it arrived. If you miss it, our team reviews the case.</p>`);
   return { subject, text, html };
 }
 

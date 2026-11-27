@@ -208,6 +208,7 @@ function CatalogGridBody({
         maxCents: dollarsToCents(current.max),
         includeSold: current.includeSold,
         includeReserved: current.includeReserved,
+        savedOnly: current.savedOnly,
         sort: current.sort,
         regionCode,
       }}
@@ -269,7 +270,7 @@ function EmptyRegion({ regionCode }: { regionCode: string }) {
       action={{
         label: 'Browse all regions',
         href: `/?region=${ALL_REGIONS}`,
-        variant: 'outline',
+        variant: 'secondary',
       }}
       compact
       fill
@@ -311,7 +312,7 @@ function NoMatches({ regionCode }: { regionCode: string | null }) {
                 <Button
                   key={game.slug}
                   type="button"
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   disabled={isPending}
                   onClick={() => selectGame(game.name)}
@@ -327,7 +328,7 @@ function NoMatches({ regionCode }: { regionCode: string | null }) {
         label: onlySearch ? 'Clear search' : 'Clear filters',
         onClick: onlySearch ? () => apply({ q: null }) : reset,
         disabled: isPending,
-        variant: 'outline',
+        variant: 'secondary',
       }}
       compact
       fill

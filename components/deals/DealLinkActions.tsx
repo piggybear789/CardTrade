@@ -186,7 +186,7 @@ export function DealLinkActions({
         {canShare ? (
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="icon"
             className="size-9 shrink-0 md:size-9"
             aria-label="Share link"
@@ -200,7 +200,7 @@ export function DealLinkActions({
           trigger={
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="icon"
               className="size-9 shrink-0 md:size-9"
               aria-label="Show QR code"
@@ -256,10 +256,10 @@ export function DealLinkActions({
         </Button>
         {canShare ? (
           <>
-            <Button type="button" variant="outline" size="lg" className="md:hidden" onClick={copy}>
+            <Button type="button" variant="secondary" size="lg" className="md:hidden" onClick={copy}>
               {copyContent}
             </Button>
-            <Button type="button" variant="outline" size="lg" className="max-md:hidden" onClick={share}>
+            <Button type="button" variant="secondary" size="lg" className="max-md:hidden" onClick={share}>
               <Icon icon={ExportIcon} aria-hidden />
               Share
             </Button>
@@ -269,7 +269,7 @@ export function DealLinkActions({
         <DealLinkQr
           path={path}
           trigger={
-            <Button type="button" variant="outline" size="lg" className="shrink-0 px-cozy" aria-label="Show QR code">
+            <Button type="button" variant="secondary" size="lg" className="shrink-0 px-cozy" aria-label="Show QR code">
               <Icon icon={QrCodeIcon} aria-hidden />
               <span className="max-sm:sr-only">QR code</span>
             </Button>

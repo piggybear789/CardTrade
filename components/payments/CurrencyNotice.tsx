@@ -63,7 +63,9 @@ export function CurrencyNotice({
   return (
     <div
       className={cn(
-        'flex items-start gap-snug rounded-md border border-iris/30 bg-iris/5 p-cozy text-meta',
+        // A quiet slate tile: a violet wash on a panel is not an allowed use of the hue
+        // (`globals.css`); the iris-ink glyph says "money" on its own.
+        'flex items-start gap-snug rounded-lg bg-muted/80 p-cozy text-meta',
         className,
       )}
       role="note"

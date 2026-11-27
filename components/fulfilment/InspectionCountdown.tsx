@@ -107,14 +107,11 @@ export function InspectionCountdown({
         // Slim (UX review 2026-11-27): on a phone this sits above the chat bar, and
         // at five lines it was the biggest thing in the room. Title plus one
         // sentence that names the instant and what happens at it.
-        'rounded-lg border px-cozy py-snug text-body',
-        // The alarming branch keeps a red edge, because there the border IS the
-        // signal and red is not otherwise on the page. The calm branch is a plain
-        // hairline over a violet wash: it is a running clock, not a warning, and a
-        // violet frame put it at the same weight as the alarm.
-        alarming
-          ? 'border-destructive/40 bg-destructive/5'
-          : 'border-border bg-muted',
+        'rounded-lg px-cozy py-snug text-body',
+        // Tiles without edges (2026-11-28), as the notices: the alarming branch is
+        // the red tint, because red is not otherwise on the page; the calm branch is
+        // a slate tile, a running clock rather than a warning.
+        alarming ? 'bg-destructive/[0.07]' : 'bg-muted/80',
         hideOnPhone && !collateralLapsesFirst && 'max-lg:hidden',
         className,
       )}
@@ -145,9 +142,7 @@ export function InspectionCountdown({
       </p>
       {collateralLapsesFirst ? (
         <p className="mt-snug text-body text-destructive">
-          The collateral authorisation on this trade expires before the inspection
-          window closes. Raise a dispute now rather than later: after the
-          authorisation lapses there is nothing left to capture.
+          The collateral on this trade expires before the inspection window closes. Raise a dispute before collateral expires.
         </p>
       ) : null}
     </div>

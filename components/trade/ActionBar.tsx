@@ -125,7 +125,7 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
     confirm: {
       title: 'Confirm the handover happened?',
       description:
-        'Only confirm if you met and the goods actually changed hands. This does not release either deposit — you still get ' + TRADE_INSPECTION_HOURS / 24 + ' days from the meeting time to check what you received and accept it or raise a dispute.',
+        'Only confirm once you have met and swapped. Both holds stay in place, and you have ' + TRADE_INSPECTION_HOURS / 24 + ' days from the meeting to check what you got.',
       confirmLabel: 'We met and swapped',
       helpHref: '/help#holds',
     },
@@ -158,7 +158,7 @@ const ACTION_CONFIG: Record<BarAction, ActionConfig> = {
   // trade case got three ids and a timestamp.
   RAISE_DISPUTE: {
     label: 'Raise dispute',
-    variant: 'outline',
+    variant: 'secondary',
   },
   REPORT_FRAUD: {
     label: 'Report fraud',
@@ -179,7 +179,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   'invalid-reason': 'Describe what happened in at least a sentence.',
   INVALID_TRANSITION: 'That action is no longer valid for this trade.',
   CONCURRENT_MODIFICATION:
-    'The trade was just updated by someone else. Please try again.',
+    'The other trader updated this trade. Please try again.',
   TRADE_NOT_FOUND: 'This trade could not be found.',
   HOLD_NOT_FOUND: 'A collateral hold for this trade could not be found.',
   // Shared with the negotiation panel's toasts (design §1.12).
@@ -487,8 +487,8 @@ export function ActionBar({
         title={inPerson ? 'Report a failed handover' : 'Report an item that never arrived'}
         outcomeDescription={
           inPerson
-            ? 'Use this if the other trader did not show up, refused to hand over, or the exchange went wrong. The trade freezes for review and NOTHING is charged to either of you — NoDitto support decides what happens next.'
-            : 'Use this if the parcel has not arrived or arrived empty. The trade freezes for review and NOTHING is charged to either of you — a lost parcel is nobody’s fault, so no deposit is taken while an operator looks at it.'
+            ? 'Use this if the other trader didn’t show up or the swap went wrong. The trade freezes, nobody is charged, and NoDitto support decides what happens next.'
+            : 'Use this if the parcel hasn’t arrived or arrived empty. The trade freezes and nobody is charged while support looks into it.'
         }
         reasonPlaceholder={
           inPerson

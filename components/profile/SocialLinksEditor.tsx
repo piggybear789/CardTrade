@@ -77,7 +77,7 @@ function valueIssue(platform: SocialPlatform, raw: string): string | null {
     trimmed.includes('/') ||
     /^www\./i.test(trimmed)
   ) {
-    return 'Username only — not the full link.';
+    return 'Just the username, e.g. noditto';
   }
   if (/\s/.test(trimmed)) return "Handles can't contain spaces.";
   if (normalizeHandle(trimmed).length > 100) {
@@ -339,7 +339,7 @@ function AddPlatformControl({
     return (
       <Button
         type="button"
-        variant="outline"
+        variant="secondary"
         size="sm"
         disabled={disabled}
         onClick={() => onAdd(only.slug)}
@@ -353,7 +353,7 @@ function AddPlatformControl({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="outline" size="sm" disabled={disabled}>
+        <Button type="button" variant="secondary" size="sm" disabled={disabled}>
           <Icon icon={PlusIcon} aria-hidden />
           Add a link
         </Button>

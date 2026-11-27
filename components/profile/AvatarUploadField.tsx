@@ -213,7 +213,7 @@ export function AvatarUploadField({
         <div className="flex flex-wrap items-center gap-snug">
           <Button
             type="button"
-            variant="outline"
+            variant="secondary"
             size="sm"
             onClick={() => inputRef.current?.click()}
             disabled={controlsDisabled}
@@ -248,8 +248,7 @@ export function AvatarUploadField({
 
         {hideHint ? null : (
           <p className="text-meta text-muted-foreground">
-            Optional. PNG, JPEG, or WebP, up to 2 MB. Shown next to your name on
-            listings and in chats — it is not used to verify you.
+            Optional. PNG, JPEG or WebP, up to 2 MB. Shown next to your name on listings and in chats.
           </p>
         )}
       </div>

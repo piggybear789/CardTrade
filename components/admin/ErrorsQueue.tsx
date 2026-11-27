@@ -171,7 +171,7 @@ function Occurrence({ row, nameFor }: { row: ErrorLogRow; nameFor: (id: string) 
       {row.stack ? (
         <details>
           <summary className="cursor-pointer text-meta font-medium text-foreground">Stack</summary>
-          <pre className="mt-tight max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md border bg-muted p-snug font-mono text-meta text-muted-foreground">
+          <pre className="mt-tight max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted p-snug font-mono text-meta text-muted-foreground">
             {row.stack}
           </pre>
         </details>
@@ -357,7 +357,7 @@ export function ErrorsQueue({
                     {group.open_count > 0 ? (
                       <ErrorGroupActions fingerprint={group.fingerprint} />
                     ) : null}
-                    <Button asChild size="sm" variant="outline">
+                    <Button asChild size="sm" variant="secondary">
                       <Link href={errorsHref(filters, { group: group.fingerprint })}>
                         View occurrences
                       </Link>

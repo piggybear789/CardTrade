@@ -119,8 +119,8 @@ export function AcceptWithPhotoDialog({
             caseKind: evidenceContext.caseKind,
             caseRef: evidenceContext.caseRef,
             statement: isVideo
-              ? 'Video taken at acceptance — record of item condition when received.'
-              : 'Photo taken at acceptance — record of item condition when received.',
+              ? 'Video evidence if available, showing the condition when received.'
+              : 'Photo evidence if available, showing the condition when received.',
             mediaPaths: uploaded.paths,
           }).catch(() => {
             // Best-effort: if attaching fails, still accept. The file is in the
@@ -154,7 +154,7 @@ export function AcceptWithPhotoDialog({
 
         <div>
           {preview ? (
-            <div className="relative mx-auto h-48 w-full max-w-sm overflow-hidden rounded-lg border bg-muted">
+            <div className="relative mx-auto h-48 w-full max-w-sm overflow-hidden rounded-lg bg-muted outline outline-1 -outline-offset-1 outline-foreground/[0.08]">
               {isVideo ? (
                 <video
                   src={preview}
@@ -176,7 +176,7 @@ export function AcceptWithPhotoDialog({
                 type="button"
                 onClick={clearPhoto}
                 disabled={isPending}
-                className="absolute -right-2 -top-2 rounded-md bg-background p-tight shadow-sm border hover:bg-muted"
+                className="absolute -right-2 -top-2 grid place-items-center rounded-full bg-foreground p-tight text-background shadow-md transition-colors hover:bg-foreground/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label={isVideo ? 'Remove video' : 'Remove photo'}
               >
                 <Icon icon={XIcon} className="size-3.5" aria-hidden />
@@ -190,7 +190,7 @@ export function AcceptWithPhotoDialog({
               // A row, not a tall dashed panel. `p-section` on an OPTIONAL step
               // made the thing you are allowed to skip the largest object in the
               // dialog — a void the eye has to cross to reach Accept.
-              className="flex w-full items-center gap-cozy rounded-lg border border-input p-cozy text-left text-muted-foreground transition-colors hover:border-input-hover hover:bg-muted"
+              className="flex w-full items-center gap-cozy rounded-lg bg-foreground/[0.04] p-cozy text-left text-muted-foreground transition-colors hover:bg-foreground/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
               <Icon icon={CameraIcon} className="size-5 shrink-0" aria-hidden />
               <span className="min-w-0 space-y-tight">
@@ -198,7 +198,7 @@ export function AcceptWithPhotoDialog({
                   Add a photo or video
                 </span>
                 <span className="block text-body">
-                  Recommended — it is your evidence if there is a dispute later.
+                  Add evidence to protect yourself from a future dispute.
                 </span>
               </span>
             </button>

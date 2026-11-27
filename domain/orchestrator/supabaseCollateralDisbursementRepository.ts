@@ -210,7 +210,7 @@ export function createDisbursementNotifier(): DisbursementNotifier {
       await createNotification({
         userId: payeeId,
         type: 'TRADE',
-        title: cause === 'NOT_PAYABLE' ? 'Payout on hold — finish your payout setup' : 'Payout delayed',
+        title: cause === 'NOT_PAYABLE' ? 'Payout on hold: finish your payout setup' : 'Payout delayed',
         body:
           cause === 'NOT_PAYABLE'
             ? 'Support decided a trade dispute in your favour. We are holding what you are owed ' +

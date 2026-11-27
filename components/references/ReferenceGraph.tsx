@@ -225,7 +225,7 @@ const NetworkToolbar = memo(function NetworkToolbar({
             FILTER_PILL,
             platformFilter === null
               ? 'border-foreground bg-foreground text-background'
-              : 'border-input bg-card text-muted-foreground hover:border-input-hover hover:text-foreground',
+              : 'border-transparent bg-foreground/[0.05] text-foreground/75 hover:bg-foreground/[0.09] hover:text-foreground',
           )}
         >
           <span>All</span>
@@ -242,9 +242,12 @@ const NetworkToolbar = memo(function NetworkToolbar({
               onClick={() => filterByPlatform(p.slug)}
               className={cn(
                 FILTER_PILL,
+                // Selected is the ink fill "All" uses (2026-11-28), with the brand glyph
+                // in white: a violet frame and wash on a filter was not a use of the hue
+                // `globals.css` allows, and several brand glyphs are drawn in the ink.
                 active
-                  ? 'border-iris bg-iris/12 text-foreground ring-1 ring-iris/35'
-                  : 'border-input bg-card text-muted-foreground hover:border-input-hover hover:text-foreground',
+                  ? 'border-foreground bg-foreground text-background'
+                  : 'border-transparent bg-foreground/[0.05] text-foreground/75 hover:bg-foreground/[0.09] hover:text-foreground',
               )}
             >
               <SocialPlatformIcon
@@ -253,11 +256,13 @@ const NetworkToolbar = memo(function NetworkToolbar({
                   p.slug === 'ebay' || p.slug === 'noditto' || p.slug === 'whatnot'
                     ? 'size-3.5'
                     : 'size-3',
-                  platformTint(p.slug),
+                  active ? 'text-background' : platformTint(p.slug),
                 )}
               />
               <span>{p.label}</span>
-              <span className="tabular-nums text-muted-foreground">{p.count}</span>
+              <span className={cn('tabular-nums', active ? 'text-background/70' : 'text-muted-foreground')}>
+                {p.count}
+              </span>
             </button>
           );
         })}
@@ -601,7 +606,7 @@ const ExperienceCards = memo(function ExperienceCards({
           </p>
           <div className="flex items-center gap-2">
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className={QUIET_EDGE}
               disabled={current === 0}
@@ -611,7 +616,7 @@ const ExperienceCards = memo(function ExperienceCards({
               Previous
             </Button>
             <Button
-              variant="outline"
+              variant="secondary"
               size="sm"
               className={QUIET_EDGE}
               disabled={current >= pageCount - 1}
@@ -636,7 +641,7 @@ function EmptyNetwork({
 }) {
   return (
     <div className="relative flex min-h-[340px] flex-1 flex-col items-center justify-center bg-muted/15 px-6 py-14 text-center">
-      <div className="mx-auto mb-3 grid size-14 place-items-center rounded-lg border border-border bg-card shadow-market">
+      <div className="surface mx-auto mb-3 grid size-14 place-items-center rounded-lg bg-card">
         <span className="text-lead font-semibold text-foreground">
           {centre.name.replace(/^@/, '').slice(0, 2).toUpperCase()}
         </span>

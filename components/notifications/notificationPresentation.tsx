@@ -39,9 +39,10 @@ import {
   TagIcon,
 } from '@/components/ui/icons';
 
+import { needsViewer } from '@/components/account/ContractRow';
 import type { NotificationRow } from '@/lib/realtime/useNotifications';
 import type { Enums } from '@/lib/supabase/database.types';
-import { formatMoney, formatRelativeTime, itemImageUrl } from '@/lib/format';
+import { formatAge, formatMoney, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 type NotificationType = Enums<'notification_type'>;
@@ -88,19 +89,44 @@ function metaFor(type: string) {
  * a change in two places. The callers still own their spacing, which is the part that
  * legitimately differs (the panel's rows are tighter than the page's).
  *
- * NO UNREAD WASH. `--accent` is the neutral grey hover surface, so a tint of it on
- * every unread row made a list of new things look disabled, and the hover state could
- * not be told from it. Unread is carried inside the row instead: the `iris` dot, the
- * semibold title and the `sr-only` "unread" (`NotificationRowBody`).
+ * NO UNREAD WASH. A grey tint on every unread row made a list of new things look
+ * disabled, and the hover state could not be told from it, and most rows in a busy list
+ * are unread, so a wash there marks nearly everything. Unread is carried inside the row
+ * instead: the `iris` dot, the semibold title and the `sr-only` "unread"
+ * (`NotificationRowBody`).
  *
- * @param layout The caller's own spacing and gap utilities.
+ * A ROW WAITING ON YOU IS WASHED (2026-11-28): the amber of "your move", the same hue as
+ * its disc and its step line, so the rows that ask something of the reader read as a
+ * different kind of row at a glance, not as a slightly bolder one. It follows the
+ * contract's live plan (`needsReader`), so it clears as soon as the step is taken.
+ *
+ * Hover is the inbox's own step, a 3.5% tint of the ink, so a row reads the same in the
+ * bell, on this page and in the inbox; a washed row darkens its wash instead. The bell
+ * rounds the row (`rounded-xl`).
+ *
+ * @param layout The caller's own spacing, gap and radius utilities.
+ * @param yours Whether the row's contract is waiting on the reader (`needsReader`).
  */
-export function notificationRowClass(layout: string) {
+export function notificationRowClass(layout: string, yours = false) {
   return cn(
-    'flex w-full items-start border border-transparent text-left transition-colors',
-    'hover:bg-accent focus:outline-none focus-visible:border-ring focus-visible:bg-accent',
+    // CENTRED, so the kind's disc and the card's photo sit on one line through the
+    // middle of the row however many lines the text between them takes (2026-11-28).
+    'flex w-full items-center border border-transparent text-left transition-colors',
+    'focus:outline-none focus-visible:border-ring',
+    yours
+      ? 'bg-action/[0.16] hover:bg-action/[0.26] focus-visible:bg-action/[0.26]'
+      : 'hover:bg-foreground/[0.035] focus-visible:bg-foreground/[0.035]',
     layout,
   );
+}
+
+/**
+ * Whether the contract a row links to is waiting on the person reading it: its live
+ * step (`contract_move`, derived by the server) by the contract lists' rule
+ * (`needsViewer`). A row that links nowhere, or to a contract that has moved on, never is.
+ */
+export function needsReader(notification: NotificationRow): boolean {
+  return needsViewer(notification.contract_move ?? null);
 }
 
 /**
@@ -126,8 +152,9 @@ export function NotificationRowBody({
   const thumb = itemImageUrl(notification.image_path);
   // WHO, WHAT, HOW MUCH (0126). A generic body ("A buyer wants to purchase from your
   // listing") said the same thing on every row; with the context columns the row names
-  // the other member, the card and the amount instead. Older rows have none of these
-  // and keep their body.
+  // the other member, the card and the amount instead. A row whose producer named none
+  // takes the card and the member from the sale or trade it links to
+  // (`lib/notifications/linkedContract.ts`); one that links elsewhere keeps its body.
   const context = [
     notification.actor_name,
     notification.subject_title,
@@ -136,17 +163,32 @@ export function NotificationRowBody({
       : null,
   ].filter(Boolean);
   const line = context.length > 0 ? context.join(' · ') : notification.body;
+  // WHAT NEEDS YOU (2026-11-28). The contract the row links to, as it stands now
+  // (`contract_move`, derived by the server from the same plan as the contract room),
+  // and the contract lists' rule for whose move counts as yours (`needsViewer`). A row
+  // waiting on the reader takes the amber of "your move" on its disc and says the step
+  // in that amber's dark ink, above the who-and-which note; every other row stays grey.
+  // Never read from the title: a notification about a trade that has since completed
+  // asks for nothing.
+  const move = notification.contract_move ?? null;
+  const yours = needsReader(notification);
 
   // THE KIND LEADS THE ROW, THE CARD TRAILS IT (2026-11-23). Slack, LinkedIn and Doji
   // open each activity row with one fixed-size mark and put the subject's picture at
   // the end. Here the kind was a 14px glyph wedged between the unread dot and the title,
   // and the card photo led only the rows that had one, so titles started at two
   // different x positions down one list. The medallion is on every row, so every title
-  // lines up; the unread dot rides on it.
+  // lines up; the unread dot rides on it. Disc and photo are one size, 40px, so they
+  // share a centre line.
   return (
     <>
-      <span className="relative mt-0.5 shrink-0" aria-hidden>
-        <span className="grid size-9 place-items-center rounded-full bg-muted text-foreground">
+      <span className="relative shrink-0" aria-hidden>
+        <span
+          className={cn(
+            'grid size-10 place-items-center rounded-full',
+            yours ? 'bg-action text-action-foreground' : 'bg-muted text-foreground',
+          )}
+        >
           <Icon icon={meta.icon} className="size-4" />
         </span>
         {unread ? (
@@ -155,25 +197,39 @@ export function NotificationRowBody({
       </span>
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-snug">
-          <span className={cn('min-w-0 truncate text-body', unread ? 'font-semibold' : 'font-medium')}>
+          {/* READ ROWS AT REGULAR WEIGHT (2026-11-28). Medium against semibold was a
+              100-weight step nobody could see, so a read row looked unread minus its dot;
+              Jira, Instagram and TikTok set a read row in the body's own weight. */}
+          <span className={cn('min-w-0 truncate text-body', unread ? 'font-semibold' : 'font-normal')}>
             <span className="sr-only">
               {meta.label}
               {unread ? ', unread' : ''}:{' '}
             </span>
             {notification.title}
           </span>
+          {/* "7h", not "7h ago", as in the inbox (`formatAge`). */}
           <span
-            className="shrink-0 text-meta text-muted-foreground"
+            className="shrink-0 text-meta tabular-nums text-muted-foreground"
             suppressHydrationWarning
           >
-            {formatRelativeTime(notification.created_at)}
+            {formatAge(notification.created_at)}
           </span>
         </span>
+        {yours && move ? (
+          // The step, in the plan's own words ("Accept what you received").
+          <span className="mt-0.5 block truncate text-body font-medium text-action-foreground">
+            <span className="sr-only">Your move: </span>
+            {move.label}
+          </span>
+        ) : null}
         {line ? (
           <span
             className={cn(
-              'mt-0.5 block break-words text-body text-muted-foreground',
-              clampBody && 'line-clamp-2',
+              'mt-0.5 block text-body text-muted-foreground',
+              // Who and which card is one line, cut short rather than wrapped: a long
+              // listing title broke onto a second line and read as two notes. A
+              // sentence (a row with no subject) still gets its two lines here.
+              context.length > 0 ? 'truncate' : cn('break-words', clampBody && 'line-clamp-2'),
             )}
           >
             {line}
@@ -183,20 +239,20 @@ export function NotificationRowBody({
         {notification.target_missing ? (
           // Said in place, because following the link would land on a 404: the sale
           // or trade it pointed at has been removed or is no longer yours to open.
-          <span className="mt-1 block w-fit rounded-md border border-border bg-muted px-1.5 py-0.5 text-meta font-medium text-muted-foreground">
+          <span className="mt-1 block w-fit rounded-md bg-foreground/[0.06] px-1.5 py-0.5 text-meta font-medium text-foreground/75">
             No longer available
           </span>
         ) : null}
       </span>
       {thumb ? (
-        // eslint-disable-next-line @next/next/no-img-element -- a 44px Supabase thumbnail; next/image adds nothing here.
+        // eslint-disable-next-line @next/next/no-img-element -- a 40px Supabase thumbnail; next/image adds nothing here.
         <img
           src={thumb}
           alt=""
-          width={44}
-          height={44}
+          width={40}
+          height={40}
           loading="lazy"
-          className="mt-0.5 size-11 shrink-0 rounded-md border border-border object-cover object-top"
+          className="size-10 shrink-0 rounded-lg object-cover object-top outline outline-1 -outline-offset-1 outline-foreground/[0.08]"
         />
       ) : null}
     </>

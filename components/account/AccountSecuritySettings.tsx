@@ -114,7 +114,7 @@ export function AccountSecuritySettings({
         <SettingsListRow
           icon={EnvelopeSimpleIcon}
           label="Deadlines and disputes"
-          description="Always sent, so you never miss a window that protects you."
+          description="Always sent, so you don't miss a deadline."
         />
       </SettingsGroup>
 
@@ -127,7 +127,7 @@ export function AccountSecuritySettings({
           trailing={
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="sm"
               onClick={sendResetLink}
               disabled={resetPending || !signInEmail}
@@ -142,7 +142,7 @@ export function AccountSecuritySettings({
           label="Sign out everywhere"
           description="Ends every session, on every device, including this one."
           trailing={
-            <Button type="button" variant="outline" size="sm" onClick={() => setSignOutOpen(true)}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => setSignOutOpen(true)}>
               Sign out
             </Button>
           }

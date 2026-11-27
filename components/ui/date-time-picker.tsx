@@ -11,6 +11,7 @@ import { CalendarDotsIcon } from '@/components/ui/icons';
 
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { fieldStateClasses } from '@/components/ui/input';
 import {
   Popover,
   PopoverContent,
@@ -202,16 +203,19 @@ export function DateTimePicker({
           <Button
             id={id}
             type="button"
-            variant="outline"
+            variant="secondary"
             disabled={disabled}
             aria-required={required}
             // No height override: Button's default (`h-9 md:h-8`) is the height the
             // time `SelectTrigger` beside it uses. `h-10` made the pair 4px apart
             // wherever the grid puts them side by side.
-            // A FIELD, not a button: no drop shadow, so it matches the time select
-            // beside it. The edge is already the shared `border-input`.
+            // A FIELD, not a button, so it matches the time select beside it. Since the
+            // quiet button went tonal (2026-11-28) a field has to say so here: the
+            // select's `border-input` edge on a card fill, no tint on hover or press,
+            // and the field focus frame (`fieldStateClasses`) instead of the button's.
             className={cn(
-              'w-full justify-start font-normal shadow-none',
+              'w-full justify-start border-input bg-card font-normal hover:bg-card active:translate-y-0 active:bg-card focus-visible:ring-0 disabled:bg-card',
+              fieldStateClasses,
               !parts && 'text-muted-foreground',
             )}
           >

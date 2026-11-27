@@ -144,7 +144,7 @@ export function SavedCardRow({
 
   return (
     <div className={className}>
-      <div className="flex items-center gap-cozy rounded-lg border p-cozy">
+      <div className="flex items-center gap-cozy rounded-lg bg-muted/60 p-cozy">
         <Icon icon={CreditCardIcon} className="size-5 shrink-0 text-muted-foreground" aria-hidden />
         <div className="min-w-0 flex-1">
           <p className="truncate text-body font-medium">

@@ -107,13 +107,9 @@ export default function RootLayout({
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
         ) : null}
       </head>
-      <body className="flex min-h-dvh flex-col">
-        <a
-          href="#main-content"
-          className="fixed left-[max(1rem,env(safe-area-inset-left))] top-[max(0.75rem,env(safe-area-inset-top))] z-[100] -translate-y-24 rounded-md bg-iris px-group py-snug text-body font-semibold text-obsidian shadow-auction transition-transform hover:bg-iris/90 border border-transparent focus:outline-none focus-visible:translate-y-0 focus-visible:border-mist"
-        >
-          Skip to Main Content
-        </a>
+      {/* `data-fits-viewport` on a page (the References landing) caps the body at one
+          screen, so that page's flex chain shrinks to fit instead of scrolling. */}
+      <body className="flex min-h-dvh flex-col has-[[data-fits-viewport]]:h-dvh">
         <StartDealProvider>
           {/* NO SUSPENSE AROUND THE HEADER. Behind `<Suspense fallback={null}>` it
               streamed as its own segment and React revealed it after the page body

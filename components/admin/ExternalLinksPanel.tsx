@@ -230,7 +230,7 @@ export function ExternalLinksPanel() {
                         <ExternalLink href={link.profileUrl}>{link.username}</ExternalLink>
                         <p className="text-meta text-muted-foreground">Checked: {link.note}</p>
                       </div>
-                      <Button size="sm" variant="outline" disabled={pending} onClick={() => remove(link.id)}>
+                      <Button size="sm" variant="secondary" disabled={pending} onClick={() => remove(link.id)}>
                         Remove link
                       </Button>
                     </li>
@@ -240,7 +240,7 @@ export function ExternalLinksPanel() {
             ) : null}
 
             {search.candidates.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border px-cozy py-group text-body text-muted-foreground">
+              <p className="rounded-lg bg-muted/80 px-cozy py-group text-body text-muted-foreground">
                 No eBay seller with live listings is spelled like @{search.handle}. eBay shows a seller
                 only while they have listings, so an account with none cannot be found here. If you know
                 their eBay name, enter it above.
@@ -311,7 +311,7 @@ export function ExternalLinksPanel() {
                             </Button>
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="secondary"
                               disabled={pending || candidate.state === 'REJECTED_HERE'}
                               onClick={() => decide(candidate, 'REJECT')}
                             >

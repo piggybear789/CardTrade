@@ -149,7 +149,7 @@ export function DisputeActions({
   }
 
   return (
-    <div className="space-y-cozy rounded-lg border border-border bg-muted p-cozy">
+    <div className="space-y-cozy rounded-lg bg-muted/80 p-cozy">
       <p className="flex items-center gap-snug text-body font-medium">
         <Icon icon={ScalesIcon} className="size-4 shrink-0 text-muted-foreground" aria-hidden />
         Resolve this dispute
@@ -163,7 +163,7 @@ export function DisputeActions({
       {openChargebackRef ? (
         <p
           role="alert"
-          className="rounded-md border border-destructive/40 bg-destructive/10 px-cozy py-snug text-body"
+          className="rounded-lg bg-destructive/[0.07] px-cozy py-snug text-body"
         >
           <span className="font-semibold">A chargeback is open on this sale.</span>{' '}
           The buyer disputed the payment with their bank ({openChargebackRef}). The issuer
@@ -213,7 +213,7 @@ export function DisputeActions({
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           disabled={isPending}
           aria-haspopup="dialog"
           onClick={() => setConfirming('RELEASE_SELLER')}
@@ -238,7 +238,7 @@ export function DisputeActions({
         <Button
           type="button"
           size="sm"
-          variant="outline"
+          variant="secondary"
           disabled={isPending || !partialValid}
           aria-haspopup="dialog"
           onClick={() => setConfirming('PARTIAL_REFUND')}

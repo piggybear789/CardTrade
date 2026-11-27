@@ -418,7 +418,7 @@ export function ContractThumbnails({
                     type="button"
                     onClick={() => setOpenIndex(restShown.length + 1)}
                     aria-label={`See all ${images.length} photos for ${label}`}
-                    className="size-11 rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-accent focus:outline-none focus-visible:border-ring"
+                    className="size-11 rounded-md border border-transparent bg-foreground/[0.06] text-meta font-semibold tabular-nums text-muted-foreground transition hover:bg-foreground/[0.1] focus:outline-none focus-visible:border-ring"
                   >
                     +{restOverflow}
                   </button>
@@ -472,8 +472,8 @@ export function ContractThumbnails({
               onClick={() => setOpenIndex(max)}
               aria-label={`See all ${images.length} photos for ${label}`}
               className={cn(
-                'rounded-md border bg-muted text-meta font-semibold tabular-nums text-muted-foreground transition',
-                'hover:bg-accent border border-transparent focus:outline-none focus-visible:border-ring',
+                'rounded-md border border-transparent bg-foreground/[0.06] text-meta font-semibold tabular-nums text-muted-foreground transition',
+                'hover:bg-foreground/[0.1] focus:outline-none focus-visible:border-ring',
                 tile,
               )}
             >

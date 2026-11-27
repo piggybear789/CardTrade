@@ -84,7 +84,7 @@ function NotEditable({ itemId, status }: { itemId: string; status: string }) {
       action={{
         label: 'Back to listing',
         href: `/listings/${itemId}`,
-        variant: 'outline',
+        variant: 'secondary',
         transitionTypes: ['nav-back'],
       }}
     />

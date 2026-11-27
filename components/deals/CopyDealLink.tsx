@@ -38,7 +38,7 @@ export function CopyDealLink({
   return (
     <Button
       type="button"
-      variant={appearance === 'icon' ? 'ghost' : 'outline'}
+      variant={appearance === 'icon' ? 'ghost' : 'secondary'}
       size={appearance === 'icon' ? 'sm' : 'default'}
       className={appearance === 'icon' ? 'size-10 shrink-0 p-0 lg:size-8' : undefined}
       onClick={handleCopy}

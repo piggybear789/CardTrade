@@ -35,7 +35,8 @@ export function EmptyState({
   description?: ReactNode;
   action?: {
     label: string;
-    variant?: 'default' | 'outline';
+    /** `secondary` is the tonal button; `outline` is kept as its alias (`button.tsx`). */
+    variant?: 'default' | 'secondary' | 'outline';
     disabled?: boolean;
   } & (
     | {
@@ -151,7 +152,9 @@ export function EmptyState({
         <div
           aria-hidden="true"
           className={cn(
-            'items-center justify-center rounded-full border bg-muted text-muted-foreground md:flex md:size-12',
+            // A tinted disc, no ring (2026-11-28): the bordered grey disc read as a
+            // placeholder for an icon rather than as the icon's own mark.
+            'items-center justify-center rounded-full bg-foreground/[0.05] text-foreground/70 md:flex md:size-12',
             isPage
               ? 'flex size-12'
               : fill

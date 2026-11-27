@@ -7,7 +7,7 @@
 // (seeded from a server-provided initial list). Each row links to its `link` and
 // marks itself read on click.
 //
-// The unread count and "Mark all read" sit in the section header as
+// The unread count and "Mark all as read" sit in the section header as
 // `NotificationsToolbar`. `NotificationsProvider` gives the toolbar and the list one
 // subscription: two `useNotifications` calls would keep two separate counts.
 //
@@ -17,13 +17,13 @@
 //
 // THE ORDER NEVER CHANGES WHEN SOMETHING IS READ, deliberately. Pinning unread to the
 // top is the obvious way to show "what needs you", and it would mean the list reshuffles
-// under the cursor on every click and rearranges itself wholesale on "Mark all read".
+// under the cursor on every click and rearranges itself wholesale on "Mark all as read".
 // Unread is carried by weight and the row tint instead, which is stable.
 
 import { createContext, use, useState, useTransition, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
-import { BellSlashIcon, ChecksIcon, CircleNotchIcon } from '@/components/ui/icons';
+import { BellSlashIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import { navigateWithType } from '@/lib/motion/navigate';
@@ -41,6 +41,7 @@ import {
 } from '@/lib/realtime/useNotifications';
 import {
   groupNotificationsByAge,
+  needsReader,
   NOTIFICATION_TYPE_META,
   NotificationRowBody,
   notificationRowClass,
@@ -96,7 +97,7 @@ export function NotificationsProvider({
   return <NotificationsContext value={value}>{children}</NotificationsContext>;
 }
 
-/** The unread count and "Mark all read", for the section header. */
+/** The unread count and "Mark all as read", for the section header. */
 export function NotificationsToolbar() {
   const { notifications, unreadCount, markAllReadLocal } = useNotificationsState();
   const [isPending, startTransition] = useTransition();
@@ -121,18 +122,14 @@ export function NotificationsToolbar() {
       <p className="hidden whitespace-nowrap text-body text-muted-foreground sm:block" aria-live="polite">
         {unreadCount === 0 ? 'All caught up' : `${unreadCount} unread`}
       </p>
+      {/* Words, no double tick, as in the header's panel (`NotificationBell`). */}
       <Button
-        variant="outline"
+        variant="secondary"
         size="sm"
         onClick={handleMarkAll}
         disabled={isPending || unreadCount === 0}
       >
-        {isPending ? (
-          <Icon icon={CircleNotchIcon} className="animate-spin" aria-hidden />
-        ) : (
-          <Icon icon={ChecksIcon} aria-hidden />
-        )}
-        Mark all read
+        Mark all as read
       </Button>
     </div>
   );
@@ -229,11 +226,13 @@ export function NotificationCenter({
                 aria-pressed={selected}
                 onClick={() => setTypeFilter(kind)}
                 className={cn(
-                  'inline-flex h-9 shrink-0 touch-manipulation items-center gap-tight rounded-full border px-cozy text-body font-medium transition-colors',
+                  // The filter chip every list uses (2026-11-28): `rounded-md`, because a
+                  // control is never a pill, and a tint rather than an edge at rest.
+                  'inline-flex h-9 shrink-0 touch-manipulation items-center gap-tight rounded-md border px-cozy text-body font-medium transition-colors',
                   'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
                   selected
                     ? 'border-foreground bg-foreground text-background'
-                    : 'border-input bg-card text-foreground hover:bg-muted',
+                    : 'border-transparent bg-foreground/[0.05] text-foreground/75 hover:bg-foreground/[0.09] hover:text-foreground',
                 )}
               >
                 {label}
@@ -274,7 +273,7 @@ export function NotificationCenter({
                   <button
                     type="button"
                     onClick={() => handleSelect(head, rest)}
-                    className={notificationRowClass('gap-cozy px-group py-3.5')}
+                    className={notificationRowClass('gap-cozy px-group py-3.5', needsReader(head))}
                   >
                     <NotificationRowBody
                       notification={unread ? { ...head, read_at: null } : head}

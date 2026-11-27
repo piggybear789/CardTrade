@@ -182,9 +182,7 @@ export function CashSaleReturnPanel({
           (D2) and stating it plainly is the only honest way to charge it. */}
       {viewerIsBuyer && !inTransit ? (
         <p className="text-body text-muted-foreground">
-          Return postage is at your cost and is not refunded. Use a tracked service —
-          the refund depends on the carrier confirming delivery, so an untracked parcel
-          cannot release it.
+          You pay return postage, and it isn&apos;t refunded. Use a tracked service - your refund is released when the carrier confirms delivery.
         </p>
       ) : null}
 
@@ -196,7 +194,7 @@ export function CashSaleReturnPanel({
           // would be a lie told to force action.
           expiryConsequence={
             viewerIsBuyer
-              ? 'If you miss it, our team reviews the case instead of closing it automatically — your refund is not cancelled, but it takes longer.'
+              ? 'If you miss it, our team reviews the case. You still get your refund, but it will take longer.'
               : 'If they miss it, our team reviews the case. Nothing is paid out to either side on a timer.'
           }
         />
@@ -279,9 +277,7 @@ export function CashSaleReturnPanel({
           triggerVariant="outline"
           title="Report a problem with the return"
           outcomeDescription={
-            'This pauses the refund and sends the case to our team. It does not decide it, '
-            + 'and nothing is paid out to either side while they look. Add photos of what '
-            + 'arrived if you can — an empty or wrong parcel is much easier to act on with them.'
+            'This pauses the refund and sends the case to our team. Nothing is paid out while they look. Photos make an empty or wrong parcel much easier to sort out.'
           }
           reasonPlaceholder="What arrived, or what did not?"
           evidenceContext={{ caseKind: 'CASH_SALE', caseRef: cashSaleId }}

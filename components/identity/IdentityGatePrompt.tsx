@@ -127,7 +127,7 @@ export function IdentityGatePrompt({
         return;
       }
       // No hosted flow (MockService): fall back to reading whatever state exists.
-      await settle('Still checking — we will update this automatically.');
+      await settle('Still checking. This updates by itself.');
     });
   }
 
@@ -184,7 +184,7 @@ function IdentityCheckSteps() {
     <ol className="space-y-cozy">
       <li className="flex items-center gap-cozy">
         <span
-          className="grid size-6 shrink-0 place-items-center rounded-full border border-border bg-muted text-meta font-semibold text-muted-foreground"
+          className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground/[0.06] text-meta font-semibold text-foreground/70"
           aria-hidden
         >
           1
@@ -198,7 +198,7 @@ function IdentityCheckSteps() {
       </li>
       <li className="flex items-center gap-cozy">
         <span
-          className="grid size-6 shrink-0 place-items-center rounded-full border border-border bg-muted text-meta font-semibold text-muted-foreground"
+          className="grid size-6 shrink-0 place-items-center rounded-full bg-foreground/[0.06] text-meta font-semibold text-foreground/70"
           aria-hidden
         >
           2

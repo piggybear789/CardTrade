@@ -46,7 +46,7 @@ export function ClearFlagButton({ tradeId }: ClearFlagButtonProps) {
   return (
     <Button
       type="button"
-      variant="outline"
+      variant="secondary"
       disabled={isPending}
       onClick={handleClick}
       aria-busy={isPending}

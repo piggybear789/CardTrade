@@ -103,9 +103,7 @@ export function PayoutSummary({ model, currency }: { model: PayoutReadModel; cur
           and there is deliberately no withdraw control anywhere on this page. */}
       <SettingsPanelRow>
         <p className="text-meta text-muted-foreground">
-          NoDitto is not a bank. What we hold for you sits with Stripe, our payment
-          provider, until a sale settles and it is released to your payout account
-          automatically. It earns no interest and there is nothing here to withdraw.
+          Money we hold for you sits with Stripe, our payment provider, until a sale settles. Then it goes to your payout account automatically.
         </p>
       </SettingsPanelRow>
     </SettingsGroup>

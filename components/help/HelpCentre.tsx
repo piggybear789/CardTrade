@@ -148,8 +148,7 @@ function answers(tradeInspectionDays: number): Answer[] {
       keywords: 'list listing verify identity requirements start selling',
       body: (
         <p>
-          A Stripe identity check to list. To be paid you also set up payouts, a separate
-          Stripe step — you can sell before it is done, but the money waits until it is.
+          A Stripe ID check to list. To be paid you also set up payouts with Stripe. You can sell before then, but the money waits until it&apos;s done.
         </p>
       ),
     },
@@ -160,8 +159,7 @@ function answers(tradeInspectionDays: number): Answer[] {
       keywords: 'paid payout money bank when sale completed',
       body: (
         <p>
-          A payout is queued when the sale completes — when the buyer accepts or their
-          window ends — and Stripe sends it to your bank on its payout schedule. Track it
+          A payout is queued when the buyer accepts or their window ends. Stripe then sends it to your bank. Track it
           in{' '}
           <Link href="/profile?tab=payouts" className={LINK}>
             Payouts
@@ -189,9 +187,7 @@ function answers(tradeInspectionDays: number): Answer[] {
       keywords: 'trade swap collateral card hold meet',
       body: (
         <p>
-          Trades are face to face. Both traders place a temporary hold on their card for
-          what they receive — an uncaptured authorisation, so nothing is charged while the
-          trade goes normally. You meet, swap, confirm, then have {tradeInspectionDays}{' '}
+          Trades are face to face. Each trader puts a temporary hold on their card for what they receive. Nothing is charged if the trade goes normally. You meet, swap, confirm, then have {tradeInspectionDays}{' '}
           days to check what you got.
         </p>
       ),
@@ -223,8 +219,7 @@ function answers(tradeInspectionDays: number): Answer[] {
         <>
           <p>
             You submit a government document and a selfie to Stripe Identity; Stripe
-            checks them and NoDitto records the result. A verified status says Stripe
-            accepted that check — not a credit score or a guarantee of performance.
+            checks them and NoDitto records the result. &ldquo;Verified&rdquo; means Stripe accepted the check. It says nothing about how someone will trade.
           </p>
           <p>
             Sellers and traders need it. Buyers don&rsquo;t, unless one purchase is priced
@@ -346,7 +341,8 @@ export function HelpCentre({
                 'inline-flex h-9 items-center rounded-md border px-group text-body font-medium transition-colors focus:outline-none focus-visible:border-ring',
                 selected
                   ? 'border-foreground bg-foreground text-primary-foreground'
-                  : 'border-input bg-card text-foreground hover:border-input-hover',
+                  : // A tint, as the tonal button is (2026-11-28); selected stays the ink.
+                    'border-transparent bg-foreground/[0.05] text-foreground/75 hover:bg-foreground/[0.09] hover:text-foreground',
               )}
             >
               {entry.label}
@@ -374,7 +370,7 @@ export function HelpCentre({
 
       <section
         aria-labelledby="contact-heading"
-        className="flex flex-col gap-cozy rounded-lg border bg-muted/60 p-group sm:flex-row sm:items-center sm:justify-between"
+        className="flex flex-col gap-cozy rounded-lg bg-muted/80 p-group sm:flex-row sm:items-center sm:justify-between"
       >
         <div className="flex gap-cozy">
           <Icon icon={ChatCircleTextIcon} className="mt-0.5 size-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -391,13 +387,13 @@ export function HelpCentre({
         {signedIn ? (
           <FeedbackDialog
             trigger={
-              <Button type="button" variant="outline" className="shrink-0">
+              <Button type="button" variant="secondary" className="shrink-0">
                 Contact support
               </Button>
             }
           />
         ) : (
-          <Button asChild variant="outline" className="shrink-0">
+          <Button asChild variant="secondary" className="shrink-0">
             <Link href="/sign-in?redirectTo=%2Fhelp">Sign in to contact us</Link>
           </Button>
         )}

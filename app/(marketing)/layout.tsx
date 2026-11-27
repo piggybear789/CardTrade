@@ -39,8 +39,12 @@ export default async function MarketingLayout({ children }: { children: ReactNod
     <>
       <div className="flex min-h-0 flex-1 flex-col max-md:pb-[calc(3.5rem+1px+env(safe-area-inset-bottom))]">
         {/* AT LEAST ONE SCREEN TALL, so the footer always starts below the fold. Below
-            the fold, the page growing moves nothing the reader can see. */}
-        <div className="flex min-h-[calc(100dvh-var(--chrome-top))] flex-1 flex-col">{children}</div>
+            the fold, the page growing moves nothing the reader can see. EXCEPT a page
+            marked `data-fits-viewport` (the References landing), which is one screen
+            with the footer on it and does not scroll. */}
+        <div className="flex min-h-[calc(100dvh-var(--chrome-top))] flex-1 flex-col has-[[data-fits-viewport]]:min-h-0">
+          {children}
+        </div>
         {/* Client, for its one path check: hidden on phones on the references pages. */}
         <MarketingFooter />
       </div>

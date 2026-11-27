@@ -237,7 +237,7 @@ export function linkDecisionProblem(input: {
       message:
         input.decision === 'CONFIRM'
           ? `Say what you checked, in at least ${LINK_NOTE_CONFIRM_MIN} characters. For example: the eBay About page names this Instagram.`
-          : `Say why it is not them, in at least ${LINK_NOTE_REJECT_MIN} characters.`,
+          : `Say why this account belongs to someone else, in at least ${LINK_NOTE_REJECT_MIN} characters.`,
     };
   }
   if (note.length > LINK_NOTE_MAX) {

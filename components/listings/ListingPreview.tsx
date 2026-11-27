@@ -256,11 +256,13 @@ function PhotoGallery({ photos }: { photos: PreviewPhotos }) {
       <label
         {...drop.handlers}
         className={cn(
-          'flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center gap-cozy rounded-lg border border-dashed border-input bg-muted/50 px-group text-center transition-colors hover:border-input-hover hover:bg-muted has-[:focus-visible]:border-ring',
-          drop.over && 'border-foreground bg-accent',
+          // A tinted drop area, no dashed edge (the doctrine in `globals.css`): the camera
+          // disc and the copy say "drop photos here"; a file dragged over darkens it.
+          'flex min-h-0 flex-1 cursor-pointer flex-col items-center justify-center gap-cozy rounded-lg bg-foreground/[0.04] px-group text-center transition-colors hover:bg-foreground/[0.06] has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-inset has-[:focus-visible]:ring-ring',
+          drop.over && 'bg-foreground/[0.09]',
         )}
       >
-        <span className="grid size-14 place-items-center rounded-full border border-border bg-card text-foreground">
+        <span className="grid size-14 place-items-center rounded-full bg-card text-foreground shadow-[0_1px_3px_hsl(var(--obsidian)/0.12)]">
           <Icon icon={CameraPlusIcon} className="size-6" aria-hidden />
         </span>
         <span className="text-lead font-semibold text-foreground">Drop photos here</span>
@@ -347,7 +349,7 @@ function PhotoGallery({ photos }: { photos: PreviewPhotos }) {
           <li className="shrink-0">
             <label
               title="Add photos"
-              className="grid size-14 cursor-pointer place-items-center rounded-md border border-dashed border-input bg-card text-muted-foreground transition-colors hover:border-input-hover hover:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
+              className="grid size-14 cursor-pointer place-items-center rounded-md bg-foreground/[0.05] text-muted-foreground transition-colors hover:bg-foreground/[0.09] hover:text-foreground has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring"
             >
               <Icon icon={PlusIcon} className="size-5" aria-hidden />
               <PhotoInput photos={photos} onPicked={() => setActive(count)} />

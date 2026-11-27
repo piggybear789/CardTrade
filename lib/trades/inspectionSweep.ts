@@ -201,7 +201,7 @@ export async function sweepTradeInspections(): Promise<TradeInspectionSweepResul
               'collateral holds were released.'
             : `The ${TRADE_INSPECTION_HOURS}-hour inspection window closed without ` +
               'either trader accepting or disputing, so the trade completed. Part of ' +
-              'the settlement is still being finalised and our team is on it — if a ' +
+              'the settlement is still being finalised and our team is on it. If a ' +
               'collateral hold is still showing on your card, it will clear shortly.',
           link: `/trades/${row.id}`,
         })),

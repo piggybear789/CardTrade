@@ -105,13 +105,14 @@ function Lane({
   action?: ReactNode;
 }) {
   return (
-    // The lane awaiting the viewer gets a darker edge. Two identically bordered
-    // boxes gave equal billing to the one that needs them and the one that does
-    // not; the weight difference does the sorting before any of it is read.
+    // The lane awaiting the viewer is a filled tile, the other a hairline with no
+    // fill. Two identically bordered boxes gave equal billing to the one that needs
+    // them and the one that does not; the weight difference does the sorting before
+    // any of it is read. A fill, not a darker edge (2026-11-28): the fill is the shape.
     <li
       className={cn(
         'rounded-lg border p-cozy',
-        !ready && action ? 'border-obsidian/30' : 'border-border',
+        !ready && action ? 'border-transparent bg-muted/80' : 'border-border',
       )}
     >
       {/* Route, state and control on one row; the address itself gets the row
@@ -136,7 +137,7 @@ function Lane({
 
         {/* A chip, not loose text. The status is a verdict on the lane — ready,
             or someone is being waited on — and next to a route diagram it needs
-            an edge or it reads as a caption on the arrow. */}
+            a fill or it reads as a caption on the arrow. */}
         <span
           className={cn(
             'flex shrink-0 items-center gap-tight rounded-md border px-2.5 py-0.5 text-meta font-medium',
@@ -146,7 +147,7 @@ function Lane({
               ? 'cardtrade-success-chip'
               : action
                 ? 'noditto-character'
-                : 'border-border bg-muted text-muted-foreground',
+                : 'border-transparent bg-foreground/[0.06] text-muted-foreground',
           )}
         >
           {ready ? <Icon icon={CheckIcon} className="size-3" aria-hidden /> : null}
@@ -289,7 +290,7 @@ export function DeliveryAddressPanel({
               // that is not.
               <Button
                 type="button"
-                variant={mine ? 'outline' : 'default'}
+                variant={mine ? 'secondary' : 'default'}
                 size="sm"
                 className={cn(
                   'shrink-0 gap-tight px-snug font-medium [&_svg]:size-3.5',
@@ -325,7 +326,7 @@ export function DeliveryAddressPanel({
           one that stops people pasting their street into the chat thread. */}
       <p className="flex items-center gap-snug rounded-md bg-muted px-cozy py-snug text-body text-muted-foreground">
         <Icon icon={InfoIcon} className="size-4 shrink-0" aria-hidden />
-        <span>Addresses are never shown in chat, and only to the sender.</span>
+        <span>Address will only be shown to the sender.</span>
       </p>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>

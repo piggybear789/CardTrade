@@ -209,7 +209,7 @@ export function TradeHandoverTermsEditor({
       <DialogTrigger asChild>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           className="gap-tight px-cozy text-meta font-medium [&_svg]:size-3"
         >

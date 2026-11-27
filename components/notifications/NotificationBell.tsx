@@ -4,9 +4,9 @@
 //
 // The in-app NOTIFICATION CENTER entry point for the site header (Phase 4). A
 // bell icon with an unread-count badge that opens a lightweight popover panel
-// listing recent notifications. Each row shows the title, optional body, a
+// listing recent notifications. Each row shows the title, what it is about, a
 // relative timestamp, and an unread dot; clicking a row marks it read and
-// navigates to its `link`. A "Mark all read" action clears every unread badge.
+// navigates to its `link`. A "Mark all as read" action clears every unread badge.
 //
 // The list is seeded by the server. Opening the panel refreshes it through a
 // server action. A Realtime channel here pulled the browser Supabase client
@@ -17,19 +17,27 @@
 // the last control in the header, so anchoring a panel to its edge pushes the
 // panel off the opposite side of a narrow viewport. The popover keeps itself
 // inside the viewport, and portals out of the header's backdrop filter.
+//
+// THE PANEL, 2026-11-28 (a Mobbin pass over Jira, Instagram, TikTok, Faire and Air):
+// rows grouped by age under the same headings as the notifications page, inset rows
+// with no rules between them (the inbox's shape), the title and one plain-text action
+// on top, and "See all notifications" at the foot.
 
-import { useRef, useState, useTransition } from 'react';
+import { useId, useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { Icon } from '@/components/ui/icon';
-import { BellIcon, ChecksIcon, CircleNotchIcon } from '@/components/ui/icons';
+import { BellIcon } from '@/components/ui/icons';
 import { toast } from 'sonner';
 
 import {
+  HEADER_ICON_BADGE,
   HEADER_ICON_BUTTON,
   HEADER_ICON_GLYPH,
 } from '@/components/layout/HeaderControls';
 import { HeaderTooltip } from '@/components/layout/HeaderTooltip';
 import {
+  groupNotificationsByAge,
+  needsReader,
   NotificationRowBody,
   notificationRowClass,
 } from '@/components/notifications/notificationPresentation';
@@ -58,9 +66,19 @@ export function NotificationBell({
   initialNotifications,
 }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  // TWO TRANSITIONS, ON PURPOSE. "Mark all as read" used to wait on the one the list
+  // refresh runs in, so it greyed out for a moment every time the panel opened.
+  const [, startBackground] = useTransition();
+  const [isMarkingAll, startMarkAll] = useTransition();
   const [notifications, setNotifications] = useState(initialNotifications);
+  // The instant the panel opened, which its rows are grouped by age against. Taken on
+  // open, so a group never changes under the reader while the panel is up.
+  const [openedAt, setOpenedAt] = useState<string | null>(null);
+  // When "Mark all as read" was last pressed. A refresh that set off before it reads the
+  // rows as they were, and must not put the dots back on rows it cleared.
+  const markedAllAt = useRef<number | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const headingId = useId();
   const unreadCount = notifications.reduce(
     (count, notification) => count + (notification.read_at === null ? 1 : 0),
     0,
@@ -77,8 +95,7 @@ export function NotificationBell({
     );
   }
 
-  function markAllReadLocal() {
-    const readAt = new Date().toISOString();
+  function markAllReadLocal(readAt: string) {
     setNotifications((current) =>
       current.map((notification) =>
         notification.read_at === null ? { ...notification, read_at: readAt } : notification,
@@ -89,9 +106,21 @@ export function NotificationBell({
   function handleOpenChange(next: boolean) {
     setOpen(next);
     if (!next) return;
-    startTransition(async () => {
+    const requestedAt = Date.now();
+    setOpenedAt(new Date(requestedAt).toISOString());
+    startBackground(async () => {
       const result = await listMyNotifications(PANEL_LIMIT);
-      if (result.ok) setNotifications(result.notifications);
+      if (!result.ok) return;
+      const clearedAt = markedAllAt.current;
+      setNotifications(
+        clearedAt !== null && clearedAt >= requestedAt
+          ? result.notifications.map((notification) =>
+              notification.read_at === null && Date.parse(notification.created_at) <= clearedAt
+                ? { ...notification, read_at: new Date(clearedAt).toISOString() }
+                : notification,
+            )
+          : result.notifications,
+      );
     });
   }
 
@@ -99,7 +128,7 @@ export function NotificationBell({
     // Optimistically mark read, persist best-effort, then navigate.
     if (notification.read_at === null) {
       markReadLocal(notification.id);
-      startTransition(async () => {
+      startBackground(async () => {
         const res = await markNotificationRead(notification.id);
         if (!res.ok) {
           toast.error('Could not mark notification as read.');
@@ -110,8 +139,10 @@ export function NotificationBell({
   }
 
   function handleMarkAll() {
-    markAllReadLocal();
-    startTransition(async () => {
+    const at = Date.now();
+    markedAllAt.current = at;
+    markAllReadLocal(new Date(at).toISOString());
+    startMarkAll(async () => {
       const result = await markAllNotificationsRead();
       if (!result.ok) {
         toast.error('Could not mark notifications as read.');
@@ -120,9 +151,19 @@ export function NotificationBell({
   }
 
   const visible = notifications.slice(0, PANEL_LIMIT);
+  // The page's own buckets ("Last 24 hours", "Last 7 days"…), NOT unread first: pinning
+  // unread rows to the top would reshuffle the list on every click and rearrange it
+  // wholesale on "Mark all as read" (the rule `NotificationCenter` records).
+  const groups = open
+    ? groupNotificationsByAge(visible, openedAt ?? new Date().toISOString())
+    : [];
 
   return (
       <Popover open={open} onOpenChange={handleOpenChange}>
+      {/* The tooltip wraps the TRIGGER, inside the Popover, so one button carries
+          both. It needs the rail's `TooltipProvider` (see `SignedInHeaderTools`).
+          Pressing the bell closes the label, and it stays closed while the
+          pointer rests there, so it never sits on top of the open panel. */}
       {/* The tooltip wraps the TRIGGER, inside the Popover, so one button carries
           both. It needs the rail's `TooltipProvider` (see `SignedInHeaderTools`).
           Pressing the bell closes the label, and it stays closed while the
@@ -138,15 +179,11 @@ export function NotificationBell({
         >
           <Icon
             icon={BellIcon}
+            weight={open ? 'fill' : undefined}
             className={HEADER_ICON_GLYPH}
             aria-hidden
           />
-          {/* On the bell's shoulder, inside the round target, with a page-coloured
-              ring so it reads as sitting on the icon rather than beside it. */}
-          <CountBadge
-            count={unreadCount}
-            className="absolute right-0.5 top-0.5 ring-2 ring-background"
-          />
+          <CountBadge count={unreadCount} className={HEADER_ICON_BADGE} />
         </PopoverTrigger>
       </HeaderTooltip>
 
@@ -158,7 +195,7 @@ export function NotificationBell({
         // `-1` so the panel can take focus itself without entering the tab order.
         tabIndex={-1}
         // FOCUS THE PANEL, NOT THE FIRST CONTROL IN IT. Radix's default lands on
-        // "Mark all read" — a bulk action, wearing the violet focus edge, before the
+        // "Mark all as read" — a bulk action, wearing the violet focus edge, before the
         // member has read a single row. Focus goes to the labelled panel instead, which
         // is also what a screen reader should announce on open.
         //
@@ -177,47 +214,75 @@ export function NotificationBell({
         // instead of running past the bottom of a short viewport.
         className="flex max-h-[min(28rem,var(--radix-popover-content-available-height,28rem))] w-[min(24rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-lg p-0 shadow-lg"
       >
-        <div className="flex shrink-0 items-center justify-between gap-snug border-b px-group py-2.5">
-          <p className="text-body font-semibold">Notifications</p>
+        {/* The title and one quiet action. No rule under it: the first group's heading
+            is the break. */}
+        <div className="flex shrink-0 items-center justify-between gap-snug px-group pb-tight pt-cozy">
+          <p className="text-lead font-semibold">Notifications</p>
+          {/* WORDS, NO GLYPH (2026-11-28). The double tick is a chat app's "read"
+              receipt, so beside the title it read as a status ("all read") rather than
+              an action; Reddit, Klaviyo and Langdock set this as plain text. No spinner
+              either: the dots clear the moment it is pressed. */}
           <button
             type="button"
             onClick={handleMarkAll}
-            disabled={isPending || unreadCount === 0}
-            className="inline-flex min-h-9 items-center gap-tight rounded-md border border-transparent px-snug text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50"
+            disabled={isMarkingAll || unreadCount === 0}
+            className="inline-flex min-h-9 items-center rounded-md border border-transparent px-snug text-body text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50"
           >
-            {isPending ? (
-              <Icon icon={CircleNotchIcon} className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <Icon icon={ChecksIcon} className="size-3.5" aria-hidden />
-            )}
-            Mark all read
+            Mark all as read
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {/* INSET ROWS, NO RULES BETWEEN THEM, the inbox's list: `px-snug` here and on
+            the row puts every title 16px in, on the header's line. A THIN SCROLLBAR, as
+            the list scrolls inside a page that scrolls, and the platform's full bar with
+            arrows (Windows) was the heaviest line in the panel. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-snug pb-snug [scrollbar-width:thin]">
           {visible.length === 0 ? (
             <div className="px-group py-10 text-center text-body text-muted-foreground">
               You&apos;re all caught up.
             </div>
           ) : (
-            <ul role="list" className="divide-y">
-              {visible.map((n) => (
-                <li key={n.id}>
-                  <Link
-                    // A removed contract would 404; the centre says so in place.
-                    href={n.link && !n.target_missing ? n.link : '/notifications'}
-                    onClick={() => handleSelect(n)}
-                    className={notificationRowClass('gap-snug px-group py-cozy')}
-                  >
-                    {/* The centre's row, term for term. The panel clamps the body
-                        because it is 28rem tall at most and three long notifications
-                        would fill it. */}
-                    <NotificationRowBody notification={n} clampBody />
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            groups.map((group) => (
+              <section key={group.key} aria-labelledby={`${headingId}-${group.key}`}>
+                <h2
+                  id={`${headingId}-${group.key}`}
+                  className="px-snug pb-tight pt-snug text-meta font-medium text-muted-foreground"
+                >
+                  {group.label}
+                </h2>
+                <ul role="list" className="flex flex-col gap-px">
+                  {group.rows.map((n) => (
+                    <li key={n.id}>
+                      <Link
+                        // A removed contract would 404; the centre says so in place.
+                        href={n.link && !n.target_missing ? n.link : '/notifications'}
+                        onClick={() => handleSelect(n)}
+                        className={notificationRowClass('gap-snug rounded-xl px-snug py-snug', needsReader(n))}
+                      >
+                        {/* The centre's row, term for term. The panel clamps the body
+                            because it is 28rem tall at most and three long notifications
+                            would fill it. */}
+                        <NotificationRowBody notification={n} clampBody />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))
           )}
+        </div>
+
+        {/* THE WAY TO THE WHOLE LIST. The panel holds twelve rows; the page holds the
+            rest, the filters and the runs collapsed by card. Faire, Remote and Unity end
+            their panels the same way. */}
+        <div className="shrink-0 border-t p-snug">
+          <Link
+            href="/notifications"
+            onClick={() => setOpen(false)}
+            className="flex min-h-9 items-center rounded-lg px-snug text-body font-medium text-foreground transition-colors hover:bg-foreground/[0.035] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            See all notifications
+          </Link>
         </div>
       </PopoverContent>
     </Popover>

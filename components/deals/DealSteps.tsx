@@ -347,8 +347,8 @@ function DraftPreview({ card, line }: { card: UnlistedItemDraft; line: string | 
   const thumb = useDraftThumb(card);
 
   return (
-    <div className="flex items-center gap-cozy rounded-lg border p-cozy">
-      <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-muted">
+    <div className="flex items-center gap-cozy rounded-lg bg-muted/60 p-cozy">
+      <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-foreground/[0.06]">
         {thumb ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={thumb} alt="" className="size-full object-cover" />

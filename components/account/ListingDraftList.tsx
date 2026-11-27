@@ -43,7 +43,7 @@ export function ListingDraftList({ drafts }: { drafts: readonly ListingDraftSumm
             <Button type="button" variant="ghost" size="sm" onClick={() => remove(draft.id)} disabled={pending}>
               Delete
             </Button>
-            <Button asChild variant="outline" size="sm">
+            <Button asChild variant="secondary" size="sm">
               <Link href={`/listings/new?draft=${draft.id}`}>Continue</Link>
             </Button>
           </div>

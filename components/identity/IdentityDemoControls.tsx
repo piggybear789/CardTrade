@@ -93,7 +93,7 @@ export function IdentityDemoControls() {
               Hackathon · Test Mode
             </span>
             <span className="mt-0.5 block text-meta text-muted-foreground">
-              Simulated identity check — not live Stripe
+              Simulated identity check (test only)
             </span>
           </span>
         </span>

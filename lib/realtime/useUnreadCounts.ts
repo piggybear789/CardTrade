@@ -13,7 +13,7 @@
 // the same RLS that scopes the bell. They refresh on every navigation and when the tab
 // comes back into view, which is when a member looks at the chrome.
 
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { createClient } from '@/lib/supabase/browser';
@@ -41,11 +41,21 @@ let lastRead: { userId: string; counts: UnreadCounts } | null = null;
 
 export function useUnreadCounts(userId: string | null): UnreadCounts {
   const pathname = usePathname();
-  const [counts, setCounts] = useState<UnreadCounts>(() =>
-    userId !== null && lastRead !== null && lastRead.userId === userId
-      ? lastRead.counts
-      : NO_UNREAD,
-  );
+  // ZERO ON THE FIRST RENDER, ALWAYS, so the client's first render matches the
+  // server's. Reading `lastRead` in the initializer broke hydration under load: one
+  // instance (the chrome provider) hydrated and wrote `lastRead` in its effect before
+  // another (the header) hydrated, so the header's first render said "Messages, 2
+  // unread" against server HTML that said "Messages" (React #418 on every page). The
+  // carried-over counts go in a layout effect instead, before paint, so a route-group
+  // switch still does not blink the badges.
+  const [counts, setCounts] = useState<UnreadCounts>(NO_UNREAD);
+  useLayoutEffect(() => {
+    if (userId !== null && lastRead !== null && lastRead.userId === userId) {
+      setCounts(lastRead.counts);
+    }
+    // Only on mount: later changes come from the reads below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (userId) lastRead = { userId, counts };

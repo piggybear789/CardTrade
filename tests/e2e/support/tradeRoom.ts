@@ -264,8 +264,12 @@ export async function visibleMinor(locator: Locator): Promise<number | null> {
 }
 
 /** The room's headline figure: the header (desktop) or the chat bar price (phone). */
-export function roomHeadlineMinor(page: Page): Promise<number | null> {
-  return visibleMinor(page.locator('.display-value'));
+export async function roomHeadlineMinor(page: Page): Promise<number | null> {
+  const shown = await visibleMinor(page.locator('.display-value'));
+  if (shown !== null) return shown;
+  // On a phone the chat bar carries no price (2026-11-27): it is in the Summary tab.
+  await openDetailsTab(page, /^Summary/);
+  return visibleMinor(page.getByRole('tabpanel').locator('.display-value'));
 }
 
 /** Whether a piece of member-facing text is visible on the page. */
@@ -436,7 +440,7 @@ export async function saveMeetingTerms(
   page: Page,
   meeting: { place: StubbedPlace; daysAhead: number },
 ): Promise<void> {
-  await openDetailsTab(page, /^Terms/);
+  await openDetailsTab(page, /^Summary/);
   await page.getByRole('button', { name: /^(Set meeting|Edit terms)$/ }).filter({ visible: true }).first().click();
   const dialog = page.getByRole('dialog', { name: 'Meeting terms' });
   await expect(dialog).toBeVisible({ timeout: 10_000 });
@@ -457,7 +461,7 @@ export async function setMeeting(page: Page, meeting: { place: StubbedPlace; day
 export async function openAcceptDialog(page: Page): Promise<Locator> {
   const acceptBtn = page.getByRole('button', { name: 'Accept terms' }).filter({ visible: true }).first();
   if (!(await acceptBtn.isVisible().catch(() => false))) {
-    await openDetailsTab(page, /^Terms/);
+    await openDetailsTab(page, /^Summary/);
   }
   await acceptBtn.click();
   const dialog = page.getByRole('dialog', { name: 'Accept these terms?' });

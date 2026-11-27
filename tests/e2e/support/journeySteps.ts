@@ -520,11 +520,11 @@ export async function closeCalendarPopover(page: Page, day: Locator): Promise<vo
 }
 
 /**
- * Sets face-to-face terms from the Terms tab: a resolved meeting place and the next
+ * Sets face-to-face terms from the Summary tab (was Terms, 2026-11-27): a resolved meeting place and the next
  * meeting slot. Trades are face to face only, and accepting needs both.
  */
 export async function setMeetingTerms(page: Page, place: StubbedPlace = STUB_PLACES.sydney): Promise<void> {
-  await openDetailTab(page, 'Terms');
+  await openDetailTab(page, 'Summary');
   await onScreen(page.getByRole('button', { name: /^(Set meeting|Edit terms)$/ })).click();
   const dialog = page.getByRole('dialog', { name: 'Meeting terms' });
   await expect(dialog).toBeVisible({ timeout: RENDERED });

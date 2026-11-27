@@ -48,6 +48,7 @@ export function ContractHeader({
   title,
   money,
   parties,
+  status,
   progress,
   className,
 }: ContractHeaderProps) {
@@ -80,6 +81,9 @@ export function ContractHeader({
           ) : null}
         </div>
         {progress ? <div className="mt-snug">{progress}</div> : null}
+        {/* The status badge, for screen readers (and the e2e state reads): the
+            progress label shows the step visually. */}
+        {status ? <span className="sr-only">{status}</span> : null}
       </CardContent>
     </Card>
   );

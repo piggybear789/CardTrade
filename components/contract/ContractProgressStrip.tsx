@@ -92,10 +92,10 @@ export function ContractProgressStrip({
 
   const clockLabel = clock ? (
     <span className="flex min-w-0 items-baseline gap-x-cozy" suppressHydrationWarning>
-      <span className={cn('shrink-0', urgent && 'font-medium text-destructive')}>
+      <span className={cn('shrink-0', urgent && 'font-medium text-destructive')} suppressHydrationWarning>
         {remainingLabel(hoursLeft)}
       </span>
-      <span className="truncate">Completes {formatContractDateTime(clock.deadlineAt)}</span>
+      <span className="truncate" suppressHydrationWarning>Completes {formatContractDateTime(clock.deadlineAt)}</span>
     </span>
   ) : null;
 

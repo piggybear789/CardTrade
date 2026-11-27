@@ -112,6 +112,7 @@ export function ContractChatBar({
   counterpartyAvatarPath,
   counterparty,
   backHref,
+  status,
   progress,
   menu,
 }: {
@@ -206,6 +207,8 @@ export function ContractChatBar({
       </div>
 
       {progress && !split ? <div className="mt-2">{progress}</div> : null}
+      {/* The status badge, for screen readers and the e2e state reads. */}
+      {status ? <span className="sr-only">{status}</span> : null}
     </header>
   );
 }

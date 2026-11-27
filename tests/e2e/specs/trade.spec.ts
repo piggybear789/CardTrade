@@ -418,7 +418,7 @@ pathway(
       ui: async (page) => {
         await openRoom(page, tradeId);
         const aliceAccepted = !(await acceptOffered(page));
-        await openDetailsTab(page, /^Terms/);
+        await openDetailsTab(page, /^Summary/);
         const movedToBrisbane = await textShown(page, STUB_PLACES.brisbane.mainText);
         await closeDetails(page);
         return { aliceAccepted, sameVersion: true, movedToBrisbane };
@@ -822,7 +822,9 @@ pathway(
       },
       ui: async (page) => {
         await openRoom(page, tradeId);
-        return textShown(page, /^Inspection window · /);
+        // Desktop: the inspection banner. Phone: the step card's clock (the banner
+        // is hidden there, 2026-11-27).
+        return (await textShown(page, /^Inspection window · /)) || textShown(page, /^Completes /);
       },
       expect: true,
     });
@@ -1220,7 +1222,7 @@ pathway(
       },
       ui: async (page) => {
         await openRoom(page, tradeId);
-        await openDetailsTab(page, /^Terms/);
+        await openDetailsTab(page, /^Summary/);
         const moved = await textShown(page, STUB_PLACES.brisbane.mainText);
         await closeDetails(page);
         return { decision: 'ACCEPTED', moved };

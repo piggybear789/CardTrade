@@ -8,7 +8,8 @@
 
 import type { ReactNode } from 'react';
 import Link from 'next/link';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { useSyncExternalStore } from 'react';
+import { usePathname } from 'next/navigation';
 import { Icon } from '@/components/ui/icon';
 
 import {
@@ -22,6 +23,38 @@ import { useWorkspaceChrome, useWorkspaceUnread } from '@/components/layout/Work
 import { CountBadge } from '@/components/ui/count-badge';
 import { cn } from '@/lib/utils';
 
+/**
+ * Re-read on history changes: Next navigations and the catalog's own filter writes
+ * both go through pushState / replaceState. Patched once for the page, however many
+ * rails are mounted.
+ */
+const urlListeners = new Set<() => void>();
+let historyPatched = false;
+function subscribeToUrl(onChange: () => void) {
+  if (!historyPatched) {
+    historyPatched = true;
+    const notify = () => urlListeners.forEach((listener) => listener());
+    const { pushState, replaceState } = window.history;
+    window.history.pushState = function (...args) {
+      pushState.apply(this, args);
+      notify();
+    };
+    window.history.replaceState = function (...args) {
+      replaceState.apply(this, args);
+      notify();
+    };
+    window.addEventListener('popstate', notify);
+  }
+  urlListeners.add(onChange);
+  return () => {
+    urlListeners.delete(onChange);
+  };
+}
+
+function readSavedFilter(): boolean {
+  return new URLSearchParams(window.location.search).get('saved') === '1';
+}
+
 export function MarketplaceNav({
   primaryExtras,
 }: {
@@ -34,7 +67,11 @@ export function MarketplaceNav({
 } = {}) {
   const pathname = usePathname();
   // Saved is the catalog with `?saved=1`, so Browse all and Saved share a path.
-  const savedFilter = useSearchParams().get('saved') === '1';
+  // Read through `useSyncExternalStore` with a `false` server snapshot, NOT
+  // `useSearchParams`: the rail renders in layouts that can be prerendered, where
+  // the search params are unknown, and reading them there broke hydration on
+  // every page in production builds (React #418).
+  const savedFilter = useSyncExternalStore(subscribeToUrl, readSavedFilter, () => false);
   // Read from the workspace provider rather than a prop, so the loading
   // skeleton can draw this same nav without a profile read of its own. See
   // `components/layout/WorkspaceChrome.tsx`.

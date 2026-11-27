@@ -354,7 +354,7 @@ pathway(
 
     /** The Items tab's agreed price, as the member sees it, when it shows `cents`. */
     const shownPrice = (cents: number) => async (page: Page) => {
-      await openSection(page, 'Items');
+      await openSection(page, 'Summary');
       const panel = page.getByRole('tabpanel').filter({ visible: true }).first();
       const text = (await panel.innerText().catch(() => '')) ?? '';
       return text.includes(aud(cents)) ? aud(cents) : `not shown (${aud(cents)})`;
@@ -414,7 +414,7 @@ pathway(
 
     await step('Seller replaces the lines with one card at A$50.00', 'seller', async (page) => {
       await openSale(page, saleId);
-      await openSection(page, 'Items');
+      await openSection(page, 'Summary');
       await page.getByRole('button', { name: 'Edit', exact: true }).filter({ visible: true }).first().click();
       const dialog = page.getByRole('dialog', { name: 'Change what this contract covers' });
       await expect(dialog).toBeVisible({ timeout: 15_000 });
@@ -516,7 +516,7 @@ pathway(
 
     await step('Seller changes only the shipping notes', 'seller', async (page) => {
       await openSale(page, saleId);
-      await openSection(page, 'Delivery');
+      await openSection(page, 'Summary');
       await page.getByRole('button', { name: 'Edit terms' }).filter({ visible: true }).first().click();
       const dialog = page.getByRole('dialog', { name: 'Edit handover terms' });
       await expect(dialog).toBeVisible({ timeout: 15_000 });

@@ -198,4 +198,48 @@ export const JOURNEYS: Journey[] = [
       9: { what: 'The swap completes and both holds are released.', why: 'Nobody is charged.' },
     },
   },
+  {
+    id: 'private-deals.create-and-claim-cash-sale',
+    title: 'A private deal over a link',
+    intro: [
+      'Already agreed a sale on Instagram or at a card show?',
+      'A private deal turns it into a NoDitto sale, with the money held until the buyer accepts.',
+      'Alice makes a link for her card and sends it to Bob.',
+    ],
+    cast: [
+      { label: 'host', name: 'Alice', role: 'makes the deal', colour: '0xf59e0b' },
+      { label: 'joiner', name: 'Bob', role: 'opens the link', colour: '0x38bdf8' },
+    ],
+    chapters: { 1: 'Making the link', 2: 'Opening it' },
+    captions: {
+      1: {
+        what: 'Alice adds her card and a price, and gets a link.',
+        why: "The card stays out of the catalog. Only people with the link can see it.",
+      },
+      2: {
+        what: 'Bob opens the link and joins the deal.',
+        why: 'It becomes a normal sale room, with payment held by NoDitto.',
+      },
+      3: { what: 'Check: the link is used up.', why: 'Only the first person to join gets the deal.' },
+    },
+  },
+  {
+    id: 'private-deals.self-join-and-expired-refused',
+    title: 'Private deal links: the safety rules',
+    intro: [
+      "A deal link can't be used by the person who made it,",
+      'and it stops working after 14 days.',
+    ],
+    cast: [
+      { label: 'host', name: 'Alice', role: 'makes the deal', colour: '0xf59e0b' },
+      { label: 'joiner', name: 'Bob', role: 'opens the link late', colour: '0x38bdf8' },
+    ],
+    chapters: { 1: 'Making the link', 2: 'Opening your own link', 3: '14 days later' },
+    captions: {
+      1: { what: 'Alice makes a deal link.', why: '' },
+      2: { what: 'Alice opens her own link.', why: "She's taken back to her deal to edit it. She can't buy her own card." },
+      3: { what: 'Two weeks pass.', why: 'The test moves the clock forward.' },
+      4: { what: 'Bob opens the link too late.', why: 'It has expired, so nothing can be bought from it.' },
+    },
+  },
 ];

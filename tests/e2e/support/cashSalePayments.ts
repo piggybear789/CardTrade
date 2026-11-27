@@ -455,7 +455,7 @@ export async function saveCardFromProfile(page: Page, card: EntryCard = ENTRY_CA
 export async function proposeDelivery(page: Page, place: StubbedPlace = STUB_PLACES.sydney): Promise<void> {
   const setDelivery = page.getByRole('button', { name: /Set delivery details|Choose a method/i }).filter({ visible: true }).first();
   if (await setDelivery.isVisible({ timeout: 10_000 }).catch(() => false)) await setDelivery.click();
-  else await page.getByRole('tab', { name: 'Terms' }).click();
+  else await page.getByRole('tab', { name: 'Summary' }).click();
   const ship = page.getByRole('button', { name: /Ship the item/i }).filter({ visible: true }).first();
   await expect(ship).toBeVisible({ timeout: RENDERED });
   await ship.click();

@@ -165,6 +165,7 @@ export function ListingBuyerBar({
           <ShopfrontBuyButton
             itemId={itemId}
             sellerIdentity={sellerIdentity!}
+            currency={currency}
             trigger={
               // "Request", not "Browse". A binder's buy flow asks the buyer to
               // describe the cards they want and name a price, so "Browse"

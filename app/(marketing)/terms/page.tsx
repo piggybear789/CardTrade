@@ -150,6 +150,16 @@ export default function TermsPage() {
         have not yet paid the seller.
       </p>
       <p>
+        <strong>A sale is priced and charged in the seller&rsquo;s currency.</strong> Where we
+        allow a buyer to purchase from a seller in another country (for example, a buyer in
+        Australia from a seller in the United States), the buyer is charged in the seller&rsquo;s
+        currency through the Stripe account that serves the seller, and their card is saved
+        there for that purpose. Any price we show in the buyer&rsquo;s own currency is an
+        estimate at a daily reference rate. The buyer&rsquo;s bank converts the charge at its
+        own rate and may add its own fee, and a refund is returned in the seller&rsquo;s
+        currency. Import duties and taxes in the buyer&rsquo;s country are the buyer&rsquo;s to pay.
+      </p>
+      <p>
         We hold the payment in our Stripe account and release it to the seller only when the
         sale completes:
       </p>

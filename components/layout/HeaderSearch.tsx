@@ -43,6 +43,7 @@ import { requestCatalogBrowse, subscribeCatalogQuery } from '@/lib/catalog/brows
 import { Input } from '@/components/ui/input';
 import { StorageImage } from '@/components/ui/storage-image';
 import { formatMoneyWhole, itemImageUrl } from '@/lib/format';
+import { useApproximatePrice } from '@/components/money/DisplayCurrencyProvider';
 import { cn } from '@/lib/utils';
 
 const PLACEHOLDER = 'Search cards, @handles, or sellers…';
@@ -50,6 +51,13 @@ const PLACEHOLDER = 'Search cards, @handles, or sellers…';
 /** Recent searches, newest first. Versioned key; see `readRecent`. */
 const RECENT_KEY = 'noditto:recent-searches:v1';
 const RECENT_MAX = 5;
+
+/** A suggestion's price, approximately in the viewer's own currency when it differs (0179). */
+function SuggestionPrice({ cents, currency }: { cents: number; currency: string }) {
+  const listed = formatMoneyWhole(cents, currency);
+  const approximate = useApproximatePrice(cents, currency);
+  return approximate ? <span title={listed}>{approximate}</span> : <>{listed}</>;
+}
 
 function readRecent(): string[] {
   try {
@@ -654,7 +662,7 @@ function HeaderSearchInner({
                           {hit.category}
                           {' · '}
                           {hit.isShopfront ? 'from ' : null}
-                          {formatMoneyWhole(hit.listedCents, hit.currency)}
+                          <SuggestionPrice cents={hit.listedCents} currency={hit.currency} />
                         </span>
                       </span>
                     </Link>

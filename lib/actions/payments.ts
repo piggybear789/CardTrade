@@ -25,6 +25,8 @@ import { createClient } from '@/lib/supabase/server';
 import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getPaymentService } from '@/domain/services';
+import type { RegionCode } from '@/domain/region';
+import { cardPlatformFor } from '@/lib/payments/cardPlatform';
 import { type ActionResult, fail, ok } from './result';
 
 /** Typed failure codes for {@link beginCardSetup} and {@link completeCardSetup}. */
@@ -55,8 +57,10 @@ export interface CardSetupSession {
  * directly. Nothing here accepts card data, and the provider — not the client —
  * is the source of truth for what gets vaulted.
  */
-export const beginCardSetup = withActionLog('payments.beginCardSetup', async function beginCardSetup(): Promise<ActionResult<CardSetupSession, CardSetupError>> {
-  const authed = await requirePayer();
+export const beginCardSetup = withActionLog('payments.beginCardSetup', async function beginCardSetup(
+  options?: CardPlatformOptions,
+): Promise<ActionResult<CardSetupSession, CardSetupError>> {
+  const authed = await requirePayer(options?.platform);
   if (!authed.ok) return authed;
 
   const { payments, payerId } = authed.data;
@@ -92,11 +96,12 @@ export const beginCardSetup = withActionLog('payments.beginCardSetup', async fun
  */
 export const completeCardSetup = withActionLog('payments.completeCardSetup', async function completeCardSetup(
   setupId: string,
+  options?: CardPlatformOptions,
 ): Promise<ActionResult<{ sourceId: string; label: string }, CardSetupError>> {
-  const authed = await requirePayer();
+  const authed = await requirePayer(options?.platform);
   if (!authed.ok) return authed;
 
-  const { payments, payerId, userId } = authed.data;
+  const { payments, payerId, userId, platform, home } = authed.data;
   if (!payments.completeInstrumentSetup) {
     return fail('NOT_SUPPORTED', 'The active payment provider cannot store payment methods.');
   }
@@ -123,14 +128,28 @@ export const completeCardSetup = withActionLog('payments.completeCardSetup', asy
     if (cardHash && (await isCardHashBlocked(cardHash, admin))) {
       return fail('CARD_BLOCKED', "This card can't be used on NoDitto. Try a different card or contact support.");
     }
-    await admin
-      .from('profiles')
-      .update({
-        payment_source_id: instrument.sourceId,
-        payment_token_type: 'credit-card',
-        payment_method_label: label,
-      })
-      .eq('id', userId);
+    if (home) {
+      await admin
+        .from('profiles')
+        .update({
+          payment_source_id: instrument.sourceId,
+          payment_token_type: 'credit-card',
+          payment_method_label: label,
+        })
+        .eq('id', userId);
+    } else {
+      // 0179: a card for purchases on another platform. The home card is untouched.
+      const { error } = await admin
+        .from('platform_payers')
+        .update({
+          payment_source_id: instrument.sourceId,
+          payment_method_label: label,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('profile_id', userId)
+        .eq('platform', platform);
+      if (error) return fail('PROVIDER_ERROR', 'The payment method could not be saved.');
+    }
 
     return ok({ sourceId: instrument.sourceId, label });
   } catch (err) {
@@ -148,9 +167,17 @@ export const completeCardSetup = withActionLog('payments.completeCardSetup', asy
  * RLS is owner-only for writes of provider references; only `payer_id` is
  * touched.
  */
-async function requirePayer(): Promise<
+async function requirePayer(requestedPlatform?: string | null): Promise<
   ActionResult<
-    { payments: ReturnType<typeof getPaymentService>; payerId: string; userId: string },
+    {
+      payments: ReturnType<typeof getPaymentService>;
+      payerId: string;
+      userId: string;
+      /** The platform the Customer and card live on. */
+      platform: RegionCode;
+      /** True for the member's own platform, whose pair is on `profiles`. */
+      home: boolean;
+    },
     CardSetupError
   >
 > {
@@ -174,18 +201,61 @@ async function requirePayer(): Promise<
   }
 
   // The payer (a Stripe Customer) and any vaulted card belong to ONE platform
-  // account, so they must be created on the member's own region's platform (0068).
-  // A card vaulted on the AU platform is invisible to the GB platform, and a hold
-  // placed with the wrong one fails with no saved method rather than a clear error.
-  const payments = getPaymentService(profile.region_code as string | null);
+  // account, so they must be created on the platform that will charge them (0068). A
+  // card vaulted on the AU platform is invisible to the US platform, and a hold placed
+  // with the wrong one fails with no saved method rather than a clear error. That is
+  // the member's own platform, except for a cash sale with a seller on another one
+  // (0179), whose card is kept in `platform_payers` (`cardPlatformFor`).
+  const target = cardPlatformFor(profile.region_code as string | null, requestedPlatform);
+  const payments = getPaymentService(target.platform);
+  const identity = {
+    displayName: (profile.display_name as string | null) ?? undefined,
+    email: (profile.contact_email as string | null) ?? undefined,
+  };
+
+  if (!target.home) {
+    const { data: row, error } = await admin
+      .from('platform_payers')
+      .select('payer_id')
+      .eq('profile_id', user.id)
+      .eq('platform', target.platform)
+      .maybeSingle();
+    if (error) return fail('PAYER_UNAVAILABLE', 'Could not read your payment profile.');
+    if (row?.payer_id) {
+      return ok({ payments, payerId: row.payer_id, userId: user.id, platform: target.platform, home: false });
+    }
+    try {
+      const payer = await payments.createPayer(user.id, identity);
+      // A plain insert, so two tabs racing keep the FIRST writer's Customer: the loser's
+      // insert hits the primary key and re-reads below, rather than overwriting the row
+      // and orphaning a card saved on the first Customer.
+      const { error: insertError } = await admin
+        .from('platform_payers')
+        .insert({ profile_id: user.id, platform: target.platform, payer_id: payer.payerId });
+      if (insertError) {
+        const { data: again } = await admin
+          .from('platform_payers')
+          .select('payer_id')
+          .eq('profile_id', user.id)
+          .eq('platform', target.platform)
+          .maybeSingle();
+        if (!again?.payer_id) return fail('PAYER_UNAVAILABLE', 'Could not create a payment profile.');
+        return ok({ payments, payerId: again.payer_id, userId: user.id, platform: target.platform, home: false });
+      }
+      return ok({ payments, payerId: payer.payerId, userId: user.id, platform: target.platform, home: false });
+    } catch (err) {
+      return fail(
+        'PAYER_UNAVAILABLE',
+        err instanceof Error ? err.message : 'Could not create a payment profile.',
+      );
+    }
+  }
+
   let payerId = (profile.payer_id as string | null) ?? null;
 
   if (!payerId) {
     try {
-      const payer = await payments.createPayer(user.id, {
-        displayName: (profile.display_name as string | null) ?? undefined,
-        email: (profile.contact_email as string | null) ?? undefined,
-      });
+      const payer = await payments.createPayer(user.id, identity);
       payerId = payer.payerId;
       await admin.from('profiles').update({ payer_id: payerId }).eq('id', user.id);
     } catch (err) {
@@ -196,7 +266,16 @@ async function requirePayer(): Promise<
     }
   }
 
-  return ok({ payments, payerId, userId: user.id });
+  return ok({ payments, payerId, userId: user.id, platform: target.platform, home: true });
+}
+
+/**
+ * Which platform's saved card an action is about. Omit for the member's own, which is
+ * what trades, the profile and the mobile app use.
+ */
+export interface CardPlatformOptions {
+  /** A PLATFORM region (`platformForCurrency` of the sale's or listing's currency). */
+  platform?: string | null;
 }
 
 /** `visa` -> `Visa`, for display in a saved-method label. */
@@ -243,7 +322,9 @@ export interface PaymentMethodStatus {
  * Read the current buyer's payment method status for checkout display.
  * Returns only the display-safe label, never any credential or token.
  */
-export const getPaymentMethodStatus = withActionLog('payments.getPaymentMethodStatus', async function getPaymentMethodStatus(): Promise<
+export const getPaymentMethodStatus = withActionLog('payments.getPaymentMethodStatus', async function getPaymentMethodStatus(
+  options?: CardPlatformOptions,
+): Promise<
   ActionResult<PaymentMethodStatus, 'NOT_AUTHENTICATED'>
 > {
   const user = await getCachedAuthUser();
@@ -252,11 +333,28 @@ export const getPaymentMethodStatus = withActionLog('payments.getPaymentMethodSt
   }
 
   const admin = createAdminClient();
-  const { data } = await admin
+  const { data: profile } = await admin
     .from('profiles')
     .select('payment_source_id, payment_method_label, payer_id, region_code')
     .eq('id', user.id)
     .maybeSingle();
+
+  // 0179: a sale with a seller on another platform is paid with the card saved THERE.
+  const target = cardPlatformFor((profile?.region_code as string | null) ?? null, options?.platform);
+  let data: {
+    payment_source_id: string | null;
+    payment_method_label: string | null;
+    payer_id: string | null;
+  } | null = profile;
+  if (!target.home) {
+    const { data: away } = await admin
+      .from('platform_payers')
+      .select('payment_source_id, payment_method_label, payer_id')
+      .eq('profile_id', user.id)
+      .eq('platform', target.platform)
+      .maybeSingle();
+    data = away ?? { payment_source_id: null, payment_method_label: null, payer_id: null };
+  }
 
   const hasPaymentMethod = Boolean(data?.payment_source_id);
   const label = (data?.payment_method_label as string | null) ?? null;
@@ -276,10 +374,11 @@ export const getPaymentMethodStatus = withActionLog('payments.getPaymentMethodSt
   const sourceId = (data?.payment_source_id as string | null) ?? null;
   if (payerId && sourceId) {
     try {
-      // The card lives on the member's OWN region's platform account, where
-      // `requirePayer` vaulted it. Read through the default binding, a US, UK or EEA
-      // member's card was invisible, so its expiry silently never showed.
-      const payments = getPaymentService((data?.region_code as string | null) ?? null);
+      // The card lives on the platform account `requirePayer` vaulted it on: the
+      // member's own, or the sale's for a cross-platform purchase (0179). Read through
+      // the default binding, a US, UK or EEA member's card was invisible, so its expiry
+      // silently never showed.
+      const payments = getPaymentService(target.platform);
       const details = await payments.describeInstrument?.({ payerId, sourceId });
       if (details?.expMonth && details.expYear) {
         const month = String(details.expMonth).padStart(2, '0');

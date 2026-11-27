@@ -45,7 +45,7 @@ Protected prefixes are listed in `middleware.ts` in both `PROTECTED_PREFIXES` an
 
 ## components/
 
-One folder per feature (`account`, `admin`, `arbitration`, `auth`, `brand`, `contract`, `deals`, `editor`, `fulfilment`, `identity`, `layout`, `listings`, `location`, `messages`, `notifications`, `offers`, `onboarding`, `payments`, `payouts`, `profile`, `references`, `reports`, `reviews`, `sales`, `scamReports`, `trade`, `trustedSellers`) plus `ui/` for shadcn primitives (button, card, dialog, form, input, label, select, textarea, badge, sonner, sheet, slider, popover, tooltip, choice-tile, confirm-dialog, empty-state, dialog-row).
+One folder per feature (`account`, `admin`, `arbitration`, `auth`, `brand`, `contract`, `deals`, `editor`, `fulfilment`, `identity`, `layout`, `listings`, `location`, `messages`, `money` (the viewer's display currency, 0179), `notifications`, `offers`, `onboarding`, `payments`, `payouts`, `profile`, `references`, `reports`, `reviews`, `sales`, `scamReports`, `trade`, `trustedSellers`) plus `ui/` for shadcn primitives (button, card, dialog, form, input, label, select, textarea, badge, sonner, sheet, slider, popover, tooltip, choice-tile, confirm-dialog, empty-state, dialog-row).
 
 Two folders are cross-flow and should be reached for before writing anything new in `sales/` or `trade/`:
 

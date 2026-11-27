@@ -161,6 +161,21 @@ export function operationalRegions(): ReadonlySet<RegionCode> {
 }
 
 /**
+ * Whether a buyer may open a cash sale with a seller on ANOTHER Stripe platform (0179),
+ * e.g. an Australian buying a US listing in USD.
+ *
+ * Off unless `CROSS_PLATFORM_CASH_SALES` is `on` / `true` / `1`. It stays off in
+ * production until the tax position on cross-border marketplace sales is settled (an
+ * electronic distribution platform selling low-value imported goods to Australian
+ * consumers may have to collect GST). Read here, beside `operationalRegions`, because
+ * it is a runtime switch and `domain/region` is pure.
+ */
+export function crossPlatformCashSalesEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const value = env.CROSS_PLATFORM_CASH_SALES?.trim().toLowerCase();
+  return value === 'on' || value === 'true' || value === '1';
+}
+
+/**
  * Every operational PLATFORM, with the contract currencies its balance holds money in.
  *
  * For the jobs that must touch each Stripe account exactly once (the payout drain,

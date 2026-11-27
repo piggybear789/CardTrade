@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
 import { cashSaleFeeMinor } from '@/domain/fees/processingFee';
 import { cardMethodFor, type PaymentMethodKind } from '@/domain/payments/paymentMethods';
+import { platformForCurrency } from '@/domain/region';
 import { displayLegalName, formatMoney, itemImageUrl } from '@/lib/format';
 import { navigateWithType } from '@/lib/motion/navigate';
 import { FieldError } from '@/components/motion/FieldError';
@@ -164,10 +165,13 @@ function OrderSummary({
 export function ShopfrontBuyButton({
   itemId,
   sellerIdentity,
+  currency,
   trigger,
 }: {
   itemId: string;
   sellerIdentity: SellerIdentityDisclosure;
+  /** The listing's currency: which platform the buyer's card is read on (0179). */
+  currency?: string;
   trigger?: ReactNode;
 }) {
   const [request, setRequest] = useState(emptyRequest);
@@ -176,6 +180,7 @@ export function ShopfrontBuyButton({
     <PurchaseDialog
       itemId={itemId}
       sellerIdentity={sellerIdentity}
+      currency={currency}
       confirmLabel="Open contract and agree terms"
       onReset={() => setRequest(emptyRequest())}
       // "Request", as the phone buyer bar says. "Buy now" on a listing with multiple
@@ -246,11 +251,15 @@ function PurchaseDialog({
   // listing off the catalog, and with nothing on file that cost the buyer nothing. It
   // is a commitment, not the rail; the way to pay is still chosen at Pay.
   const [addingCard, setAddingCard] = useState(false);
+  // The platform this sale runs on: the seller's (0179). For a buyer on another
+  // platform that is a separate saved card; the server falls back to the buyer's own
+  // platform whenever it is the same one.
+  const platform = currency ? platformForCurrency(currency) : null;
 
   // `silent`: refresh a card already on screen without putting the placeholder back.
   const readCard = useCallback((isCancelled: () => boolean = () => false, silent = false) => {
     if (!silent) setLoadingStatus(true);
-    getPaymentMethodStatus()
+    (platform ? getPaymentMethodStatus({ platform }) : getPaymentMethodStatus())
       .then((result) => {
         if (isCancelled()) return;
         setLoadingStatus(false);
@@ -265,7 +274,7 @@ function PurchaseDialog({
         setLoadingStatus(false);
         setCard(null);
       });
-  }, []);
+  }, [platform]);
 
   // READ THE CARD BEFORE THE DIALOG OPENS. The read goes to Stripe and takes a second or
   // two, and it used to start only once the dialog was open, so every open sat on a
@@ -370,6 +379,7 @@ function PurchaseDialog({
             </DialogHeader>
             {headerNode}
             <AddPaymentMethodForm
+              platform={platform}
               onAttached={() => {
                 setAddingCard(false);
                 readCard();

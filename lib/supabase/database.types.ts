@@ -1989,6 +1989,41 @@ export type Database = {
         Update: { value_hash?: string; reason?: string; source_dispute_ref?: string | null; created_at?: string };
         Relationships: [];
       };
+      /**
+       * 0179: a member's Stripe Customer and saved card on a platform OTHER than their
+       * own (an Australian buying from a US seller pays on the US platform). Their home
+       * platform's pair stays on `profiles`. Service role only.
+       */
+      platform_payers: {
+        Row: {
+          profile_id: string;
+          platform: string;
+          payer_id: string;
+          payment_source_id: string | null;
+          payment_method_label: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          platform: string;
+          payer_id: string;
+          payment_source_id?: string | null;
+          payment_method_label?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          profile_id?: string;
+          platform?: string;
+          payer_id?: string;
+          payment_source_id?: string | null;
+          payment_method_label?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       /** ESC-03 layer 4 (0140). Written only through `consume_rate_limit`. */
       rate_limit_hits: {
         Row: { key: string; window_start: string; count: number };

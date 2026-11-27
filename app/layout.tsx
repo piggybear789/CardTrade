@@ -9,6 +9,7 @@ import { BodyPointerGuard } from '@/components/layout/BodyPointerGuard';
 import { KeyboardInset } from '@/components/layout/KeyboardInset';
 import { PageViewTracker } from '@/components/analytics/PageViewTracker';
 import { SiteHeader } from '@/components/layout/SiteHeader';
+import { DisplayCurrencyBoundary } from '@/components/money/DisplayCurrencyBoundary';
 import { Toaster } from '@/components/ui/sonner';
 import { DEFAULT_OG_IMAGE, SITE_URL as siteUrl } from '@/lib/seo/site';
 import './globals.css';
@@ -122,10 +123,15 @@ export default function RootLayout({
               costs only its own reads, which run alongside the page's: the auth read
               is the request-cached one the page and layouts already await, and the
               notifications and profile reads run in parallel. */}
-          <SiteHeader />
-          <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">
-            {children}
-          </div>
+          {/* The viewer's currency and the day's reference rates (0179), so browse
+              prices can be shown approximately in it. Around the header too: its search
+              suggestions show prices. */}
+          <DisplayCurrencyBoundary>
+            <SiteHeader />
+            <div id="main-content" tabIndex={-1} className="flex min-h-0 flex-1 flex-col scroll-mt-[calc(3rem+env(safe-area-inset-top))] focus:outline-none md:scroll-mt-[calc(4rem+1px+env(safe-area-inset-top))]">
+              {children}
+            </div>
+          </DisplayCurrencyBoundary>
         </StartDealProvider>
         <Toaster />
         <KeyboardInset />

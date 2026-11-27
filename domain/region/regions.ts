@@ -478,6 +478,51 @@ export function checkRegionCompatibility(
 }
 
 /**
+ * The platform whose balance holds money in `currency`, or null when no trading region
+ * uses it.
+ *
+ * Every currency belongs to exactly one platform (AUD to AU; USD, GBP, EUR and the rest
+ * of the cross-border group to US), because a contract's currency is its PAYEE's region
+ * currency (`set_row_currency_from_region`, 0068). Pure counterpart of
+ * `regionForCurrency` in `lib/regionBinding.ts`, which additionally requires the
+ * platform to be configured. Used where a contract's platform must be known without
+ * reading a profile: which saved card a buyer pays a sale with (0179).
+ */
+export function platformForCurrency(currency: unknown): RegionCode | null {
+  const code = typeof currency === 'string' ? currency.trim().toLowerCase() : '';
+  if (!code) return null;
+  const region = REGIONS.find((r) => r.tradingEnabled && r.currency === code);
+  return region?.platform ?? null;
+}
+
+/**
+ * The region precondition for a CASH SALE opened from a listing (0179).
+ *
+ * The same as {@link checkRegionCompatibility}, except that with `crossPlatform` two
+ * members on DIFFERENT Stripe platforms may deal: an Australian may buy from a US
+ * seller, and the other way round. The sale then runs entirely on the SELLER's
+ * platform. Its currency is the seller's (0068), the buyer is charged by card on that
+ * platform, the money is held in that platform's balance and paid out to a seller that
+ * platform can reach. Nothing crosses platforms: the buyer only ever receives a refund
+ * to the card they paid with, so they need no account on the seller's platform beyond a
+ * saved card (`platform_payers`).
+ *
+ * Both regions must still be known and open. Trades and private deals keep the
+ * same-platform rule: trade collateral would need a hold on each trader's platform at
+ * once, and a private deal opens with no card.
+ */
+export function checkCashSaleRegionCompatibility(
+  buyerRegion: unknown,
+  sellerRegion: unknown,
+  enabledRegions?: ReadonlySet<RegionCode>,
+  options?: { crossPlatform?: boolean },
+): RegionMismatch | null {
+  const mismatch = checkRegionCompatibility(buyerRegion, sellerRegion, enabledRegions);
+  if (mismatch?.reason === 'CROSS_REGION' && options?.crossPlatform) return null;
+  return mismatch;
+}
+
+/**
  * Member-facing explanation of a mismatch.
  *
  * Says which regions are involved, because "not available in your region" with no

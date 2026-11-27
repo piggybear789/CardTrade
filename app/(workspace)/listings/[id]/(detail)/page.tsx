@@ -32,10 +32,13 @@ import { loadSellerIdentityDisclosure } from "@/lib/sellerIdentity";
 import type { SellerIdentityDisclosure } from "@/domain/orchestrator/merchantOnboarding";
 import type { VerificationState } from "@/domain/identity/identityGate";
 import {
+  checkCashSaleRegionCompatibility,
   checkRegionCompatibility,
   regionCurrency,
+  regionLabel,
   regionMismatchMessage,
 } from "@/domain/region";
+import { crossPlatformCashSalesEnabled } from "@/domain/services";
 import { viewerTradingRegion } from "@/lib/location/resolveRegion";
 import {
   formatMoney,
@@ -293,19 +296,29 @@ export default async function ItemDetailPage({
   // paying. Null for a guest or an owner, who are not buying.
   const viewerCurrency = regionCurrency(viewerRegion);
 
+  // Two rules since 0179: a CASH SALE may cross Stripe platforms when the switch is on
+  // (an Australian buying a US listing pays in USD on the US platform), a TRADE never
+  // does. Same two functions the orchestrator and `openTradeNegotiation` refuse with.
+  const sellerRegionCode = (sellerRow?.region_code as string | null) ?? null;
   const viewerRegionMismatch =
     user && !isOwner
-      ? checkRegionCompatibility(
-          viewerRegion,
-          (sellerRow?.region_code as string | null) ?? null,
-        )
+      ? checkCashSaleRegionCompatibility(viewerRegion, sellerRegionCode, undefined, {
+          crossPlatform: crossPlatformCashSalesEnabled(),
+        })
       : null;
+  const viewerTradeMismatch =
+    user && !isOwner ? checkRegionCompatibility(viewerRegion, sellerRegionCode) : null;
   // A viewer who has simply not set their own region is NOT warned here: that is
   // their own incomplete onboarding rather than anything about this listing, and it
   // is already surfaced where it can be fixed. Only a genuine incompatibility.
   const regionNotice =
     viewerRegionMismatch && viewerRegionMismatch.reason !== 'UNKNOWN_REGION'
       ? regionMismatchMessage(viewerRegionMismatch)
+      : null;
+  // Buying is open but trading is not: say so once, and offer no trade control.
+  const tradeRegionNotice =
+    !regionNotice && viewerTradeMismatch?.reason === 'CROSS_REGION'
+      ? `Trades with members in ${regionLabel(viewerTradeMismatch.sellerRegion)} aren't possible yet. You can still buy this, paid in ${(item.currency ?? '').toUpperCase()}.`
       : null;
 
   // When the item is RESERVED and the viewer is the owner, resolve the active
@@ -482,6 +495,7 @@ export default async function ItemDetailPage({
           isAuthenticated={Boolean(user)}
           isAvailable={isAvailable}
           regionNotice={regionNotice}
+          tradeRegionNotice={tradeRegionNotice}
           viewerVerification={viewerVerification}
           sellerIdentity={sellerIdentity}
           activeSaleId={activeSaleId}
@@ -814,7 +828,7 @@ export default async function ItemDetailPage({
           disabledTradeReason={
             !sellerIdentity
               ? 'This seller must finish payout setup before a trade can start.'
-              : null
+              : tradeRegionNotice
           }
         />
       ) : null}
@@ -844,6 +858,7 @@ function ItemActions({
   isAuthenticated,
   isAvailable,
   regionNotice,
+  tradeRegionNotice,
   viewerVerification,
   sellerIdentity,
   activeSaleId,
@@ -875,6 +890,11 @@ function ItemActions({
    * region-scoped catalog, learns before filling in a contract rather than after.
    */
   regionNotice: string | null;
+  /**
+   * Why this viewer may buy but not trade (0179): the seller is on another Stripe
+   * platform, which a cash sale may cross and a trade may not. Null otherwise.
+   */
+  tradeRegionNotice: string | null;
   viewerVerification: VerificationState | null;
   sellerIdentity: SellerIdentityDisclosure | null;
   activeSaleId: string | null;
@@ -893,7 +913,7 @@ function ItemActions({
   // for a click to offer. The viewer's own gate is handled inside the dialog.
   const disabledTradeReason = !sellerIdentity
     ? 'This seller must finish payout setup before a trade can start.'
-    : null;
+    : tradeRegionNotice;
 
   // Desktop never shows a dead Propose Trade chip — the payout banner already
   // says why a trade cannot start, and Message is still available underneath.
@@ -922,6 +942,8 @@ function ItemActions({
   // orchestrator refuses regardless, so nothing unsafe depends on this being read.
   const regionGateNotice = regionNotice ? (
     <StatusNotice description={regionNotice} />
+  ) : tradeRegionNotice ? (
+    <p className="text-meta text-muted-foreground">{tradeRegionNotice}</p>
   ) : null;
   // Owner controls: when the item is under contract, surface the active
   // contract link prominently instead of edit/delete (which aren't allowed on
@@ -1133,6 +1155,7 @@ function ItemActions({
               <ShopfrontBuyButton
                 itemId={itemId}
                 sellerIdentity={sellerIdentity}
+                currency={currency}
               />
             ) : (
               <BuyButton

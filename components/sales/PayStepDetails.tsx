@@ -38,7 +38,14 @@ export type PayCard =
   | { state: 'saved'; label: string | null; country: string | null };
 
 /** The buyer's saved card, read when the Pay step opens and again after adding one. */
-export function usePayCard(active: boolean): {
+export function usePayCard(
+  active: boolean,
+  /**
+   * The sale's platform (`platformForCurrency(sale.currency)`, 0179): a buyer paying a
+   * seller on another platform pays with the card saved there.
+   */
+  platform?: string | null,
+): {
   card: PayCard;
   refresh: () => void;
   replace: () => void;
@@ -49,7 +56,7 @@ export function usePayCard(active: boolean): {
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    getPaymentMethodStatus()
+    (platform ? getPaymentMethodStatus({ platform }) : getPaymentMethodStatus())
       .then((result) => {
         if (cancelled) return;
         setCard(
@@ -64,7 +71,7 @@ export function usePayCard(active: boolean): {
     return () => {
       cancelled = true;
     };
-  }, [active, reads]);
+  }, [active, reads, platform]);
 
   return {
     card,
@@ -111,10 +118,13 @@ export function PayCardSection({
   card,
   onAttached,
   onReplace,
+  platform,
 }: {
   card: PayCard;
   onAttached: () => void;
   onReplace: () => void;
+  /** The sale's platform, so a new card is saved where it will be charged (0179). */
+  platform?: string | null;
 }) {
   if (card.state === 'loading') {
     return null;
@@ -129,7 +139,7 @@ export function PayCardSection({
             Stripe stores the card. It is charged only when you confirm below.
           </p>
         </div>
-        <AddPaymentMethodForm onAttached={onAttached} />
+        <AddPaymentMethodForm onAttached={onAttached} platform={platform} />
       </div>
     );
   }

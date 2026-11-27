@@ -12,6 +12,11 @@ vi.mock('@/lib/supabase/cachedAuth', () => ({ getCachedAuthUser: async () => ({ 
 vi.mock('@/lib/supabase/server', () => ({ createClient: async () => ({ auth: { getUser: async () => ({ data: { user: { id: 'buyer-1' } } }) } }) }));
 vi.mock('@/lib/supabase/admin', () => ({ createAdminClient: () => ({}) }));
 vi.mock('@/domain/services', () => ({ getPaymentService: () => ({}) }));
+// 0179: Buy Now binds to the LISTING's platform, read from the item row.
+vi.mock('@/lib/regionBinding', () => ({
+  regionForCashSale: async () => 'AU',
+  regionForItem: async () => 'AU',
+}));
 vi.mock('@/domain/orchestrator/supabaseCashSaleRepository', () => ({
   createDefaultCashSaleOrchestrator: () => ({ initiateCashSale: (p: Record<string, unknown>) => initiate(p) }),
 }));

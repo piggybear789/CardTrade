@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card';
 import { WatchButton } from '@/components/listings/WatchButton';
 import { Avatar } from '@/components/ui/avatar';
 import { itemImageUrl } from '@/lib/format';
-import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
+import { ListedPrice } from '@/components/listings/ListedPrice';
 import { cn } from '@/lib/utils';
 import { coverAspectCss, type ImageDim } from '@/lib/images/dimensions';
 import { tileIntrinsicHeight } from '@/components/listings/catalogGrid';
@@ -82,16 +82,6 @@ const UNAVAILABLE_LABEL: Record<string, string> = {
  */
 const COVER_SIZES = '(max-width: 767px) 50vw, (max-width: 1023px) 33vw, 25vw';
 
-/**
- * The tile's price: the same figure the listing page leads with, so opening a card
- * never shows a different number from the one that was clicked. Fee-inclusive for a
- * single listing, the indicative "from" price for a binder, rounded to the whole unit —
- * see `listedPriceText`.
- */
-function tilePrice(item: CatalogItem): string {
-  return listedPriceText(item.fmv_cents, item.currency, item.listing_kind === 'SHOPFRONT');
-}
-
 function unavailableLabelFor(item: CatalogItem): string | undefined {
   // A shopfront is never RESERVED or SOLD (0064), so the overlay can never
   // apply — and its price is an indicative "from", not an asking price.
@@ -127,7 +117,6 @@ export const CatalogItemCard = memo(function CatalogItemCard({
   // `undefined` means "not in a mosaic" and leaves every class untouched; see
   // the prop doc. `null` is an opted-in tile with an unknown photo.
   const inMosaic = coverDim !== undefined;
-  const price = splitMoney(tilePrice(item));
 
   return (
     <Card
@@ -365,16 +354,19 @@ export const CatalogItemCard = memo(function CatalogItemCard({
             {isShopfront ? (
               <span className="text-meta font-semibold text-muted-foreground">From </span>
             ) : null}
-            <span className="text-subhead md:text-head">
-              {price.symbol}
-              {price.major}
-            </span>
-            {/* No cents: browse prices are rounded to the whole unit (`listedPriceText`). */}
-            {price.code ? (
-              <span className="text-meta font-semibold text-muted-foreground">
-                {price.code}
-              </span>
-            ) : null}
+            {/* No cents on the tile. In the viewer's own currency, approximately,
+                when the listing is priced in another one (0179). */}
+            <ListedPrice
+              priceCents={item.fmv_cents}
+              currency={item.currency}
+              isShopfront={isShopfront}
+              showMinor={false}
+              classNames={{
+                symbol: 'text-subhead md:text-head',
+                major: 'text-subhead md:text-head',
+                code: 'text-meta font-semibold text-muted-foreground',
+              }}
+            />
           </p>
           )}
         </div>

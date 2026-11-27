@@ -46,6 +46,14 @@ function getStripe(publishableKey: string): Promise<Stripe | null> {
   return cached;
 }
 
+/**
+ * Save the confirmed setup. Only the opaque setup id goes to the server, plus the
+ * platform when the card is for a sale on another one (0179).
+ */
+function saveCard(setupId: string, platform: string | null | undefined) {
+  return platform ? completeCardSetup(setupId, { platform }) : completeCardSetup(setupId);
+}
+
 interface SetupSession {
   setupId: string;
   clientSecret: string;
@@ -55,9 +63,16 @@ interface SetupSession {
 export interface AddPaymentMethodFormProps {
   /** Called after a card is successfully attached. */
   onAttached?: () => void;
+  /**
+   * The PLATFORM the card is for (`platformForCurrency` of the sale's or listing's
+   * currency), so a card for a purchase from a seller on another platform is saved
+   * there (0179). Omit for the member's own platform. The server decides; an
+   * unusable value falls back to the member's own.
+   */
+  platform?: string | null;
 }
 
-export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) {
+export function AddPaymentMethodForm({ onAttached, platform }: AddPaymentMethodFormProps) {
   const [session, setSession] = useState<SetupSession | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -65,7 +80,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const result = await beginCardSetup();
+      const result = await (platform ? beginCardSetup({ platform }) : beginCardSetup());
       if (cancelled) return;
       if (result.ok) setSession(result.data);
       else setConfigError(result.message);
@@ -73,7 +88,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
     return () => {
       cancelled = true;
     };
-  }, [retryCount]);
+  }, [retryCount, platform]);
 
   const stripePromise = useMemo(
     () =>
@@ -109,7 +124,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
   // Mock provider: no real Stripe.js, so offer a simulated save so local UI
   // demos keep working without credentials.
   if (!stripePromise) {
-    return <SimulatedCardSetup setupId={session.setupId} onAttached={onAttached} />;
+    return <SimulatedCardSetup setupId={session.setupId} onAttached={onAttached} platform={platform} />;
   }
 
   return (
@@ -120,7 +135,7 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
         appearance: { theme: 'flat', variables: { borderRadius: '0.5rem' } },
       }}
     >
-      <CardSetupFields setupId={session.setupId} onAttached={onAttached} />
+      <CardSetupFields setupId={session.setupId} onAttached={onAttached} platform={platform} />
     </Elements>
   );
 }
@@ -129,9 +144,11 @@ export function AddPaymentMethodForm({ onAttached }: AddPaymentMethodFormProps) 
 function CardSetupFields({
   setupId,
   onAttached,
+  platform,
 }: {
   setupId: string;
   onAttached?: () => void;
+  platform?: string | null;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -160,7 +177,7 @@ function CardSetupFields({
         return;
       }
 
-      const saved = await completeCardSetup(setupId);
+      const saved = await saveCard(setupId, platform);
       if (!saved.ok) {
         setError(saved.message);
         return;
@@ -214,9 +231,11 @@ function CardSetupFields({
 function SimulatedCardSetup({
   setupId,
   onAttached,
+  platform,
 }: {
   setupId: string;
   onAttached?: () => void;
+  platform?: string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -225,7 +244,7 @@ function SimulatedCardSetup({
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const saved = await completeCardSetup(setupId);
+      const saved = await saveCard(setupId, platform);
       if (!saved.ok) {
         setError(saved.message);
         return;

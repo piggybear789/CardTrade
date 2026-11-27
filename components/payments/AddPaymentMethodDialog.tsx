@@ -35,9 +35,11 @@ export interface AddPaymentMethodDialogProps {
   trigger?: React.ReactNode;
   /** Called after a card is successfully attached. */
   onAttached?: () => void;
+  /** The platform the card is for (0179); omit for the member's own. */
+  platform?: string | null;
 }
 
-export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethodDialogProps) {
+export function AddPaymentMethodDialog({ trigger, onAttached, platform }: AddPaymentMethodDialogProps) {
   const [open, setOpen] = useState(false);
   const router = useRouter();
 
@@ -63,6 +65,7 @@ export function AddPaymentMethodDialog({ trigger, onAttached }: AddPaymentMethod
           </DialogDescription>
         </DialogHeader>
         <AddPaymentMethodForm
+          platform={platform}
           onAttached={() => {
             setOpen(false);
             // The card is stored server-side, so confirm it and re-render the

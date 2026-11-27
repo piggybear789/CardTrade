@@ -121,6 +121,7 @@ import {
   processingFeeRateLabel,
 } from '@/lib/fees/feeLabels';
 import { CurrencyNotice, fxFeeRateLabel } from '@/components/payments/CurrencyNotice';
+import { platformForCurrency, regionCurrency } from '@/domain/region';
 import { formatMoney, formatContractDateTime, formatShortDate, itemImageUrl } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import {
@@ -551,7 +552,10 @@ function CashSaleRoom({
   );
   // The Pay step's two inputs besides the charge: the buyer's card, read when the
   // step opens, and their confirmation of a private-deal seller's verified name.
-  const payCard = usePayCard(confirming === 'pay');
+  // On the SALE's platform (0179): a buyer paying a seller on another platform pays
+  // with the card they saved there.
+  const salePlatform = platformForCurrency(sale.currency);
+  const payCard = usePayCard(confirming === 'pay', salePlatform);
   const [confirmedSeller, setConfirmedSeller] = useState(false);
   // The identity prompt a large purchase opens in place of Pay, and whether this tab
   // has seen the buyer verify (the server prop only updates on the next render).
@@ -2081,9 +2085,16 @@ function CashSaleRoom({
             },
           ]}
         />
-        <CurrencyNotice currency={sale.currency} fxFeeMinor={fxFeeCents} />
+        {/* With the buyer's own currency, so a buyer paying a seller overseas is told
+            the charge is in the seller's currency and their bank converts it. */}
+        <CurrencyNotice
+          currency={sale.currency}
+          fxFeeMinor={fxFeeCents}
+          buyerCurrency={regionCurrency(buyerRegion)}
+        />
         {chosenMethod === 'CARD' ? (
           <PayCardSection
+            platform={salePlatform}
             card={payCard.card}
             onAttached={payCard.refresh}
             onReplace={payCard.replace}

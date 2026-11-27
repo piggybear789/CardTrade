@@ -18,6 +18,8 @@ export {
   assertMinorUnitSupported,
   minorToMajor,
   checkRegionCompatibility,
+  checkCashSaleRegionCompatibility,
+  platformForCurrency,
   regionMismatchMessage,
   type RegionCode,
   type RegionDefinition,

@@ -27,6 +27,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createNotification } from '@/lib/notifications/createNotification';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
+import { regionForItem } from '@/lib/regionBinding';
 import { listingContext } from '@/lib/notifications/notificationContext';
 import { OFFER_AMOUNT_MIN, OFFER_AMOUNT_MAX } from '@/lib/marketplace-constants';
 import { loadSellerIdentityDisclosure } from '@/lib/sellerIdentity';
@@ -475,7 +476,10 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
   }
   if (!offerTransition('PENDING', 'ACCEPTED').ok) return { ok: false, error: 'invalid-status' };
 
-  const cashSales = createDefaultCashSaleOrchestrator({ payments: getPaymentService() });
+  // On the LISTING's platform (0179), where the buyer's card for this sale is saved.
+  const cashSales = createDefaultCashSaleOrchestrator({
+    payments: getPaymentService(await regionForItem(offer.item_id)),
+  });
   // The only caller that passes a price: the offer's own amount, read from the row.
   const saleResult = await cashSales.initiateCashSale({
     buyerId: offer.buyer_id,
@@ -503,7 +507,9 @@ export const respondToOffer = withActionLog('offers.respondToOffer', async funct
         type: 'OFFER',
         title: 'Add a card to continue',
         body: 'The seller wants to accept your offer. Add a card so they can.',
-        link: '/profile',
+        // The offer page saves the card on the platform THIS sale runs on (0179); the
+        // profile only manages the member's own platform's card.
+        link: '/offers',
         context: listingContext({ itemId: offer.item_id, actorId: me, amountCents: offer.amount_cents }),
       });
       return {

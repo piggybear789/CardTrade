@@ -20,6 +20,11 @@ import {
   resolveScope,
 } from '@/components/layout/SectionFilter';
 import { isOfferPast } from '@/lib/lifecycle';
+import { platformForCurrency } from '@/domain/region';
+import { hasSavedCardFor } from '@/lib/payments/cardPlatform';
+import { AddPaymentMethodDialog } from '@/components/payments/AddPaymentMethodDialog';
+import { Button } from '@/components/ui/button';
+import { StatusNotice } from '@/components/ui/status-notice';
 
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
 // See: https://nextjs.org/docs/app/guides/migrating-to-cache-components
@@ -46,6 +51,25 @@ export default async function OffersPage({
     (offer) => isOfferPast(offer.status),
   );
   const visibleOffers = scope === 'past' ? past : active;
+  // A seller cannot accept an offer from a buyer with no card (`initiateCashSale`), and
+  // the card that counts is the one on the platform the SALE runs on (0179), which for
+  // a seller abroad is not the buyer's own. Read from the database only, per platform,
+  // so the notice is in the first paint.
+  const buyerPlatforms = Array.from(
+    new Set(
+      active
+        .filter((offer) => offer.role === 'buyer' && offer.status === 'PENDING')
+        .map((offer) => platformForCurrency(offer.currency))
+        .filter((platform): platform is string => Boolean(platform)),
+    ),
+  );
+  const cardsNeeded = (
+    await Promise.all(
+      buyerPlatforms.map(async (platform) =>
+        (await hasSavedCardFor(user.id, platform)) ? null : platform,
+      ),
+    )
+  ).filter((platform): platform is string => Boolean(platform));
 
   // One node, two homes: the rail on desktop, the section heading below `lg`.
   // No plus: browsing the marketplace creates nothing.
@@ -70,6 +94,23 @@ export default async function OffersPage({
         pastCount={past.length}
       />
 
+      {cardsNeeded.map((platform) => (
+        <StatusNotice
+          key={platform}
+          className="mb-group"
+          title="Add a card so the seller can accept"
+          description="A seller can only accept your offer once you have a card on file. Nothing is charged until you pay."
+        >
+          <AddPaymentMethodDialog
+            platform={platform}
+            trigger={
+              <Button type="button" variant="outline" className="w-full sm:w-auto">
+                Add a card
+              </Button>
+            }
+          />
+        </StatusNotice>
+      ))}
       {result.ok ? (
         <OffersSection offers={visibleOffers} scope={scope} />
       ) : (

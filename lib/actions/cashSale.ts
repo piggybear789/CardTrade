@@ -14,7 +14,7 @@ import { getCachedAuthUser } from '@/lib/supabase/cachedAuth';
 import { createDefaultCashSaleOrchestrator } from '@/domain/orchestrator/supabaseCashSaleRepository';
 import { getPaymentService } from '@/domain/services';
 import type { BankTransferInstructions } from '@/domain/services/types';
-import { regionForCashSale } from '@/lib/regionBinding';
+import { regionForCashSale, regionForItem } from '@/lib/regionBinding';
 
 import { validateCashSaleLineItems } from '@/domain/validation/cashSaleLineItems';
 import { createNotification } from '@/lib/notifications/createNotification';
@@ -312,7 +312,9 @@ export const initiateCashSale = withActionLog('cashSale.initiateCashSale', async
     lineItems = validated.value;
   }
 
-  const result = await orchestrator().initiateCashSale({
+  // On the LISTING's platform (0179): a buyer may sit on another one, and the card
+  // their reservation is backed by is the one saved on the seller's.
+  const result = await orchestrator(getPaymentService(await regionForItem(input.itemId))).initiateCashSale({
     buyerId: userId,
     itemId: input.itemId,
     sellerIdentityVersion: input.sellerIdentityVersion,

@@ -15,8 +15,10 @@ import type { IdentityCheckStatus } from '../identity/identityGate';
 import { returnInspectionOpen, returnRefundDue } from '../fulfilment/inspection';
 import { isPostageOutlier, postageCapMinor } from '../fees/postagePolicy';
 import {
-  checkRegionCompatibility,
+  checkCashSaleRegionCompatibility,
   minorUnitDigits,
+  platformForCurrency,
+  platformRegion,
   regionCurrency,
   regionMismatchMessage,
   tradingRegions,
@@ -629,7 +631,18 @@ export interface ShipmentInput {
 
 /** Persistence seam; Supabase and tests supply concrete implementations. */
 export interface CashSaleRepository {
+  /** The buyer, with the Customer and card they hold on their OWN platform. */
   loadBuyer(buyerId: string): Promise<BuyerRecord | null>;
+  /**
+   * The Customer and saved card a buyer holds on ANOTHER platform (0179,
+   * `platform_payers`), for a cash sale with a seller there. Null when they have none.
+   * Optional so fakes that predate cross-platform sales compile; a repository without
+   * it models a single platform, and the buyer's own card is used.
+   */
+  loadPlatformPayer?(
+    profileId: string,
+    platform: RegionCode,
+  ): Promise<{ payerId: string | null; paymentSourceId: string | null } | null>;
   loadSellerPayee(sellerId: string): Promise<MerchantRecord | null>;
   findPayerRef(params: { profileId: string; merchantRef: string }): Promise<string | null>;
   savePayerRef(params: {
@@ -1108,6 +1121,14 @@ export interface CashSaleOrchestratorDeps {
    */
   operationalRegions?: ReadonlySet<RegionCode>;
   /**
+   * Whether Buy Now (and an accepted Offer) may open a sale with a seller on another
+   * Stripe platform (0179, `checkCashSaleRegionCompatibility`). The sale runs on the
+   * seller's platform and the buyer pays with the card they saved THERE. Injected for
+   * the same reason as {@link operationalRegions}; absent means off. Private deals
+   * ignore it.
+   */
+  crossPlatformCashSales?: boolean;
+  /**
    * ESC-12: a non-blocking tracking anomaly (the carrier's destination country is not
    * the contract's). domain/ never logs; the caller records it.
    */
@@ -1299,7 +1320,27 @@ export async function initiateCashSale(
   deps: CashSaleOrchestratorDeps,
   params: InitiateCashSaleParams,
 ): Promise<CashSaleResult> {
-  const buyer = await deps.repository.loadBuyer(params.buyerId);
+  const home = await deps.repository.loadBuyer(params.buyerId);
+  const item = await deps.repository.loadItem(params.itemId);
+  if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
+
+  // THE REGION BEFORE THE CARD (0179). With cross-platform sales the card that counts
+  // is the one saved on the SELLER's platform, so the region must be settled first: a
+  // buyer the region rule refuses is told that, not asked for a card they cannot use.
+  const crossPlatform = deps.crossPlatformCashSales ?? false;
+  const mismatch = checkCashSaleRegionCompatibility(
+    home?.regionCode,
+    item.ownerRegionCode,
+    deps.operationalRegions,
+    { crossPlatform },
+  );
+  if (mismatch) {
+    return { ok: false, error: 'REGION_MISMATCH', detail: regionMismatchMessage(mismatch) };
+  }
+
+  const buyer = home
+    ? await buyerOnPlatform(deps, home, platformRegion(item.ownerRegionCode))
+    : null;
   if (!buyer?.payerId || !buyer.paymentSourceId) {
     return {
       ok: false,
@@ -1318,7 +1359,45 @@ export async function initiateCashSale(
       sellerIdentityVersion: params.sellerIdentityVersion,
       buyerConfirmedSellerIdentity: params.buyerConfirmedSellerIdentity,
     },
+    crossPlatform,
+    item,
   });
+}
+
+/**
+ * The buyer as they pay on `platform`: their own Customer and card when it is their
+ * home platform, else the ones they saved on that platform (0179). A Stripe Customer
+ * and its cards belong to ONE platform account, so a card saved on the AU platform
+ * cannot be charged by the US one.
+ *
+ * Absent `platform` (an unknown seller region or currency) leaves the home record,
+ * which is the behaviour before cross-platform sales and which the region guard
+ * refuses anyway.
+ */
+async function buyerOnPlatform(
+  deps: CashSaleOrchestratorDeps,
+  buyer: BuyerRecord,
+  platform: RegionCode | null,
+): Promise<BuyerRecord> {
+  if (!platform || platformRegion(buyer.regionCode) === platform) return buyer;
+  // A repository without the read models one platform (the fakes that predate 0179):
+  // the buyer's own card is the only one there is.
+  if (!deps.repository.loadPlatformPayer) return buyer;
+  const away = await deps.repository.loadPlatformPayer(buyer.profileId, platform);
+  return {
+    ...buyer,
+    payerId: away?.payerId ?? null,
+    paymentSourceId: away?.paymentSourceId ?? null,
+  };
+}
+
+/** {@link buyerOnPlatform} for an open sale: the platform its currency settles on. */
+async function loadSaleBuyer(
+  deps: CashSaleOrchestratorDeps,
+  sale: Pick<CashSaleRecord, 'buyerId' | 'currency'>,
+): Promise<BuyerRecord | null> {
+  const buyer = await deps.repository.loadBuyer(sale.buyerId);
+  return buyer ? buyerOnPlatform(deps, buyer, platformForCurrency(sale.currency)) : null;
 }
 
 /**
@@ -1355,9 +1434,13 @@ async function openAgreement(
     agreedPriceCents?: Cents;
     lineItems?: readonly CashSaleLineItemDraft[];
     identity: AgreementIdentity;
+    /** May the parties sit on different platforms (0179)? Private deals: never. */
+    crossPlatform?: boolean;
+    /** The listing, when the caller has already read it. */
+    item?: ItemRecord;
   },
 ): Promise<CashSaleResult> {
-  const item = await deps.repository.loadItem(params.itemId);
+  const item = params.item ?? (await deps.repository.loadItem(params.itemId));
   if (!item) return { ok: false, error: 'ITEM_NOT_FOUND' };
   if (item.ownerId === params.buyerId) return { ok: false, error: 'SELF_PURCHASE' };
   // ESC-03 layer 3: a buyer and seller who share a card, a payout account or a
@@ -1376,10 +1459,11 @@ async function openAgreement(
   // Placed before the identity disclosure so an out-of-region Buyer is told the
   // actual reason rather than being asked to confirm a seller they can never buy
   // from.
-  const mismatch = checkRegionCompatibility(
+  const mismatch = checkCashSaleRegionCompatibility(
     buyer.regionCode,
     item.ownerRegionCode,
     deps.operationalRegions,
+    { crossPlatform: params.crossPlatform ?? false },
   );
   if (mismatch) {
     return {
@@ -1894,7 +1978,7 @@ async function submitClaimedPayment(
   // 0158: the rail the claim was priced for. A bank rail needs no saved card.
   const method: PaymentMethodKind = sale.paymentMethod ?? 'CARD';
   const bank = isBankMethod(method);
-  const buyer = await deps.repository.loadBuyer(sale.buyerId);
+  const buyer = await loadSaleBuyer(deps, sale);
   if (!buyer || (!bank && (!buyer.payerId || !buyer.paymentSourceId))) {
     await deps.repository.failPayment({ cashSaleId: sale.id });
     await syncListingStatus(deps, sale, 'AVAILABLE');
@@ -2147,7 +2231,7 @@ export async function acceptCashSaleTerms(
   // the item when there is no card, which is right for a card removed mid-payment and
   // wrong as the answer to pressing Pay before adding one. Refused here with the sale
   // untouched, so the room can collect a card and the Buyer can pay straight after.
-  const buyer = await deps.repository.loadBuyer(sale.buyerId);
+  const buyer = await loadSaleBuyer(deps, sale);
   if (!buyer) return { ok: false, error: 'BUYER_NO_PAYMENT_METHOD', detail: 'Add a card before you pay.' };
 
   // A LARGE PURCHASE NEEDS A VERIFIED BUYER. Checked before the card so a buyer is not

@@ -10,7 +10,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import type { Tables, TablesUpdate } from '@/lib/supabase/database.types';
 import { createPayoutNotifier } from '@/lib/notifications/payoutNotifier';
 import { getTrackingService } from '@/domain/services/tracking';
-import { operationalRegions } from '@/domain/services';
+import { crossPlatformCashSalesEnabled, operationalRegions } from '@/domain/services';
 import {
   createCashSaleOrchestrator,
   platformFeeCentsFor,
@@ -287,6 +287,19 @@ export function createSupabaseCashSaleRepository(
         payeeIdentityMismatchAt: (data as { payee_identity_mismatch_at?: string | null }).payee_identity_mismatch_at ?? null,
         identityGrandfatheredAt: (data as { identity_grandfathered_at?: string | null }).identity_grandfathered_at ?? null,
       };
+    },
+
+    // 0179: the Customer and card a buyer saved on ANOTHER platform, for a cash sale
+    // with a seller there. Their home platform's pair stays on `profiles`.
+    async loadPlatformPayer(profileId, platform) {
+      const { data, error } = await client
+        .from('platform_payers')
+        .select('payer_id, payment_source_id')
+        .eq('profile_id', profileId)
+        .eq('platform', platform)
+        .maybeSingle();
+      if (error) throw new Error(`loadPlatformPayer: ${error.message}`);
+      return data ? { payerId: data.payer_id, paymentSourceId: data.payment_source_id } : null;
     },
 
     // A Stripe Customer belongs to the PLATFORM and can pay any connected
@@ -1357,6 +1370,8 @@ export function createDefaultCashSaleOrchestrator(
     // `tradingEnabled` — it also requires a configured Stripe platform account for
     // the region, without which the seller could not be paid.
     operationalRegions: deps.operationalRegions ?? operationalRegions(),
+    // 0179: one switch for every place a sale can be opened from, like the regions.
+    crossPlatformCashSales: deps.crossPlatformCashSales ?? crossPlatformCashSalesEnabled(),
     payoutRegionCurrency: deps.payoutRegionCurrency,
     // A drain pass that swallows one sale's exception must still leave a trace of it
     // somewhere an operator reads, or a broken money write hides behind a healthy

@@ -62,6 +62,23 @@ export async function regionForCashSale(cashSaleId: string): Promise<RegionCode>
   return regionForCurrency(data?.currency as string | null);
 }
 
+/**
+ * The platform-account region a sale of this LISTING would run on, from its currency.
+ *
+ * A listing's currency is its owner's region currency (0068), the same value a cash
+ * sale against it is denominated in, so this is the sale's platform before the sale
+ * exists. Needed since a buyer may be on another platform (0179): Buy Now must read
+ * the buyer's card on the seller's platform, not the buyer's own.
+ */
+export async function regionForItem(itemId: string): Promise<RegionCode> {
+  const { data } = await createAdminClient()
+    .from('items')
+    .select('currency')
+    .eq('id', itemId)
+    .maybeSingle();
+  return regionForCurrency(data?.currency as string | null);
+}
+
 /** A member's region as their platform, when it is operational; else the default. */
 function platformForMemberRegion(value: unknown): RegionCode {
   const code = normalizeRegionCode(value);

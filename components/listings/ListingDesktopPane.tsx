@@ -8,7 +8,7 @@ import { ReportDialog } from '@/components/reports/ReportDialog';
 import { Avatar } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
+import { ListedPrice } from '@/components/listings/ListedPrice';
 import { publicLocationLabel } from '@/lib/location/publicLocation';
 import { ListingProtectionLine } from '@/components/listings/ListingTrust';
 import { displayLegalName, formatRelativeTime } from '@/lib/format';
@@ -98,8 +98,7 @@ export function ListingDesktopPane({
   // answer here: "4h ago" is the whole point, and "12 Sep" is not.
   const listedAgo = formatRelativeTime(createdAt);
   // A binder shows its own indicative "from" figure; a single listing shows what the
-  // buyer is actually charged — the same figure as its catalog tile.
-  const headline = splitMoney(listedPriceText(priceCents, currency, isShopfront));
+  // buyer is actually charged — the same figure as its catalog tile (`ListedPrice`).
 
   return (
     <div className="hidden h-full flex-col gap-group lg:flex">
@@ -135,20 +134,19 @@ export function ListingDesktopPane({
                 from{' '}
               </span>
             ) : null}
-            <span className="text-lead font-semibold text-muted-foreground">
-              {headline.symbol}
-            </span>
-            <span className="text-display">{headline.major}</span>
-            {headline.minor ? (
-              <span className="text-lead font-semibold text-muted-foreground">
-                {headline.minor}
-              </span>
-            ) : null}
-            {headline.code ? (
-              <span className="text-body font-semibold text-muted-foreground">
-                {headline.code}
-              </span>
-            ) : null}
+            {/* In the viewer's own currency, approximately, when the listing is priced
+                in another one (0179). The Buy dialog shows the real charge. */}
+            <ListedPrice
+              priceCents={priceCents}
+              currency={currency}
+              isShopfront={isShopfront}
+              classNames={{
+                symbol: 'text-lead font-semibold text-muted-foreground',
+                major: 'text-display',
+                minor: 'text-lead font-semibold text-muted-foreground',
+                code: 'text-body font-semibold text-muted-foreground',
+              }}
+            />
           </p>
           )}
           {/* No "Includes $X buyer protection fee" line under the price (2026-11-23, product

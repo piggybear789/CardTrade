@@ -279,6 +279,18 @@ Create accounts with `stripe.v2.core.accounts.create`.
   `applied_configurations` so the hosted flow collects both. Do not remove it for a
   "recipient only" tidy-up: every UK/EEA/CA/CH seller would be unpayable.
 
+## Buying across platforms (0179)
+
+Behind `CROSS_PLATFORM_CASH_SALES` (off in production). A cash sale may have a buyer on
+another platform; it runs entirely on the SELLER's platform, in the seller's currency.
+The buyer's Customer and card for that platform are in `platform_payers` (the home pair
+stays on `profiles`). Every buyer-card read in the cash-sale orchestrator goes through
+`buyerOnPlatform` / `loadSaleBuyer`, and every card action takes the sale's platform
+(`cardPlatformFor`). A new code path that charges a cash-sale buyer must read the card
+for the SALE's platform, never `profiles.payment_source_id` directly: that is the home
+card and the other platform answers "No such customer". Trade collateral and trade cash
+stay on the member's own platform.
+
 ## One platform, many regions (0136)
 
 The US platform (`acct_1UIfsRRbOJEOZeCm`) serves the US, UK, EEA (except Hungary),

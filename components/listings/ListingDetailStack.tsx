@@ -10,7 +10,7 @@ import { Avatar } from '@/components/ui/avatar';
 import { displayLegalName, formatRelativeTime } from '@/lib/format';
 import { publicLocationLabel } from '@/lib/location/publicLocation';
 import type { SellerIdentityDisclosure } from '@/domain/orchestrator/merchantOnboarding';
-import { listedPriceText, splitMoney } from '@/lib/listings/buyerPrice';
+import { ListedPrice } from '@/components/listings/ListedPrice';
 import { ListingProtectionLine } from '@/components/listings/ListingTrust';
 import { cn } from '@/lib/utils';
 
@@ -89,8 +89,7 @@ export function ListingDetailStack({
   // the same price.
   const listedAgo = formatRelativeTime(createdAt);
   // A binder shows its own indicative "from" figure; a single listing shows what the
-  // buyer is actually charged — the same figure as its catalog tile, in whole units.
-  const headline = splitMoney(listedPriceText(priceCents, currency, isShopfront));
+  // buyer is actually charged — the same figure as its catalog tile (`ListedPrice`).
   const meta = [
     watchCount > 0 ? savesLabel : null,
     category,
@@ -131,20 +130,19 @@ export function ListingDetailStack({
           {isShopfront ? (
             <span className="mr-tight text-lead font-medium text-muted-foreground">from </span>
           ) : null}
-          <span className="text-lead font-bold text-muted-foreground">
-            {headline.symbol}
-          </span>
-          <span className="text-display">{headline.major}</span>
-          {headline.minor ? (
-            <span className="text-lead font-bold text-muted-foreground">
-              {headline.minor}
-            </span>
-          ) : null}
-          {headline.code ? (
-            <span className="text-body font-semibold text-muted-foreground">
-              {headline.code}
-            </span>
-          ) : null}
+          {/* In the viewer's own currency, approximately, when the listing is priced
+              in another one (0179). The Buy dialog shows the real charge. */}
+          <ListedPrice
+            priceCents={priceCents}
+            currency={currency}
+            isShopfront={isShopfront}
+            classNames={{
+              symbol: 'text-lead font-bold text-muted-foreground',
+              major: 'text-display',
+              minor: 'text-lead font-bold text-muted-foreground',
+              code: 'text-body font-semibold text-muted-foreground',
+            }}
+          />
         </p>
         )}
         <span className="shrink-0 rounded-md bg-mist px-snug py-0.5 text-meta font-semibold text-muted-foreground">

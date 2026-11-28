@@ -480,7 +480,12 @@ export function TradeOfferForm({
                       }
                     />
                     <span className="min-w-0 flex-1 truncate font-medium">{item.title}</span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                    <span
+                      className={cn(
+                        'shrink-0 tabular-nums',
+                        selected ? 'text-accent-foreground' : 'text-muted-foreground',
+                      )}
+                    >
                       {formatMoney(item.fmv_cents, item.currency)}
                     </span>
                   </label>

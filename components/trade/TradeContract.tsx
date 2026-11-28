@@ -214,7 +214,9 @@ function toExchangeItems(items: TradeGood[]): ContractExchangeItem[] {
     return {
       id: item.id,
       title: item.title,
-      valueCents: item.fmvCents,
+      // A Multiple items listing's `fmvCents` is the whole inventory's "from" price,
+      // not what this side is worth (0081, `resolveTradeSideValues`), so show none.
+      valueCents: item.isShopfront ? null : item.fmvCents,
       images: url ? [url] : [],
     };
   });

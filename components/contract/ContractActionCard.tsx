@@ -401,7 +401,7 @@ export function ContractActionCard({
             {label}
             {/* Spaced, not dotted (2026-11-27). */}
             {waiting ? (
-              <span className="ml-cozy font-normal text-muted-foreground">{waiting}</span>
+              <span className="ml-cozy font-normal text-foreground/75">{waiting}</span>
             ) : null}
             {sentence ? (
               <span className="ml-1 inline-flex h-[1lh] items-center align-top">
@@ -410,9 +410,9 @@ export function ContractActionCard({
             ) : null}
           </h3>
           {outcome && explanation ? (
-            <p className="line-clamp-2 text-meta text-muted-foreground">{explanation}</p>
+            <p className="line-clamp-2 text-meta text-foreground/75">{explanation}</p>
           ) : null}
-          {note ? <p className="line-clamp-1 text-meta text-muted-foreground">{note}</p> : null}
+          {note ? <p className="line-clamp-1 text-meta text-foreground/75">{note}</p> : null}
           </div>
 
           {primary || hasMenuContent(menu) ? (

@@ -275,7 +275,8 @@ pathway(
       { code: 'TRANSFER_FAILED' },
     );
     await step('The room shows the payment as failed', 'buyer', async (page) => {
-      await expect(page.getByText(/· Failed$/).filter({ visible: true }).first()).toBeVisible({ timeout: RENDERED });
+      // The progress line names the halted step on its own (Failed), 2026-11-27.
+  await expect(page.getByText(/^Failed$|· Failed$/).filter({ visible: true }).first()).toBeVisible({ timeout: RENDERED });
     });
 
     // A failed card collection ends the sale (FAILED) and relists the item, the owner's

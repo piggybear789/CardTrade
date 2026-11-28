@@ -421,7 +421,12 @@ pathway(
         const dialog = page.getByRole('dialog').filter({ has: page.locator('#ship-tracking') });
         await dialog.locator('#ship-carrier').click();
         await page.getByRole('option', { name: 'Australia Post' }).click();
-        await dialog.locator('#ship-tracking').fill(outboundTracking);
+        const trackingField = dialog.locator('#ship-tracking');
+        await expect(async () => {
+          await trackingField.fill('');
+          await trackingField.fill(outboundTracking);
+          await expect(trackingField).toHaveValue(outboundTracking, { timeout: 1_000 });
+        }).toPass({ timeout: 10_000 });
         await dialog.getByRole('button', { name: /Add tracking/i }).click();
         return {};
       },

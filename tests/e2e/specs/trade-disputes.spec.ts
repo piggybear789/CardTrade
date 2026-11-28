@@ -73,10 +73,27 @@ async function setupLockedTrade<L extends string>(
 async function raiseTradeDispute(page: Page, kindLabel: RegExp, reason: string): Promise<void> {
   const triggerName = kindLabel.test('Fraud') ? /Report fraud/i : /Raise dispute|Report a problem/i;
   // The escalations sit behind one "Problem" button in the trade dock (2026-11-27).
+  // On a phone an earlier step can leave the "Contract details" sheet open over the
+  // dock, so close it first, then pick the claim inside the Problem menu itself.
+  const sheet = page.getByRole('dialog').filter({ has: page.getByRole('tablist', { name: 'Contract details' }) });
+  if (await sheet.isVisible().catch(() => false)) {
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden({ timeout: 10_000 });
+  }
   const problem = page.getByRole('button', { name: /^Problem$/ }).filter({ visible: true }).first();
-  if (await problem.isVisible().catch(() => false)) await problem.click();
-  await page.getByRole('button', { name: triggerName }).filter({ visible: true }).first().click();
-  const dialog = page.getByRole('dialog');
+  if (await problem.isVisible().catch(() => false)) {
+    const menu = page.getByRole('dialog').filter({ hasText: 'What went wrong?' });
+    // A click that lands before hydration opens nothing, so retry until it does.
+    await expect(async () => {
+      if (!(await menu.isVisible())) await problem.click();
+      await expect(menu).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 20_000 });
+    await menu.getByRole('button', { name: triggerName }).first().click();
+  } else {
+    await page.getByRole('button', { name: triggerName }).filter({ visible: true }).first().click();
+  }
+  // The claim dialog, not the details sheet: it is the one with a text box.
+  const dialog = page.getByRole('dialog').filter({ has: page.getByRole('textbox') }).last();
   await expect(dialog).toBeVisible({ timeout: 15_000 });
   await dialog.getByRole('textbox').first().fill(reason);
   await dialog.getByRole('button', { name: /Freeze and report|Raise dispute|Report fraud|Submit/i }).click();
@@ -332,6 +349,9 @@ pathway(
       await confirmHandover(pages.initiator);
       await openRoom(pages.counterpart, tradeId);
       await confirmHandover(pages.counterpart);
+      // The initiator's room was drawn before the second confirmation, so reopen it
+      // in INSPECTION, where the Problem menu offers "Raise dispute".
+      await openRoom(pages.initiator, tradeId);
       await raiseTradeDispute(pages.initiator, /Condition/i, 'Hold custody test');
     });
 

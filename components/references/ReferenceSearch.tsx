@@ -480,7 +480,7 @@ export function ReferenceSearch({
                 key={option.key}
                 {...common}
                 className={cn(
-                  'flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors duration-300',
+                  'flex min-h-14 cursor-pointer items-center gap-3 px-4 py-3 transition-colors',
                   isActive ? 'bg-muted/60' : 'hover:bg-muted/30',
                 )}
               >

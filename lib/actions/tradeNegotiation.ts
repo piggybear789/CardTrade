@@ -977,6 +977,13 @@ export const openTradeNegotiation = withActionLog('tradeNegotiation.openTradeNeg
         message: 'One of the cards you offered is no longer available. Remove it and try again.',
       };
     }
+    console.error('[trade.open] open_trade_negotiation failed:', error.message);
+    await logBackgroundFailure({
+      name: 'trade.open.rpc',
+      errorCode: 'OPEN_TRADE_RPC_FAILED',
+      message: error.message,
+      context: { counterpartItemId: input.counterpartItemId },
+    });
     return {
       ok: false,
       error: 'rejected',

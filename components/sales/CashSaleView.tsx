@@ -1406,6 +1406,8 @@ function CashSaleRoom({
                         currency={sale.currency}
                       />
                     ))}
+                    {/* The price IS the sum of the lines (0064), so say it. */}
+                    <SummaryFigures rows={[{ label: 'Total', value: money(itemTotal), total: true }]} />
                     <p className="text-meta text-muted-foreground">
                       From {sale.item_title}. A listing with multiple items, so nothing in it is held.
                     </p>

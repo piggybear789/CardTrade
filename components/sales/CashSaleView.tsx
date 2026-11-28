@@ -686,8 +686,6 @@ function CashSaleRoom({
     (best, method) => (serviceFeeForMethod(pricing, method) < serviceFeeForMethod(pricing, best) ? method : best),
     'CARD',
   );
-  const shownFeeCents = editable ? serviceFeeForMethod(pricing, cheapestMethod) : sale.platform_fee_cents;
-  const buyerChargeCents = (editable ? totalForMethod(pricing, cheapestMethod) : sale.amount_cents) + fxFeeCents;
   const [payMethod, setPayMethod] = useState<PaymentMethodKind>('CARD');
   const chosenMethod: PaymentMethodKind = payMethods.includes(payMethod) ? payMethod : 'CARD';
   // THE BUYER'S OWN CARD PRICES CARD (0159). Stripe charges more for a card issued
@@ -700,6 +698,19 @@ function CashSaleRoom({
     payCard.card.state === 'saved' ? payCard.card.country : null,
   );
   const priceAs = (method: PaymentMethodKind): PaymentMethodKind => (method === 'CARD' ? cardMethod : method);
+  // BEFORE PAYMENT THE ROOM QUOTES THE BUYER'S CARD (2026-11-28), the figure Buy now
+  // reserved at. It quoted the cheapest rail (PayTo, 3%) unnamed, so a buyer who
+  // reserved at A$260.00 by card read "Total, with postage and fees A$257.50" a moment
+  // later. A cheaper rail is named beside it instead (`cheaperRail`).
+  const shownFeeCents = editable ? serviceFeeForMethod(pricing, cardMethod) : sale.platform_fee_cents;
+  const buyerChargeCents = (editable ? totalForMethod(pricing, cardMethod) : sale.amount_cents) + fxFeeCents;
+  const cheaperRail =
+    editable && iAmBuyer && cheapestMethod !== 'CARD' && serviceFeeForMethod(pricing, cheapestMethod) < shownFeeCents
+      ? {
+          label: paymentMethodDefinition(cheapestMethod).label,
+          totalCents: totalForMethod(pricing, cheapestMethod) + fxFeeCents,
+        }
+      : null;
   const chosenFeeCents = serviceFeeForMethod(pricing, priceAs(chosenMethod));
   const chosenChargeCents = totalForMethod(pricing, priceAs(chosenMethod)) + fxFeeCents;
   const chosenRail = paymentMethodDefinition(chosenMethod);
@@ -1586,6 +1597,11 @@ function CashSaleRoom({
                     ...(iAmSeller ? [{ label: 'You receive', value: money(sellerNetCents), total: true }] : []),
                   ]}
                 />
+                {cheaperRail ? (
+                  <p className="mt-tight text-meta text-muted-foreground">
+                    {`${money(cheaperRail.totalCents)} if you pay from your bank with ${cheaperRail.label}.`}
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => focusSection(CASH_SALE_SECTIONS.payment)}

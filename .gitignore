@@ -67,3 +67,9 @@ copy-all.txt
 .venv/
 __pycache__/
 *.pyc
+
+# demo-video skill: sessions and work files
+demo-video/**/auth/
+demo-video/**/build/
+demo-video/**/cache/
+
